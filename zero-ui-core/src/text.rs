@@ -1450,57 +1450,6 @@ impl<T: ToString> ToText for T {
 
 pub use crate::render::FontSynthesis;
 
-/// An offset in a text.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TextPoint {
-    /// Line index, 0 based.
-    pub line: usize,
-    /// Byte index in the line text. The byte is in a [char boundary](str::is_char_boundary) and is 0 based.
-    /// The index can be the byte length for the line, meaning a cursor after the last character.
-    pub index: usize,
-}
-impl TextPoint {
-    /// New text point.
-    pub fn new(line: usize, index: usize) -> Self {
-        TextPoint { line, index }
-    }
-
-    /// Compute a [`TextPointDisplay`] given the `line` that is pointed by `self`.
-    ///
-    /// The raw text point is not what a user expects, the first line is `0` and the *column* is a byte count not a character count.
-    /// The return value can be displayed as a *Ln 1, Col 1* label.
-    ///
-    /// The input is the [`line`](Self::line) pointed by `self`, this method **panics** if the `line` length cannot accommodate
-    /// the byte [`index`](Self::index).
-    pub fn display(self, line: &str) -> TextPointDisplay {
-        TextPointDisplay::new(line, self)
-    }
-}
-
-/// *Ln 1, Col 1* display info of a [`TextPoint`].
-///
-/// You can compute this value from [`TextPoint::display`].
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TextPointDisplay {
-    /// Line number, 1 based.
-    pub line: usize,
-    /// Character number, 1 based.
-    pub column: usize,
-}
-impl TextPointDisplay {
-    fn new(line: &str, point: TextPoint) -> Self {
-        TextPointDisplay {
-            line: point.line + 1,
-            column: line[0..point.index].chars().count(),
-        }
-    }
-}
-impl fmt::Display for TextPointDisplay {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Ln {}, Col {}", self.line, self.column)
-    }
-}
-
 bitflags! {
     /// Represents what parts of a text the underline must skip over.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

@@ -2,12 +2,6 @@
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
 * Implement cursor position.
-    - Review using `TextPoint` for this?
-        - Remove `TextPoint`?
-        - Refactor `TextPointDisplay` into `CaretPosition` in the main crate.
-            - Implement `get_caret_position` getter property.
-            - Use case is display in a status bar.
-
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
     
@@ -33,6 +27,16 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
+
+* Watermark text shows caret, it should not fore multiple reasons:
+    - The txt property is not set to a read-write var.
+    - Background widgets are not interactive.
+
+* Ctrl+Shift+I when focusing TextInput inserts a tab and still opens the Inspector.
+    - We are receiving a TAB for some reason, but we are stopping propagation.
+    - Char event is not linked with key press event stop propagation does nothing.
+        - Is a different event from Winit.
+        - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
 # View
 

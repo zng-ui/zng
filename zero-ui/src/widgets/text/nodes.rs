@@ -1477,3 +1477,73 @@ pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
     let child = resolve_text(child, " ");
     crate::properties::width(child, width)
 }
+
+pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usize>>) -> impl UiNode {
+    let index = index.into_var();
+    match_node(child, move |c, op| {
+        let mut u = false;
+        match op {
+            UiNodeOp::Init => {
+                c.init();
+                let _ = index.set_ne(ResolvedText::get().caret.lock().index);
+            }
+            UiNodeOp::Deinit => {
+                let _ = index.set_ne(None);
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
+                u = true;
+            }
+            UiNodeOp::Update { updates } => {
+                c.update(updates);
+                u = true;
+            }
+            _ => {}
+        }
+        if u {
+            let idx = ResolvedText::get().caret.lock().index;
+            if index.get() != idx {
+                let _ = index.set_ne(idx);
+            }
+        }
+    })
+}
+
+pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+    let status = status.into_var();
+    match_node(child, move |c, op| {
+        let mut u = false;
+        match op {
+            UiNodeOp::Init => {
+                c.init();
+                let t = ResolvedText::get();
+                let _ = status.set_ne(match t.caret.lock().index {
+                    None => CaretStatus::none(),
+                    Some(i) => CaretStatus::new(i, t.text.text()),
+                });
+            }
+            UiNodeOp::Deinit => {
+                let _ = status.set_ne(CaretStatus::none());
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
+                u = true;
+            }
+            UiNodeOp::Update { updates } => {
+                c.update(updates);
+                u = true;
+            }
+            _ => {}
+        }
+        if u {
+            let t = ResolvedText::get();
+            let idx = t.caret.lock().index;
+            if status.get().index() != idx {
+                let _ = status.set_ne(match idx {
+                    None => CaretStatus::none(),
+                    Some(i) => CaretStatus::new(i, t.text.text()),
+                });
+            }
+        }
+    })
+}

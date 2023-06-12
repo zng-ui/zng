@@ -1,3 +1,5 @@
+use std::{fmt, num::NonZeroU32};
+
 use crate::core::{
     l10n::*,
     text::{font_features::*, *},
@@ -865,6 +867,84 @@ pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 #[property(CONTEXT, default(CARET_COLOR_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
+}
+
+/// Gets the caret char index, if the text is editable.
+#[property(CONTEXT, default(None), widget_impl(TextEditMix<P>))]
+pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usize>>) -> impl UiNode {
+    super::nodes::get_caret_index(child, index)
+}
+
+/// Gets the caret display status, if the text is editable.
+#[property(CONTEXT, default(CaretStatus::none()), widget_impl(TextEditMix<P>))]
+pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+    super::nodes::get_caret_status(child, status)
+}
+
+/// Display info of edit caret position.
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CaretStatus {
+    index: usize,
+    line: u32,
+    column: u32,
+}
+impl CaretStatus {
+    /// Status for text without caret.
+    pub fn none() -> Self {
+        Self {
+            index: usize::MAX,
+            line: 0,
+            column: 0,
+        }
+    }
+
+    /// New position from char index and text.
+    pub fn new(index: usize, text: &str) -> Self {
+        let mut line = 0;
+
+        let mut line_advance = 0;
+        let mut last_line_start = 0;
+        for l in text[..index].lines() {
+            line += 1;
+            last_line_start = line_advance;
+            line_advance += l.len();
+        }
+
+        let column = text[last_line_start..index].chars().count();
+
+        Self {
+            line: line as _,
+            column: column as _,
+            index,
+        }
+    }
+
+    /// Char index on the text string, starts a 0, can be the length of the text.
+    pub fn index(&self) -> Option<usize> {
+        match self.index {
+            usize::MAX => None,
+            i => Some(i),
+        }
+    }
+
+    /// Display line, starts at 1.
+    pub fn line(&self) -> Option<NonZeroU32> {
+        NonZeroU32::new(self.line)
+    }
+
+    /// Display column, starts at 1.
+    pub fn column(&self) -> Option<NonZeroU32> {
+        NonZeroU32::new(self.column)
+    }
+}
+impl fmt::Display for CaretStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.index().is_some() {
+            write!(f, "Ln {}, Col {}", self.line, self.column)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// Text paragraph properties.
