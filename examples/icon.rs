@@ -89,7 +89,13 @@ fn icons() -> impl UiNode {
                     ico = icons::outlined::SEARCH;
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
-                }
+                };
+                background = Text! {
+                    padding = (7, 15, 7, 26);
+                    txt = "search icons";
+                    opacity = 50.pct();
+                    visibility = search.map(|t| t.is_empty().into());
+                };
             },
             Stack! {
                 margin = (10, 0, 20, 0);

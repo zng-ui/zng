@@ -74,7 +74,7 @@ impl<P> StyleMix<P> {
             //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
             style_builder.build()
         } else {
-            // 2.b - There was not property `style`, this widget is not styleable, just build the default.
+            // 2.b - There was no `style_fn` property, this widget is not styleable, just build the default.
             wgt.build()
         }
     }
@@ -216,9 +216,15 @@ impl StyleBuilder {
     /// Is `Importance::INSTANCE - 10`.
     pub const INSTANCE_IMPORTANCE: Importance = Importance(Importance::INSTANCE.0 - 10);
 
+    /// Negative offset on the position index of style properties.
+    ///
+    /// Is `1`.
+    pub const POSITION_OFFSET: u16 = 1;
+
     /// New style from a widget builder.
     ///
-    /// The importance index of properties is adjusted, any custom build or widget build action is ignored.
+    /// The importance and position index of properties are adjusted,
+    /// any custom build or widget build action is ignored.
     pub fn from_builder(mut wgt: WidgetBuilder) -> StyleBuilder {
         wgt.clear_build_actions();
         wgt.clear_custom_build();
@@ -228,6 +234,7 @@ impl StyleBuilder {
                 Importance::INSTANCE => StyleBuilder::INSTANCE_IMPORTANCE,
                 other => other,
             };
+            p.position.index = p.position.index.saturating_sub(Self::POSITION_OFFSET);
         }
         StyleBuilder { builder: wgt }
     }

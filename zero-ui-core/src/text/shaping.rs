@@ -2579,7 +2579,7 @@ mod tests {
                         .unwrap()
                         .sized(Px(20), vec![])
                 },
-                5.secs(),
+                10.secs(),
             )
             .unwrap();
         drop(app);

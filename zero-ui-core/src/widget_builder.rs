@@ -1587,6 +1587,15 @@ impl WidgetBuilder {
 
     /// Insert property with custom nest position.
     pub fn push_property_positioned(&mut self, importance: Importance, position: NestPosition, args: Box<dyn PropertyArgs>) {
+        self.push_property_positioned_impl(importance, position, args, false)
+    }
+    fn push_property_positioned_impl(
+        &mut self,
+        importance: Importance,
+        position: NestPosition,
+        args: Box<dyn PropertyArgs>,
+        captured: bool,
+    ) {
         let insert_idx = self.insert_idx;
         self.insert_idx = insert_idx.wrapping_add(1);
 
@@ -1602,7 +1611,7 @@ impl WidgetBuilder {
                             item: WidgetItem::Property {
                                 importance,
                                 args,
-                                captured: false,
+                                captured,
                             },
                         };
                     }
@@ -1621,7 +1630,7 @@ impl WidgetBuilder {
                 item: WidgetItem::Property {
                     importance,
                     args,
-                    captured: false,
+                    captured,
                 },
             });
         }
@@ -1774,6 +1783,14 @@ impl WidgetBuilder {
     }
 
     /// Apply `other` over `self`.
+    ///
+    /// All properties, unsets, whens, build actions and custom build of `other` are inserted in `self`,
+    /// override importance rules apply, `other` items only replace `self` items if they have the
+    /// same or greater importance.
+    ///
+    /// Note that properties of the same position index from `other` are pushed after properties of the
+    /// same position in `self`, this means that fill properties of `other` will render *over* fill properties
+    /// of `self`.
     pub fn extend(&mut self, other: WidgetBuilder) {
         for (id, imp) in other.unset {
             self.push_unset(imp, id);
@@ -1790,8 +1807,7 @@ impl WidgetBuilder {
                     args,
                     captured,
                 } => {
-                    debug_assert!(!captured);
-                    self.push_property_positioned(importance, position, args);
+                    self.push_property_positioned_impl(importance, position, args, captured);
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             }
@@ -1953,7 +1969,7 @@ impl WidgetBuilder {
 
     /// Instantiate the widget.
     ///
-    /// Runs all build actions
+    /// Runs all build actions, but ignores custom build.
     pub fn default_build(self) -> BoxedUiNode {
         #[cfg(inspector)]
         let builder = self.clone();
