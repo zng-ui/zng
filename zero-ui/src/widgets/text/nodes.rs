@@ -1505,8 +1505,14 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usi
             _ => {}
         }
         if u {
-            let idx = ResolvedText::get().caret.lock().index;
+            let t = ResolvedText::get();
+            let idx = t.caret.lock().index;
             if index.get() != idx {
+                if let Some(i) = idx {
+                    if i > t.text.text().len() {
+                        return; // appended text not updated yet.
+                    }
+                }
                 let _ = index.set_ne(idx);
             }
         }
@@ -1523,7 +1529,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
                 let t = ResolvedText::get();
                 let _ = status.set_ne(match t.caret.lock().index {
                     None => CaretStatus::none(),
-                    Some(i) => CaretStatus::new(i, t.text.text()),
+                    Some(i) => CaretStatus::new(i, &t.text),
                 });
             }
             UiNodeOp::Deinit => {
@@ -1543,9 +1549,14 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             let t = ResolvedText::get();
             let idx = t.caret.lock().index;
             if status.get().index() != idx {
+                if let Some(i) = idx {
+                    if i > t.text.text().len() {
+                        return; // appended text not updated yet.
+                    }
+                }
                 let _ = status.set_ne(match idx {
                     None => CaretStatus::none(),
-                    Some(i) => CaretStatus::new(i, t.text.text()),
+                    Some(i) => CaretStatus::new(i, &t.text),
                 });
             }
         }

@@ -899,23 +899,35 @@ impl CaretStatus {
     }
 
     /// New position from char index and text.
-    pub fn new(index: usize, text: &str) -> Self {
-        let mut line = 0;
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater then `text` length.
+    pub fn new(index: usize, text: &SegmentedText) -> Self {
+        assert!(index <= text.text().len());
 
-        let mut line_advance = 0;
-        let mut last_line_start = 0;
-        for l in text[..index].lines() {
-            line += 1;
-            last_line_start = line_advance;
-            line_advance += l.len();
-        }
+        if text.text().is_empty() {
+            Self { line: 1, column: 1, index }
+        } else {
+            let mut line = 1;
+            let mut line_start = 0;
+            for seg in text.segments() {
+                if seg.end > index {
+                    break;
+                }
+                if let TextSegmentKind::LineBreak = seg.kind {
+                    line += 1;
+                    line_start = seg.end;
+                }
+            }
 
-        let column = text[last_line_start..index].chars().count();
+            let column = text.text()[line_start..index].chars().count() + 1;
 
-        Self {
-            line: line as _,
-            column: column as _,
-            index,
+            Self {
+                line,
+                column: column as _,
+                index,
+            }
         }
     }
 
