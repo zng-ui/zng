@@ -860,7 +860,8 @@ impl WINDOWS {
                     wns.windows_info.insert(info.id, info);
 
                     responder.respond(args.clone());
-                    WINDOW_OPEN_EVENT.notify(args);
+                    // WINDOW_OPEN_EVENT.notify happens after init, so that handlers
+                    // on the window itself can subscribe to the event.
                 } else {
                     let mut wns = WINDOWS_SV.write();
                     wns.open_tasks.push(task);

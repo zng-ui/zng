@@ -623,7 +623,7 @@ impl Default for FrameCaptureMode {
 event_args! {
     /// [`WINDOW_OPEN_EVENT`] args.
     pub struct WindowOpenArgs {
-        /// Id of window that was opened or closed.
+        /// Id of window that was opened.
         pub window_id: WindowId,
 
         ..
@@ -1010,7 +1010,7 @@ event! {
     /// when maximized, this can be trivially observed with this event.
     pub static WINDOW_CHANGED_EVENT: WindowChangedArgs;
 
-    /// New window event.
+    /// New window has inited.
     pub static WINDOW_OPEN_EVENT: WindowOpenArgs;
 
     /// Window finished loading and has opened in the view-process.

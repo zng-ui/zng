@@ -59,7 +59,3 @@
     - Expected one auto-column.
 * Single column without width does not fill grid width.
     - Expected fill?
-
-# Window
-
-* `on_open` not fired.

@@ -1526,6 +1526,8 @@ impl ContentCtrl {
                     self.root.init();
                     // requests info, layout and render just in case `root` is a blank.
                     WIDGET.update_info().layout().render();
+
+                    super::WINDOW_OPEN_EVENT.notify(super::WindowOpenArgs::now(WINDOW.id()));
                 });
                 self.init_state = InitState::Inited;
             }
