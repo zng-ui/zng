@@ -12,6 +12,7 @@ impl TextInput {
 
             txt_editable = true;
             capture_mouse = true;
+            txt_align = Align::TOP_START;
             focusable = true;
             style_fn = STYLE_VAR;
         }

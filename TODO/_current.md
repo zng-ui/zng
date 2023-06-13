@@ -38,8 +38,6 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-* TextInput, text vertically centered.
-    - Align::START?
 * CaretStatus incorrect.
 
 # View
