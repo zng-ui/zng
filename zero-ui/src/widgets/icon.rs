@@ -20,7 +20,7 @@ impl Icon {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-    
+
             txt_align = Align::CENTER;
         }
         self.widget_builder().push_build_action(on_build);

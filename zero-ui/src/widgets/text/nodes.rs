@@ -1021,9 +1021,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     .inverse()
                                     .and_then(|t| t.transform_point(pos.to_px(scale_factor)))
                                 {
-                                    *caret_index = txt.shaped_text.nearest_char_index(
-                                        pos - PxVector::new(Dip::new(15).to_px(scale_factor), Dip::new(7).to_px(scale_factor)),
-                                    )
+                                    let pos = pos - PxVector::new(Dip::new(15).to_px(scale_factor), Dip::new(7).to_px(scale_factor));
+                                    *caret_index = txt
+                                        .shaped_text
+                                        .nearest_line(pos.y)
+                                        .and_then(|l| l.nearest_seg(pos.x))
+                                        .and_then(|s| s.nearest_char_index(pos.x));
+
                                     // if let Some(i) = &mut caret_index {
                                     //     // TODO, snap to grapheme start
                                     //     //       find line that contains y

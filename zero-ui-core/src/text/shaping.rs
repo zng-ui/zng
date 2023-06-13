@@ -936,21 +936,23 @@ impl ShapedText {
         }
     }
 
-    /// Gets the insert index in the string that is nearest to `point`.
-    pub fn nearest_char_index(&self, point: PxPoint) -> Option<usize> {
-        let point = point.to_wr();
-        let (glyph_i, _) = self
-            .glyphs
-            .iter()
-            .enumerate()
-            .min_by_key(|(_, g)| (g.point.distance_to(point) * 5.0) as i32)?;
-
-        // check glyph x+width/2 < point.x, in this case the char is the next or string len.
-
-        let seg_i = self.segments.segment_from_glyph(glyph_i);
-        let seg_char_i = if seg_i == 0 { 0 } else { self.segments.0[seg_i - 1].text.end };
-
-        Some(seg_char_i + self.clusters[glyph_i] as usize)
+    /// Gets the line that contains the `y` offset or is nearest to it.
+    pub fn nearest_line(&self, y: Px) -> Option<ShapedLine> {
+        let first_line_max_y = self.first_line.max_y();
+        if first_line_max_y >= y {
+            self.first_line()
+        } else if self.last_line.min_y() <= y {
+            self.last_line()
+        } else {
+            let y = y - first_line_max_y;
+            let line = (y / self.line_height()).0 as usize;
+            self.lines.iter_segs_skip(line).next().map(move |(w, r)| ShapedLine {
+                text: self,
+                seg_range: r,
+                index: line,
+                width: Px(w.round() as i32),
+            })
+        }
     }
 }
 
@@ -1761,6 +1763,28 @@ impl<'a> ShapedLine<'a> {
 
         &full_text[start..end]
     }
+
+    /// Gets the segment that contains `x` or is nearest to it;
+    pub fn nearest_seg(&self, x: Px) -> Option<ShapedSegment<'a>> {
+        let mut min = None;
+        let mut min_dist = Px::MAX;
+        for seg in self.segs() {
+            let (seg_x, width) = seg.x_width();
+            if seg_x >= x {
+                let seg_max_x = seg_x + width;
+                if x < seg_max_x {
+                    return Some(seg);
+                } else {
+                    let dist = (x - seg_x).abs();
+                    if min_dist > dist {
+                        min = Some(seg);
+                        min_dist = dist;
+                    }
+                }
+            }
+        }
+        min
+    }
 }
 
 /// Merges lines defined by `(PxPoint, Px)`, assuming the `y` is equal.
@@ -2088,6 +2112,20 @@ impl<'a> ShapedSegment<'a> {
         let start = start.min(full_text.len());
         let end = end.min(full_text.len());
         &full_text[start..end]
+    }
+
+    /// Gets the insert index in the string that is nearest to `x`.
+    pub fn nearest_char_index(&self, x: Px) -> Option<usize> {
+        let x = x.0 as f32;
+        let (i, _) = self
+            .glyphs_with_x_advance()
+            .flat_map(|(_, g)| g)
+            .enumerate()
+            .min_by_key(|(_, (g, advance))| (((g.point.x + advance / 2.0) - x).abs() * 5.0) as i32)?;
+        // TODO: check glyph x+width/2 < point.x, in this case the char is the next or string len.
+        let i = self.glyphs_range().start() + i;
+
+        Some(self.text_range().start() + self.text.clusters[i] as usize)
     }
 }
 
