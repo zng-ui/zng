@@ -55,7 +55,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
                     main_cfg.reset(&main_cfg_key);
                 });
 
-                ico = zero_ui_material_icons::outlined::SETTINGS;
+                ico = zero_ui_material_icons::outlined::SETTINGS_BACKUP_RESTORE;
                 tooltip = Tip!(Text!("reset"));
                 disabled_tooltip = Tip!(Text!("is default"));
 

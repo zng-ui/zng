@@ -86,6 +86,7 @@ fn icons() -> impl UiNode {
                 padding = (7, 15, 7, 26);
                 min_width = 40.vh_pct();
                 foreground = Icon! {
+                    align = Align::LEFT;
                     ico = icons::outlined::SEARCH;
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
