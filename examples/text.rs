@@ -62,6 +62,11 @@ fn app_main() {
                     margin = 10;
                     child = font_size(fs);
                 },
+                Container! {
+                    align = Align::BOTTOM_RIGHT;
+                    margin = 20;
+                    child = text_editor();
+                }
             ])
         }
     })
@@ -313,5 +318,52 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
         }].chain(items);
+    }
+}
+
+fn text_editor() -> impl UiNode {
+    let is_open = var(false);
+
+    Button! {
+        child = Text!(is_open.map(|&i| if i { "show text editor" } else { "open text editor" }.into()));
+        style_fn = button::LinkStyle!();
+        on_click = hn!(|_| {
+            let editor_id = WindowId::named("text-editor");
+            if is_open.get() {
+                if WINDOWS.focus(editor_id).is_err() {
+                    is_open.set_ne(false);
+                }
+            } else {
+                WINDOWS.open_id(editor_id, async_clmv!(is_open, {
+                    let txt_status = var(text::CaretStatus::none());
+                    Window! {
+                        title = "Text Example - Editor";
+                        on_open = hn!(is_open, |_| {
+                            is_open.set_ne(true);
+                        });
+                        on_close = hn!(is_open, |_| {
+                            is_open.set_ne(false);
+                        });
+                        child = Grid! {
+                            columns = ui_vec![grid::Column!(1.lft())];
+                            rows = ui_vec![
+                                grid::Row!(1.lft()),
+                                grid::Row!(),
+                            ];
+                            cells = ui_vec![
+                                TextInput! {
+                                    txt = var(Txt::from_static("Hello, this is a multi-line text input"));
+                                    get_caret_status = txt_status.clone();
+                                },
+                                Text! {
+                                    grid::cell::row = 1;
+                                    txt = txt_status.map_to_text();
+                                }
+                            ];
+                        }
+                    }
+                }));
+            }
+        });
     }
 }

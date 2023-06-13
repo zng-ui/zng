@@ -38,6 +38,10 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
+* TextInput, text vertically centered.
+    - Align::START?
+* CaretStatus incorrect.
+
 # View
 
 * `view` really needs to be a widget.
@@ -48,3 +52,14 @@
 
 * Implement OpenGL example.
     - Overlay and texture image.
+
+# Grid
+
+* Panic when only rows are defined.
+    - Expected one auto-column.
+* Single column without width does not fill grid width.
+    - Expected fill?
+
+# Window
+
+* `on_open` not fired.

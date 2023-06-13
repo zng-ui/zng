@@ -870,13 +870,13 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 }
 
 /// Gets the caret char index, if the text is editable.
-#[property(CONTEXT, default(None), widget_impl(TextEditMix<P>))]
+#[property(EVENT, default(None), widget_impl(TextEditMix<P>))]
 pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usize>>) -> impl UiNode {
     super::nodes::get_caret_index(child, index)
 }
 
 /// Gets the caret display status, if the text is editable.
-#[property(CONTEXT, default(CaretStatus::none()), widget_impl(TextEditMix<P>))]
+#[property(EVENT, default(CaretStatus::none()), widget_impl(TextEditMix<P>))]
 pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
     super::nodes::get_caret_status(child, status)
 }
