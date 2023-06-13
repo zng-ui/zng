@@ -55,6 +55,33 @@
     - Expected one auto-column.
 * Single column without width does not fill grid width.
     - Expected fill?
+* Text editor `Grid!` not showing anything.
+```rust
+Grid! {
+    columns = ui_vec![
+        grid::Column!(),
+        grid::Column!(1.lft()),
+    ];
+    rows = ui_vec![
+        grid::Row!(1.lft()),
+        grid::Row!(),
+    ];
+    cells = ui_vec![
+        Wgt! {
+            grid::cell::column = 1;
+            background_color = colors::RED;
+        },
+        Wgt! {
+            background_color = colors::GREEN;
+        },
+        Wgt! {
+            grid::cell::column = 1;
+            grid::cell::row = 1;
+            background_color = colors::RED;
+        },
+    ];
+}
+```
 
 # Tooltip
 

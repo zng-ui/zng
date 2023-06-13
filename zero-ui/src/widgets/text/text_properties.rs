@@ -881,6 +881,21 @@ pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -
     super::nodes::get_caret_status(child, status)
 }
 
+/// Gets the number of lines in the text, including wrap lines.
+///
+/// This is very cheap, the text widget already has the length, but it does include wrapped lines. You
+/// can use [`get_lines`] to get more details about
+#[property(CHILD_LAYOUT+100, default(0), widget_impl(TextEditMix<P>))]
+pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+    super::nodes::get_lines_len(child, len)
+}
+
+/// Gets the number of wrap lines per text lines.
+#[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextEditMix<P>))]
+pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
+    super::nodes::get_lines_wrap_count(child, lines)
+}
+
 /// Display info of edit caret position.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CaretStatus {
@@ -940,11 +955,15 @@ impl CaretStatus {
     }
 
     /// Display line, starts at 1.
+    ///
+    /// Note that this does not count soft line breaks (wrapped lines), this is the actual text line.
     pub fn line(&self) -> Option<NonZeroU32> {
         NonZeroU32::new(self.line)
     }
 
     /// Display column, starts at 1.
+    ///
+    /// This is the char count from the start of the text line to the index.
     pub fn column(&self) -> Option<NonZeroU32> {
         NonZeroU32::new(self.column)
     }
@@ -958,6 +977,21 @@ impl fmt::Display for CaretStatus {
         }
     }
 }
+
+/// Represents the number of lines and number of wrap lines in a text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinesWrapCount {
+    /// No line wrap.
+    ///
+    /// The associated value is the number of lines.
+    NoWrap(usize),
+    /// Some text lines have more than one wrap line.
+    ///
+    /// The associated value is a vec of wrap-line count for each text line, is `1` for lines that don't wrap.
+    Wrap(Vec<u32>),
+}
+
+impl LinesWrapCount {}
 
 /// Text paragraph properties.
 ///

@@ -336,6 +336,7 @@ fn text_editor() -> impl UiNode {
             } else {
                 WINDOWS.open_id(editor_id, async_clmv!(is_open, {
                     let txt_status = var(text::CaretStatus::none());
+                    let lines = var(text::LinesWrapCount::NoWrap(0));
                     Window! {
                         title = "Text Example - Editor";
                         on_open = hn!(is_open, |_| {
@@ -345,17 +346,47 @@ fn text_editor() -> impl UiNode {
                             is_open.set_ne(false);
                         });
                         child = Grid! {
-                            columns = ui_vec![grid::Column!(1.lft())];
+                            columns = ui_vec![
+                                grid::Column!(),
+                                grid::Column!(1.lft()),
+                            ];
                             rows = ui_vec![
                                 grid::Row!(1.lft()),
                                 grid::Row!(),
                             ];
                             cells = ui_vec![
                                 TextInput! {
+                                    grid::cell::column = 1;
                                     txt = var(Txt::from_static("Hello, this is a multi-line text input"));
                                     get_caret_status = txt_status.clone();
+                                    get_lines_wrap_count = lines.clone();
                                 },
                                 Text! {
+                                    padding = (7, 2);
+                                    txt_align = Align::RIGHT;
+                                    txt = lines.map(|s| {
+                                        use std::fmt::Write;
+                                        let mut txt = String::new();
+                                        match s {
+                                            text::LinesWrapCount::NoWrap(len) => {
+                                                for i in 1..=(*len).max(1) {
+                                                    let _ = writeln!(&mut txt, "{i}");
+                                                }
+                                            },
+                                            text::LinesWrapCount::Wrap(counts) => {
+                                                for (i, &c) in counts.iter().enumerate() {
+                                                    let _ = write!(&mut txt, "{}", i + 1);
+                                                    for _ in 0..c {
+                                                        txt.push('\n');
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Txt::from_str(&txt)
+                                    });
+                                },
+                                Text! {
+                                    grid::cell::column = 1;
                                     grid::cell::row = 1;
                                     txt = txt_status.map_to_text();
                                 }

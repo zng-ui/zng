@@ -75,7 +75,7 @@ impl Clone for ResolvedText {
 }
 impl ResolvedText {
     fn no_context() -> Self {
-        panic!("no `ResolvedText` in context")
+        panic!("no `ResolvedText` in context, only available inside `resolve_text`")
     }
 
     /// Gets if the current code has resolved text in context.
@@ -87,7 +87,7 @@ impl ResolvedText {
     ///
     /// # Panics
     ///
-    /// Panics if requested out of context.
+    /// Panics if requested in a node outside [`resolve_text`].
     pub fn get() -> Arc<ResolvedText> {
         RESOLVED_TEXT.get()
     }
@@ -104,7 +104,7 @@ pub struct LayoutText {
     /// Layout text.
     pub shaped_text: ShapedText,
 
-    /// Version updated every time the `shaped_text` text changes.
+    /// Version updated every time the `shaped_text` is reshaped.
     pub shaped_text_version: u32,
 
     /// List of overline segments, defining origin and width of each line.
@@ -142,7 +142,7 @@ pub struct LayoutText {
 }
 impl LayoutText {
     fn no_context() -> Self {
-        panic!("no `LayoutText` in context")
+        panic!("no `LayoutText` in context, only available inside `layout_text` during layout and render")
     }
 
     /// Gets if the current code has layout text in context.
@@ -151,6 +151,11 @@ impl LayoutText {
     }
 
     /// Get the current contextual layout text.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not available in context. Is only available during layout and render of nodes
+    /// inside [`layout_text`].
     pub fn get() -> Arc<LayoutText> {
         LAYOUT_TEXT.get()
     }
@@ -1561,4 +1566,131 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             }
         }
     })
+}
+
+pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+    let len = len.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Deinit => {
+            let _ = len.set_ne(0usize);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = c.layout(wl);
+            let t = LayoutText::get();
+            let l = t.shaped_text.lines_len();
+            if l != len.get() {
+                let _ = len.set_ne(t.shaped_text.lines_len());
+            }
+        }
+        _ => {}
+    })
+}
+
+pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super::LinesWrapCount>) -> impl UiNode {
+    let lines = lines.into_var();
+    let mut version = 0;
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Deinit => {
+            let _ = lines.set_ne(super::LinesWrapCount::NoWrap(0));
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = c.layout(wl);
+            let t = LayoutText::get();
+            if t.shaped_text_version != version {
+                version = t.shaped_text_version;
+                if let Some(update) = lines.with(|l| lines_wrap_count(l, &t.shaped_text)) {
+                    let _ = lines.set(update);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+// Returns `Some(_)` if the current wrap count changed from `prev`. Only allocates if new count has wrapped lines.
+fn lines_wrap_count(prev: &super::LinesWrapCount, txt: &ShapedText) -> Option<super::LinesWrapCount> {
+    match prev {
+        super::LinesWrapCount::NoWrap(len) => {
+            let mut counter = lines_wrap_counter(txt);
+            let mut l = 0;
+            for c in &mut counter {
+                if c != 1 {
+                    // at least one line wraps now
+                    let mut wrap = vec![1; l];
+                    wrap.push(c);
+                    wrap.extend(&mut counter);
+                    return Some(super::LinesWrapCount::Wrap(wrap));
+                }
+                l += 1;
+            }
+            if l != *len {
+                // no line wraps, but changed line count.
+                Some(super::LinesWrapCount::NoWrap(l))
+            } else {
+                None
+            }
+        }
+        super::LinesWrapCount::Wrap(counts) => {
+            let mut prev_counts = counts.iter();
+            let mut counter = lines_wrap_counter(txt);
+            let mut eq_l = 0;
+            let mut eq_wrap = false;
+            for c in &mut counter {
+                if prev_counts.next() == Some(&c) {
+                    eq_l += 1;
+                    eq_wrap |= c != 1;
+                } else if eq_wrap || c != 1 {
+                    // not eq, and already found a wrap line
+                    let mut wrap = counts[..eq_l].to_vec();
+                    wrap.push(c);
+                    wrap.extend(&mut counter);
+                    return Some(super::LinesWrapCount::Wrap(wrap));
+                } else {
+                    // not eq, but maybe no wrap
+                    let mut l = eq_l;
+                    for c in &mut counter {
+                        if c != 1 {
+                            // nope, found a line wrap
+                            let mut wrap = vec![1; l];
+                            wrap.push(c);
+                            wrap.extend(&mut counter);
+                            return Some(super::LinesWrapCount::Wrap(wrap));
+                        }
+                        l += 1;
+                    }
+                    // changed to no wrap
+                    return Some(super::LinesWrapCount::NoWrap(l));
+                }
+            }
+
+            None
+        }
+    }
+}
+fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
+    struct Counter<I> {
+        lines: I,
+        count: u32,
+    }
+    impl<'a, I: Iterator<Item = ShapedLine<'a>>> Iterator for Counter<I> {
+        type Item = u32;
+
+        fn next(&mut self) -> Option<u32> {
+            loop {
+                let line = self.lines.next()?;
+                if line.started_by_wrap() {
+                    self.count += 1;
+                    continue;
+                }
+
+                let c = self.count;
+                self.count = 1;
+
+                return Some(c);
+            }
+        }
+    }
+    Counter {
+        lines: txt.lines(),
+        count: 1,
+    }
 }
