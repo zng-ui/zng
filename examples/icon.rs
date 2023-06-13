@@ -45,7 +45,7 @@ fn icons() -> impl UiNode {
             value::<&'static str> = key;
         }
     }
-    fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
+    fn show_font(icons: Vec<MaterialIcon>, font_mod: &'static str) -> impl UiNode {
         let _scope = tracing::error_span!("show_font").entered();
         Wrap! {
             spacing = 5;
@@ -65,7 +65,7 @@ fn icons() -> impl UiNode {
                     children = {
                         let mut r = vec![];
                         c.par_iter()
-                                .map(|i| icon_btn(i.clone()).boxed())
+                                .map(|i| icon_btn(i.clone(), font_mod).boxed())
                                 .collect_into_vec(&mut r);
                         r
                     };
@@ -113,7 +113,7 @@ fn icons() -> impl UiNode {
             },
             Container!(view(merge_var!(selected_font, search, |f, s| (*f, s.clone())), hn!(|a: &ViewArgs<(&'static str, Txt)>| {
                 if let Some((f, s)) = a.get_new() {
-                    let mut f = match f {
+                    let mut icons = match f {
                         "filled" => icons::filled::all(),
                         "outlined" => icons::outlined::all(),
                         "rounded" => icons::rounded::all(),
@@ -123,18 +123,18 @@ fn icons() -> impl UiNode {
                     };
                     if !s.is_empty() {
                         let s = s.to_uppercase();
-                        f.retain(|f| {
+                        icons.retain(|f| {
                             f.name.contains(&s) ||
                             f.display_name().to_uppercase().contains(&s)
                         });
                     }
-                    if f.is_empty() {
+                    if icons.is_empty() {
                         a.set_view(Text! {
                             txt = formatx!("no icons found for '{s}'");
                             margin = (10, 0, 0, 0);
                         })
                     } else {
-                        a.set_view(show_font(f));
+                        a.set_view(show_font(icons, f));
                     }
                 }
             }))),
@@ -142,7 +142,7 @@ fn icons() -> impl UiNode {
     }
 }
 
-fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
+fn icon_btn(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     Button! {
         padding = 2;
         size = (80, 80);
@@ -162,12 +162,12 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             ]
         };
         on_click = hn!(|_| {
-            LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone()));
+            LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone(), font_mod));
         })
     }
 }
 
-fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
+fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
     Container! {
@@ -198,10 +198,33 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                     children_align = Align::TOP_LEFT;
                     children = ui_vec![
                         title(formatx!("{ico}")),
-                        Text! {
-                            txt = ico.name;
-                            font_family = FontName::monospace();
-                            font_size = 18;
+                        {
+                            let full_path = formatx!("zero_ui_material_icons::{font_mod}::{}", ico.name);
+                            let copied = var(false);
+                            Text! {
+                                txt = ico.name;
+                                font_family = FontName::monospace();
+                                font_size = 18;
+                                cursor = CursorIcon::Hand;
+                                enabled = copied.map(|&c| !c);
+                                tooltip = Tip!(Text!("copy '{full_path}'"));
+                                disabled_tooltip = Tip!(Text!("copied!"));
+                                on_click = async_hn!(copied, full_path, |_| {
+                                    match zero_ui::core::clipboard::CLIPBOARD.set_text(&full_path) {
+                                        Ok(()) => {
+                                            copied.set(true);
+                                            task::deadline(2.secs()).await;
+                                            copied.set(false);
+                                        },
+                                        Err(e) => {
+                                            tracing::error!("failed to copy, {e}");
+                                        }
+                                    }
+                                });
+                                when *#is_hovered {
+                                    background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                                }
+                            }
                         },
                         sub_title("Using `Icon!`:"),
                         Stack! {
