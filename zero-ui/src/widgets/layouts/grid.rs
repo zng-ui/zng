@@ -910,7 +910,7 @@ pub mod cell {
     /// Cell column and row indexes.
     ///
     /// If set to [`AT_AUTO`] the cell is positioned based on the logical index.
-    /// 
+    ///
     /// Is `(0, 0)` by default.
     ///
     /// This property sets the [`INFO_ID`].
@@ -999,8 +999,10 @@ pub mod cell {
         })
     }
 
-    /// Value for [`at`] that causes the cell to be positioned based on the logical index *i*, 
+    /// Value for [`at`] that causes the cell to be positioned based on the logical index *i*,
     /// for columns *i % columns* and for rows  *i / columns*.
+    /// 
+    /// [`at`]: fn@at
     pub const AT_AUTO: (usize, usize) = (usize::MAX, usize::MAX);
 }
 

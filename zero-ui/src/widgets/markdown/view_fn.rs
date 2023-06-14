@@ -643,7 +643,8 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
         Container! {
             grid::cell::at = grid::cell::AT_AUTO;
             child = items.remove(0);
-        }.boxed()
+        }
+        .boxed()
     } else {
         Wrap! {
             grid::cell::at = grid::cell::AT_AUTO;

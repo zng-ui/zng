@@ -337,6 +337,7 @@ fn text_editor() -> impl UiNode {
                 WINDOWS.open_id(editor_id, async_clmv!(is_open, {
                     let txt_status = var(text::CaretStatus::none());
                     let lines = var(text::LinesWrapCount::NoWrap(0));
+                    let txt = var(Txt::from_static(""));
                     Window! {
                         title = "Text Example - Editor";
                         on_open = hn!(is_open, |_| {
@@ -351,18 +352,41 @@ fn text_editor() -> impl UiNode {
                                 grid::Column!(1.lft()),
                             ];
                             rows = ui_vec![
+                                grid::Row!(),
                                 grid::Row!(1.lft()),
                                 grid::Row!(),
                             ];
                             cells = ui_vec![
-                                TextInput! {
+                                // menu
+                                Stack! {
                                     grid::cell::at = (1, 0);
-                                    txt = var(Txt::from_static("Hello, this is a multi-line text input"));
+                                    spacing = 4;
+                                    direction = StackDirection::left_to_right();
+                                    padding = 4;
+                                    button::extend_style = Style! {
+                                        padding = (2, 4);
+                                        corner_radius = 2;
+                                    };
+                                    children = ui_vec![
+                                        Button! {
+                                            child = Text!("Open");
+                                            on_click = hn!(txt, |_| {
+                                                txt.set("open TODO");
+                                            });
+                                        },
+                                    ]
+                                },
+                                // editor
+                                TextInput! {
+                                    grid::cell::at = (1, 1);
+                                    txt;
                                     get_caret_status = txt_status.clone();
                                     get_lines_wrap_count = lines.clone();
                                 },
+                                // line numbers
                                 Text! {
-                                    padding = (7, 4);
+                                    grid::cell::at = (0, 1);
+                                    padding = (8, 4);
                                     txt_align = Align::TOP_RIGHT;
                                     opacity = 80.pct();
                                     min_width = 24;
@@ -387,9 +411,10 @@ fn text_editor() -> impl UiNode {
                                         Txt::from_str(&txt)
                                     });
                                 },
+                                // status
                                 Text! {
+                                    grid::cell::at = (1, 2);
                                     margin = (0, 4);
-                                    grid::cell::at = (1, 1);
                                     align = Align::RIGHT;
                                     txt = txt_status.map_to_text();
                                 },
