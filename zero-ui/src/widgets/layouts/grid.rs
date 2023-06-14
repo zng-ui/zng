@@ -25,13 +25,11 @@ impl Grid {
 
 /// Cell widget items.
 ///
-/// Cells can select their own column, row using the properties in the [`Cell!`] widget. Note that
-/// you don't need to use the `cell!` widget, only the properties.
+/// Cells can select their own column, row, column-span and row-span using the properties in the [`Cell!`] widget. 
+/// Note that you don't need to use the cell widget, only the [`cell`] properties.
 ///
-/// Cells can also be set to span multiple columns using the [`Cell!`] properties.
-///
-/// If the column or row is not explicitly set the widget is positioned in the logical index, the column
-/// `i % columns` and the row  `i / columns`.
+/// If the column or row is not explicitly set the widget is positioned in the logical index *i*, the column
+/// *i % columns* and the row  *i / columns*.
 ///
 /// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, widget_impl(Grid))]
@@ -47,7 +45,7 @@ pub fn cells(cells: impl UiNodeList) {}
 ///
 /// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
 /// * *Exact*, used for columns that set the width to a different unit.
-/// * *Leftover*, used for columns that set width to an [`lft`] value.
+/// * *Leftover*, used for columns that set width to a [`lft`] value.
 ///
 /// The column layout follows these steps:
 ///
@@ -79,10 +77,10 @@ pub fn rows(cells: impl UiNodeList) {}
 /// Widget function used when new rows or columns are needed to cover a cell placement.
 ///
 /// The function is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
-/// the function is [ `WidgetFn::nil` ].
+/// the function is [`WidgetFn::nil`].
 ///
 /// [`auto_grow_mode`]: fn@auto_grow_mode
-#[property(CONTEXT, capture, widget_impl(Grid))]
+#[property(CONTEXT, capture, default(WidgetFn::nil()), widget_impl(Grid))]
 pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 
 /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
@@ -90,11 +88,11 @@ pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 /// max it is *collapsed*.
 ///
 /// Is `AutoGrowMode::Rows(u32::MAX)` by default.
-#[property(CONTEXT, capture, widget_impl(Grid))]
+#[property(CONTEXT, capture, default(AutoGrowMode::Rows(u32::MAX)), widget_impl(Grid))]
 pub fn auto_grow_mode(mode: impl IntoVar<AutoGrowMode>) {}
 
 /// Space in-between cells.
-#[property(LAYOUT, capture, widget_impl(Grid))]
+#[property(LAYOUT, capture, default(GridSpacing::default()), widget_impl(Grid))]
 pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Grid node.
@@ -1023,6 +1021,7 @@ impl GridLayout {
             AutoGrowMode::Rows(max) => {
                 let columns_len = children[0].len();
                 if columns_len == 0 {
+                    tracing::warn!("grid {:?} has no columns and auto_grow is set to rows, no cell will be visible", WIDGET.id());
                     self.collapse();
                     return;
                 }
@@ -1059,6 +1058,7 @@ impl GridLayout {
             AutoGrowMode::Columns(max) => {
                 let rows_len = children[1].len();
                 if rows_len == 0 {
+                    tracing::warn!("grid {:?} has no rows and auto_grow is set to columns, no cell will be visible", WIDGET.id());
                     self.collapse();
                     return;
                 }
