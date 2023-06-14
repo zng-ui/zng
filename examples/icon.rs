@@ -50,12 +50,14 @@ fn icons() -> impl UiNode {
         Wrap! {
             spacing = 5;
             icon::ico_size = 48;
+            children_align = Align::CENTER;
             children = {
                 let mut r = vec![];
                 icons
                 .par_chunks(100)
                 .map(|c| Wrap! { // segment into multiple inlined lazy inited `Wrap!` for better performance.
                     spacing = 5;
+                    children_align = Align::CENTER;
                     lazy = {
                         let len = c.len();
                         LazyMode::lazy(wgt_fn!(|_| {

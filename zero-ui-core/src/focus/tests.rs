@@ -32,8 +32,8 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
             ),
             WidgetBorderInfo::new(),
         );
-        WINDOW.with_test_context(|| {
-            WIDGET.with_context(&mut ctx, || {
+        WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
+            WIDGET.with_context(&mut ctx, WidgetUpdateMode::Bubble, || {
                 self.push_widget(|builder| {
                     let mut meta = FocusInfoBuilder::new(builder);
                     match focus {

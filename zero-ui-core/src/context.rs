@@ -361,7 +361,7 @@ struct TestWindowCfg {
 #[cfg(any(test, doc, feature = "test_util"))]
 impl WINDOW {
     /// Calls `f` inside a new headless window and root widget.
-    pub fn with_test_context<R>(&self, f: impl FnOnce() -> R) -> R {
+    pub fn with_test_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
         let window_id = WindowId::new_unique();
         let root_id = WidgetId::new_unique();
         let mut ctx = WindowCtx::new(window_id, WindowMode::Headless);
@@ -375,7 +375,7 @@ impl WINDOW {
             );
 
             let mut ctx = WidgetCtx::new(root_id);
-            WIDGET.with_context(&mut ctx, f)
+            WIDGET.with_context(&mut ctx, update_mode, f)
         })
     }
 
@@ -585,13 +585,34 @@ impl WINDOW {
     }
 }
 
+/// Defines how widget update requests inside [`WIDGET::with_context`] are handled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WidgetUpdateMode {
+    /// All updates flagged during the closure call are discarded, previous pending
+    /// requests are retained.
+    ///
+    /// This mode is used by [`UiNode::with_context`] and [`UiNodeOp::Measure`].
+    ///
+    /// [`UiNodeOp::Measure`]: crate::widget_instance::UiNodeOp::Measure
+    Ignore,
+    /// All updates flagged after the closure call are retained and propagate to the parent widget flags.
+    ///
+    /// This is the mode is used for all [`UiNodeOp`] delegation, except measure.
+    ///
+    /// [`UiNodeOp`]: crate::widget_instance::UiNodeOp
+    Bubble,
+}
+
 /// Current context widget.
 pub struct WIDGET;
 impl WIDGET {
     /// Calls `f` while the widget is set to `ctx`.
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
-    pub fn with_context<R>(&self, ctx: &mut WidgetCtx, f: impl FnOnce() -> R) -> R {
+    ///
+    /// If `propagate_update_flags` is `true` the update flags requested for the `ctx` after `f` will be copied to the
+    /// parent
+    pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
         let parent_id = WIDGET.try_id();
 
         if let Some(ctx) = ctx.0.as_mut() {
@@ -600,34 +621,51 @@ impl WIDGET {
             unreachable!()
         }
 
+        let prev_flags = match update_mode {
+            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
+            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
+        };
+
+        // call `f` in context.
         let r = WIDGET_CTX.with_context(&mut ctx.0, f);
 
         let ctx = ctx.0.as_mut().unwrap();
 
-        let wgt_flags = ctx.flags.load(Relaxed);
+        match update_mode {
+            WidgetUpdateMode::Ignore => {
+                ctx.flags.store(prev_flags, Relaxed);
+            }
+            WidgetUpdateMode::Bubble => {
+                let wgt_flags = ctx.flags.load(Relaxed);
 
-        if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
-            let propagate = wgt_flags
-                & (UpdateFlags::UPDATE | UpdateFlags::INFO | UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+                if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
+                    let propagate = wgt_flags
+                        & (UpdateFlags::UPDATE
+                            | UpdateFlags::INFO
+                            | UpdateFlags::LAYOUT
+                            | UpdateFlags::RENDER
+                            | UpdateFlags::RENDER_UPDATE);
 
-            let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
-                if !u.contains(propagate) {
-                    u.insert(propagate);
-                    Some(u)
+                    let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
+                        if !u.contains(propagate) {
+                            u.insert(propagate);
+                            Some(u)
+                        } else {
+                            None
+                        }
+                    });
+                    ctx.parent_id.store(None, Relaxed);
+                } else if let Some(window_id) = WINDOW.try_id() {
+                    // is at root, register `UPDATES`
+                    UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
+                    // some builders don't clear the root widget flags like they do for other widgets.
+                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
                 } else {
-                    None
+                    // used outside window
+                    UPDATES.update_flags(wgt_flags, ctx.id);
+                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
                 }
-            });
-            ctx.parent_id.store(None, Relaxed);
-        } else if let Some(window_id) = WINDOW.try_id() {
-            // is at root, register `UPDATES`
-            UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
-            // some builders don't clear the root widget flags like they do for other widgets.
-            ctx.flags.store(UpdateFlags::empty(), Relaxed);
-        } else {
-            // used outside window
-            UPDATES.update_flags(wgt_flags, ctx.id);
-            ctx.flags.store(UpdateFlags::empty(), Relaxed);
+            }
         }
 
         r

@@ -408,7 +408,7 @@ mod tests {
 
     use crate::{
         app::App,
-        context::{WidgetCtx, WIDGET, WINDOW},
+        context::{WidgetCtx, WidgetUpdateMode, WIDGET, WINDOW},
         units::FactorUnits,
         widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         widget_instance::WidgetId,
@@ -427,8 +427,10 @@ mod tests {
         where
             F: FnMut(&mut Self),
         {
-            WINDOW.with_test_context(|| {
-                WIDGET.with_context(&mut WidgetCtx::new(WidgetId::named(name)), || self.push_widget(inner));
+            WINDOW.with_test_context(WidgetUpdateMode::Ignore, || {
+                WIDGET.with_context(&mut WidgetCtx::new(WidgetId::named(name)), WidgetUpdateMode::Ignore, || {
+                    self.push_widget(inner)
+                });
             });
         }
     }

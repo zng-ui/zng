@@ -12,7 +12,8 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{
-        InfoUpdates, LayoutMetrics, LayoutPassId, LayoutUpdates, RenderUpdates, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW,
+        InfoUpdates, LayoutMetrics, LayoutPassId, LayoutUpdates, RenderUpdates, WidgetCtx, WidgetUpdateMode, WidgetUpdates, LAYOUT,
+        UPDATES, WIDGET, WINDOW,
     },
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
@@ -1508,7 +1509,7 @@ impl ContentCtrl {
                 self.commands.update(&self.vars);
 
                 update_widgets.with_window(|| {
-                    WIDGET.with_context(&mut self.root_ctx, || {
+                    WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                         update_widgets.with_widget(|| {
                             self.root.update(update_widgets);
                         });
@@ -1522,7 +1523,7 @@ impl ContentCtrl {
             }
             InitState::Init => {
                 self.commands.init(&self.vars);
-                WIDGET.with_context(&mut self.root_ctx, || {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                     self.root.init();
                     // requests info, layout and render just in case `root` is a blank.
                     WIDGET.update_info().layout().render();
@@ -1547,7 +1548,7 @@ impl ContentCtrl {
                 self.vars.0.scale_factor.get(),
             );
 
-            WIDGET.with_context(&mut self.root_ctx, || {
+            WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.info(&mut info);
             });
 
@@ -1578,7 +1579,7 @@ impl ContentCtrl {
         debug_assert!(matches!(self.init_state, InitState::Inited));
 
         update.with_window(|| {
-            WIDGET.with_context(&mut self.root_ctx, || {
+            WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 update.with_widget(|| {
                     self.root.event(update);
                 })
@@ -1587,7 +1588,7 @@ impl ContentCtrl {
     }
 
     pub fn close(&mut self) {
-        WIDGET.with_context(&mut self.root_ctx, || {
+        WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
             self.root.deinit();
         });
 
@@ -1632,7 +1633,7 @@ impl ContentCtrl {
 
         self.layout_pass = self.layout_pass.next();
 
-        WIDGET.with_context(&mut self.root_ctx, || {
+        WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
             let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
             LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
@@ -1692,7 +1693,7 @@ impl ContentCtrl {
                 default_text_aa,
             );
 
-            let frame = WIDGET.with_context(&mut self.root_ctx, || {
+            let frame = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.render(&mut frame);
                 frame.finalize(&WINDOW.widget_tree())
             });
@@ -1731,7 +1732,7 @@ impl ContentCtrl {
                 self.clear_color,
             );
 
-            let update = WIDGET.with_context(&mut self.root_ctx, || {
+            let update = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.render_update(&mut update);
                 update.finalize(&WINDOW.widget_tree())
             });

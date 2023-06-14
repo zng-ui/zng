@@ -6,7 +6,7 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     app::App,
-    context::{WidgetUpdates, WIDGET, WINDOW},
+    context::{WidgetUpdateMode, WidgetUpdates, WIDGET, WINDOW},
     ui_node,
     units::*,
     widget_instance::{ui_vec, UiNode, UiNodeList},
@@ -58,7 +58,7 @@ fn test_trace(node: impl UiNode) {
     let _app = App::minimal().run_headless(false);
     let mut wgt = util::test_wgt(node);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         WINDOW.test_init(&mut wgt);
         assert_only_traced!(wgt, "init");
 
@@ -106,7 +106,7 @@ pub fn allow_missing_delegate() {
         let _app = App::minimal().run_headless(false);
         let mut wgt = util::test_wgt(node);
 
-        WINDOW.with_test_context(|| {
+        WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
             WINDOW.test_init(&mut wgt);
             assert_only_traced!(wgt, "init");
             WINDOW.test_info(&mut wgt);
@@ -136,7 +136,7 @@ pub fn default_no_child() {
 
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let wu = WINDOW.test_init(&mut wgt);
         assert!(wu.info);
         assert!(wu.layout);

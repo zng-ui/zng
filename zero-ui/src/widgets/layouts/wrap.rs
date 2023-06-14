@@ -998,7 +998,7 @@ mod tests {
     fn lazy_estimate() {
         let _app = App::minimal().run_headless(false);
 
-        WINDOW.with_test_context(|| {
+        WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
             let mut panel = Wrap! {
                 children = (0..100).map(|_| Wgt! {
                     size = (120, 120);
@@ -1066,7 +1066,7 @@ mod tests {
     fn lazy_estimate_first_wrap() {
         let _app = App::minimal().run_headless(false);
 
-        WINDOW.with_test_context(|| {
+        WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
             let mut panel = Wrap! {
                 children = (0..100).map(|_| Wgt! {
                     size = (120, 120);

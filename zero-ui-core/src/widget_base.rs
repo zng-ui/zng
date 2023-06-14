@@ -478,7 +478,7 @@ pub mod nodes {
         }
         impl<C: UiNode> UiNode for WidgetNode<C> {
             fn init(&mut self) {
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::init` called in inited widget {:?}", WIDGET.id());
@@ -497,7 +497,7 @@ pub mod nodes {
             }
 
             fn deinit(&mut self) {
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", WIDGET.id());
@@ -516,7 +516,7 @@ pub mod nodes {
             }
 
             fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", WIDGET.id());
@@ -533,7 +533,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
+                    WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
             }
 
@@ -543,7 +543,7 @@ pub mod nodes {
                     self.init();
                 }
 
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
@@ -569,7 +569,7 @@ pub mod nodes {
                     return;
                 }
 
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
@@ -589,7 +589,7 @@ pub mod nodes {
             }
 
             fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-                let desired_size = WIDGET.with_context(&mut self.ctx, || {
+                let desired_size = WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Ignore, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", WIDGET.id());
@@ -622,15 +622,14 @@ pub mod nodes {
                     })
                 });
 
-                if self.ctx.is_pending_reinit() {
-                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
-                }
+                // ignore
+                let _ = self.ctx.take_reinit();
 
                 desired_size
             }
 
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                let final_size = WIDGET.with_context(&mut self.ctx, || {
+                let final_size = WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", WIDGET.id());
@@ -667,14 +666,14 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
+                    WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
 
                 final_size
             }
 
             fn render(&mut self, frame: &mut FrameBuilder) {
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", WIDGET.id());
@@ -686,12 +685,12 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
+                    WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
             }
 
             fn render_update(&mut self, update: &mut FrameUpdate) {
-                WIDGET.with_context(&mut self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", WIDGET.id());
@@ -703,7 +702,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
+                    WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
                 }
             }
 
@@ -715,7 +714,7 @@ pub mod nodes {
             where
                 F: FnOnce() -> R,
             {
-                WIDGET.with_context(&mut self.ctx, || Some(f()))
+                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Ignore, || Some(f()))
             }
 
             fn into_widget(self) -> BoxedUiNode

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::widget::EmptyWgt;
 use crate::{
     app::App,
-    context::WINDOW,
+    context::{WidgetUpdateMode, WINDOW},
     ui_vec,
     var::ContextInitHandle,
     widget,
@@ -27,7 +27,7 @@ pub fn init_many() {
         .collect();
     let mut list = PanelList::new(list);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         PARALLEL_VAR.with_context_var(ContextInitHandle::new(), true, || {
             list.init_all();
         })
@@ -67,7 +67,7 @@ pub fn nested_par_each_ctx() {
             .collect::<UiNodeVec>();
     };
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         WINDOW.test_init(&mut test);
     });
 }
@@ -92,7 +92,7 @@ pub fn par_each_ctx() {
             .collect::<UiNodeVec>();
     };
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         WINDOW.test_init(&mut test);
     });
 }

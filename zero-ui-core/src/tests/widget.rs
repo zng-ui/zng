@@ -5,7 +5,7 @@
 use self::util::Position;
 use crate::{
     app::App,
-    context::{WIDGET, WINDOW},
+    context::{WidgetUpdateMode, WIDGET, WINDOW},
     var::{IntoValue, Var},
     widget,
     widget_builder::WidgetBuilder,
@@ -61,7 +61,7 @@ pub fn wgt_default_values() {
 
     let mut default = BarWgt!();
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         default.init();
     });
 
@@ -79,7 +79,7 @@ pub fn wgt_assign_values() {
         bar_trace = "bar!";
     };
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         default.init();
     });
 
@@ -112,7 +112,7 @@ pub fn wgt_with_new_value_for_inherited() {
     let _app = App::minimal().run_headless(false);
 
     let mut default = ResetWgt!();
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         default.init();
     });
 
@@ -138,7 +138,7 @@ impl DefaultValueWgt {
 pub fn unset_default_value() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut default = DefaultValueWgt!();
         default.init();
 
@@ -160,7 +160,7 @@ pub fn unset_default_value() {
 pub fn value_init_order() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
         let mut wgt = EmptyWgt! {
             util::count_border = Position::next("count_border");
@@ -180,7 +180,7 @@ pub fn value_init_order() {
 pub fn wgt_child_property_init_order() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
         let mut wgt = EmptyWgt! {
             util::count_border = Position::next("count_border");
@@ -223,7 +223,7 @@ pub fn border_b(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiN
 pub fn wgt_same_nest_group_order() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
         let mut wgt = SameNestGroupOrderWgt! {
             border_a = Position::next("border_a");
@@ -275,7 +275,7 @@ impl WhenWgt {
 pub fn wgt_when() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = WhenWgt!();
         WINDOW.test_init(&mut wgt);
         WINDOW.test_info(&mut wgt);
@@ -298,7 +298,7 @@ pub fn wgt_when() {
 pub fn widget_user_when() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             util::live_trace = "A";
 
@@ -348,7 +348,7 @@ impl MultiWhenWgt {
 pub fn wgt_multi_when() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = MultiWhenWgt!();
         WINDOW.test_init(&mut wgt);
         WINDOW.test_info(&mut wgt);
@@ -406,7 +406,7 @@ pub fn always_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> 
 pub fn wgt_cfg_property() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = CfgPropertyWgt!();
         wgt.init();
 
@@ -418,7 +418,7 @@ pub fn wgt_cfg_property() {
 pub fn user_cfg_property() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             // property not set.
             #[cfg(never)]
@@ -475,7 +475,7 @@ impl CfgWhenWgt {
 pub fn wgt_cfg_when() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = CfgWhenWgt!();
 
         WINDOW.test_init(&mut wgt);
@@ -500,7 +500,7 @@ pub fn wgt_cfg_when() {
 pub fn user_cfg_when() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             util::live_trace = "trace";
 
@@ -568,7 +568,7 @@ fn property_nest_group_sorting_init1() -> impl UiNode {
 pub fn property_nest_group_sorting_value_init1() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = property_nest_group_sorting_init1();
@@ -619,7 +619,7 @@ fn property_nest_group_sorting_init2() -> impl UiNode {
 pub fn property_nest_group_sorting_value_init2() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = property_nest_group_sorting_init2();
@@ -676,7 +676,7 @@ fn assert_node_order(wgt: &mut impl UiNode) {
 pub fn property_nest_group_sorting_node_init1() {
     let _app = App::minimal().run_headless(false);
 
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = property_nest_group_sorting_init1();
@@ -688,7 +688,7 @@ pub fn property_nest_group_sorting_node_init1() {
 #[test]
 pub fn property_nest_group_sorting_node_init2() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = property_nest_group_sorting_init2();
@@ -703,7 +703,7 @@ pub struct PropertyNestGroupSortingInheritedWgt(PropertyNestGroupSortingWgt);
 #[test]
 pub fn property_nest_group_sorting_node_inherited_init() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = PropertyNestGroupSortingInheritedWgt! {
@@ -756,7 +756,7 @@ impl PropertyNestGroupSortingDefaultsWgt {
 #[test]
 pub fn property_nest_group_sorting_defaults() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         Position::reset();
 
         let mut wgt = PropertyNestGroupSortingDefaultsWgt!();
@@ -772,7 +772,7 @@ pub fn property_nest_group_sorting_defaults() {
 #[test]
 pub fn when_property_member_default() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
@@ -792,7 +792,7 @@ pub fn when_property_member_default() {
 #[test]
 pub fn when_property_member_index() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
@@ -813,7 +813,7 @@ pub fn when_property_member_index() {
 #[test]
 pub fn when_property_member_named() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
@@ -834,7 +834,7 @@ pub fn when_property_member_named() {
 #[test]
 pub fn when_property_member_default_method() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
@@ -853,7 +853,7 @@ pub fn when_property_member_default_method() {
 #[test]
 pub fn when_property_member_indexed_method() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
@@ -884,7 +884,7 @@ impl GetBuilder {
 pub fn when_reuse() {
     let test = |pass: &str| {
         let _app = App::minimal().run_headless(false);
-        WINDOW.with_test_context(|| {
+        WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
             let builder = GetBuilder! {
                 util::live_trace = "false";
 
@@ -920,7 +920,7 @@ pub fn when_reuse() {
 #[test]
 pub fn allowed_in_when_without_wgt_assign1() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             // util::live_trace_default = "default-trace";
             when *#util::is_state {
@@ -944,7 +944,7 @@ pub fn allowed_in_when_without_wgt_assign1() {
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             // util::live_trace_default = "default-trace";
             when *#util::is_state {
@@ -979,7 +979,7 @@ pub fn util_live_trace(
 #[test]
 pub fn generated_name_collision() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             util::live_trace = "!";
             util_live_trace = false;
@@ -995,7 +995,7 @@ pub fn generated_name_collision() {
 #[test]
 pub fn generated_name_collision_in_when() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             util::live_trace = "1";
             when *#util::is_state {
@@ -1020,7 +1020,7 @@ pub fn generated_name_collision_in_when() {
 #[test]
 pub fn generated_name_collision_in_when_assign() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
             util::live_trace = "0";
             util_live_trace = false;
@@ -1062,7 +1062,7 @@ impl NameCollisionWgtWhen {
 #[test]
 pub fn name_collision_wgt_when() {
     let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
+    WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = NameCollisionWgtWhen!();
 
         WINDOW.test_init(&mut wgt);
