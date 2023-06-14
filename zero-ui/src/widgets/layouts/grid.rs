@@ -1,6 +1,6 @@
 //! Grid widgets, properties and nodes..
 
-use std::mem;
+use std::{fmt, mem};
 
 use crate::prelude::new_widget::*;
 
@@ -25,11 +25,11 @@ impl Grid {
 
 /// Cell widget items.
 ///
-/// Cells can select their own column, row, column-span and row-span using the properties in the [`Cell!`] widget. 
+/// Cells can select their own column, row, column-span and row-span using the properties in the [`Cell!`] widget.
 /// Note that you don't need to use the cell widget, only the [`cell`] properties.
 ///
-/// If the column or row is not explicitly set the widget is positioned in the logical index *i*, the column
-/// *i % columns* and the row  *i / columns*.
+/// If the column or row index is set to [`usize::MAX`] the widget is positioned using the
+/// logical index *i*, the column *i % columns* and the row  *i / columns*.
 ///
 /// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, widget_impl(Grid))]
@@ -260,6 +260,10 @@ pub fn node(
 
             let grid = &grid;
 
+            if grid.is_collapse() {
+                return;
+            }
+
             let mut children = c.children().iter_mut();
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
@@ -318,6 +322,11 @@ pub fn node(
             }
 
             let grid = &grid;
+
+            if grid.is_collapse() {
+                return;
+            }
+
             let mut children = c.children().iter_mut();
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
@@ -365,7 +374,7 @@ pub struct AutoGrowFnArgs {
 /// Grid auto-grow direction.
 ///
 /// The associated value is the maximum columns or rows that are allowed in the grid.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AutoGrowMode {
     /// Auto generate columns.
     Columns(u32),
@@ -393,6 +402,20 @@ impl AutoGrowMode {
         match self {
             AutoGrowMode::Columns(_) => AutoGrowMode::Columns(limit),
             AutoGrowMode::Rows(_) => AutoGrowMode::Rows(limit),
+        }
+    }
+}
+impl fmt::Debug for AutoGrowMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "AutoGrowMode::")?;
+        }
+        match self {
+            AutoGrowMode::Rows(0) => write!(f, "disabled()"),
+            AutoGrowMode::Columns(u32::MAX) => write!(f, "Columns(MAX)"),
+            AutoGrowMode::Rows(u32::MAX) => write!(f, "Rows(MAX)"),
+            AutoGrowMode::Columns(l) => write!(f, "Columns({l})"),
+            AutoGrowMode::Rows(l) => write!(f, "Rows({l})"),
         }
     }
 }
@@ -803,9 +826,9 @@ pub mod cell {
     impl Default for CellInfo {
         fn default() -> Self {
             Self {
-                column: usize::MAX,
+                column: 0,
                 column_span: 1,
-                row: usize::MAX,
+                row: 0,
                 row_span: 1,
             }
         }
@@ -844,10 +867,16 @@ pub mod cell {
 
     /// Cell column index.
     ///
-    /// If not set or set to [`usize::MAX`] the cell is positioned based on the logical index.
+    /// If set to [`usize::MAX`] the cell is positioned based on the logical index.
+    ///
+    /// Is `0` by default.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(usize::MAX), widget_impl(Cell))]
+    ///
+    /// See also the [`at`] property to bind both indexes at the same time.
+    ///
+    /// [`at`]: fn@at
+    #[property(CONTEXT, default(0), widget_impl(Cell))]
     pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |i, &c| {
             if i.column != c {
@@ -859,14 +888,43 @@ pub mod cell {
 
     /// Cell row index.
     ///
-    /// If not set or out-of-bounds the cell is positioned based on the logical index.
+    /// If set to [`usize::MAX`] the cell is positioned based on the logical index.
+    ///
+    /// Is `0` by default.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(usize::MAX), widget_impl(Cell))]
+    ///
+    /// See also the [`at`] property to bind both indexes at the same time.
+    ///
+    /// [`at`]: fn@at
+    #[property(CONTEXT, default(0), widget_impl(Cell))]
     pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |i, &r| {
             if i.row != r {
                 i.row = r;
+                WIDGET.layout();
+            }
+        })
+    }
+
+    /// Cell column and row indexes.
+    ///
+    /// If set to [`AT_AUTO`] the cell is positioned based on the logical index.
+    /// 
+    /// Is `(0, 0)` by default.
+    ///
+    /// This property sets the [`INFO_ID`].
+    ///
+    /// See also the [`column`] or [`row`] properties to bind each index individually.
+    ///
+    /// [`column`]: fn@column
+    /// [`row`]: fn@row
+    #[property(CONTEXT, default((0, 0)), widget_impl(Cell))]
+    pub fn at(child: impl UiNode, column_row: impl IntoVar<(usize, usize)>) -> impl UiNode {
+        with_widget_state_modify(child, &INFO_ID, column_row, CellInfo::default, |i, &(col, row)| {
+            if i.column != col || i.row != row {
+                i.column = col;
+                i.row = row;
                 WIDGET.layout();
             }
         })
@@ -879,9 +937,13 @@ pub mod cell {
     /// Is `1` by default, the index is clamped between `1..max` where max is the maximum number of valid columns
     /// to the right of the cell column index.
     ///
-    /// Note that the cell does not influence the column width if it spans over multiple columns.
+    /// Note that the cell will not influence the column width if it spans over multiple columns.
     ///
     /// This property sets the [`INFO_ID`].
+    ///
+    /// See also the [`span`] property to bind both spans at the same time.
+    ///
+    /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
     pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
@@ -899,9 +961,13 @@ pub mod cell {
     /// Is `1` by default, the index is clamped between `1..max` where max is the maximum number of valid rows
     /// down from the cell column index.
     ///
-    /// Note that the cell does not influence the row height if it spans over multiple rows.
+    /// Note that the cell will not influence the row height if it spans over multiple rows.
     ///
     /// This property sets the [`INFO_ID`].
+    ///
+    /// See also the [`span`] property to bind both spans at the same time.
+    ///
+    /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
     pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
@@ -911,6 +977,31 @@ pub mod cell {
             }
         })
     }
+
+    /// Cell column and row span.
+    ///
+    /// Is `(1, 1)` by default.
+    ///
+    /// This property sets the [`INFO_ID`].
+    ///
+    /// See also the [`column_span`] or [`row_span`] properties to bind each index individually.
+    ///
+    /// [`column_span`]: fn@column_span
+    /// [`row_span`]: fn@row_span
+    #[property(CONTEXT, default((1, 1)), widget_impl(Cell))]
+    pub fn span(child: impl UiNode, span: impl IntoVar<(usize, usize)>) -> impl UiNode {
+        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &(cs, rs)| {
+            if i.column_span != rs || i.row_span != rs {
+                i.column_span = cs;
+                i.row_span = rs;
+                WIDGET.layout();
+            }
+        })
+    }
+
+    /// Value for [`at`] that causes the cell to be positioned based on the logical index *i*, 
+    /// for columns *i % columns* and for rows  *i / columns*.
+    pub const AT_AUTO: (usize, usize) = (usize::MAX, usize::MAX);
 }
 
 #[derive(Clone, Copy)]
@@ -948,8 +1039,21 @@ impl Default for ColRowMeta {
         Self(f32::NEG_INFINITY)
     }
 }
+impl fmt::Debug for ColRowMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_default() {
+            write!(f, "default")
+        } else if self.is_exact() {
+            write!(f, "exact")
+        } else if let Some(l) = self.is_leftover() {
+            write!(f, "leftover({l})")
+        } else {
+            write!(f, "ColRowMeta({})", self.0)
+        }
+    }
+}
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct ColumnLayout {
     meta: ColRowMeta,
     x: Px,
@@ -964,7 +1068,7 @@ impl Default for ColumnLayout {
         }
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct RowLayout {
     meta: ColRowMeta,
     y: Px,
@@ -987,7 +1091,7 @@ struct GridLayout {
 }
 impl GridLayout {
     fn is_collapse(&self) -> bool {
-        self.columns.is_empty() && self.rows.is_empty()
+        self.columns.is_empty() || self.rows.is_empty()
     }
 
     fn collapse(&mut self) {
@@ -1021,7 +1125,11 @@ impl GridLayout {
             AutoGrowMode::Rows(max) => {
                 let columns_len = children[0].len();
                 if columns_len == 0 {
-                    tracing::warn!("grid {:?} has no columns and auto_grow is set to rows, no cell will be visible", WIDGET.id());
+                    tracing::warn!(
+                        "grid {} has no columns and auto_grow_mode={:?}, no cell will be visible",
+                        WIDGET.id(),
+                        auto_mode,
+                    );
                     self.collapse();
                     return;
                 }
@@ -1058,7 +1166,11 @@ impl GridLayout {
             AutoGrowMode::Columns(max) => {
                 let rows_len = children[1].len();
                 if rows_len == 0 {
-                    tracing::warn!("grid {:?} has no rows and auto_grow is set to columns, no cell will be visible", WIDGET.id());
+                    tracing::warn!(
+                        "grid {} has no rows and auto_grow_mode={:?}, no cell will be visible",
+                        WIDGET.id(),
+                        auto_mode,
+                    );
                     self.collapse();
                     return;
                 }
@@ -1516,14 +1628,14 @@ impl GridLayout {
         let mut x = Px(0);
         for col in &mut self.columns {
             col.x = x;
-            if col.width != Px(0) {
+            if col.width > Px(0) {
                 x += col.width + spacing.column;
             }
         }
         let mut y = Px(0);
         for row in &mut self.rows {
             row.y = y;
-            if row.height != Px(0) {
+            if row.height > Px(0) {
                 y += row.height + spacing.row;
             }
         }

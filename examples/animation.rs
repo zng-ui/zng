@@ -146,6 +146,7 @@ fn ease_btn(
     use easing::EasingModifierFn::*;
 
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;

@@ -52,16 +52,24 @@ fn app_main() {
                                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
-                                cells= ui_vec![
-                                    Image!("examples/res/image/Luma8.png"),
-                                    Image!("examples/res/image/Luma16.png"),
-                                    Image!("examples/res/image/LumaA8.png"),
-                                    Image!("examples/res/image/LumaA16.png"),
-                                    Image!("examples/res/image/RGB8.png"),
-                                    Image!("examples/res/image/RGB16.png"),
-                                    Image!("examples/res/image/RGBA8.png"),
-                                    Image!("examples/res/image/RGBA16.png"),
-                                ]
+                                cells = {
+                                    fn img(source: &str) -> impl UiNode {
+                                        Image! {
+                                            grid::cell::at = grid::cell::AT_AUTO;
+                                            source;
+                                        }
+                                    }
+                                    ui_vec![
+                                        img("examples/res/image/Luma8.png"),
+                                        img("examples/res/image/Luma16.png"),
+                                        img("examples/res/image/LumaA8.png"),
+                                        img("examples/res/image/LumaA16.png"),
+                                        img("examples/res/image/RGB8.png"),
+                                        img("examples/res/image/RGB16.png"),
+                                        img("examples/res/image/RGBA8.png"),
+                                        img("examples/res/image/RGBA16.png"),
+                                    ]
+                                }
                           },
 
                             sub_title("Web"),

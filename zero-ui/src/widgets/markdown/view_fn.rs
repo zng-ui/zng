@@ -555,6 +555,8 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     } else {
         use crate::widgets::layouts::{grid, Grid};
         Grid! {
+            grid::cell::at = grid::cell::AT_AUTO; // in case it is nested
+
             margin = (0, 0, 0, 1.em());
             cells = args.items;
             columns = ui_vec![
@@ -574,6 +576,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
 
     if let Some(checked) = args.checked {
         Text! {
+            grid::cell::at = grid::cell::AT_AUTO;
             align = Align::TOP;
             txt = " ✓ ";
             txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
@@ -585,6 +588,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
         .boxed()
     } else if let Some(n) = args.num {
         Text! {
+            grid::cell::at = grid::cell::AT_AUTO;
             txt = formatx!("{n}. ");
             align = Align::RIGHT;
         }
@@ -592,6 +596,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
     } else {
         match args.depth {
             0 => Wgt! {
+                grid::cell::at = grid::cell::AT_AUTO;
                 align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
@@ -599,6 +604,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
                 background_color = TEXT_COLOR_VAR;
             },
             1 => Wgt! {
+                grid::cell::at = grid::cell::AT_AUTO;
                 align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
@@ -606,6 +612,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
                 border = 1.px(), TEXT_COLOR_VAR.map_into();
             },
             _ => Wgt! {
+                grid::cell::at = grid::cell::AT_AUTO;
                 align = Align::TOP;
                 size = (5, 5);
                 margin = (0.6.em(), 0.5.em(), 0, 0);
@@ -633,9 +640,13 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
     }
 
     let mut r = if items.len() == 1 {
-        items.remove(0)
+        Container! {
+            grid::cell::at = grid::cell::AT_AUTO;
+            child = items.remove(0);
+        }.boxed()
     } else {
         Wrap! {
+            grid::cell::at = grid::cell::AT_AUTO;
             children = items;
         }
         .boxed()
@@ -643,6 +654,7 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
 
     if let Some(inner) = args.nested_list {
         r = Stack! {
+            grid::cell::at = grid::cell::AT_AUTO;
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
                 r,
@@ -767,6 +779,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
         NilUiNode.boxed()
     } else if args.is_heading {
         Wrap! {
+            grid::cell::at = grid::cell::AT_AUTO;
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
             padding = 6;
             child_align = args.col_align;
@@ -775,6 +788,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
         .boxed()
     } else {
         Wrap! {
+            grid::cell::at = grid::cell::AT_AUTO;
             padding = 6;
             child_align = args.col_align;
             children = args.items;

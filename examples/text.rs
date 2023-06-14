@@ -356,14 +356,16 @@ fn text_editor() -> impl UiNode {
                             ];
                             cells = ui_vec![
                                 TextInput! {
-                                    grid::cell::column = 1;
+                                    grid::cell::at = (1, 0);
                                     txt = var(Txt::from_static("Hello, this is a multi-line text input"));
                                     get_caret_status = txt_status.clone();
                                     get_lines_wrap_count = lines.clone();
                                 },
                                 Text! {
-                                    padding = (7, 2);
-                                    txt_align = Align::RIGHT;
+                                    padding = (7, 4);
+                                    txt_align = Align::TOP_RIGHT;
+                                    opacity = 80.pct();
+                                    min_width = 24;
                                     txt = lines.map(|s| {
                                         use std::fmt::Write;
                                         let mut txt = String::new();
@@ -386,10 +388,11 @@ fn text_editor() -> impl UiNode {
                                     });
                                 },
                                 Text! {
-                                    grid::cell::column = 1;
-                                    grid::cell::row = 1;
+                                    margin = (0, 4);
+                                    grid::cell::at = (1, 1);
+                                    align = Align::RIGHT;
                                     txt = txt_status.map_to_text();
-                                }
+                                },
                             ];
                         }
                     }

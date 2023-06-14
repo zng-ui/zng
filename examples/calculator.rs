@@ -72,6 +72,7 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| calc.modify(| c|c.to_mut().square()));
         child = Text!("x²");
     }
@@ -79,6 +80,7 @@ fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| calc.modify(| c|c.to_mut().square_root()));
         child = Text!("√x");
     }
@@ -86,6 +88,7 @@ fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| calc.modify(| c|c.to_mut().clear()));
         click_shortcut = shortcut!(Escape);
         child = Text!("C");
@@ -94,6 +97,7 @@ fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| calc.modify(|c|c.to_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
         child = Text!("⌫");
@@ -102,6 +106,7 @@ fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| {
             calc.modify(move |b| b.to_mut().push(c))
         });
@@ -116,6 +121,7 @@ fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
 
 fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
     Button! {
+        grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| calc.modify(|c|c.to_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         child = Text!("=");

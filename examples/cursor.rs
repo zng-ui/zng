@@ -38,6 +38,7 @@ fn app_main() {
 
 fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     Container! {
+        grid::cell::at = grid::cell::AT_AUTO;
         cursor = icon.map(|i| i.0);
 
         size = (150, 80);
