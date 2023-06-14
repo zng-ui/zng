@@ -474,8 +474,10 @@ impl WINDOW {
         if let Some(c) = constraints {
             metrics = metrics.with_constraints(c);
         }
+        let mut updates = LayoutUpdates::new(UpdateDeliveryList::new_any());
+        updates.delivery_list.insert_updates_root(WINDOW.id(), WIDGET.id());
         let size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(Arc::new(updates), |wl| content.layout(wl))
         });
         WIDGET.test_root_updates();
         (size, UPDATES.apply())
@@ -503,8 +505,12 @@ impl WINDOW {
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size)
             .with_constraints(layout_constraints.0)
             .with_inline_constraints(Some(InlineConstraints::Layout(layout_constraints.1)));
+
+        let mut updates = LayoutUpdates::new(UpdateDeliveryList::new_any());
+        updates.delivery_list.insert_updates_root(WINDOW.id(), WIDGET.id());
+
         let layout_size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(Arc::new(updates), |wl| content.layout(wl))
         });
         WIDGET.test_root_updates();
         ((measure_size, layout_size), UPDATES.apply())

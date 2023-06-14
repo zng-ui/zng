@@ -860,7 +860,7 @@ pub struct WidgetLayout {
 impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
-    /// The default window implementation calls this.
+    /// The default window implementation calls this inside the root widget context.
     pub fn with_root_widget(layout_widgets: Arc<LayoutUpdates>, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
             layout_widgets,

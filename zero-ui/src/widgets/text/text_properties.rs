@@ -885,7 +885,7 @@ pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -
 ///
 /// This is very cheap, the text widget already has the length, but it does include wrapped lines. You
 /// can use [`get_lines_wrap_count`] to get text lines and a count of wrapped lines for each.
-/// 
+///
 /// [`get_lines_wrap_count`]: fn@get_lines_wrap_count
 #[property(CHILD_LAYOUT+100, default(0), widget_impl(TextEditMix<P>))]
 pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
