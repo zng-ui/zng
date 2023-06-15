@@ -16,11 +16,11 @@ use winit::{
 use zero_ui_view_api::{
     units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId,
     FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest,
-    WindowState, WindowStateAll,
+    WindowState, WindowStateAll, Event,
 };
 
 #[cfg(windows)]
-use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
+use zero_ui_view_api::{Key, KeyState, ScanCode};
 
 use crate::{
     extensions::{
