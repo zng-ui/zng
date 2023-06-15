@@ -167,14 +167,14 @@ impl Clone for LayoutText {
         Self {
             fonts: self.fonts.clone(),
             shaped_text: self.shaped_text.clone(),
-            shaped_text_version: self.shaped_text_version.clone(),
+            shaped_text_version: self.shaped_text_version,
             overlines: self.overlines.clone(),
-            overline_thickness: self.overline_thickness.clone(),
+            overline_thickness: self.overline_thickness,
             strikethroughs: self.strikethroughs.clone(),
-            strikethrough_thickness: self.strikethrough_thickness.clone(),
+            strikethrough_thickness: self.strikethrough_thickness,
             underlines: self.underlines.clone(),
-            underline_thickness: self.underline_thickness.clone(),
-            caret_origin: self.caret_origin.clone(),
+            underline_thickness: self.underline_thickness,
+            caret_origin: self.caret_origin,
             render_info: Mutex::new(self.render_info.lock().clone()),
         }
     }
@@ -1069,10 +1069,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                         .shaped_text
                                         .nearest_line(pos.y)
                                         .and_then(|l| l.nearest_seg(pos.x))
-                                        .and_then(|s| s.nearest_char_index(pos.x, resolved.text.text()));
+                                        .map(|s| s.nearest_char_index(pos.x, resolved.text.text()));
 
                                     // TODO, snap to grapheme start
-                                    // FIX   click after line break positions at 0.
+                                    //       should be MOUSE_DOWN, not CLICK?
                                 }
                             }
                             if caret_index.is_none() {
@@ -1492,7 +1492,7 @@ pub fn render_text() -> impl UiNode {
 
             {
                 let mut info = t.render_info.lock();
-                info.transform = frame.transform().clone();
+                info.transform = *frame.transform();
                 info.scale_factor = frame.scale_factor();
             }
 
@@ -1506,7 +1506,7 @@ pub fn render_text() -> impl UiNode {
             {
                 let t = LayoutText::get();
                 let mut info = t.render_info.lock();
-                info.transform = update.transform().clone();
+                info.transform = *update.transform();
             }
 
             if let Some(key) = color_key {

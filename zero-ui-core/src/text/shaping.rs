@@ -2107,16 +2107,20 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Gets the insert index in the string that is nearest to `x`.
-    pub fn nearest_char_index(&self, x: Px, full_text: &str) -> Option<usize> {
+    pub fn nearest_char_index(&self, x: Px, full_text: &str) -> usize {
         let x = x.0 as f32;
-        let (i, (g, advance)) = self
+        let q = self
             .glyphs_with_x_advance()
             .flat_map(|(_, g)| g)
             .enumerate()
             .min_by_key(|(_, (g, _))| {
                 let key = (g.point.x - x).abs();
                 (key * 5.0) as i32
-            })?;
+            });
+        let (i, (g, advance)) = match q {
+            Some(r) => r,
+            None => return self.text_range().start(), // no glyphs
+        };
 
         let i = self.glyphs_range().start() + i;
         let mut i = self.text_range().start() + self.text.clusters[i] as usize;
@@ -2125,7 +2129,7 @@ impl<'a> ShapedSegment<'a> {
             i += full_text[i..=i].len();
         }
 
-        Some(i)
+        i
     }
 }
 

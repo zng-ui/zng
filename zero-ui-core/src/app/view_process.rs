@@ -10,8 +10,8 @@ pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
     FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, LocaleConfig, MsgDialog, MsgDialogIcon, MsgDialogResponse, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
-    ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll, MsgDialogButtons,
+    IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode,
+    ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
