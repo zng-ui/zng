@@ -1620,12 +1620,12 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
     }
 
-    fn message_dialog(&mut self, id: WindowId, dialog: MessageDialog) -> DialogId {
+    fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId {
         let r_id = self.dialog_id_gen.incr();
         let r = if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
             s.message_dialog(dialog) // modal
         } else {
-            MessageDlgResponse::Error("window not found".to_owned())
+            MsgDialogResponse::Error("window not found".to_owned())
         };
         // async (after response)
         let _ = self.app_sender.send(AppEvent::Notify(Event::MessageDialogResponse(r_id, r)));

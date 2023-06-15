@@ -453,7 +453,7 @@ declare_api! {
     /// Shows a native message dialog for the window.
     ///
     /// Returns an ID that identifies the response event.
-    pub fn message_dialog(&mut self, id: WindowId, dialog: MessageDialog) -> DialogId;
+    pub fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId;
 
     /// Call the API extension.
     ///

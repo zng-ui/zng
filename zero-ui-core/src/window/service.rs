@@ -1080,16 +1080,16 @@ impl WINDOWS {
     pub fn native_message_dialog(
         &self,
         window_id: WindowId,
-        dialog: view_process::MessageDialog,
-    ) -> ResponseVar<view_process::MessageDlgResponse> {
+        dialog: view_process::MsgDialog,
+    ) -> ResponseVar<view_process::MsgDialogResponse> {
         let (responder, rsp) = response_var();
         WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
             Some(win) => {
                 if let Err(e) = win.message_dialog(dialog, responder.clone()) {
-                    responder.respond(view_process::MessageDlgResponse::Error(format!("{e}")))
+                    responder.respond(view_process::MsgDialogResponse::Error(format!("{e}")))
                 }
             }
-            None => responder.respond(view_process::MessageDlgResponse::Error("native window not found".to_owned())),
+            None => responder.respond(view_process::MsgDialogResponse::Error("native window not found".to_owned())),
         });
         rsp
     }

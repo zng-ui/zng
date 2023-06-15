@@ -1313,26 +1313,40 @@ impl Window {
     }
 
     /// Shows a native message dialog.
-    pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MessageDialog) -> zero_ui_view_api::MessageDlgResponse {
+    pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MsgDialog) -> zero_ui_view_api::MsgDialogResponse {
         let msg = rfd::MessageDialog::new()
-            .set_level(match dialog.kind {
-                zero_ui_view_api::MessageDlgKind::Info => rfd::MessageLevel::Info,
-                zero_ui_view_api::MessageDlgKind::Warn => rfd::MessageLevel::Warning,
-                zero_ui_view_api::MessageDlgKind::Error => rfd::MessageLevel::Error,
+            .set_level(match dialog.icon {
+                zero_ui_view_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
+                zero_ui_view_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
+                zero_ui_view_api::MsgDialogIcon::Error => rfd::MessageLevel::Error,
+            })
+            .set_buttons(match dialog.buttons {
+                zero_ui_view_api::MsgDialogButtons::Ok => rfd::MessageButtons::Ok,
+                zero_ui_view_api::MsgDialogButtons::OkCancel => rfd::MessageButtons::OkCancel,
+                zero_ui_view_api::MsgDialogButtons::YesNo => rfd::MessageButtons::YesNo,
             })
             .set_title(&dialog.title)
             .set_description(&dialog.message)
             .set_parent(&self.window);
 
-        if dialog.is_question {
-            if msg.set_buttons(rfd::MessageButtons::YesNo).show() {
-                zero_ui_view_api::MessageDlgResponse::Yes
-            } else {
-                zero_ui_view_api::MessageDlgResponse::No
+        let r = msg.show();
+
+        match dialog.buttons {
+            zero_ui_view_api::MsgDialogButtons::Ok => zero_ui_view_api::MsgDialogResponse::Ok,
+            zero_ui_view_api::MsgDialogButtons::OkCancel => {
+                if r {
+                    zero_ui_view_api::MsgDialogResponse::Ok
+                } else {
+                    zero_ui_view_api::MsgDialogResponse::Cancel
+                }
             }
-        } else {
-            let _ = msg.set_buttons(rfd::MessageButtons::Ok).show();
-            zero_ui_view_api::MessageDlgResponse::Ok
+            zero_ui_view_api::MsgDialogButtons::YesNo => {
+                if r {
+                    zero_ui_view_api::MsgDialogResponse::Yes
+                } else {
+                    zero_ui_view_api::MsgDialogResponse::No
+                }
+            }
         }
     }
 }

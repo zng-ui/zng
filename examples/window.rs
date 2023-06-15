@@ -457,29 +457,29 @@ fn native() -> impl UiNode {
             child = Text!("Message");
             on_click = async_hn!(|_| {
                 use zero_ui::core::app::view_process::*;
-                let rsp = WINDOWS.native_message_dialog(WINDOW.id(), MessageDialog {
+                let rsp = WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
                     title: "Question?".to_owned(),
                     message: "Example message. Yes -> Warn, No -> Error.".to_owned(),
-                    kind: MessageDlgKind::Info,
-                    is_question: true,
+                    icon: MsgDialogIcon::Info,
+                    buttons: MsgDialogButtons::YesNo,
                 }).wait_rsp().await;
-                let kind = match rsp {
-                    MessageDlgResponse::Yes => {
-                        MessageDlgKind::Warn
+                let icon = match rsp {
+                    MsgDialogResponse::Yes => {
+                        MsgDialogIcon::Warn
                     },
-                    MessageDlgResponse::No => {
-                        MessageDlgKind::Error
+                    MsgDialogResponse::No => {
+                        MsgDialogIcon::Error
                     }
                     e => {
                         tracing::error!("unexpected response {e:?}");
                         return;
                     },
                 };
-                WINDOWS.native_message_dialog(WINDOW.id(), MessageDialog {
+                WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
                     title: "Title".to_owned(),
                     message: "Message".to_owned(),
-                    kind,
-                    is_question: false,
+                    icon,
+                    buttons: MsgDialogButtons::Ok,
                 });
             });
         }],

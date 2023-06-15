@@ -1178,7 +1178,7 @@ pub enum Event {
     /// Device Unicode character input.
     DeviceText(DeviceId, char),
     /// User responded a native dialog.
-    MessageDialogResponse(DialogId, MessageDlgResponse),
+    MessageDialogResponse(DialogId, MsgDialogResponse),
 
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
@@ -2510,20 +2510,22 @@ impl std::error::Error for ApiExtensionRecvError {
 
 /// Defines a native message dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct MessageDialog {
-    /// The message dialog window title.
+pub struct MsgDialog {
+    /// Message dialog window title.
     pub title: String,
-    /// The message text.
+    /// Message text.
     pub message: String,
     /// Kind of message.
-    pub kind: MessageDlgKind,
-    /// If the user must response yes/no.
-    pub is_question: bool,
+    pub icon: MsgDialogIcon,
+    /// Message buttons.
+    pub buttons: MsgDialogButtons,
 }
 
-/// Kind of message in a [`MessageDialog`].
+/// Icon of a message dialog.
+///
+/// Defines the overall *level* style of the dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum MessageDlgKind {
+pub enum MsgDialogIcon {
     /// Informational.
     Info,
     /// Warning.
@@ -2532,18 +2534,34 @@ pub enum MessageDlgKind {
     Error,
 }
 
-/// Response to a [`MessageDialog`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum MessageDlgResponse {
-    /// Message was not question, user closed dialog.
+/// Buttons of a message dialog.
+///
+/// Defines what kind of question the user is answering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum MsgDialogButtons {
+    /// Ok.
+    ///
+    /// Just a confirmation of message received.
     Ok,
-    /// Message was question, user clicked *yes*.
+    /// Ok or Cancel.
+    ///
+    /// Approve selected choice or cancel.
+    OkCancel,
+    /// Yes or No.
+    YesNo,
+}
+
+/// Response to a message dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum MsgDialogResponse {
+    ///
+    Ok,
+    ///
     Yes,
-    /// Message was question, user closed dialog without clicking *yes*.
+    ///
     No,
-    /// Message is showing, but it is not modal. The response will return as an event [`Event::MessageResponse`]
-    /// for the same dialog ID.
-    Async(DialogId),
+    ///
+    Cancel,
     /// Failed to show the message.
     ///
     /// The associated string may contain debug information, caller should assume that native message dialogs

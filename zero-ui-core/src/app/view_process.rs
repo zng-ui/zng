@@ -10,8 +10,8 @@ pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
     FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, LocaleConfig, MessageDialog, MessageDlgKind, MessageDlgResponse, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
-    ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
+    IpcBytesSender, LocaleConfig, MsgDialog, MsgDialogIcon, MsgDialogResponse, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
+    ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll, MsgDialogButtons,
 };
 
 use crate::{
@@ -53,7 +53,7 @@ struct ViewProcessService {
 
     pending_frames: usize,
 
-    message_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<MessageDlgResponse>)>,
+    message_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<MsgDialogResponse>)>,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -442,7 +442,7 @@ impl VIEW_PROCESS {
         })
     }
 
-    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::DialogId, response: MessageDlgResponse) {
+    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::DialogId, response: MsgDialogResponse) {
         let mut app = self.write();
         if let Some(i) = app.message_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.message_dialogs.swap_remove(i);
@@ -454,7 +454,7 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         app.pending_frames = 0;
         for (_, r) in app.message_dialogs.drain(..) {
-            r.respond(MessageDlgResponse::Error("respawn".to_owned()));
+            r.respond(MsgDialogResponse::Error("respawn".to_owned()));
         }
     }
 
@@ -683,7 +683,7 @@ impl ViewWindow {
     ///
     /// The window is not interactive while the dialog is visible and the dialog may be modal in the view-process.
     /// In the app-process this is always async, and the response var will update once when the user responds.
-    pub fn message_dialog(&self, dlg: MessageDialog, responder: ResponderVar<MessageDlgResponse>) -> Result<()> {
+    pub fn message_dialog(&self, dlg: MsgDialog, responder: ResponderVar<MsgDialogResponse>) -> Result<()> {
         let dlg_id = self.0.call(|id, p| p.message_dialog(id, dlg))?;
         VIEW_PROCESS.handle_write(self.0.app_id).message_dialogs.push((dlg_id, responder));
         Ok(())
