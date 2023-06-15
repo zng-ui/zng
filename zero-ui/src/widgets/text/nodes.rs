@@ -93,8 +93,26 @@ impl ResolvedText {
     }
 }
 
-/// Represents the layout text.
+/// Info about the last text render or render update.
 #[derive(Debug, Clone)]
+pub struct RenderInfo {
+    /// Render transform of the text, in  the window space.
+    pub transform: PxTransform,
+    /// Render scale factor of the text.
+    pub scale_factor: Factor,
+}
+impl Default for RenderInfo {
+    /// Identify, 1.fct()
+    fn default() -> Self {
+        Self {
+            transform: PxTransform::identity(),
+            scale_factor: 1.fct(),
+        }
+    }
+}
+
+/// Represents the layout text.
+#[derive(Debug)]
 pub struct LayoutText {
     /// Sized [`faces`].
     ///
@@ -139,6 +157,27 @@ pub struct LayoutText {
 
     /// Top-left offset of the caret in the shaped text.
     pub caret_origin: Option<PxPoint>,
+
+    /// Info about the last text render or render update.
+    pub render_info: Mutex<RenderInfo>,
+}
+
+impl Clone for LayoutText {
+    fn clone(&self) -> Self {
+        Self {
+            fonts: self.fonts.clone(),
+            shaped_text: self.shaped_text.clone(),
+            shaped_text_version: self.shaped_text_version.clone(),
+            overlines: self.overlines.clone(),
+            overline_thickness: self.overline_thickness.clone(),
+            strikethroughs: self.strikethroughs.clone(),
+            strikethrough_thickness: self.strikethrough_thickness.clone(),
+            underlines: self.underlines.clone(),
+            underline_thickness: self.underline_thickness.clone(),
+            caret_origin: self.caret_origin.clone(),
+            render_info: Mutex::new(self.render_info.lock().clone()),
+        }
+    }
 }
 impl LayoutText {
     fn no_context() -> Self {
@@ -672,6 +711,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     underlines: vec![],
                     underline_thickness: Px(0),
                     caret_origin: None,
+                    render_info: Mutex::default(),
                 });
                 self.pending.insert(PendingLayout::RESHAPE);
             }
@@ -1018,26 +1058,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = CLICK_EVENT.on(update) {
                     if let Some(pos) = args.position() {
                         if args.is_primary() {
-                            if let Some(txt) = &txt.txt {
-                                let info = WIDGET.info();
-                                let scale_factor = info.tree().scale_factor().0;
+                            if let Some(txt) = &mut txt.txt {
+                                let info = txt.render_info.get_mut();
                                 if let Some(pos) = info
-                                    .inner_transform()
+                                    .transform
                                     .inverse()
-                                    .and_then(|t| t.transform_point(pos.to_px(scale_factor)))
+                                    .and_then(|t| t.transform_point(pos.to_px(info.scale_factor.0)))
                                 {
-                                    let pos = pos - PxVector::new(Dip::new(15).to_px(scale_factor), Dip::new(7).to_px(scale_factor));
                                     *caret_index = txt
                                         .shaped_text
                                         .nearest_line(pos.y)
                                         .and_then(|l| l.nearest_seg(pos.x))
-                                        .and_then(|s| s.nearest_char_index(pos.x));
+                                        .and_then(|s| s.nearest_char_index(pos.x, resolved.text.text()));
 
-                                    // if let Some(i) = &mut caret_index {
-                                    //     // TODO, snap to grapheme start
-                                    //     //       find line that contains y
-                                    //     //       apply actual text transform (padding + any other custom inner transform (collect in render?))
-                                    // }
+                                    // TODO, snap to grapheme start
+                                    // FIX   click after line break positions at 0.
                                 }
                             }
                             if caret_index.is_none() {
@@ -1455,6 +1490,12 @@ pub fn render_text() -> impl UiNode {
                 reuse = None;
             }
 
+            {
+                let mut info = t.render_info.lock();
+                info.transform = frame.transform().clone();
+                info.scale_factor = frame.scale_factor();
+            }
+
             frame.push_reuse(&mut reuse, |frame| {
                 for (font, glyphs) in t.shaped_text.glyphs() {
                     frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
@@ -1462,6 +1503,12 @@ pub fn render_text() -> impl UiNode {
             });
         }
         UiNodeOp::RenderUpdate { update } => {
+            {
+                let t = LayoutText::get();
+                let mut info = t.render_info.lock();
+                info.transform = update.transform().clone();
+            }
+
             if let Some(key) = color_key {
                 let color = TEXT_COLOR_VAR.get();
 

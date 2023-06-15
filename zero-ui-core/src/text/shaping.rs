@@ -169,14 +169,6 @@ impl GlyphSegmentVec {
 
         IndexRange(start, end)
     }
-
-    fn segment_from_glyph(&self, index: usize) -> usize {
-        let r = self.0.iter().take_while(|s| s.end < index).count();
-        if !self.0.is_empty() && self.0[r].end <= index {
-            return self.0.len();
-        }
-        r
-    }
 }
 
 /// `Vec<LineRange>` with helper methods.
@@ -1770,7 +1762,7 @@ impl<'a> ShapedLine<'a> {
         let mut min_dist = Px::MAX;
         for seg in self.segs() {
             let (seg_x, width) = seg.x_width();
-            if seg_x >= x {
+            if x >= seg_x {
                 let seg_max_x = seg_x + width;
                 if x < seg_max_x {
                     return Some(seg);
@@ -2115,17 +2107,25 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Gets the insert index in the string that is nearest to `x`.
-    pub fn nearest_char_index(&self, x: Px) -> Option<usize> {
+    pub fn nearest_char_index(&self, x: Px, full_text: &str) -> Option<usize> {
         let x = x.0 as f32;
-        let (i, _) = self
+        let (i, (g, advance)) = self
             .glyphs_with_x_advance()
             .flat_map(|(_, g)| g)
             .enumerate()
-            .min_by_key(|(_, (g, advance))| (((g.point.x + advance / 2.0) - x).abs() * 5.0) as i32)?;
-        // TODO: check glyph x+width/2 < point.x, in this case the char is the next or string len.
-        let i = self.glyphs_range().start() + i;
+            .min_by_key(|(_, (g, _))| {
+                let key = (g.point.x - x).abs();
+                (key * 5.0) as i32
+            })?;
 
-        Some(self.text_range().start() + self.text.clusters[i] as usize)
+        let i = self.glyphs_range().start() + i;
+        let mut i = self.text_range().start() + self.text.clusters[i] as usize;
+
+        if x >= g.point.x + advance / 2.0 {
+            i += full_text[i..=i].len();
+        }
+
+        Some(i)
     }
 }
 
