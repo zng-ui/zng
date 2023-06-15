@@ -1306,6 +1306,17 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             }
 
+            // native dialog responses
+            Event::MessageDialogResponse(id, response) => {
+                VIEW_PROCESS.on_message_dlg_response(id, response);
+            }
+
+            // custom
+            Event::ExtensionEvent(id, payload) => {
+                let args = RawExtensionEventArgs::now(id, payload);
+                self.notify_event(RAW_EXTENSION_EVENT.new_update(args), observer);
+            }
+
             // config events
             Event::FontsChanged => {
                 let args = RawFontChangedArgs::now();

@@ -53,6 +53,8 @@ pub(super) struct WindowsService {
 
     loading_deadline: Option<DeadlineHandle>,
     latest_color_scheme: ColorScheme,
+
+    view_window_tasks: Vec<ViewWindowTask>,
 }
 impl WindowsService {
     fn new() -> Self {
@@ -72,6 +74,7 @@ impl WindowsService {
             frame_images: vec![],
             loading_deadline: None,
             latest_color_scheme: ColorScheme::Dark,
+            view_window_tasks: vec![],
         }
     }
 
@@ -159,6 +162,13 @@ impl WindowsService {
         }
     }
 
+    fn view_window_task(&mut self, window_id: WindowId, task: impl FnOnce(Option<&view_process::ViewWindow>) + Send + 'static) {
+        self.view_window_tasks.push(ViewWindowTask {
+            window_id,
+            task: Mutex::new(Box::new(task)),
+        });
+    }
+
     fn take_requests(
         &mut self,
     ) -> (
@@ -167,6 +177,7 @@ impl WindowsService {
         Vec<CloseWindowRequest>,
         Option<WindowId>,
         Vec<WindowId>,
+        Vec<ViewWindowTask>,
     ) {
         (
             mem::take(&mut self.open_requests),
@@ -174,6 +185,7 @@ impl WindowsService {
             mem::take(&mut self.close_requests),
             self.focus_request.take(),
             mem::take(&mut self.bring_to_top_requests),
+            mem::take(&mut self.view_window_tasks),
         )
     }
 }
@@ -818,7 +830,7 @@ impl WINDOWS {
             return;
         }
 
-        let ((open, mut open_tasks, close, focus, bring_to_top), color_scheme) = {
+        let ((open, mut open_tasks, close, focus, bring_to_top, view_tasks), color_scheme) = {
             let mut wns = WINDOWS_SV.write();
             (wns.take_requests(), wns.latest_color_scheme)
         };
@@ -926,6 +938,17 @@ impl WINDOWS {
                     w.bring_to_top();
                 }
             });
+        }
+
+        for view_task in view_tasks {
+            let task = view_task.task.into_inner();
+            Self::with_detached_windows(|windows, _| {
+                if let Some(w) = windows.get_mut(&view_task.window_id) {
+                    w.view_task(task);
+                } else {
+                    task(None);
+                }
+            })
         }
     }
 
@@ -1048,6 +1071,30 @@ impl WINDOWS {
     }
 }
 
+/// Native dialogs.
+impl WINDOWS {
+    /// Show a native message dialog for the window.
+    ///
+    /// The dialog maybe modal in the view-process, in the app-process (caller) it is always async, the
+    /// response var will update once when the user responds to the dialog.
+    pub fn native_message_dialog(
+        &self,
+        window_id: WindowId,
+        dialog: view_process::MessageDialog,
+    ) -> ResponseVar<view_process::MessageDlgResponse> {
+        let (responder, rsp) = response_var();
+        WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
+            Some(win) => {
+                if let Err(e) = win.message_dialog(dialog, responder.clone()) {
+                    responder.respond(view_process::MessageDlgResponse::Error(format!("{e}")))
+                }
+            }
+            None => responder.respond(view_process::MessageDlgResponse::Error("native window not found".to_owned())),
+        });
+        rsp
+    }
+}
+
 /// Window data visible in [`Windows`], detached so we can make the window visible inside the window content.
 struct AppWindowInfo {
     id: WindowId,
@@ -1163,6 +1210,11 @@ impl AppWindowTask {
     }
 }
 
+struct ViewWindowTask {
+    window_id: WindowId,
+    task: Mutex<Box<dyn FnOnce(Option<&view_process::ViewWindow>) + Send>>, // never locked, for :Async only
+}
+
 /// Window context owner.
 struct AppWindow {
     ctrl: Mutex<WindowCtrl>, // never locked, makes `AppWindow: Sync`.
@@ -1212,6 +1264,10 @@ impl AppWindow {
         WINDOW.with_context(&mut self.ctx, || {
             self.ctrl.get_mut().close();
         });
+    }
+
+    fn view_task(&mut self, task: Box<dyn FnOnce(Option<&view_process::ViewWindow>) + Send>) {
+        self.ctrl_in_ctx(|ctrl| ctrl.view_task(task));
     }
 }
 

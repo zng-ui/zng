@@ -956,6 +956,14 @@ impl HeadedCtrl {
         self.content.close();
         self.window = None;
     }
+
+    fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
+        if let Some(view) = &self.window {
+            task(Some(view));
+        } else {
+            self.delayed_view_updates.push(Box::new(move |view| task(Some(view))));
+        }
+    }
 }
 
 /// Respond to `parent_var` updates, returns `true` if the `parent` value has changed.
@@ -1249,6 +1257,10 @@ impl HeadlessWithRendererCtrl {
         self.content.close();
         self.surface = None;
     }
+
+    fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
+        task(None)
+    }
 }
 
 fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
@@ -1412,6 +1424,10 @@ impl HeadlessCtrl {
 
     pub fn close(&mut self) {
         self.content.close();
+    }
+
+    fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
+        task(None);
     }
 }
 
@@ -1890,6 +1906,14 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.close(),
             WindowCtrlMode::Headless(c) => c.close(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.close(),
+        }
+    }
+
+    pub(crate) fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.view_task(task),
+            WindowCtrlMode::Headless(c) => c.view_task(task),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.view_task(task),
         }
     }
 }

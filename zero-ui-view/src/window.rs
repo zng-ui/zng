@@ -1311,6 +1311,30 @@ impl Window {
         }
         ApiExtensionPayload::unknown_extension(extension_id)
     }
+
+    /// Shows a native message dialog.
+    pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MessageDialog) -> zero_ui_view_api::MessageDlgResponse {
+        let msg = rfd::MessageDialog::new()
+            .set_level(match dialog.kind {
+                zero_ui_view_api::MessageDlgKind::Info => rfd::MessageLevel::Info,
+                zero_ui_view_api::MessageDlgKind::Warn => rfd::MessageLevel::Warning,
+                zero_ui_view_api::MessageDlgKind::Error => rfd::MessageLevel::Error,
+            })
+            .set_title(&dialog.title)
+            .set_description(&dialog.message)
+            .set_parent(&self.window);
+
+        if dialog.is_question {
+            if msg.set_buttons(rfd::MessageButtons::YesNo).show() {
+                zero_ui_view_api::MessageDlgResponse::Yes
+            } else {
+                zero_ui_view_api::MessageDlgResponse::No
+            }
+        } else {
+            let _ = msg.set_buttons(rfd::MessageButtons::Ok).show();
+            zero_ui_view_api::MessageDlgResponse::Ok
+        }
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {

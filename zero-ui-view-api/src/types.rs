@@ -114,6 +114,9 @@ declare_id! {
     ///
     /// The View Process defines the ID.
     pub struct FrameWaitId(_);
+
+    /// Identifies an ongoing async native dialog with the user.
+    pub struct DialogId(_);
 }
 
 /// Hardware-dependent keyboard scan code.
@@ -1174,6 +1177,11 @@ pub enum Event {
     },
     /// Device Unicode character input.
     DeviceText(DeviceId, char),
+    /// User responded a native dialog.
+    MessageDialogResponse(DialogId, MessageDlgResponse),
+
+    /// Represents a custom event send by the extension.
+    ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
 }
 impl Event {
     /// Change `self` to incorporate `other` or returns `other` if both events cannot be coalesced.
@@ -2498,4 +2506,47 @@ impl std::error::Error for ApiExtensionRecvError {
             None
         }
     }
+}
+
+/// Defines a native message dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct MessageDialog {
+    /// The message dialog window title.
+    pub title: String,
+    /// The message text.
+    pub message: String,
+    /// Kind of message.
+    pub kind: MessageDlgKind,
+    /// If the user must response yes/no.
+    pub is_question: bool,
+}
+
+/// Kind of message in a [`MessageDialog`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum MessageDlgKind {
+    /// Informational.
+    Info,
+    /// Warning.
+    Warn,
+    /// Error.
+    Error,
+}
+
+/// Response to a [`MessageDialog`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum MessageDlgResponse {
+    /// Message was not question, user closed dialog.
+    Ok,
+    /// Message was question, user clicked *yes*.
+    Yes,
+    /// Message was question, user closed dialog without clicking *yes*.
+    No,
+    /// Message is showing, but it is not modal. The response will return as an event [`Event::MessageResponse`]
+    /// for the same dialog ID.
+    Async(DialogId),
+    /// Failed to show the message.
+    ///
+    /// The associated string may contain debug information, caller should assume that native message dialogs
+    /// are not available in the view-process.
+    Error(String),
 }

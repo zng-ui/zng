@@ -598,6 +598,21 @@ event_args! {
             list.search_all()
         }
     }
+
+    /// Arguments for the [`RAW_EXTENSION_EVENT`].
+    pub struct RawExtensionEventArgs {
+        /// Id of the sender extension.
+        pub extension_id: super::view_process::ApiExtensionId,
+        /// Event payload.
+        pub payload: super::view_process::ApiExtensionPayload,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
 }
 
 event! {
@@ -725,4 +740,7 @@ event! {
 
     /// Image generated from a frame is ready for reading.
     pub static RAW_FRAME_IMAGE_READY_EVENT: RawFrameImageReadyArgs;
+
+    /// Custom view-process extension event.
+    pub static RAW_EXTENSION_EVENT: RawExtensionEventArgs;
 }

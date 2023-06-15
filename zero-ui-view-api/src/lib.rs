@@ -450,6 +450,11 @@ declare_api! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
 
+    /// Shows a native message dialog for the window.
+    ///
+    /// Returns an ID that identifies the response event.
+    pub fn message_dialog(&mut self, id: WindowId, dialog: MessageDialog) -> DialogId;
+
     /// Call the API extension.
     ///
     /// The `extension_id` is the index of an extension in the extensions list provided by the view-process on init.
@@ -465,7 +470,6 @@ declare_api! {
     /// This is is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` renderer.
     pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
-
 }
 
 /*

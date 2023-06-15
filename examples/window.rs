@@ -78,6 +78,7 @@ async fn main_window() -> WindowRoot {
                     children = ui_vec![
                         screenshot(),
                         misc(),
+                        native(),
                     ];
                 },
             ];
@@ -446,6 +447,42 @@ fn misc() -> impl UiNode {
                 }
             }
         ],
+    )
+}
+
+fn native() -> impl UiNode {
+    section(
+        "Native Dialogs",
+        ui_vec![Button! {
+            child = Text!("Message");
+            on_click = async_hn!(|_| {
+                use zero_ui::core::app::view_process::*;
+                let rsp = WINDOWS.native_message_dialog(WINDOW.id(), MessageDialog {
+                    title: "Question?".to_owned(),
+                    message: "Example message. Yes -> Warn, No -> Error.".to_owned(),
+                    kind: MessageDlgKind::Info,
+                    is_question: true,
+                }).wait_rsp().await;
+                let kind = match rsp {
+                    MessageDlgResponse::Yes => {
+                        MessageDlgKind::Warn
+                    },
+                    MessageDlgResponse::No => {
+                        MessageDlgKind::Error
+                    }
+                    e => {
+                        tracing::error!("unexpected response {e:?}");
+                        return;
+                    },
+                };
+                WINDOWS.native_message_dialog(WINDOW.id(), MessageDialog {
+                    title: "Title".to_owned(),
+                    message: "Message".to_owned(),
+                    kind,
+                    is_question: false,
+                });
+            });
+        }],
     )
 }
 

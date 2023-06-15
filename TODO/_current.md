@@ -46,6 +46,8 @@
 
 # Extend-View
 
+* Implement more native dialogs.
+* Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.
 

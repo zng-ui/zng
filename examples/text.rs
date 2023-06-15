@@ -369,6 +369,12 @@ fn text_editor() -> impl UiNode {
                                     };
                                     children = ui_vec![
                                         Button! {
+                                            child = Text!("New");
+                                            on_click = hn!(txt, |_| {
+                                                txt.set("");
+                                            });
+                                        },
+                                        Button! {
                                             child = Text!("Open");
                                             on_click = hn!(txt, |_| {
                                                 txt.set("open TODO");

@@ -1001,7 +1001,7 @@ pub mod cell {
 
     /// Value for [`at`] that causes the cell to be positioned based on the logical index *i*,
     /// for columns *i % columns* and for rows  *i / columns*.
-    /// 
+    ///
     /// [`at`]: fn@at
     pub const AT_AUTO: (usize, usize) = (usize::MAX, usize::MAX);
 }

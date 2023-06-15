@@ -357,6 +357,8 @@ pub(crate) struct App {
     device_id_gen: DeviceId,
     devices: Vec<(DeviceId, winit::event::DeviceId)>,
 
+    dialog_id_gen: DialogId,
+
     resize_frame_wait_id_gen: FrameWaitId,
 
     coalescing_event: Option<Event>,
@@ -616,6 +618,7 @@ impl App {
             monitor_id_gen: MonitorId::INVALID,
             devices: vec![],
             device_id_gen: DeviceId::INVALID,
+            dialog_id_gen: DialogId::INVALID,
             resize_frame_wait_id_gen: FrameWaitId::INVALID,
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
@@ -1615,6 +1618,18 @@ impl Api for App {
 
     fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest) {
         with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
+    }
+
+    fn message_dialog(&mut self, id: WindowId, dialog: MessageDialog) -> DialogId {
+        let r_id = self.dialog_id_gen.incr();
+        let r = if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
+            s.message_dialog(dialog) // modal
+        } else {
+            MessageDlgResponse::Error("window not found".to_owned())
+        };
+        // async (after response)
+        let _ = self.app_sender.send(AppEvent::Notify(Event::MessageDialogResponse(r_id, r)));
+        r_id
     }
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {

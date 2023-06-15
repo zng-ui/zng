@@ -10,8 +10,8 @@ pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
     FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, LocaleConfig, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId,
-    WindowRequest, WindowState, WindowStateAll,
+    IpcBytesSender, LocaleConfig, MessageDialog, MessageDlgKind, MessageDlgResponse, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
+    ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -22,6 +22,7 @@ use crate::{
     task::SignalOnce,
     text::FontAntiAliasing,
     units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize},
+    var::ResponderVar,
     window::{MonitorId, WindowId},
 };
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
@@ -51,6 +52,8 @@ struct ViewProcessService {
     encoding_images: Vec<EncodeRequest>,
 
     pending_frames: usize,
+
+    message_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<MessageDlgResponse>)>,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -254,6 +257,7 @@ impl VIEW_PROCESS {
             encoding_images: vec![],
             frame_images: vec![],
             pending_frames: 0,
+            message_dialogs: vec![],
             extensions: ApiExtensions::default(),
         });
     }
@@ -438,8 +442,20 @@ impl VIEW_PROCESS {
         })
     }
 
+    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::DialogId, response: MessageDlgResponse) {
+        let mut app = self.write();
+        if let Some(i) = app.message_dialogs.iter().position(|(i, _)| *i == id) {
+            let (_, r) = app.message_dialogs.swap_remove(i);
+            r.respond(response);
+        }
+    }
+
     pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
-        self.write().pending_frames = 0;
+        let mut app = self.write();
+        app.pending_frames = 0;
+        for (_, r) in app.message_dialogs.drain(..) {
+            r.respond(MessageDlgResponse::Error("respawn".to_owned()));
+        }
     }
 
     pub(crate) fn exit(&self) {
@@ -661,6 +677,16 @@ impl ViewWindow {
     /// if canceled by setting to `None`.
     pub fn set_focus_indicator(&self, indicator: Option<FocusIndicator>) -> Result<()> {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
+    }
+
+    /// Shows a native message dialog for the window.
+    ///
+    /// The window is not interactive while the dialog is visible and the dialog may be modal in the view-process.
+    /// In the app-process this is always async, and the response var will update once when the user responds.
+    pub fn message_dialog(&self, dlg: MessageDialog, responder: ResponderVar<MessageDlgResponse>) -> Result<()> {
+        let dlg_id = self.0.call(|id, p| p.message_dialog(id, dlg))?;
+        VIEW_PROCESS.handle_write(self.0.app_id).message_dialogs.push((dlg_id, responder));
+        Ok(())
     }
 
     /// Drop `self`.
