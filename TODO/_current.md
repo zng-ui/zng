@@ -38,15 +38,16 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-# View
+# View!
 
 * `view` really needs to be a widget.
     - In the icon example the view is not centered in the stack because
       stack align does not work with non-widget nodes.
 
-# Extend-View
+# View-Process
 
-* Implement more native dialogs.
+* Review native dialog in Linux.
+    - Is not modal, app window stops responding.
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.

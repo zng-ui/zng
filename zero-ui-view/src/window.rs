@@ -1314,7 +1314,7 @@ impl Window {
 
     /// Shows a native message dialog.
     pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MsgDialog) -> zero_ui_view_api::MsgDialogResponse {
-        let msg = rfd::MessageDialog::new()
+        let dlg = rfd::MessageDialog::new()
             .set_level(match dialog.icon {
                 zero_ui_view_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
                 zero_ui_view_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
@@ -1329,7 +1329,7 @@ impl Window {
             .set_description(&dialog.message)
             .set_parent(&self.window);
 
-        let r = msg.show();
+        let r = dlg.show();
 
         match dialog.buttons {
             zero_ui_view_api::MsgDialogButtons::Ok => zero_ui_view_api::MsgDialogResponse::Ok,
@@ -1347,6 +1347,33 @@ impl Window {
                     zero_ui_view_api::MsgDialogResponse::No
                 }
             }
+        }
+    }
+
+    /// Shows a native file dialog.
+    pub(crate) fn file_dialog(&self, dialog: zero_ui_view_api::FileDialog) -> zero_ui_view_api::FileDialogResponse {
+        let mut dlg = rfd::FileDialog::new()
+            .set_title(&dialog.title)
+            .set_directory(&dialog.starting_dir)
+            .set_file_name(&dialog.starting_name)
+            .set_parent(&self.window);
+
+        for (name, patterns) in dialog.iter_filters() {
+            dlg = dlg.add_filter(name, &patterns.collect::<Vec<_>>());
+        }
+
+        let selection: Vec<_> = match dialog.kind {
+            zero_ui_view_api::FileDialogKind::OneFile => dlg.pick_file().into_iter().collect(),
+            zero_ui_view_api::FileDialogKind::ManyFiles => dlg.pick_files().into_iter().flatten().collect(),
+            zero_ui_view_api::FileDialogKind::OneFolder => dlg.pick_folder().into_iter().collect(),
+            zero_ui_view_api::FileDialogKind::ManyFolders => dlg.pick_folders().into_iter().flatten().collect(),
+            zero_ui_view_api::FileDialogKind::SaveFile => dlg.save_file().into_iter().collect(),
+        };
+
+        if selection.is_empty() {
+            zero_ui_view_api::FileDialogResponse::Cancel
+        } else {
+            zero_ui_view_api::FileDialogResponse::Selected(selection)
         }
     }
 }

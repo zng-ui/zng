@@ -8,10 +8,11 @@ use std::{
 
 pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
-    ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
-    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode,
-    ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
+    ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FileDialog, FileDialogKind, FileDialogResponse,
+    FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale,
+    ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog, MsgDialogButtons,
+    MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId, WindowRequest,
+    WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -54,6 +55,7 @@ struct ViewProcessService {
     pending_frames: usize,
 
     message_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<MsgDialogResponse>)>,
+    file_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<FileDialogResponse>)>,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -258,6 +260,7 @@ impl VIEW_PROCESS {
             frame_images: vec![],
             pending_frames: 0,
             message_dialogs: vec![],
+            file_dialogs: vec![],
             extensions: ApiExtensions::default(),
         });
     }
@@ -446,6 +449,14 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         if let Some(i) = app.message_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.message_dialogs.swap_remove(i);
+            r.respond(response);
+        }
+    }
+
+    pub(crate) fn on_file_dlg_response(&self, id: zero_ui_view_api::DialogId, response: FileDialogResponse) {
+        let mut app = self.write();
+        if let Some(i) = app.file_dialogs.iter().position(|(i, _)| *i == id) {
+            let (_, r) = app.file_dialogs.swap_remove(i);
             r.respond(response);
         }
     }
@@ -686,6 +697,16 @@ impl ViewWindow {
     pub fn message_dialog(&self, dlg: MsgDialog, responder: ResponderVar<MsgDialogResponse>) -> Result<()> {
         let dlg_id = self.0.call(|id, p| p.message_dialog(id, dlg))?;
         VIEW_PROCESS.handle_write(self.0.app_id).message_dialogs.push((dlg_id, responder));
+        Ok(())
+    }
+
+    /// Shows a native file/folder dialog for the window.
+    ///
+    /// The window is not interactive while the dialog is visible and the dialog may be modal in the view-process.
+    /// In the app-process this is always async, and the response var will update once when the user responds.
+    pub fn file_dialog(&self, dlg: FileDialog, responder: ResponderVar<FileDialogResponse>) -> Result<()> {
+        let dlg_id = self.0.call(|id, p| p.file_dialog(id, dlg))?;
+        VIEW_PROCESS.handle_write(self.0.app_id).file_dialogs.push((dlg_id, responder));
         Ok(())
     }
 

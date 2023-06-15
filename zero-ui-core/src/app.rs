@@ -1307,8 +1307,11 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // native dialog responses
-            Event::MessageDialogResponse(id, response) => {
+            Event::MsgDialogResponse(id, response) => {
                 VIEW_PROCESS.on_message_dlg_response(id, response);
+            }
+            Event::FileDialogResponse(id, response) => {
+                VIEW_PROCESS.on_file_dlg_response(id, response);
             }
 
             // custom

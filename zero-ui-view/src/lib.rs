@@ -1628,7 +1628,19 @@ impl Api for App {
             MsgDialogResponse::Error("window not found".to_owned())
         };
         // async (after response)
-        let _ = self.app_sender.send(AppEvent::Notify(Event::MessageDialogResponse(r_id, r)));
+        let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
+        r_id
+    }
+
+    fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId {
+        let r_id = self.dialog_id_gen.incr();
+        let r = if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
+            s.file_dialog(dialog) // modal
+        } else {
+            FileDialogResponse::Error("window not found".to_owned())
+        };
+        // async (after response)
+        let _ = self.app_sender.send(AppEvent::Notify(Event::FileDialogResponse(r_id, r)));
         r_id
     }
 

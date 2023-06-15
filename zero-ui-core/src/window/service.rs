@@ -1093,6 +1093,27 @@ impl WINDOWS {
         });
         rsp
     }
+
+    /// Show a native file dialog for the window.
+    ///
+    /// The dialog maybe modal in the view-process, in the app-process (caller) it is always async, the
+    /// response var will update once when the user responds to the dialog.
+    pub fn native_file_dialog(
+        &self,
+        window_id: WindowId,
+        dialog: view_process::FileDialog,
+    ) -> ResponseVar<view_process::FileDialogResponse> {
+        let (responder, rsp) = response_var();
+        WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
+            Some(win) => {
+                if let Err(e) = win.file_dialog(dialog, responder.clone()) {
+                    responder.respond(view_process::FileDialogResponse::Error(format!("{e}")))
+                }
+            }
+            None => responder.respond(view_process::FileDialogResponse::Error("native window not found".to_owned())),
+        });
+        rsp
+    }
 }
 
 /// Window data visible in [`Windows`], detached so we can make the window visible inside the window content.

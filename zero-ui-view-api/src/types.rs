@@ -1177,8 +1177,10 @@ pub enum Event {
     },
     /// Device Unicode character input.
     DeviceText(DeviceId, char),
-    /// User responded a native dialog.
-    MessageDialogResponse(DialogId, MsgDialogResponse),
+    /// User responded to a native message dialog.
+    MsgDialogResponse(DialogId, MsgDialogResponse),
+    /// User responded to a native file dialog.
+    FileDialogResponse(DialogId, FileDialogResponse),
 
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
@@ -2564,7 +2566,187 @@ pub enum MsgDialogResponse {
     Cancel,
     /// Failed to show the message.
     ///
-    /// The associated string may contain debug information, caller should assume that native message dialogs
-    /// are not available in the view-process.
+    /// The associated string may contain debug information, caller should assume that native file dialogs
+    /// are not available for the given window ID at the current view-process instance.
     Error(String),
+}
+
+/// Defines a native file dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct FileDialog {
+    /// Dialog window title.
+    pub title: String,
+    /// Selected directory when the dialog opens.
+    pub starting_dir: PathBuf,
+    /// Starting file name.
+    pub starting_name: String,
+    /// File extension filters.
+    ///
+    /// Syntax:
+    ///
+    /// ```txt
+    /// Display Name|*.glob;*.ext|All Files|*.*
+    /// ```
+    ///
+    /// You can use the [`push_filter`] method to create filters.
+    ///
+    /// [`push_filter`]: Self::push_filter
+    pub filters: String,
+
+    /// Defines the file  dialog looks and what kind of result is expected.
+    pub kind: FileDialogKind,
+}
+impl FileDialog {
+    /// Push a filter entry.
+    pub fn push_filter(&mut self, display_name: &str, patterns: &[&str]) -> &mut Self {
+        assert!(!display_name.is_empty());
+        assert!(!display_name.contains('|'));
+        assert!(!patterns.is_empty());
+        assert!(patterns.iter().all(|p| !p.contains('|') && !p.contains(';') && !p.contains(' ')));
+
+        if !self.filters.is_empty() && !self.filters.ends_with('|') {
+            self.filters.push('|');
+        }
+        self.filters.push_str(display_name.trim());
+        self.filters.push_str(" (");
+        let mut prefix = "";
+        for pat in patterns {
+            self.filters.push_str(prefix);
+            prefix = ", ";
+            self.filters.push_str(pat);
+        }
+        self.filters.push(')');
+
+        self.filters.push('|');
+
+        prefix = "";
+        for pat in patterns {
+            self.filters.push_str(prefix);
+            prefix = ";";
+            self.filters.push_str(pat);
+        }
+
+        self
+    }
+
+    /// Iterate over filter entries and patterns.
+    pub fn iter_filters(&self) -> impl Iterator<Item = (&str, impl Iterator<Item = &str>)> {
+        struct Iter<'a> {
+            filters: &'a str,
+        }
+        struct PatternIter<'a> {
+            patterns: &'a str,
+        }
+        impl<'a> Iterator for Iter<'a> {
+            type Item = (&'a str, PatternIter<'a>);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if let Some(i) = self.filters.find('|') {
+                    let display_name = &self.filters[..i];
+                    self.filters = &self.filters[i + 1..];
+
+                    let patterns = if let Some(i) = self.filters.find('|') {
+                        let pat = &self.filters[..i];
+                        self.filters = &self.filters[i + 1..];
+                        pat
+                    } else {
+                        let pat = self.filters;
+                        self.filters = "";
+                        pat
+                    };
+
+                    if !patterns.is_empty() {
+                        Some((display_name.trim(), PatternIter { patterns }))
+                    } else {
+                        self.filters = "";
+                        None
+                    }
+                } else {
+                    self.filters = "";
+                    None
+                }
+            }
+        }
+        impl<'a> Iterator for PatternIter<'a> {
+            type Item = &'a str;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if let Some(i) = self.patterns.find(';') {
+                    let pattern = &self.patterns[..i];
+                    self.patterns = &self.patterns[i + 1..];
+                    Some(pattern.trim())
+                } else if !self.patterns.is_empty() {
+                    let pat = self.patterns;
+                    self.patterns = "";
+                    Some(pat)
+                } else {
+                    self.patterns = "";
+                    None
+                }
+            }
+        }
+        Iter {
+            filters: self.filters.trim_start().trim_start_matches('|'),
+        }
+    }
+}
+
+/// Kind of file dialogs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum FileDialogKind {
+    /// Pick one file for reading.
+    OneFile,
+    /// Pick one or many files for reading.
+    ManyFiles,
+    /// Pick one directory for reading.
+    OneFolder,
+    /// Pick one or many directories for reading.
+    ManyFolders,
+    /// Pick one file for writing.
+    SaveFile,
+}
+
+/// Response to a message dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum FileDialogResponse {
+    /// Selected paths.
+    ///
+    /// Is never empty.
+    Selected(Vec<PathBuf>),
+    /// User did not select any path.
+    Cancel,
+    /// Failed to show the dialog.
+    ///
+    /// The associated string may contain debug information, caller should assume that native file dialogs
+    /// are not available for the given window ID at the current view-process instance.
+    Error(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_filters() {
+        let mut dlg = FileDialog {
+            title: "".to_owned(),
+            starting_dir: "".into(),
+            starting_name: "".to_owned(),
+            filters: "".to_owned(),
+            kind: FileDialogKind::OneFile,
+        };
+
+        let expected = "Display Name (*.abc, *.bca)|*.abc;*.bca|All Files (*.*)|*.*";
+
+        dlg.push_filter("Display Name", &["*.abc", "*.bca"])
+            .push_filter("All Files", &["*.*"]);
+        assert_eq!(expected, dlg.filters);
+
+        let expected = vec![
+            ("Display Name (*.abc, *.bca)", vec!["*.abc", "*.bca"]),
+            ("All Files (*.*)", vec!["*.*"]),
+        ];
+        let parsed: Vec<(&str, Vec<&str>)> = dlg.iter_filters().map(|(n, p)| (n, p.collect())).collect();
+        assert_eq!(expected, parsed);
+    }
 }

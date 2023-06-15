@@ -455,6 +455,11 @@ declare_api! {
     /// Returns an ID that identifies the response event.
     pub fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId;
 
+    /// Shows a native file/folder picker for the window.
+    ///
+    /// Returns the ID that identifies the response event.
+    pub fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId;
+
     /// Call the API extension.
     ///
     /// The `extension_id` is the index of an extension in the extensions list provided by the view-process on init.
