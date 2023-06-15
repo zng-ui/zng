@@ -1622,25 +1622,23 @@ impl Api for App {
 
     fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId {
         let r_id = self.dialog_id_gen.incr();
-        let r = if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
-            s.message_dialog(dialog) // modal
+        if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
+            s.message_dialog(dialog, r_id, self.app_sender.clone());
         } else {
-            MsgDialogResponse::Error("window not found".to_owned())
-        };
-        // async (after response)
-        let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
+            let r = MsgDialogResponse::Error("window not found".to_owned());
+            let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
+        }
         r_id
     }
 
     fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId {
         let r_id = self.dialog_id_gen.incr();
-        let r = if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
-            s.file_dialog(dialog) // modal
+        if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
+            s.file_dialog(dialog, r_id, self.app_sender.clone());
         } else {
-            FileDialogResponse::Error("window not found".to_owned())
+            let r = MsgDialogResponse::Error("window not found".to_owned());
+            let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
         };
-        // async (after response)
-        let _ = self.app_sender.send(AppEvent::Notify(Event::FileDialogResponse(r_id, r)));
         r_id
     }
 

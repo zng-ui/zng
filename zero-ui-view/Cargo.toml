@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["ipc", "software"]
+default = ["ipc", "software", "dialog-xdg"]
 
 # Enables pre-build and init as view-process.
 #
@@ -58,6 +58,12 @@ software = ["swgl"]
 # Feature not enabled by default.
 # avif = ["image/avif", "image/avif-decoder"]
 
+# Enables GTK3 "native" file and message dialogs in Linux builds.
+dialog-gtk3 = ["rfd/gtk3"]
+
+# Enables XFG Portal "native" file and message dialogs in Linux builds.
+dialog-xdg = ["rfd/xdg-portal"]
+
 [lib]
 crate-type = ["lib", "cdylib"]
 
@@ -79,7 +85,7 @@ rustc-hash = "1"
 rayon = "1"
 backtrace = "0.3"
 serde = "1"
-rfd =  { version = "0.11", default_features = false, features = ["xdg-portal"] }
+rfd =  { version = "0.11", default_features = false }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"
