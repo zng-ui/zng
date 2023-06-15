@@ -14,9 +14,9 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId,
+    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator, FrameId,
     FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest,
-    WindowState, WindowStateAll, Event,
+    WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -1361,7 +1361,7 @@ impl Window {
             .set_file_name(&dialog.starting_name)
             .set_parent(&self.window);
         for (name, patterns) in dialog.iter_filters() {
-            dlg = dlg.add_filter(name, &patterns.collect::<Vec<_>>());
+            dlg = dlg.add_filter(name, &patterns.map(|s| s.trim_start_matches(['*', '.'])).collect::<Vec<_>>());
         }
         Self::run_dialog(move || {
             let selection: Vec<_> = match dialog.kind {

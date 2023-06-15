@@ -338,6 +338,7 @@ fn text_editor() -> impl UiNode {
                     let txt_status = var(text::CaretStatus::none());
                     let lines = var(text::LinesWrapCount::NoWrap(0));
                     let txt = var(Txt::from_static(""));
+                    let busy = var(false);
                     Window! {
                         title = "Text Example - Editor";
                         on_open = hn!(is_open, |_| {
@@ -346,6 +347,7 @@ fn text_editor() -> impl UiNode {
                         on_close = hn!(is_open, |_| {
                             is_open.set_ne(false);
                         });
+                        enabled = busy.map(|&b| !b);
                         child = Grid! {
                             columns = ui_vec![
                                 grid::Column!(),
@@ -376,8 +378,73 @@ fn text_editor() -> impl UiNode {
                                         },
                                         Button! {
                                             child = Text!("Open");
-                                            on_click = hn!(txt, |_| {
-                                                txt.set("open TODO");
+                                            on_click = async_hn!(txt, busy, |_| {
+                                                busy.set_ne(true);
+
+                                                use zero_ui::core::app::view_process::*;
+
+                                                let mut dlg = FileDialog {
+                                                    title: "Open Text".into(),
+                                                    kind: FileDialogKind::OneFile,
+                                                    ..Default::default()
+                                                };
+                                                dlg.push_filter("Text", &["txt"]);
+                                                dlg.push_filter("Markdown", &["md"]);
+                                                dlg.push_filter("All Files", &["*"]);
+                                                let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
+                                                match r {
+                                                    FileDialogResponse::Selected(s) => {
+                                                        let r = task::wait(move || std::fs::read_to_string(&s[0])).await;
+                                                        match r {
+                                                            Ok(t) => txt.set(Txt::from_str(&t)),
+                                                            Err(e) => {
+                                                                    tracing::error!("error reading file, {e}");
+                                                            }
+                                                        }
+                                                    },
+                                                    FileDialogResponse::Cancel => {}
+                                                    FileDialogResponse::Error(e) => {
+                                                        tracing::error!("error selecting file to open, {e}");
+                                                    }
+                                                }
+
+                                                busy.set_ne(false);
+                                            });
+                                        },
+                                        Button! {
+                                            child = Text!("Save");
+                                            on_click = async_hn!(txt, busy, |_| {
+                                                busy.set_ne(true);
+
+                                                use zero_ui::core::app::view_process::*;
+
+                                                let mut dlg = FileDialog {
+                                                    title: "Save Text".into(),
+                                                    kind: FileDialogKind::SaveFile,
+                                                    ..Default::default()
+                                                };
+                                                dlg.push_filter("Text Files", &["txt", "md"]);
+                                                dlg.push_filter("All Files", &["*"]);
+                                                let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
+                                                match r {
+                                                    FileDialogResponse::Selected(s) => {
+                                                        let r = task::wait(move || txt.with(move |txt| {
+                                                            std::fs::write(&s[0], txt.as_bytes())
+                                                        })).await;
+                                                        match r {
+                                                            Ok(()) => {},
+                                                            Err(e) => {
+                                                                tracing::error!("error writing file, {e}");
+                                                            }
+                                                        }
+                                                    },
+                                                    FileDialogResponse::Cancel => {}
+                                                    FileDialogResponse::Error(e) => {
+                                                        tracing::error!("error selecting file to save, {e}");
+                                                    }
+                                                }
+
+                                                busy.set_ne(false);
                                             });
                                         },
                                     ]

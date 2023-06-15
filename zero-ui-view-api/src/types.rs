@@ -2522,6 +2522,16 @@ pub struct MsgDialog {
     /// Message buttons.
     pub buttons: MsgDialogButtons,
 }
+impl Default for MsgDialog {
+    fn default() -> Self {
+        Self {
+            title: String::new(),
+            message: String::new(),
+            icon: MsgDialogIcon::Info,
+            buttons: MsgDialogButtons::Ok,
+        }
+    }
+}
 
 /// Icon of a message dialog.
 ///
@@ -2585,10 +2595,11 @@ pub struct FileDialog {
     /// Syntax:
     ///
     /// ```txt
-    /// Display Name|*.glob;*.ext|All Files|*.*
+    /// Display Name|ext1;ext2|All Files|*
     /// ```
     ///
-    /// You can use the [`push_filter`] method to create filters.
+    /// You can use the [`push_filter`] method to create filters. Note that the extensions are
+    /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
     ///
     /// [`push_filter`]: Self::push_filter
     pub filters: String,
@@ -2598,29 +2609,41 @@ pub struct FileDialog {
 }
 impl FileDialog {
     /// Push a filter entry.
-    pub fn push_filter(&mut self, display_name: &str, patterns: &[&str]) -> &mut Self {
-        assert!(!display_name.is_empty());
-        assert!(!display_name.contains('|'));
-        assert!(!patterns.is_empty());
-        assert!(patterns.iter().all(|p| !p.contains('|') && !p.contains(';') && !p.contains(' ')));
-
+    pub fn push_filter(&mut self, display_name: &str, extensions: &[&str]) -> &mut Self {
         if !self.filters.is_empty() && !self.filters.ends_with('|') {
             self.filters.push('|');
         }
-        self.filters.push_str(display_name.trim());
-        self.filters.push_str(" (");
+
+        let mut extensions: Vec<_> = extensions
+            .iter()
+            .copied()
+            .filter(|&s| !s.contains('|') && !s.contains(';'))
+            .collect();
+        if extensions.is_empty() {
+            extensions = vec!["*"];
+        }
+
+        let display_name = display_name.replace('|', " ");
+        let display_name = display_name.trim();
+        if !display_name.is_empty() {
+            self.filters.push_str(display_name);
+            self.filters.push_str(" (");
+        }
         let mut prefix = "";
-        for pat in patterns {
+        for pat in &extensions {
             self.filters.push_str(prefix);
             prefix = ", ";
+            self.filters.push_str("*.");
             self.filters.push_str(pat);
         }
-        self.filters.push(')');
+        if !display_name.is_empty() {
+            self.filters.push(')');
+        }
 
         self.filters.push('|');
 
         prefix = "";
-        for pat in patterns {
+        for pat in extensions {
             self.filters.push_str(prefix);
             prefix = ";";
             self.filters.push_str(pat);
@@ -2690,6 +2713,17 @@ impl FileDialog {
         }
     }
 }
+impl Default for FileDialog {
+    fn default() -> Self {
+        FileDialog {
+            title: String::new(),
+            starting_dir: PathBuf::new(),
+            starting_name: String::new(),
+            filters: String::new(),
+            kind: FileDialogKind::OneFile,
+        }
+    }
+}
 
 /// Kind of file dialogs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -2736,16 +2770,12 @@ mod tests {
             kind: FileDialogKind::OneFile,
         };
 
-        let expected = "Display Name (*.abc, *.bca)|*.abc;*.bca|All Files (*.*)|*.*";
+        let expected = "Display Name (*.abc, *.bca)|abc;bca|All Files (*.*)|*";
 
-        dlg.push_filter("Display Name", &["*.abc", "*.bca"])
-            .push_filter("All Files", &["*.*"]);
+        dlg.push_filter("Display Name", &["abc", "bca"]).push_filter("All Files", &["*"]);
         assert_eq!(expected, dlg.filters);
 
-        let expected = vec![
-            ("Display Name (*.abc, *.bca)", vec!["*.abc", "*.bca"]),
-            ("All Files (*.*)", vec!["*.*"]),
-        ];
+        let expected = vec![("Display Name (*.abc, *.bca)", vec!["abc", "bca"]), ("All Files (*.*)", vec!["*"])];
         let parsed: Vec<(&str, Vec<&str>)> = dlg.iter_filters().map(|(n, p)| (n, p.collect())).collect();
         assert_eq!(expected, parsed);
     }
