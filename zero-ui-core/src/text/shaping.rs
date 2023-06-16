@@ -1766,7 +1766,7 @@ impl<'a> ShapedLine<'a> {
                 let seg_max_x = seg_x + width;
                 if x < seg_max_x {
                     return Some(seg);
-                } 
+                }
             }
             let dist = (x - seg_x).abs();
             if min_dist > dist {

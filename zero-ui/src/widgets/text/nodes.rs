@@ -5,7 +5,7 @@ use std::{fmt, sync::Arc};
 use atomic::{Atomic, Ordering};
 use commands::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use font_features::FontVariations;
-use zero_ui_core::{clipboard::CLIPBOARD, keyboard::Key, task::parking_lot::Mutex, mouse::MOUSE_INPUT_EVENT};
+use zero_ui_core::{clipboard::CLIPBOARD, keyboard::Key, mouse::MOUSE_INPUT_EVENT, task::parking_lot::Mutex};
 
 use super::text_properties::*;
 use crate::core::{
