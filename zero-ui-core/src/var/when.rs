@@ -331,7 +331,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let data = rc_when.w.lock();
-                if datat.active == i {
+                if data.active == i {
                     drop(data);
                     VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
                 }

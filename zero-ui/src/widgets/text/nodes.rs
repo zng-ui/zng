@@ -5,7 +5,7 @@ use std::{fmt, sync::Arc};
 use atomic::{Atomic, Ordering};
 use commands::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use font_features::FontVariations;
-use zero_ui_core::{clipboard::CLIPBOARD, gesture::CLICK_EVENT, keyboard::Key, task::parking_lot::Mutex};
+use zero_ui_core::{clipboard::CLIPBOARD, keyboard::Key, task::parking_lot::Mutex, mouse::MOUSE_INPUT_EVENT};
 
 use super::text_properties::*;
 use crate::core::{
@@ -607,7 +607,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
                     d.events[1] = KEY_INPUT_EVENT.subscribe(id);
                     d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
-                    d.events[3] = CLICK_EVENT.subscribe(id);
 
                     d.cut = CUT_CMD.scoped(id).subscribe(true);
                     d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -1028,7 +1027,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let d = EditData::get(&mut edit_data);
 
                 d.events[0] = KEY_INPUT_EVENT.subscribe(id);
-                d.events[1] = CLICK_EVENT.subscribe(id);
+                d.events[1] = MOUSE_INPUT_EVENT.subscribe(id);
             }
         }
         UiNodeOp::Deinit => {
@@ -1055,29 +1054,28 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             _ => {}
                         }
                     }
-                } else if let Some(args) = CLICK_EVENT.on(update) {
-                    if let Some(pos) = args.position() {
-                        if args.is_primary() {
-                            if let Some(txt) = &mut txt.txt {
-                                let info = txt.render_info.get_mut();
-                                if let Some(pos) = info
-                                    .transform
-                                    .inverse()
-                                    .and_then(|t| t.transform_point(pos.to_px(info.scale_factor.0)))
-                                {
-                                    *caret_index = txt
-                                        .shaped_text
-                                        .nearest_line(pos.y)
-                                        .and_then(|l| l.nearest_seg(pos.x))
-                                        .map(|s| s.nearest_char_index(pos.x, resolved.text.text()));
+                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    if args.is_primary() && args.is_mouse_down() {
+                        if let Some(txt) = &mut txt.txt {
+                            let info = txt.render_info.get_mut();
+                            if let Some(pos) = info
+                                .transform
+                                .inverse()
+                                .and_then(|t| t.transform_point(args.position.to_px(info.scale_factor.0)))
+                            {
+                                *caret_index = txt
+                                    .shaped_text
+                                    .nearest_line(pos.y)
+                                    .and_then(|l| l.nearest_seg(pos.x))
+                                    .map(|s| s.nearest_char_index(pos.x, resolved.text.text()));
 
-                                    // TODO, snap to grapheme start
-                                    //       should be MOUSE_DOWN, not CLICK?
+                                if let Some(i) = caret_index {
+                                    *i = resolved.text.snap_grapheme_boundary(*i);
                                 }
                             }
-                            if caret_index.is_none() {
-                                *caret_index = Some(0);
-                            }
+                        }
+                        if caret_index.is_none() {
+                            *caret_index = Some(0);
                         }
                     }
                 }
@@ -1166,7 +1164,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let d = EditData::get(&mut edit_data);
 
                     d.events[0] = KEY_INPUT_EVENT.subscribe(id);
-                    d.events[1] = CLICK_EVENT.subscribe(id);
+                    d.events[1] = MOUSE_INPUT_EVENT.subscribe(id);
                 } else {
                     edit_data = None;
                 }

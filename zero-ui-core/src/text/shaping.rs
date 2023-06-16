@@ -937,7 +937,7 @@ impl ShapedText {
             self.last_line()
         } else {
             let y = y - first_line_max_y;
-            let line = (y / self.line_height()).0 as usize;
+            let line = (y / self.line_height()).0 as usize + 1;
             self.lines.iter_segs_skip(line).next().map(move |(w, r)| ShapedLine {
                 text: self,
                 seg_range: r,
@@ -1766,13 +1766,12 @@ impl<'a> ShapedLine<'a> {
                 let seg_max_x = seg_x + width;
                 if x < seg_max_x {
                     return Some(seg);
-                } else {
-                    let dist = (x - seg_x).abs();
-                    if min_dist > dist {
-                        min = Some(seg);
-                        min_dist = dist;
-                    }
-                }
+                } 
+            }
+            let dist = (x - seg_x).abs();
+            if min_dist > dist {
+                min = Some(seg);
+                min_dist = dist;
             }
         }
         min

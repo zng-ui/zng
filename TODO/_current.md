@@ -1,6 +1,7 @@
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
+    - `snap_grapheme_boundary` does not work for "🙎🏻‍♀️" with the quotes.
 * Implement cursor position.
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
@@ -59,6 +60,7 @@
             we now update the merge_var only once after the first input update, the others are ignored!
         - If we remove the apply_update_id this is fixed, but now the merge_var! updates 10 times, for useless 9 calls.
         - Removing it for now.
+* `text.rs` example: cancelling open dialog breaks it.
 
 # View-Process
 
