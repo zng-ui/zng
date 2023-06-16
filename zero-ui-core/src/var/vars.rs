@@ -61,11 +61,8 @@ pub(crate) struct VarsService {
     apply_update_id: VarApplyUpdateId,
 
     updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
-    spare_updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
     modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
-
-    skipped_updates: bool,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
@@ -73,10 +70,8 @@ impl VarsService {
             ans: Animations::new(),
             update_id: VarUpdateId(1),
             apply_update_id: VarApplyUpdateId(1),
-            updates: Mutex::new(Vec::with_capacity(128)),
-            spare_updates: Mutex::new(Vec::with_capacity(128)),
+            updates: Mutex::new(vec![]),
             modify_receivers: Mutex::new(vec![]),
-            skipped_updates: false,
         }
     }
 }
@@ -263,59 +258,97 @@ impl VARS {
     pub(crate) fn apply_updates(&self) {
         let mut vars = VARS_SV.write();
 
-        debug_assert!(vars.spare_updates.get_mut().is_empty());
-
         vars.update_id.next();
         vars.ans.animation_start_time = None;
-
         drop(vars);
 
-        // if has pending updates, apply all,
-        // var updates can generate other updates (bindings), these are applied in the same
-        // app update, hence the loop and "spare" vec alloc.
-        let mut spare = None;
-        let mut update_count = 0;
-        loop {
-            let mut vars = VARS_SV.write();
-            if let Some(var_updates) = spare.take() {
-                *vars.spare_updates.get_mut() = var_updates;
-                vars.apply_update_id.next();
-            }
-            if vars.updates.get_mut().is_empty() {
-                break;
-            }
-            let mut var_updates = {
-                let vars = &mut *vars;
-                mem::replace(vars.updates.get_mut(), mem::take(vars.spare_updates.get_mut()))
-            };
+        let mut vars = VARS_SV.write();
+        let updates = mem::take(vars.updates.get_mut());
+        vars.apply_update_id.next();
+        if updates.is_empty() {
+            return;
+        }
+        drop(vars);
 
-            drop(vars);
+        fn update_each_and_bindings(updates: Vec<(ModifyInfo, VarUpdateFn)>, depth: u16) {
+            if depth == 1000 {
+                tracing::error!(
+                    "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
+                    will skip next updates"
+                );
+                return;
+            } 
 
-            for (animation_info, update) in var_updates.drain(..) {
-                // load animation priority that was current when the update was requested & apply update.
-                VARS_MODIFY_CTX.with_context_value(Some(animation_info), update);
-            }
-            spare = Some(var_updates);
+            for (info, update) in updates {
+                VARS_MODIFY_CTX.with_context_value(Some(info), update);
 
-            update_count += 1;
-            if update_count == 1000 {
                 let mut vars = VARS_SV.write();
-                let vars = &mut *vars;
-                let updates = vars.updates.get_mut();
-
-                if !vars.skipped_updates && !updates.is_empty() {
-                    vars.skipped_updates = true;
-                    tracing::error!(
-                        "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
-                        will start skipping some binding updates"
-                    );
+                let updates = mem::take(vars.updates.get_mut());
+                if !updates.is_empty() {
+                    drop(vars);
+                    update_each_and_bindings(updates, depth + 1);
                 }
-
-                updates.clear();
-                break;
             }
         }
+        update_each_and_bindings(updates, 0);
     }
+
+    // pub(crate) fn apply_updates_old(&self) {
+    //     let mut vars = VARS_SV.write();
+
+    //     debug_assert!(vars.spare_updates.get_mut().is_empty());
+
+    //     vars.update_id.next();
+    //     vars.ans.animation_start_time = None;
+
+    //     drop(vars);
+
+    //     // if has pending updates, apply all,
+    //     // var updates can generate other updates (bindings), these are applied in the same
+    //     // app update, hence the loop and "spare" vec alloc.
+    //     let mut spare = None;
+    //     let mut update_count = 0;
+    //     loop {
+    //         let mut vars = VARS_SV.write();
+    //         if let Some(var_updates) = spare.take() {
+    //             *vars.spare_updates.get_mut() = var_updates;
+    //             vars.apply_update_id.next();
+    //         }
+    //         if vars.updates.get_mut().is_empty() {
+    //             break;
+    //         }
+    //         let mut var_updates = {
+    //             let vars = &mut *vars;
+    //             mem::replace(vars.updates.get_mut(), mem::take(vars.spare_updates.get_mut()))
+    //         };
+
+    //         drop(vars);
+
+    //         for (animation_info, update) in var_updates.drain(..) {
+    //             // load animation priority that was current when the update was requested & apply update.
+    //             VARS_MODIFY_CTX.with_context_value(Some(animation_info), update);
+    //         }
+    //         spare = Some(var_updates);
+
+    //         update_count += 1;
+    //         if update_count == 1000 {
+    //             let mut vars = VARS_SV.write();
+    //             let vars = &mut *vars;
+    //             let updates = vars.updates.get_mut();
+
+    //             if !vars.skipped_updates && !updates.is_empty() {
+    //                 vars.skipped_updates = true;
+    //                 tracing::error!(
+    //                     "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
+    //                     will start skipping some binding updates"
+    //                 );
+    //             }
+
+    //             updates.clear();
+    //             break;
+    //         }
+    //     }
+    // }
 
     pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn() -> bool + Send>) {
         VARS_SV.read().modify_receivers.lock().push(recv_modify);

@@ -511,7 +511,6 @@ impl TextEditor {
         if self.handle_unsaved().await {
             self.txt.set_ne(Txt::from_static(""));
             self.file.set_ne(None);
-            task::yield_now().await; // wait txt -> unsaved update
             self.unsaved.set_ne(false);
         }
     }
@@ -538,7 +537,6 @@ impl TextEditor {
                 match r {
                     Ok(t) => {
                         self.txt.set(Txt::from_str(&t));
-                        task::yield_now().await; // txt sets unsaved, so we wait it
                         self.unsaved.set(false);
                     }
                     Err(e) => {

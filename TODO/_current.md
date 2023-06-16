@@ -53,6 +53,7 @@
 
 * Var binding updates apply after all requested updates so final value can get "out-of-sync".
     - Refactor to that all update requests generated during one update apply immediately.
+    - Review why we need `apply_update_id` in when, merge vars.
     - Remove `task::yield_now` in text editor example.
 ```rust
 let a = var(0);
