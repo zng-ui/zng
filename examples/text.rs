@@ -538,6 +538,7 @@ impl TextEditor {
                 match r {
                     Ok(t) => {
                         self.txt.set(Txt::from_str(&t));
+                        task::yield_now().await; // txt sets unsaved, so we wait it
                         self.unsaved.set(false);
                     }
                     Err(e) => {

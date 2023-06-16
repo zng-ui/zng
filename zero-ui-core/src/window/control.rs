@@ -960,8 +960,10 @@ impl HeadedCtrl {
     fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
         if let Some(view) = &self.window {
             task(Some(view));
+        } else if self.waiting_view {
+            self.delayed_view_updates.push(Box::new(move |v| task(Some(v))));
         } else {
-            self.delayed_view_updates.push(Box::new(move |view| task(Some(view))));
+            task(None);
         }
     }
 }

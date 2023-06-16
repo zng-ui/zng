@@ -49,8 +49,32 @@
 * Refactor into an extension trait.
     - Is more discoverable as an extension trait, maybe suggested by tooling (rustc, ra)?
 
+# Vars
+
+* Var binding updates apply after all requested updates so final value can get "out-of-sync".
+    - Refactor to that all update requests generated during one update apply immediately.
+    - Remove `task::yield_now` in text editor example.
+```rust
+let a = var(0);
+let b = var(false);
+a.bind_map(&b, |_| true).perm();
+
+a.set(1);
+b.set(false);
+
+// updates happen in this order:
+// (request a = 1)
+// (request b = false)
+// a = 1 (request b = true)
+// b = false
+// b = true
+```
+
 # View-Process
 
+* Test async dialogs in Windows.
+    - Use it if they are modal.
+    - Async can continue animations.
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.
