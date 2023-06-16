@@ -51,25 +51,14 @@
 
 # Vars
 
-* Var binding updates apply after all requested updates so final value can get "out-of-sync".
-    - Refactor to that all update requests generated during one update apply immediately.
+* Var binding updates refactored to apply with the same causing update.
     - Review why we need `apply_update_id` in when, merge vars.
-    - Remove `task::yield_now` in text editor example.
-```rust
-let a = var(0);
-let b = var(false);
-a.bind_map(&b, |_| true).perm();
-
-a.set(1);
-b.set(false);
-
-// updates happen in this order:
-// (request a = 1)
-// (request b = false)
-// a = 1 (request b = true)
-// b = false
-// b = true
-```
+    - Was used to avoid inserting multiple update requests per "cycle".
+    - Now is wrong.
+    - Case: merge_var with 10 inputs, if all 10 inputs request updates in the same cycle
+            we now update the merge_var only once after the first input update, the others are ignored!
+        - If we remove the apply_update_id this is fixed, but now the merge_var! updates 10 times, for useless 9 calls.
+        - Removing it for now.
 
 # View-Process
 

@@ -116,7 +116,6 @@ impl<T: VarValue> WhenVarBuilder<T> {
                 input_handles: Box::new([]),
                 hooks: vec![],
                 last_update: VarUpdateId::never(),
-                last_apply_request: VarApplyUpdateId::initial(),
                 active: usize::MAX,
             }),
         });
@@ -271,7 +270,6 @@ struct WhenData {
     input_handles: Box<[VarHandle]>,
     hooks: Vec<VarHook>,
     last_update: VarUpdateId,
-    last_apply_request: VarApplyUpdateId,
     active: usize,
 }
 
@@ -300,10 +298,10 @@ impl<T: VarValue> ArcWhenVar<T> {
     fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
         Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
-                let mut data_mut = rc_when.w.lock();
+                let data = rc_when.w.lock();
                 let mut update = false;
 
-                match data_mut.active.cmp(&i) {
+                match data.active.cmp(&i) {
                     std::cmp::Ordering::Equal => {
                         if let Some(&false) = args.downcast_value::<bool>() {
                             update = true;
@@ -317,9 +315,8 @@ impl<T: VarValue> ArcWhenVar<T> {
                     std::cmp::Ordering::Less => {}
                 }
 
-                if update && data_mut.last_apply_request != VARS.apply_update_id() {
-                    data_mut.last_apply_request = VARS.apply_update_id();
-                    drop(data_mut);
+                if update {
+                    drop(data);
                     VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
                 }
 
@@ -333,10 +330,9 @@ impl<T: VarValue> ArcWhenVar<T> {
     fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
         Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
-                let mut data_mut = rc_when.w.lock();
-                if data_mut.active == i && data_mut.last_apply_request != VARS.apply_update_id() {
-                    data_mut.last_apply_request = VARS.apply_update_id();
-                    drop(data_mut);
+                let data = rc_when.w.lock();
+                if datat.active == i {
+                    drop(data);
                     VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
                 }
                 true

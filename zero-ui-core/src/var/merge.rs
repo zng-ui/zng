@@ -66,7 +66,6 @@ struct MergeData<T> {
     inputs: Box<[Box<dyn AnyVarValue>]>,
     input_handles: Box<[VarHandle]>,
     merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>,
-    last_apply_request: VarApplyUpdateId,
 }
 
 struct Data<T: VarValue> {
@@ -110,7 +109,6 @@ impl<T: VarValue> ArcMergeVar<T> {
                 inputs,
                 input_handles: Box::new([]),
                 merge,
-                last_apply_request: VarApplyUpdateId::initial(),
             }),
         });
         let wk_merge = Arc::downgrade(&rc_merge);
@@ -128,11 +126,8 @@ impl<T: VarValue> ArcMergeVar<T> {
                             if args.value_type() == data_mut.inputs[i].as_any().type_id() {
                                 data_mut.inputs[i] = args.value().clone_boxed();
 
-                                if data_mut.last_apply_request != VARS.apply_update_id() {
-                                    data_mut.last_apply_request = VARS.apply_update_id();
-                                    drop(data);
-                                    VARS.schedule_update(ArcMergeVar::update_merge(rc_merge));
-                                }
+                                drop(data);
+                                VARS.schedule_update(ArcMergeVar::update_merge(rc_merge));
                             }
                             true
                         } else {
