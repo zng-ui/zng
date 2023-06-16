@@ -396,6 +396,8 @@ impl Display for KeyChord {
 }
 
 /// Keyboard gesture or chord associated with a command.
+/// 
+/// See the [`shortcut!`] macro for declaring a shortcut.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Shortcut {
     /// Key-press plus modifiers.

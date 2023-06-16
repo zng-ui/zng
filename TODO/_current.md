@@ -44,10 +44,13 @@
     - In the icon example the view is not centered in the stack because
       stack align does not work with non-widget nodes.
 
+# WINDOW_CTRL
+
+* Refactor into an extension trait.
+    - Is more discoverable as an extension trait, maybe suggested by tooling (rustc, ra)?
+
 # View-Process
 
-* Review native dialog in Linux.
-    - Is not modal, app window stops responding.
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.

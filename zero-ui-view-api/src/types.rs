@@ -2720,7 +2720,7 @@ impl Default for FileDialog {
             starting_dir: PathBuf::new(),
             starting_name: String::new(),
             filters: String::new(),
-            kind: FileDialogKind::OneFile,
+            kind: FileDialogKind::OpenFile,
         }
     }
 }
@@ -2729,13 +2729,13 @@ impl Default for FileDialog {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum FileDialogKind {
     /// Pick one file for reading.
-    OneFile,
+    OpenFile,
     /// Pick one or many files for reading.
-    ManyFiles,
+    OpenFiles,
     /// Pick one directory for reading.
-    OneFolder,
+    SelectFolder,
     /// Pick one or many directories for reading.
-    ManyFolders,
+    SelectFolders,
     /// Pick one file for writing.
     SaveFile,
 }
@@ -2767,7 +2767,7 @@ mod tests {
             starting_dir: "".into(),
             starting_name: "".to_owned(),
             filters: "".to_owned(),
-            kind: FileDialogKind::OneFile,
+            kind: FileDialogKind::OpenFile,
         };
 
         let expected = "Display Name (*.abc, *.bca)|abc;bca|All Files (*.*)|*";

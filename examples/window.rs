@@ -496,7 +496,7 @@ fn native() -> impl UiNode {
                         starting_dir: "".into(),
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind: FileDialogKind::OneFolder,
+                        kind: FileDialogKind::SelectFolder,
                     }).wait_rsp().await;
                     let dir = match res {
                         FileDialogResponse::Selected(mut s) => {
@@ -517,7 +517,7 @@ fn native() -> impl UiNode {
                         starting_dir: dir,
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind: FileDialogKind::ManyFiles,
+                        kind: FileDialogKind::OpenFiles,
                     };
                     dlg.push_filter("Text", &["*.txt", "*.md"]);
                     dlg.push_filter("All", &["*.*"]);

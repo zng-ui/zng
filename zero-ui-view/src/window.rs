@@ -1365,10 +1365,10 @@ impl Window {
         }
         Self::run_dialog(move || {
             let selection: Vec<_> = match dialog.kind {
-                zero_ui_view_api::FileDialogKind::OneFile => dlg.pick_file().into_iter().collect(),
-                zero_ui_view_api::FileDialogKind::ManyFiles => dlg.pick_files().into_iter().flatten().collect(),
-                zero_ui_view_api::FileDialogKind::OneFolder => dlg.pick_folder().into_iter().collect(),
-                zero_ui_view_api::FileDialogKind::ManyFolders => dlg.pick_folders().into_iter().flatten().collect(),
+                zero_ui_view_api::FileDialogKind::OpenFile => dlg.pick_file().into_iter().collect(),
+                zero_ui_view_api::FileDialogKind::OpenFiles => dlg.pick_files().into_iter().flatten().collect(),
+                zero_ui_view_api::FileDialogKind::SelectFolder => dlg.pick_folder().into_iter().collect(),
+                zero_ui_view_api::FileDialogKind::SelectFolders => dlg.pick_folders().into_iter().flatten().collect(),
                 zero_ui_view_api::FileDialogKind::SaveFile => dlg.save_file().into_iter().collect(),
             };
 
