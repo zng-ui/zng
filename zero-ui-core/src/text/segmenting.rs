@@ -30,6 +30,9 @@ pub enum TextSegmentKind {
     /// Most format characters, control codes, or noncharacters.
     BoundaryNeutral,
 
+    /// Emoji chars, components and zero-width-joiner between emoji.
+    Emoji,
+
     /// Various newline characters.
     LineBreak,
     /// A sequence of `'\t', '\v'` or `'\u{1F}'`.
@@ -235,10 +238,24 @@ impl SegmentedText {
         let mut kind = TextSegmentKind::LeftToRight;
         let mut level = BidiLevel::ltr();
         for (i, c) in text[start..end].char_indices() {
-            let c_kind = match TextSegmentKind::from(bidi.original_classes[start + i]) {
-                TextSegmentKind::OtherNeutral if super::unicode_bidi_util::bidi_bracket_data(c).is_some() => TextSegmentKind::Bracket(c),
-                k => k,
+            let c_kind = if unic_emoji_char::is_emoji(c) {
+                TextSegmentKind::Emoji
+            } else {
+                const ZWJ: char = '\u{200D}'; // ZERO WIDTH JOINER
+                const VS0: char = '\u{FE00}'; // VARIANT SELECTOR 0
+                const VS16: char = '\u{FE0F}'; // VARIANT SELECTOR 16
+                if matches!(kind, TextSegmentKind::Emoji) && (c == ZWJ || (VS0..=VS16).contains(&c)) {
+                    TextSegmentKind::Emoji
+                } else {
+                    match TextSegmentKind::from(bidi.original_classes[start + i]) {
+                        TextSegmentKind::OtherNeutral if super::unicode_bidi_util::bidi_bracket_data(c).is_some() => {
+                            TextSegmentKind::Bracket(c)
+                        }
+                        k => k,
+                    }
+                }
             };
+
             let c_level = bidi.levels[start + i];
 
             if c_kind != kind || c_level != level || !c_kind.can_merge() {
@@ -655,5 +672,17 @@ mod tests {
         let actual = txt.reorder_line_to_ltr(0..4);
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn emoji_seg() {
+        let test = "'🙎🏻‍♀️'";
+        let txt = SegmentedText::new(test, LayoutDirection::LTR);
+        let k: Vec<_> = txt.segments().iter().map(|s| s.kind).collect();
+
+        assert_eq!(
+            vec![TextSegmentKind::OtherNeutral, TextSegmentKind::Emoji, TextSegmentKind::OtherNeutral],
+            k
+        );
     }
 }

@@ -433,7 +433,7 @@ impl From<TextSegmentKind> for unicode_bidi::BidiClass {
             EuropeanSeparator => ES,
             EuropeanTerminator => ET,
             Tab => S,
-            OtherNeutral | Bracket(_) => ON,
+            OtherNeutral | Emoji | Bracket(_) => ON,
             BoundaryNeutral => BN,
             NonSpacingMark => NSM,
             BidiCtrl(c) => match c {

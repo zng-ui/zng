@@ -34,6 +34,7 @@
     - Right now we use "Segoe UI Symbol" in Windows.
     - We need to fallback to "Segoe UI Emoji" instead, or have both?
     - See what browsers do, maybe we need a "front" font, that is added on top of other fonts?
+    - We have an special `TextSegmentKind::Emoji`, maybe we can have an `emoji_font_family` used exclusively for Emoji segs.
 
 # Underline Skip Glyphs
 
