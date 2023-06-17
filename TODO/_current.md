@@ -1,5 +1,8 @@
 # TextInput
 
+* Line break crate does not handle emoji zero-width joiner.
+    - Replace with `icu_segmenter`.
+
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
     - `snap_grapheme_boundary` does not work for "🙎🏻‍♀️" with the quotes.
 * Implement cursor position.
@@ -66,3 +69,17 @@
 # is_hovered
 
 * `is_hovered` does not update back to `true` when the hovered widget is enabled.
+
+# Vars
+
+* Button example, radio button starts without all unchecked.
+    - Localize example also did not show any selected.
+    - Window example, background.
+* Config example and tests with errors.
+* Layer example, anchored does not update while visible.
+
+# Image Paste
+
+* Image paste some pixel columns swapped (wrap around start).
+    - Some corrupted pixels, probably same reason.
+* Screenshot paste does not have scale-factor.

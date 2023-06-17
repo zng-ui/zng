@@ -370,6 +370,7 @@ fn paste_image() -> impl UiNode {
                         }
                     });
                     child = Image! {
+                        img_fit = ImageFit::ScaleDown;
                         source;
                         on_error = hn!(|args: &ImgErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
