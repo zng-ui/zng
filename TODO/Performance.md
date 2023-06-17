@@ -40,3 +40,9 @@
 
 * Use `const` in our function and methods.
   - Wait until clippy has a lint for this?
+
+# Vars
+
+* `merge_var!` calls the closure for each input that updated in the same cycle.
+  - This is needed because the merge_var can be the input of another binding, and bindings need to 
+    update as soon as possible to preserve order of call, see test `binding_update_order`.
