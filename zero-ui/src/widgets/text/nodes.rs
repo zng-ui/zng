@@ -752,16 +752,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                     InlineConstraints::Layout(l) => {
                         if !self.pending.contains(PendingLayout::RESHAPE)
-                            && (Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
-                                || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len()))
+                            && (Some(l.first_segs.len()) != r.shaped_text.line(0).map(|l| l.segs_len())
+                                || Some(l.last_segs.len())
+                                    != r.shaped_text
+                                        .line(r.shaped_text.lines_len().saturating_sub(1))
+                                        .map(|l| l.segs_len()))
                         {
                             self.pending.insert(PendingLayout::RESHAPE);
                         }
 
                         if !self.pending.contains(PendingLayout::RESHAPE_LINES)
                             && (r.shaped_text.mid_clear() != l.mid_clear
-                                || r.shaped_text.first_line().map(|l| l.rect()) != Some(l.first)
-                                || r.shaped_text.last_line().map(|l| l.rect()) != Some(l.last))
+                                || r.shaped_text.line(0).map(|l| l.rect()) != Some(l.first)
+                                || r.shaped_text.line(r.shaped_text.lines_len().saturating_sub(1)).map(|l| l.rect()) != Some(l.last))
                         {
                             self.pending.insert(PendingLayout::RESHAPE_LINES);
                         }
@@ -1181,7 +1184,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let size = txt.layout(&metrics, &RESOLVED_TEXT.get(), true);
 
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
-                    if let Some(first_line) = l.shaped_text.first_line() {
+                    if let Some(first_line) = l.shaped_text.line(0) {
                         inline.first = first_line.original_size();
                         inline.with_first_segs(|i| {
                             for seg in first_line.segs() {
@@ -1199,7 +1202,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if l.shaped_text.lines_len() == 1 {
                         inline.last = inline.first;
                         inline.last_segs = inline.first_segs.clone();
-                    } else if let Some(last_line) = l.shaped_text.last_line() {
+                    } else if let Some(last_line) = l.shaped_text.line(l.shaped_text.lines_len().saturating_sub(1)) {
                         inline.last = last_line.original_size();
                         inline.with_last_segs(|i| {
                             for seg in last_line.segs() {
@@ -1240,7 +1243,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 for (i, line) in l.shaped_text.lines().enumerate() {
                     if i == 0 {
-                        let info = l.shaped_text.first_line().unwrap().segs().map(|s| s.inline_info());
+                        let info = l.shaped_text.line(0).unwrap().segs().map(|s| s.inline_info());
                         if LAYOUT.direction().is_rtl() {
                             // help sort
                             inline.set_first_segs(info.rev());
@@ -1248,7 +1251,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             inline.set_first_segs(info);
                         }
                     } else if i == last_line {
-                        let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
+                        let info = l
+                            .shaped_text
+                            .line(l.shaped_text.lines_len().saturating_sub(1))
+                            .unwrap()
+                            .segs()
+                            .map(|s| s.inline_info());
                         if LAYOUT.direction().is_rtl() {
                             // help sort
                             inline.set_last_segs(info.rev());

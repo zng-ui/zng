@@ -29,3 +29,7 @@ harness = false
 [[test]]
 name = "config"
 path = "config.rs"
+
+[[test]]
+name = "text"
+path = "text.rs"

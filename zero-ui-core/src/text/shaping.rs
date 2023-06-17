@@ -491,8 +491,12 @@ impl ShapedText {
             let block_size = self.block_size();
             let align_size = constraints.fill_size_or(block_size);
 
-            let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
-            let mut last = PxRect::from_size(self.last_line().map(|l| l.rect().size).unwrap_or_default());
+            let mut first = PxRect::from_size(self.line(0).map(|l| l.rect().size).unwrap_or_default());
+            let mut last = PxRect::from_size(
+                self.line(self.lines_len().saturating_sub(1))
+                    .map(|l| l.rect().size)
+                    .unwrap_or_default(),
+            );
             last.origin.y = block_size.height - last.size.height;
 
             first.origin.x = (align_size.width - first.size.width) * align_x;
@@ -774,23 +778,15 @@ impl ShapedText {
         self.first_wrapped
     }
 
-    /// Gets the first line, if the text contains any line.
-    pub fn first_line(&self) -> Option<ShapedLine> {
-        self.lines().next()
-    }
-
-    /// Gets the last line, if the text contains any line.
-    ///
-    /// This is more efficient than `t.lines().last()`.
-    pub fn last_line(&self) -> Option<ShapedLine> {
-        if self.lines.0.is_empty() {
+    /// Gets the line by index.
+    pub fn line(&self, line_idx: usize) -> Option<ShapedLine> {
+        if self.lines.0.len() <= line_idx {
             None
         } else {
-            let last_line = self.lines.0.len() - 1;
-            self.lines.iter_segs_skip(last_line).next().map(move |(w, r)| ShapedLine {
+            self.lines.iter_segs_skip(line_idx).next().map(move |(w, r)| ShapedLine {
                 text: self,
                 seg_range: r,
-                index: last_line,
+                index: line_idx,
                 width: Px(w.round() as i32),
             })
         }
@@ -919,7 +915,7 @@ impl ShapedText {
             }
         }
 
-        if let Some(line) = self.last_line() {
+        if let Some(line) = self.line(self.lines_len().saturating_sub(1)) {
             // top-right of last line
             let rect = line.rect();
             PxPoint::new(rect.max_x(), rect.min_y())
@@ -932,9 +928,9 @@ impl ShapedText {
     pub fn nearest_line(&self, y: Px) -> Option<ShapedLine> {
         let first_line_max_y = self.first_line.max_y();
         if first_line_max_y >= y {
-            self.first_line()
+            self.line(0)
         } else if self.last_line.min_y() <= y {
-            self.last_line()
+            self.line(self.lines_len().saturating_sub(1))
         } else {
             let y = y - first_line_max_y;
             let line = (y / self.line_height()).0 as usize + 1;
@@ -1703,6 +1699,21 @@ impl<'a> ShapedLine<'a> {
     /// Number of segments in this line.
     pub fn segs_len(&self) -> usize {
         self.seg_range.len()
+    }
+
+    /// Get the segment by index.
+    ///
+    /// The first segment of the line is `0`.
+    pub fn seg(&self, seg_idx: usize) -> Option<ShapedSegment> {
+        if self.seg_range.len() > seg_idx {
+            Some(ShapedSegment {
+                text: self.text,
+                line_index: self.index,
+                index: seg_idx + self.seg_range.start(),
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns `true` if this line was started by the wrap algorithm.

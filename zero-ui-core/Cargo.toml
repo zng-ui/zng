@@ -101,7 +101,8 @@ hyphenation = { version = "0.8", default-features = false }
 regex = "1"
 unicode-bidi = "0.3"
 unicode-segmentation = "1"
-unic-emoji-char = "0.9"
+icu_properties = "1"
+icu_testdata = "1"
 
 # task
 flume = { version = "0.10", default-features  = false, features = ["async"] }

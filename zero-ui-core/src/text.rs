@@ -14,6 +14,7 @@ use std::{
     sync::Arc,
 };
 
+mod emoji_util;
 pub mod font_features;
 mod font_kit_cache;
 mod unicode_bidi_util;

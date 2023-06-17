@@ -928,7 +928,7 @@ impl CaretStatus {
         } else {
             let mut line = 1;
             let mut line_start = 0;
-            for seg in text.segments() {
+            for seg in text.segs() {
                 if seg.end > index {
                     break;
                 }
@@ -992,8 +992,15 @@ pub enum LinesWrapCount {
     /// The associated value is a vec of wrap-line count for each text line, is `1` for lines that don't wrap.
     Wrap(Vec<u32>),
 }
-
-impl LinesWrapCount {}
+impl LinesWrapCount {
+    /// Gets the number of text lines.
+    pub fn lines_len(&self) -> usize {
+        match self {
+            Self::NoWrap(l) => *l,
+            Self::Wrap(lns) => lns.len(),
+        }
+    }
+}
 
 /// Text paragraph properties.
 ///

@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{context::LayoutDirection, crate_util::FxHashMap};
+use crate::{context::LayoutDirection, crate_util::FxHashMap, text::emoji_util};
 
 use super::Txt;
 use unicode_bidi::BidiInfo;
@@ -232,31 +232,43 @@ impl SegmentedText {
             base_direction,
         }
     }
+
     fn push_seg(text: &str, bidi: &BidiInfo, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
 
+        let mut char_indices = text[start..end].char_indices().peekable();
+
         let mut kind = TextSegmentKind::LeftToRight;
         let mut level = BidiLevel::ltr();
-        for (i, c) in text[start..end].char_indices() {
-            let c_kind = if unic_emoji_char::is_emoji(c) {
-                TextSegmentKind::Emoji
-            } else {
-                const ZWJ: char = '\u{200D}'; // ZERO WIDTH JOINER
-                const VS0: char = '\u{FE00}'; // VARIANT SELECTOR 0
-                const VS16: char = '\u{FE0F}'; // VARIANT SELECTOR 16
-                if matches!(kind, TextSegmentKind::Emoji) && (c == ZWJ || (VS0..=VS16).contains(&c)) {
-                    TextSegmentKind::Emoji
-                } else {
-                    match TextSegmentKind::from(bidi.original_classes[start + i]) {
-                        TextSegmentKind::OtherNeutral if super::unicode_bidi_util::bidi_bracket_data(c).is_some() => {
-                            TextSegmentKind::Bracket(c)
-                        }
-                        k => k,
-                    }
-                }
-            };
+        for (i, c) in &mut char_indices {
+            const ZWJ: char = '\u{200D}'; // ZERO WIDTH JOINER
+            const VS16: char = '\u{FE0F}'; // VARIANT SELECTOR 16 - Emoji
+            const CEK: char = '\u{20E3}'; // COMBINING ENCLOSING KEYCAP
 
-            let c_level = bidi.levels[start + i];
+            let is_emoji = (kind == TextSegmentKind::Emoji // maybe
+                && (
+                    c == VS16 // definitely, modifies prev. char into Emoji.
+                    || c == CEK // definitely, modified prev. char into keycap style.
+                    || c == ZWJ // definitely, ligature with the next Emoji or is ignored.
+                    || emoji_util::is_modifier(c) // definitely, has same effect as VS16.
+                    || emoji_util::is_component(c) // definitely, ligature data, like flag tags.
+                ))
+                || (emoji_util::maybe_emoji(c) // maybe
+                    && (emoji_util::definitely_emoji(c) // definitely
+                        // only if followed by VS16 or modifier
+                        || (text[start+i..].chars().nth(1).map(|c| c == VS16 || emoji_util::is_modifier(c)).unwrap_or(false))));
+
+            let (c_kind, c_level) = if is_emoji {
+                (TextSegmentKind::Emoji, level)
+            } else {
+                let k = match TextSegmentKind::from(bidi.original_classes[start + i]) {
+                    TextSegmentKind::OtherNeutral if super::unicode_bidi_util::bidi_bracket_data(c).is_some() => {
+                        TextSegmentKind::Bracket(c)
+                    }
+                    k => k,
+                };
+                (k, bidi.levels[start + i])
+            };
 
             if c_kind != kind || c_level != level || !c_kind.can_merge() {
                 if i > 0 {
@@ -279,7 +291,7 @@ impl SegmentedText {
     }
 
     /// The raw segment data.
-    pub fn segments(&self) -> &[TextSegment] {
+    pub fn segs(&self) -> &[TextSegment] {
         &self.segments
     }
 
@@ -676,13 +688,30 @@ mod tests {
 
     #[test]
     fn emoji_seg() {
-        let test = "'🙎🏻‍♀️'";
+        let test = "'🙎🏻‍♀️'1# 1️⃣#️⃣";
         let txt = SegmentedText::new(test, LayoutDirection::LTR);
-        let k: Vec<_> = txt.segments().iter().map(|s| s.kind).collect();
+        let k: Vec<_> = txt.segs().iter().map(|s| s.kind).collect();
 
         assert_eq!(
-            vec![TextSegmentKind::OtherNeutral, TextSegmentKind::Emoji, TextSegmentKind::OtherNeutral],
+            vec![
+                TextSegmentKind::OtherNeutral,       // '
+                TextSegmentKind::Emoji,              // 🙎🏻‍♀️
+                TextSegmentKind::OtherNeutral,       // '
+                TextSegmentKind::EuropeanNumber,     // 1
+                TextSegmentKind::EuropeanTerminator, // #
+                TextSegmentKind::Space,
+                TextSegmentKind::Emoji, // 1️⃣#️⃣
+            ],
             k
         );
+    }
+
+    #[test]
+    fn emoji_issues() {
+        let test = "🏴󠁧󠁢󠁥󠁮󠁧󠁿";
+        let txt = SegmentedText::new(test, LayoutDirection::LTR);
+        for (t, seg) in txt.iter() {
+            assert_eq!(seg.kind, TextSegmentKind::Emoji, "text: {t:?}");
+        }
     }
 }
