@@ -1,10 +1,7 @@
 # TextInput
 
-* Line break crate does not handle emoji zero-width joiner.
-    - Replace with `icu_segmenter`.
-
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
-    - `snap_grapheme_boundary` does not work for "🙎🏻‍♀️" with the quotes.
+
 * Implement cursor position.
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).

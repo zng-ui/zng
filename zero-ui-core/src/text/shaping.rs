@@ -244,7 +244,7 @@ impl FontRangeVec {
     fn iter_glyphs_clip(&self, glyphs_range: IndexRange) -> impl Iterator<Item = (&Font, IndexRange)> + '_ {
         let mut start = glyphs_range.start();
         let end = glyphs_range.end();
-        let first_font = self.0.iter().position(|f| f.end > start).unwrap_or(self.0.len()).saturating_sub(1);
+        let first_font = self.0.iter().position(|f| f.end > start).unwrap_or(self.0.len().saturating_sub(1));
 
         self.0[first_font..].iter().map_while(move |f| {
             let i = f.end.min(end);
@@ -2125,7 +2125,7 @@ impl<'a> ShapedSegment<'a> {
         let mut i = self.text_range().start() + self.text.clusters[i] as usize;
 
         if x >= g.point.x + advance / 2.0 {
-            i += full_text[i..=i].len();
+            i += full_text[i..].chars().next().map(|c| c.len_utf8()).unwrap_or(0);
         }
 
         i
