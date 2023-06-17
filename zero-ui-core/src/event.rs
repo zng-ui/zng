@@ -592,7 +592,7 @@ impl UpdateSubscribers for AnyEvent {
 pub struct EventHandles(pub Vec<EventHandle>);
 impl EventHandles {
     /// Empty collection.
-    pub fn dummy() -> Self {
+    pub const fn dummy() -> Self {
         EventHandles(vec![])
     }
 

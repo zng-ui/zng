@@ -114,8 +114,7 @@ struct WidgetCtxData {
     id: WidgetId,
     flags: Atomic<UpdateFlags>,
     state: RwLock<OwnedStateMap<WIDGET>>,
-    var_handles: Mutex<VarHandles>,
-    event_handles: Mutex<EventHandles>,
+    handles: WidgetHandlesCtxData,
     bounds: Mutex<WidgetBoundsInfo>,
     border: Mutex<WidgetBorderInfo>,
     render_reuse: Mutex<Option<ReuseRange>>,
@@ -124,6 +123,43 @@ impl WidgetCtxData {
     #[track_caller]
     fn no_context() -> Self {
         panic!("no widget in context")
+    }
+}
+
+struct WidgetHandlesCtxData {
+    var_handles: Mutex<VarHandles>,
+    event_handles: Mutex<EventHandles>,
+}
+
+impl WidgetHandlesCtxData {
+    const fn dummy() -> Self {
+        Self {
+            var_handles: Mutex::new(VarHandles::dummy()),
+            event_handles: Mutex::new(EventHandles::dummy()),
+        }
+    }
+}
+
+/// Defines the backing data for [`WIDGET.with_handles`].
+///
+/// [`WIDGET.with_handles`]: WIDGET::with_handles
+pub struct WidgetHandlesCtx(Option<Arc<WidgetHandlesCtxData>>);
+impl WidgetHandlesCtx {
+    /// New empty.
+    pub fn new() -> Self {
+        Self(Some(Arc::new(WidgetHandlesCtxData::dummy())))
+    }
+
+    /// Drop all handles.
+    pub fn clear(&mut self) {
+        let h = self.0.as_ref().unwrap();
+        h.var_handles.lock().clear();
+        h.event_handles.lock().clear();
+    }
+}
+impl Default for WidgetHandlesCtx {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -141,8 +177,7 @@ impl WidgetCtx {
             id,
             flags: Atomic::new(UpdateFlags::empty()),
             state: RwLock::new(OwnedStateMap::default()),
-            var_handles: Mutex::new(VarHandles::dummy()),
-            event_handles: Mutex::new(EventHandles::dummy()),
+            handles: WidgetHandlesCtxData::dummy(),
             bounds: Mutex::new(WidgetBoundsInfo::default()),
             border: Mutex::new(WidgetBorderInfo::default()),
             render_reuse: Mutex::new(None),
@@ -163,8 +198,8 @@ impl WidgetCtx {
     /// If `retain_state` is enabled the state will not be cleared and can still read.
     pub fn deinit(&mut self, retain_state: bool) {
         let ctx = self.0.as_mut().unwrap();
-        ctx.var_handles.lock().clear();
-        ctx.event_handles.lock().clear();
+        ctx.handles.var_handles.lock().clear();
+        ctx.handles.event_handles.lock().clear();
         ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
 
@@ -223,6 +258,7 @@ impl WidgetCtx {
 context_local! {
     static WINDOW_CTX: WindowCtxData = WindowCtxData::no_context();
     static WIDGET_CTX: WidgetCtxData = WidgetCtxData::no_context();
+    static WIDGET_HANDLES_CTX: WidgetHandlesCtxData = WidgetHandlesCtxData::dummy();
 }
 
 /// Current context window.
@@ -691,18 +727,8 @@ impl WIDGET {
     }
 
     /// Calls `f` with an override target for var and event subscription handles.
-    pub fn with_handles<R>(&self, var_handles: &mut VarHandles, event_handles: &mut EventHandles, f: impl FnOnce() -> R) -> R {
-        let w = WIDGET_CTX.get();
-        {
-            mem::swap(&mut *w.var_handles.lock(), var_handles);
-            mem::swap(&mut *w.event_handles.lock(), event_handles);
-        }
-        let r = f();
-        {
-            mem::swap(&mut *w.var_handles.lock(), var_handles);
-            mem::swap(&mut *w.event_handles.lock(), event_handles);
-        }
-        r
+    pub fn with_handles<R>(&self, handles: &mut WidgetHandlesCtx, f: impl FnOnce() -> R) -> R {
+        WIDGET_HANDLES_CTX.with_context(&mut handles.0, f)
     }
 
     /// Returns `true` if called inside a widget.
@@ -940,7 +966,13 @@ impl WIDGET {
     pub fn sub_var_op(&self, op: UpdateOp, var: &impl AnyVar) -> &Self {
         let w = WIDGET_CTX.get();
         let s = var.subscribe(op, w.id);
-        w.var_handles.lock().push(s);
+
+        if WIDGET_HANDLES_CTX.is_default() {
+            w.handles.var_handles.lock().push(s);
+        } else {
+            WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+        }
+
         self
     }
 
@@ -953,7 +985,13 @@ impl WIDGET {
     ) -> &Self {
         let w = WIDGET_CTX.get();
         let s = var.subscribe_when(op, w.id, predicate);
-        w.var_handles.lock().push(s);
+
+        if WIDGET_HANDLES_CTX.is_default() {
+            w.handles.var_handles.lock().push(s);
+        } else {
+            WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+        }
+
         self
     }
 
@@ -1020,28 +1058,50 @@ impl WIDGET {
     pub fn sub_event<A: EventArgs>(&self, event: &Event<A>) -> &Self {
         let w = WIDGET_CTX.get();
         let s = event.subscribe(w.id);
-        w.event_handles.lock().push(s);
+
+        if WIDGET_HANDLES_CTX.is_default() {
+            w.handles.event_handles.lock().push(s);
+        } else {
+            WIDGET_HANDLES_CTX.get().event_handles.lock().push(s);
+        }
+
         self
     }
 
     /// Hold the `handle` until the widget is deinited.
     pub fn push_event_handle(&self, handle: EventHandle) {
-        WIDGET_CTX.get().event_handles.lock().push(handle);
+        if WIDGET_HANDLES_CTX.is_default() {
+            WIDGET_CTX.get().handles.event_handles.lock().push(handle);
+        } else {
+            WIDGET_HANDLES_CTX.get().event_handles.lock().push(handle);
+        }
     }
 
     /// Hold the `handles` until the widget is deinited.
     pub fn push_event_handles(&self, handles: EventHandles) {
-        WIDGET_CTX.get().event_handles.lock().extend(handles);
+        if WIDGET_HANDLES_CTX.is_default() {
+            WIDGET_CTX.get().handles.event_handles.lock().extend(handles);
+        } else {
+            WIDGET_HANDLES_CTX.get().event_handles.lock().extend(handles);
+        }
     }
 
     /// Hold the `handle` until the widget is deinited.
     pub fn push_var_handle(&self, handle: VarHandle) {
-        WIDGET_CTX.get().var_handles.lock().push(handle);
+        if WIDGET_HANDLES_CTX.is_default() {
+            WIDGET_CTX.get().handles.var_handles.lock().push(handle);
+        } else {
+            WIDGET_HANDLES_CTX.get().var_handles.lock().push(handle);
+        }
     }
 
     /// Hold the `handles` until the widget is deinited.
     pub fn push_var_handles(&self, handles: VarHandles) {
-        WIDGET_CTX.get().var_handles.lock().extend(handles);
+        if WIDGET_HANDLES_CTX.is_default() {
+            WIDGET_CTX.get().handles.var_handles.lock().extend(handles);
+        } else {
+            WIDGET_HANDLES_CTX.get().var_handles.lock().extend(handles);
+        }
     }
 
     /// Widget bounds, updated every layout.

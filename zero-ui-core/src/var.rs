@@ -359,7 +359,7 @@ impl Default for VarHandle {
 pub struct VarHandles(pub Vec<VarHandle>);
 impl VarHandles {
     /// Empty collection.
-    pub fn dummy() -> Self {
+    pub const fn dummy() -> Self {
         VarHandles(vec![])
     }
 

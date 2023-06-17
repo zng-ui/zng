@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 use std::sync::{Arc, Weak};
 
 use crate::{
-    event::{Event, EventArgs, EventHandles},
+    event::{Event, EventArgs},
     var::*,
     widget_instance::*,
 };
@@ -113,8 +113,7 @@ impl<U: UiNode> ArcNode<U> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n| n.init(),
             delegate_deinit: |n| n.deinit(),
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 
@@ -139,8 +138,7 @@ impl<U: UiNode> ArcNode<U> {
             },
             delegate_init: |n| n.init(),
             delegate_deinit: |n| n.deinit(),
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 
@@ -241,8 +239,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n| n.init_all(),
             delegate_deinit: |n| n.deinit_all(),
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 
@@ -267,8 +264,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
             },
             delegate_init: |n| n.init_all(),
             delegate_deinit: |n| n.deinit_all(),
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 
@@ -310,7 +306,7 @@ mod impls {
 
     use crate::{
         context::*,
-        event::{Event, EventArgs, EventHandles, EventUpdate},
+        event::{Event, EventArgs, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::PxSize,
         var::*,
@@ -379,8 +375,7 @@ mod impls {
 
         pub(super) delegate_init: fn(&mut U),
         pub(super) delegate_deinit: fn(&mut U),
-        pub(super) var_handles: VarHandles,
-        pub(super) event_handles: EventHandles,
+        pub(super) wgt_handles: WidgetHandlesCtx,
     }
     impl<U, T: TakeOn> TakeSlot<U, T> {
         fn on_init(&mut self) {
@@ -403,13 +398,10 @@ mod impls {
             }
 
             if was_owner {
-                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
-                    (self.delegate_deinit)(&mut *self.rc.item.lock())
-                });
+                WIDGET.with_handles(&mut self.wgt_handles, || (self.delegate_deinit)(&mut *self.rc.item.lock()));
             }
 
-            self.var_handles.clear();
-            self.event_handles.clear();
+            self.wgt_handles.clear();
         }
 
         fn on_event(&mut self, update: &EventUpdate) {
@@ -446,13 +438,12 @@ mod impls {
                     drop(slots);
 
                     let mut node = self.rc.item.lock();
-                    WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                    WIDGET.with_handles(&mut self.wgt_handles, || {
                         (self.delegate_deinit)(&mut node);
                     });
-                    self.var_handles.clear();
-                    self.event_handles.clear();
+                    self.wgt_handles.clear();
 
-                    WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                    WIDGET.with_handles(&mut self.wgt_handles, || {
                         (self.delegate_init)(&mut new);
                     });
                     *node = new;
@@ -492,7 +483,7 @@ mod impls {
             }
 
             if self.is_owner() {
-                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                WIDGET.with_handles(&mut self.wgt_handles, || {
                     (self.delegate_init)(&mut *self.rc.item.lock());
                 });
                 WIDGET.update_info().layout().render();
@@ -520,9 +511,7 @@ mod impls {
 
         fn delegate_owned_mut_with_handles<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
             if self.is_owner() {
-                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
-                    Some(del(&mut *self.rc.item.lock()))
-                })
+                WIDGET.with_handles(&mut self.wgt_handles, || Some(del(&mut *self.rc.item.lock())))
             } else {
                 None
             }

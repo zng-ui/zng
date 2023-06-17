@@ -60,7 +60,6 @@
             we now update the merge_var only once after the first input update, the others are ignored!
         - If we remove the apply_update_id this is fixed, but now the merge_var! updates 10 times, for useless 9 calls.
         - Removing it for now.
-* `text.rs` example: cancelling open dialog breaks it.
 
 # View-Process
 

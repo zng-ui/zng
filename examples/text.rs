@@ -354,7 +354,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         on_close = hn!(is_open, |_| {
             is_open.set_ne(false);
         });
-        enabled = editor.is_busy().map(|&b| !b);
+        enabled = editor.enabled();
         on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
             editor.on_close_requested(args).await;
         });
@@ -501,8 +501,8 @@ impl TextEditor {
         })
     }
 
-    pub fn is_busy(&self) -> impl Var<bool> {
-        self.busy.map(|&b| b > 0)
+    pub fn enabled(&self) -> impl Var<bool> {
+        self.busy.map(|&b| b == 0)
     }
 
     pub async fn create(&self) {

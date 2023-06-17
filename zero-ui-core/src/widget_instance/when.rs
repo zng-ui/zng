@@ -1,8 +1,8 @@
 use crate::{
-    context::WidgetUpdates,
     context::WIDGET,
-    event::{EventHandles, EventUpdate},
-    var::{BoxedVar, Var, VarHandles},
+    context::{WidgetHandlesCtx, WidgetUpdates},
+    event::EventUpdate,
+    var::{BoxedVar, Var},
 };
 
 use super::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver};
@@ -36,8 +36,7 @@ impl WhenUiNodeBuilder {
             default: self.default,
             conditions: self.conditions,
             current: usize::MAX,
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 }
@@ -71,8 +70,7 @@ impl WhenUiNodeListBuilder {
             default: self.default,
             conditions: self.conditions,
             current: usize::MAX,
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+            wgt_handles: WidgetHandlesCtx::new(),
         }
     }
 }
@@ -81,40 +79,38 @@ struct WhenUiNode {
     default: BoxedUiNode,
     conditions: Vec<(BoxedVar<bool>, BoxedUiNode)>,
     current: usize,
-    var_handles: VarHandles,
-    event_handles: EventHandles,
+    wgt_handles: WidgetHandlesCtx,
 }
 impl WhenUiNode {
-    fn child_mut_with_handles(&mut self) -> (&mut BoxedUiNode, &mut VarHandles, &mut EventHandles) {
+    fn child_mut_with_handles(&mut self) -> (&mut BoxedUiNode, &mut WidgetHandlesCtx) {
         let child = if self.current == usize::MAX {
             &mut self.default
         } else {
             &mut self.conditions[self.current].1
         };
-        (child, &mut self.var_handles, &mut self.event_handles)
+        (child, &mut self.wgt_handles)
     }
 
     fn change_child(&mut self, new: usize) {
         {
-            let (child, var_handles, event_handles) = self.child_mut_with_handles();
-            WIDGET.with_handles(var_handles, event_handles, || child.deinit());
-            var_handles.clear();
-            event_handles.clear();
+            let (child, wgt_handles) = self.child_mut_with_handles();
+            WIDGET.with_handles(wgt_handles, || child.deinit());
+            wgt_handles.clear();
         }
 
         self.current = new;
 
         {
-            let (child, var_handles, event_handles) = self.child_mut_with_handles();
-            WIDGET.with_handles(var_handles, event_handles, || child.init());
+            let (child, wgt_handles) = self.child_mut_with_handles();
+            WIDGET.with_handles(wgt_handles, || child.init());
         }
 
         WIDGET.update_info().layout().render();
     }
 
     fn with<R>(&mut self, f: impl FnOnce(&mut BoxedUiNode) -> R) -> R {
-        let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || f(child))
+        let (child, wgt_handles) = self.child_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || f(child))
     }
 }
 impl UiNode for WhenUiNode {
@@ -131,8 +127,7 @@ impl UiNode for WhenUiNode {
 
     fn deinit(&mut self) {
         self.with(|c| c.deinit());
-        self.var_handles.clear();
-        self.event_handles.clear();
+        self.wgt_handles.clear();
     }
 
     fn info(&mut self, info: &mut crate::widget_info::WidgetInfoBuilder) {
@@ -198,8 +193,7 @@ struct WhenUiNodeList {
     default: BoxedUiNodeList,
     conditions: Vec<(BoxedVar<bool>, BoxedUiNodeList)>,
     current: usize,
-    var_handles: VarHandles,
-    event_handles: EventHandles,
+    wgt_handles: WidgetHandlesCtx,
 }
 impl WhenUiNodeList {
     fn children(&self) -> &BoxedUiNodeList {
@@ -210,28 +204,27 @@ impl WhenUiNodeList {
         }
     }
 
-    fn children_mut_with_handles(&mut self) -> (&mut BoxedUiNodeList, &mut VarHandles, &mut EventHandles) {
+    fn children_mut_with_handles(&mut self) -> (&mut BoxedUiNodeList, &mut WidgetHandlesCtx) {
         let child = if self.current == usize::MAX {
             &mut self.default
         } else {
             &mut self.conditions[self.current].1
         };
-        (child, &mut self.var_handles, &mut self.event_handles)
+        (child, &mut self.wgt_handles)
     }
 
     fn change_children(&mut self, observer: &mut dyn UiNodeListObserver, new: usize) {
         {
-            let (child, var_handles, event_handles) = self.children_mut_with_handles();
-            WIDGET.with_handles(var_handles, event_handles, || child.deinit_all());
-            var_handles.clear();
-            event_handles.clear();
+            let (child, wgt_handles) = self.children_mut_with_handles();
+            WIDGET.with_handles(wgt_handles, || child.deinit_all());
+            wgt_handles.clear();
         }
 
         self.current = new;
 
         {
-            let (child, var_handles, event_handles) = self.children_mut_with_handles();
-            WIDGET.with_handles(var_handles, event_handles, || child.init_all());
+            let (child, wgt_handles) = self.children_mut_with_handles();
+            WIDGET.with_handles(wgt_handles, || child.init_all());
         }
 
         observer.reset();
@@ -292,15 +285,14 @@ impl UiNodeList for WhenUiNodeList {
             WIDGET.sub_var(c);
         }
 
-        let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || children.init_all());
+        let (children, wgt_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || children.init_all());
     }
 
     fn deinit_all(&mut self) {
-        let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || children.deinit_all());
-        var_handles.clear();
-        event_handles.clear();
+        let (children, wgt_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || children.deinit_all());
+        wgt_handles.clear();
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -334,20 +326,20 @@ impl UiNodeList for WhenUiNodeList {
             self.change_children(observer, usize::MAX);
         }
 
-        let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || children.update_all(updates, observer));
+        let (children, wgt_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || children.update_all(updates, observer));
     }
 
     fn info_all(&mut self, info: &mut crate::widget_info::WidgetInfoBuilder) {
-        let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || {
+        let (children, wgt_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || {
             children.info_all(info);
         })
     }
 
     fn event_all(&mut self, update: &EventUpdate) {
-        let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || {
+        let (children, wgt_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(wgt_handles, || {
             children.event_all(update);
         })
     }
