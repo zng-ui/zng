@@ -4,7 +4,6 @@ use crate::{context::LayoutDirection, crate_util::FxHashMap};
 
 use super::Txt;
 use unicode_bidi::BidiInfo;
-use xi_unicode::LineBreakIterator;
 
 /// The type of a text segment.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -182,42 +181,46 @@ impl SegmentedText {
         let text_str: &str = &text;
         let bidi = BidiInfo::new(text_str, Some(base_direction.into()));
 
-        for (offset, hard_break) in LineBreakIterator::new(text_str) {
-            // a hard-break is a '\n', '\r', "\r\n".
-            if hard_break {
-                // start of this segment.
-                let start = segs.last().map(|s| s.end).unwrap_or(0);
+        for (offset, kind) in unicode_linebreak::linebreaks(text_str) {
+            match kind {
+                // a hard-break is a '\n', '\r', "\r\n" or text end.
+                unicode_linebreak::BreakOpportunity::Mandatory => {
+                    // start of this segment.
+                    let start = segs.last().map(|s| s.end).unwrap_or(0);
 
-                // The segment can have other characters before the line-break character(s).
+                    // The segment can have other characters before the line-break character(s).
 
-                let seg = &text_str[start..offset];
-                let break_start = if seg.ends_with("\r\n") {
-                    // the break was a "\r\n"
-                    offset - 2
-                } else {
-                    debug_assert!(
-                        seg.ends_with('\n') || seg.ends_with('\r') || seg.ends_with('\u{85}'),
-                        "seg: {seg:#?}"
-                    );
-                    // the break was a '\n', '\r' or NEL
-                    offset - 1
-                };
+                    let seg = &text_str[start..offset];
 
-                if break_start > start {
-                    // the segment has more characters than the line-break character(s).
-                    Self::push_seg(text_str, &bidi, &mut segs, break_start);
+                    let break_start = if seg.ends_with("\r\n") {
+                        // the break was a "\r\n"
+                        offset - 2
+                    } else if seg.ends_with('\n') || seg.ends_with('\r') || seg.ends_with('\u{85}') {
+                        // the break was a '\n', '\r' or NEL
+                        offset - 1
+                    } else {
+                        // "break" at end of string
+                        debug_assert_eq!(offset, text_str.len());
+                        offset
+                    };
+
+                    if break_start > start {
+                        // the segment has more characters than the line-break character(s).
+                        Self::push_seg(text_str, &bidi, &mut segs, break_start);
+                    }
+                    if break_start < offset {
+                        // the line break character(s).
+                        segs.push(TextSegment {
+                            kind: TextSegmentKind::LineBreak,
+                            end: offset,
+                            level: bidi.levels[break_start],
+                        })
+                    }
                 }
-                if break_start < offset {
-                    // the line break character(s).
-                    segs.push(TextSegment {
-                        kind: TextSegmentKind::LineBreak,
-                        end: offset,
-                        level: bidi.levels[break_start],
-                    })
+                _ => {
+                    // soft break, handled by our own segmentation
+                    Self::push_seg(text_str, &bidi, &mut segs, offset);
                 }
-            } else {
-                // is a soft-break, an opportunity to break the line if needed
-                Self::push_seg(text_str, &bidi, &mut segs, offset);
             }
         }
         SegmentedText {

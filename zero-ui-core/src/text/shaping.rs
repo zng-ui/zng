@@ -2105,7 +2105,7 @@ impl<'a> ShapedSegment<'a> {
         &full_text[start..end]
     }
 
-    /// Gets the insert index in the string that is nearest to `x`.
+    /// Gets the insert index in the segment text that is nearest to `x`.
     pub fn nearest_char_index(&self, x: Px, full_text: &str) -> usize {
         let x = x.0 as f32;
         let q = self

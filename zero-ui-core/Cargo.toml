@@ -95,7 +95,7 @@ font-kit = "0.11"
 unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2"
 harfbuzz_rs = "2"
-xi-unicode = "0.3"
+unicode-linebreak = "0.1"
 pathfinder_geometry = "0.5"
 hyphenation = { version = "0.8", default-features = false }
 regex = "1"
