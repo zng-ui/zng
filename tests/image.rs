@@ -12,6 +12,7 @@ fn main() {
         get_before_view_init(&mut app);
         app.exit();
     });
+    std::thread::sleep(1.secs()); // time for backtrace
 }
 
 pub fn get_before_view_init(app: &mut HeadlessApp) {

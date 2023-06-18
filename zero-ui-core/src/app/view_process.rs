@@ -61,10 +61,10 @@ app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
 }
 impl VIEW_PROCESS {
-    /// If the `VIEW_PROCESS` can be used, this is only true in apps with render, all other
+    /// If the `VIEW_PROCESS` can be used, this is only true in app threads for apps with render, all other
     /// methods will panic if called when this is not true.
     pub fn is_available(&self) -> bool {
-        VIEW_PROCESS_SV.read().is_some()
+        App::is_running() && VIEW_PROCESS_SV.read().is_some()
     }
 
     fn read(&self) -> MappedRwLockReadGuard<ViewProcessService> {
@@ -736,9 +736,11 @@ impl ViewWindowData {
 }
 impl Drop for ViewWindowData {
     fn drop(&mut self) {
-        let mut app = VIEW_PROCESS.handle_write(self.app_id);
-        if self.generation == app.process.generation() {
-            let _ = app.process.close_window(self.id);
+        if VIEW_PROCESS.is_available() {
+            let mut app = VIEW_PROCESS.handle_write(self.app_id);
+            if self.generation == app.process.generation() {
+                let _ = app.process.close_window(self.id);
+            }
         }
     }
 }
@@ -1030,11 +1032,10 @@ impl Drop for ViewImageData {
                 if app_id != app {
                     tracing::error!("image from app `{:?}` dropped in app `{:?}`", app_id, app);
                 }
-                return;
-            }
 
-            if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == self.generation {
-                let _ = VIEW_PROCESS.write().process.forget_image(id);
+                if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == self.generation {
+                    let _ = VIEW_PROCESS.write().process.forget_image(id);
+                }
             }
         }
     }
