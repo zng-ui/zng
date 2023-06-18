@@ -67,8 +67,6 @@
 * Try to implement `VarValue: PartialEq`.
     - We are missing some `*_ne`, no `bind_ne` for example.
 * Remove all `*_ne` stuff.
-* Implement `set_from(other_var)` that schedules a modify that sets in the next update, like a one time binding.
-* Review radio button in examples, button, localize and window.
 
 * Config example and tests with errors.
 * Layer example, anchored does not update while visible.
