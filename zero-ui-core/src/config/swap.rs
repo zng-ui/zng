@@ -104,7 +104,7 @@ impl SwapConfig {
 
     fn replace_source(&mut self, source: Box<dyn AnyConfig>) {
         self.source_status = source.status();
-        self.status.set(self.source_status.get());
+        self.status.set_from(&self.source_status);
         self.status_binding = self.source_status.bind(&self.status);
 
         *self.cfg.get_mut() = source; // drop previous source first

@@ -30,7 +30,7 @@ where
                 let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
             }
-            window_var.set_ne(user_var.get()).unwrap();
+            window_var.set_from_ne(&user_var).unwrap();
         }
     })
 }

@@ -461,6 +461,22 @@ mod bindings {
 
         app.update(false).assert_wait();
 
+        assert_eq!(0, b.get());
+    }
+
+    #[test]
+    fn binding_update_order3() {
+        let mut app = App::minimal().run_headless(false);
+
+        let a = var(0);
+        let b = var(0);
+
+        a.set(1);
+        b.set_from(&a);
+        a.bind(&b).perm();
+
+        app.update(false).assert_wait();
+
         assert_eq!(1, b.get());
     }
 }

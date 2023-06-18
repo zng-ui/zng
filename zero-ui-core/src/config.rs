@@ -595,7 +595,7 @@ impl ConfigContainsVar {
     fn rebind(&mut self, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
         if let Some(res) = self.var.upgrade() {
             let cfg = source.contains_key(key.clone());
-            res.set_ne(cfg.get());
+            res.set_from_ne(&cfg);
 
             self.binding = VarHandles(vec![
                 cfg.bind(&res),

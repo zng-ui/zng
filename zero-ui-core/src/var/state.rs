@@ -339,7 +339,7 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
-            let _ = state.set_ne(source.get());
+            let _ = state.set_from_ne(&source);
             _binding = source.bind(&state);
         }
         UiNodeOp::Deinit => {

@@ -56,7 +56,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             }
             img = IMAGES.image(source, mode, limits, downscale);
 
-            ctx_img.set(img.get());
+            ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
         }
         UiNodeOp::Deinit => {
@@ -86,7 +86,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                 img = IMAGES.image(source, mode, limits, downscale);
 
-                ctx_img.set(img.get());
+                ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new() {
                 // cache-mode update:
@@ -106,7 +106,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         IMAGES.image(source, ImageCacheMode::Cache, limits, downscale)
                     };
 
-                    ctx_img.set(img.get());
+                    ctx_img.set_from(&img);
                     _ctx_binding = Some(img.bind(&ctx_img));
                 }
             }

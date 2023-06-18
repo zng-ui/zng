@@ -224,7 +224,7 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
         if let UiNodeOp::Init = op {
             if IMAGE_RENDER.is_in_render() {
                 let actual_retain = IMAGE_RENDER.retain();
-                actual_retain.set_ne(retain.get());
+                actual_retain.set_from_ne(&retain);
                 let handle = actual_retain.bind(&retain);
                 WIDGET.push_var_handle(handle);
             } else {

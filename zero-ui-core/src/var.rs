@@ -438,7 +438,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Get a clone of the current value, with type erased.
     fn get_any(&self) -> Box<dyn AnyVarValue>;
 
-    /// Try to schedule a new `value` for the variable, it will be set in the end of the current app update.
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update.
     ///
     /// # Panics
     ///
@@ -851,6 +851,40 @@ macro_rules! impl_infallible_write {
         pub fn touch(&self) {
             AnyVar::touch(self).unwrap()
         }
+
+        /// Infallible [`Var::set_from`].
+        pub fn set_from<I: Var<$T>>(&self, other: &I) {
+            Var::set_from(self, other).unwrap()
+        }
+
+        /// Infallible [`Var::set_from_ne`].
+        pub fn set_from_ne<I: Var<$T>>(&self, other: &I)
+        where
+            $T: PartialEq,
+        {
+            Var::set_from_ne(self, other).unwrap()
+        }
+
+        /// Infallible [`Var::set_from_map`].
+        pub fn set_from_map<Iv, I, M>(&self, other: &I, map: M)
+        where
+            Iv: VarValue,
+            I: Var<Iv>,
+            M: FnOnce(&Iv) -> $T + Send + 'static,
+        {
+            Var::set_from_map(self, other, map).unwrap()
+        }
+
+        /// Infallible [`Var::set_from_map_ne`].
+        pub fn set_from_map_ne<Iv, I, M>(&self, other: &I, map: M)
+        where
+            Iv: VarValue,
+            I: Var<Iv>,
+            M: FnOnce(&Iv) -> T + Send + 'static,
+            T: PartialEq,
+        {
+            Var::set_from_map_ne(self, other, map).unwrap()
+        }
     };
 }
 use impl_infallible_write;
@@ -1038,7 +1072,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         F: FnOnce(&T) -> R;
 
-    /// Try to schedule a variable update, it will be applied on the end of the current app update.
+    /// Schedule a variable update, it will be applied on the end of the current app update.
     ///
     /// The variable only updates if the [`VarModify`] is touched, set or modified.
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
@@ -1205,7 +1239,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         types::WaitNewFut::new(self)
     }
 
-    /// Try to schedule a new `value` for the variable, it will be set in the end of the current app update.
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update.
     fn set<I>(&self, value: I) -> Result<(), VarIsReadOnlyError>
     where
         I: Into<T>,
@@ -1213,7 +1247,85 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.modify(var_set(value.into()))
     }
 
-    /// Try to schedule a new `value` for the variable, it will be set in the end of the current app update if it is not
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the value
+    /// of `other` at the time it is set. If `other` already has a scheduled that new value will be set, this is
+    /// particularly important when starting a new binding.
+    ///  
+    /// # Examples
+    ///
+    /// Starting a *set-bind* with `set` can cause unexpected initial value:
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, app::*, task};
+    /// let mut app = App::minimal().run_headless(false);
+    /// app.run_task(async {
+    /// let a = var(0);
+    /// let b = var(0);
+    ///
+    /// a.set(1);
+    /// b.set(a.get());
+    /// a.bind(&b).perm();
+    ///
+    /// task::yield_one().await;
+    /// // scheduled updates apply in this order:
+    /// //  - a.set(1);
+    /// //    - b.set(1); // caused by the binding.
+    /// //  - b.set(0); // caused by the request `b.set(a.get())`.
+    ///
+    /// assert_eq!(1, a.get());
+    /// assert_eq!(0, b.get()); // not 1!
+    /// });
+    /// ```
+    ///
+    /// Starting the binding with `set_from`:
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, app::*, task};
+    /// let mut app = App::minimal().run_headless(false);
+    /// app.run_task(async {
+    /// let a = var(0);
+    /// let b = var(0);
+    ///
+    /// a.set(1);
+    /// b.set_from(&a);
+    /// a.bind(&b).perm();
+    ///
+    /// task::yield_one().await;
+    /// // scheduled updates apply in this order:
+    /// //  - a.set(1);
+    /// //    - b.set(1); // caused by the binding.
+    /// //  - b.set(1); // caused by the request `b.set_from(&a)`.
+    ///
+    /// assert_eq!(1, a.get());
+    /// assert_eq!(1, b.get());
+    /// });
+    /// ```
+    fn set_from<I>(&self, other: &I) -> Result<(), VarIsReadOnlyError>
+    where
+        I: Var<T>,
+    {
+        if other.capabilities().is_always_static() {
+            self.set(other.get())
+        } else {
+            self.modify(var_set_from(other.clone().actual_var()))
+        }
+    }
+
+    /// Set from `other` value at the time of update, mapped to the type of `self`.
+    fn set_from_map<Iv, I, M>(&self, other: &I, map: M) -> Result<(), VarIsReadOnlyError>
+    where
+        Iv: VarValue,
+        I: Var<Iv>,
+        M: FnOnce(&Iv) -> T + Send + 'static,
+    {
+        if other.capabilities().is_always_static() {
+            self.set(other.with(map))
+        } else {
+            self.modify(var_set_from_map(other.clone().actual_var(), map))
+        }
+    }
+
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update if it is not
     /// equal to the variable value *at that time*, this only flags the variable as new if the values are not equal.
     ///
     /// Note that this is different from comparing with the current value and assigning,
@@ -1224,6 +1336,34 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         I: Into<T>,
     {
         self.modify(var_set_ne(value.into()))
+    }
+
+    /// Set from other if new value is not equal.
+    fn set_from_ne<I>(&self, other: &I) -> Result<(), VarIsReadOnlyError>
+    where
+        T: PartialEq,
+        I: Var<T>,
+    {
+        if other.capabilities().is_always_static() {
+            self.set_ne(other.get())
+        } else {
+            self.modify(var_set_from_ne(other.clone().actual_var()))
+        }
+    }
+
+    /// Set from `other` value at the time of update, mapped to the type of `self` if the value actually changes.
+    fn set_from_map_ne<Iv, I, M>(&self, other: &I, map: M) -> Result<(), VarIsReadOnlyError>
+    where
+        Iv: VarValue,
+        I: Var<Iv>,
+        M: FnOnce(&Iv) -> T + Send + 'static,
+        T: PartialEq,
+    {
+        if other.capabilities().is_always_static() {
+            self.set(other.with(map))
+        } else {
+            self.modify(var_set_from_map_ne(other.clone().actual_var(), map))
+        }
     }
 
     /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`ArcVar<T>`].
@@ -1488,8 +1628,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Only a weak reference to the `other` variable is held, both variables update in the same app update cycle.
     ///
-    /// Note that the current value is not assigned, only the subsequent updates, you can assign
-    /// `other` and then bind to fully sync the variables.
+    /// Note that the current value is not assigned, only the subsequent updates, you can use [`set_from_map`]
+    /// to sync the initial value.
+    ///
+    /// [`set_from_map`]: Self::set_from_map
     fn bind_map<T2, V2, M>(&self, other: &V2, map: M) -> VarHandle
     where
         T2: VarValue,
@@ -1641,8 +1783,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Only a weak reference to the `other` variable is held.
     ///
-    /// Note that the current value is not assigned, only the subsequent updates, you can assign
-    /// `other` and then bind to fully sync the variables.
+    /// Note that the current value is not assigned, only the subsequent updates, you can use
+    /// [`set_from`] to sync the initial value.
+    ///
+    /// [`set_from`]: Self::set_from
     fn bind<V2>(&self, other: &V2) -> VarHandle
     where
         V2: Var<T>,
@@ -2209,6 +2353,14 @@ where
         var_value.set(value);
     }
 }
+fn var_set_from<T, I>(other: I) -> impl FnOnce(&mut VarModify<T>)
+where
+    T: VarValue,
+    I: Var<T>,
+{
+    move |var_value| var_value.set(other.get())
+}
+
 fn var_set_ne<T>(value: T) -> impl FnOnce(&mut VarModify<T>)
 where
     T: VarValue + PartialEq,
@@ -2219,6 +2371,48 @@ where
         }
     }
 }
+fn var_set_from_ne<T, I>(other: I) -> impl FnOnce(&mut VarModify<T>)
+where
+    T: VarValue + PartialEq,
+    I: Var<T>,
+{
+    move |var_value| {
+        other.with(|other| {
+            if var_value.as_ref() != other {
+                var_value.set(other.clone());
+            }
+        })
+    }
+}
+
+fn var_set_from_map<T, Iv, I, M>(other: I, map: M) -> impl FnOnce(&mut VarModify<T>)
+where
+    Iv: VarValue,
+    I: Var<Iv>,
+    M: FnOnce(&Iv) -> T + Send + 'static,
+    T: VarValue,
+{
+    move |var_value| {
+        let value = other.with(map);
+        var_value.set(value);
+    }
+}
+
+fn var_set_from_map_ne<T, Iv, I, M>(other: I, map: M) -> impl FnOnce(&mut VarModify<T>)
+where
+    Iv: VarValue,
+    I: Var<Iv>,
+    M: FnOnce(&Iv) -> T + Send + 'static,
+    T: VarValue + PartialEq,
+{
+    move |var_value| {
+        let value = other.with(map);
+        if var_value.as_ref() != &value {
+            var_value.set(value);
+        }
+    }
+}
+
 fn var_set_any<T>(value: Box<dyn AnyVarValue>) -> impl FnOnce(&mut VarModify<T>)
 where
     T: VarValue,

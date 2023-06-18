@@ -64,10 +64,8 @@
 
 # Vars
 
-* Set and bind issue, see test `binding_update_order2`.
-* Review all binding usages, do they all set and bind?
-* If we make bind set by default, how does this work for `bind_bidi`?
 * Try to implement `VarValue: PartialEq`.
+    - We are missing some `*_ne`, no `bind_ne` for example.
 * Remove all `*_ne` stuff.
 * Implement `set_from(other_var)` that schedules a modify that sets in the next update, like a one time binding.
 * Review radio button in examples, button, localize and window.

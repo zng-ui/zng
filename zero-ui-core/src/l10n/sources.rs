@@ -262,11 +262,11 @@ impl SwapL10nSource {
         self.actual = new;
 
         let actual_langs = self.actual.available_langs();
-        self.available_langs.set(actual_langs.get());
+        self.available_langs.set_from(&actual_langs);
         actual_langs.bind(&self.available_langs).perm();
 
         let actual_status = self.actual.available_langs_status();
-        self.available_langs_status.set_ne(actual_status.get());
+        self.available_langs_status.set_from_ne(&actual_status);
         actual_status.bind(&self.available_langs_status).perm();
 
         for ((lang, file), f) in &mut self.res {
@@ -280,7 +280,7 @@ impl SwapL10nSource {
                 }));
 
                 let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
-                f.status.set_ne(actual_s.get());
+                f.status.set_from_ne(&actual_s);
                 f.actual_weak_status = actual_s.bind(&f.status);
             } else {
                 f.status.set_ne(LangResourceStatus::NotAvailable);
@@ -324,7 +324,7 @@ impl L10nSource for SwapL10nSource {
                     let res = res.boxed();
                     f.res = res.downgrade();
 
-                    f.status.set_ne(actual_s.get());
+                    f.status.set_from_ne(&actual_s);
                     f.actual_weak_status = actual_s.bind(&f.status);
 
                     res
@@ -346,7 +346,7 @@ impl L10nSource for SwapL10nSource {
                 let res = res.boxed();
                 f.res = res.downgrade();
 
-                f.status.set_ne(actual_s.get());
+                f.status.set_from_ne(&actual_s);
                 f.actual_weak_status = actual_s.bind(&f.status);
 
                 e.insert(f);

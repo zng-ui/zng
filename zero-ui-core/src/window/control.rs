@@ -1295,15 +1295,19 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         })));
         handles.push(h);
 
-        hvars.0.actual_color_scheme.set_ne(user.get().unwrap_or_else(|| parent.get()));
+        actual.modify(clmv!(user, parent, |a| {
+            let value = user.get().unwrap_or_else(|| parent.get());
+            if a.as_ref() != &value {
+                a.set(value);
+            }
+        }));
     } else {
-        // bind color scheme
-        let h = hvars
-            .color_scheme()
-            .bind_map(&hvars.0.actual_color_scheme, |&s| s.unwrap_or_default());
-        handles.push(h);
+        // set-bind color scheme
+        let from = hvars.color_scheme();
+        let to = &hvars.0.actual_color_scheme;
 
-        hvars.0.actual_color_scheme.set_ne(hvars.color_scheme().get().unwrap_or_default());
+        to.set_from_map_ne(&from, |&s| s.unwrap_or_default());
+        handles.push(from.bind_map(to, |&s| s.unwrap_or_default()));
     }
 
     handles
