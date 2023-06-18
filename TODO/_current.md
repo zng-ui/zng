@@ -67,6 +67,19 @@
 * Button example, radio button starts without all unchecked.
     - Localize example also did not show any selected.
     - Window example, background.
+    - If `let _ = state.set_ne(source.get());` is not called before binding in `bind_is_state` in `is_checked` it works.
+        - `set_ne` schedules a sets to `false`.
+        - `source` has already schedules a set to `true`.
+        - Now that binding updates all happen first, the var set to `true` than `false`.
+        - How to solve:
+            - Schedule the first assign, instead of `set_ne`, `modify(|v| *v.set(source.get()))`.
+                - This is very easy for the users to get wrong.
+                - Implement `set_bind` methods that use this trick.
+            - Just change `bind` to set on init.
+                - Is there a single binding that does not set before binding.
+                - And while we are at it, is there any `VarValue` that cannot also be `PartialEq`?
+                    - We could make all vars updates be `*_ne`, two less things for the users to think about.
+
 * Config example and tests with errors.
 * Layer example, anchored does not update while visible.
 
