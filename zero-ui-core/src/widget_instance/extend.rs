@@ -27,11 +27,11 @@ impl UiNode for ExtendWidgetChildNode {
         self.widget.lock().is_widget()
     }
 
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
-        self.widget.lock().with_context(f)
+        self.widget.lock().with_context(update_mode, f)
     }
 }
 
@@ -45,10 +45,10 @@ impl UiNode for ExtendWidgetNode {
         self.widget.lock().is_widget()
     }
 
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
-        self.widget.lock().with_context(f)
+        self.widget.lock().with_context(update_mode, f)
     }
 }

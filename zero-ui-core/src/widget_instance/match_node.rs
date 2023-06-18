@@ -496,11 +496,11 @@ impl<C: UiNode> UiNode for MatchNodeChild<C> {
         self.child.is_widget()
     }
 
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
-        self.child.with_context(f)
+        self.child.with_context(update_mode, f)
     }
 }
 
@@ -574,8 +574,8 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
             self.child.is_widget()
         }
 
-        fn with_context<R, F: FnOnce() -> R>(&mut self, f: F) -> Option<R> {
-            self.child.with_context(f)
+        fn with_context<R, F: FnOnce() -> R>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R> {
+            self.child.with_context(update_mode, f)
         }
 
         fn init(&mut self) {
@@ -724,8 +724,8 @@ impl<C: UiNode> UiNode for MatchWidgetChild<C> {
         self.0.child.is_widget()
     }
 
-    fn with_context<R, F: FnOnce() -> R>(&mut self, f: F) -> Option<R> {
-        self.0.child.with_context(f)
+    fn with_context<R, F: FnOnce() -> R>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R> {
+        self.0.child.with_context(update_mode, f)
     }
 }
 

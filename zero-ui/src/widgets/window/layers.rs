@@ -59,14 +59,14 @@ impl LAYERS {
                 }
 
                 // widget may only become a full widget after init (ArcNode)
-                widget.with_context(|| {
+                widget.with_context(WidgetUpdateMode::Bubble, || {
                     WIDGET.set_state(&LAYER_INDEX_ID, layer.get());
                     WIDGET.sub_var(&layer);
                 });
             }
             UiNodeOp::Update { .. } => {
                 if let Some(index) = layer.get_new() {
-                    widget.with_context(|| {
+                    widget.with_context(WidgetUpdateMode::Bubble, || {
                         WIDGET.set_state(&LAYER_INDEX_ID, index);
                         SortingListParent::invalidate_sort();
                     });
@@ -133,7 +133,7 @@ impl LAYERS {
                     // cleanup requested by the `insert` node.
                 }
 
-                widget.with_context(|| {
+                widget.with_context(WidgetUpdateMode::Bubble, || {
                     WIDGET.sub_var(&anchor).sub_var(&mode);
 
                     let tree = WINDOW.widget_tree();
@@ -162,7 +162,7 @@ impl LAYERS {
             }
             UiNodeOp::Info { info } => {
                 if interactivity {
-                    if let Some(widget) = widget.with_context(|| WIDGET.id()) {
+                    if let Some(widget) = widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
                         let anchor = anchor.get();
                         let querying = AtomicBool::new(false);
                         info.push_interactivity_filter(move |args| {
@@ -191,7 +191,7 @@ impl LAYERS {
                 }
             }
             UiNodeOp::Update { .. } => {
-                widget.with_context(|| {
+                widget.with_context(WidgetUpdateMode::Bubble, || {
                     if let Some(anchor) = anchor.get_new() {
                         anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                         if mode.with(|m| m.interactivity) {
@@ -350,7 +350,7 @@ impl LAYERS {
                     }
                 }
 
-                widget.with_context(|| {
+                widget.with_context(WidgetUpdateMode::Bubble, || {
                     wl.collapse();
                 });
             }
@@ -485,7 +485,11 @@ impl LAYERS {
 
 fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
     let window_bounds = WINDOW_CTRL.vars().actual_size_px().get();
-    let wgt_bounds = PxBox::from(widget.with_context(|| WIDGET.bounds().outer_size()).unwrap_or_else(PxSize::zero));
+    let wgt_bounds = PxBox::from(
+        widget
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())
+            .unwrap_or_else(PxSize::zero),
+    );
     let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
 
     let x_underflow = -wgt_bounds.min.x.min(Px(0));
@@ -1228,8 +1232,12 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
     let layered = layers.reference();
 
     let sorting_layers = SortingList::<_, SortFn>::new(layers, |a, b| {
-        let a = a.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
-        let b = b.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
+        let a = a
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(&LAYER_INDEX_ID))
+            .unwrap_or(LayerIndex::DEFAULT);
+        let b = b
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(&LAYER_INDEX_ID))
+            .unwrap_or(LayerIndex::DEFAULT);
 
         a.cmp(&b)
     });
@@ -1263,7 +1271,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                         }
                         let remove_requested = retains.iter_mut().any(|r| !r(n));
                         let action = n
-                            .with_context(|| {
+                            .with_context(WidgetUpdateMode::Bubble, || {
                                 if remove_requested {
                                     if WIDGET.get_state(&HAS_LAYER_REMOVE_HANDLERS_ID).is_some() {
                                         Action::Event
@@ -1287,7 +1295,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                                 let args = LayerRemoveRequestedArgs::now(layered.clone());
                                 let propagation = args.propagation().clone();
                                 let mut delivery_list = UpdateDeliveryList::new_any();
-                                n.with_context(|| {
+                                n.with_context(WidgetUpdateMode::Bubble, || {
                                     delivery_list.insert_wgt(&WIDGET.info());
                                 });
                                 n.event(&LAYER_REMOVE_REQUESTED_EVENT.new_update_custom(args, delivery_list));

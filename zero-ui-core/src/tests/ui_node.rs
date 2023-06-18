@@ -167,7 +167,7 @@ pub fn default_no_child() {
         WINDOW.test_init(&mut wgt);
         WINDOW.test_info(&mut wgt);
 
-        wgt.with_context(|| {
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
             let tree = WINDOW.widget_tree();
             let wgt_info = tree.get(WIDGET.id()).unwrap();
             assert!(wgt_info.descendants().next().is_none());
@@ -199,7 +199,7 @@ mod util {
     use std::sync::Arc;
 
     use crate::{
-        context::{StaticStateId, UpdateDeliveryList, WidgetUpdates, WIDGET, WINDOW},
+        context::{StaticStateId, UpdateDeliveryList, WidgetUpdateMode, WidgetUpdates, WIDGET, WINDOW},
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
@@ -216,7 +216,7 @@ mod util {
     macro_rules! __ui_node_util_assert_only_traced {
         ($wgt:ident, $method:expr) => {{
             let method = $method;
-            $wgt.with_context(|| {
+            $wgt.with_context(WidgetUpdateMode::Bubble, || {
                 WIDGET.with_state(|s| {
                     if let Some(db) = s.get(&util::TRACE_ID) {
                         for (i, trace_ref) in db.iter().enumerate() {
@@ -241,7 +241,7 @@ mod util {
     #[macro_export]
     macro_rules! __ui_node_util_assert_did_not_trace {
         ($wgt:ident) => {{
-            $wgt.with_context(|| {
+            $wgt.with_context(WidgetUpdateMode::Bubble, || {
                 WIDGET.with_state(|s| {
                     if let Some(db) = s.get(&util::TRACE_ID) {
                         for (i, trace_ref) in db.iter().enumerate() {
@@ -271,7 +271,7 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl UiNode) {
-            let id = wgt.with_context(|| WIDGET.id()).expect("expected widget");
+            let id = wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).expect("expected widget");
             let mut update = RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(id), UpdateDeliveryList::new_any());
             WINDOW.test_event(wgt, &mut update);
         }

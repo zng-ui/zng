@@ -228,7 +228,9 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
 
                 let mut intersect_mode = ScrollMode::empty();
 
-                let lazy_inline = c.children()[0].with_context(|| WIDGET.bounds().measure_inline()).flatten();
+                let lazy_inline = c.children()[0]
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                    .flatten();
                 if let Some(actual_inline) = wm.inline() {
                     if let Some(lazy_inline) = lazy_inline {
                         fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {
@@ -310,7 +312,9 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
 
                 let mut intersect_mode = ScrollMode::empty();
 
-                let lazy_inlined = c.children()[0].with_context(|| WIDGET.bounds().inline().is_some()).unwrap();
+                let lazy_inlined = c.children()[0]
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().inline().is_some())
+                    .unwrap();
                 if wl.inline().is_some() {
                     if !lazy_inlined {
                         tracing::debug!(target: "lazy", "widget `{}` inlined, but lazy did not inline", WIDGET.id());

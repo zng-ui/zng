@@ -334,12 +334,15 @@ pub trait UiNode: Any + Send {
     ///
     /// Returns `None` if the node does not represent an widget.
     ///
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
+    /// caller widget context, otherwise they are ignored and a warning logged in debug builds if any was requested.
+    ///
     /// [`is_widget`]: UiNode::is_widget
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
-        let _ = f;
+        let _ = (update_mode, f);
         None
     }
 
@@ -845,7 +848,7 @@ pub trait UiNodeBoxed: Any + Send {
     fn render_update_boxed(&mut self, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
-    fn with_context_boxed(&mut self, f: &mut dyn FnMut());
+    fn with_context_boxed(&mut self, update_mode: WidgetUpdateMode, f: &mut dyn FnMut());
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
     fn as_any_boxed(&self) -> &dyn Any;
     fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
@@ -907,8 +910,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self
     }
 
-    fn with_context_boxed(&mut self, f: &mut dyn FnMut()) {
-        self.with_context(f);
+    fn with_context_boxed(&mut self, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
+        self.with_context(update_mode, f);
     }
 
     fn as_any_boxed(&self) -> &dyn Any {
@@ -1103,13 +1106,14 @@ impl UiNode for BoxedUiNode {
         self.as_ref().is_widget_boxed()
     }
 
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
         let mut f = Some(f);
         let mut r = None;
-        self.as_mut().with_context_boxed(&mut || r = Some((f.take().unwrap())()));
+        self.as_mut()
+            .with_context_boxed(update_mode, &mut || r = Some((f.take().unwrap())()));
         r
     }
 
@@ -1330,12 +1334,12 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn with_context<R, F>(&mut self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
         match self {
-            Some(node) => node.with_context(f),
+            Some(node) => node.with_context(update_mode, f),
             None => None,
         }
     }

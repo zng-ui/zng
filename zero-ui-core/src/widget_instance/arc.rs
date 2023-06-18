@@ -150,8 +150,8 @@ impl<U: UiNode> ArcNode<U> {
     }
 
     /// Calls `f` in the context of the node, it it can be locked and is a full widget.
-    pub fn try_context<R>(&self, f: impl FnOnce() -> R) -> Option<R> {
-        self.0.item.try_lock()?.with_context(f)
+    pub fn try_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> Option<R> {
+        self.0.item.try_lock()?.with_context(update_mode, f)
     }
 }
 
@@ -276,10 +276,10 @@ impl<L: UiNodeList> ArcNodeList<L> {
     }
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
-    pub fn for_each_ctx(&self, mut f: impl FnMut(usize)) {
+    pub fn for_each_ctx(&self, update_mode: WidgetUpdateMode, mut f: impl FnMut(usize)) {
         if let Some(mut list) = self.0.item.try_lock() {
             list.for_each(|i, n| {
-                n.with_context(|| f(i));
+                n.with_context(update_mode, || f(i));
             })
         }
     }
@@ -561,11 +561,11 @@ mod impls {
             self.delegate_owned(UiNode::is_widget).unwrap_or(false)
         }
 
-        fn with_context<R, F>(&mut self, f: F) -> Option<R>
+        fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
         where
             F: FnOnce() -> R,
         {
-            self.delegate_owned_mut(|n| n.with_context(f)).flatten()
+            self.delegate_owned_mut(|n| n.with_context(update_mode, f)).flatten()
         }
     }
 

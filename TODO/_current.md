@@ -69,7 +69,6 @@
 * Remove all `*_ne` stuff.
 
 * Config example and tests with errors.
-* Layer example, anchored does not update while visible.
 
 # Image Paste
 

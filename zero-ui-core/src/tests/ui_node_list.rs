@@ -114,7 +114,7 @@ mod util {
     use std::thread::{self, ThreadId};
 
     use crate::{
-        context::{with_context_local, StaticStateId, WIDGET},
+        context::{with_context_local, StaticStateId, WidgetUpdateMode, WIDGET},
         context_local, property,
         var::IntoValue,
         widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
@@ -136,8 +136,10 @@ mod util {
     }
 
     pub fn get_init_thread(wgt: &mut impl UiNode) -> ThreadId {
-        wgt.with_context(|| WIDGET.get_state(&INIT_THREAD_ID).expect("did not log init thread"))
-            .expect("node is not an widget")
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
+            WIDGET.get_state(&INIT_THREAD_ID).expect("did not log init thread")
+        })
+        .expect("node is not an widget")
     }
 
     static INIT_THREAD_ID: StaticStateId<ThreadId> = StaticStateId::new_unique();

@@ -7,7 +7,7 @@ use zero_ui::{
         keyboard::HeadlessAppKeyboardExt,
         window::{HeadlessAppWindowExt, WindowId},
     },
-    prelude::*,
+    prelude::{new_widget::WidgetUpdateMode, *},
 };
 
 #[test]
@@ -1772,6 +1772,6 @@ trait TestList {
 }
 impl<L: UiNodeList> TestList for L {
     fn item_id(&mut self, i: usize) -> WidgetId {
-        self.with_node(i, |n| n.with_context(|| WIDGET.id()).unwrap())
+        self.with_node(i, |n| n.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap())
     }
 }

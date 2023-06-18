@@ -261,7 +261,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
             let mut child_spacing = PxVector::zero();
             children.for_each(|_, c, _| {
                 // already parallel measured widgets, only measure other nodes.
-                let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
+                let size = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size()) {
                     Some(wgt_size) => wgt_size,
                     None => c.measure(wm),
                 };
@@ -320,7 +320,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
             let mut item_rect = PxRect::zero();
             let mut child_spacing = PxVector::zero();
             children.for_each(|_, c, o| {
-                let size = match c.with_context(|| WIDGET.bounds().outer_size()) {
+                let size = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size()) {
                     Some(wgt_size) => wgt_size,
                     None => {
                         let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
@@ -357,7 +357,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     let align_baseline = children_align.is_baseline();
 
     children.for_each(|_, c, o| {
-        if let Some((size, baseline)) = c.with_context(|| {
+        if let Some((size, baseline)) = c.with_context(WidgetUpdateMode::Ignore, || {
             let bounds = WIDGET.bounds();
             (bounds.outer_size(), bounds.final_baseline())
         }) {

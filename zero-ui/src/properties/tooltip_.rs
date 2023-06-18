@@ -367,7 +367,7 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
             *c.child() = extend_widget(widget, |w| layers::layer_remove_cancellable(w, cancellable.clone()).boxed()).boxed();
             c.init();
 
-            c.with_context(|| {
+            c.with_context(WidgetUpdateMode::Bubble, || {
                 // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
                 // will not receive mouse-leave, because it is not the logical parent of the tooltip,
                 // so we need to duplicate cleanup logic here.
@@ -393,7 +393,7 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
         UiNodeOp::Deinit => {
             let mut open = OPEN_TOOLTIP.write();
             if let Some(o) = &*open {
-                if Some(o.id) == c.with_context(|| WIDGET.id()) {
+                if Some(o.id) == c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
                     *open = None;
                 }
             }
@@ -402,7 +402,7 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
             c.event(update);
 
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                let tooltip_id = match c.with_context(|| WIDGET.id()) {
+                let tooltip_id = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
                     Some(id) => id,
                     None => {
                         // was widget on init, now is not,

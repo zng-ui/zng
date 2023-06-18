@@ -548,9 +548,13 @@ impl InlineLayout {
                     (Px(0), Px(0), self.bidi_default_segs.clone())
                 };
 
-                let child_inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
+                let child_inline = child
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                    .flatten();
                 if let Some(child_inline) = child_inline {
-                    let child_desired_size = child.with_context(|| WIDGET.bounds().measure_outer_size()).unwrap_or_default();
+                    let child_desired_size = child
+                        .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_outer_size())
+                        .unwrap_or_default();
                     if child_desired_size.is_empty() {
                         // collapsed, continue.
                         wl.collapse_child(i);
@@ -613,7 +617,7 @@ impl InlineLayout {
                         // new row
                         if let Some(inline) = wl.inline() {
                             inline.rows.push(row);
-                            child.with_context(|| {
+                            child.with_context(WidgetUpdateMode::Ignore, || {
                                 if let Some(inner) = WIDGET.bounds().inline() {
                                     if inner.rows.len() >= 3 {
                                         inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
@@ -1042,8 +1046,8 @@ mod tests {
                 )
                 .0;
 
-            let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
-            let estimate_bounds = estimate.with_context(|| WIDGET.bounds()).unwrap();
+            let panel_bounds = panel.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds()).unwrap();
+            let estimate_bounds = estimate.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds()).unwrap();
 
             assert_eq!(panel_size, estimate_size);
             assert!(panel_bounds.inline().is_some());
@@ -1110,8 +1114,8 @@ mod tests {
                 )
                 .0;
 
-            let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
-            let estimate_bounds = estimate.with_context(|| WIDGET.bounds()).unwrap();
+            let panel_bounds = panel.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds()).unwrap();
+            let estimate_bounds = estimate.with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds()).unwrap();
 
             assert_eq!(panel_size, estimate_size);
             assert!(panel_bounds.inline().is_some());

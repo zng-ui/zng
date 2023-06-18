@@ -329,7 +329,10 @@ pub mod nodes {
 
                 if let Some(inline) = wm.inline() {
                     if inline.is_default() {
-                        if let Some(child_inline) = child.with_context(|| WIDGET.bounds().measure_inline()).flatten() {
+                        if let Some(child_inline) = child
+                            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+                            .flatten()
+                        {
                             // pass through child inline
                             *inline = child_inline;
                         }
@@ -349,7 +352,7 @@ pub mod nodes {
                     // child maybe widget, try to copy inline
                     if let Some(inline) = wl.inline() {
                         if inline.is_default() {
-                            child.with_context(|| {
+                            child.with_context(WidgetUpdateMode::Ignore, || {
                                 let bounds = WIDGET.bounds();
                                 let child_inline = bounds.inline();
                                 if let Some(child_inline) = child_inline {
@@ -710,11 +713,11 @@ pub mod nodes {
                 true
             }
 
-            fn with_context<R, F>(&mut self, f: F) -> Option<R>
+            fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
             where
                 F: FnOnce() -> R,
             {
-                WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Ignore, || Some(f()))
+                WIDGET.with_context(&mut self.ctx, update_mode, || Some(f()))
             }
 
             fn into_widget(self) -> BoxedUiNode
@@ -756,7 +759,7 @@ pub mod nodes {
             UiNodeOp::Info { info } => {
                 if interactive.get() {
                     child.info(info);
-                } else if let Some(id) = child.with_context(|| WIDGET.id()) {
+                } else if let Some(id) = child.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
                     // child is a widget.
                     info.push_interactivity_filter(move |args| {
                         if args.info.id() == id {

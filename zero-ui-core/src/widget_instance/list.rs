@@ -701,7 +701,7 @@ impl Z_INDEX {
     ///
     /// Returns `DEFAULT` if the node is not an widget.
     pub fn get_wgt(&self, widget: &mut impl UiNode) -> ZIndex {
-        widget.with_context(|| self.get()).unwrap_or_default()
+        widget.with_context(WidgetUpdateMode::Ignore, || self.get()).unwrap_or_default()
     }
 }
 
@@ -1086,7 +1086,7 @@ impl EditableUiNodeList {
                     if let Some(r) = self
                         .vec
                         .iter_mut()
-                        .position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false))
+                        .position(|w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.id() == id).unwrap_or(false))
                     {
                         let i = to(r, self.len());
 
@@ -1168,7 +1168,7 @@ impl EditableUiNodeList {
                     if let Some(r) = self
                         .vec
                         .iter_mut()
-                        .position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false))
+                        .position(|w| w.with_context(WidgetUpdateMode::Ignore, || WIDGET.id() == id).unwrap_or(false))
                     {
                         let i = to(r, self.len());
 
@@ -1393,7 +1393,7 @@ impl EditableUiNodeListRef {
     /// if the widget is not found.
     pub fn remove(&self, id: impl Into<WidgetId>) {
         fn remove_impl(id: WidgetId) -> impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static {
-            move |node| node.with_context(|| WIDGET.id() != id).unwrap_or(true)
+            move |node| node.with_context(WidgetUpdateMode::Ignore, || WIDGET.id() != id).unwrap_or(true)
         }
         self.retain(remove_impl(id.into()))
     }

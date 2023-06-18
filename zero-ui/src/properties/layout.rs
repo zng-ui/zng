@@ -1352,7 +1352,7 @@ impl WIDGET_SIZE {
 
     /// Get the size set in the widget state.
     pub fn get_wgt(&self, wgt: &mut impl UiNode) -> euclid::Size2D<WidgetLength, ()> {
-        wgt.with_context(|| self.get()).unwrap_or_default()
+        wgt.with_context(WidgetUpdateMode::Ignore, || self.get()).unwrap_or_default()
     }
 }
 

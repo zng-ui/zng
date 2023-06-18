@@ -27,7 +27,7 @@ pub fn implicit_inherited() {
     let mut wgt = EmptyWgt! {
         id = expected;
     };
-    let actual = wgt.with_context(|| WIDGET.id()).expect("expected widget");
+    let actual = wgt.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).expect("expected widget");
     assert_eq!(expected, actual);
 }
 
@@ -1123,7 +1123,7 @@ pub mod util {
     };
 
     use crate::{
-        context::{StaticStateId, WIDGET},
+        context::{StaticStateId, WidgetUpdateMode, WIDGET},
         property,
         var::{IntoValue, IntoVar, Var},
         widget_instance::{match_node, UiNode, UiNodeOp},
@@ -1145,8 +1145,10 @@ pub mod util {
 
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &mut impl UiNode, trace: &'static str) -> bool {
-        wgt.with_context(|| WIDGET.with_state(|s| s.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default()))
-            .expect("expected widget")
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
+            WIDGET.with_state(|s| s.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
+        })
+        .expect("expected widget")
     }
 
     static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
@@ -1273,7 +1275,7 @@ pub mod util {
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
     pub fn sorted_value_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(|| {
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
             if let Some(m) = WIDGET.get_state(&VALUE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
@@ -1287,7 +1289,7 @@ pub mod util {
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
     pub fn sorted_node_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(|| {
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
             if let Some(m) = WIDGET.get_state(&NODE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
@@ -1342,7 +1344,7 @@ pub mod util {
     ///
     /// Note only applies after update.
     pub fn set_state(wgt: &mut impl UiNode, state: bool) {
-        wgt.with_context(|| {
+        wgt.with_context(WidgetUpdateMode::Ignore, || {
             WIDGET.with_state_mut(|mut s| {
                 *s.entry(&IS_STATE_ID).or_default() = state;
             });

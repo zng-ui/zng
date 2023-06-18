@@ -485,7 +485,7 @@ impl WINDOW {
             updates.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
             content.update(updates)
         } else {
-            let target = if let Some(content_id) = content.with_context(|| WIDGET.id()) {
+            let target = if let Some(content_id) = content.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
                 WidgetPath::new(WINDOW.id(), vec![WIDGET.id(), content_id].into())
             } else {
                 WidgetPath::new(WINDOW.id(), vec![WIDGET.id()].into())
@@ -652,8 +652,8 @@ impl WIDGET {
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
     ///
-    /// If `propagate_update_flags` is `true` the update flags requested for the `ctx` after `f` will be copied to the
-    /// parent
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
+    /// caller widget context, otherwise they are ignored and a warning logged in debug builds if any was requested.
     pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
         let parent_id = WIDGET.try_id();
 
@@ -664,8 +664,8 @@ impl WIDGET {
         }
 
         let prev_flags = match update_mode {
-            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
-            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
+            WidgetUpdateMode::Ignore => UpdateFlags::empty(),
+            WidgetUpdateMode::Bubble => ctx.0.as_mut().unwrap().flags.load(Relaxed),
         };
 
         // call `f` in context.
@@ -675,6 +675,14 @@ impl WIDGET {
 
         match update_mode {
             WidgetUpdateMode::Ignore => {
+                #[cfg(debug_assertions)]
+                {
+                    let ignored = ctx.flags.load(Relaxed);
+                    if !ignored.is_empty() {
+                        tracing::warn!("ignored `{:?}` requested in {}", ignored, ctx.id);
+                    }
+                }
+
                 ctx.flags.store(prev_flags, Relaxed);
             }
             WidgetUpdateMode::Bubble => {
@@ -1340,7 +1348,9 @@ impl LAYOUT {
         let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
         let metrics = self.metrics().with_inline_constraints(Some(constraints));
         let size = self.with_context(metrics, || child.measure(wm));
-        let inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
+        let inline = child
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+            .flatten();
         (inline, size)
     }
 

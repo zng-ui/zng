@@ -856,7 +856,7 @@ pub mod cell {
 
         /// Get the cell info stored in the `wgt` state.
         pub fn get_wgt(wgt: &mut impl UiNode) -> Self {
-            wgt.with_context(Self::get).unwrap_or_default()
+            wgt.with_context(WidgetUpdateMode::Ignore, Self::get).unwrap_or_default()
         }
     }
 
@@ -1107,7 +1107,7 @@ impl GridLayout {
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
         children[2].for_each(|i, c| {
-            let info = c.with_context(cell::CellInfo::get).unwrap_or_default();
+            let info = c.with_context(WidgetUpdateMode::Ignore, cell::CellInfo::get).unwrap_or_default();
 
             let n = match auto_mode {
                 AutoGrowMode::Rows(_) => info.row,
@@ -1211,7 +1211,7 @@ impl GridLayout {
         // Set index for column and row.
         let columns_len = children[0].len() + imaginary_cols;
         children[0].for_each(|i, c| {
-            c.with_context(|| {
+            c.with_context(WidgetUpdateMode::Bubble, || {
                 let prev = WIDGET.set_state(&column::INDEX_ID, (i, columns_len));
                 if prev != Some((i, columns_len)) {
                     WIDGET.update();
@@ -1220,7 +1220,7 @@ impl GridLayout {
         });
         let rows_len = children[1].len() + imaginary_rows;
         children[1].for_each(|i, r| {
-            r.with_context(|| {
+            r.with_context(WidgetUpdateMode::Bubble, || {
                 let prev = WIDGET.set_state(&row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
                     WIDGET.update();

@@ -26,7 +26,7 @@ pub(crate) use inspector_only::*;
 use std::{any::TypeId, sync::Arc};
 
 use crate::{
-    context::{StaticStateId, WIDGET},
+    context::{StaticStateId, WidgetUpdateMode, WIDGET},
     widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     widget_info::WidgetInfo,
 };
@@ -184,14 +184,14 @@ impl WidgetInfoInspectorExt for WidgetInfo {
                 match input.kind {
                     InputKind::UiNode => {
                         let node = args.ui_node(i);
-                        if let Some(true) = node.try_context(|| WIDGET.id() == id) {
+                        if let Some(true) = node.try_context(WidgetUpdateMode::Ignore, || WIDGET.id() == id) {
                             return Some((args.id(), i));
                         }
                     }
                     InputKind::UiNodeList => {
                         let list = args.ui_node_list(i);
                         let mut found = false;
-                        list.for_each_ctx(|_| {
+                        list.for_each_ctx(WidgetUpdateMode::Ignore, |_| {
                             found = WIDGET.id() == id;
                         });
                         if found {
