@@ -653,7 +653,7 @@ impl WIDGET {
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
     ///
     /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
-    /// caller widget context, otherwise they are ignored and a warning logged in debug builds if any was requested.
+    /// caller widget context, otherwise they are ignored.
     pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
         let parent_id = WIDGET.try_id();
 
@@ -675,14 +675,6 @@ impl WIDGET {
 
         match update_mode {
             WidgetUpdateMode::Ignore => {
-                #[cfg(debug_assertions)]
-                {
-                    let ignored = ctx.flags.load(Relaxed);
-                    if !ignored.is_empty() {
-                        tracing::warn!("ignored `{:?}` requested in {}", ignored, ctx.id);
-                    }
-                }
-
                 ctx.flags.store(prev_flags, Relaxed);
             }
             WidgetUpdateMode::Bubble => {

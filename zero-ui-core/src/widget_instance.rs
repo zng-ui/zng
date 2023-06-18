@@ -335,7 +335,7 @@ pub trait UiNode: Any + Send {
     /// Returns `None` if the node does not represent an widget.
     ///
     /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
-    /// caller widget context, otherwise they are ignored and a warning logged in debug builds if any was requested.
+    /// caller widget context, otherwise they are ignored.
     ///
     /// [`is_widget`]: UiNode::is_widget
     fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
