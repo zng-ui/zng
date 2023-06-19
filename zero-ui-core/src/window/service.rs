@@ -78,12 +78,7 @@ impl WindowsService {
         }
     }
 
-    fn open_impl(
-        &mut self,
-        id: WindowId,
-        new_window: UiTask<WindowRoot>,
-        force_headless: Option<WindowMode>,
-    ) -> ResponseVar<WindowId> {
+    fn open_impl(&mut self, id: WindowId, new_window: UiTask<WindowRoot>, force_headless: Option<WindowMode>) -> ResponseVar<WindowId> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
             id,
@@ -1161,13 +1156,7 @@ struct AppWindowTask {
     responder: ResponderVar<WindowId>,
 }
 impl AppWindowTask {
-    fn new(
-        id: WindowId,
-        mode: WindowMode,
-        color_scheme: ColorScheme,
-        new: UiTask<WindowRoot>,
-        responder: ResponderVar<WindowId>,
-    ) -> Self {
+    fn new(id: WindowId, mode: WindowMode, color_scheme: ColorScheme, new: UiTask<WindowRoot>, responder: ResponderVar<WindowId>) -> Self {
         let primary_scale_factor = MONITORS
             .primary_monitor()
             .map(|m| m.scale_factor().get())

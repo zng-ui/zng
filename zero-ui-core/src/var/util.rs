@@ -22,7 +22,7 @@
 ///
 /// ```
 /// # use zero_ui_core::var::impl_from_and_into_var;
-/// #[derive(Debug, Clone)]
+/// #[derive(Debug, Clone, PartialEq)]
 /// pub enum FooValue {
 ///     On,
 ///     Off,
@@ -54,7 +54,7 @@
 ///
 /// ```
 /// # use zero_ui_core::{*, widget_instance::*, var::*};
-/// # #[derive(Debug, Clone)]
+/// # #[derive(Debug, Clone, PartialEq)]
 /// # pub struct FooValue;
 /// # impl_from_and_into_var! { fn from(b: bool) -> FooValue { FooValue } }
 /// # #[widget($crate::Bar)] pub struct Bar(widget_base::WidgetBase);

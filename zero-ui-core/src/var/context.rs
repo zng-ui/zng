@@ -8,7 +8,7 @@ use super::*;
 ///
 /// ```
 /// # use zero_ui_core::var::context_var;
-/// # #[derive(Debug, Clone)]
+/// # #[derive(Debug, Clone, PartialEq)]
 /// # struct NotConst(u8);
 /// # fn init_val() -> NotConst { NotConst(10) }
 /// #
@@ -370,7 +370,7 @@ mod helpers {
     /// # fn main() -> () { }
     /// # use zero_ui_core::{*, widget_instance::*, var::*};
     ///
-    /// #[derive(Debug, Clone, Default)]
+    /// #[derive(Debug, Clone, Default, PartialEq)]
     /// pub struct Config {
     ///     pub foo: bool,
     ///     pub bar: bool,

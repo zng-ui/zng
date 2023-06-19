@@ -121,9 +121,9 @@ pub mod types {
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-/// 
+///
 /// # Implementing
-/// 
+///
 /// Types need to be `Debug + Clone + PartialEq + Send + Sync + Any` to auto-implement this trait,
 /// if you want to place an external type in a variable and it does not implement all the traits
 /// you may need to declare a *newtype* wrapper, if the external type is `Debug + Send + Sync + Any` at
@@ -424,8 +424,8 @@ impl IntoIterator for VarHandles {
 }
 
 /// Arc value that implements equality by pointer comparison.
-/// 
-/// This type allows types external types that are only `Debug + Send + Sync` to become 
+///
+/// This type allows types external types that are only `Debug + Send + Sync` to become
 /// a full [`VarValue`] to be allowed as a variable value.
 pub struct ArcEq<T: fmt::Debug + Send + Sync>(pub Arc<T>);
 impl<T: fmt::Debug + Send + Sync> ops::Deref for ArcEq<T> {
@@ -738,7 +738,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///
 /// ```
 /// # use zero_ui_core::{*, var::*, widget_instance::*};
-/// #[derive(Debug, Clone)]
+/// #[derive(Debug, Clone, PartialEq)]
 /// pub struct Size {
 ///     width: f32,
 ///     height: f32

@@ -27,7 +27,7 @@ use crate::{
     l10n::LangMap,
     task,
     units::*,
-    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var, ArcEq},
+    var::{response_done_var, var, AnyVar, ArcEq, ArcVar, ResponseVar, Var},
 };
 
 event! {

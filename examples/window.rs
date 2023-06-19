@@ -562,7 +562,7 @@ fn native() -> impl UiNode {
     )
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum CloseState {
     Ask,
     Asking,

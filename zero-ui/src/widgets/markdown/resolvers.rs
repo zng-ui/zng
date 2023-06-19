@@ -105,7 +105,7 @@ impl PartialEq for ImageResolver {
             // see: https://github.com/rust-lang/rust/issues/103763
             //
             // we are fine with this, worst case is just an extra var update
-            #[allow(clippy::vtable_address_comparisons)] 
+            #[allow(clippy::vtable_address_comparisons)]
             (Self::Resolve(l0), Self::Resolve(r0)) => Arc::ptr_eq(l0, r0),
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
@@ -176,7 +176,7 @@ impl PartialEq for LinkResolver {
             // see: https://github.com/rust-lang/rust/issues/103763
             //
             // we are fine with this, worst case is just an extra var update
-            #[allow(clippy::vtable_address_comparisons)] 
+            #[allow(clippy::vtable_address_comparisons)]
             (Self::Resolve(l0), Self::Resolve(r0)) => Arc::ptr_eq(l0, r0),
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }

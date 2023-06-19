@@ -280,7 +280,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// # fn main() { }
 /// use zero_ui_core::{property, widget_instance::UiNode, var::*};
 /// #
-/// # #[derive(Clone, Debug)] pub struct Align { }
+/// # #[derive(Clone, Debug, PartialEq)] pub struct Align { }
 ///
 /// #[property(LAYOUT)]
 /// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
@@ -295,7 +295,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// # fn main() { }
 /// use zero_ui_core::{property, widget_instance::UiNode, var::*};
 /// #
-/// # #[derive(Clone, Debug)] pub struct Size { }
+/// # #[derive(Clone, Debug, PartialEq)] pub struct Size { }
 ///
 /// #[property(SIZE+1)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {

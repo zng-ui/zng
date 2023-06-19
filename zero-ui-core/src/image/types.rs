@@ -961,7 +961,7 @@ impl<U> PartialEq for ImageSourceFilter<U> {
             // see: https://github.com/rust-lang/rust/issues/103763
             //
             // we are fine with this, worst case is just an extra var update
-            #[allow(clippy::vtable_address_comparisons)] 
+            #[allow(clippy::vtable_address_comparisons)]
             (Self::Custom(l0), Self::Custom(r0)) => Arc::ptr_eq(l0, r0),
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }

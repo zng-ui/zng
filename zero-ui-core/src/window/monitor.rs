@@ -186,8 +186,6 @@ pub struct HeadlessMonitor {
     pub size: DipSize,
 
     /// Pixel-per-inches used for the headless layout and rendering.
-    ///
-    /// [`MONITORS::DEFAULT_PPI`] by default.
     pub ppi: Ppi,
 }
 impl fmt::Debug for HeadlessMonitor {

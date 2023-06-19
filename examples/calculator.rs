@@ -128,7 +128,7 @@ fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
 struct Calculator {
     buffer: Txt,
     error: bool,
