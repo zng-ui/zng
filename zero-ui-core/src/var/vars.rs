@@ -166,7 +166,7 @@ impl VARS {
     /// # fn demo() {
     /// let value = var(0u8);
     /// let text = value.map(|v| formatx!("Animation at {v}%"));
-    /// value.ease_ne(100, 1.secs(), easing::expo);
+    /// value.ease(100, 1.secs(), easing::expo);
     /// # }
     /// ```
     ///

@@ -66,24 +66,23 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
             match data {
                 Data::Source { source, hooks, .. } => {
-                    // !!: review, this animation importance not checked?
                     let (update, new_value, tags) = source.with(|val| {
                         let mut vm = VarModify::new(val);
                         modify(&mut vm);
                         vm.finish()
                     });
+                    let value = new_value.unwrap_or_else(|| source.get());
                     if update {
-                        let value = new_value.unwrap_or_else(|| source.get());
                         let hook_args = VarHookArgs::new(&value, &tags);
                         hooks.retain(|h| h.call(&hook_args));
-                        *data = Data::Owned {
-                            value,
-                            last_update: VARS.update_id(),
-                            hooks: mem::take(hooks),
-                            animation: VARS.current_modify(),
-                        };
                         UPDATES.update(None);
                     }
+                    *data = Data::Owned {
+                        value,
+                        last_update: if update { VARS.update_id() } else { source.last_update() },
+                        hooks: mem::take(hooks),
+                        animation: VARS.current_modify(),
+                    };
                 }
                 Data::Owned {
                     value,
