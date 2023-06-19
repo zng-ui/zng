@@ -64,13 +64,10 @@
 
 # Vars
 
-* Rename `touch` to `update` or something.
-    - `notify_new`?
-* Remove all `*_ne` stuff.
-    - Implement eq check directly in modify apply.
 * Previous value in hook?
     - We are cloning anyway, could have the prev-value in a Cow.
         - Owned if actually changed.
+* Merge.
 
 * Config example and tests with errors.
 

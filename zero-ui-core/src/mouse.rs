@@ -1038,7 +1038,7 @@ impl MouseManager {
 
             self.pos = position;
 
-            MOUSE_SV.read().position.set_ne(self.pos_window.map(|id| (id, self.pos)));
+            MOUSE_SV.read().position.set(self.pos_window.map(|id| (id, self.pos)));
 
             // mouse_move data
             let frame_info = match WINDOWS.widget_tree(window_id) {
@@ -1080,7 +1080,7 @@ impl MouseManager {
 
             // mouse_enter/mouse_leave.
             let hovered_args = if self.hovered != target {
-                MOUSE_SV.read().hovered.set_ne(target.clone());
+                MOUSE_SV.read().hovered.set(target.clone());
                 let prev_target = mem::replace(&mut self.hovered, target.clone());
                 let args = MouseHoverArgs::now(
                     window_id,
@@ -1155,9 +1155,9 @@ impl MouseManager {
 
     fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId) {
         if Some(window_id) == self.pos_window.take() {
-            MOUSE_SV.read().position.set_ne(None);
+            MOUSE_SV.read().position.set(None);
             if let Some(path) = self.hovered.take() {
-                MOUSE_SV.read().hovered.set_ne(None);
+                MOUSE_SV.read().hovered.set(None);
                 let capture = self.current_capture.as_ref().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode: *mode,
@@ -1265,7 +1265,7 @@ impl MouseManager {
         if new != self.current_capture {
             let prev = self.current_capture.take();
             self.current_capture = new.clone();
-            mouse.capture.set_ne(new.clone());
+            mouse.capture.set(new.clone());
             MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, new));
         }
     }
@@ -1326,10 +1326,10 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
-            MOUSE_SV.read().multi_click_config.set_ne(args.config);
+            MOUSE_SV.read().multi_click_config.set(args.config);
             self.click_state = ClickState::None;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            MOUSE_SV.read().multi_click_config.set_ne(args.multi_click_config);
+            MOUSE_SV.read().multi_click_config.set(args.multi_click_config);
 
             if args.is_respawn {
                 let mut mouse = MOUSE_SV.write();
@@ -1367,7 +1367,7 @@ impl AppExtension for MouseManager {
                     }
                 }
                 if let Some(cap) = self.current_capture.take() {
-                    mouse.capture.set_ne(None);
+                    mouse.capture.set(None);
                     let args = MouseCaptureArgs::now(cap, None);
                     MOUSE_CAPTURE_EVENT.notify(args);
                 }
@@ -1379,8 +1379,8 @@ impl AppExtension for MouseManager {
                 self.pos_device = None;
                 self.pos_window = None;
                 self.pos_hits = None;
-                mouse.position.set_ne(None);
-                mouse.hovered.set_ne(None);
+                mouse.position.set(None);
+                mouse.hovered.set(None);
             }
         }
     }

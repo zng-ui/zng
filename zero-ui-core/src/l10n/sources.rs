@@ -37,7 +37,7 @@ impl L10nDir {
             true,
             Arc::default(),
             clmv!(status, |d| {
-                status.set_ne(LangResourceStatus::Loading);
+                status.set(LangResourceStatus::Loading);
 
                 let mut set: LangMap<HashMap<Txt, PathBuf>> = LangMap::new();
                 let mut errors: Vec<Arc<dyn std::error::Error + Send + Sync>> = vec![];
@@ -50,7 +50,7 @@ impl L10nDir {
                                 // get the watched dir
                                 if !ty.is_dir() {
                                     tracing::error!("L10N path not a directory");
-                                    status.set_ne(LangResourceStatus::NotAvailable);
+                                    status.set(LangResourceStatus::NotAvailable);
                                     return None;
                                 }
                                 dir = Some(f.path().to_owned());
@@ -185,7 +185,7 @@ impl L10nFile {
     }
 }
 fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: &Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
-    status.set_ne(LangResourceStatus::Loading);
+    status.set(LangResourceStatus::Loading);
 
     let path = if file.is_empty() {
         format!("{lang}.ftl")
@@ -197,7 +197,7 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
         dir.join(path),
         None,
         clmv!(status, |file| {
-            status.set_ne(LangResourceStatus::Loading);
+            status.set(LangResourceStatus::Loading);
 
             match file.and_then(|mut f| f.string()) {
                 Ok(flt) => match fluent::FluentResource::try_new(flt) {
@@ -214,7 +214,7 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
                 },
                 Err(e) => {
                     if matches!(e.kind(), io::ErrorKind::NotFound) {
-                        status.set_ne(LangResourceStatus::NotAvailable);
+                        status.set(LangResourceStatus::NotAvailable);
                     } else {
                         tracing::error!("error loading fluent resource, {e}");
                         status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
@@ -266,7 +266,7 @@ impl SwapL10nSource {
         actual_langs.bind(&self.available_langs).perm();
 
         let actual_status = self.actual.available_langs_status();
-        self.available_langs_status.set_from_ne(&actual_status);
+        self.available_langs_status.set_from(&actual_status);
         actual_status.bind(&self.available_langs_status).perm();
 
         for ((lang, file), f) in &mut self.res {
@@ -280,10 +280,10 @@ impl SwapL10nSource {
                 }));
 
                 let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
-                f.status.set_from_ne(&actual_s);
+                f.status.set_from(&actual_s);
                 f.actual_weak_status = actual_s.bind(&f.status);
             } else {
-                f.status.set_ne(LangResourceStatus::NotAvailable);
+                f.status.set(LangResourceStatus::NotAvailable);
             }
         }
     }
@@ -324,7 +324,7 @@ impl L10nSource for SwapL10nSource {
                     let res = res.boxed();
                     f.res = res.downgrade();
 
-                    f.status.set_from_ne(&actual_s);
+                    f.status.set_from(&actual_s);
                     f.actual_weak_status = actual_s.bind(&f.status);
 
                     res
@@ -346,7 +346,7 @@ impl L10nSource for SwapL10nSource {
                 let res = res.boxed();
                 f.res = res.downgrade();
 
-                f.status.set_from_ne(&actual_s);
+                f.status.set_from(&actual_s);
                 f.actual_weak_status = actual_s.bind(&f.status);
 
                 e.insert(f);

@@ -249,7 +249,7 @@ impl L10nService {
                 }
             })
             .collect();
-        self.sys_lang.set_ne(Langs(langs));
+        self.sys_lang.set(Langs(langs));
     }
 
     pub fn push_perm_resource(&mut self, r: LangResource) {

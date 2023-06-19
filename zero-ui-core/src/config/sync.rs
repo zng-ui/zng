@@ -84,7 +84,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         Ok(raw) => {
                             // get ok
                             if let Some(raw) = raw {
-                                var.set_ne(raw);
+                                var.set(raw);
                             }
                             // else backend lost entry but did not report as error.
                         }
@@ -210,7 +210,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
-        self.sync_var.map_ne(move |q| q.contains_key(&key)).boxed()
+        self.sync_var.map(move |q| q.contains_key(&key)).boxed()
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {

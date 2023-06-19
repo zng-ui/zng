@@ -107,12 +107,12 @@ impl AppExtension for FontManager {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
-            FONTS_SV.read().font_aa.set_ne(args.aa);
+            FONTS_SV.read().font_aa.set(args.aa);
         } else if FONT_CHANGED_EVENT.has(update) {
             FONTS_SV.write().on_fonts_changed();
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut fonts = FONTS_SV.write();
-            fonts.font_aa.set_ne(args.font_aa);
+            fonts.font_aa.set(args.font_aa);
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
             }

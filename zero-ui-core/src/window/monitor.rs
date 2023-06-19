@@ -152,7 +152,7 @@ impl MonitorsService {
     pub(super) fn on_pre_event(update: &EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
-                m.scale_factor.set_ne(args.scale_factor);
+                m.scale_factor.set(args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             MONITORS_SV.write().on_monitors_changed(args);
@@ -280,7 +280,7 @@ impl MonitorInfo {
     fn update(&self, info: zero_ui_view_api::MonitorInfo) -> bool {
         fn check_set<T: VarValue + PartialEq>(var: &impl Var<T>, value: T) -> bool {
             let ne = var.with(|v| v != &value);
-            var.set_ne(value).unwrap();
+            var.set(value).unwrap();
             ne
         }
 

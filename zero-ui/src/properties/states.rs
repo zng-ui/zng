@@ -207,11 +207,11 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            let _ = state.set_ne(false);
+            let _ = state.set(false);
             WIDGET.sub_event(&CLICK_EVENT);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set_ne(false);
+            let _ = state.set(false);
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = CLICK_EVENT.on(update) {
@@ -225,10 +225,10 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                             let dl = TIMERS.deadline(duration);
                             dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                             shortcut_press = Some(dl);
-                            let _ = state.set_ne(true);
+                            let _ = state.set(true);
                         }
                     } else {
-                        let _ = state.set_ne(false);
+                        let _ = state.set(false);
                     }
                 }
             }
@@ -239,7 +239,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
             if let Some(timer) = &shortcut_press {
                 if timer.is_new() {
                     shortcut_press = None;
-                    let _ = state.set_ne(false);
+                    let _ = state.set(false);
                 }
             }
         }

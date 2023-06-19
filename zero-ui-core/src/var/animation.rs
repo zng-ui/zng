@@ -769,31 +769,6 @@ where
     }
 }
 
-pub(super) fn var_set_ease_ne<T>(
-    start_value: T,
-    end_value: T,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
-    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
-) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
-where
-    T: VarValue + Transitionable + PartialEq,
-{
-    let transition = Transition::new(start_value, end_value);
-    let mut prev_step = init_step;
-    move |a, vm| {
-        let step = easing(a.elapsed_stop(duration));
-
-        if prev_step != step {
-            let val = transition.sample(step);
-            if vm.as_ref() != &val {
-                vm.set(val);
-            }
-            prev_step = step;
-        }
-    }
-}
-
 pub(super) fn var_set_ease_keyed<T>(
     transition: TransitionKeyed<T>,
     duration: Duration,
@@ -809,29 +784,6 @@ where
 
         if prev_step != step {
             value.set(transition.sample(step));
-            prev_step = step;
-        }
-    }
-}
-
-pub(super) fn var_set_ease_keyed_ne<T>(
-    transition: TransitionKeyed<T>,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
-    init_step: EasingStep,
-) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
-where
-    T: VarValue + Transitionable + PartialEq,
-{
-    let mut prev_step = init_step;
-    move |a, vm| {
-        let step = easing(a.elapsed_stop(duration));
-
-        if prev_step != step {
-            let val = transition.sample(step);
-            if vm.as_ref() != &val {
-                vm.set(val);
-            }
             prev_step = step;
         }
     }
@@ -878,25 +830,6 @@ where
     }
 }
 
-pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut VarModify<T>)
-where
-    T: VarValue + PartialEq,
-{
-    let mut new_value = Some(new_value);
-    move |a, value| {
-        if !a.animations_enabled() || a.elapsed_dur() >= delay {
-            a.stop();
-            if let Some(nv) = new_value.take() {
-                if value.as_ref() != &nv {
-                    value.set(nv);
-                }
-            }
-        } else {
-            a.sleep(delay);
-        }
-    }
-}
-
 pub(super) fn var_steps<T: VarValue>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
@@ -909,28 +842,6 @@ pub(super) fn var_steps<T: VarValue>(
             prev_step = step;
             if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
                 vm.set(val);
-            }
-        }
-    }
-}
-
-pub(super) fn var_steps_ne<T>(
-    steps: Vec<(Factor, T)>,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> impl FnMut(&Animation, &mut VarModify<T>)
-where
-    T: VarValue + PartialEq,
-{
-    let mut prev_step = 999.fct();
-    move |a, value| {
-        let step = easing(a.elapsed_stop(duration));
-        if step != prev_step {
-            prev_step = step;
-            if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
-                if value.as_ref() != &val {
-                    value.set(val);
-                }
             }
         }
     }

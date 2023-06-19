@@ -282,7 +282,7 @@ impl VARS {
     }
 
     pub(crate) fn update_animations_config(&self, cfg: &AnimationsConfig) {
-        VARS_SV.read().ans.animations_enabled.set_ne(cfg.enabled);
+        VARS_SV.read().ans.animations_enabled.set(cfg.enabled);
     }
 
     /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.

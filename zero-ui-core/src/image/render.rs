@@ -20,7 +20,7 @@ impl ImagesService {
         self.render_img(
             move || {
                 let r = render();
-                WINDOW_CTRL.vars().frame_capture_mode().set_ne(FrameCaptureMode::All);
+                WINDOW_CTRL.vars().frame_capture_mode().set(FrameCaptureMode::All);
                 r
             },
             &result,
@@ -224,7 +224,7 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
         if let UiNodeOp::Init = op {
             if IMAGE_RENDER.is_in_render() {
                 let actual_retain = IMAGE_RENDER.retain();
-                actual_retain.set_from_ne(&retain);
+                actual_retain.set_from(&retain);
                 let handle = actual_retain.bind(&retain);
                 WIDGET.push_var_handle(handle);
             } else {

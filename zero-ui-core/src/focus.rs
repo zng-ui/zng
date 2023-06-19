@@ -533,7 +533,7 @@ impl FocusManager {
                     if args.timestamp.duration_since(self.last_keyboard_event) <= dur {
                         args.highlight = true;
                         focus.is_highlighting = true;
-                        focus.is_highlighting_var.set_ne(true);
+                        focus.is_highlighting_var.set(true);
                     }
                 }
             }
@@ -988,11 +988,11 @@ impl FocusService {
         if let Some(mut args) = self.continue_focus() {
             args.highlight = highlight;
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(highlight);
+            self.is_highlighting_var.set(highlight);
             Some(args)
         } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(highlight);
+            self.is_highlighting_var.set(highlight);
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1069,7 +1069,7 @@ impl FocusService {
     fn change_highlight(&mut self, highlight: bool, request: FocusRequest) -> Option<FocusChangedArgs> {
         if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(highlight);
+            self.is_highlighting_var.set(highlight);
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1106,7 +1106,7 @@ impl FocusService {
     #[must_use]
     fn move_focus(&mut self, new_focus: Option<FocusedInfo>, highlight: bool, cause: FocusChangedCause) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
-        self.is_highlighting_var.set_ne(highlight);
+        self.is_highlighting_var.set(highlight);
 
         let r = if self.focused.as_ref().map(|p| &p.path) != new_focus.as_ref().map(|p| &p.path) {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1117,7 +1117,7 @@ impl FocusService {
                 cause,
                 self.enabled_nav.nav,
             );
-            self.focused_var.set_ne(new_focus);
+            self.focused_var.set(new_focus);
             Some(args)
         } else if prev_highlight != highlight {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1178,7 +1178,7 @@ impl FocusService {
 
             if !retain_alt {
                 let (scope, widget_path) = self.alt_return.take().unwrap();
-                self.alt_return_var.set_ne(None);
+                self.alt_return_var.set(None);
                 r.push(ReturnFocusChangedArgs::now(scope, Some(widget_path), None));
             }
         } else if let Some(new_focus) = &self.focused {
@@ -1407,7 +1407,7 @@ impl FocusService {
             .unwrap_or_default()
         {
             let (_, widget_path) = self.alt_return.take().unwrap();
-            self.alt_return_var.set_ne(None);
+            self.alt_return_var.set(None);
             r.push(ReturnFocusChangedArgs::now(None, Some(widget_path), None));
         }
 

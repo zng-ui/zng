@@ -334,7 +334,7 @@ impl AnyConfig for MemoryConfig {
 
                 if let Some(v) = self.contains.get(e.key()) {
                     if let Some(v) = v.upgrade() {
-                        v.set_ne(true);
+                        v.set(true);
                     }
                 }
 
@@ -368,7 +368,7 @@ impl AnyConfig for MemoryConfig {
 
             if let Some(v) = self.contains.get(key) {
                 if let Some(v) = v.upgrade() {
-                    v.set_ne(false);
+                    v.set(false);
                 }
             }
             true
@@ -596,7 +596,7 @@ impl ConfigContainsVar {
     fn rebind(&mut self, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
         if let Some(res) = self.var.upgrade() {
             let cfg = source.contains_key(key.clone());
-            res.set_from_ne(&cfg);
+            res.set_from(&cfg);
 
             self.binding = VarHandles(vec![
                 cfg.bind(&res),

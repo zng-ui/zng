@@ -597,7 +597,7 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
         }
         UiNodeOp::Deinit => {
             timer = None;
-            let _ = IS_LAYER_REMOVING_VAR.set_ne(false);
+            let _ = IS_LAYER_REMOVING_VAR.set(false);
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {

@@ -163,18 +163,14 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
             let content_size = SCROLL_CONTENT_SIZE_VAR.get();
 
             if content_size.height > fs.height {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
-                    .set_ne(content_size.width > vp.width)
-                    .unwrap();
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(content_size.width > vp.width).unwrap();
             } else if content_size.width > fs.width {
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
-                    .set_ne(content_size.height > vp.height)
-                    .unwrap();
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(content_size.height > vp.height).unwrap();
             } else {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(false).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(false).unwrap();
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
             }
 
             // collapse scrollbars if they take more the 1/3 of the total area.

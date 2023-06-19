@@ -30,7 +30,7 @@ where
                 let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
             }
-            window_var.set_from_ne(&user_var).unwrap();
+            window_var.set_from(&user_var).unwrap();
         }
     })
 }
@@ -313,14 +313,14 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             let vars = WINDOW_CTRL.vars();
             let cfg = cfg.as_ref().unwrap().get();
 
-            vars.state().set_ne(cfg.state);
+            vars.state().set(cfg.state);
 
             let restore_rect: DipRect = cfg.restore_rect.cast();
             let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
             if visible {
-                vars.position().set_ne(restore_rect.origin);
+                vars.position().set(restore_rect.origin);
             }
-            vars.size().set_ne(restore_rect.size);
+            vars.size().set(restore_rect.size);
         }
     })
 }

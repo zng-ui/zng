@@ -168,16 +168,16 @@ impl WATCHER {
             file,
             init,
             clmv!(status, |d| {
-                status.set_ne(S::reading());
+                status.set(S::reading());
                 match read(d) {
                     Ok(r) => {
                         if r.is_none() {
-                            status.set_ne(S::idle());
+                            status.set(S::idle());
                         }
                         r
                     }
                     Err(e) => {
-                        status.set_ne(S::read_error(e));
+                        status.set(S::read_error(e));
                         None
                     }
                 }
@@ -185,7 +185,7 @@ impl WATCHER {
         );
         read_var
             .hook(Box::new(clmv!(status, |_| {
-                status.set_ne(S::idle());
+                status.set(S::idle());
                 true
             })))
             .perm();
@@ -233,16 +233,16 @@ impl WATCHER {
             recursive,
             init,
             clmv!(status, |d| {
-                status.set_ne(S::reading());
+                status.set(S::reading());
                 match read(d) {
                     Ok(r) => {
                         if r.is_none() {
-                            status.set_ne(S::idle());
+                            status.set(S::idle());
                         }
                         r
                     }
                     Err(e) => {
-                        status.set_ne(S::read_error(e));
+                        status.set(S::read_error(e));
                         None
                     }
                 }
@@ -250,7 +250,7 @@ impl WATCHER {
         );
         read_var
             .hook(Box::new(clmv!(status, |_| {
-                status.set_ne(S::idle());
+                status.set(S::idle());
                 true
             })))
             .perm();
@@ -344,30 +344,30 @@ impl WATCHER {
             file,
             init,
             clmv!(status, next_var_update_status, |f| {
-                status.set_ne(S::reading());
+                status.set(S::reading());
                 match read(f) {
                     Ok(r) => {
                         if r.is_some() {
                             next_var_update_status.store(S::idle, atomic::Ordering::Relaxed);
                         } else {
-                            status.set_ne(S::idle());
+                            status.set(S::idle());
                         }
                         r
                     }
                     Err(e) => {
-                        status.set_ne(S::read_error(e));
+                        status.set(S::read_error(e));
                         None
                     }
                 }
             }),
             clmv!(status, |o, f| {
-                status.set_ne(S::writing());
+                status.set(S::writing());
                 match write(o, f) {
                     Ok(()) => {
-                        status.set_ne(S::idle());
+                        status.set(S::idle());
                     }
                     Err(e) => {
-                        status.set_ne(S::write_error(e));
+                        status.set(S::write_error(e));
                     }
                 }
             }),
@@ -375,7 +375,7 @@ impl WATCHER {
 
         var.hook(Box::new(clmv!(status, |_| {
             let status_fn = next_var_update_status.swap(S::writing, atomic::Ordering::Relaxed);
-            status.set_ne(status_fn());
+            status.set(status_fn());
             true
         })))
         .perm();

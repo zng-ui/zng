@@ -310,7 +310,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                 } else {
                     is_selected(value)
                 };
-                checked.set_ne(Some(selected));
+                checked.set(Some(selected));
 
                 if DESELECT_ON_DEINIT_VAR.get() {
                     prev_value = Some(value.clone());
@@ -323,7 +323,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                 value.with(|value| {
                     if deselect(value) {
-                        checked.set_ne(Some(false));
+                        checked.set(Some(false));
                     }
                 });
             }
@@ -346,7 +346,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                             select(value)
                         }
                     });
-                    checked.set_ne(Some(selected))
+                    checked.set(Some(selected))
                 }
             }
         }
@@ -373,7 +373,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                 // contextual selector can change in any update.
                 value.with(|val| is_selected(val))
             });
-            checked.set_ne(selected);
+            checked.set(selected);
 
             if DESELECT_ON_NEW_VAR.get() && selected {
                 // save a clone of the value to reference it on deselection triggered by variable value changing.
@@ -542,7 +542,7 @@ impl Selector {
 
             fn select(&mut self, value: Box<dyn Any>) -> Result<(), SelectorError> {
                 match value.downcast::<T>() {
-                    Ok(value) => match self.selection.set_ne(*value) {
+                    Ok(value) => match self.selection.set(*value) {
                         Ok(_) => Ok(()),
                         Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
@@ -591,12 +591,12 @@ impl Selector {
 
             fn select(&mut self, value: Box<dyn Any>) -> Result<(), SelectorError> {
                 match value.downcast::<T>() {
-                    Ok(value) => match self.selection.set_ne(Some(*value)) {
+                    Ok(value) => match self.selection.set(Some(*value)) {
                         Ok(_) => Ok(()),
                         Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
                     Err(value) => match value.downcast::<Option<T>>() {
-                        Ok(value) => match self.selection.set_ne(*value) {
+                        Ok(value) => match self.selection.set(*value) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },

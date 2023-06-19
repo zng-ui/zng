@@ -232,33 +232,33 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
-            kb.repeat_config.set_ne(args.config);
+            kb.repeat_config.set(args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
             let kb = KEYBOARD_SV.read();
             kb.caret_animation_config
-                .set_ne((args.config.caret_blink_interval, args.config.caret_blink_timeout));
+                .set((args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let mut kb = KEYBOARD_SV.write();
                 kb.clear_modifiers();
-                kb.codes.set_ne(vec![]);
-                kb.keys.set_ne(vec![]);
+                kb.codes.set(vec![]);
+                kb.keys.set(vec![]);
 
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
-            kb.repeat_config.set_ne(args.key_repeat_config);
-            kb.caret_animation_config.set_ne((
+            kb.repeat_config.set(args.key_repeat_config);
+            kb.caret_animation_config.set((
                 args.animations_config.caret_blink_interval,
                 args.animations_config.caret_blink_timeout,
             ));
 
             if args.is_respawn {
                 kb.clear_modifiers();
-                kb.codes.set_ne(vec![]);
-                kb.keys.set_ne(vec![]);
+                kb.codes.set(vec![]);
+                kb.keys.set(vec![]);
 
                 kb.last_key_down = None;
             }

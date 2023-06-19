@@ -1547,10 +1547,10 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usi
         match op {
             UiNodeOp::Init => {
                 c.init();
-                let _ = index.set_ne(ResolvedText::get().caret.lock().index);
+                let _ = index.set(ResolvedText::get().caret.lock().index);
             }
             UiNodeOp::Deinit => {
-                let _ = index.set_ne(None);
+                let _ = index.set(None);
             }
             UiNodeOp::Event { update } => {
                 c.event(update);
@@ -1571,7 +1571,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usi
                         return; // appended text not updated yet.
                     }
                 }
-                let _ = index.set_ne(idx);
+                let _ = index.set(idx);
             }
         }
     })
@@ -1585,13 +1585,13 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             UiNodeOp::Init => {
                 c.init();
                 let t = ResolvedText::get();
-                let _ = status.set_ne(match t.caret.lock().index {
+                let _ = status.set(match t.caret.lock().index {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i, &t.text),
                 });
             }
             UiNodeOp::Deinit => {
-                let _ = status.set_ne(CaretStatus::none());
+                let _ = status.set(CaretStatus::none());
             }
             UiNodeOp::Event { update } => {
                 c.event(update);
@@ -1612,7 +1612,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
                         return; // appended text not updated yet.
                     }
                 }
-                let _ = status.set_ne(match idx {
+                let _ = status.set(match idx {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i, &t.text),
                 });
@@ -1625,14 +1625,14 @@ pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> imp
     let len = len.into_var();
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
-            let _ = len.set_ne(0usize);
+            let _ = len.set(0usize);
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
             let t = LayoutText::get();
             let l = t.shaped_text.lines_len();
             if l != len.get() {
-                let _ = len.set_ne(t.shaped_text.lines_len());
+                let _ = len.set(t.shaped_text.lines_len());
             }
         }
         _ => {}
@@ -1644,7 +1644,7 @@ pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super
     let mut version = 0;
     match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
-            let _ = lines.set_ne(super::LinesWrapCount::NoWrap(0));
+            let _ = lines.set(super::LinesWrapCount::NoWrap(0));
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);

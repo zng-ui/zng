@@ -89,15 +89,15 @@ impl WindowCommands {
         let scope = WINDOW.id();
         if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {
-                window_vars.state().set_ne(WindowState::Maximized);
+                window_vars.state().set(WindowState::Maximized);
             });
         } else if let Some(args) = MINIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.minimize_handle, |_| {
-                window_vars.state().set_ne(WindowState::Minimized);
+                window_vars.state().set(WindowState::Minimized);
             });
         } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.restore_handle, |_| {
-                window_vars.state().set_ne(window_vars.restore_state().get());
+                window_vars.state().set(window_vars.restore_state().get());
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {

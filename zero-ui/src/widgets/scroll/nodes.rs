@@ -171,9 +171,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             let v_ratio = viewport_size.height.0 as f32 / content_size.height.0 as f32;
             let h_ratio = viewport_size.width.0 as f32 / content_size.width.0 as f32;
 
-            SCROLL_VERTICAL_RATIO_VAR.set_ne(v_ratio.fct()).unwrap();
-            SCROLL_HORIZONTAL_RATIO_VAR.set_ne(h_ratio.fct()).unwrap();
-            SCROLL_CONTENT_SIZE_VAR.set_ne(content_size).unwrap();
+            SCROLL_VERTICAL_RATIO_VAR.set(v_ratio.fct()).unwrap();
+            SCROLL_HORIZONTAL_RATIO_VAR.set(h_ratio.fct()).unwrap();
+            SCROLL_CONTENT_SIZE_VAR.set(content_size).unwrap();
 
             *final_size = viewport_size;
         }

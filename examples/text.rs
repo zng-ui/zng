@@ -333,7 +333,7 @@ fn text_editor() -> impl UiNode {
             let editor_id = WindowId::named("text-editor");
             if is_open.get() {
                 if WINDOWS.focus(editor_id).is_err() {
-                    is_open.set_ne(false);
+                    is_open.set(false);
                 }
             } else {
                 WINDOWS.open_id(editor_id, async_clmv!(is_open, {
@@ -349,10 +349,10 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
     Window! {
         title = editor.title();
         on_open = hn!(is_open, |_| {
-            is_open.set_ne(true);
+            is_open.set(true);
         });
         on_close = hn!(is_open, |_| {
-            is_open.set_ne(false);
+            is_open.set(false);
         });
         enabled = editor.enabled();
         on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
@@ -509,9 +509,9 @@ impl TextEditor {
         let _busy = self.enter_busy();
 
         if self.handle_unsaved().await {
-            self.txt.set_ne(Txt::from_static(""));
-            self.file.set_ne(None);
-            self.unsaved.set_ne(false);
+            self.txt.set(Txt::from_static(""));
+            self.file.set(None);
+            self.unsaved.set(false);
         }
     }
 
@@ -578,9 +578,9 @@ impl TextEditor {
             FileDialogResponse::Selected(mut s) => {
                 if let Some(file) = s.pop() {
                     let ok = self.write(file.clone()).await;
-                    self.unsaved.set_ne(ok);
+                    self.unsaved.set(ok);
                     if ok {
-                        self.file.set_ne(Some(file));
+                        self.file.set(Some(file));
                     }
                     return ok;
                 }
@@ -598,7 +598,7 @@ impl TextEditor {
         if self.unsaved.get() {
             args.propagation().stop();
             if self.handle_unsaved().await {
-                self.unsaved.set_ne(false);
+                self.unsaved.set(false);
                 WINDOW_CTRL.close();
             }
         }

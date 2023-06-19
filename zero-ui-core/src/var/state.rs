@@ -92,15 +92,15 @@ pub fn event_is_state<A: EventArgs>(
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event);
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update) {
                 if let Some(s) = on_event(args) {
-                    let _ = state.set_ne(s);
+                    let _ = state.set(s);
                 }
             }
         }
@@ -136,10 +136,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1);
 
             partial = partial_default;
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -162,7 +162,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0, partial.1) {
-                    let _ = state.set_ne(value);
+                    let _ = state.set(value);
                 }
             }
         }
@@ -202,10 +202,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
 
             partial = partial_default;
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -235,7 +235,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0, partial.1, partial.2) {
-                    let _ = state.set_ne(value);
+                    let _ = state.set(value);
                 }
             }
         }
@@ -279,10 +279,10 @@ where
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
 
             partial = partial_default;
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set_ne(default);
+            let _ = state.set(default);
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -319,7 +319,7 @@ where
 
             if updated {
                 if let Some(value) = merge(partial.0, partial.1, partial.2, partial.3) {
-                    let _ = state.set_ne(value);
+                    let _ = state.set(value);
                 }
             }
         }
@@ -339,7 +339,7 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
-            let _ = state.set_from_ne(&source);
+            let _ = state.set_from(&source);
             _binding = source.bind(&state);
         }
         UiNodeOp::Deinit => {
