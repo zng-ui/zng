@@ -818,6 +818,11 @@ mod flat_map {
         pub bar: bool,
         pub var: ArcVar<usize>,
     }
+    impl PartialEq for Foo {
+        fn eq(&self, other: &Self) -> bool {
+            self.bar == other.bar && self.var.var_ptr() == other.var.var_ptr()
+        }
+    }
     impl fmt::Debug for Foo {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Foo").field("bar", &self.bar).finish_non_exhaustive()

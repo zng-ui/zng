@@ -403,6 +403,16 @@ impl fmt::Debug for SmoothScrolling {
             .finish_non_exhaustive()
     }
 }
+impl PartialEq for SmoothScrolling {
+    // can only fail by returning `false` in some cases where the value pointer is actually equal.
+    // see: https://github.com/rust-lang/rust/issues/103763
+    //
+    // we are fine with this, worst case is just an extra var update
+    #[allow(clippy::vtable_address_comparisons)]
+    fn eq(&self, other: &Self) -> bool {
+        self.duration == other.duration && Arc::ptr_eq(&self.easing, &other.easing)
+    }
+}
 impl Default for SmoothScrolling {
     fn default() -> Self {
         Self::new(150.ms(), easing::linear)

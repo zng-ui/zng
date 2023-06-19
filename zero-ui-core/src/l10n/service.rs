@@ -23,7 +23,7 @@ pub(super) struct L10nService {
     sys_lang: ArcVar<Langs>,
     app_lang: ArcCowVar<Langs, ArcVar<Langs>>,
 
-    perm_res: Vec<BoxedVar<Option<Arc<fluent::FluentResource>>>>,
+    perm_res: Vec<BoxedVar<Option<ArcEq<fluent::FluentResource>>>>,
     bundles: HashMap<(Langs, Txt), BoxedWeakVar<ArcFluentBundle>>,
 }
 impl L10nService {
@@ -205,7 +205,7 @@ impl L10nService {
             res.map(move |r| {
                 let mut bundle = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
                 if let Some(r) = r {
-                    bundle.add_resource_overriding(r.clone());
+                    bundle.add_resource_overriding(r.0.clone());
                 }
                 ArcFluentBundle(Arc::new(bundle))
             })
@@ -222,7 +222,7 @@ impl L10nService {
             res.build(move |res| {
                 let mut bundle = ConcurrentFluentBundle::new_concurrent(langs.clone());
                 for r in res.iter().flatten() {
-                    bundle.add_resource_overriding(r.clone());
+                    bundle.add_resource_overriding(r.0.clone());
                 }
                 ArcFluentBundle(Arc::new(bundle))
             })
@@ -270,6 +270,11 @@ struct ArcFluentBundle(Arc<ConcurrentFluentBundle>);
 impl fmt::Debug for ArcFluentBundle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ArcFluentBundle")
+    }
+}
+impl PartialEq for ArcFluentBundle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 impl ops::Deref for ArcFluentBundle {
@@ -329,7 +334,7 @@ fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: 
     Txt::from_str(txt.as_ref())
 }
 
-fn fluent_args_var(args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> impl Var<Arc<Mutex<fluent::FluentArgs<'static>>>> {
+fn fluent_args_var(args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> impl Var<ArcEq<Mutex<fluent::FluentArgs<'static>>>> {
     let mut fluent_args = MergeVarBuilder::new();
     let mut names = Vec::with_capacity(args.len());
     for (name, arg) in args {
@@ -344,7 +349,7 @@ fn fluent_args_var(args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> impl Var<Arc<Mut
         }
 
         // Mutex because ValueType is not Sync
-        Arc::new(Mutex::new(args))
+        ArcEq::new(Mutex::new(args))
     })
 }
 

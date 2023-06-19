@@ -227,7 +227,7 @@ pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> 
 }
 
 /// Arguments for scrollbar widget functions.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ScrollBarArgs {
     /// Scrollbar orientation.
     pub orientation: scrollbar::Orientation,

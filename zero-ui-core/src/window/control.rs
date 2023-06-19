@@ -1619,7 +1619,7 @@ impl ContentCtrl {
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
-    pub fn outer_layout<R>(&mut self, scale_factor: Factor, screen_ppi: f32, screen_size: PxSize, action: impl FnOnce() -> R) -> R {
+    pub fn outer_layout<R>(&mut self, scale_factor: Factor, screen_ppi: Ppi, screen_size: PxSize, action: impl FnOnce() -> R) -> R {
         let metrics = LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(11.0, scale_factor)).with_screen_ppi(screen_ppi);
         LAYOUT.with_context(metrics, action)
     }
@@ -1630,7 +1630,7 @@ impl ContentCtrl {
         &mut self,
         layout_widgets: Arc<LayoutUpdates>,
         scale_factor: Factor,
-        screen_ppi: f32,
+        screen_ppi: Ppi,
         min_size: PxSize,
         max_size: PxSize,
         size: PxSize,

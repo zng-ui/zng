@@ -169,7 +169,7 @@ command! {
 }
 
 /// Parameters for the scroll and page commands.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollRequest {
     /// If the [alt factor] should be applied to the base scroll unit when scrolling.
     ///
@@ -231,7 +231,7 @@ impl_from_and_into_var! {
 }
 
 /// Parameters for the [`SCROLL_TO_CMD`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollToRequest {
     /// Widget that will be scrolled into view.
     pub widget_id: WidgetId,
@@ -281,7 +281,7 @@ impl_from_and_into_var! {
 }
 
 /// Defines how much the [`SCROLL_TO_CMD`] will scroll to showcase the target widget.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScrollToMode {
     /// Scroll will change only just enough so that the widget inner rect is fully visible with the optional
     /// extra margin offsets.

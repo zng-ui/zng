@@ -783,7 +783,7 @@ pub type TimerVar = ReadOnlyArcVar<Timer>;
 ///
 /// This type uses interior mutability to communicate with the timer, the values provided by the methods
 /// can be changed anytime by the [`TimerVar`] owners without the variable updating.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Timer(TimerHandle);
 impl fmt::Debug for Timer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

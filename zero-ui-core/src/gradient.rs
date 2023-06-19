@@ -590,7 +590,7 @@ impl fmt::Debug for GradientStop {
 /// Stops in a gradient.
 ///
 /// Use [`stops!`] to create a new instance, you can convert from arrays for simpler gradients.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GradientStops {
     /// First color stop.
     pub start: ColorStop,

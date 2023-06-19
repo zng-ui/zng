@@ -27,7 +27,7 @@ use crate::{
 /// ```
 ///
 /// The example above creates a filter that lowers the opacity to `50%` and blurs by `3px`.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Filter {
     filters: Vec<FilterData>,
     needs_layout: bool,
@@ -207,7 +207,7 @@ impl Layout2d for Filter {
 /// A computed [`Filter`], ready for Webrender.
 pub type RenderFilter = Vec<FilterOp>;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum FilterData {
     Op(FilterOp),
     Blur(Length),

@@ -91,6 +91,22 @@ pub struct IpcBytes {
     #[cfg(not(feature = "ipc"))]
     bytes: std::sync::Arc<Vec<u8>>,
 }
+/// Pointer equal.
+impl PartialEq for IpcBytes {
+    #[cfg(not(feature = "ipc"))]
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.bytes, &other.bytes)
+    }
+
+    #[cfg(feature = "ipc")]
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.bytes, &other.bytes) {
+            (None, None) => true,
+            (Some(a), Some(b)) => a.as_ptr() == b.as_ptr(),
+            _ => false,
+        }
+    }
+}
 impl IpcBytes {
     /// Copy the `bytes` to a new shared memory allocation.
     pub fn from_slice(bytes: &[u8]) -> Self {

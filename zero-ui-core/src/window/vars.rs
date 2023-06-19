@@ -603,5 +603,11 @@ impl WindowVars {
         self.0.renderer_debug.clone()
     }
 }
+impl PartialEq for WindowVars {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WindowVars {}
 
 pub(super) static WINDOW_VARS_ID: StaticStateId<WindowVars> = StaticStateId::new_unique();

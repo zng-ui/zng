@@ -311,7 +311,7 @@ pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadi
 /// Arguments for [`img_loading_fn`].
 ///
 /// [`img_loading_fn`]: fn@img_loading_fn
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ImgLoadingArgs {}
 
 /// Arguments for [`on_load`].
@@ -324,7 +324,7 @@ pub struct ImgLoadArgs {}
 ///
 /// [`on_error`]: fn@on_error
 /// [`img_error_fn`]: fn@img_error_fn
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ImgErrorArgs {
     /// Error message.
     pub error: Txt,

@@ -187,7 +187,7 @@ impl Img {
     /// [`ppi`]: Self::ppi
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
-        self.calc_size(ctx, ImagePpi::splat(ctx.screen_ppi()), false)
+        self.calc_size(ctx, ImagePpi::splat(ctx.screen_ppi().0), false)
     }
 
     /// Calculate a layout size for the image.
@@ -210,8 +210,8 @@ impl Img {
         let mut size = self.size();
 
         let fct = ctx.scale_factor().0;
-        size.width *= (s_ppi / dpi.x) * fct;
-        size.height *= (s_ppi / dpi.y) * fct;
+        size.width *= (s_ppi.0 / dpi.x) * fct;
+        size.height *= (s_ppi.0 / dpi.y) * fct;
 
         size
     }
@@ -954,6 +954,19 @@ impl<U: 'static> ops::BitOrAssign for ImageSourceFilter<U> {
         *self = mem::replace(self, Self::BlockAll).or(rhs);
     }
 }
+impl<U> PartialEq for ImageSourceFilter<U> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            // can only fail by returning `false` in some cases where the value pointer is actually equal.
+            // see: https://github.com/rust-lang/rust/issues/103763
+            //
+            // we are fine with this, worst case is just an extra var update
+            #[allow(clippy::vtable_address_comparisons)] 
+            (Self::Custom(l0), Self::Custom(r0)) => Arc::ptr_eq(l0, r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
 
 /// Represents a [`ImageSource::Read`] path request filter.
 ///
@@ -1030,7 +1043,7 @@ impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFil
 }
 
 /// Limits for image loading and decoding.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ImageLimits {
     /// Maximum encoded file size allowed.
     ///

@@ -576,6 +576,12 @@ impl<K: Eq + Hash + Send> FromParallelIterator<K> for IdSet<K> {
         Self(FromParallelIterator::from_par_iter(par_iter))
     }
 }
+impl<K: Eq + Hash> PartialEq for IdSet<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<K: Eq + Hash> Eq for IdSet<K> {}
 
 /// Entry in [`IdMap`].
 pub type IdEntry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildIdHasher>;

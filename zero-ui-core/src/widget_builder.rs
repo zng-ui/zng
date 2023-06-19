@@ -1109,7 +1109,7 @@ pub fn new_dyn_other<'a, T: Any + Send>(
 /// Error value used in a reference to an [`UiNode`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct UiNodeInWhenExprError;
 impl fmt::Debug for UiNodeInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1129,7 +1129,7 @@ impl std::error::Error for UiNodeInWhenExprError {}
 /// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct UiNodeListInWhenExprError;
 impl fmt::Debug for UiNodeListInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1149,7 +1149,7 @@ impl std::error::Error for UiNodeListInWhenExprError {}
 /// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
 ///
 /// Only variables and values can be referenced in `when` expression.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct WidgetHandlerInWhenExprError;
 impl fmt::Debug for WidgetHandlerInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

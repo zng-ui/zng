@@ -121,8 +121,16 @@ pub mod types {
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait VarValue: fmt::Debug + Clone + Any + Send + Sync {}
-impl<T: fmt::Debug + Clone + Any + Send + Sync> VarValue for T {}
+/// 
+/// # Implementing
+/// 
+/// Types need to be `Debug + Clone + PartialEq + Send + Sync + Any` to auto-implement this trait,
+/// if you want to place an external type in a variable and it does not implement all the traits
+/// you may need to declare a *newtype* wrapper, if the external type is `Debug + Send + Sync + Any` at
+/// least you can use the [`ArcEq<T>`] wrapper to quickly implement `Clone + PartialEq`, this is particularly
+/// useful for error types in [`ResponseVar<Result<_, E>>`].
+pub trait VarValue: fmt::Debug + Clone + PartialEq + Any + Send + Sync {}
+impl<T: fmt::Debug + Clone + Any + PartialEq + Send + Sync> VarValue for T {}
 
 /// Trait implemented for all [`VarValue`] types.
 pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
@@ -415,6 +423,41 @@ impl IntoIterator for VarHandles {
     }
 }
 
+/// Arc value that implements equality by pointer comparison.
+/// 
+/// This type allows types external types that are only `Debug + Send + Sync` to become 
+/// a full [`VarValue`] to be allowed as a variable value.
+pub struct ArcEq<T: fmt::Debug + Send + Sync>(pub Arc<T>);
+impl<T: fmt::Debug + Send + Sync> ops::Deref for ArcEq<T> {
+    type Target = Arc<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: fmt::Debug + Send + Sync> ArcEq<T> {
+    /// Constructs a new `ArcEq<T>`.
+    pub fn new(value: T) -> Self {
+        Self(Arc::new(value))
+    }
+}
+impl<T: fmt::Debug + Send + Sync> PartialEq for ArcEq<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl<T: fmt::Debug + Send + Sync> Eq for ArcEq<T> {}
+impl<T: fmt::Debug + Send + Sync> Clone for ArcEq<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&*self.0, f)
+    }
+}
+
 /// Methods of [`Var<T>`] that don't depend on the value type.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
@@ -570,7 +613,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
 /// Represents an [`AnyVar`] *pointer* that can be used for comparison.
 ///
-/// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
+/// If two of these values are equal, both variables point to the same *arc* or *context* at the moment of comparison.
 pub struct VarPtr<'a> {
     _lt: std::marker::PhantomData<&'a ()>,
     eq: VarPtrData,

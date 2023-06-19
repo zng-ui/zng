@@ -730,7 +730,7 @@ impl WindowState {
 }
 
 /// [`Event::FrameRendered`] payload.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventFrameRendered {
     /// Window that was rendered.
     pub window: WindowId,
@@ -2080,7 +2080,7 @@ fn ppi_key(ppi: Option<ImagePpi>) -> Option<(u16, u16)> {
 /// Represents a successfully decoded image.
 ///
 /// See [`Event::ImageLoaded`].
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImageLoadedData {
     /// Image ID.
     pub id: ImageId,

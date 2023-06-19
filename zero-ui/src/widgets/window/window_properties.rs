@@ -140,7 +140,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// See the [`save_state`] property for more details.
 ///
 /// [`save_state`]: fn@save_state
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SaveState {
     /// Save & restore state.
     Enabled {

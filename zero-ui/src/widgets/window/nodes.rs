@@ -8,7 +8,7 @@ use std::time::Duration;
 /// Defines if a widget load affects the parent window load.
 ///
 /// Widgets that support this behavior have a `block_window_load` property.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockWindowLoad {
     /// Widget requests a [`WindowLoadingHandle`] and retains it until the widget is loaded.
     ///

@@ -683,6 +683,11 @@ impl fmt::Debug for Selector {
         write!(f, "Selector(_)")
     }
 }
+impl PartialEq for Selector {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 /// Error for [`Selector`] operations.
 #[derive(Debug, Clone)]

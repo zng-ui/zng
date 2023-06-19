@@ -8,7 +8,7 @@ use crate::widgets::scroll::ScrollMode;
 /// See [`lazy`] property for more details.
 ///
 /// [`lazy`]: fn@lazy
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum LazyMode {
     /// Node always loaded.
     Disabled,

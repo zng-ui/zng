@@ -296,7 +296,7 @@ impl_from_and_into_var! {
 ///
 /// The startup position affects the window once, at the moment the window
 /// is open just after the first [`UiNode::render`] call.
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
     /// Resolves the `position` property.
     Default,

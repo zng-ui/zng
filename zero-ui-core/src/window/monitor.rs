@@ -93,9 +93,6 @@ app_local! {
 /// [`WindowManager`]: crate::window::WindowManager
 pub struct MONITORS;
 impl MONITORS {
-    /// Initial PPI of monitors, `96.0`.
-    pub const DEFAULT_PPI: f32 = 96.0;
-
     /// Get monitor info.
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
@@ -169,7 +166,7 @@ impl MonitorsService {
 /// "Monitor" configuration used by windows in [headless mode].
 ///
 /// [headless mode]: crate::window::WindowMode::is_headless
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
@@ -191,11 +188,11 @@ pub struct HeadlessMonitor {
     /// Pixel-per-inches used for the headless layout and rendering.
     ///
     /// [`MONITORS::DEFAULT_PPI`] by default.
-    pub ppi: f32,
+    pub ppi: Ppi,
 }
 impl fmt::Debug for HeadlessMonitor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() || about_eq(self.ppi, MONITORS::DEFAULT_PPI, 0.001) {
+        if f.alternate() || self.ppi != Ppi::default() {
             f.debug_struct("HeadlessMonitor")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.size)
@@ -212,7 +209,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: None,
             size,
-            ppi: MONITORS::DEFAULT_PPI,
+            ppi: Ppi::default(),
         }
     }
 
@@ -221,7 +218,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: Some(scale_factor),
             size,
-            ppi: MONITORS::DEFAULT_PPI,
+            ppi: Ppi::default(),
         }
     }
 
@@ -258,7 +255,7 @@ pub struct MonitorInfo {
     size: ArcVar<PxSize>,
     video_modes: ArcVar<Vec<VideoMode>>,
     scale_factor: ArcVar<Factor>,
-    ppi: ArcVar<f32>,
+    ppi: ArcVar<Ppi>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -276,7 +273,7 @@ impl MonitorInfo {
             size: var(info.size),
             scale_factor: var(info.scale_factor.fct()),
             video_modes: var(info.video_modes),
-            ppi: var(MONITORS::DEFAULT_PPI),
+            ppi: var(Ppi::default()),
         }
     }
 
@@ -332,7 +329,7 @@ impl MonitorInfo {
         self.scale_factor.read_only()
     }
     /// PPI config var.
-    pub fn ppi(&self) -> ArcVar<f32> {
+    pub fn ppi(&self) -> ArcVar<Ppi> {
         self.ppi.clone()
     }
 
@@ -366,7 +363,7 @@ impl MonitorInfo {
             size: var(defaults.size.to_px(fct.0)),
             video_modes: var(vec![]),
             scale_factor: var(fct),
-            ppi: var(MONITORS::DEFAULT_PPI),
+            ppi: var(Ppi::default()),
         }
     }
 }

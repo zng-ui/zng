@@ -435,7 +435,7 @@ pub trait L10nSource: Send + 'static {
     fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus>;
 
     /// Gets a read-only variable that provides the fluent resource for the `lang` and `file` if available.
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>>;
+    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
     /// Gets a read-only variable that is the status of the [`lang_resource`] value.
     ///
     /// [`lang_resource`]: Self::lang_resource

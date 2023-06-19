@@ -607,7 +607,7 @@ impl_from_and_into_var! {
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`corner_radius_fit`]: fn@corner_radius_fit
-#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CornerRadiusFit {
     /// Corner radius is computed for each usage.
     None,

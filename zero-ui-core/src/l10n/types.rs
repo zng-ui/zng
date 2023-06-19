@@ -44,7 +44,7 @@ impl LangResources {
 #[derive(Clone)]
 #[must_use = "resource can unload if dropped"]
 pub struct LangResource {
-    pub(super) res: BoxedVar<Option<Arc<fluent::FluentResource>>>,
+    pub(super) res: BoxedVar<Option<ArcEq<fluent::FluentResource>>>,
     pub(super) status: BoxedVar<LangResourceStatus>,
 }
 
@@ -57,7 +57,7 @@ impl fmt::Debug for LangResource {
 }
 impl LangResource {
     /// Read-only variable with the resource.
-    pub fn resource(&self) -> &BoxedVar<Option<Arc<fluent::FluentResource>>> {
+    pub fn resource(&self) -> &BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         &self.res
     }
 
@@ -184,7 +184,7 @@ impl L10nMessageBuilder {
 /// Represents an argument value for a localization message.
 ///
 /// See [`L10nMessageBuilder::arg`] for more details.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum L10nArgument {
     /// String.
     Txt(Txt),
@@ -549,6 +549,20 @@ impl<V> IntoIterator for LangMap<V> {
         self.inner.into_iter()
     }
 }
+impl<V: PartialEq> PartialEq for LangMap<V> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        for (k, v) in &self.inner {
+            if other.get_exact(k) != Some(v) {
+                return false;
+            }
+        }
+        true
+    }
+}
+impl<V: Eq> Eq for LangMap<V> {}
 
 /// Errors found parsing a fluent resource file.
 #[derive(Clone, Debug)]

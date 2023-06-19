@@ -26,7 +26,7 @@ pub const FEATURE_DISABLED: u32 = 0;
 type FontFeaturesMap = FxHashMap<FontFeatureName, u32>;
 
 /// Font features configuration.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct FontFeatures(FontFeaturesMap);
 impl FontFeatures {
     /// New default.
@@ -1571,7 +1571,7 @@ pub type FontVariationName = &'static [u8; 4];
 /// A small map of font variations.
 ///
 /// Use [`font_variations!`] to manually initialize.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct FontVariations(Vec<(FontVariationName, f32)>);
 impl FontVariations {
     /// New empty.

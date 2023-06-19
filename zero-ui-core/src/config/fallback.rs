@@ -109,7 +109,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // based on `Var::bind_bidi` code.
         let binding_tag = BindMapBidiTag::new_unique();
 
-        #[derive(Clone, Copy, Debug)]
+        #[derive(Clone, Copy, Debug, PartialEq)]
         struct ResetTag;
 
         // fallback->res binding can re-enable on reset.

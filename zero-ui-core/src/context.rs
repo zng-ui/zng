@@ -1449,12 +1449,12 @@ impl LAYOUT {
     }
 
     /// Current screen PPI.
-    pub fn screen_ppi(&self) -> f32 {
+    pub fn screen_ppi(&self) -> Ppi {
         LAYOUT_CTX.get().metrics.screen_ppi()
     }
 
     /// Calls `f` with `screen_ppi` in the context.
-    pub fn with_screen_ppi<R>(&self, screen_ppi: f32, f: impl FnOnce() -> R) -> R {
+    pub fn with_screen_ppi<R>(&self, screen_ppi: Ppi, f: impl FnOnce() -> R) -> R {
         self.with_context(self.metrics().with_screen_ppi(screen_ppi), f)
     }
 
@@ -2730,7 +2730,7 @@ pub struct LayoutMetricsSnapshot {
     /// The [`screen_ppi`].
     ///
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
-    pub screen_ppi: f32,
+    pub screen_ppi: Ppi,
 
     /// The [`direction`].
     ///
@@ -2751,7 +2751,7 @@ impl LayoutMetricsSnapshot {
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
             && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
-            && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
+            && (!mask.contains(LayoutMask::SCREEN_PPI) || self.screen_ppi == other.screen_ppi)
             && (!mask.contains(LayoutMask::DIRECTION) || self.direction == other.direction)
             && (!mask.contains(LayoutMask::LEFTOVER) || self.leftover == other.leftover)
     }
@@ -2764,7 +2764,7 @@ impl PartialEq for LayoutMetricsSnapshot {
             && self.root_font_size == other.root_font_size
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
-            && about_eq(self.screen_ppi, other.screen_ppi, 0.0001)
+            && self.screen_ppi == other.screen_ppi
     }
 }
 impl std::hash::Hash for LayoutMetricsSnapshot {
@@ -2775,7 +2775,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
         self.root_font_size.hash(state);
         self.scale_factor.hash(state);
         self.viewport.hash(state);
-        about_eq_hash(self.screen_ppi, 0.0001, state);
+        self.screen_ppi.hash(state);
     }
 }
 
@@ -2800,7 +2800,7 @@ impl LayoutMetrics {
                 root_font_size: font_size,
                 scale_factor,
                 viewport,
-                screen_ppi: 96.0,
+                screen_ppi: Ppi::default(),
                 direction: LayoutDirection::default(),
                 leftover: euclid::size2(None, None),
             },
@@ -2880,7 +2880,7 @@ impl LayoutMetrics {
     ///
     /// [`MONITORS`]: crate::window::MONITORS
     /// [`scale_factor`]: LayoutMetrics::scale_factor
-    pub fn screen_ppi(&self) -> f32 {
+    pub fn screen_ppi(&self) -> Ppi {
         self.s.screen_ppi
     }
 
@@ -2933,7 +2933,7 @@ impl LayoutMetrics {
     /// Sets the [`screen_ppi`].
     ///
     /// [`screen_ppi`]: Self::screen_ppi
-    pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
+    pub fn with_screen_ppi(mut self, screen_ppi: Ppi) -> Self {
         self.s.screen_ppi = screen_ppi;
         self
     }

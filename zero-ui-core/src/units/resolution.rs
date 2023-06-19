@@ -3,7 +3,7 @@ use std::fmt;
 use crate::impl_from_and_into_var;
 
 /// Pixels-per-inch resolution.
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct Ppi(pub f32);
 impl Ppi {
@@ -21,6 +21,16 @@ impl Default for Ppi {
     /// 96ppi.
     fn default() -> Self {
         Ppi(96.0)
+    }
+}
+impl PartialEq for Ppi {
+    fn eq(&self, other: &Self) -> bool {
+        super::about_eq(self.0, other.0, 0.0001)
+    }
+}
+impl std::hash::Hash for Ppi {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        super::about_eq_hash(self.0, 0.0001, state)
     }
 }
 

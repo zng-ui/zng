@@ -27,7 +27,7 @@ use crate::{
     l10n::LangMap,
     task,
     units::*,
-    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var},
+    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var, ArcEq},
 };
 
 event! {
@@ -198,9 +198,9 @@ impl FONTS {
     ///
     /// The returned response is already set if the font is [`CustomFont::from_bytes`] or [`CustomFont::from_other`] and the other
     /// is already loaded, otherwise the returned response will update once when the font finishes loading.
-    pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<(), Arc<FontLoadingError>>> {
+    pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<(), ArcEq<FontLoadingError>>> {
         task::poll_respond(async move {
-            FontFaceLoader::register(custom_font).await.map_err(Arc::new)?;
+            FontFaceLoader::register(custom_font).await.map_err(ArcEq::new)?;
             GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
             Ok(())
         })

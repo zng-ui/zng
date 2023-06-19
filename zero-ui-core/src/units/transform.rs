@@ -17,12 +17,12 @@ use super::{AngleRadian, AngleUnits, Factor, Layout1d, Length, PxTransform};
 /// ```
 ///
 ///
-#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Transform {
     parts: Vec<TransformPart>,
     needs_layout: bool,
 }
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum TransformPart {
     Computed(PxTransform),
     Translate(Length, Length),

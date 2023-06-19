@@ -43,6 +43,15 @@ impl<D> fmt::Debug for WidgetFn<D> {
         write!(f, "WidgetFn<{}>", pretty_type_name::<D>())
     }
 }
+impl<D> PartialEq for WidgetFn<D> {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (None, None) => true,
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
 impl<D> WidgetFn<D> {
     /// New from a closure that generates a node from data.
     pub fn new<U: UiNode>(func: impl Fn(D) -> U + Send + Sync + 'static) -> Self {

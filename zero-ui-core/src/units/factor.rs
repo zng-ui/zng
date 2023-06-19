@@ -667,7 +667,7 @@ impl FactorUnits for i32 {
 }
 
 /// Scale factor applied to ***x*** and ***y*** dimensions.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Factor2d {
     /// Scale factor applied in the ***x*** dimension.
     pub x: Factor,
@@ -949,7 +949,7 @@ impl ops::DivAssign<Factor2d> for DipRect {
 }
 
 /// Scale factor applied to margins.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FactorSideOffsets {
     /// Factor of top offset.
     pub top: Factor,

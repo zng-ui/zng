@@ -195,7 +195,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     {
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
-            let window_id = response.wait_rsp().await.window_id;
+            let window_id = response.wait_rsp().await;
             if !WINDOWS.is_loaded(window_id) {
                 let rcv = FRAME_IMAGE_READY_EVENT.receiver();
                 while let Ok(args) = rcv.recv_async().await {

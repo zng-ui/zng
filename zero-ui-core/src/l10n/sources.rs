@@ -140,7 +140,7 @@ impl L10nSource for L10nDir {
         self.dir_watch_status.clone()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(out) = e.get().res.upgrade() {
@@ -173,7 +173,7 @@ impl L10nSource for L10nDir {
     }
 }
 struct L10nFile {
-    res: BoxedWeakVar<Option<Arc<fluent::FluentResource>>>,
+    res: BoxedWeakVar<Option<ArcEq<fluent::FluentResource>>>,
     status: ArcVar<LangResourceStatus>,
 }
 impl L10nFile {
@@ -184,7 +184,7 @@ impl L10nFile {
         }
     }
 }
-fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: &Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>> {
+fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: &Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
     status.set_ne(LangResourceStatus::Loading);
 
     let path = if file.is_empty() {
@@ -204,7 +204,7 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
                     Ok(flt) => {
                         // ok
                         // Loaded set by `r` to avoid race condition in waiter.
-                        return Some(Some(Arc::new(flt)));
+                        return Some(Some(ArcEq::new(flt)));
                     }
                     Err(e) => {
                         let e = FluentParserErrors(e.1);
@@ -302,7 +302,7 @@ impl L10nSource for SwapL10nSource {
         self.available_langs_status.read_only().boxed()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(res) = e.get().res.upgrade() {
@@ -366,7 +366,7 @@ impl L10nSource for SwapL10nSource {
     }
 }
 struct SwapFile {
-    res: BoxedWeakVar<Option<Arc<fluent::FluentResource>>>,
+    res: BoxedWeakVar<Option<ArcEq<fluent::FluentResource>>>,
     status: ArcVar<LangResourceStatus>,
     actual_weak_res: VarHandle,
     res_strong_actual: VarHandle,
@@ -395,7 +395,7 @@ impl L10nSource for NilL10nSource {
         LocalVar(LangResourceStatus::NotAvailable).boxed()
     }
 
-    fn lang_resource(&mut self, _: Lang, _: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, _: Lang, _: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         LocalVar(None).boxed()
     }
 

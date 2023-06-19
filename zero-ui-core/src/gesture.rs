@@ -493,7 +493,7 @@ impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
 }
 
 /// Multiple shortcuts.
-#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Shortcuts(pub Vec<Shortcut>);
 impl Shortcuts {
     /// New default (empty).
