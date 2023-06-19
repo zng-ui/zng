@@ -978,9 +978,8 @@ impl<'a, T: VarValue> VarModify<'a, T> {
                 }
             }
             Cow::Owned(v) => {
-                let eq = self.current_value == &v;
-                if self.update || !eq {
-                    return (true, if eq { None } else { Some(v) }, self.tags);
+                if self.update || self.current_value != &v {
+                    return (true, Some(v), self.tags);
                 }
             }
         }

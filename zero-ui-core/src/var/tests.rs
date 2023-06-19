@@ -1016,7 +1016,7 @@ mod cow {
     pub fn cow_update_full() {
         let mut app = App::minimal().run_headless(false);
 
-        let base = var(false);
+        let base = var(0);
         let cow = base.cow();
 
         let base_values = Arc::new(Mutex::new(vec![]));
@@ -1024,27 +1024,27 @@ mod cow {
         base.trace_value(clmv!(base_values, |v| base_values.lock().push(v.value))).perm();
         cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(v.value))).perm();
 
-        base.set(true);
+        base.set(1);
         app.update(false).assert_wait();
 
-        assert!(base.get());
-        assert!(cow.get());
+        assert_eq!(1, base.get());
+        assert_eq!(1, cow.get());
 
-        cow.set(false);
+        cow.set(2);
         app.update(false).assert_wait();
 
-        assert!(base.get());
-        assert!(!cow.get());
+        assert_eq!(1, base.get());
+        assert_eq!(2, cow.get());
 
-        assert_eq!(&base_values.lock()[..], &[false, true]);
-        assert_eq!(&cow_values.lock()[..], &[false, true, false]);
+        assert_eq!(&base_values.lock()[..], &[0, 1]);
+        assert_eq!(&cow_values.lock()[..], &[0, 1, 2]);
 
-        base.set(true);
+        base.set(3);
         app.update(false).assert_wait();
-        base.set(false);
+        base.set(4);
         app.update(false).assert_wait();
-        assert_eq!(&base_values.lock()[..], &[false, true, true, false]);
-        assert_eq!(&cow_values.lock()[..], &[false, true, false]);
+        assert_eq!(&base_values.lock()[..], &[0, 1, 3, 4]);
+        assert_eq!(&cow_values.lock()[..], &[0, 1, 2]);
     }
 }
 

@@ -157,40 +157,13 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
+        read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
     ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
     {
-        let status = var(S::reading());
-        let read_var = self.read(
-            file,
-            init,
-            clmv!(status, |d| {
-                status.set(S::reading());
-                match read(d) {
-                    Ok(r) => {
-                        if r.is_none() {
-                            status.set(S::idle());
-                        }
-                        r
-                    }
-                    Err(e) => {
-                        status.set(S::read_error(e));
-                        None
-                    }
-                }
-            }),
-        );
-        read_var
-            .hook(Box::new(clmv!(status, |_| {
-                status.set(S::idle());
-                true
-            })))
-            .perm();
-
-        (read_var, status.read_only())
+        WATCHER_SV.write().read_status(file.into(), init, read)
     }
 
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
@@ -221,41 +194,13 @@ impl WATCHER {
         dir: impl Into<PathBuf>,
         recursive: bool,
         init: O,
-        mut read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
+        read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
     ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
     {
-        let status = var(S::reading());
-        let read_var = self.read_dir(
-            dir,
-            recursive,
-            init,
-            clmv!(status, |d| {
-                status.set(S::reading());
-                match read(d) {
-                    Ok(r) => {
-                        if r.is_none() {
-                            status.set(S::idle());
-                        }
-                        r
-                    }
-                    Err(e) => {
-                        status.set(S::read_error(e));
-                        None
-                    }
-                }
-            }),
-        );
-        read_var
-            .hook(Box::new(clmv!(status, |_| {
-                status.set(S::idle());
-                true
-            })))
-            .perm();
-
-        (read_var, status.read_only())
+        WATCHER_SV.write().read_dir_status(dir.into(), recursive, init, read)
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
@@ -323,64 +268,22 @@ impl WATCHER {
     /// Same operation as [`sync`] but also tracks the operation status in a second var.
     ///
     /// The status variable is set to [`WatcherSyncStatus::writing`] as soon as it updates and
-    /// is set to [`WatcherReadStatus::idle`] only when it updates with new sync value.
+    /// is set to [`WatcherReadStatus::idle`] only when the new sync value is available, either
+    /// by update or because read the same value.
     ///
     /// [`sync`]: Self::sync
     pub fn sync_status<O, S, ER, EW>(
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
-        mut write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
+        read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
+        write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
     ) -> (ArcVar<O>, ReadOnlyArcVar<S>)
     where
         O: VarValue,
         S: WatcherSyncStatus<ER, EW>,
     {
-        let status = var(S::reading());
-        let next_var_update_status = Arc::new(Atomic::new(S::writing as fn() -> S));
-
-        let var = self.sync(
-            file,
-            init,
-            clmv!(status, next_var_update_status, |f| {
-                status.set(S::reading());
-                match read(f) {
-                    Ok(r) => {
-                        if r.is_some() {
-                            next_var_update_status.store(S::idle, atomic::Ordering::Relaxed);
-                        } else {
-                            status.set(S::idle());
-                        }
-                        r
-                    }
-                    Err(e) => {
-                        status.set(S::read_error(e));
-                        None
-                    }
-                }
-            }),
-            clmv!(status, |o, f| {
-                status.set(S::writing());
-                match write(o, f) {
-                    Ok(()) => {
-                        status.set(S::idle());
-                    }
-                    Err(e) => {
-                        status.set(S::write_error(e));
-                    }
-                }
-            }),
-        );
-
-        var.hook(Box::new(clmv!(status, |_| {
-            let status_fn = next_var_update_status.swap(S::writing, atomic::Ordering::Relaxed);
-            status.set(status_fn());
-            true
-        })))
-        .perm();
-
-        (var, status.read_only())
+        WATCHER_SV.write().sync_status(file.into(), init, read, write)
     }
 
     /// Watch `file` and calls `handler` every time it changes.
@@ -1097,9 +1000,54 @@ impl WatcherService {
         fn open(p: &Path) -> io::Result<WatchFile> {
             WatchFile::open(p)
         }
-        let (read, var) = ReadToVar::new(handle, file, init, open, read);
+        let (read, var) = ReadToVar::new(handle, file, init, open, read, || {});
         self.read_to_var.push(read);
         var
+    }
+
+    fn read_status<O, S, E>(
+        &mut self,
+        file: PathBuf,
+        init: O,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
+    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherReadStatus<E>,
+    {
+        let handle = self.watch(file.clone());
+        fn open(p: &Path) -> io::Result<WatchFile> {
+            WatchFile::open(p)
+        }
+        let status = var(S::reading());
+
+        let (read, var) = ReadToVar::new(
+            handle,
+            file,
+            init,
+            open,
+            clmv!(status, |d| {
+                status.set(S::reading());
+                match read(d) {
+                    Ok(r) => {
+                        if r.is_none() {
+                            status.set(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+            clmv!(status, || {
+                status.set(S::idle());
+            }),
+        );
+        self.read_to_var.push(read);
+
+        (var, status.read_only())
     }
 
     fn read_dir<O: VarValue>(
@@ -1116,9 +1064,58 @@ impl WatcherService {
         fn open_recursive(p: &Path) -> walkdir::WalkDir {
             walkdir::WalkDir::new(p).min_depth(1)
         }
-        let (read, var) = ReadToVar::new(handle, dir, init, if recursive { open_recursive } else { open }, read);
+        let (read, var) = ReadToVar::new(handle, dir, init, if recursive { open_recursive } else { open }, read, || {});
         self.read_to_var.push(read);
         var
+    }
+    fn read_dir_status<O, S, E>(
+        &mut self,
+        dir: PathBuf,
+        recursive: bool,
+        init: O,
+        mut read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
+    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherReadStatus<E>,
+    {
+        let status = var(S::reading());
+
+        let handle = self.watch_dir(dir.clone(), recursive);
+        fn open(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
+        }
+        fn open_recursive(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1)
+        }
+
+        let (read, var) = ReadToVar::new(
+            handle,
+            dir,
+            init,
+            if recursive { open_recursive } else { open },
+            clmv!(status, |d| {
+                status.set(S::reading());
+                match read(d) {
+                    Ok(r) => {
+                        if r.is_none() {
+                            status.set(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+            clmv!(status, || {
+                status.set(S::idle());
+            }),
+        );
+        self.read_to_var.push(read);
+
+        (var, status.read_only())
     }
 
     fn sync<O: VarValue>(
@@ -1130,9 +1127,69 @@ impl WatcherService {
     ) -> ArcVar<O> {
         let handle = self.watch(file.clone());
 
-        let (sync, var) = SyncWithVar::new(handle, file, init, read, write);
+        let (sync, var) = SyncWithVar::new(handle, file, init, read, write, || {});
         self.sync_with_var.push(sync);
         var
+    }
+
+    pub fn sync_status<O, S, ER, EW>(
+        &mut self,
+        file: PathBuf,
+        init: O,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
+        mut write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
+    ) -> (ArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherSyncStatus<ER, EW>,
+    {
+        let handle = self.watch(file.clone());
+
+        let status = var(S::reading());
+        let next_var_update_status = Arc::new(Atomic::new(S::writing as fn() -> S));
+
+        let (sync, var) = SyncWithVar::new(
+            handle,
+            file,
+            init,
+            clmv!(status, next_var_update_status, |f| {
+                status.set(S::reading());
+                match read(f) {
+                    Ok(r) => {
+                        if r.is_some() {
+                            // status handled by `on_modify`.
+                            next_var_update_status.store(S::idle, atomic::Ordering::Relaxed);
+                        } else {
+                            status.set(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+            clmv!(status, |o, f| {
+                status.set(S::writing());
+                match write(o, f) {
+                    Ok(()) => {
+                        status.set(S::idle());
+                    }
+                    Err(e) => {
+                        status.set(S::write_error(e));
+                    }
+                }
+            }),
+            clmv!(status, || {
+                let status_fn = next_var_update_status.swap(S::writing, atomic::Ordering::Relaxed);
+                status.set(status_fn());
+            }),
+        );
+
+        self.sync_with_var.push(sync);
+
+        (var, status.read_only())
     }
 
     fn on_watcher(&mut self, r: notify::Result<notify::Event>) {
@@ -1212,12 +1269,14 @@ impl ReadToVar {
         init: O,
         load: fn(&Path) -> R,
         read: impl FnMut(R) -> Option<O> + Send + 'static,
+        on_modify: impl Fn() + Send + Sync + 'static,
     ) -> (Self, ReadOnlyArcVar<O>) {
         if let Ok(p) = path.absolutize() {
             path = p.into_owned();
         }
         let path = Arc::new(path);
         let var = var(init);
+        let on_modify = Arc::new(on_modify);
 
         let pending = Arc::new(AtomicBool::new(false));
         let read = Arc::new(Mutex::new(read));
@@ -1245,12 +1304,15 @@ impl ReadToVar {
                 // another task already running.
                 return;
             }
-            task::spawn_wait(clmv!(read, wk_var, path, handle, pending, || {
+            task::spawn_wait(clmv!(read, wk_var, path, handle, pending, on_modify, || {
                 let mut read = read.lock();
                 while pending.swap(false, Ordering::Relaxed) {
                     if let Some(update) = read(load(path.as_path())) {
                         if let Some(var) = wk_var.upgrade() {
-                            var.set(update);
+                            var.modify(clmv!(on_modify, |vm| {
+                                vm.set(update);
+                                on_modify();
+                            }));
                         } else {
                             // var dropped
                             handle.force_drop();
@@ -1294,11 +1356,12 @@ struct SyncWithVar {
     handle: WatcherHandle,
 }
 impl SyncWithVar {
-    fn new<O, R, W>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W) -> (Self, ArcVar<O>)
+    fn new<O, R, W, U>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W, on_modify: U) -> (Self, ArcVar<O>)
     where
         O: VarValue,
         R: FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         W: FnMut(O, io::Result<WriteFile>) + Send + 'static,
+        U: Fn() + Send + Sync + 'static,
     {
         if let Ok(p) = file.absolutize() {
             file = p.into_owned();
@@ -1306,6 +1369,8 @@ impl SyncWithVar {
 
         let path = Arc::new(WatcherSyncWriteNote(file));
         let var = var(init);
+
+        let on_modify = Arc::new(on_modify);
 
         struct TaskData<R, W, O: VarValue> {
             pending: Atomic<SyncFlags>,
@@ -1381,7 +1446,7 @@ impl SyncWithVar {
                 // another spawn is already applying
                 return;
             }
-            task::spawn_wait(clmv!(task_data, path, handle, || {
+            task::spawn_wait(clmv!(task_data, path, handle, on_modify, || {
                 let mut read_write = task_data.read_write.lock();
                 let (read, write) = &mut *read_write;
 
@@ -1425,7 +1490,11 @@ impl SyncWithVar {
                         if let Some(update) = read(WatchFile::open(path.as_path())) {
                             if let Some(var) = task_data.wk_var.upgrade() {
                                 SyncFlags::atomic_insert(&task_data.pending, SyncFlags::SKIP_WRITE);
-                                var.set(update);
+
+                                var.modify(clmv!(on_modify, |vm| {
+                                    vm.set(update);
+                                    on_modify();
+                                }));
                             } else {
                                 handle.force_drop();
                                 return;
