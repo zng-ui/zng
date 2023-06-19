@@ -115,8 +115,8 @@ impl VARS {
     /// until the animation stops. Only one animation can control a variable at a time, if an animation loses control of a
     /// variable all attempts to modify it from inside the animation are ignored.
     ///
-    /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
-    /// from being affected by a running animation.
+    /// Later started animations steal control from previous animations, update, modify or set calls also remove the variable
+    /// from being affected by a running animation, even if just set to an equal value, that is, not actually updated.
     ///
     /// # Nested Animations
     ///

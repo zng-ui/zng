@@ -53,7 +53,7 @@ pub struct WidgetInfoTreeStats {
     /// Count of widgets that where reused from a previous tree.
     pub reused_widgets: u32,
 
-    /// Last window frame that touched this tree.
+    /// Last window frame that rendered this tree.
     ///
     /// Before the first render this is [`FrameId::INVALID`].
     pub last_frame: FrameId,

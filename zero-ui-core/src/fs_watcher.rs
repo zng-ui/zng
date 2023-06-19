@@ -271,8 +271,6 @@ impl WATCHER {
     /// to a temporary file and committing a replace only if the write succeeded. The file is write-locked for the duration
     /// of `write` call, but the contents are not touched until commit. See [`WriteFile`] for more details.
     ///
-    /// Note that the file is written even if the variable is only touched, the value is also cloned for each write.
-    ///
     /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel.
     ///
     /// ## Read Errors

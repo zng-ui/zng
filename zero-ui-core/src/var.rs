@@ -506,7 +506,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// If the variable current value was set by an active animation.
     ///
     /// The variable [`is_new`] when this changes to `true`, but it **may not be new** when the value changes to `false`.
-    /// If the variable is not touched at the last frame of the animation that has last set it, it will not update
+    /// If the variable is not updated at the last frame of the animation that has last set it, it will not update
     /// just because that animation has ended. You can use [`hook_animation_stop`] to get a notification when the
     /// last animation stops, or use [`wait_animation`] to get a future that is ready when `is_animating` changes
     /// from `true` to `false`.
@@ -601,8 +601,11 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [`Txt`]: crate::text::Txt
     fn get_debug(&self) -> crate::text::Txt;
 
-    /// Causes a variable update without actually changing the variable value.
-    fn touch(&self) -> Result<(), VarIsReadOnlyError>;
+    /// Schedule a variable update, even if the value does no change.
+    ///
+    /// Usually variables only notify update if the value is changed to a different one, calling
+    /// this method flags the variable to notify even if the value is equal.
+    fn update(&self) -> Result<(), VarIsReadOnlyError>;
 
     /// Create a [`map`] that converts from `T` to a [`Txt`] debug print.
     ///
@@ -890,9 +893,9 @@ macro_rules! impl_infallible_write {
             Var::set_ne(self, value).unwrap()
         }
 
-        /// Infallible [`AnyVar::touch`].
-        pub fn touch(&self) {
-            AnyVar::touch(self).unwrap()
+        /// Infallible [`AnyVar::update`].
+        pub fn update(&self) {
+            AnyVar::update(self).unwrap()
         }
 
         /// Infallible [`Var::set_from`].
@@ -934,42 +937,42 @@ use impl_infallible_write;
 
 /// Represents the current value in a [`Var::modify`] handler.
 pub struct VarModify<'a, T: VarValue> {
+    current_value: &'a T,
     value: Cow<'a, T>,
-    touched: bool,
+    update: bool,
     tags: Vec<Box<dyn AnyVarValue>>,
 }
 impl<'a, T: VarValue> VarModify<'a, T> {
     /// Replace the value.
+    ///
+    /// The variable will update if the new value is not equal to the previous after all modify closures apply.
     pub fn set(&mut self, new_value: T) {
         self.value = Cow::Owned(new_value);
-        self.touched = true;
     }
 
-    /// Cause an update without modifying the value.
-    pub fn touch(&mut self) {
-        self.touched = true;
+    /// Notify an update, even if the value does not actually change.
+    pub fn update(&mut self) {
+        self.update = true;
     }
 
-    /// Touch the value and returns a mutable reference for modification.
+    /// Returns a mutable reference for modification.
     ///
-    /// Note that this clones the current value.
+    /// Note that this clones the current value if this is the first modify closure requesting it.
+    ///
+    /// The variable will update if the new value is not equal to the previous after all modify closures apply.
     pub fn to_mut(&mut self) -> &mut T {
-        self.touched = true;
         self.value.to_mut()
     }
 
-    /// If the var hooks will be notified after this modify call.
-    pub fn is_touched(&self) -> bool {
-        self.touched
-    }
-
-    /// Reference a custom object that will be shared with the var hooks if the
-    /// value is touched.
+    /// Custom tags that will be shared with the var hooks if the value updates.
+    ///
+    /// The tags where set by previous modify closures or this one during this update cycle, so
+    /// tags can also be used to communicate between modify closures.
     pub fn tags(&self) -> &[Box<dyn AnyVarValue>] {
         &self.tags
     }
 
-    /// Add a custom tag object that will be shared with the var hooks if the value is touched.
+    /// Add a custom tag object that will be shared with the var hooks if the value updates.
     pub fn push_tag(&mut self, tag: impl AnyVarValue) {
         self.tags.push(Box::new(tag));
     }
@@ -984,24 +987,31 @@ impl<'a, T: VarValue> VarModify<'a, T> {
     }
 
     /// New from current value.
-    pub fn new(value: &'a T) -> Self {
+    pub fn new(current_value: &'a T) -> Self {
         Self {
-            value: Cow::Borrowed(value),
-            touched: false,
+            current_value,
+            value: Cow::Borrowed(current_value),
+            update: false,
             tags: vec![],
         }
     }
 
-    /// Returns `(notify, new_value, tags)`
+    /// Returns `(notify, new_value, tags)`.
     pub fn finish(self) -> (bool, Option<T>, Vec<Box<dyn AnyVarValue>>) {
-        (
-            self.touched,
-            match self.value {
-                Cow::Borrowed(_) => None,
-                Cow::Owned(v) => Some(v),
-            },
-            self.tags,
-        )
+        match self.value {
+            Cow::Borrowed(_) => {
+                if self.update {
+                    return (true, None, self.tags);
+                }
+            }
+            Cow::Owned(v) => {
+                let eq = self.current_value == &v;
+                if self.update || eq {
+                    return (true, if eq { None } else { Some(v) }, self.tags);
+                }
+            }
+        }
+        (false, None, vec![])
     }
 }
 impl<'a, T: VarValue> ops::Deref for VarModify<'a, T> {
@@ -1023,12 +1033,12 @@ pub struct VarHookArgs<'a> {
     tags: &'a [Box<dyn AnyVarValue>],
 }
 impl<'a> VarHookArgs<'a> {
-    /// New from touched value and custom tag.
+    /// New from updated value and custom tag.
     pub fn new(value: &'a dyn AnyVarValue, tags: &'a [Box<dyn AnyVarValue>]) -> Self {
         Self { value, tags }
     }
 
-    /// Reference the touched value.
+    /// Reference the updated value.
     pub fn value(&self) -> &dyn AnyVarValue {
         self.value
     }
@@ -1043,7 +1053,7 @@ impl<'a> VarHookArgs<'a> {
         self.tags
     }
 
-    /// Clone the custom tag objects set by the code that touched the value.
+    /// Clone the custom tag objects set by the code that updated the value.
     pub fn tags_vec(&self) -> Vec<Box<dyn AnyVarValue>> {
         self.tags.iter().map(|t| (*t).clone_boxed()).collect()
     }
@@ -1117,7 +1127,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Schedule a variable update, it will be applied on the end of the current app update.
     ///
-    /// The variable only updates if the [`VarModify`] is touched, set or modified.
+    /// The variable only updates if the [`VarModify`] explicitly requests update, or set/modified.
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static;
@@ -1409,11 +1419,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         }
     }
 
-    /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`ArcVar<T>`].
+    /// Create a ref-counted var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
     ///
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
-    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not touch the cloned value it is dropped and the cow
+    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not update the cloned value it is dropped and the cow
     /// continues to redirect to the source variable.
     fn cow(&self) -> types::ArcCowVar<T, Self> {
         types::ArcCowVar::new(self.clone())
@@ -1619,8 +1629,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// to generate a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*. The `map_back` closure
-    /// is called every time the output value is modified directly, if it returns `Some(_)` the source variable is set, otherwise the source
-    /// value is not touched.
+    /// is called every time the output value is modified directly, if it returns `Some(_)` the source variable is set.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
@@ -1877,7 +1886,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         VarReceiver::new(self, true)
     }
 
-    /// Add a preview `handler` that is called every time this variable value is set, modified or touched,
+    /// Add a preview `handler` that is called every time this variable updates,
     /// the handler is called before all other UI updates.
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
@@ -1888,7 +1897,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         var_on_new(self, handler, true)
     }
 
-    // Add a `handler` that is called every time this variable value is set, modified or touched,
+    // Add a `handler` that is called every time this variable updates,
     /// the handler is called after all other UI updates.
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
@@ -1901,7 +1910,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Debug helper for tracing the lifetime of a value in this variable.
     ///
-    /// The `enter_value` closure is called every time the variable value is set, modified or touched, it can return
+    /// The `enter_value` closure is called every time the variable updates, it can return
     /// an implementation agnostic *scope* or *span* `S` that is only dropped when the variable updates again.
     ///
     /// The `enter_value` is also called immediately when this method is called to start tracking the first value.
@@ -2466,11 +2475,11 @@ where
     }
 }
 
-fn var_touch<T>(var_value: &mut VarModify<T>)
+fn var_update<T>(var_value: &mut VarModify<T>)
 where
     T: VarValue,
 {
-    var_value.touch();
+    var_value.update();
 }
 
 fn var_debug<T>(value: &T) -> crate::text::Txt

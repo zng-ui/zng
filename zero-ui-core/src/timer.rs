@@ -169,7 +169,7 @@ impl TimersService {
                     return true; // retain
                 }
 
-                var.touch();
+                var.update();
             }
             false // don't retain
         });
@@ -184,7 +184,7 @@ impl TimersService {
 
                             if timer.elapsed(deadline.current_deadline()) {
                                 t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
-                                var.touch();
+                                var.update();
 
                                 deadline.last = now;
                                 timer.register(deadline.current_deadline());

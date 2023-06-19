@@ -64,9 +64,13 @@
 
 # Vars
 
-* Try to implement `VarValue: PartialEq`.
-    - We are missing some `*_ne`, no `bind_ne` for example.
+* Rename `touch` to `update` or something.
+    - `notify_new`?
 * Remove all `*_ne` stuff.
+    - Implement eq check directly in modify apply.
+* Previous value in hook?
+    - We are cloning anyway, could have the prev-value in a Cow.
+        - Owned if actually changed.
 
 * Config example and tests with errors.
 

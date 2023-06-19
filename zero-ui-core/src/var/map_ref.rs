@@ -122,8 +122,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.with(var_debug)
     }
 
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        Var::modify(self, var_touch)
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_update)
     }
 
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
@@ -344,8 +344,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.with(var_debug)
     }
 
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        Var::modify(self, var_touch)
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_update)
     }
 
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
@@ -406,13 +406,13 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         let map = self.map.clone();
         let map_mut = self.map_mut.clone();
         self.source.modify(move |vm| {
-            let (touched, new_value, tags) = {
+            let (update, new_value, tags) = {
                 let mut vm = VarModify::new(map(vm.as_ref()));
                 modify(&mut vm);
                 vm.finish()
             };
-            if touched {
-                vm.touch();
+            if update {
+                vm.update();
                 if let Some(nv) = new_value {
                     *map_mut(vm.to_mut()) = nv;
                 }

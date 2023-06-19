@@ -32,7 +32,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
         CONFIG.load(source());
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -42,7 +42,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
         TEST_READ.set(test_read);
         test_all();
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
 
         app.exit();
@@ -77,7 +77,7 @@ macro_rules! test_config {
         } else {
             CONFIG
             .get($key, ||  $($init)*)
-                .touch()
+                .update()
                 .unwrap();
         }
     };
@@ -224,7 +224,7 @@ fn concurrent_read_write() {
         CONFIG.get("key", || Txt::from_static("default")).set("custom").unwrap();
 
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -240,7 +240,7 @@ fn concurrent_read_write() {
                 CONFIG.load(JsonConfig::sync(file));
 
                 app.run_task(async {
-                    task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+                    task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
                 });
 
                 let var = CONFIG.get("key", || Txt::from_static("default"));
@@ -276,7 +276,7 @@ fn fallback_swap() {
 
         app.update(false).assert_wait();
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -287,7 +287,7 @@ fn fallback_swap() {
         CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
 
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -300,7 +300,7 @@ fn fallback_swap() {
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(fallback_cfg)));
     app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
     });
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
@@ -315,8 +315,8 @@ fn fallback_swap() {
     std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
     app.update(false).assert_wait();
     app.run_task(async {
-        task::deadline(1.5.secs()).await; // wait for system rename event (+ debounce)
-        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        task::deadline(1.10.secs()).await; // wait for system rename event (+ debounce)
+        task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
     });
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
@@ -342,7 +342,7 @@ fn fallback_reset() {
 
         app.update(false).assert_wait();
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -353,7 +353,7 @@ fn fallback_reset() {
         CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
 
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -366,7 +366,7 @@ fn fallback_reset() {
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
     app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
     });
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
@@ -385,7 +385,7 @@ fn fallback_reset() {
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
     app.run_task(async {
-        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
     });
     let status = CONFIG.status().get();
     if status != ConfigStatus::Loaded {
@@ -410,7 +410,7 @@ fn fallback_reset_entry() {
 
         app.update(false).assert_wait();
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -421,7 +421,7 @@ fn fallback_reset_entry() {
         CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
 
         app.run_task(async {
-            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+            task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {

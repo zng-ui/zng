@@ -61,7 +61,7 @@ impl AppExtension for ImageManager {
                 .map(|t| &t.image)
                 .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
             {
-                var.touch();
+                var.update();
             }
         } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update) {
             let image = &args.image;
@@ -76,7 +76,7 @@ impl AppExtension for ImageManager {
                 .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
             {
                 let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
-                image.touch();
+                image.update();
                 image.with(|img| img.done_signal.set());
             }
         } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
@@ -92,7 +92,7 @@ impl AppExtension for ImageManager {
                 .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
             {
                 let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
-                image.touch();
+                image.update();
                 image.with(|img| {
                     img.done_signal.set();
 

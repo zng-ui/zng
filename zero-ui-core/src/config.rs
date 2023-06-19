@@ -218,10 +218,11 @@ pub trait ConfigMap: VarValue + fmt::Debug {
         }
     }
 
-    /// Set the value, if you avoid touching the value the map is not written.
+    /// Set the value.
     ///
-    /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
-    /// before mutating the map to avoid a potentially expensive IO write.
+    /// If possible check if the entry already has the same value before mutating the map to avoid a
+    /// potentially expensive clone operation. Note that the map will only be written if the map actually
+    /// changes, or an update is explicitly requested.
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
     fn set<O: ConfigValue>(map: &mut VarModify<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {

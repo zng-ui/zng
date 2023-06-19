@@ -154,7 +154,6 @@ impl<T: VarValue> ResponseVar<T> {
     ///
     /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
-    /// [touched]: Var::touch
     /// [`is_done`]: Self::is_done
     pub fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
     where
@@ -182,7 +181,6 @@ impl<T: VarValue> ResponseVar<T> {
     ///
     /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
-    /// [touched]: Var::touch
     /// [`is_done`]: Self::is_done
     pub fn on_rsp<H>(&self, mut handler: H) -> VarHandle
     where

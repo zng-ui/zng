@@ -559,7 +559,7 @@ impl HeadedCtrl {
                     self.vars.0.actual_monitor.set_ne(None);
                 }
             }
-            self.vars.monitor().touch();
+            self.vars.monitor().update();
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 self.waiting_view = false;

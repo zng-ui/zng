@@ -188,8 +188,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.with(var_debug)
     }
 
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        Var::modify(self, var_touch)
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_update)
     }
 
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {

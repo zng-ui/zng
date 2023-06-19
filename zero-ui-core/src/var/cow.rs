@@ -66,12 +66,13 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
             match data {
                 Data::Source { source, hooks, .. } => {
-                    let (touched, new_value, tags) = source.with(|val| {
+                    // !!: review, this animation importance not checked?
+                    let (update, new_value, tags) = source.with(|val| {
                         let mut vm = VarModify::new(val);
                         modify(&mut vm);
                         vm.finish()
                     });
-                    if touched {
+                    if update {
                         let value = new_value.unwrap_or_else(|| source.get());
                         let hook_args = VarHookArgs::new(&value, &tags);
                         hooks.retain(|h| h.call(&hook_args));
@@ -98,13 +99,13 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         *animation = curr_anim;
                     }
 
-                    let (touched, new_value, tags) = {
+                    let (update, new_value, tags) = {
                         let mut vm = VarModify::new(value);
                         modify(&mut vm);
                         vm.finish()
                     };
 
-                    if touched {
+                    if update {
                         if let Some(nv) = new_value {
                             *value = nv;
                         }
@@ -237,8 +238,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         self.with(var_debug)
     }
 
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        Var::modify(self, var_touch)
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_update)
     }
 
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {

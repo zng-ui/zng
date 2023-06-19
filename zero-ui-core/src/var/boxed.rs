@@ -201,8 +201,8 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).get_debug()
     }
 
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        (**self).touch()
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        (**self).update()
     }
 
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
