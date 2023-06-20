@@ -664,8 +664,8 @@ impl WIDGET {
         }
 
         let prev_flags = match update_mode {
-            WidgetUpdateMode::Ignore => UpdateFlags::empty(),
-            WidgetUpdateMode::Bubble => ctx.0.as_mut().unwrap().flags.load(Relaxed),
+            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
+            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
         };
 
         // call `f` in context.
