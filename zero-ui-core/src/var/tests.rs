@@ -1021,8 +1021,8 @@ mod cow {
 
         let base_values = Arc::new(Mutex::new(vec![]));
         let cow_values = Arc::new(Mutex::new(vec![]));
-        base.trace_value(clmv!(base_values, |v| base_values.lock().push(v.value))).perm();
-        cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(v.value))).perm();
+        base.trace_value(clmv!(base_values, |v| base_values.lock().push(*v.value()))).perm();
+        cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(*v.value()))).perm();
 
         base.set(1);
         app.update(false).assert_wait();
@@ -1069,8 +1069,8 @@ mod multi {
 
         let a_values = Arc::new(Mutex::new(vec![]));
         let b_values = Arc::new(Mutex::new(vec![]));
-        a.trace_value(clmv!(a_values, |v| a_values.lock().push(v.value))).perm();
-        b.trace_value(clmv!(b_values, |v| b_values.lock().push(v.value))).perm();
+        a.trace_value(clmv!(a_values, |v| a_values.lock().push(*v.value()))).perm();
+        b.trace_value(clmv!(b_values, |v| b_values.lock().push(*v.value()))).perm();
 
         assert!(!a.get());
         assert_eq!(b.get(), 0);

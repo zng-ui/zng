@@ -1076,6 +1076,25 @@ impl<T: VarValue> Clone for OnVarArgs<T> {
     }
 }
 
+/// Args for [`Var::trace_value`].
+pub struct TraceValueArgs<'a, T: VarValue> {
+    args: &'a VarHookArgs<'a>,
+    _type: PhantomData<&'a T>,
+}
+impl<'a, T: VarValue> ops::Deref for TraceValueArgs<'a, T> {
+    type Target = VarHookArgs<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        self.args
+    }
+}
+impl<'a, T: VarValue> TraceValueArgs<'a, T> {
+    /// Strongly-typed reference to the new value.
+    pub fn value(&self) -> &'a T {
+        self.args.downcast_value::<T>().unwrap()
+    }
+}
+
 /// Represents an observable value.
 ///
 /// All variable types can be read, some can update, variables update only in between app updates so
@@ -1863,13 +1882,22 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`actual_var`]: Var::actual_var
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where
-        E: FnMut(&OnVarArgs<T>) -> S + Send + 'static,
+        E: FnMut(&TraceValueArgs<T>) -> S + Send + 'static,
         S: Send + 'static,
     {
-        let mut span = Some(enter_value(&OnVarArgs::new(self.get(), vec![])));
-        self.on_pre_new(app_hn!(|args, _| {
+        let span = self.with(|v| {
+            enter_value(&TraceValueArgs {
+                args: &VarHookArgs::new(v, false, &[]),
+                _type: PhantomData,
+            })
+        });
+        let data = Mutex::new((Some(span), enter_value));
+        self.hook(Box::new(move |args| {
+            let mut data = data.lock();
+            let (span, enter_value) = &mut *data;
             let _ = span.take();
-            span = Some(enter_value(args));
+            *span = Some(enter_value(&TraceValueArgs { args, _type: PhantomData }));
+            true
         }))
     }
 

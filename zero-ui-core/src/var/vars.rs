@@ -273,17 +273,18 @@ impl VARS {
 
             drop(vars);
             update_each_and_bindings(updates, 0);
+
             vars = VARS_SV.write();
             vars.updating_thread = None;
 
             if !vars.updates_after.get_mut().is_empty() {
-                drop(vars);
-
                 let depth = depth + 1;
                 if depth == 10 {
                     // high-pressure from worker threads, skip
                     return;
                 }
+
+                drop(vars);
                 Self::apply_updates_and_after(depth)
             }
         }

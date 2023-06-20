@@ -221,7 +221,7 @@ fn concurrent_read_write() {
         rmv_file_assert(&file);
         let mut app = App::default().run_headless(false);
         CONFIG.load(JsonConfig::sync(&file));
-        CONFIG.get("key", || Txt::from_static("default")).set("custom").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/custom")).set("custom").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
@@ -243,7 +243,7 @@ fn concurrent_read_write() {
                     task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
                 });
 
-                let var = CONFIG.get("key", || Txt::from_static("default"));
+                let var = CONFIG.get("key", || Txt::from_static("default/get"));
                 for _ in 0..8 {
                     assert_eq!("custom", var.get());
                     var.set("custom").unwrap();
@@ -272,7 +272,7 @@ fn fallback_swap() {
 
         let mut app = App::default().run_headless(false);
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -284,7 +284,7 @@ fn fallback_swap() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_prepared_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
@@ -309,7 +309,7 @@ fn fallback_swap() {
 
     app.update(false).assert_wait();
 
-    let key = CONFIG.get("key", || Txt::from_static("final-default"));
+    let key = CONFIG.get("key", || Txt::from_static("default/get"));
     assert_eq!("fallback", key.get());
 
     std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
@@ -338,7 +338,7 @@ fn fallback_reset() {
 
         let mut app = App::default().run_headless(false);
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -350,7 +350,7 @@ fn fallback_reset() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
@@ -375,7 +375,7 @@ fn fallback_reset() {
 
     app.update(false).assert_wait();
 
-    let key = CONFIG.get("key", || Txt::from_static("final-default"));
+    let key = CONFIG.get("key", || Txt::from_static("default/get"));
     assert_eq!("main", key.get());
 
     CONFIG.load(MemoryConfig::default());
@@ -406,7 +406,7 @@ fn fallback_reset_entry() {
 
         let mut app = App::default().run_headless(false);
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -418,7 +418,7 @@ fn fallback_reset_entry() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 10.secs()).await.unwrap();
@@ -448,7 +448,7 @@ fn fallback_reset_entry() {
         .unwrap();
     });
 
-    let key = cfg.get("key", || Txt::from_static("default"));
+    let key = cfg.get("key", || Txt::from_static("default/get"));
     assert_eq!("main", key.get());
 
     cfg.reset(&ConfigKey::from_static("key"));

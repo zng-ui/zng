@@ -765,12 +765,12 @@ impl<T: fmt::Debug + std::any::Any + Send + Sync> FsChangeNote for T {
 #[must_use = "the note is removed when the handle is dropped"]
 pub struct FsChangeNoteHandle(Arc<Arc<dyn FsChangeNote>>);
 
-/// Annotation for file watcher events.
+/// Annotation for file watcher events and var update tags.
 ///
 /// Identifies the [`WATCHER.sync`] file that is currently being written to.
 ///
 /// [`WATCHER.sync`]: WATCHER::sync
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct WatcherSyncWriteNote(PathBuf);
 impl WatcherSyncWriteNote {
     /// Deref.
@@ -1026,6 +1026,7 @@ impl WatcherService {
             file,
             init,
             open,
+            // read
             clmv!(status, |d| {
                 status.set(S::reading());
                 match read(d) {
@@ -1041,6 +1042,7 @@ impl WatcherService {
                     }
                 }
             }),
+            // on_modify
             clmv!(status, || {
                 status.set(S::idle());
             }),
@@ -1094,6 +1096,7 @@ impl WatcherService {
             dir,
             init,
             if recursive { open_recursive } else { open },
+            // read
             clmv!(status, |d| {
                 status.set(S::reading());
                 match read(d) {
@@ -1109,6 +1112,7 @@ impl WatcherService {
                     }
                 }
             }),
+            // on_modify
             clmv!(status, || {
                 status.set(S::idle());
             }),
@@ -1127,7 +1131,7 @@ impl WatcherService {
     ) -> ArcVar<O> {
         let handle = self.watch(file.clone());
 
-        let (sync, var) = SyncWithVar::new(handle, file, init, read, write, || {});
+        let (sync, var) = SyncWithVar::new(handle, file, init, read, write, |_| {});
         self.sync_with_var.push(sync);
         var
     }
@@ -1146,20 +1150,16 @@ impl WatcherService {
         let handle = self.watch(file.clone());
 
         let status = var(S::reading());
-        let next_var_update_status = Arc::new(Atomic::new(S::writing as fn() -> S));
-
         let (sync, var) = SyncWithVar::new(
             handle,
             file,
             init,
-            clmv!(status, next_var_update_status, |f| {
+            // read
+            clmv!(status, |f| {
                 status.set(S::reading());
                 match read(f) {
                     Ok(r) => {
-                        if r.is_some() {
-                            // status handled by `on_modify`.
-                            next_var_update_status.store(S::idle, atomic::Ordering::Relaxed);
-                        } else {
+                        if r.is_none() {
                             status.set(S::idle());
                         }
                         r
@@ -1170,8 +1170,9 @@ impl WatcherService {
                     }
                 }
             }),
+            // write
             clmv!(status, |o, f| {
-                status.set(S::writing());
+                status.set(S::writing()); // init write
                 match write(o, f) {
                     Ok(()) => {
                         status.set(S::idle());
@@ -1181,9 +1182,9 @@ impl WatcherService {
                     }
                 }
             }),
-            clmv!(status, || {
-                let status_fn = next_var_update_status.swap(S::writing, atomic::Ordering::Relaxed);
-                status.set(status_fn());
+            // hook&modify
+            clmv!(status, |is_read| {
+                status.set(if is_read { S::idle() } else { S::writing() });
             }),
         );
 
@@ -1356,30 +1357,48 @@ struct SyncWithVar {
     handle: WatcherHandle,
 }
 impl SyncWithVar {
-    fn new<O, R, W, U>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W, on_modify: U) -> (Self, ArcVar<O>)
+    fn new<O, R, W, U>(handle: WatcherHandle, mut file: PathBuf, init: O, read: R, write: W, var_hook_and_modify: U) -> (Self, ArcVar<O>)
     where
         O: VarValue,
         R: FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         W: FnMut(O, io::Result<WriteFile>) + Send + 'static,
-        U: Fn() + Send + Sync + 'static,
+        U: Fn(bool) + Send + Sync + 'static,
     {
         if let Ok(p) = file.absolutize() {
             file = p.into_owned();
         }
 
         let path = Arc::new(WatcherSyncWriteNote(file));
-        let var = var(init);
+        let latest_from_read = Arc::new(AtomicBool::new(false));
 
-        let on_modify = Arc::new(on_modify);
+        let var_hook_and_modify = Arc::new(var_hook_and_modify);
+
+        let var = var(init);
+        var.hook(Box::new(clmv!(
+            path,
+            latest_from_read,
+            var_hook_and_modify,
+            |args: &VarHookArgs| {
+                let is_read = args.downcast_tags::<Arc<WatcherSyncWriteNote>>().any(|n| n == &path);
+                latest_from_read.store(is_read, Ordering::Relaxed);
+                var_hook_and_modify(is_read);
+                true
+            }
+        )))
+        .perm();
+
+        type PendingFlag = u8;
+        const READ: PendingFlag = 0b01;
+        const WRITE: PendingFlag = 0b11;
 
         struct TaskData<R, W, O: VarValue> {
-            pending: Atomic<SyncFlags>,
+            pending: Atomic<PendingFlag>,
             read_write: Mutex<(R, W)>,
             wk_var: WeakArcVar<O>,
             last_write: Atomic<Option<Instant>>,
         }
         let task_data = Arc::new(TaskData {
-            pending: Atomic::new(SyncFlags::empty()),
+            pending: Atomic::new(0),
             read_write: Mutex::new((read, write)),
             wk_var: var.downgrade(),
             last_write: Atomic::new(None),
@@ -1397,20 +1416,21 @@ impl SyncWithVar {
 
             let mut debounce = None;
 
+            let mut pending = 0;
+
             match ev {
                 SyncEvent::Update(sync_debounce) => {
-                    if var.is_new() && !SyncFlags::pop(&task_data.pending, SyncFlags::SKIP_WRITE) {
+                    if var.is_new() && !latest_from_read.load(Ordering::Relaxed) {
                         debounce = Some(sync_debounce);
-                        SyncFlags::atomic_insert(&task_data.pending, SyncFlags::WRITE);
+                        pending |= WRITE;
                     } else {
                         return;
                     }
                 }
                 SyncEvent::Event(args) => {
                     if args.rescan() {
-                        SyncFlags::atomic_insert(&task_data.pending, SyncFlags::READ);
+                        pending |= READ;
                     } else {
-                        let mut read = false;
                         'ev: for ev in args.changes_for_path(&path) {
                             for note in ev.notes::<WatcherSyncWriteNote>() {
                                 if path.as_path() == note.as_path() {
@@ -1419,20 +1439,19 @@ impl SyncWithVar {
                                 }
                             }
 
-                            SyncFlags::atomic_insert(&task_data.pending, SyncFlags::READ);
-                            read = true;
+                            pending |= READ;
                             break;
                         }
-                        if !read {
+                        if pending == 0 {
                             return;
                         }
                     }
                 }
                 SyncEvent::Init => {
                     if path.exists() {
-                        SyncFlags::atomic_insert(&task_data.pending, SyncFlags::READ);
+                        pending |= READ;
                     } else {
-                        SyncFlags::atomic_insert(&task_data.pending, SyncFlags::WRITE);
+                        pending |= WRITE;
                     }
                 }
                 SyncEvent::FlushShutdown => {
@@ -1442,19 +1461,20 @@ impl SyncWithVar {
             };
             drop(var);
 
+            task_data.pending.fetch_or(pending, Ordering::Relaxed);
+
             if task_data.read_write.try_lock().is_none() {
                 // another spawn is already applying
                 return;
             }
-            task::spawn_wait(clmv!(task_data, path, handle, on_modify, || {
+            task::spawn_wait(clmv!(task_data, path, var_hook_and_modify, handle, || {
                 let mut read_write = task_data.read_write.lock();
                 let (read, write) = &mut *read_write;
 
                 loop {
-                    let w = SyncFlags::pop(&task_data.pending, SyncFlags::WRITE);
-                    let r = SyncFlags::pop(&task_data.pending, SyncFlags::READ);
+                    let pending = task_data.pending.swap(0, Ordering::Relaxed);
 
-                    if w {
+                    if pending == WRITE {
                         if let Some(d) = debounce {
                             if let Some(t) = task_data.last_write.load(Ordering::Relaxed) {
                                 let elapsed = t.elapsed();
@@ -1481,7 +1501,7 @@ impl SyncWithVar {
                             handle.force_drop();
                             return;
                         }
-                    } else if r {
+                    } else if pending == READ {
                         if task_data.wk_var.strong_count() == 0 {
                             handle.force_drop();
                             return;
@@ -1489,11 +1509,10 @@ impl SyncWithVar {
 
                         if let Some(update) = read(WatchFile::open(path.as_path())) {
                             if let Some(var) = task_data.wk_var.upgrade() {
-                                SyncFlags::atomic_insert(&task_data.pending, SyncFlags::SKIP_WRITE);
-
-                                var.modify(clmv!(on_modify, |vm| {
+                                var.modify(clmv!(path, var_hook_and_modify, |vm| {
                                     vm.set(update);
-                                    on_modify();
+                                    vm.push_tag(path);
+                                    var_hook_and_modify(true);
                                 }));
                             } else {
                                 handle.force_drop();
@@ -1541,40 +1560,6 @@ enum SyncEvent<'a> {
     Event(&'a FsChangesArgs),
     Init,
     FlushShutdown,
-}
-bitflags! {
-    #[derive(Clone, Copy)]
-    struct SyncFlags: u8 {
-        const READ       = 0b0000_0001;
-        const WRITE      = 0b0000_0010;
-        const SKIP_WRITE = 0b0010_0000;
-    }
-}
-impl SyncFlags {
-    fn atomic_insert(f: &Atomic<Self>, flag: Self) {
-        let _ = f.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |mut f| {
-            if f.contains(flag) {
-                None
-            } else {
-                f.insert(flag);
-                Some(f)
-            }
-        });
-    }
-
-    fn pop(f: &Atomic<Self>, flag: Self) -> bool {
-        let mut contains = false;
-        let _ = f.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |mut f| {
-            if f.contains(flag) {
-                contains = true;
-                f.remove(flag);
-                Some(f)
-            } else {
-                None
-            }
-        });
-        contains
-    }
 }
 
 struct Watchers {

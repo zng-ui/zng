@@ -44,6 +44,14 @@
 
 * Refactor into an extension trait.
     - Is more discoverable as an extension trait, maybe suggested by tooling (rustc, ra)?
+```rust
+/// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
+#[allow(non_camel_case_types)]
+pub trait WINDOW_Ext {
+
+}
+impl WINDOW_Ext for WINDOW { }
+```
 
 # View-Process
 
@@ -67,3 +75,13 @@
 * Image paste some pixel columns swapped (wrap around start).
     - Some corrupted pixels, probably same reason.
 * Screenshot paste does not have scale-factor.
+
+# Config
+
+* Status race condition:
+    - Test `fallback_reset_entry` in a loop.
+    - Initial write starts immediately.
+    - At the "same time" the config updates to an actual value (status set to write).
+    - Initial write finishes, sets status to idle.
+        - Waiter is released.
+    - Actual value write starts.

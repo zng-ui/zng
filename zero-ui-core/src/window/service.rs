@@ -1377,17 +1377,6 @@ impl fmt::Debug for WindowLoadingHandle {
     }
 }
 
-/*
-
-/// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
-#[allow(non_camel_case_types)]
-pub trait WINDOW_Ext {
-
-}
-impl WINDOW_Ext for WINDOW { }
-
- */
-
 /// Control and variables of the context [`WINDOW`] created using [`WINDOWS`].
 #[allow(non_camel_case_types)]
 pub struct WINDOW_CTRL;
