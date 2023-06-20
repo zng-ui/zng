@@ -1084,3 +1084,58 @@ mod multi {
         assert_eq!(&b_values.lock()[..], &[0, 1]);
     }
 }
+
+mod threads {
+    use crate::{app::App, task};
+
+    use super::*;
+
+    #[test]
+    fn set_from_other_thread_once() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(1);
+
+        task::spawn(async_clmv!(test, {
+            test.set(2);
+        }));
+
+        let test = async move {
+            while test.get() != 2 {
+                test.wait_update().await;
+            }
+        };
+        app.run_task(task::with_deadline(test, 1.secs())).unwrap().unwrap();
+    }
+
+    #[test]
+    fn set_from_other_thread_many() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(1);
+
+        task::spawn(async_clmv!(test, {
+            for i in 2..=1000 {
+                test.set(i);
+                if i % 10 == 0 {
+                    task::deadline(2.ms()).await;
+                }
+            }
+        }));
+
+        let mut prev = 0;
+        let test = async move {
+            loop {
+                let new = test.get();
+                assert!(prev < new, "{prev} < {new}");
+                if new == 1000 {
+                    break;
+                }
+                prev = new;
+                test.wait_update().await;
+            }
+        };
+
+        app.run_task(task::with_deadline(test, 5.secs())).unwrap().unwrap();
+    }
+}

@@ -223,7 +223,7 @@ impl L10N {
 
         let status = self.available_langs_status();
         while matches!(status.get(), LangResourceStatus::Loading) {
-            status.wait_is_new().await;
+            status.wait_update().await;
         }
     }
 

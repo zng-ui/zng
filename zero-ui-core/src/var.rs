@@ -78,7 +78,7 @@ pub mod types {
     pub use super::cow::{ArcCowVar, WeakCowVar};
     pub use super::expr::__expr_var;
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
-    pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
+    pub use super::future::{WaitIsNotAnimatingFut, WaitUpdateFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, MergeVarInputs, WeakMergeVar, __merge_var};
     pub use super::property_build_action::easing_property;
@@ -1148,7 +1148,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The returned variable can still update if `self` is modified, but it does not have the `MODIFY` capability.
     fn read_only(&self) -> Self::ReadOnly;
 
-    /// Create a future that awaits for the [`VarUpdateId`] to change.
+    /// Create a future that awaits for the [`last_update`] to change.
     ///
     /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in [`UiTask`] updated
     /// by the UI tree, but the future will elapse in any thread when the variable updates after the future is instantiated.
@@ -1157,10 +1157,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_is_new`.
     ///
     /// [`get`]: Var::get
+    /// [`last_update`]: Var::last_update
     /// [`is_new`]: AnyVar::is_new
     /// [`UiTask`]: crate::task::ui::UiTask
-    fn wait_is_new(&self) -> types::WaitIsNewFut<Self> {
-        types::WaitIsNewFut::new(self)
+    fn wait_update(&self) -> types::WaitUpdateFut<Self> {
+        types::WaitUpdateFut::new(self)
     }
 
     /// Create a future that awaits for [`is_animating`] to change from `true` to `false`.
@@ -1255,21 +1256,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: PartialEq,
     {
         self.is_new() && self.get_ne(value)
-    }
-
-    /// Create a future that awaits until the [`VarUpdateId`] changes and yields [`get`].
-    ///
-    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in [`UiTask`] updated
-    /// by the UI tree, but the future will elapse in any thread when the variable updates after the future is instantiated.
-    ///
-    /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
-    /// a sequence of `get(); wait_new().await; get();` can miss a value between `get` and `wait_new`.
-    ///
-    /// [`get`]: Var::get
-    /// [`is_new`]: AnyVar::is_new
-    /// [`UiTask`]: crate::task::ui::UiTask
-    fn wait_new(&self) -> types::WaitNewFut<T, Self> {
-        types::WaitNewFut::new(self)
     }
 
     /// Schedule a new `value` for the variable, it will be set in the end of the current app update.

@@ -94,7 +94,7 @@ impl CONFIG {
 
         let status = self.status();
         while !status.get().is_idle() {
-            status.wait_is_new().await;
+            status.wait_update().await;
         }
     }
 

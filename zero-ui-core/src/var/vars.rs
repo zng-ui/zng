@@ -248,6 +248,9 @@ impl VARS {
     }
 
     pub(crate) fn apply_updates(&self) {
+        Self::apply_updates_and_after(0)
+    }
+    fn apply_updates_and_after(depth: u8) {
         let mut vars = VARS_SV.write();
 
         vars.update_id.next();
@@ -255,30 +258,34 @@ impl VARS {
         drop(vars);
 
         let mut vars = VARS_SV.write();
-        let updates = mem::take(vars.updates.get_mut());
-
+        // updates requested by other threads while was applying updates
+        let mut updates = mem::take(vars.updates_after.get_mut());
         // normal updates
+        if updates.is_empty() {
+            updates = mem::take(vars.updates.get_mut());
+        } else {
+            updates.append(vars.updates.get_mut());
+        }
+        // apply pending updates
         if !updates.is_empty() {
             debug_assert!(vars.updating_thread.is_none());
             vars.updating_thread = Some(std::thread::current().id());
 
             drop(vars);
             update_each_and_bindings(updates, 0);
-        }
-
-        // updated requested by other threads while was applying normal updates
-        let mut vars = VARS_SV.write();
-        let updates_after = mem::take(vars.updates_after.get_mut());
-        if !updates_after.is_empty() {
-            if vars.updating_thread.is_none() {
-                vars.updating_thread = Some(std::thread::current().id());
-            }
-            drop(vars);
-            update_each_and_bindings(updates_after, 0);
-
-            VARS_SV.write().updating_thread = None;
-        } else {
+            vars = VARS_SV.write();
             vars.updating_thread = None;
+
+            if !vars.updates_after.get_mut().is_empty() {
+                drop(vars);
+
+                let depth = depth + 1;
+                if depth == 10 {
+                    // high-pressure from worker threads, skip
+                    return;
+                }
+                Self::apply_updates_and_after(depth)
+            }
         }
 
         fn update_each_and_bindings(updates: Vec<(ModifyInfo, VarUpdateFn)>, depth: u16) {

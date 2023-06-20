@@ -439,7 +439,7 @@ fn fallback_reset_entry() {
         task::with_deadline(
             async move {
                 while !status.get().is_idle() {
-                    status.wait_is_new().await;
+                    status.wait_update().await;
                 }
             },
             5.secs(),
@@ -462,7 +462,7 @@ fn fallback_reset_entry() {
         task::with_deadline(
             async move {
                 while !status.get().is_idle() {
-                    status.wait_is_new().await;
+                    status.wait_update().await;
                 }
             },
             5.secs(),

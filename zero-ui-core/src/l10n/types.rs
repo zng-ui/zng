@@ -74,7 +74,7 @@ impl LangResource {
     /// Await resource status to not be loading.
     pub async fn wait(&self) {
         while matches!(self.status.get(), LangResourceStatus::Loading) {
-            self.status.wait_is_new().await;
+            self.status.wait_update().await;
         }
     }
 }
