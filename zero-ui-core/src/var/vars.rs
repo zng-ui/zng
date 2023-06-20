@@ -1,4 +1,4 @@
-use std::{mem, time::Duration};
+use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_view_api::AnimationsConfig;
 
@@ -43,6 +43,8 @@ pub(crate) struct VarsService {
     update_id: VarUpdateId,
 
     updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
+    updating_thread: Option<ThreadId>,
+    updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
     modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
 }
@@ -52,6 +54,8 @@ impl VarsService {
             ans: Animations::new(),
             update_id: VarUpdateId(1),
             updates: Mutex::new(vec![]),
+            updating_thread: None,
+            updates_after: Mutex::new(vec![]),
             modify_receivers: Mutex::new(vec![]),
         }
     }
@@ -227,8 +231,20 @@ impl VARS {
             Some(current) => current, // override set by modify and animation closures.
             None => vars.ans.current_modify.clone(),
         };
-        vars.updates.lock().push((curr_modify, update));
-        UPDATES.send_awake();
+
+        if let Some(id) = vars.updating_thread {
+            if std::thread::current().id() == id {
+                // is binding request, enqueue for immediate exec.
+                vars.updates.lock().push((curr_modify, update));
+            } else {
+                // is request from app task thread when we are already updating, enqueue for exec after current update.
+                vars.updates_after.lock().push((curr_modify, update));
+            }
+        } else {
+            // request from any app thread,
+            vars.updates.lock().push((curr_modify, update));
+            UPDATES.send_awake();
+        }
     }
 
     pub(crate) fn apply_updates(&self) {
@@ -240,10 +256,30 @@ impl VARS {
 
         let mut vars = VARS_SV.write();
         let updates = mem::take(vars.updates.get_mut());
-        if updates.is_empty() {
-            return;
+
+        // normal updates
+        if !updates.is_empty() {
+            debug_assert!(vars.updating_thread.is_none());
+            vars.updating_thread = Some(std::thread::current().id());
+
+            drop(vars);
+            update_each_and_bindings(updates, 0);
         }
-        drop(vars);
+
+        // updated requested by other threads while was applying normal updates
+        let mut vars = VARS_SV.write();
+        let updates_after = mem::take(vars.updates_after.get_mut());
+        if !updates_after.is_empty() {
+            if vars.updating_thread.is_none() {
+                vars.updating_thread = Some(std::thread::current().id());
+            }
+            drop(vars);
+            update_each_and_bindings(updates_after, 0);
+
+            VARS_SV.write().updating_thread = None;
+        } else {
+            vars.updating_thread = None;
+        }
 
         fn update_each_and_bindings(updates: Vec<(ModifyInfo, VarUpdateFn)>, depth: u16) {
             if depth == 1000 {
@@ -265,7 +301,6 @@ impl VARS {
                 }
             }
         }
-        update_each_and_bindings(updates, 0);
     }
 
     pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn() -> bool + Send>) {
