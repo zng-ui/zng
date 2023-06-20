@@ -62,12 +62,6 @@
 
 * `is_hovered` does not update back to `true` when the hovered widget is enabled.
 
-# Vars
-
-* Merge.
-
-* Config example and tests with errors.
-
 # Image Paste
 
 * Image paste some pixel columns swapped (wrap around start).
