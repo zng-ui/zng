@@ -62,6 +62,11 @@
 
 * `is_hovered` does not update back to `true` when the hovered widget is enabled.
 
+# Vars/Config
+
+* Config examples does not update visual.
+    - It does save, after reload the value is updated.
+
 # Image Paste
 
 * Image paste some pixel columns swapped (wrap around start).
