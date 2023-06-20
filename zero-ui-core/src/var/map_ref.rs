@@ -79,7 +79,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.hook(Box::new(move |args| {
             if let Some(value) = args.downcast_value() {
                 let value = map(value);
-                pos_modify_action(&VarHookArgs::new(value, args.tags()))
+                pos_modify_action(&VarHookArgs::new(value, args.update(), args.tags()))
             } else {
                 true
             }
@@ -301,7 +301,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.hook(Box::new(move |args| {
             if let Some(value) = args.downcast_value() {
                 let value = map(value);
-                pos_modify_action(&VarHookArgs::new(value, args.tags()))
+                pos_modify_action(&VarHookArgs::new(value, args.update(), args.tags()))
             } else {
                 true
             }
@@ -406,13 +406,15 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         let map = self.map.clone();
         let map_mut = self.map_mut.clone();
         self.source.modify(move |vm| {
-            let (update, new_value, tags) = {
+            let (notify, new_value, update, tags) = {
                 let mut vm = VarModify::new(map(vm.as_ref()));
                 modify(&mut vm);
                 vm.finish()
             };
-            if update {
-                vm.update();
+            if notify {
+                if update {
+                    vm.update();
+                }
                 if let Some(nv) = new_value {
                     *map_mut(vm.to_mut()) = nv;
                 }

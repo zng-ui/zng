@@ -52,7 +52,7 @@ where
                         data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
                         data.last_update = VARS.update_id();
                         data.var.with(|value| {
-                            let args = VarHookArgs::new(value, args.tags());
+                            let args = VarHookArgs::new(value, args.update(), args.tags());
                             data.hooks.retain(|h| h.call(&args));
                         });
                     }

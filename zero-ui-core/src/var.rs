@@ -969,21 +969,21 @@ impl<'a, T: VarValue> VarModify<'a, T> {
         }
     }
 
-    /// Returns `(notify, new_value, tags)`.
-    pub fn finish(self) -> (bool, Option<T>, Vec<Box<dyn AnyVarValue>>) {
+    /// Returns `(notify, new_value, update, tags)`.
+    pub fn finish(self) -> (bool, Option<T>, bool, Vec<Box<dyn AnyVarValue>>) {
         match self.value {
             Cow::Borrowed(_) => {
                 if self.update {
-                    return (true, None, self.tags);
+                    return (true, None, true, self.tags);
                 }
             }
             Cow::Owned(v) => {
                 if self.update || self.current_value != &v {
-                    return (true, Some(v), self.tags);
+                    return (true, Some(v), self.update, self.tags);
                 }
             }
         }
-        (false, None, vec![])
+        (false, None, false, vec![])
     }
 }
 impl<'a, T: VarValue> ops::Deref for VarModify<'a, T> {
@@ -1002,17 +1002,25 @@ impl<'a, T: VarValue> std::convert::AsRef<T> for VarModify<'a, T> {
 /// Arguments for [`AnyVar::hook`].
 pub struct VarHookArgs<'a> {
     value: &'a dyn AnyVarValue,
+    update: bool,
     tags: &'a [Box<dyn AnyVarValue>],
 }
 impl<'a> VarHookArgs<'a> {
     /// New from updated value and custom tag.
-    pub fn new(value: &'a dyn AnyVarValue, tags: &'a [Box<dyn AnyVarValue>]) -> Self {
-        Self { value, tags }
+    pub fn new(value: &'a dyn AnyVarValue, update: bool, tags: &'a [Box<dyn AnyVarValue>]) -> Self {
+        Self { value, update, tags }
     }
 
     /// Reference the updated value.
-    pub fn value(&self) -> &dyn AnyVarValue {
+    pub fn value(&self) -> &'a dyn AnyVarValue {
         self.value
+    }
+
+    /// If update was explicitly requested.
+    ///
+    /// Note that bindings/mappings propagate this update request.
+    pub fn update(&self) -> bool {
+        self.update
     }
 
     /// Value type ID.
@@ -1604,8 +1612,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         #[cfg(not(dyn_closure))]
         let mut map = map;
 
-        var_bind(self, other, move |value, _, other| {
-            let _ = other.set(map(value));
+        var_bind(self, other, move |value, args, other| {
+            let value = map(value);
+            let update = args.update;
+            let _ = other.modify(move |vm| {
+                vm.set(value);
+                if update {
+                    vm.update();
+                }
+            });
         })
     }
 
@@ -1627,9 +1642,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         #[cfg(not(dyn_closure))]
         let mut map = map;
 
-        var_bind(self, other, move |value, _, other| {
+        var_bind(self, other, move |value, args, other| {
             if let Some(value) = map(value) {
-                let _ = other.set(value);
+                let update = args.update;
+                let _ = other.modify(move |vm| {
+                    vm.set(value);
+                    if update {
+                        vm.update();
+                    }
+                });
             }
         })
     }
@@ -1655,9 +1676,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
             if !is_from_other {
                 let value = map(value);
+                let update = args.update;
                 let _ = other.modify(move |vm| {
                     vm.set(value);
                     vm.push_tag(binding_tag);
+                    if update {
+                        vm.update();
+                    }
                 });
             }
         });
@@ -1666,9 +1691,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
             if !is_from_self {
                 let value = map_back(value);
+                let update = args.update;
                 let _ = self_.modify(move |vm| {
                     vm.set(value);
                     vm.push_tag(binding_tag);
+                    if update {
+                        vm.update();
+                    }
                 });
             }
         });
@@ -1696,9 +1725,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
             if !is_from_other {
                 if let Some(value) = map(value) {
+                    let update = args.update;
                     let _ = other.modify(move |vm| {
                         vm.set(value);
                         vm.push_tag(binding_tag);
+                        if update {
+                            vm.update();
+                        }
                     });
                 }
             }
@@ -1708,9 +1741,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
             if !is_from_self {
                 if let Some(value) = map_back(value) {
+                    let update = args.update;
                     let _ = self_.modify(move |vm| {
                         vm.set(value);
                         vm.push_tag(binding_tag);
+                        if update {
+                            vm.update();
+                        }
                     });
                 }
             }
@@ -2039,9 +2076,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
             let easing_fn = easing_fn.clone();
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, _, easing_var| {
+            var_bind(&source, &easing_var, move |value, args, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
+                if args.update {
+                    easing_var.update();
+                }
             })
             .perm();
             easing_var.read_only()

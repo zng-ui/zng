@@ -66,20 +66,20 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
             match data {
                 Data::Source { source, hooks, .. } => {
-                    let (update, new_value, tags) = source.with(|val| {
+                    let (notify, new_value, update, tags) = source.with(|val| {
                         let mut vm = VarModify::new(val);
                         modify(&mut vm);
                         vm.finish()
                     });
                     let value = new_value.unwrap_or_else(|| source.get());
-                    if update {
-                        let hook_args = VarHookArgs::new(&value, &tags);
+                    if notify {
+                        let hook_args = VarHookArgs::new(&value, update, &tags);
                         hooks.retain(|h| h.call(&hook_args));
                         UPDATES.update(None);
                     }
                     *data = Data::Owned {
                         value,
-                        last_update: if update { VARS.update_id() } else { source.last_update() },
+                        last_update: if notify { VARS.update_id() } else { source.last_update() },
                         hooks: mem::take(hooks),
                         animation: VARS.current_modify(),
                     };
@@ -98,18 +98,18 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         *animation = curr_anim;
                     }
 
-                    let (update, new_value, tags) = {
+                    let (notify, new_value, update, tags) = {
                         let mut vm = VarModify::new(value);
                         modify(&mut vm);
                         vm.finish()
                     };
 
-                    if update {
+                    if notify {
                         if let Some(nv) = new_value {
                             *value = nv;
                         }
                         *last_update = VARS.update_id();
-                        let hook_args = VarHookArgs::new(value, &tags);
+                        let hook_args = VarHookArgs::new(value, update, &tags);
                         hooks.retain(|h| h.call(&hook_args));
                         UPDATES.update(None);
                     }

@@ -317,7 +317,7 @@ impl<T: VarValue> ArcWhenVar<T> {
 
                 if update {
                     drop(data);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
+                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, false, args.tags_vec()));
                 }
 
                 true
@@ -333,7 +333,7 @@ impl<T: VarValue> ArcWhenVar<T> {
                 let data = rc_when.w.lock();
                 if data.active == i {
                     drop(data);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
+                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.update(), args.tags_vec()));
                 }
                 true
             } else {
@@ -342,7 +342,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         })
     }
 
-    fn apply_update(rc_merge: Arc<Data<T>>, tags: Vec<Box<dyn AnyVarValue>>) -> VarUpdateFn {
+    fn apply_update(rc_merge: Arc<Data<T>>, update: bool, tags: Vec<Box<dyn AnyVarValue>>) -> VarUpdateFn {
         Box::new(move || {
             let mut data = rc_merge.w.lock();
             let data = &mut *data;
@@ -363,7 +363,7 @@ impl<T: VarValue> ArcWhenVar<T> {
             };
 
             active.with(|value| {
-                let args = VarHookArgs::new(value, &tags);
+                let args = VarHookArgs::new(value, update, &tags);
                 data.hooks.retain(|h| h.call(&args));
             });
             UPDATES.update(None);

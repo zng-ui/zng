@@ -320,7 +320,7 @@ impl<T: VarValue> VarData<T> {
             meta.animation = curr_anim;
         }
 
-        let (notify, new_value, tags) = self.with(|value| {
+        let (notify, new_value, update, tags) = self.with(|value| {
             let mut value = VarModify::new(value);
             modify(&mut value);
             value.finish()
@@ -334,7 +334,7 @@ impl<T: VarValue> VarData<T> {
             meta.last_update = VARS.update_id();
 
             self.with(|val| {
-                let args = VarHookArgs::new(val, &tags);
+                let args = VarHookArgs::new(val, update, &tags);
                 meta.hooks.retain(|h| h.call(&args));
             });
             UPDATES.update(None);

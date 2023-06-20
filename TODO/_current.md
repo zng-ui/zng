@@ -64,9 +64,6 @@
 
 # Vars
 
-* Previous value in hook?
-    - We are cloning anyway, could have the prev-value in a Cow.
-        - Owned if actually changed.
 * Merge.
 
 * Config example and tests with errors.
