@@ -234,7 +234,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         }
                     }
                     TooltipState::Closed => {
-                        if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != disabled_only {
+                        if (disabled_only && args.is_mouse_enter_disabled()) || args.is_mouse_enter_enabled() {
                             let mut delay = if TOOLTIP_LAST_CLOSED
                                 .get()
                                 .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())

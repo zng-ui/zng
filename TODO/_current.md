@@ -49,10 +49,6 @@
 * Implement OpenGL example.
     - Overlay and texture image.
 
-# Tooltip
-
-* `tooltip` -> `disable_tooltip` do not swap when widget is disabled while the tooltip is visible.
-
 # Clipboard
 
 * Move provider to view-process.
