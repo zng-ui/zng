@@ -89,7 +89,7 @@ fn image() -> impl UiNode {
 }
 
 fn window_status() -> impl UiNode {
-    let vars = WINDOW_CTRL.vars();
+    let vars = WINDOW.vars();
 
     macro_rules! status {
         ($name:ident) => {

@@ -10,7 +10,7 @@ use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 
 use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
-    context::LayoutMetrics,
+    context::{LayoutMetrics, WINDOW},
     impl_from_and_into_var,
     render::RenderMode,
     task::{self, SignalOnce},
@@ -18,7 +18,7 @@ use crate::{
     units::*,
     var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
-    window::{FrameCaptureMode, WindowId, WindowRoot, WINDOW_CTRL},
+    window::{FrameCaptureMode, WINDOW_Ext, WindowId, WindowRoot},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
@@ -554,7 +554,7 @@ impl ImageSource {
     {
         Self::Render(
             Arc::new(Box::new(move |args| {
-                let vars = WINDOW_CTRL.vars();
+                let vars = WINDOW.vars();
                 vars.parent().set(args.parent);
                 let r = new_img(args);
                 vars.frame_capture_mode().set(FrameCaptureMode::All);
@@ -595,7 +595,7 @@ impl ImageSource {
         N: Fn(&ImageRenderArgs) -> U + Send + Sync + 'static,
     {
         Self::render(move |args| {
-            WINDOW_CTRL.vars().parent().set(args.parent);
+            WINDOW.vars().parent().set(args.parent);
             let node = render(args);
             WindowRoot::new_container(
                 crate::widget_instance::WidgetId::new_unique(),

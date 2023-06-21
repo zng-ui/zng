@@ -253,11 +253,18 @@ impl VARS {
     fn apply_updates_and_after(depth: u8) {
         let mut vars = VARS_SV.write();
 
-        vars.update_id.next();
-        vars.ans.animation_start_time = None;
-        drop(vars);
+        match depth {
+            0 => {
+                vars.update_id.next();
+                vars.ans.animation_start_time = None;
+            }
+            10 => {
+                // high-pressure from worker threads, skip
+                return;
+            }
+            _ => {}
+        }
 
-        let mut vars = VARS_SV.write();
         // updates requested by other threads while was applying updates
         let mut updates = mem::take(vars.updates_after.get_mut());
         // normal updates
@@ -278,14 +285,8 @@ impl VARS {
             vars.updating_thread = None;
 
             if !vars.updates_after.get_mut().is_empty() {
-                let depth = depth + 1;
-                if depth == 10 {
-                    // high-pressure from worker threads, skip
-                    return;
-                }
-
                 drop(vars);
-                Self::apply_updates_and_after(depth)
+                Self::apply_updates_and_after(depth + 1)
             }
         }
 

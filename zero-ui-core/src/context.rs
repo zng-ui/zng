@@ -263,10 +263,10 @@ context_local! {
 
 /// Current context window.
 ///
-/// This represents the minimum features required for a window context, see [`WINDOW_CTRL`] for more
+/// This represents the minimum features required for a window context, see [`WINDOW_Ext`] for more
 /// features provided by the core window implementation.
 ///
-/// [`WINDOW_CTRL`]: crate::window::WINDOW_CTRL
+/// [`WINDOW_Ext`]: crate::window::WINDOW_Ext
 pub struct WINDOW;
 impl WINDOW {
     /// Calls `f` while the window is set to `ctx`.

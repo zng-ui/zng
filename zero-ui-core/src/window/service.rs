@@ -1338,11 +1338,11 @@ impl WindowLoading {
 
 /// Represents a handle that stops a window from opening while it exists.
 ///
-/// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW_CTRL.loading_handle`], the window does not
+/// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW.loading_handle`], the window does not
 /// open until all handles are dropped.
 ///
 /// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
-/// [`WINDOW_CTRL.loading_handle`]: WINDOW_CTRL::loading_handle
+/// [`WINDOW.loading_handle`]: WINDOW::loading_handle
 #[derive(Clone)]
 pub struct WindowLoadingHandle(Arc<WindowLoadingHandleData>);
 impl WindowLoadingHandle {
@@ -1377,23 +1377,21 @@ impl fmt::Debug for WindowLoadingHandle {
     }
 }
 
-/// Control and variables of the context [`WINDOW`] created using [`WINDOWS`].
+/// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
 #[allow(non_camel_case_types)]
-pub struct WINDOW_CTRL;
-
-impl WINDOW_CTRL {
+pub trait WINDOW_Ext {
     /// Clone a reference to the variables that get and set window properties.
-    pub fn vars(&self) -> super::WindowVars {
+    fn vars(&self) -> super::WindowVars {
         WindowVars::req()
     }
 
     /// Returns `true` if the window is open.
-    pub fn is_open(&self) -> bool {
+    fn is_open(&self) -> bool {
         WINDOWS.is_open(WINDOW.id())
     }
 
     /// Returns `true` if the window is open and loaded.
-    pub fn is_loaded(&self) -> bool {
+    fn is_loaded(&self) -> bool {
         WINDOWS.is_loaded(WINDOW.id())
     }
 
@@ -1407,14 +1405,14 @@ impl WINDOW_CTRL {
     /// after a time it is best to partially render a window than not showing anything.
     ///
     /// Returns `None` if the window has already loaded.
-    pub fn loading_handle(&self, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
+    fn loading_handle(&self, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
         WINDOWS.loading_handle(WINDOW.id(), deadline)
     }
 
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
-    pub fn frame_image(&self) -> ImageVar {
+    fn frame_image(&self) -> ImageVar {
         WINDOWS.frame_image(WINDOW.id())
     }
 
@@ -1423,7 +1421,7 @@ impl WINDOW_CTRL {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    pub fn frame_image_rect(&self, rect: PxRect) -> ImageVar {
+    fn frame_image_rect(&self, rect: PxRect) -> ImageVar {
         WINDOWS.frame_image_rect(WINDOW.id(), rect)
     }
 
@@ -1432,7 +1430,7 @@ impl WINDOW_CTRL {
     /// See [`WINDOWS.bring_to_top`] for more details.
     ///
     /// [`WINDOWS.bring_to_top`]: WINDOWS::bring_to_top
-    pub fn bring_to_top(&self) {
+    fn bring_to_top(&self) {
         WINDOWS.bring_to_top(WINDOW.id()).ok();
     }
 
@@ -1444,7 +1442,8 @@ impl WINDOW_CTRL {
     /// See [`WINDOWS.close`] for more details.
     ///
     /// [`WINDOWS.close`]: WINDOWS::close
-    pub fn close(&self) -> ResponseVar<CloseWindowResult> {
+    fn close(&self) -> ResponseVar<CloseWindowResult> {
         WINDOWS.close(WINDOW.id()).unwrap()
     }
 }
+impl WINDOW_Ext for WINDOW {}

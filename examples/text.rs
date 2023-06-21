@@ -599,7 +599,7 @@ impl TextEditor {
             args.propagation().stop();
             if self.handle_unsaved().await {
                 self.unsaved.set(false);
-                WINDOW_CTRL.close();
+                WINDOW.close();
             }
         }
     }

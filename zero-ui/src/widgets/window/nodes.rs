@@ -1,6 +1,5 @@
 //! UI nodes used for building a window widget.
 
-use crate::core::window::WINDOW_CTRL;
 use crate::prelude::new_property::*;
 
 use std::time::Duration;
@@ -70,7 +69,7 @@ impl_from_and_into_var! {
 ///
 /// [`actual_color_scheme`]: crate::core::window::WindowVars::actual_color_scheme
 pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, || WINDOW_CTRL.vars().actual_color_scheme().boxed())
+    with_context_var_init(child, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed())
 }
 
 /// Wrap around the window outer-most event node to create the layers.

@@ -1127,11 +1127,11 @@ impl WatcherService {
         file: PathBuf,
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
-        write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
+        mut write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> ArcVar<O> {
         let handle = self.watch(file.clone());
 
-        let (sync, var) = SyncWithVar::new(handle, file, init, read, write, |_| {});
+        let (sync, var) = SyncWithVar::new(handle, file, init, read, move |o, _, f| write(o, f), |_| {});
         self.sync_with_var.push(sync);
         var
     }
@@ -1148,6 +1148,7 @@ impl WatcherService {
         S: WatcherSyncStatus<ER, EW>,
     {
         let handle = self.watch(file.clone());
+        let latest_write = Arc::new(Atomic::new(VarUpdateId::never()));
 
         let status = var(S::reading());
         let (sync, var) = SyncWithVar::new(
@@ -1171,11 +1172,13 @@ impl WatcherService {
                 }
             }),
             // write
-            clmv!(status, |o, f| {
+            clmv!(status, latest_write, |o, o_id, f| {
                 status.set(S::writing()); // init write
                 match write(o, f) {
                     Ok(()) => {
-                        status.set(S::idle());
+                        if latest_write.load(Ordering::Relaxed) == o_id {
+                            status.set(S::idle());
+                        }
                     }
                     Err(e) => {
                         status.set(S::write_error(e));
@@ -1184,7 +1187,14 @@ impl WatcherService {
             }),
             // hook&modify
             clmv!(status, |is_read| {
-                status.set(if is_read { S::idle() } else { S::writing() });
+                status.set(if is_read {
+                    S::idle()
+                } else {
+                    let id = VARS.update_id();
+                    latest_write.store(id, Ordering::Relaxed);
+
+                    S::writing()
+                });
             }),
         );
 
@@ -1361,7 +1371,7 @@ impl SyncWithVar {
     where
         O: VarValue,
         R: FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
-        W: FnMut(O, io::Result<WriteFile>) + Send + 'static,
+        W: FnMut(O, VarUpdateId, io::Result<WriteFile>) + Send + 'static,
         U: Fn(bool) + Send + Sync + 'static,
     {
         if let Ok(p) = file.absolutize() {
@@ -1485,8 +1495,8 @@ impl SyncWithVar {
                             task_data.last_write.store(Some(Instant::now()), Ordering::Relaxed);
                         }
 
-                        let value = if let Some(var) = task_data.wk_var.upgrade() {
-                            var.get()
+                        let (id, value) = if let Some(var) = task_data.wk_var.upgrade() {
+                            (var.last_update(), var.get())
                         } else {
                             handle.force_drop();
                             return;
@@ -1494,7 +1504,7 @@ impl SyncWithVar {
 
                         {
                             let _note = WATCHER.annotate(path.clone());
-                            write(value, WriteFile::open(path.to_path_buf()));
+                            write(value, id, WriteFile::open(path.to_path_buf()));
                         }
 
                         if task_data.wk_var.strong_count() == 0 {

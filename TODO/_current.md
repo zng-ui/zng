@@ -40,19 +40,6 @@
     - In the icon example the view is not centered in the stack because
       stack align does not work with non-widget nodes.
 
-# WINDOW_CTRL
-
-* Refactor into an extension trait.
-    - Is more discoverable as an extension trait, maybe suggested by tooling (rustc, ra)?
-```rust
-/// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
-#[allow(non_camel_case_types)]
-pub trait WINDOW_Ext {
-
-}
-impl WINDOW_Ext for WINDOW { }
-```
-
 # View-Process
 
 * Test async dialogs in Windows.
@@ -78,10 +65,5 @@ impl WINDOW_Ext for WINDOW { }
 
 # Config
 
-* Status race condition:
-    - Test `fallback_reset_entry` in a loop.
-    - Initial write starts immediately.
-    - At the "same time" the config updates to an actual value (status set to write).
-    - Initial write finishes, sets status to idle.
-        - Waiter is released.
-    - Actual value write starts.
+* Status race condition?
+    - Still fails, more rarely.

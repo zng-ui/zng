@@ -547,18 +547,22 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         // get or insert the source var
         let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false);
 
-        match RawConfigValue::deserialize::<T>(source_var.get()) {
-            Ok(value) => {
-                var.set(value);
-            }
-            Err(e) => {
-                // invalid data error
-                tracing::error!("rebind config get({key:?}) error, {e:?}");
+        // var.set_from_map(source_var)
+        var.modify(clmv!(source_var, key, |vm| {
+            match RawConfigValue::deserialize::<T>(source_var.get()) {
+                Ok(value) => {
+                    vm.set(value);
+                }
+                Err(e) => {
+                    // invalid data error
+                    tracing::error!("rebind config get({key:?}) error, {e:?}");
 
-                // try to override
-                let _ = source_var.set(RawConfigValue::serialize(var.get()).unwrap());
+                    // try to override
+                    let _ = source_var.set(RawConfigValue::serialize(vm.as_ref()).unwrap());
+                }
             }
-        }
+        }));
+
         let mut first = true;
         self.binding = source_var.bind_filter_map_bidi(
             &var,
