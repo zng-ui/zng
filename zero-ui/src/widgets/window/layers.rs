@@ -5,7 +5,7 @@ use crate::core::{
     task::parking_lot::Mutex,
     timer::{DeadlineHandle, TIMERS},
     units::DipToPx,
-    window::{WIDGET_INFO_CHANGED_EVENT, WINDOW_CTRL},
+    window::WIDGET_INFO_CHANGED_EVENT,
 };
 use crate::prelude::new_property::*;
 
@@ -288,7 +288,7 @@ impl LAYERS {
                                 {
                                     let fct = LAYOUT.scale_factor().0;
                                     let (cursor_size, cursor_spot) =
-                                        WINDOW_CTRL.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
+                                        WINDOW.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
                                     let cursor_rect = DipRect::new((pos - cursor_spot).to_point(), cursor_size).to_px(fct);
                                     let place = cursor_rect.origin
                                         + LAYOUT
@@ -484,7 +484,7 @@ impl LAYERS {
 }
 
 fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
-    let window_bounds = WINDOW_CTRL.vars().actual_size_px().get();
+    let window_bounds = WINDOW.vars().actual_size_px().get();
     let wgt_bounds = PxBox::from(
         widget
             .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())

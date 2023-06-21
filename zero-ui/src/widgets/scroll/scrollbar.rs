@@ -92,12 +92,11 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
 
     let mut ongoing_direction = Ordering::Equal;
     hn!(|args: &MouseClickArgs| {
-        use crate::core::window::WINDOW_CTRL;
         use crate::widgets::scroll::*;
 
         let orientation = ORIENTATION_VAR.get();
         let bounds = WIDGET.bounds().inner_bounds();
-        let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+        let scale_factor = WINDOW.vars().scale_factor().get();
         let position = args.position.to_px(scale_factor.0);
 
         let (offset, mid_pt, mid_offset) = match orientation {

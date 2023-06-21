@@ -1176,7 +1176,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_is_new`.
     ///
     /// [`get`]: Var::get
-    /// [`last_update`]: Var::last_update
+    /// [`last_update`]: AnyVar::last_update
     /// [`is_new`]: AnyVar::is_new
     /// [`UiTask`]: crate::task::ui::UiTask
     fn wait_update(&self) -> types::WaitUpdateFut<Self> {
@@ -1864,7 +1864,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// # mod tracing {  pub use crate::info_span; }
     /// # fn trace_var<T: VarValue>(var: &impl Var<T>) {
     /// var.trace_value(|a| {
-    ///     tracing::info_span!("my_var", ?a.value, track = "<vars>").entered()
+    ///     tracing::info_span!("my_var", ?a.value(), track = "<vars>").entered()
     /// }).perm();
     /// # }
     /// ```
@@ -1874,7 +1874,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// ```
     /// # use zero_ui_core::var::*;
     /// # fn trace_var(var: &impl Var<u32>) {
-    /// var.trace_value(|a| println!("value: {:?}", a.value)).perm();
+    /// var.trace_value(|a| println!("value: {:?}", a.value())).perm();
     /// # }
     /// ```
     ///

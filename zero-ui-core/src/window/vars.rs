@@ -72,10 +72,10 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`WINDOWS.vars`].
 ///
-/// You can get the controller for the current context window using [`WINDOW_CTRL.vars`].
+/// You can get the controller for the current context window using [`WINDOW.vars`].
 ///
 /// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
-/// [`WINDOW_CTRL.vars`]: crate::window::WINDOW_CTRL::vars
+/// [`WINDOW.vars`]: crate::window::WINDOW_Ext::vars
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {

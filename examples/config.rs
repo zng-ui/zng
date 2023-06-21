@@ -140,7 +140,7 @@ fn app_main() {
                         child = Text!("Open Another Process");
                         on_click = hn!(|_| {
                             let offset = Dip::new(30);
-                            let pos = WINDOW_CTRL.vars().actual_position().get() + DipVector::new(offset, offset);
+                            let pos = WINDOW.vars().actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
                                 let exe = std::env::current_exe()?;
@@ -160,7 +160,7 @@ fn app_main() {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
-                            WINDOW_CTRL.vars().position().set(pos);
+                            WINDOW.vars().position().set(pos);
                             WINDOWS.focus(WINDOW.id()).unwrap();
                         }
                     }

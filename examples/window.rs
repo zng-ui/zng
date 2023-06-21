@@ -25,7 +25,7 @@ fn app_main() {
 async fn main_window() -> WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
-    let window_vars = WINDOW_CTRL.vars();
+    let window_vars = WINDOW.vars();
     let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
@@ -143,7 +143,7 @@ fn screenshot() -> impl UiNode {
                 println!("taking `screenshot.png`..");
 
                 let t = Instant::now();
-                let img = WINDOW_CTRL.frame_image().get();
+                let img = WINDOW.frame_image().get();
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
 
@@ -198,7 +198,7 @@ fn screenshot() -> impl UiNode {
                                 Err(e) => eprintln!("{e}")
                             }
                             debug_assert_eq!(WINDOW.id(), args.window_id);
-                            WINDOW_CTRL.close();
+                            WINDOW.close();
                             enabled.set(true);
                         });
                     }
@@ -221,7 +221,7 @@ fn icon() -> impl UiNode {
     };
     select(
         "Icon",
-        WINDOW_CTRL.vars().icon(),
+        WINDOW.vars().icon(),
         ui_vec![
             icon_btn("Default", WindowIcon::Default),
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
@@ -265,7 +265,7 @@ fn chrome() -> impl UiNode {
     };
     select(
         "Chrome",
-        WINDOW_CTRL.vars().chrome(),
+        WINDOW.vars().chrome(),
         ui_vec![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
@@ -318,7 +318,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOW_CTRL.vars().focus_indicator().set(Some(FocusIndicator::Critical));
+            WINDOW.vars().focus_indicator().set(Some(FocusIndicator::Critical));
             enabled.set(true);
         });
     };
@@ -331,7 +331,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOW_CTRL.vars().focus_indicator().set(Some(FocusIndicator::Info));
+            WINDOW.vars().focus_indicator().set(Some(FocusIndicator::Info));
             enabled.set(true);
         });
     };
@@ -349,7 +349,7 @@ fn state() -> impl UiNode {
 
     select(
         "State",
-        WINDOW_CTRL.vars().state(),
+        WINDOW.vars().state(),
         ui_vec![
             state_btn(WindowState::Minimized),
             separator(),
@@ -364,7 +364,7 @@ fn state() -> impl UiNode {
 }
 
 fn visibility() -> impl UiNode {
-    let visible = WINDOW_CTRL.vars().visible();
+    let visible = WINDOW.vars().visible();
     let btn = Button! {
         enabled = visible.clone();
         child = Text!("Hide for 1s");
@@ -381,7 +381,7 @@ fn visibility() -> impl UiNode {
 }
 
 fn misc() -> impl UiNode {
-    let window_vars = WINDOW_CTRL.vars();
+    let window_vars = WINDOW.vars();
     let window_id = WINDOW.id();
 
     let can_open_windows = window_vars.state().map(|&s| s != WindowState::Exclusive);

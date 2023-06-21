@@ -9,6 +9,7 @@ use zero_ui_view_api::webrender_api::DebugFlags;
 
 use crate::{
     app::view_process::ApiExtensionId,
+    context::WINDOW,
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
     image::{ImageDataFormat, ImageSource, ImageVar, Img},
@@ -22,7 +23,7 @@ use crate::{
 
 pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState};
 
-use super::HeadlessMonitor;
+use super::{HeadlessMonitor, WINDOW_Ext};
 
 unique_id_32! {
     /// Unique identifier of an open window.
@@ -516,7 +517,7 @@ impl WindowIcon {
     {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |args| {
             let node = new_icon();
-            super::WINDOW_CTRL.vars().parent().set(args.parent);
+            WINDOW.vars().parent().set(args.parent);
             node
         }))
     }

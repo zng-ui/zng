@@ -6,7 +6,6 @@ use crate::core::{
     focus::*,
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
     widget_info::*,
-    window::WINDOW_CTRL,
 };
 use crate::prelude::new_property::*;
 
@@ -202,7 +201,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         UiNodeOp::Event { update } => {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if valid && enabled.get() {
-                    let factor = WINDOW_CTRL.vars().scale_factor().get();
+                    let factor = WINDOW.vars().scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
                     let new_fails = Rc::new(RefCell::new(vec![]));

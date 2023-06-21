@@ -5,7 +5,7 @@ use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, RendererDebug, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState,
-    WindowVars, MONITORS, WINDOW_CTRL, WINDOW_LOAD_EVENT,
+    WindowVars, MONITORS, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ where
 
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
-            let window_var = select(&WINDOW_CTRL.vars());
+            let window_var = select(&WINDOW.vars());
             if !user_var.capabilities().is_always_static() {
                 let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
@@ -254,7 +254,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
         match op {
             UiNodeOp::Init => {
                 if let Some(key) = enabled.window_key(WINDOW.id()) {
-                    let vars = WINDOW_CTRL.vars();
+                    let vars = WINDOW.vars();
                     let state = vars.state();
                     let restore_rect = vars.restore_rect();
                     WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
@@ -264,7 +264,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         // if status updates before the WINDOW_LOAD_EVENT we will still apply
                         loading = Some(Box::new(Loading {
                             _cfg_status_sub: cfg_status.subscribe(UpdateOp::Update, WIDGET.id()),
-                            _win_block: enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t)),
+                            _win_block: enabled.loading_timeout().and_then(|t| WINDOW.loading_handle(t)),
                             _win_load_sub: WINDOW_LOAD_EVENT.subscribe(WIDGET.id()),
                             cfg_status,
                         }))
@@ -298,7 +298,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     }
                 }
                 if enabled.is_enabled() {
-                    let vars = WINDOW_CTRL.vars();
+                    let vars = WINDOW.vars();
                     if vars.state().is_new() || vars.restore_rect().is_new() {
                         let _ = cfg.as_ref().unwrap().set(WindowStateCfg {
                             state: vars.state().get(),
@@ -310,7 +310,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             _ => {}
         }
         if apply_to_window {
-            let vars = WINDOW_CTRL.vars();
+            let vars = WINDOW.vars();
             let cfg = cfg.as_ref().unwrap().get();
 
             vars.state().set(cfg.state);

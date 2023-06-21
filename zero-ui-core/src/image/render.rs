@@ -20,7 +20,7 @@ impl ImagesService {
         self.render_img(
             move || {
                 let r = render();
-                WINDOW_CTRL.vars().frame_capture_mode().set(FrameCaptureMode::All);
+                WINDOW.vars().frame_capture_mode().set(FrameCaptureMode::All);
                 r
             },
             &result,
@@ -124,7 +124,7 @@ impl ImageManager {
                         let ctx = ImageRenderCtx::new();
                         let retain = ctx.retain.clone();
                         WINDOW.set_state(&IMAGE_RENDER_ID, ctx);
-                        let vars = WINDOW_CTRL.vars();
+                        let vars = WINDOW.vars();
                         vars.auto_size().set(true);
                         vars.min_size().set((1.px(), 1.px()));
 

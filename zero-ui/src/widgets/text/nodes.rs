@@ -12,7 +12,7 @@ use crate::core::{
     focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
     text::*,
-    window::{WindowLoadingHandle, WINDOW_CTRL},
+    window::WindowLoadingHandle,
 };
 use crate::prelude::new_widget::*;
 
@@ -224,7 +224,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             Self {
                 _var_handle: face.subscribe(UpdateOp::Update, WIDGET.id()),
                 result: face,
-                _loading: WINDOW_CTRL.loading_handle(1.secs()),
+                _loading: WINDOW.loading_handle(1.secs()),
             }
         }
     }

@@ -149,7 +149,7 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 /// use zero_ui::prelude::*;
 ///
 /// fn example() -> WindowRoot {
-///     let selected_mode = WINDOW_CTRL.vars().render_mode();
+///     let selected_mode = WINDOW.vars().render_mode();
 ///     Window! {
 ///         title = "Render Mode";
 ///         render_mode = RenderMode::Dedicated;
