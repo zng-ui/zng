@@ -53,10 +53,6 @@
 
 * `tooltip` -> `disable_tooltip` do not swap when widget is disabled while the tooltip is visible.
 
-# is_hovered
-
-* `is_hovered` does not update back to `true` when the hovered widget is enabled.
-
 # Clipboard
 
 * Move provider to view-process.
