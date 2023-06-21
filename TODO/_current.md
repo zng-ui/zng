@@ -57,8 +57,35 @@
 
 * `is_hovered` does not update back to `true` when the hovered widget is enabled.
 
-# Image Paste
+# Clipboard
 
+* Move provider to view-process.
+    - Crate `arboard` is not maintained, see https://github.com/1Password/arboard/issues/24
+    - Use `clipboard_master` to get events.
 * Image paste some pixel columns swapped (wrap around start).
     - Some corrupted pixels, probably same reason.
+    - Issue if from `arboard`.
+```rust
+// copy an image black|white
+//
+// get image from arboard, inspect the first line:
+for pixel in data[..img.width * 4].chunks_mut(4) {
+    println!("!!: {pixel:?}");
+}
+
+// finds:
+//
+// [0, 0, 0, 255]
+// [0, 0, 0, 255]
+// [0, 0, 0, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// [255, 255, 255, 255]
+// ..
+```
 * Screenshot paste does not have scale-factor.
