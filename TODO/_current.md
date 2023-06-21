@@ -62,8 +62,3 @@
 * Image paste some pixel columns swapped (wrap around start).
     - Some corrupted pixels, probably same reason.
 * Screenshot paste does not have scale-factor.
-
-# Config
-
-* Status race condition?
-    - Still fails, more rarely.
