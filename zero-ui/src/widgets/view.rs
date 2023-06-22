@@ -240,7 +240,7 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
 }
 
 /// Arguments for the [`View!`] widget function.
-/// 
+///
 /// [`View!`]: struct@View
 #[derive(Clone)]
 pub struct ViewArgs<D: VarValue> {
@@ -300,7 +300,7 @@ impl<D: VarValue> ViewArgs<D> {
 /// # Examples
 ///
 /// View using the shorthand syntax:
-/// 
+///
 /// ```
 /// use zero_ui::prelude::*;
 ///
@@ -327,9 +327,9 @@ impl<D: VarValue> ViewArgs<D> {
 ///     }))
 /// }
 /// ```
-/// 
+///
 /// You can also use the normal widget syntax and set the `view` property.
-/// 
+///
 /// ```
 /// use zero_ui::prelude::*;
 ///
@@ -346,7 +346,7 @@ impl<D: VarValue> ViewArgs<D> {
 #[widget($crate::widgets::View {
     (::<$T:ty>, $data:expr, $update:expr $(,)?) => {
         view::<$T> = {
-            data: $data, 
+            data: $data,
             update: $update,
         };
     }
@@ -366,9 +366,9 @@ impl View {
 }
 
 /// The view generator.
-/// 
+///
 /// See [`View!`] for more details.
-/// 
+///
 /// [`View!`]: struct@View
 #[property(CHILD, widget_impl(View))]
 pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl WidgetHandler<ViewArgs<D>>) -> impl UiNode {

@@ -379,13 +379,6 @@ impl Window {
     /// Window event should ignore interaction events.
     ///
     /// Dialogs are already modal in Windows and Mac, but Linux
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ))]
     pub fn modal_dialog_active(&self) -> bool {
         self.modal_dialog_active.load(Ordering::Relaxed)
     }
@@ -674,7 +667,7 @@ impl Window {
     pub fn focus(&mut self) {
         if self.waiting_first_frame {
             self.steal_init_focus = true;
-        } else {
+        } else if !self.modal_dialog_active() {
             self.window.focus_window();
         }
     }
@@ -688,7 +681,7 @@ impl Window {
         if self.waiting_first_frame {
             self.steal_init_focus = true;
             false
-        } else if !self.windows_is_foreground() {
+        } else if !self.modal_dialog_active() && !self.windows_is_foreground() {
             // winit uses a hack to steal focus that causes a `RAlt` key press.
             self.window.focus_window();
             self.windows_is_foreground()
