@@ -1,4 +1,14 @@
-use std::{collections::VecDeque, fmt, future::Future, mem, sync::Arc, thread};
+use std::{
+    collections::VecDeque,
+    fmt,
+    future::Future,
+    mem,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -83,6 +93,8 @@ pub(crate) struct Window {
     focused: Option<bool>,
 
     render_mode: RenderMode,
+
+    modal_dialog_active: Arc<AtomicBool>,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -308,6 +320,7 @@ impl Window {
             cursor_over: false,
             clear_color: None,
             focused: None,
+            modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
         };
 
@@ -361,6 +374,20 @@ impl Window {
 
     pub fn set_title(&self, title: String) {
         self.window.set_title(&title);
+    }
+
+    /// Window event should ignore interaction events.
+    ///
+    /// Dialogs are already modal in Windows and Mac, but Linux
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    pub fn modal_dialog_active(&self) -> bool {
+        self.modal_dialog_active.load(Ordering::Relaxed)
     }
 
     /// Returns `true` if the cursor actually moved.
@@ -1312,8 +1339,23 @@ impl Window {
         ApiExtensionPayload::unknown_extension(extension_id)
     }
 
+    fn enter_dialog(&self, id: zero_ui_view_api::DialogId, event_sender: &AppEventSender) -> bool {
+        let already_open = self.modal_dialog_active.swap(true, Ordering::Acquire);
+        if already_open {
+            let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
+                id,
+                zero_ui_view_api::MsgDialogResponse::Error("dialog already open".to_owned()),
+            )));
+        }
+        already_open
+    }
+
     /// Shows a native message dialog.
     pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MsgDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
+        if self.enter_dialog(id, &event_sender) {
+            return;
+        }
+
         let dlg = rfd::AsyncMessageDialog::new()
             .set_level(match dialog.icon {
                 zero_ui_view_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
@@ -1329,6 +1371,7 @@ impl Window {
             .set_description(&dialog.message)
             .set_parent(&self.window);
 
+        let modal_dialog_active = self.modal_dialog_active.clone();
         Self::run_dialog(async move {
             let r = dlg.show().await;
 
@@ -1349,12 +1392,17 @@ impl Window {
                     }
                 }
             };
+            modal_dialog_active.store(false, Ordering::Release);
             let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(id, r)));
         });
     }
 
     /// Shows a native file dialog.
     pub(crate) fn file_dialog(&self, dialog: zero_ui_view_api::FileDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
+        if self.enter_dialog(id, &event_sender) {
+            return;
+        }
+
         let mut dlg = rfd::AsyncFileDialog::new()
             .set_title(&dialog.title)
             .set_directory(&dialog.starting_dir)
@@ -1363,6 +1411,8 @@ impl Window {
         for (name, patterns) in dialog.iter_filters() {
             dlg = dlg.add_filter(name, &patterns.map(|s| s.trim_start_matches(['*', '.'])).collect::<Vec<_>>());
         }
+
+        let modal_dialog_active = self.modal_dialog_active.clone();
         Self::run_dialog(async move {
             let selection: Vec<_> = match dialog.kind {
                 zero_ui_view_api::FileDialogKind::OpenFile => dlg.pick_file().await.into_iter().map(Into::into).collect(),
@@ -1377,6 +1427,8 @@ impl Window {
             } else {
                 zero_ui_view_api::FileDialogResponse::Selected(selection)
             };
+
+            modal_dialog_active.store(false, Ordering::Release);
             let _ = event_sender.send(AppEvent::Notify(Event::FileDialogResponse(id, r)));
         });
     }

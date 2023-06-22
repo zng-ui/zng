@@ -46,9 +46,7 @@
 
 # View-Process
 
-* Test async dialog in Linux.
-    - Dialog not modal, flag window to ignore events?
-    - Tested VSCode, it maybe doing this, clicking out of a dialog focus the editor, including blinking the caret, but it does not receive any click or key-press.
+* Test "modal" dialog in Linux.
 
 * Implement custom event sender.
 * Implement OpenGL example.

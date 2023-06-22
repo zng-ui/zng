@@ -654,6 +654,39 @@ impl App {
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
 
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        let modal_dialog_active = self.windows[i].modal_dialog_active();
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        macro_rules! linux_modal_dialog_bail {
+            () => {
+                if modal_dialog_active {
+                    return;
+                }
+            };
+        }
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )))]
+        macro_rules! linux_modal_dialog_bail {
+            () => {};
+        }
+
         match event {
             WindowEvent::Resized(_) => {
                 let size = if let Some(size) = self.windows[i].resized() {
@@ -794,15 +827,30 @@ impl App {
                     )));
                 }
             }
-            WindowEvent::CloseRequested => self.notify(Event::WindowCloseRequested(id)),
+            WindowEvent::CloseRequested => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::WindowCloseRequested(id))
+            }
             WindowEvent::Destroyed => {
                 self.windows.remove(i);
                 self.notify(Event::WindowClosed(id));
             }
-            WindowEvent::DroppedFile(file) => self.notify(Event::DroppedFile { window: id, file }),
-            WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
-            WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
-            WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
+            WindowEvent::DroppedFile(file) => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::DroppedFile { window: id, file })
+            }
+            WindowEvent::HoveredFile(file) => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::HoveredFile { window: id, file })
+            }
+            WindowEvent::HoveredFileCancelled => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::HoveredFileCancelled(id))
+            }
+            WindowEvent::ReceivedCharacter(c) => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::ReceivedCharacter(id, c))
+            }
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {
                     if focused {
@@ -818,6 +866,8 @@ impl App {
                 input,
                 is_synthetic,
             } => {
+                linux_modal_dialog_bail!();
+
                 if !is_synthetic && self.windows[i].is_focused() {
                     #[cfg(windows)]
                     if self.skip_ralt {
@@ -856,11 +906,14 @@ impl App {
                 }
             }
             WindowEvent::ModifiersChanged(m) => {
+                linux_modal_dialog_bail!();
                 if self.windows[i].is_focused() {
                     self.pending_modifiers_update = Some(m);
                 }
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
+                linux_modal_dialog_bail!();
+
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
@@ -881,6 +934,7 @@ impl App {
                 }
             }
             WindowEvent::CursorEntered { device_id } => {
+                linux_modal_dialog_bail!();
                 if self.windows[i].cursor_entered() {
                     let d_id = self.device_id(device_id);
                     self.notify(Event::CursorEntered { window: id, device: d_id });
@@ -888,6 +942,7 @@ impl App {
                 }
             }
             WindowEvent::CursorLeft { device_id } => {
+                linux_modal_dialog_bail!();
                 if self.windows[i].cursor_left() {
                     let d_id = self.device_id(device_id);
                     self.notify(Event::CursorLeft { window: id, device: d_id });
@@ -901,6 +956,7 @@ impl App {
             WindowEvent::MouseWheel {
                 device_id, delta, phase, ..
             } => {
+                linux_modal_dialog_bail!();
                 let d_id = self.device_id(device_id);
                 self.notify(Event::MouseWheel {
                     window: id,
@@ -912,6 +968,7 @@ impl App {
             WindowEvent::MouseInput {
                 device_id, state, button, ..
             } => {
+                linux_modal_dialog_bail!();
                 let d_id = self.device_id(device_id);
                 self.notify(Event::MouseInput {
                     window: id,
@@ -925,6 +982,7 @@ impl App {
                 pressure,
                 stage,
             } => {
+                linux_modal_dialog_bail!();
                 let d_id = self.device_id(device_id);
                 self.notify(Event::TouchpadPressure {
                     window: id,
@@ -934,6 +992,7 @@ impl App {
                 });
             }
             WindowEvent::AxisMotion { device_id, axis, value } => {
+                linux_modal_dialog_bail!();
                 let d_id = self.device_id(device_id);
                 self.notify(Event::AxisMotion(id, d_id, AxisId(axis), value));
             }
@@ -950,12 +1009,15 @@ impl App {
                 ));
             }
             WindowEvent::TouchpadMagnify { .. } => {
+                linux_modal_dialog_bail!();
                 // TODO
             }
             WindowEvent::TouchpadRotate { .. } => {
+                linux_modal_dialog_bail!();
                 // TODO
             }
             WindowEvent::SmartMagnify { .. } => {
+                linux_modal_dialog_bail!();
                 // TODO
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -991,7 +1053,10 @@ impl App {
                 }
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
-            WindowEvent::Ime(_) => {}
+            WindowEvent::Ime(_) => {
+                linux_modal_dialog_bail!();
+                // TODO
+            }
             WindowEvent::Occluded(_) => {}
         }
     }
