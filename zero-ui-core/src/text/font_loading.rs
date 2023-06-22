@@ -11,8 +11,8 @@ use font_kit::properties::Weight;
 use parking_lot::{Mutex, RwLock};
 
 use super::{
-    emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName,
-    FontStretch, FontStyle, FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
+    emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, ColorGlyphs, FontFaceMetrics,
+    FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -343,6 +343,7 @@ struct LoadedFontFace {
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
+    color_glyphs: ColorGlyphs,
     m: Mutex<FontFaceMut>,
 }
 struct FontFaceMut {
@@ -363,6 +364,7 @@ impl fmt::Debug for FontFace {
             .field("properties", &self.0.properties)
             .field("metrics", &self.0.metrics)
             .field("color_palettes.len()", &self.0.color_palettes.len())
+            .field("color_glyphs.len()", &self.0.color_glyphs.len())
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_keys.len())
             .field("unregistered", &m.unregistered)
@@ -405,6 +407,7 @@ impl FontFace {
                 bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
             color_palettes: ColorPalettes::empty(),
+            color_glyphs: ColorGlyphs::empty(),
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
                 instances: FxHashMap::default(),
@@ -455,6 +458,7 @@ impl FontFace {
                             unregistered: Default::default(),
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
+                        color_glyphs: other_font.0.color_glyphs.clone(),
                     }))),
                     None => Err(FontLoadingError::NoSuchFontInCollection),
                 };
@@ -476,6 +480,11 @@ impl FontFace {
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
+        let color_glyphs = if color_palettes.is_empty() {
+            ColorGlyphs::empty()
+        } else {
+            ColorGlyphs::load(&font)?
+        };
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
@@ -492,6 +501,7 @@ impl FontFace {
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
             color_palettes,
+            color_glyphs,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -537,6 +547,11 @@ impl FontFace {
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
+        let color_glyphs = if color_palettes.is_empty() {
+            ColorGlyphs::empty()
+        } else {
+            ColorGlyphs::load(&font)?
+        };
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
@@ -549,6 +564,7 @@ impl FontFace {
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
             color_palettes,
+            color_glyphs,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -729,6 +745,13 @@ impl FontFace {
     /// Is empty if not provided by the font.
     pub fn color_palettes(&self) -> &ColorPalettes {
         &self.0.color_palettes
+    }
+
+    /// COLR table.
+    /// 
+    /// Is empty if not provided by the font.
+    pub fn color_glyphs(&self) -> &ColorGlyphs {
+        &self.0.color_glyphs
     }
 }
 

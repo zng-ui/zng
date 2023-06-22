@@ -12,6 +12,7 @@ use std::mem::size_of;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use icu_properties::sets;
+use zero_ui_view_api::webrender_api::GlyphIndex;
 
 use crate::color::Rgba;
 
@@ -227,4 +228,174 @@ pub struct ColorPalette<'a> {
     pub flags: ColorPaletteType,
     /// Palette colors.
     pub colors: &'a [Rgba],
+}
+
+/// COLR table.
+///
+/// The color glyphs for a font are available in [`FontFace::color_glyphs`].
+///
+/// [`FontFace::color_glyphs`]: crate::text::FontFace::color_glyphs
+#[derive(Clone, Debug)]
+pub struct ColorGlyphs {
+    base_glyph_records: Vec<BaseGlyphRecord>,
+    layer_records: Vec<LayerRecord>,
+}
+impl ColorGlyphs {
+    /// No color glyphs.
+    pub fn empty() -> Self {
+        Self {
+            base_glyph_records: vec![],
+            layer_records: vec![],
+        }
+    }
+
+    /// Load the table, if present in the font.
+    pub fn load(ft: &font_kit::font::Font) -> std::io::Result<Self> {
+        let table = match ft.load_font_table(COLR) {
+            Some(t) => t,
+            None => return Ok(Self::empty()),
+        };
+
+        /*
+        https://learn.microsoft.com/en-us/typography/opentype/spec/colr#colr-formats
+        COLR version 0
+
+        Type 	 Name 	                Description
+        uint16 	 version 	            Table version number—set to 0.
+        uint16   numBaseGlyphRecords 	Number of BaseGlyph records.
+        Offset32 baseGlyphRecordsOffset	Offset to baseGlyphRecords array.
+        Offset32 layerRecordsOffset 	Offset to layerRecords array.
+        uint16 	 numLayerRecords 	    Number of Layer records.
+        */
+
+        let mut cursor = std::io::Cursor::new(&table);
+
+        let _version = cursor.read_u16::<BigEndian>()?;
+        let num_base_glyph_records = cursor.read_u16::<BigEndian>()?;
+        let base_glyph_records_offset = cursor.read_u32::<BigEndian>()? as u64;
+        let layer_records_offset = cursor.read_u32::<BigEndian>()? as u64;
+        let num_layer_records = cursor.read_u16::<BigEndian>()?;
+
+        let mut base_glyph_records = Vec::with_capacity(num_base_glyph_records as _);
+
+        cursor.set_position(base_glyph_records_offset);
+        for _ in 0..num_base_glyph_records {
+            /*
+            https://learn.microsoft.com/en-us/typography/opentype/spec/colr#baseglyph-and-layer-records
+
+            BaseGlyph record:
+
+            Type   Name            Description
+            uint16 glyphID         Glyph ID of the base glyph.
+            uint16 firstLayerIndex Index (base 0) into the layerRecords array.
+            uint16 numLayers       Number of color layers associated with this glyph.
+            */
+
+            base_glyph_records.push(BaseGlyphRecord {
+                glyph_id: cursor.read_u16::<BigEndian>()?,
+                first_layer_index: cursor.read_u16::<BigEndian>()?,
+                num_layers: cursor.read_u16::<BigEndian>()?,
+            });
+        }
+
+        let mut layer_records = Vec::with_capacity(num_layer_records as _);
+        cursor.set_position(layer_records_offset);
+        for _ in 0..num_layer_records {
+            /*
+            Layer record:
+
+            Type   Name 	    Description
+            uint16 glyphID      Glyph ID of the glyph used for a given layer.
+            uint16 paletteIndex Index (base 0) for a palette entry in the CPAL table.
+            */
+
+            layer_records.push(LayerRecord {
+                glyph_id: cursor.read_u16::<BigEndian>()?,
+                palette_index: cursor.read_u16::<BigEndian>()?,
+            });
+        }
+
+        Ok(Self {
+            base_glyph_records,
+            layer_records,
+        })
+    }
+
+    /// Iterate over color glyphs that replace the `base_glyph` to render in color.
+    ///
+    /// The `base_glyph` is the glyph selected by the font during shaping.
+    ///
+    /// Returns an iterator that *renders* an Emoji by overlaying colored glyphs, from the back (first item)
+    /// to the front (last item). Paired with each glyph is an index in the font's [`ColorPalette::colors`] or
+    /// `None` if the base text color must be used.
+    ///
+    /// Yields the `base_glyph` with `None` color if it the font does not provide colored replacements for it.
+    pub fn glyphs(&self, base_glyph: GlyphIndex) -> impl Iterator<Item = (GlyphIndex, Option<usize>)> + '_ {
+        let layers = match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
+            Ok(i) => {
+                let rec = &self.base_glyph_records[i];
+
+                let s = rec.first_layer_index as usize;
+                let e = s + rec.num_layers as usize;
+                &self.layer_records[s..e]
+            }
+            Err(_) => &[],
+        };
+
+        let iter = layers.iter().map(|l| (l.glyph_id(), l.palette_index()));
+        let mut not_found = [(base_glyph, None)].into_iter();
+        if !layers.is_empty() {
+            not_found.next();
+        }
+        iter.chain(not_found)
+    }
+
+    /// Resolve [`glyphs`] and colors.
+    ///
+    /// [`glyphs`]: Self::glyphs
+    pub fn glyph_rgba<'a>(
+        &'a self,
+        txt_color: Rgba,
+        palette: &'a [Rgba],
+        base_glyph: GlyphIndex,
+    ) -> impl Iterator<Item = (GlyphIndex, Rgba)> + 'a {
+        self.glyphs(base_glyph)
+            .map(move |(g, c)| (g, c.and_then(|i| palette.get(i).copied()).unwrap_or(txt_color)))
+    }
+
+    /// If the font does not have any colored glyphs.
+    pub fn is_empty(&self) -> bool {
+        self.base_glyph_records.is_empty()
+    }
+
+    /// Number of base glyphs that have colored replacements.
+    pub fn len(&self) -> usize {
+        self.base_glyph_records.len()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BaseGlyphRecord {
+    glyph_id: u16,
+    first_layer_index: u16,
+    num_layers: u16,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LayerRecord {
+    glyph_id: u16,
+    palette_index: u16,
+}
+impl LayerRecord {
+    fn glyph_id(&self) -> GlyphIndex {
+        self.glyph_id as _
+    }
+
+    fn palette_index(&self) -> Option<usize> {
+        if self.palette_index == 0xFFFF {
+            None
+        } else {
+            Some(self.palette_index as _)
+        }
+    }
 }
