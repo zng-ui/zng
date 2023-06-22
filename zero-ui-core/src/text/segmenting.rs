@@ -80,6 +80,7 @@ impl TextSegmentKind {
                 | BoundaryNeutral
                 | OtherNeutral
                 | Bracket(_)
+                | Emoji
         )
     }
 

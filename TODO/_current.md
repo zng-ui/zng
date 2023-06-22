@@ -1,6 +1,8 @@
 # TextInput
 
 * Add an emoji font.
+    - Expand fallback to allow multiple fonts, set it to "Segoe UI Emoji", "Segoe UI Symbol" in Windows.
+        - Find-out emoji font for other systems.
     - See `./Text.md`
     - '🙎🏻‍♀️'
 
@@ -33,6 +35,10 @@
     - Char event is not linked with key press event stop propagation does nothing.
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
+
+# Text
+
+* Always shapes hyphen char, maybe delay until needed?
 
 # Align
 

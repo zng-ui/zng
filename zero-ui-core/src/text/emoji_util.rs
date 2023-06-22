@@ -29,7 +29,7 @@ pub(super) fn is_component(c: char) -> bool {
 /*
 Loaded data is !Send+!Sync so we probably don't need to cache it.
 
-The "ucu_testdata" includes the stuff we need, plus a lot of useless data, there is a complicated way to
+The "icu_testdata" includes the stuff we need, plus a lot of useless data, there is a complicated way to
 optmize this, but they are about to release embedded data, so we wait.
 
 see: see https://github.com/unicode-org/icu4x/issues/3529
