@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, mem};
+use std::{collections::VecDeque, fmt, future::Future, mem, sync::Arc, thread};
 
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -1314,7 +1314,7 @@ impl Window {
 
     /// Shows a native message dialog.
     pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MsgDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
-        let dlg = rfd::MessageDialog::new()
+        let dlg = rfd::AsyncMessageDialog::new()
             .set_level(match dialog.icon {
                 zero_ui_view_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
                 zero_ui_view_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
@@ -1329,8 +1329,8 @@ impl Window {
             .set_description(&dialog.message)
             .set_parent(&self.window);
 
-        Self::run_dialog(move || {
-            let r = dlg.show();
+        Self::run_dialog(async move {
+            let r = dlg.show().await;
 
             let r = match dialog.buttons {
                 zero_ui_view_api::MsgDialogButtons::Ok => zero_ui_view_api::MsgDialogResponse::Ok,
@@ -1355,7 +1355,7 @@ impl Window {
 
     /// Shows a native file dialog.
     pub(crate) fn file_dialog(&self, dialog: zero_ui_view_api::FileDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
-        let mut dlg = rfd::FileDialog::new()
+        let mut dlg = rfd::AsyncFileDialog::new()
             .set_title(&dialog.title)
             .set_directory(&dialog.starting_dir)
             .set_file_name(&dialog.starting_name)
@@ -1363,13 +1363,13 @@ impl Window {
         for (name, patterns) in dialog.iter_filters() {
             dlg = dlg.add_filter(name, &patterns.map(|s| s.trim_start_matches(['*', '.'])).collect::<Vec<_>>());
         }
-        Self::run_dialog(move || {
+        Self::run_dialog(async move {
             let selection: Vec<_> = match dialog.kind {
-                zero_ui_view_api::FileDialogKind::OpenFile => dlg.pick_file().into_iter().collect(),
-                zero_ui_view_api::FileDialogKind::OpenFiles => dlg.pick_files().into_iter().flatten().collect(),
-                zero_ui_view_api::FileDialogKind::SelectFolder => dlg.pick_folder().into_iter().collect(),
-                zero_ui_view_api::FileDialogKind::SelectFolders => dlg.pick_folders().into_iter().flatten().collect(),
-                zero_ui_view_api::FileDialogKind::SaveFile => dlg.save_file().into_iter().collect(),
+                zero_ui_view_api::FileDialogKind::OpenFile => dlg.pick_file().await.into_iter().map(Into::into).collect(),
+                zero_ui_view_api::FileDialogKind::OpenFiles => dlg.pick_files().await.into_iter().flatten().map(Into::into).collect(),
+                zero_ui_view_api::FileDialogKind::SelectFolder => dlg.pick_folder().await.into_iter().map(Into::into).collect(),
+                zero_ui_view_api::FileDialogKind::SelectFolders => dlg.pick_folders().await.into_iter().flatten().map(Into::into).collect(),
+                zero_ui_view_api::FileDialogKind::SaveFile => dlg.save_file().await.into_iter().map(Into::into).collect(),
             };
 
             let r = if selection.is_empty() {
@@ -1380,23 +1380,25 @@ impl Window {
             let _ = event_sender.send(AppEvent::Notify(Event::FileDialogResponse(id, r)));
         });
     }
-
-    /// Run dialog unblocked when the platform is not modal.
-    ///
-    /// This avoids "stop responding" errors in Linux.
-    fn run_dialog(run: impl FnOnce() + Send + 'static) {
-        let is_linux = cfg!(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-        ));
-        if is_linux && cfg!(feature = "dialog-xdg") {
-            std::thread::spawn(run);
-        } else {
-            run();
-        }
+    /// Run dialog unblocked.
+    fn run_dialog(run: impl Future + Send + 'static) {
+        let mut task = Box::pin(run);
+        thread::spawn(move || {
+            struct ThreadWaker(thread::Thread);
+            impl std::task::Wake for ThreadWaker {
+                fn wake(self: std::sync::Arc<Self>) {
+                    self.0.unpark();
+                }
+            }
+            let waker = Arc::new(ThreadWaker(thread::current())).into();
+            let mut cx = std::task::Context::from_waker(&waker);
+            loop {
+                match task.as_mut().poll(&mut cx) {
+                    std::task::Poll::Ready(_) => return,
+                    std::task::Poll::Pending => thread::park(),
+                }
+            }
+        });
     }
 }
 impl Drop for Window {

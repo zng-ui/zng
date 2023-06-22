@@ -40,11 +40,64 @@
     - In the icon example the view is not centered in the stack because
       stack align does not work with non-widget nodes.
 
+# Align
+
+* Review align in window background.
+
 # View-Process
 
-* Test async dialogs in Windows.
-    - Use it if they are modal.
-    - Async can continue animations.
+* Test async dialog in Linux.
+```rust
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use std::time::Duration;
+
+use zero_ui::{prelude::*, core::app::view_process::MsgDialog};
+
+// use zero_ui_view_prebuilt as zero_ui_view;
+
+fn main() {
+    examples_util::print_info();
+    zero_ui_view::run_same_process(app_main);
+}
+
+fn app_main() {
+    App::default().run_window(async {
+        Window! {
+            title = "_test";
+            child_align = Align::CENTER;
+            background = Stack! {
+                children = ui_vec![
+                    animated_detail(1.3.secs(), 1.secs(), colors::RED),
+                    animated_detail(1.3.secs(), 1.1.secs(), colors::GREEN),
+                    animated_detail(1.3.secs(), 1.2.secs(), colors::BLUE),
+                ]
+            };
+            child = Button! {
+                child = Text!("Show Dialog");
+                on_click = async_hn!(|_| {
+                    let dlg = MsgDialog {
+                        message: "Animation should not pause?".to_owned(),
+                        ..Default::default()
+                    };
+                    WINDOWS.native_message_dialog(WINDOW.id(), dlg).wait_rsp().await;
+                });
+            };
+        }
+    })
+}
+
+fn animated_detail(interval: Duration, ease: Duration, color: Rgba) -> impl UiNode {
+    Wgt! {
+        align = Align::TOP_LEFT;
+        size = (30, 8);
+        background_color = color.with_lightness(80.pct());
+        x = TIMERS
+            .interval(interval, false)
+            .map(|a| if a.count() % 2 != 0 { 100.vw_pct() - 30 } else { 0.vw_pct() })
+            .easing(ease, easing::linear);
+    }
+}
+```
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.
