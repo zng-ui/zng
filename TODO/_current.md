@@ -34,12 +34,6 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-# View!
-
-* `view` really needs to be a widget.
-    - In the icon example the view is not centered in the stack because
-      stack align does not work with non-widget nodes.
-
 # Align
 
 * Review align in window background.

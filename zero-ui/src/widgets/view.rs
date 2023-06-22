@@ -239,7 +239,9 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
     })
 }
 
-/// Arguments for the [`view`] widget function.
+/// Arguments for the [`View!`] widget function.
+/// 
+/// [`View!`]: struct@View
 #[derive(Clone)]
 pub struct ViewArgs<D: VarValue> {
     data: BoxedVar<D>,
@@ -297,11 +299,13 @@ impl<D: VarValue> ViewArgs<D> {
 ///
 /// # Examples
 ///
+/// View using the shorthand syntax:
+/// 
 /// ```
 /// use zero_ui::prelude::*;
 ///
 /// fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
-///     Container!(view(n, hn!(|a: &ViewArgs<usize>| {
+///     View!(::<usize>, n, hn!(|a: &ViewArgs<usize>| {
 ///         // we generate a new view on the first call or when the data has changed to zero.
 ///         if a.is_nil() || a.data().get_new() == Some(0) {
 ///             a.set_view(if a.data().get() > 0 {
@@ -320,15 +324,59 @@ impl<D: VarValue> ViewArgs<D> {
 ///                 }
 ///             });
 ///         }
-///     })))
+///     }))
 /// }
 /// ```
-pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewArgs<D>>) -> impl UiNode {
+/// 
+/// You can also use the normal widget syntax and set the `view` property.
+/// 
+/// ```
+/// use zero_ui::prelude::*;
+///
+/// fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
+///     View! {
+///         view::<usize> = {
+///             data: n,
+///             update: hn!(|a: &ViewArgs<usize>| { }),
+///         };
+///         background_color = colors::GRAY;
+///     }
+/// }
+/// ```
+#[widget($crate::widgets::View {
+    (::<$T:ty>, $data:expr, $update:expr $(,)?) => {
+        view::<$T> = {
+            data: $data, 
+            update: $update,
+        };
+    }
+})]
+pub struct View(WidgetBase);
+impl View {
+    widget_impl! {
+        /// Spacing around content, inside the border.
+        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+
+        /// Content alignment.
+        pub crate::properties::child_align(align: impl IntoVar<Align>);
+
+        /// Content overflow clipping.
+        pub crate::properties::clip_to_bounds(clip: impl IntoVar<bool>);
+    }
+}
+
+/// The view generator.
+/// 
+/// See [`View!`] for more details.
+/// 
+/// [`View!`]: struct@View
+#[property(CHILD, widget_impl(View))]
+pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl WidgetHandler<ViewArgs<D>>) -> impl UiNode {
     let data = data.into_var().boxed();
     let mut update = update.cfg_boxed();
     let replace = Arc::new(Mutex::new(None));
 
-    match_node(NilUiNode.boxed(), move |c, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data);
             update.event(&ViewArgs {

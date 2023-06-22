@@ -113,33 +113,37 @@ fn icons() -> impl UiNode {
                     select_font("two_tone"),
                 ]
             },
-            Container!(view(merge_var!(selected_font, search, |f, s| (*f, s.clone())), hn!(|a: &ViewArgs<(&'static str, Txt)>| {
-                if let Some((f, s)) = a.get_new() {
-                    let mut icons = match f {
-                        "filled" => icons::filled::all(),
-                        "outlined" => icons::outlined::all(),
-                        "rounded" => icons::rounded::all(),
-                        "sharp" => icons::sharp::all(),
-                        "two_tone" => icons::two_tone::all(),
-                        _ => unreachable!(),
-                    };
-                    if !s.is_empty() {
-                        let s = s.to_uppercase();
-                        icons.retain(|f| {
-                            f.name.contains(&s) ||
-                            f.display_name().to_uppercase().contains(&s)
-                        });
+            View!(
+                ::<(&'static str, Txt)>,
+                merge_var!(selected_font, search, |f, s| (*f, s.clone())),
+                hn!(|a: &ViewArgs<(&'static str, Txt)>| {
+                    if let Some((f, s)) = a.get_new() {
+                        let mut icons = match f {
+                            "filled" => icons::filled::all(),
+                            "outlined" => icons::outlined::all(),
+                            "rounded" => icons::rounded::all(),
+                            "sharp" => icons::sharp::all(),
+                            "two_tone" => icons::two_tone::all(),
+                            _ => unreachable!(),
+                        };
+                        if !s.is_empty() {
+                            let s = s.to_uppercase();
+                            icons.retain(|f| {
+                                f.name.contains(&s) ||
+                                f.display_name().to_uppercase().contains(&s)
+                            });
+                        }
+                        if icons.is_empty() {
+                            a.set_view(Text! {
+                                txt = formatx!("no icons found for '{s}'");
+                                margin = (10, 0, 0, 0);
+                            })
+                        } else {
+                            a.set_view(show_font(icons, f));
+                        }
                     }
-                    if icons.is_empty() {
-                        a.set_view(Text! {
-                            txt = formatx!("no icons found for '{s}'");
-                            margin = (10, 0, 0, 0);
-                        })
-                    } else {
-                        a.set_view(show_font(icons, f));
-                    }
-                }
-            }))),
+                }),
+            ),
         ]
     }
 }

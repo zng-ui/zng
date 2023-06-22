@@ -1088,7 +1088,7 @@ pub fn focused_removed_by_deleting() {
 
     let buttons = ui_vec! {
         Button! { child = Text!("Button 0") },
-        view(exist.clone(), hn!(|a: &ViewArgs<bool>| {
+        View!(::<bool>, exist.clone(), hn!(|a: &ViewArgs<bool>| {
             if a.data().get() {
                 a.set_view(Button! { id = button1_id; child = Text!("Button 1") });
             } else {
@@ -1183,7 +1183,8 @@ pub fn focus_continued_after_widget_id_move() {
 
     let do_move_id = var(false);
 
-    let mut app = app.run(view(
+    let mut app = app.run(View!(
+        ::<bool>,
         do_move_id.clone(),
         hn!(|a: &ViewArgs<bool>| {
             if a.data().get() {
