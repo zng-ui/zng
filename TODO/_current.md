@@ -46,8 +46,6 @@
 
 # View-Process
 
-* Test "modal" dialog in Linux.
-
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.
