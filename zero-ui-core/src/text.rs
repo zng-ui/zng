@@ -616,15 +616,15 @@ impl FontNames {
         // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
 
         if lang!("zh-Hans").matches(&lang, true, false) {
-            ["Segoe UI", "Microsoft YaHei", "sans-serif"].into()
+            ["Segoe UI", "Microsoft YaHei", "Segoe Ui Emoji", "sans-serif"].into()
         } else if lang!("zh-Hant").matches(&lang, true, false) {
-            ["Segoe UI", "Microsoft Jhenghei", "sans-serif"].into()
+            ["Segoe UI", "Microsoft Jhenghei", "Segoe Ui Emoji", "sans-serif"].into()
         } else if lang!(ja).matches(&lang, true, false) {
-            ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into()
+            ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "Segoe Ui Emoji", "sans-serif"].into()
         } else if lang!(ko).matches(&lang, true, false) {
-            ["Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into()
+            ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into()
         } else {
-            ["Segoe UI", "sans-serif"].into()
+            ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into()
         }
     }
 
@@ -633,15 +633,30 @@ impl FontNames {
         // source: VSCode
 
         if lang!("zh-Hans").matches(&lang, true, false) {
-            ["-apple-system", "PingFang SC", "Hiragino Sans GB", "sans-serif"].into()
+            [
+                "-apple-system",
+                "PingFang SC",
+                "Hiragino Sans GB",
+                "Apple Color Emoji",
+                "sans-serif",
+            ]
+            .into()
         } else if lang!("zh-Hant").matches(&lang, true, false) {
-            ["-apple-system", "PingFang TC", "sans-serif"].into()
+            ["-apple-system", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ja).matches(&lang, true, false) {
-            ["-apple-system", "Hiragino Kaku Gothic Pro", "sans-serif"].into()
+            ["-apple-system", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ko).matches(&lang, true, false) {
-            ["-apple-system", "Nanum Gothic", "Apple SD Gothic Neo", "AppleGothic", "sans-serif"].into()
+            [
+                "-apple-system",
+                "Nanum Gothic",
+                "Apple SD Gothic Neo",
+                "AppleGothic",
+                "Apple Color Emoji",
+                "sans-serif",
+            ]
+            .into()
         } else {
-            ["-apple-system", "sans-serif"].into()
+            ["-apple-system", "Apple Color Emoji", "sans-serif"].into()
         }
     }
 
@@ -656,6 +671,7 @@ impl FontNames {
                 "Source Han Sans SC",
                 "Source Han Sans CN",
                 "Source Han Sans",
+                "Noto Color Emoji",
                 "sans-serif",
             ]
             .into()
@@ -666,6 +682,7 @@ impl FontNames {
                 "Source Han Sans TC",
                 "Source Han Sans TW",
                 "Source Han Sans",
+                "Noto Color Emoji",
                 "sans-serif",
             ]
             .into()
@@ -677,6 +694,7 @@ impl FontNames {
                 "Source Han Sans J",
                 "Source Han Sans JP",
                 "Source Han Sans",
+                "Noto Color Emoji",
                 "sans-serif",
             ]
             .into()
@@ -690,11 +708,12 @@ impl FontNames {
                 "Source Han Sans",
                 "UnDotum",
                 "FBaekmuk Gulim",
+                "Noto Color Emoji",
                 "sans-serif",
             ]
             .into()
         } else {
-            ["system-ui", "Ubuntu", "Droid Sans", "sans-serif"].into()
+            ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
         }
     }
 

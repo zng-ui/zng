@@ -51,9 +51,8 @@
 
 * Implement text selection, need to dynamically replace a text range with a different style.
 
-# Async Fonts
+# Font Loading
 
-* Refactor fonts to be like the images service, async loading.
 * Support web fonts.
 
 # Font Features

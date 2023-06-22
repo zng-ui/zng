@@ -169,10 +169,12 @@ pub use crate::wgt_fn;
 /// The node's child is always the result of `update` for the `data` value, it is reinited every time
 /// either `data` or `update` updates.
 ///
-/// See also [`presenter_opt`] for a presenter that is nil with the data is `None` and [`view`] for
+/// See also [`presenter_opt`] for a presenter that is nil with the data is `None` and [`View!`] for
 /// avoiding a info tree rebuild for every data update.
 ///
 /// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
+/// 
+/// [`View!`]: struct@View
 pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
     let update = update.into_var();

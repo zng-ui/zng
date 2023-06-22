@@ -1119,7 +1119,8 @@ impl ShapedTextBuilder {
             WordBreak::KeepAll => false,
         };
 
-        if !matches!(config.hyphens, Hyphens::None) {
+        if !matches!(config.hyphens, Hyphens::None) && t.max_width.is_finite() {
+            // "hyphen" can be any char and we need the x-advance for the wrap algorithm.
             t.hyphen_glyphs = fonts.shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s, f| {
                 (s.clone(), f.clone())
             });
