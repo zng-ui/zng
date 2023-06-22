@@ -25,16 +25,9 @@
 
 # Emoji Rendering
 
-* Can be embedded bitmaps, SVGs or layered glyphs of different colors.
-* Looks like webrender expects the glyphs to be pre-processed?
-    - Yep, does not support any emoticon directly.
-* Newer versions of harfbuzz have function to get the colors.
-
-* We need more than one "fallback" font?
-    - Right now we use "Segoe UI Symbol" in Windows.
-    - We need to fallback to "Segoe UI Emoji" instead, or have both?
-    - See what browsers do, maybe we need a "front" font, that is added on top of other fonts?
-    - We have an special `TextSegmentKind::Emoji`, maybe we can have an `emoji_font_family` used exclusively for Emoji segs.
+* Implement COLR v1.
+* Implement SVG.
+* Implement bitmap.
 
 # Underline Skip Glyphs
 

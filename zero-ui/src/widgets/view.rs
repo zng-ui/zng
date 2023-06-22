@@ -173,7 +173,7 @@ pub use crate::wgt_fn;
 /// avoiding a info tree rebuild for every data update.
 ///
 /// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
-/// 
+///
 /// [`View!`]: struct@View
 pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();

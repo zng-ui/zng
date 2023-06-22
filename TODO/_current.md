@@ -1,7 +1,6 @@
 # TextInput
 
-* Add an emoji font.
-    - See `./Text.md`
+* Implement COLR v0 emoji rendering.
     - '🙎🏻‍♀️'
 
 * Implement cursor position.
@@ -57,7 +56,7 @@
 //
 // get image from arboard, inspect the first line:
 for pixel in data[..img.width * 4].chunks_mut(4) {
-    println!("!!: {pixel:?}");
+    println!("{pixel:?}");
 }
 
 // finds:

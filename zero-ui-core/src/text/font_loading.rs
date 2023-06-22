@@ -11,8 +11,8 @@ use font_kit::properties::Weight;
 use parking_lot::{Mutex, RwLock};
 
 use super::{
-    font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle,
-    FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
+    emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName,
+    FontStretch, FontStyle, FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -342,6 +342,7 @@ struct LoadedFontFace {
     is_monospace: bool,
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
+    color_palettes: ColorPalettes,
     m: Mutex<FontFaceMut>,
 }
 struct FontFaceMut {
@@ -361,6 +362,7 @@ impl fmt::Debug for FontFace {
             .field("is_monospace", &self.0.is_monospace)
             .field("properties", &self.0.properties)
             .field("metrics", &self.0.metrics)
+            .field("color_palettes.len()", &self.0.color_palettes.len())
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_keys.len())
             .field("unregistered", &m.unregistered)
@@ -402,6 +404,7 @@ impl FontFace {
                 // `xMin`/`xMax`/`yMin`/`yMax`
                 bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
+            color_palettes: ColorPalettes::empty(),
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
                 instances: FxHashMap::default(),
@@ -451,6 +454,7 @@ impl FontFace {
                             render_keys: Default::default(),
                             unregistered: Default::default(),
                         }),
+                        color_palettes: other_font.0.color_palettes.clone(),
                     }))),
                     None => Err(FontLoadingError::NoSuchFontInCollection),
                 };
@@ -471,6 +475,8 @@ impl FontFace {
             return Err(FontLoadingError::UnknownFormat);
         }
 
+        let color_palettes = ColorPalettes::load(&font)?;
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
             face: face.to_shared(),
@@ -485,6 +491,7 @@ impl FontFace {
             },
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
+            color_palettes,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -529,6 +536,8 @@ impl FontFace {
             return Err(FontLoadingError::UnknownFormat);
         }
 
+        let color_palettes = ColorPalettes::load(&font)?;
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
             face: face.to_shared(),
@@ -539,6 +548,7 @@ impl FontFace {
             properties: font.properties(),
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
+            color_palettes,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -712,6 +722,13 @@ impl FontFace {
     /// a request for the same font name will return a different reference.
     pub fn is_cached(&self) -> bool {
         !self.0.m.lock().unregistered
+    }
+
+    /// CPAL table.
+    ///
+    /// Is empty if not provided by the font.
+    pub fn color_palettes(&self) -> &ColorPalettes {
+        &self.0.color_palettes
     }
 }
 

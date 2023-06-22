@@ -15,6 +15,8 @@ use std::{
 };
 
 mod emoji_util;
+pub use emoji_util::*;
+
 pub mod font_features;
 mod font_kit_cache;
 mod unicode_bidi_util;
