@@ -1,11 +1,5 @@
 # TextInput
 
-* Trace FONT_PALETTE_COLORS to see if it changes with color-scheme.
-    - '🙎🏻‍♀️'
-
-* Implement cursor position.
-    - Need to find closest insert point from mouse cursor point.
-        - Support ligatures (click in middle works).
 * Support replace (Insert mode in command line).
 * Support buttons:
     - up and down arrows
