@@ -215,7 +215,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                     txt = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    txt_color = meta_color.clone();
+                    font_color = meta_color.clone();
                     offset = (-3.dip() - 100.pct(), -3.dip());
                 }
                 .boxed(),
@@ -225,7 +225,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                     txt = "t";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    txt_color = meta_color.clone();
+                    font_color = meta_color.clone();
                     offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
                 }
                 .boxed(),
@@ -247,7 +247,7 @@ fn ruler() -> impl UiNode {
         children = (0..=300).step_by(10)
             .map(|x| RuleLine! {
                 orientation = LineOrientation::Vertical;
-                color = TEXT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
+                color = FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }

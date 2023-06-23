@@ -443,7 +443,7 @@ mod ansi_fn {
         if args.style.color != AnsiColor::White {
             widget_set! {
                 &mut text;
-                txt_color = args.style.color;
+                font_color = args.style.color;
             }
         }
 

@@ -58,11 +58,11 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         };
 
         #[easing(150.ms())]
-        txt_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
+        font_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
 
         when *#is_hovered {
             #[easing(0.ms())]
-            txt_color = color_scheme_map(colors::WHITE, colors::BLACK);
+            font_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }
 
         child_align = Align::TOP_LEFT;

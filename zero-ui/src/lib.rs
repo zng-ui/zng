@@ -183,8 +183,8 @@ pub mod prelude {
     pub use crate::properties::transform::{transform, *};
     #[doc(no_inline)]
     pub use crate::widgets::text::{
-        direction, font_family, font_size, font_stretch, font_style, font_weight, lang, letter_spacing, line_height, tab_length, txt_align,
-        txt_color, txt_transform, word_spacing, TEXT_COLOR_VAR,
+        direction, font_color, font_family, font_size, font_stretch, font_style, font_weight, lang, letter_spacing, line_height,
+        tab_length, txt_align, txt_transform, word_spacing, FONT_COLOR_VAR,
     };
 
     #[doc(no_inline)]
@@ -352,8 +352,8 @@ pub mod prelude {
         pub use crate::properties::*;
         #[doc(no_inline)]
         pub use crate::widgets::text::{
-            self, font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align,
-            txt_color, txt_transform, word_spacing,
+            self, font_color, font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length,
+            txt_align, txt_transform, word_spacing,
         };
         #[doc(no_inline)]
         pub use crate::widgets::{

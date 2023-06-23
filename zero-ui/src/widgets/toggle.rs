@@ -830,16 +830,16 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             txt = "━";
         }
 
-        txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
+        font_color = text::FONT_COLOR_VAR.map(|c| c.transparent());
         when #{IS_CHECKED_VAR}.unwrap_or(true) {
-            txt_color = text::TEXT_COLOR_VAR;
+            font_color = text::FONT_COLOR_VAR;
         }
 
         #[easing(150.ms())]
-        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
     }
 }
@@ -886,7 +886,7 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         child = crate::widgets::Wgt! {
             size = 1.em() - Length::from(4);
             align = Align::LEFT;
-            background_color = text::TEXT_COLOR_VAR;
+            background_color = text::FONT_COLOR_VAR;
 
             #[easing(150.ms())]
             x = 0.em();
@@ -896,10 +896,10 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         };
 
         #[easing(150.ms())]
-        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
     }
 }
@@ -947,19 +947,19 @@ fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         border_align = 100.pct();
 
         #[easing(150.ms())]
-        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
 
         when *#is_checked {
             border = {
                 widths: 2,
-                sides: text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
+                sides: text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
             };
             #[easing(0.ms())]
-            background_color = text::TEXT_COLOR_VAR;
+            background_color = text::FONT_COLOR_VAR;
         }
     }
 }

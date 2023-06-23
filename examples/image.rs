@@ -447,7 +447,7 @@ impl ImgWindow {
                     txt = args.error;
                     margin = 8;
                     align = Align::CENTER;
-                    txt_color = error_color();
+                    font_color = error_color();
                     drop_shadow = {
                         offset: (0, 0),
                         blur_radius: 4,
@@ -481,7 +481,7 @@ pub fn loading() -> impl UiNode {
 
     center_viewport(Text! {
         txt = msg;
-        txt_color = loading_color();
+        font_color = loading_color();
         margin = 8;
         width = 80;
         font_style = FontStyle::Italic;

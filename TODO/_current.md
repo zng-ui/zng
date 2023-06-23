@@ -1,7 +1,6 @@
 # TextInput
 
-* Rename `txt_color` to `font_color`?
-    - Goes with `font_palette`.
+* Trace FONT_PALETTE_COLORS to see if it changes with color-scheme.
     - '🙎🏻‍♀️'
 
 * Implement cursor position.

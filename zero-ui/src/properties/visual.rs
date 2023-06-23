@@ -25,7 +25,7 @@ use super::hit_test_mode;
 ///     background = Text! {
 ///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
-///         txt_color = colors::LIGHT_GRAY;
+///         font_color = colors::LIGHT_GRAY;
 ///         transform = rotate(45.deg());
 ///         align = Align::CENTER;
 ///     }
@@ -210,7 +210,7 @@ pub fn background_conic(
 ///     foreground = Text! {
 ///         txt = "TRIAL";
 ///         font_size = 72;
-///         txt_color = colors::BLACK;
+///         font_color = colors::BLACK;
 ///         opacity = 10.pct();
 ///         transform = rotate(45.deg());
 ///         align = Align::CENTER;

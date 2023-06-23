@@ -1454,12 +1454,12 @@ pub fn render_text() -> impl UiNode {
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var_render_update(&TEXT_COLOR_VAR)
+                .sub_var_render_update(&FONT_COLOR_VAR)
                 .sub_var_render(&FONT_AA_VAR)
                 .sub_var(&FONT_PALETTE_VAR)
                 .sub_var(&FONT_PALETTE_COLORS_VAR);
 
-            if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
+            if FONT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
                 color_key = Some(FrameValueKey::new_unique());
             }
         }
@@ -1482,9 +1482,9 @@ pub fn render_text() -> impl UiNode {
 
             let lh = t.shaped_text.line_height();
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
-            let color = TEXT_COLOR_VAR.get();
+            let color = FONT_COLOR_VAR.get();
             let color_value = if let Some(key) = color_key {
-                key.bind(color.into(), TEXT_COLOR_VAR.is_animating())
+                key.bind(color.into(), FONT_COLOR_VAR.is_animating())
             } else {
                 FrameValue::Value(color.into())
             };
@@ -1519,7 +1519,7 @@ pub fn render_text() -> impl UiNode {
                                 ShapedColoredGlyphs::Normal(glyphs) => {
                                     frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                                 }
-                                ShapedColoredGlyphs::Colored { point, base_glyph, glyphs } => {
+                                ShapedColoredGlyphs::Colored { point, glyphs, .. } => {
                                     for (index, color_i) in glyphs.iter() {
                                         let color = if let Some(color_i) = color_i {
                                             if let Some(i) = palette_colors.iter().position(|(ci, _)| *ci == color_i as u16) {
@@ -1531,7 +1531,7 @@ pub fn render_text() -> impl UiNode {
                                                     .get_or_insert_with(|| font.face().color_palettes().palette(palette_query).unwrap());
 
                                                 // the font could have a bug and return an invalid palette index
-                                                palette.colors.get(color_i as usize).copied().unwrap_or(color)
+                                                palette.colors.get(color_i).copied().unwrap_or(color)
                                             }
                                         } else {
                                             // color_i is None, meaning the base color.
@@ -1560,9 +1560,9 @@ pub fn render_text() -> impl UiNode {
             }
 
             if let Some(key) = color_key {
-                let color = TEXT_COLOR_VAR.get();
+                let color = FONT_COLOR_VAR.get();
 
-                update.update_color(key.update(color.into(), TEXT_COLOR_VAR.is_animating()));
+                update.update_color(key.update(color.into(), FONT_COLOR_VAR.is_animating()));
 
                 let mut r = rendered.unwrap();
                 r.color = color;

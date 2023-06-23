@@ -137,7 +137,7 @@ impl LinkStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            text::txt_color = color_scheme_map(colors::LIGHT_BLUE, colors::BLUE);
+            text::font_color = color_scheme_map(colors::LIGHT_BLUE, colors::BLUE);
             crate::properties::cursor = CursorIcon::Hand;
 
             when *#is_cap_hovered {
@@ -145,7 +145,7 @@ impl LinkStyle {
             }
 
             when *#is_pressed {
-                text::txt_color = color_scheme_map(colors::YELLOW, colors::BROWN);
+                text::font_color = color_scheme_map(colors::YELLOW, colors::BROWN);
             }
 
             when *#is_disabled {

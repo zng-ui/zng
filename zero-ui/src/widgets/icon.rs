@@ -46,7 +46,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
         let node = text::font_family(node, icon.map(|i| i.font.clone().into()));
         let node = text::font_size(node, ICON_SIZE_VAR);
-        text::txt_color(node, ICON_COLOR_VAR)
+        text::font_color(node, ICON_COLOR_VAR)
     });
 }
 
@@ -126,8 +126,8 @@ context_var! {
 
     /// Defines the color of an icon.
     ///
-    /// Inherits from [`TEXT_COLOR_VAR`].
-    pub static ICON_COLOR_VAR: Rgba = text::TEXT_COLOR_VAR;
+    /// Inherits from [`FONT_COLOR_VAR`].
+    pub static ICON_COLOR_VAR: Rgba = text::FONT_COLOR_VAR;
 }
 
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.

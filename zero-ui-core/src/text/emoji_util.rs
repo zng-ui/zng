@@ -443,6 +443,8 @@ pub enum FontColorPalette {
     ///
     /// The palette list of a font is available in [`FontFace::color_palettes`]. If the index
     /// is not found uses the first font palette.
+    ///
+    /// [`FontFace::color_palettes`]: crate::text::FontFace::color_palettes
     Index(u16),
 }
 impl fmt::Debug for FontColorPalette {

@@ -135,8 +135,8 @@ pub mod hr {
     }
 
     context_var! {
-        /// Line color, inherits from [`TEXT_COLOR_VAR`].
-        pub static COLOR_VAR: Rgba = text::TEXT_COLOR_VAR;
+        /// Line color, inherits from [`FONT_COLOR_VAR`].
+        pub static COLOR_VAR: Rgba = text::FONT_COLOR_VAR;
 
         /// Line stroke thickness, default is `1.dip()`
         pub static STROKE_THICKNESS_VAR: Length = 1.dip();

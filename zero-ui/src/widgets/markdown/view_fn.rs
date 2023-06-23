@@ -1,7 +1,7 @@
 pub use pulldown_cmark::HeadingLevel;
 use zero_ui_core::{gesture::ClickArgs, image::ImageSource};
 
-use crate::widgets::text::{PARAGRAPH_SPACING_VAR, TEXT_COLOR_VAR};
+use crate::widgets::text::{FONT_COLOR_VAR, PARAGRAPH_SPACING_VAR};
 
 use super::*;
 
@@ -579,8 +579,8 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
             grid::cell::at = grid::cell::AT_AUTO;
             align = Align::TOP;
             txt = " ✓ ";
-            txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
-            background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+            font_color = FONT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
+            background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
             corner_radius = 4;
             scale = 0.8.fct();
             offset = (-(0.1.fct()), 0);
@@ -601,7 +601,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
-                background_color = TEXT_COLOR_VAR;
+                background_color = FONT_COLOR_VAR;
             },
             1 => Wgt! {
                 grid::cell::at = grid::cell::AT_AUTO;
@@ -609,14 +609,14 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
-                border = 1.px(), TEXT_COLOR_VAR.map_into();
+                border = 1.px(), FONT_COLOR_VAR.map_into();
             },
             _ => Wgt! {
                 grid::cell::at = grid::cell::AT_AUTO;
                 align = Align::TOP;
                 size = (5, 5);
                 margin = (0.6.em(), 0.5.em(), 0, 0);
-                background_color = TEXT_COLOR_VAR;
+                background_color = FONT_COLOR_VAR;
             },
         }
         .boxed()
@@ -724,13 +724,13 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
             children = args.items;
             corner_radius = 2;
             background_color = if args.level < 3 {
-                TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct())).boxed()
+                FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct())).boxed()
             } else {
                 colors::BLACK.transparent().into_boxed_var()
             };
             border = {
                 widths: (0, 0, 0, 4u32.saturating_sub(args.level).max(1) as i32),
-                sides: TEXT_COLOR_VAR.map(|c| BorderSides::solid(c.with_alpha(60.pct()))),
+                sides: FONT_COLOR_VAR.map(|c| BorderSides::solid(c.with_alpha(60.pct()))),
             };
             padding = 4;
         }
@@ -745,19 +745,19 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
     use crate::widgets::layouts::{grid, Grid};
 
     Grid! {
-        background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
-        border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
+        background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
+        border = 1, FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
         auto_grow_fn = wgt_fn!(|args: grid::AutoGrowFnArgs| {
             grid::Row! {
-                border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
+                border = (0, 0, 1, 0), FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
                     let alpha = if args.index % 2 == 0 {
                         5.pct()
                     } else {
                         0.pct()
                     };
-                    TEXT_COLOR_VAR.map(move |c| c.with_alpha(alpha))
+                    FONT_COLOR_VAR.map(move |c| c.with_alpha(alpha))
                 };
 
                 when *#is_last {

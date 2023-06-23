@@ -228,7 +228,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                     }
                                 });
                                 when *#is_hovered {
-                                    background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                                    background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                                 }
                             }
                         },

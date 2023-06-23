@@ -23,7 +23,7 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 ///     source = "not_found.png";
 ///     img_error_fn = WidgetFn::new(|e: image::ImgErrorArgs| Text! {
 ///         txt = e.error.clone();
-///         txt_color = colors::RED;
+///         font_color = colors::RED;
 ///     });
 /// }
 /// # ;
@@ -144,7 +144,7 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 ///     source = "not_found.png";
 ///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImgErrorArgs| Text! {
 ///         txt = e.error.clone();
-///         txt_color = colors::RED;
+///         font_color = colors::RED;
 ///         visibility = img_error_vis.clone();
 ///     });
 /// }
@@ -320,7 +320,7 @@ impl<D: VarValue> ViewArgs<D> {
 ///             } else {
 ///                 // finished view
 ///                 Text! {
-///                     txt_color = rgb(0, 128, 0);
+///                     font_color = rgb(0, 128, 0);
 ///                     font_size = 18;
 ///                     txt = "Congratulations!";
 ///                 }

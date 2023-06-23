@@ -124,7 +124,7 @@ fn app_main() {
                 font_weight = FontWeight::BOLD;
 
                 when *#{CONFIG.status().map(|s| s.is_err())} {
-                    txt_color = colors::RED;
+                    font_color = colors::RED;
                 }
             };
             child = Stack! {

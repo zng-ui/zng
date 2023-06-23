@@ -171,7 +171,7 @@ context_var! {
     /// Color of [`Text!`] glyphs that are not colored by palette.
     ///
     /// [`Text!`]: struct@crate::widgets::Text
-    pub static TEXT_COLOR_VAR: Rgba = COLOR_SCHEME_VAR.map(|s| match s {
+    pub static FONT_COLOR_VAR: Rgba = COLOR_SCHEME_VAR.map(|s| match s {
         ColorScheme::Light => colors::BLACK,
         ColorScheme::Dark => colors::WHITE,
     });
@@ -190,21 +190,22 @@ context_var! {
 /// Colored glyphs (Emoji) are not affected by this, you can use [`font_palette`] to modify
 /// Emoji colors.
 ///
-/// Sets the [`TEXT_COLOR_VAR`].
+/// Sets the [`FONT_COLOR_VAR`].
 ///
 /// [`font_palette`]: fn@font_palette
-#[property(CONTEXT, default(TEXT_COLOR_VAR), widget_impl(TextFillMix<P>))]
-pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    with_context_var(child, TEXT_COLOR_VAR, color)
+#[property(CONTEXT, default(FONT_COLOR_VAR), widget_impl(TextFillMix<P>))]
+pub fn font_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(child, FONT_COLOR_VAR, color)
 }
 
 /// Defines the palette used to render colored glyphs (Emoji).
 ///
-/// This property only affects Emoji from fonts using COLR v0. You can use [`txt_color`] to set
+/// This property only affects Emoji from fonts using COLR v0. You can use [`font_color`] to set
 /// the base color, and [`font_palette_colors`] to change specific colors.
 ///
 /// Sets the [`FONT_PALETTE_VAR`].
 ///
+/// [`font_color`]: fn@font_color
 /// [`font_palette_colors`]: fn@font_palette_colors
 #[property(CONTEXT, default(FONT_PALETTE_VAR), widget_impl(TextFillMix<P>))]
 pub fn font_palette(child: impl UiNode, palette: impl IntoVar<FontColorPalette>) -> impl UiNode {
@@ -217,6 +218,8 @@ pub fn font_palette(child: impl UiNode, palette: impl IntoVar<FontColorPalette>)
 ///
 /// This function is a helper for declaring properties that configure the colors of a specific font, you
 /// can use [`font_palette_colors`] to set all color overrides directly.
+///
+/// [`font_palette_colors`]: fn@font_palette_colors
 pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(
         child,
@@ -390,8 +393,8 @@ context_var! {
     pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0;
     /// Underline style.
     pub static UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Underline color, inherits from [`TEXT_COLOR_VAR`].
-    pub static UNDERLINE_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    /// Underline color, inherits from [`FONT_COLOR_VAR`].
+    pub static UNDERLINE_COLOR_VAR: Rgba = FONT_COLOR_VAR;
     /// Parts of text skipped by underline.
     pub static UNDERLINE_SKIP_VAR: UnderlineSkip = UnderlineSkip::DEFAULT;
     /// Position of the underline.
@@ -401,15 +404,15 @@ context_var! {
     pub static OVERLINE_THICKNESS_VAR: TextLineThickness = 0;
     /// Overline style.
     pub static OVERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Overline color, inherits from [`TEXT_COLOR_VAR`].
-    pub static OVERLINE_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    /// Overline color, inherits from [`FONT_COLOR_VAR`].
+    pub static OVERLINE_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
     /// Strikethrough thickness.
     pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0;
     /// Strikethrough style.
     pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Strikethrough color, inherits from [`TEXT_COLOR_VAR`].
-    pub static STRIKETHROUGH_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    /// Strikethrough color, inherits from [`FONT_COLOR_VAR`].
+    pub static STRIKETHROUGH_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 }
 
 /// Draw lines *under* each text line.
@@ -421,7 +424,7 @@ pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>
     with_context_var(child, UNDERLINE_STYLE_VAR, style)
 }
 /// Custom [`underline`](fn@underline) color, if not set
-/// the [`txt_color`](fn@txt_color) is used.
+/// the [`font_color`](fn@font_color) is used.
 ///
 /// Sets the [`UNDERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(UNDERLINE_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
@@ -457,7 +460,7 @@ pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, 
     with_context_var(child, OVERLINE_STYLE_VAR, style)
 }
 /// Custom [`overline`](fn@overline) color, if not set
-/// the [`txt_color`](fn@txt_color) is used.
+/// the [`font_color`](fn@font_color) is used.
 ///
 /// Sets the [`OVERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(OVERLINE_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
@@ -474,7 +477,7 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
     with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
 }
 /// Custom [`strikethrough`](fn@strikethrough) color, if not set
-/// the [`txt_color`](fn@txt_color) is used.
+/// the [`font_color`](fn@font_color) is used.
 ///
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
 #[property(CONTEXT, default(STRIKETHROUGH_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
@@ -894,8 +897,8 @@ context_var! {
     /// Accepts `'\n'` input when editable.
     pub static ACCEPTS_ENTER_VAR: bool = true;
 
-    /// Caret color, inherits from [`TEXT_COLOR_VAR`].
-    pub static CARET_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    /// Caret color, inherits from [`FONT_COLOR_VAR`].
+    pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 }
 
 /// Enable text selection, copy, caret and input; and makes the widget focusable.

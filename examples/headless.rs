@@ -84,7 +84,7 @@ fn image() -> impl UiNode {
             txt = "Hello World!";
             font_size = 72;
             font_family = ["Consolas", "monospace"];
-            txt_color = colors::WHITE;
+            font_color = colors::WHITE;
         };
     }
 }

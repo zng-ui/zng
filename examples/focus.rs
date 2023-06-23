@@ -309,14 +309,14 @@ fn commands() -> impl UiNode {
         children_align = Align::RIGHT;
 
         font_family = FontName::monospace();
-        txt_color = colors::GRAY;
+        font_color = colors::GRAY;
 
         children = cmds.into_iter().map(|cmd| {
             Text! {
                 txt = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
-                    txt_color = color_scheme_map(colors::WHITE, colors::BLACK);
+                    font_color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
             }.boxed()
         }).collect::<Vec<_>>();

@@ -82,14 +82,14 @@ fn app_main() {
                         txt = shortcut_text;
 
                         when *#{shortcut_error} {
-                            txt_color = colors::SALMON;
+                            font_color = colors::SALMON;
                         }
                     },
                     Text! {
                         align = Align::CENTER;
                         font_size = 22.pt();
                         font_family = FontName::monospace();
-                        txt_color = colors::LIGHT_SLATE_GRAY;
+                        font_color = colors::LIGHT_SLATE_GRAY;
                         txt = keypress_text;
                     }
                 ];
