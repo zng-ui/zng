@@ -1,9 +1,7 @@
 # TextInput
 
-* Implement COLR v0 emoji rendering.
-    - Finish implementing.
-        - !!:
-    - Rename `txt_color` to `font_color`.
+* Rename `txt_color` to `font_color`?
+    - Goes with `font_palette`.
     - '🙎🏻‍♀️'
 
 * Implement cursor position.

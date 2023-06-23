@@ -318,7 +318,7 @@ pub enum ShapedColoredGlyphs<'a> {
         /// Point that must be used for all `glyphs`.
         point: zero_ui_view_api::webrender_api::units::LayoutPoint,
         /// The glyph that is replaced by `glyphs`.
-        /// 
+        ///
         /// Must be used as fallback if any `glyphs` cannot be rendered.
         base_glyph: GlyphIndex,
 

@@ -1510,26 +1510,41 @@ pub fn render_text() -> impl UiNode {
 
             frame.push_reuse(&mut reuse, |frame| {
                 if t.shaped_text.has_colored_glyphs() {
-                    for (font, glyphs) in t.shaped_text.colored_glyphs() {
-                        match glyphs {
-                            ShapedColoredGlyphs::Normal(glyphs) => {
-                                frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
-                            }
-                            ShapedColoredGlyphs::Colored { point, base_glyph, glyphs } => {
-                                // !!: TODO, FONT_PALETTE_COLORS_VAR and cache.
-                                if let Some(p) = font.face().color_palettes().palette(FONT_PALETTE_VAR.get()) {
+                    let palette_query = FONT_PALETTE_VAR.get();
+                    FONT_PALETTE_COLORS_VAR.with(|palette_colors| {
+                        for (font, glyphs) in t.shaped_text.colored_glyphs() {
+                            let mut palette = None;
+
+                            match glyphs {
+                                ShapedColoredGlyphs::Normal(glyphs) => {
+                                    frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                                }
+                                ShapedColoredGlyphs::Colored { point, base_glyph, glyphs } => {
                                     for (index, color_i) in glyphs.iter() {
-                                        let color = color_i.and_then(|i| p.colors.get(i).copied()).unwrap_or(color);
+                                        let color = if let Some(color_i) = color_i {
+                                            if let Some(i) = palette_colors.iter().position(|(ci, _)| *ci == color_i as u16) {
+                                                palette_colors[i].1
+                                            } else {
+                                                // FontFace only parses colored glyphs if the font has at least one
+                                                // palette, so it is safe to unwrap here
+                                                let palette = palette
+                                                    .get_or_insert_with(|| font.face().color_palettes().palette(palette_query).unwrap());
+
+                                                // the font could have a bug and return an invalid palette index
+                                                palette.colors.get(color_i as usize).copied().unwrap_or(color)
+                                            }
+                                        } else {
+                                            // color_i is None, meaning the base color.
+                                            color
+                                        };
+
                                         let g = GlyphInstance { point, index };
                                         frame.push_text(clip, &[g], font, FrameValue::Value(color.into()), r.synthesis, aa);
                                     }
-                                } else {
-                                    let g = GlyphInstance { point, index: base_glyph };
-                                    frame.push_text(clip, &[g], font, color_value, r.synthesis, aa);
-                                };
+                                }
                             }
                         }
-                    }
+                    });
                 } else {
                     for (font, glyphs) in t.shaped_text.glyphs() {
                         frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
