@@ -1453,10 +1453,15 @@ pub fn render_text() -> impl UiNode {
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
+            WIDGET
+                .sub_var_render_update(&TEXT_COLOR_VAR)
+                .sub_var_render(&FONT_AA_VAR)
+                .sub_var(&FONT_PALETTE_VAR)
+                .sub_var(&FONT_PALETTE_COLORS_VAR);
+
             if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
                 color_key = Some(FrameValueKey::new_unique());
             }
-            // subscriptions are handled by the `resolve_text` node.
         }
         UiNodeOp::Deinit => {
             color_key = None;
@@ -1464,10 +1469,11 @@ pub fn render_text() -> impl UiNode {
             rendered = None;
         }
         UiNodeOp::Update { .. } => {
-            if FONT_AA_VAR.is_new() {
-                WIDGET.render();
-            } else if TEXT_COLOR_VAR.is_new() {
-                WIDGET.render_update();
+            if FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new() {
+                let t = LayoutText::get();
+                if t.shaped_text.has_colored_glyphs() {
+                    WIDGET.render();
+                }
             }
         }
         UiNodeOp::Render { frame } => {
@@ -1503,8 +1509,31 @@ pub fn render_text() -> impl UiNode {
             }
 
             frame.push_reuse(&mut reuse, |frame| {
-                for (font, glyphs) in t.shaped_text.glyphs() {
-                    frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                if t.shaped_text.has_colored_glyphs() {
+                    for (font, glyphs) in t.shaped_text.colored_glyphs() {
+                        match glyphs {
+                            ShapedColoredGlyphs::Normal(glyphs) => {
+                                frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                            }
+                            ShapedColoredGlyphs::Colored { point, base_glyph, glyphs } => {
+                                // !!: TODO, FONT_PALETTE_COLORS_VAR and cache.
+                                if let Some(p) = font.face().color_palettes().palette(FONT_PALETTE_VAR.get()) {
+                                    for (index, color_i) in glyphs.iter() {
+                                        let color = color_i.and_then(|i| p.colors.get(i).copied()).unwrap_or(color);
+                                        let g = GlyphInstance { point, index };
+                                        frame.push_text(clip, &[g], font, FrameValue::Value(color.into()), r.synthesis, aa);
+                                    }
+                                } else {
+                                    let g = GlyphInstance { point, index: base_glyph };
+                                    frame.push_text(clip, &[g], font, color_value, r.synthesis, aa);
+                                };
+                            }
+                        }
+                    }
+                } else {
+                    for (font, glyphs) in t.shaped_text.glyphs() {
+                        frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                    }
                 }
             });
         }

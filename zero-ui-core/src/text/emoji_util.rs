@@ -8,13 +8,13 @@ see: see https://github.com/unicode-org/icu4x/issues/3529
 
  */
 
-use std::mem::size_of;
+use std::{fmt, mem::size_of};
 
 use byteorder::{BigEndian, ReadBytesExt};
 use icu_properties::sets;
 use zero_ui_view_api::webrender_api::GlyphIndex;
 
-use crate::color::Rgba;
+use crate::{color::Rgba, impl_from_and_into_var};
 
 pub(super) fn maybe_emoji(c: char) -> bool {
     sets::load_emoji(&icu_testdata::unstable()).unwrap().as_borrowed().contains(c)
@@ -181,10 +181,39 @@ impl ColorPalettes {
         self.num_palettes == 0
     }
 
-    /// Gets the palette.
-    ///
-    /// All palettes have the same length.
-    pub fn palette(&self, i: usize) -> Option<ColorPalette> {
+    /// Gets the requested palette or the first it it is not found.
+    pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette> {
+        let i = self.palette_i(p.into());
+        self.palette_get(i.unwrap_or(0))
+    }
+
+    /// Gets the requested palette.
+    pub fn palette_exact(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette> {
+        let i = self.palette_i(p.into())?;
+        self.palette_get(i)
+    }
+
+    fn palette_i(&self, p: FontColorPalette) -> Option<usize> {
+        match p {
+            FontColorPalette::Light => self
+                .types
+                .iter()
+                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_LIGHT_BACKGROUND)),
+            FontColorPalette::Dark => self
+                .types
+                .iter()
+                .position(|p| p.contains(ColorPaletteType::USABLE_WITH_DARK_BACKGROUND)),
+            FontColorPalette::Index(i) => {
+                if i < self.num_palette_entries {
+                    Some(i as _)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn palette_get(&self, i: usize) -> Option<ColorPalette> {
         let len = self.num_palette_entries as usize;
         let s = len + i;
         let e = s + len;
@@ -330,37 +359,19 @@ impl ColorGlyphs {
     /// `None` if the base text color must be used.
     ///
     /// Yields the `base_glyph` with `None` color if it the font does not provide colored replacements for it.
-    pub fn glyphs(&self, base_glyph: GlyphIndex) -> impl Iterator<Item = (GlyphIndex, Option<usize>)> + '_ {
-        let layers = match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
+    pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph> {
+        match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
             Ok(i) => {
                 let rec = &self.base_glyph_records[i];
 
                 let s = rec.first_layer_index as usize;
                 let e = s + rec.num_layers as usize;
-                &self.layer_records[s..e]
+                Some(ColorGlyph {
+                    layers: &self.layer_records[s..e],
+                })
             }
-            Err(_) => &[],
-        };
-
-        let iter = layers.iter().map(|l| (l.glyph_id(), l.palette_index()));
-        let mut not_found = [(base_glyph, None)].into_iter();
-        if !layers.is_empty() {
-            not_found.next();
+            Err(_) => None,
         }
-        iter.chain(not_found)
-    }
-
-    /// Resolve [`glyphs`] and colors.
-    ///
-    /// [`glyphs`]: Self::glyphs
-    pub fn glyph_rgba<'a>(
-        &'a self,
-        txt_color: Rgba,
-        palette: &'a [Rgba],
-        base_glyph: GlyphIndex,
-    ) -> impl Iterator<Item = (GlyphIndex, Rgba)> + 'a {
-        self.glyphs(base_glyph)
-            .map(move |(g, c)| (g, c.and_then(|i| palette.get(i).copied()).unwrap_or(txt_color)))
     }
 
     /// If the font does not have any colored glyphs.
@@ -371,6 +382,24 @@ impl ColorGlyphs {
     /// Number of base glyphs that have colored replacements.
     pub fn len(&self) -> usize {
         self.base_glyph_records.len()
+    }
+}
+
+/// Represents all layer glyphs selected by the font to replace a colored glyph.
+///
+/// Get using [`ColorGlyphs::glyph`].
+pub struct ColorGlyph<'a> {
+    layers: &'a [LayerRecord],
+}
+impl<'a> ColorGlyph<'a> {
+    /// Iterate over the layer glyphs and palette color from back to front.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (GlyphIndex, Option<usize>)> + 'a {
+        self.layers.iter().map(|l| (l.glyph_id(), l.palette_index()))
+    }
+
+    /// Number of layer glyphs that replace the colored glyph.
+    pub fn layers_len(&self) -> usize {
+        self.layers.len()
     }
 }
 
@@ -396,6 +425,46 @@ impl LayerRecord {
             None
         } else {
             Some(self.palette_index as _)
+        }
+    }
+}
+
+/// Color palette selector for colored fonts.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FontColorPalette {
+    /// Select first font palette tagged [`ColorPaletteType::USABLE_WITH_LIGHT_BACKGROUND`], or 0 if the
+    /// font does not tag any palette or no match is found.
+    Light,
+    /// Select first font palette tagged [`ColorPaletteType::USABLE_WITH_DARK_BACKGROUND`], or 0 if the
+    /// font does not tag any palette or no match is found.
+    Dark,
+    /// Select one of the font provided palette by index.
+    ///
+    /// The palette list of a font is available in [`FontFace::color_palettes`]. If the index
+    /// is not found uses the first font palette.
+    Index(u16),
+}
+impl fmt::Debug for FontColorPalette {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FontColorPalette::")?;
+        }
+        match self {
+            Self::Light => write!(f, "Light"),
+            Self::Dark => write!(f, "Dark"),
+            Self::Index(arg0) => f.debug_tuple("Index").field(arg0).finish(),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(index: u16) -> FontColorPalette {
+        FontColorPalette::Index(index)
+    }
+
+    fn from(color_scheme: zero_ui_view_api::ColorScheme) -> FontColorPalette {
+        match color_scheme {
+            zero_ui_view_api::ColorScheme::Light => FontColorPalette::Light,
+            zero_ui_view_api::ColorScheme::Dark => FontColorPalette::Dark,
         }
     }
 }

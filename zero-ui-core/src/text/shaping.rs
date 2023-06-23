@@ -305,7 +305,28 @@ pub struct ShapedText {
     mid_clear: Px,
     mid_size: PxSize,
     last_line: PxRect,
+
+    has_colored_glyphs: bool,
 }
+
+/// Represents normal and colored glyphs in [`ShapedText::colored_glyphs`].
+pub enum ShapedColoredGlyphs<'a> {
+    /// Sequence of not colored glyphs, use the base color to fill.
+    Normal(&'a [GlyphInstance]),
+    /// Colored glyph.
+    Colored {
+        /// Point that must be used for all `glyphs`.
+        point: zero_ui_view_api::webrender_api::units::LayoutPoint,
+        /// The glyph that is replaced by `glyphs`.
+        /// 
+        /// Must be used as fallback if any `glyphs` cannot be rendered.
+        base_glyph: GlyphIndex,
+
+        /// The colored glyph components.
+        glyphs: super::ColorGlyph<'a>,
+    },
+}
+
 impl ShapedText {
     /// New empty text.
     pub fn new(font: &Font) -> Self {
@@ -315,6 +336,85 @@ impl ShapedText {
     /// Glyphs by font.
     pub fn glyphs(&self) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
         self.fonts.iter_glyphs().map(move |(f, r)| (f, &self.glyphs[r.iter()]))
+    }
+
+    /// If the shaped text has any Emoji glyph associated with a font that has color palettes.
+    pub fn has_colored_glyphs(&self) -> bool {
+        self.has_colored_glyphs
+    }
+
+    /// Glyphs by font and palette color.
+    pub fn colored_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
+        struct Iter<'a, G>
+        where
+            G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+        {
+            glyphs: G,
+            maybe_colored: Option<(&'a Font, &'a [GlyphInstance])>,
+        }
+        impl<'a, G> Iterator for Iter<'a, G>
+        where
+            G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+        {
+            type Item = (&'a Font, ShapedColoredGlyphs<'a>);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                loop {
+                    if let Some((font, glyphs)) = self.maybe_colored {
+                        // maybe-colored iter
+
+                        let color_glyphs = font.face().color_glyphs();
+
+                        for (i, g) in glyphs.iter().enumerate() {
+                            if let Some(c_glyphs) = color_glyphs.glyph(g.index) {
+                                // colored yield
+
+                                let next_start = i + 1;
+                                if next_start < glyphs.len() {
+                                    // continue maybe-colored iter
+                                    self.maybe_colored = Some((font, &glyphs[next_start..]));
+                                } else {
+                                    // continue normal iter
+                                    self.maybe_colored = None;
+                                }
+
+                                return Some((
+                                    font,
+                                    ShapedColoredGlyphs::Colored {
+                                        point: g.point,
+                                        base_glyph: g.index,
+                                        glyphs: c_glyphs,
+                                    },
+                                ));
+                            }
+                        }
+                        // enter normal iter
+                        self.maybe_colored = None;
+
+                        // last normal in maybe-colored yield
+                        debug_assert!(!glyphs.is_empty());
+                        return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
+                    } else if let Some((font, glyphs)) = self.glyphs.next() {
+                        // normal iter
+
+                        let color_glyphs = font.face().color_glyphs();
+                        if color_glyphs.is_empty() {
+                            return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
+                        } else {
+                            // enter maybe-colored iter
+                            self.maybe_colored = Some((font, glyphs));
+                            continue;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+        }
+        Iter {
+            glyphs: self.glyphs(),
+            maybe_colored: None,
+        }
     }
 
     /// Glyphs by font in the range.
@@ -828,6 +928,7 @@ impl ShapedText {
             is_inlined: false,
             mid_size: PxSize::zero(),
             last_line: PxRect::zero(),
+            has_colored_glyphs: false,
         }
     }
 
@@ -1041,6 +1142,7 @@ impl ShapedTextBuilder {
                 mid_clear: Px(0),
                 mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
+                has_colored_glyphs: false,
             },
 
             line_height: 0.0,
@@ -1170,6 +1272,10 @@ impl ShapedTextBuilder {
                         // don't need wrap
                         self.push_glyphs(shaped_seg, self.letter_spacing);
                         self.push_text_seg(seg, info);
+                    }
+
+                    if matches!(info.kind, TextSegmentKind::Emoji) && !font.face().color_glyphs().is_empty() {
+                        self.out.has_colored_glyphs = true;
                     }
 
                     self.push_font(font);

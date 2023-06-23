@@ -168,18 +168,82 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 pub struct TextFillMix<P>(P);
 
 context_var! {
-    /// Text color of [`Text!`] spans.
+    /// Color of [`Text!`] glyphs that are not colored by palette.
     ///
     /// [`Text!`]: struct@crate::widgets::Text
-    pub static TEXT_COLOR_VAR: Rgba = colors::WHITE;
+    pub static TEXT_COLOR_VAR: Rgba = COLOR_SCHEME_VAR.map(|s| match s {
+        ColorScheme::Light => colors::BLACK,
+        ColorScheme::Dark => colors::WHITE,
+    });
+
+    /// Color of [`Text!`] glyphs that are colored by palette, mostly Emoji.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
+    pub static FONT_PALETTE_VAR: FontColorPalette = COLOR_SCHEME_VAR.map_into();
+
+    /// Overrides of specific colors in the selected colored glyph palette.
+    pub static FONT_PALETTE_COLORS_VAR: Vec<(u16, Rgba)> = vec![];
 }
 
-/// Defines the color the text glyphs are filled with.
+/// Defines the color the most text glyphs are filled with.
+///
+/// Colored glyphs (Emoji) are not affected by this, you can use [`font_palette`] to modify
+/// Emoji colors.
 ///
 /// Sets the [`TEXT_COLOR_VAR`].
+///
+/// [`font_palette`]: fn@font_palette
 #[property(CONTEXT, default(TEXT_COLOR_VAR), widget_impl(TextFillMix<P>))]
 pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TEXT_COLOR_VAR, color)
+}
+
+/// Defines the palette used to render colored glyphs (Emoji).
+///
+/// This property only affects Emoji from fonts using COLR v0. You can use [`txt_color`] to set
+/// the base color, and [`font_palette_colors`] to change specific colors.
+///
+/// Sets the [`FONT_PALETTE_VAR`].
+///
+/// [`font_palette_colors`]: fn@font_palette_colors
+#[property(CONTEXT, default(FONT_PALETTE_VAR), widget_impl(TextFillMix<P>))]
+pub fn font_palette(child: impl UiNode, palette: impl IntoVar<FontColorPalette>) -> impl UiNode {
+    with_context_var(child, FONT_PALETTE_VAR, palette)
+}
+
+/// Set the palette color in the font palette colors.
+///
+/// The `index` is pushed or replaced on the context [`FONT_PALETTE_COLORS_VAR`].
+///
+/// This function is a helper for declaring properties that configure the colors of a specific font, you
+/// can use [`font_palette_colors`] to set all color overrides directly.
+pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(
+        child,
+        FONT_PALETTE_COLORS_VAR,
+        merge_var!(FONT_PALETTE_COLORS_VAR, color.into_var(), move |set, color| {
+            let mut set = set.clone();
+            if let Some(i) = set.iter().position(|(i, _)| *i == index) {
+                set[i].1 = *color;
+            } else {
+                set.push((index, *color));
+            }
+            set
+        }),
+    )
+}
+
+/// Defines custom palette colors that affect Emoji colors.
+///
+/// The palette is selected by [`font_palette`] and then each valid index entry in this property replaces
+/// the selected color.
+///
+/// Sets the [`FONT_PALETTE_COLORS_VAR`].
+///
+/// [`font_palette`]: fn@font_palette
+#[property(CONTEXT, default(FONT_PALETTE_COLORS_VAR), widget_impl(TextFillMix<P>))]
+pub fn font_palette_colors(child: impl UiNode, colors: impl IntoVar<Vec<(u16, Rgba)>>) -> impl UiNode {
+    with_context_var(child, FONT_PALETTE_COLORS_VAR, colors)
 }
 
 /// Text align, justify.

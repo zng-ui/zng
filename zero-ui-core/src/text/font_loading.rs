@@ -748,7 +748,7 @@ impl FontFace {
     }
 
     /// COLR table.
-    /// 
+    ///
     /// Is empty if not provided by the font.
     pub fn color_glyphs(&self) -> &ColorGlyphs {
         &self.0.color_glyphs
