@@ -120,9 +120,10 @@ impl ColorPalettes {
         for i in 0..num_palettes {
             cursor.set_position(color_record_indicies + i as u64 * size_of::<u16>() as u64);
 
-            let color_record_indice = color_records_array_offset + cursor.read_u16::<BigEndian>()? as u64;
+            let color_record_indice = cursor.read_u16::<BigEndian>()? as u64;
+            let color_record_offset = color_records_array_offset + color_record_indice * size_of::<(u8, u8, u8, u8)>() as u64;
 
-            cursor.set_position(color_record_indice);
+            cursor.set_position(color_record_offset);
             for _ in 0..num_palette_entries {
                 let b = cursor.read_u8()?;
                 let g = cursor.read_u8()?;

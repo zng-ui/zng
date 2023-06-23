@@ -2,7 +2,6 @@
 
 * Implement COLR v0 emoji rendering.
     - Finish implementing.
-        - Got incorrect colors.
         - !!:
     - Rename `txt_color` to `font_color`.
     - '🙎🏻‍♀️'
