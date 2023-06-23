@@ -5,7 +5,7 @@
       that fit together.
     - Tested "Times New Roman" with `font_discretionary_lig` and text "fi".
         - Ligature is rendered, but caret position skips entire glyph in one go.
-        - Test in other editors.
+        - Word implements this correctly (caret goes to the middle of glyph).
 ```rust
 TextInput! {
     font_family = ["Times New Roman"];
