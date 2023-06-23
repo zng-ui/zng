@@ -1,19 +1,17 @@
 # TextInput
 
 * Caret in actual ligatures not working.
-    - Tested with "JetBrains Mono" first, but that font actually uses `font_contextual_alt` to provide multiple glyphs
-      that fit together.
-    - Tested "Times New Roman" with `font_discretionary_lig` and text "fi".
-        - Ligature is rendered, but caret position skips entire glyph in one go.
-        - Word implements this correctly (caret goes to the middle of glyph).
+    - Use `ligature_caret_offsets` in `caret_origin`.
+    - How to detect *possible* ligature?
 ```rust
 TextInput! {
     font_family = ["Times New Roman"];
     font_size = 32;
     font_discretionary_lig = true;
-    txt = var_from("ft");
+    txt = var_from("fim");
 }
 ```
+
 * Support replace (Insert mode in command line).
 * Support buttons:
     - up and down arrows

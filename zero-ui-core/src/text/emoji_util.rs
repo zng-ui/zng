@@ -44,7 +44,7 @@ pub(super) fn is_component(c: char) -> bool {
 
 /*
 https://learn.microsoft.com/en-us/typography/opentype/spec/otff
-All OpenType fonts use Motorola-style byte ordering (Big Endian
+All OpenType fonts use Motorola-style byte ordering (Big Endian)
 
 Offset32 = uint32
  */

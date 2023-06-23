@@ -35,6 +35,8 @@ pub use shaping::*;
 mod hyphenation;
 pub use self::hyphenation::*;
 
+mod ligature_util;
+
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 
 impl Transitionable for FontWeight {

@@ -11,8 +11,9 @@ use font_kit::properties::Weight;
 use parking_lot::{Mutex, RwLock};
 
 use super::{
-    emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, ColorGlyphs, FontFaceMetrics,
-    FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
+    emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, ligature_util::LigatureCaretList,
+    ColorGlyphs, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Lang, ShapedSegmentData,
+    WordCacheKey,
 };
 use crate::{
     app::{
@@ -344,6 +345,7 @@ struct LoadedFontFace {
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
     color_glyphs: ColorGlyphs,
+    lig_carets: LigatureCaretList,
     m: Mutex<FontFaceMut>,
 }
 struct FontFaceMut {
@@ -408,6 +410,7 @@ impl FontFace {
             },
             color_palettes: ColorPalettes::empty(),
             color_glyphs: ColorGlyphs::empty(),
+            lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
                 instances: FxHashMap::default(),
@@ -459,6 +462,7 @@ impl FontFace {
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
                         color_glyphs: other_font.0.color_glyphs.clone(),
+                        lig_carets: other_font.0.lig_carets.clone(),
                     }))),
                     None => Err(FontLoadingError::NoSuchFontInCollection),
                 };
@@ -485,6 +489,7 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
+        let lig_carets = LigatureCaretList::load(&font)?;
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
@@ -502,6 +507,7 @@ impl FontFace {
             metrics: font.metrics().into(),
             color_palettes,
             color_glyphs,
+            lig_carets,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -552,6 +558,7 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
+        let lig_carets = LigatureCaretList::load(&font)?;
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
@@ -565,6 +572,7 @@ impl FontFace {
             metrics: font.metrics().into(),
             color_palettes,
             color_glyphs,
+            lig_carets,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
                     let mut font_kit = FontKitCache::default();
@@ -899,6 +907,27 @@ impl Font {
     /// Sized font metrics.
     pub fn metrics(&self) -> &FontMetrics {
         &self.0.metrics
+    }
+
+    /// Iterate over pixel offsets relative to `lig` glyph start that represents the
+    /// caret offset for each cluster that is covered by the ligature, after the first.
+    ///
+    /// The caret offset for the first cluster is the glyph offset and is not included in the iterator.
+    pub fn ligature_caret_offsets(&self, lig: wr::GlyphIndex) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
+        let face = &self.0.face.0;
+        face.lig_carets.carets(lig).iter().map(move |&o| match o {
+            super::ligature_util::LigatureCaret::Coordinate(o) => {
+                let size_scale = 1.0 / face.metrics.units_per_em as f32 * self.0.size.0 as f32;
+                o as f32 * size_scale
+            }
+            super::ligature_util::LigatureCaret::GlyphContourPoint(i) => {
+                if let Some((x, _)) = self.harfbuzz_font().get_glyph_contour_point(lig, i as _) {
+                    x as f32 * self.0.metrics.size_scale
+                } else {
+                    0.0
+                }
+            }
+        })
     }
 }
 impl crate::render::Font for Font {
