@@ -1015,24 +1015,45 @@ impl ShapedText {
                             std::cmp::Ordering::Greater => break,
                         }
                     }
+                    let closest_cluster = closest_cluster as u32;
 
                     let mut p = seg.rect().origin;
                     let mut x = p.x.0 as f32;
 
+                    let mut cluster_count = closest_cluster;
                     'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
                         for (glyph, advance) in glyph_adv {
-                            if closest_cluster == 0 {
+                            if cluster_count == 0 {
                                 if search_lig_caret {
-                                    println!("!!: search lig caret");
+                                    let mut font_caret = None;
+                                    let mut caret_count = cluster_idx;
                                     for caret in font.ligature_caret_offsets(glyph.index) {
-                                        println!("!!: caret: {caret:?}");
+                                        font_caret = Some(caret);
+                                        if caret_count == 0 {
+                                            break;
+                                        }
+                                        caret_count -= 1;
+                                    }
+
+                                    if let Some(caret) = font_caret {
+                                        x += caret;
+                                    } else {
+                                        let next_cluster = closest_cluster + 1;
+                                        let cluster_len = if next_cluster < clusters.len() as u32 {
+                                            clusters[next_cluster as usize] - closest_cluster
+                                        } else {
+                                            txt_range.end() as u32 - closest_cluster
+                                        };
+
+                                        let caret = advance * ((cluster_idx as u32 - closest_cluster) as f32 / cluster_len as f32);
+                                        x += caret;
                                     }
                                 }
 
                                 break 'outer;
                             }
                             x += advance;
-                            closest_cluster -= 1;
+                            cluster_count -= 1;
                         }
                     }
                     p.x.0 = x.round() as i32;

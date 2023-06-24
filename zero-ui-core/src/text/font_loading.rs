@@ -912,7 +912,8 @@ impl Font {
     /// Iterate over pixel offsets relative to `lig` glyph start that represents the
     /// caret offset for each cluster that is covered by the ligature, after the first.
     ///
-    /// The caret offset for the first cluster is the glyph offset and is not included in the iterator.
+    /// The caret offset for the first cluster is the glyph offset and is not yielded in the iterator. The
+    /// yielded offsets are relative to the glyph position.
     pub fn ligature_caret_offsets(&self, lig: wr::GlyphIndex) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
         let face = &self.0.face.0;
         face.lig_carets.carets(lig).iter().map(move |&o| match o {
