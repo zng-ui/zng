@@ -12,7 +12,7 @@ default = ["ipc"]
 #
 # When this is enabled communication with the view is (de)serialized which can add a 
 # minor cost, something like a 1ms per 3MB frame request.
-ipc = ["ipc-channel", "duct", "winapi"]
+ipc = ["ipc-channel", "duct"]
 
 [dependencies]
 webrender_api = { path = "../dependencies/webrender/webrender_api" }
@@ -30,6 +30,3 @@ bitflags = { version = "2", features = ["serde"] }
 ipc-channel = { version = "0.16", optional = true }
 bincode = "1"
 parking_lot = "0.12"
-# winapi features ipc-channel uses but does not import correctly
-[target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3.7", features = ["errhandlingapi"], optional = true }
