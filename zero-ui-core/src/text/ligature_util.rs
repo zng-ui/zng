@@ -223,7 +223,7 @@ impl LigatureCaretList {
     ///
     /// The caret position for the first cluster is the ligature glyph position, the returned
     /// slice contains the carets for subsequent clusters that form the ligature.
-    /// 
+    ///
     /// Returns an empty slice if the font does not provide caret positions for `lig`, in this
     /// case app must divide the glyph advance in equal parts to find caret positions.
     pub fn carets(&self, lig: GlyphIndex) -> &[LigatureCaret] {
@@ -243,9 +243,9 @@ impl LigatureCaretList {
     }
 
     /// If the font provides not ligature caret positions.
-    /// 
+    ///
     /// If `true` the [`carets`] method always returns an empty slice.
-    /// 
+    ///
     /// [`carets`]: Self::carets
     pub fn is_empty(&self) -> bool {
         match &self.coverage {

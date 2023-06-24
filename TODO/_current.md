@@ -4,8 +4,6 @@
     - Does not work in TimesNR, but works in Emoji (where it shouldn't)?
         - Click in emoji 🙎🏻‍♀️ places the caret in invalid grapheme boundary. 
 * Test with font that provides ligature carets.
-* Ligatures across segments?
-    - "!=" does not get the special symbol 
 
 * Support replace (Insert mode in command line).
 * Support buttons:

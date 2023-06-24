@@ -763,7 +763,7 @@ impl FontFace {
     }
 
     /// If this font provides custom positioned carets for some or all ligature glyphs.
-    /// 
+    ///
     /// If `true` the [`Font::ligature_caret_offsets`] method can be used to get the caret offsets, otherwise
     /// it always returns empty.
     pub fn has_ligature_caret_offsets(&self) -> bool {

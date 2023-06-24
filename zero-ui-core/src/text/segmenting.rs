@@ -222,8 +222,7 @@ impl SegmentedText {
                     }
                 }
                 _ => {
-                    // soft break, handled by our own segmentation
-                    Self::push_seg(text_str, &bidi, &mut segs, offset);
+                    // // soft break, handled by our own segmentation
                 }
             }
         }
