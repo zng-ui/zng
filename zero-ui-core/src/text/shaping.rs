@@ -2272,28 +2272,39 @@ impl<'a> ShapedSegment<'a> {
 
     /// Gets the insert index in the segment text that is nearest to `x`.
     pub fn nearest_char_index(&self, x: Px, full_text: &str) -> usize {
+        let txt_range = self.text_range();
         let x = x.0 as f32;
-        let q = self
-            .glyphs_with_x_advance()
-            .flat_map(|(_, g)| g)
-            .enumerate()
-            .min_by_key(|(_, (g, _))| {
-                let key = (g.point.x - x).abs();
-                (key * 5.0) as i32
-            });
-        let (i, (g, advance)) = match q {
-            Some(r) => r,
-            None => return self.text_range().start(), // no glyphs
-        };
+        let mut i = 0;
+        // search glyph that contains `x` or is after it.
+        for (font, glyphs) in self.glyphs_with_x_advance() {
+            for (glyph, advance) in glyphs {
+                if x < glyph.point.x || glyph.point.x + advance > x {
+                    let clusters = self.clusters();
+                    let next_i = i + 1;
 
-        let i = self.glyphs_range().start() + i;
-        let mut i = self.text_range().start() + self.text.clusters[i] as usize;
+                    let glyph_cluster = txt_range.start() + clusters[i] as usize;
+                    let next_cluster = if next_i == clusters.len() {
+                        txt_range.end()
+                    } else {
+                        txt_range.start() + clusters[next_i] as usize
+                    };
 
-        if x >= g.point.x + advance / 2.0 {
-            i += full_text[i..].chars().next().map(|c| c.len_utf8()).unwrap_or(0);
+                    if next_cluster - glyph_cluster > 1 {
+                        // maybe ligature
+                        println!("!!: TODO, search ligature point");
+                    }
+
+                    return if x <= glyph.point.x + advance / 2.0 {
+                        glyph_cluster
+                    } else {
+                        next_cluster
+                    };
+                }
+
+                i += 1;
+            }
         }
-
-        i
+        txt_range.end()
     }
 }
 
