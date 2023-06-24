@@ -55,6 +55,9 @@ pub struct ResolvedText {
     /// be requested for the widget.
     pub pending_layout: PendingLayout,
 
+    /// Text modification is scheduled, caret info will only be valid after update.
+    pub pending_edit: bool,
+
     /// Caret index and animation.
     pub caret: Mutex<CaretInfo>,
 
@@ -68,6 +71,7 @@ impl Clone for ResolvedText {
             faces: self.faces.clone(),
             synthesis: self.synthesis,
             pending_layout: self.pending_layout,
+            pending_edit: self.pending_edit,
             caret: Mutex::new(self.caret.lock().clone()),
             baseline: Atomic::new(self.baseline.load(Ordering::Relaxed)),
         }
@@ -301,6 +305,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 faces: f,
                 text: SegmentedText::new(txt, DIRECTION_VAR.get()),
                 pending_layout: PendingLayout::empty(),
+                pending_edit: false,
                 baseline: Atomic::new(Px(0)),
                 caret: Mutex::new(CaretInfo {
                     opacity: caret_opacity,
@@ -400,6 +405,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                             rmv_count -= 1;
                                         }
                                     });
+                                    resolved.pending_edit = true;
                                 }
                             }
                         } else if args.is_delete() {
@@ -411,6 +417,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         let t = t.to_mut().to_mut();
                                         t.replace_range(rmv, "");
                                     });
+                                    resolved.pending_edit = true;
 
                                     // restore animation when the caret_index did not change
                                     caret.opacity = KEYBOARD.caret_animation();
@@ -426,6 +433,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             let _ = text.modify(move |t| {
                                 t.to_mut().to_mut().insert(i, c);
                             });
+                            resolved.pending_edit = true;
                         }
                     }
                 } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
@@ -512,13 +520,16 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     match CLIPBOARD.text() {
                         Ok(paste) => {
-                            // insert
-                            let i = caret_index.unwrap();
-                            *caret_index = Some(i + paste.len());
+                            if !paste.is_empty() {
+                                // insert
+                                let i = caret_index.unwrap();
+                                *caret_index = Some(i + paste.len());
 
-                            let _ = text.modify(move |t| {
-                                t.to_mut().to_mut().insert_str(i, paste.as_str());
-                            });
+                                let _ = text.modify(move |t| {
+                                    t.to_mut().to_mut().insert_str(i, paste.as_str());
+                                });
+                                resolved.pending_edit = true;
+                            }
                         }
                         Err(e) => {
                             tracing::error!("error pasting, {e}");
@@ -546,6 +557,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
             // update `r.text`, affects layout.
             if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || DIRECTION_VAR.is_new() {
+                if text.is_new() {
+                    r.pending_edit = false;
+                }
                 let text = text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
@@ -1609,12 +1623,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usi
         if u {
             let t = ResolvedText::get();
             let idx = t.caret.lock().index;
-            if index.get() != idx {
-                if let Some(i) = idx {
-                    if i > t.text.text().len() {
-                        return; // appended text not updated yet.
-                    }
-                }
+            if !t.pending_edit && index.get() != idx {
                 let _ = index.set(idx);
             }
         }
@@ -1650,12 +1659,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
         if u {
             let t = ResolvedText::get();
             let idx = t.caret.lock().index;
-            if status.get().index() != idx {
-                if let Some(i) = idx {
-                    if i > t.text.text().len() {
-                        return; // appended text not updated yet.
-                    }
-                }
+            if !t.pending_edit && status.get().index() != idx {
                 let _ = status.set(match idx {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i, &t.text),

@@ -1020,7 +1020,7 @@ impl ShapedText {
                     let mut x = p.x.0 as f32;
 
                     'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
-                        for (glyph, advance) in glyph_adv {                            
+                        for (glyph, advance) in glyph_adv {
                             if closest_cluster == 0 {
                                 if search_lig_caret {
                                     println!("!!: search lig caret");
@@ -1028,7 +1028,7 @@ impl ShapedText {
                                         println!("!!: caret: {caret:?}");
                                     }
                                 }
-                                
+
                                 break 'outer;
                             }
                             x += advance;
