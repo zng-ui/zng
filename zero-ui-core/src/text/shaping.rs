@@ -998,18 +998,44 @@ impl ShapedText {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if txt_range.contains(index) {
+                    let text_start = txt_range.start();
+
+                    let clusters = seg.clusters();
+                    let cluster_idx = index - text_start;
+                    let mut closest_cluster = 0;
+                    let mut search_lig_caret = true;
+                    for (i, c) in clusters.iter().enumerate() {
+                        match (*c as usize).cmp(&cluster_idx) {
+                            std::cmp::Ordering::Less => closest_cluster = i,
+                            std::cmp::Ordering::Equal => {
+                                closest_cluster = i;
+                                search_lig_caret = false;
+                                break;
+                            }
+                            std::cmp::Ordering::Greater => break,
+                        }
+                    }
+
                     let mut p = seg.rect().origin;
                     let mut x = p.x.0 as f32;
 
-                    let text_start = seg.text_range().start();
-
-                    for ((_, advance), cluster) in seg.glyphs_with_x_advance().flat_map(|(_, gx)| gx).zip(seg.clusters()) {
-                        if text_start + *cluster as usize == index {
-                            break;
+                    'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
+                        for (glyph, advance) in glyph_adv {                            
+                            if closest_cluster == 0 {
+                                if search_lig_caret {
+                                    println!("!!: search lig caret");
+                                    for caret in font.ligature_caret_offsets(glyph.index) {
+                                        println!("!!: caret: {caret:?}");
+                                    }
+                                }
+                                
+                                break 'outer;
+                            }
+                            x += advance;
+                            closest_cluster -= 1;
                         }
-                        x += advance;
                     }
-                    p.x.0 = x as i32;
+                    p.x.0 = x.round() as i32;
 
                     return p;
                 }

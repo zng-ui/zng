@@ -8,8 +8,12 @@ TextInput! {
     font_family = ["Times New Roman"];
     font_size = 32;
     font_discretionary_lig = true;
-    txt = var_from("fim");
+    txt = var_from("afim");
 }
+
+/*
+    seg-clusters: [0, 2]
+*/
 ```
 
 * Support replace (Insert mode in command line).
