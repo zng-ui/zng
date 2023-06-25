@@ -524,6 +524,50 @@ impl SegmentedText {
             None => self.text.len(),
         }
     }
+
+    /// Find the range that must be removed to delete starting by `from`.
+    ///
+    /// Delete **Del** action removes the next grapheme cluster, this is different from
+    /// [`backspace_range`] that removes the previous char with only some exceptions.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `from` is larger than the text length, or is not a grapheme boundary.
+    ///
+    /// [`backspace_range`]: Self::backspace_range
+    pub fn delete_range(&self, from: usize) -> std::ops::Range<usize> {
+        from..self.next_insert_index(from)
+    }
+
+    /// Find the range that must be removed to backspace before `from`.
+    ///
+    /// The character at `from` is not removed, only the previous char is selected, with some exceptions,
+    /// `\r\n` is selected together, the selection also cover all zero-width characters.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `from` is larger than the text length, or is not a char boundary.
+    pub fn backspace_range(&self, from: usize) -> std::ops::Range<usize> {
+        let text = &self.text[..from];
+        let mut start = from;
+        for (i, c) in text.char_indices().rev() {
+            start = i;
+            match c {
+                '\u{FEFF}' | '\u{200D}' | '\u{200C}' | '\u{200B}' => continue,
+                '\n' => {
+                    if i > 0 {
+                        let prev_i = i - 1;
+                        if text[prev_i..].starts_with('\r') {
+                            start = prev_i;
+                        }
+                    }
+                }
+                _ => {}
+            }
+            break;
+        }
+        start..from
+    }
 }
 
 /// Compute initial bidirectional levels of each segment of a `line`.

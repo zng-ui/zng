@@ -385,25 +385,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         args.propagation().stop();
 
                         if args.is_backspace() {
-                            // backspace removes by char, except "\r\n"
+                            // backspace removes mostly by char.
                             if let Some(caret_idx) = caret_index {
-                                let (rmv_char, rmv_prev) = text.with(|t| {
-                                    let mut iter = t[..*caret_idx].char_indices().rev();
-                                    (iter.next(), iter.next())
-                                });
-                                let (rmv_idx, mut rmv_count) = match (rmv_prev, rmv_char) {
-                                    (Some((i, '\r')), Some((_, '\n'))) => (i, 2),
-                                    (_, Some((i, _))) => (i, 1),
-                                    _ => (0, 0),
-                                };
-                                if rmv_count > 0 {
-                                    *caret_idx = rmv_idx;
+                                let rmv = resolved.text.backspace_range(*caret_idx);
+                                if !rmv.is_empty() {
                                     let _ = text.modify(move |t| {
                                         let t = t.to_mut().to_mut();
-                                        while rmv_count > 0 {
-                                            t.remove(rmv_idx);
-                                            rmv_count -= 1;
-                                        }
+                                        t.replace_range(rmv, "");
                                     });
                                     resolved.pending_edit = true;
                                 }
@@ -411,7 +399,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         } else if args.is_delete() {
                             // delete removes by grapheme cluster
                             if let Some(caret_idx) = caret_index {
-                                let rmv = *caret_idx..resolved.text.next_insert_index(*caret_idx);
+                                let rmv = resolved.text.delete_range(*caret_idx);
                                 if !rmv.is_empty() {
                                     let _ = text.modify(move |t| {
                                         let t = t.to_mut().to_mut();
