@@ -433,13 +433,36 @@ impl SegmentedText {
     /// If `i` is larger than the text length, returns the text length, if `i` is
     /// already a grapheme boundary, returns `i`.
     pub fn snap_grapheme_boundary(&self, i: usize) -> usize {
-        let from = self.snap_char_boundary(i);
-        if from == self.text.len() {
-            from
+        let i = self.snap_char_boundary(i);
+        if i == self.text.len() {
+            i
         } else {
-            let s = &self.text.as_str()[from..];
-            let mut iter = unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).map(|(i, _)| i + from);
-            iter.next().unwrap_or(self.text.len())
+            let mut seg_start = 0;
+            for seg in self.segments.iter() {
+                if seg.end > i {
+                    break;
+                }
+                seg_start = seg.end;
+            }
+            let s = &self.text[seg_start..];
+
+            let seg_i = i - seg_start;
+            let mut best_before = 0;
+            let mut best_after = s.len();
+            for (i, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true) {
+                if i > seg_i {
+                    best_after = i;
+                    break;
+                }
+                best_before = i;
+            }
+
+            let best = if best_after - seg_i > seg_i - best_before {
+                best_before
+            } else {
+                best_after
+            };
+            seg_start + best
         }
     }
 
