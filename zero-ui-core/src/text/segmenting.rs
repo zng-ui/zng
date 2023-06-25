@@ -551,7 +551,7 @@ impl SegmentedText {
     /// Find the range that must be removed to delete starting by `from`.
     ///
     /// Delete **Del** action removes the next grapheme cluster, this is different from
-    /// [`backspace_range`] that removes the previous char with only some exceptions.
+    /// [`backspace_range`] that usually only removes one character.
     ///
     /// # Panics
     ///
@@ -564,8 +564,9 @@ impl SegmentedText {
 
     /// Find the range that must be removed to backspace before `from`.
     ///
-    /// The character at `from` is not removed, only the previous char is selected, with some exceptions,
-    /// `\r\n` is selected together, the selection also cover all zero-width characters.
+    /// The character at `from` is not included, only the previous char is selected, with some exceptions,
+    /// the selection includes any char before zero-width-joiner (ZWJ), it also includes `\r` before `\n`
+    /// and Emoji char before Emoji modifier or variation selector (VS16).
     ///
     /// # Panics
     ///
@@ -576,12 +577,16 @@ impl SegmentedText {
         for (i, c) in text.char_indices().rev() {
             start = i;
             match c {
-                '\u{FEFF}' | '\u{200D}' | '\u{200C}' | '\u{200B}' => continue,
+                '\u{200D}' => continue, // ZWJ
                 '\n' => {
-                    if i > 0 {
-                        let prev_i = i - 1;
-                        if text[prev_i..].starts_with('\r') {
-                            start = prev_i;
+                    if text[..i].ends_with('\r') {
+                        start = i - 1;
+                    }
+                }
+                c if c == '\u{FE0F}' || emoji_util::is_modifier(c) => { // VS16 || Emoji-Modifier
+                    if let Some((i, c)) = text[..i].char_indices().next_back() {
+                        if emoji_util::maybe_emoji(c) {
+                            start = i;
                         }
                     }
                 }

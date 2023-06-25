@@ -389,6 +389,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             if let Some(caret_idx) = caret_index {
                                 let rmv = resolved.text.backspace_range(*caret_idx);
                                 if !rmv.is_empty() {
+                                    *caret_idx = rmv.start;
                                     let _ = text.modify(move |t| {
                                         let t = t.to_mut().to_mut();
                                         t.replace_range(rmv, "");
@@ -401,6 +402,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             if let Some(caret_idx) = caret_index {
                                 let rmv = resolved.text.delete_range(*caret_idx);
                                 if !rmv.is_empty() {
+                                    let rmv_start = rmv.start;
+
                                     let _ = text.modify(move |t| {
                                         let t = t.to_mut().to_mut();
                                         t.replace_range(rmv, "");
@@ -408,9 +411,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     resolved.pending_edit = true;
 
                                     // restore animation when the caret_index did not change
-                                    caret.opacity = KEYBOARD.caret_animation();
-                                    EditData::get(&mut edit_data).caret_animation =
-                                        caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                                    if *caret_idx == rmv_start {
+                                        caret.opacity = KEYBOARD.caret_animation();
+                                        EditData::get(&mut edit_data).caret_animation =
+                                            caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                                    } else {
+                                        *caret_idx = rmv_start;
+                                    }
                                 }
                             }
                         } else if let Some(c) = args.insert_char() {
