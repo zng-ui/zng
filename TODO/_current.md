@@ -1,8 +1,5 @@
 # TextInput
 
-* Test with font that provides ligature carets.
-    - Can't find any, create a test font?
-
 * Support replace (Insert mode in command line).
 * Support buttons:
     - up and down arrows

@@ -1042,7 +1042,7 @@ impl ShapedText {
                                         let cluster_len = if next_cluster < clusters.len() as u32 {
                                             clusters[next_cluster as usize] - closest_cluster
                                         } else {
-                                            txt_range.end() as u32 - closest_cluster
+                                            (txt_range.end() - txt_range.start()) as u32 - closest_cluster
                                         };
 
                                         let caret = advance * ((cluster_idx as u32 - closest_cluster) as f32 / cluster_len as f32);
@@ -1329,19 +1329,21 @@ impl ShapedTextBuilder {
                 });
             } else if info.kind.is_space() {
                 if matches!(info.kind, TextSegmentKind::Tab) {
-                    if self.origin.x + self.tab_x_advance > max_width {
-                        self.push_line_break(true, text);
+                    for (i, _) in seg.char_indices() {
+                        if self.origin.x + self.tab_x_advance > max_width {
+                            // normal wrap, advance overflow
+                            self.push_line_break(true, text);
+                        }
+                        let point = euclid::point2(self.origin.x, self.origin.y);
+                        self.origin.x += self.tab_x_advance;
+                        self.out.glyphs.push(GlyphInstance {
+                            index: self.tab_index,
+                            point,
+                        });
+                        self.out.clusters.push(i as u32);
                     }
-                    let point = euclid::point2(self.origin.x, self.origin.y);
-                    self.origin.x += self.tab_x_advance;
-                    self.out.glyphs.push(GlyphInstance {
-                        index: self.tab_index,
-                        point,
-                    });
-                    self.out.clusters.push(0);
 
                     self.push_text_seg(seg, info);
-
                     self.push_font(&fonts[0]);
                 } else {
                     fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
