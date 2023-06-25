@@ -2291,7 +2291,40 @@ impl<'a> ShapedSegment<'a> {
 
                     if next_cluster - glyph_cluster > 1 {
                         // maybe ligature
-                        println!("!!: TODO, search ligature point");
+                        let text = &full_text[glyph_cluster..next_cluster];
+
+                        let mut lig_parts = smallvec::SmallVec::<[u16; 6]>::new_const();
+                        for (i, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(text, true) {
+                            lig_parts.push(i as u16);
+                        }
+
+                        if lig_parts.len() > 1 {
+                            let x = x - glyph.point.x;
+
+                            let mut split = true;
+                            // try font caret points
+                            for (i, font_caret) in font.ligature_caret_offsets(glyph.index).enumerate() {
+                                if i == lig_parts.len() {
+                                    break;
+                                }
+                                split = false;
+
+                                if font_caret > x {
+                                    return glyph_cluster + lig_parts[i] as usize;
+                                }
+                            }
+                            if split {
+                                // no font caret, ligature glyph is split in equal parts
+                                let lig_part = advance / lig_parts.len() as f32;
+                                let mut lig_x = lig_part;
+                                for c in lig_parts {
+                                    if lig_x > x {
+                                        return glyph_cluster + c as usize;
+                                    }
+                                    lig_x += lig_part;
+                                }
+                            }
+                        }
                     }
 
                     return if x <= glyph.point.x + advance / 2.0 {

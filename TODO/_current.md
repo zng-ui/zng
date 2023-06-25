@@ -1,9 +1,7 @@
 # TextInput
 
-* Implement click->caret inside ligatures.
-    - Does not work in TimesNR, but works in Emoji (where it shouldn't)?
-        - Click in emoji 🙎🏻‍♀️ places the caret in invalid grapheme boundary. 
 * Test with font that provides ligature carets.
+    - Can't find any, create a test font?
 
 * Support replace (Insert mode in command line).
 * Support buttons:
