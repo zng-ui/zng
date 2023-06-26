@@ -583,7 +583,8 @@ impl SegmentedText {
                         start = i - 1;
                     }
                 }
-                c if c == '\u{FE0F}' || emoji_util::is_modifier(c) => { // VS16 || Emoji-Modifier
+                c if c == '\u{FE0F}' || emoji_util::is_modifier(c) => {
+                    // VS16 || Emoji-Modifier
                     if let Some((i, c)) = text[..i].char_indices().next_back() {
                         if emoji_util::maybe_emoji(c) {
                             start = i;

@@ -438,13 +438,13 @@ impl ShapedText {
         let mut start = glyph_range.start();
         let segs_range = self.lines.segs(line_index);
         let line_end = self.segments.glyphs_range(segs_range).end();
-        let line_width = self.lines.width(line_index);
+        let line_max_x = self.lines.x_offset(line_index) + self.lines.width(line_index);
         self.glyphs_range(glyph_range).map(move |(font, glyphs)| {
             let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    line_width - g.point.x
+                    dbg!(line_max_x) - dbg!(g.point.x)
                 } else {
                     self.glyphs[gi].point.x - g.point.x
                 };
@@ -550,7 +550,8 @@ impl ShapedText {
 
     /// Last applied alignment direction.
     ///
-    /// Note that the glyph and word directions is defined by the [`TextShapingArgs::lang`].
+    /// Note that the glyph and word directions is defined by the [`TextShapingArgs::lang`] and the computed
+    /// direction is in [`ShapedSegment::direction`].
     pub fn direction(&self) -> LayoutDirection {
         self.direction
     }
@@ -741,6 +742,7 @@ impl ShapedText {
 
         self.align_size = align_size;
         self.align = align;
+        self.direction = direction;
         self.is_inlined = is_inlined;
 
         self.debug_assert_ranges();
@@ -1032,6 +1034,9 @@ impl ShapedText {
                     let mut x = p.x.0 as f32;
 
                     let mut cluster_count = closest_cluster;
+                    if is_rtl {
+                        cluster_count += 1; // to include the advance
+                    }
                     'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
                         for (glyph, advance) in glyph_adv {
                             if cluster_count == 0 {
@@ -1075,9 +1080,19 @@ impl ShapedText {
         }
 
         if let Some(line) = self.line(self.lines_len().saturating_sub(1)) {
-            // top-right of last line
             let rect = line.rect();
-            PxPoint::new(rect.max_x(), rect.min_y())
+            if line
+                .seg(line.segs_len().saturating_sub(1))
+                .map(|s| s.direction())
+                .unwrap_or_else(|| self.direction())
+                .is_rtl()
+            {
+                // top-left of last line if it ends in RTL or text is RTL
+                PxPoint::new(rect.min_x(), rect.min_y())
+            } else {
+                // top-right of last line for LTR
+                PxPoint::new(rect.max_x(), rect.min_y())
+            }
         } else {
             PxPoint::zero()
         }
