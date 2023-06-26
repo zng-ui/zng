@@ -1,7 +1,8 @@
 use std::{
     fmt,
     hash::{BuildHasher, Hash, Hasher},
-    mem, ops,
+    mem,
+    ops::{self, ControlFlow},
 };
 
 use super::{
@@ -1004,17 +1005,27 @@ impl ShapedText {
                     let cluster_idx = index - text_start;
                     let mut closest_cluster = 0;
                     let mut search_lig_caret = true;
-                    for (i, c) in clusters.iter().enumerate() {
-                        match (*c as usize).cmp(&cluster_idx) {
+
+                    let is_rtl = seg.direction().is_rtl();
+
+                    let find_closest_cluster = |(i, &c)| {
+                        match (c as usize).cmp(&cluster_idx) {
                             std::cmp::Ordering::Less => closest_cluster = i,
                             std::cmp::Ordering::Equal => {
                                 closest_cluster = i;
                                 search_lig_caret = false;
-                                break;
+                                return ControlFlow::Break(());
                             }
-                            std::cmp::Ordering::Greater => break,
+                            std::cmp::Ordering::Greater => return ControlFlow::Break(()),
                         }
+                        ControlFlow::Continue(())
+                    };
+                    if is_rtl {
+                        clusters.iter().enumerate().rev().try_for_each(find_closest_cluster);
+                    } else {
+                        clusters.iter().enumerate().try_for_each(find_closest_cluster);
                     }
+
                     let closest_cluster = closest_cluster as u32;
 
                     let mut p = seg.rect().origin;
