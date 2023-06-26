@@ -372,7 +372,7 @@ fn repeat_image() -> impl UiNode {
                             size = (10000, 100.pct());
                             source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
                             zero_ui::properties::events::mouse::on_mouse_input = hn!(
-                                show_pattern, 
+                                show_pattern,
                                 |args: &zero_ui::core::mouse::MouseInputArgs| {
                                 show_pattern.set(matches!(args.state, ButtonState::Pressed));
                             });

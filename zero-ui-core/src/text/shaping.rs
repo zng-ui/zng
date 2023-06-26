@@ -2301,6 +2301,7 @@ impl<'a> ShapedSegment<'a> {
     /// Gets the insert index in the segment text that is nearest to `x`.
     pub fn nearest_char_index(&self, x: Px, full_text: &str) -> usize {
         let txt_range = self.text_range();
+        let is_rtl = self.direction().is_rtl();
         let x = x.0 as f32;
         let mut i = 0;
         // search glyph that contains `x` or is after it.
@@ -2317,7 +2318,7 @@ impl<'a> ShapedSegment<'a> {
                         txt_range.start() + clusters[next_i] as usize
                     };
 
-                    if next_cluster - glyph_cluster > 1 {
+                    if !is_rtl && next_cluster - glyph_cluster > 1 {
                         // maybe ligature
                         let text = &full_text[glyph_cluster..next_cluster];
 
@@ -2365,7 +2366,12 @@ impl<'a> ShapedSegment<'a> {
                 i += 1;
             }
         }
-        txt_range.end()
+
+        if is_rtl {
+            txt_range.start()
+        } else {
+            txt_range.end()
+        }
     }
 }
 

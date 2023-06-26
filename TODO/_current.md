@@ -1,5 +1,10 @@
 # TextInput
 
+* Fix RTL text caret bugs.
+    - `txt = var_from("الإعلان"); lang = lang!("ar");`.
+    - Click place working correctly.
+        - `nearest_char_index`.
+        - Disabled ligature handling for RTL to avoid a panic.
 * Support replace (Insert mode in command line).
 * Support buttons:
     - up and down arrows
