@@ -155,6 +155,7 @@ fn app_main() {
                                     panorama_image(),
                                     block_window_load_image(),
                                     large_image(),
+                                    repeat_image(),
                                     paste_image(),
                                 ]
                             )
@@ -350,6 +351,38 @@ fn block_window_load_image() -> impl UiNode {
                     });
                 }
             }));
+        });
+    }
+}
+
+fn repeat_image() -> impl UiNode {
+    Button! {
+        child = Text!("Repeat Image (2 MB download)");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                let show_pattern = var(false);
+                ImgWindow!(
+                    "Wikimedia - Turtle seamless pattern - 1,000 × 1,000 pixels, file size: 1.49 MB",
+                    Scroll! {
+                        mode = ScrollMode::HORIZONTAL;
+                        child = Image! {
+                            img_fit = ImageFit::None;
+                            img_repeat = true;
+                            img_repeat_spacing = show_pattern.map(|&s| Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
+                            size = (10000, 100.pct());
+                            source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
+                            zero_ui::properties::events::mouse::on_mouse_input = hn!(
+                                show_pattern, 
+                                |args: &zero_ui::core::mouse::MouseInputArgs| {
+                                show_pattern.set(matches!(args.state, ButtonState::Pressed));
+                            });
+                            on_error = hn!(|args: &ImgErrorArgs| {
+                                tracing::error!(target: "unexpected", "{}", args.error);
+                            });
+                        };
+                    }
+                )
+            });
         });
     }
 }

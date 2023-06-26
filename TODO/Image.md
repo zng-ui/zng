@@ -40,7 +40,6 @@ We tried implementing progressive decoders, even just the BMP decoder seems like
 There is an effort to support more metadata parsing in the `image` crate, see https://github.com/image-rs/image/pull/1448
 so we can wait for now and focus in other features.
 
-
 ## Large Image
 
 * Need to generate mipmaps, and virtual tiles for zoomed in.
@@ -48,3 +47,7 @@ so we can wait for now and focus in other features.
 * Allow keeping image only at a size, to save memory for images that don't resize.
 * Image widget need to allow defining min/max scale and offset.
     Different widget?
+
+# Repeat
+
+* Offset not applied if repeat is enabled, is it possible "mod shift" the image?

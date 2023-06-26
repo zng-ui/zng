@@ -247,11 +247,14 @@ impl DisplayListBuilder {
     }
 
     /// Push an image.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
         image_key: wr::ImageKey,
         image_size: PxSize,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
         rendering: wr::ImageRendering,
         alpha_type: wr::AlphaType,
     ) {
@@ -261,6 +264,8 @@ impl DisplayListBuilder {
             image_size,
             rendering,
             alpha_type,
+            tile_size,
+            tile_spacing,
         })
     }
 
@@ -976,6 +981,8 @@ enum DisplayItem {
         image_size: PxSize,
         rendering: wr::ImageRendering,
         alpha_type: wr::AlphaType,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
     },
 
     Color {
@@ -1187,22 +1194,39 @@ impl DisplayItem {
                 image_size,
                 rendering,
                 alpha_type,
+                tile_size,
+                tile_spacing,
             } => {
                 let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
-                wr_list.push_image(
-                    &wr::CommonItemProperties {
-                        clip_rect: bounds,
-                        clip_chain_id: clip,
-                        spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::empty(),
-                    },
-                    PxRect::from_size(*image_size).to_wr(),
-                    *rendering,
-                    *alpha_type,
-                    *image_key,
-                    wr::ColorF::WHITE,
-                );
+                let props = wr::CommonItemProperties {
+                    clip_rect: bounds,
+                    clip_chain_id: clip,
+                    spatial_id: sc.spatial_id(),
+                    flags: wr::PrimitiveFlags::empty(),
+                };
+
+                if tile_spacing.is_empty() && tile_size == image_size {
+                    wr_list.push_image(
+                        &props,
+                        PxRect::from_size(*image_size).to_wr(),
+                        *rendering,
+                        *alpha_type,
+                        *image_key,
+                        wr::ColorF::WHITE,
+                    );
+                } else {
+                    wr_list.push_repeating_image(
+                        &props,
+                        PxRect::from_size(*image_size).to_wr(),
+                        tile_size.to_wr(),
+                        tile_spacing.to_wr(),
+                        *rendering,
+                        *alpha_type,
+                        *image_key,
+                        wr::ColorF::WHITE,
+                    );
+                }
             }
 
             DisplayItem::LinearGradient {

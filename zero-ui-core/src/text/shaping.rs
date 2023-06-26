@@ -444,7 +444,7 @@ impl ShapedText {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    dbg!(line_max_x) - dbg!(g.point.x)
+                    line_max_x - g.point.x
                 } else {
                     self.glyphs[gi].point.x - g.point.x
                 };

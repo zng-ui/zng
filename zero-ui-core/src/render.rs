@@ -1083,14 +1083,29 @@ impl FrameBuilder {
     }
 
     /// Push an image.
-    pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Img, rendering: ImageRendering) {
+    pub fn push_image(
+        &mut self,
+        clip_rect: PxRect,
+        img_size: PxSize,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+        image: &impl Img,
+        rendering: ImageRendering,
+    ) {
         expect_inner!(self.push_image);
 
         if let Some(r) = &self.renderer {
             if self.visible {
                 let image_key = image.image_key(r);
-                self.display_list
-                    .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
+                self.display_list.push_image(
+                    clip_rect,
+                    image_key,
+                    img_size,
+                    tile_size,
+                    tile_spacing,
+                    rendering.into(),
+                    image.alpha_type(),
+                );
             }
         }
 

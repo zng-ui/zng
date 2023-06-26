@@ -195,6 +195,8 @@ pub fn image_presenter() -> impl UiNode {
     let mut img_size = PxSize::zero();
     let mut render_clip = PxRect::zero();
     let mut render_img_size = PxSize::zero();
+    let mut render_tile_size = PxSize::zero();
+    let mut render_tile_spacing = PxSize::zero();
     let mut render_offset = PxVector::zero();
     let spatial_id = SpatialFrameId::new_unique();
 
@@ -209,6 +211,8 @@ pub fn image_presenter() -> impl UiNode {
                 .sub_var_layout(&IMAGE_FIT_VAR)
                 .sub_var_layout(&IMAGE_ALIGN_VAR)
                 .sub_var_layout(&IMAGE_OFFSET_VAR)
+                .sub_var_layout(&IMAGE_REPEAT_VAR)
+                .sub_var_layout(&IMAGE_REPEAT_SPACING_VAR)
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
             img_size = CONTEXT_IMAGE_VAR.with(Img::size);
@@ -363,10 +367,28 @@ pub fn image_presenter() -> impl UiNode {
                 r_clip = r_clip.intersection(&screen_clip).unwrap_or_default();
             }
 
-            if render_clip != r_clip || render_img_size != r_img_size || render_offset != r_offset {
+            // Part 4 - Repeat
+            let mut r_tile_size = r_img_size;
+            let mut r_tile_spacing = PxSize::zero();
+            if matches!(IMAGE_REPEAT_VAR.get(), ImageRepeat::Repeat) {
+                r_clip = PxRect::from_size(wgt_size);
+                r_tile_size = r_img_size;
+                r_img_size = wgt_size;
+                r_offset = PxVector::zero();
+                r_tile_spacing = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(r_tile_size), || IMAGE_REPEAT_SPACING_VAR.layout());
+            }
+
+            if render_clip != r_clip
+                || render_img_size != r_img_size
+                || render_offset != r_offset
+                || render_tile_size != r_tile_size
+                || render_tile_spacing != r_tile_spacing
+            {
                 render_clip = r_clip;
                 render_img_size = r_img_size;
                 render_offset = r_offset;
+                render_tile_size = r_tile_size;
+                render_tile_spacing = r_tile_spacing;
                 WIDGET.render();
             }
 
@@ -378,10 +400,24 @@ pub fn image_presenter() -> impl UiNode {
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
                         frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
-                            frame.push_image(render_clip, render_img_size, img, IMAGE_RENDERING_VAR.get())
+                            frame.push_image(
+                                render_clip,
+                                render_img_size,
+                                render_tile_size,
+                                render_tile_spacing,
+                                img,
+                                IMAGE_RENDERING_VAR.get(),
+                            )
                         });
                     } else {
-                        frame.push_image(render_clip, render_img_size, img, IMAGE_RENDERING_VAR.get());
+                        frame.push_image(
+                            render_clip,
+                            render_img_size,
+                            render_tile_size,
+                            render_tile_spacing,
+                            img,
+                            IMAGE_RENDERING_VAR.get(),
+                        );
                     }
                 }
             });

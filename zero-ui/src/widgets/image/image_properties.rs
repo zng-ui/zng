@@ -46,6 +46,40 @@ impl fmt::Debug for ImageFit {
     }
 }
 
+/// Image repeat mode.
+///
+/// After the image if fit, aligned, offset and clipped the final image can be repeated
+/// to fill any blank space by enabling [`img_repeat`] with one of these options.
+///
+/// [`img_repeat`]: fn@img_repeat
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ImageRepeat {
+    /// The image is only rendered once.
+    None,
+    /// The image is repeated to fill empty space, border copies are clipped.
+    Repeat,
+}
+impl fmt::Debug for ImageRepeat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ImageRepeat::")?
+        }
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Repeat => write!(f, "Repeat"),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(repeat: bool) -> ImageRepeat {
+        if repeat {
+            ImageRepeat::Repeat
+        } else {
+            ImageRepeat::None
+        }
+    }
+}
+
 context_var! {
     /// The Image scaling algorithm in the renderer.
     ///
@@ -105,13 +139,21 @@ context_var! {
     ///
     /// No cropping is done by default.
     pub static IMAGE_CROP_VAR: Rect = Rect::default();
+
+    /// Pattern repeat applied on the final image.
+    ///
+    /// Is [`ImageRepeat::None`] by default.
+    pub static IMAGE_REPEAT_VAR: ImageRepeat = ImageRepeat::None;
+
+    /// Spacing between repeated image copies.
+    ///
+    /// is [`Size::zero()`] by default.
+    pub static IMAGE_REPEAT_SPACING_VAR: Size = Size::zero();
 }
 
 /// Sets the [`ImageFit`] of all inner images.
 ///
 /// This property sets the [`IMAGE_FIT_VAR`].
-///
-/// [`fit`]: fn@crate::widgets::image::fit
 #[property(CONTEXT, default(IMAGE_FIT_VAR), widget_impl(Image))]
 pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
     with_context_var(child, IMAGE_FIT_VAR, fit)
@@ -210,6 +252,24 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
+}
+
+/// Sets the [`ImageRepeat`] of all inner images.
+///
+/// This property sets the [`IMAGE_REPEAT_VAR`].
+#[property(CONTEXT, default(IMAGE_REPEAT_VAR), widget_impl(Image))]
+pub fn img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
+    with_context_var(child, IMAGE_REPEAT_VAR, repeat)
+}
+
+/// Sets the spacing between copies of the image if it is repeated.
+///
+/// Relative lengths are computed on the size of a single repeated tile image.
+///
+/// This property sets the [`IMAGE_REPEAT_SPACING_VAR`].
+#[property(CONTEXT, default(IMAGE_REPEAT_SPACING_VAR), widget_impl(Image))]
+pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
+    with_context_var(child, IMAGE_REPEAT_SPACING_VAR, spacing)
 }
 
 /// Sets the [`ImageRendering`] of all inner images.
