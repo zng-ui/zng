@@ -376,17 +376,22 @@ pub fn image_presenter() -> impl UiNode {
                 r_img_size = wgt_size;
                 r_offset = PxVector::zero();
 
-                let full_leftover_x = wgt_size.width % r_tile_size.width;
-                let full_leftover_y = wgt_size.height % r_tile_size.height;
-                let full_tiles_x = wgt_size.width / r_tile_size.width;
-                let full_tiles_y = wgt_size.height / r_tile_size.height;
-                let spaces_x = full_tiles_x - Px(1);
-                let spaces_y = full_tiles_y - Px(1);
-                let leftover_x = if spaces_x > Px(0) { full_leftover_x / spaces_x } else { Px(0) };
-                let leftover_y = if spaces_y > Px(0) { full_leftover_y / spaces_y } else { Px(0) };
-
+                let leftover = if r_tile_size.is_empty() {
+                    PxVector::zero()
+                } else {
+                    let full_leftover_x = wgt_size.width % r_tile_size.width;
+                    let full_leftover_y = wgt_size.height % r_tile_size.height;
+                    let full_tiles_x = wgt_size.width / r_tile_size.width;
+                    let full_tiles_y = wgt_size.height / r_tile_size.height;
+                    let spaces_x = full_tiles_x - Px(1);
+                    let spaces_y = full_tiles_y - Px(1);
+                    PxVector::new(
+                        if spaces_x > Px(0) { full_leftover_x / spaces_x } else { Px(0) },
+                        if spaces_y > Px(0) { full_leftover_y / spaces_y } else { Px(0) },
+                    )
+                };
                 r_tile_spacing = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(r_tile_size), || {
-                    LAYOUT.with_leftover(Some(leftover_x), Some(leftover_y), || IMAGE_REPEAT_SPACING_VAR.layout())
+                    LAYOUT.with_leftover(Some(leftover.x), Some(leftover.y), || IMAGE_REPEAT_SPACING_VAR.layout())
                 });
             }
 
