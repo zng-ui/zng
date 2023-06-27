@@ -1055,26 +1055,60 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let caret_index = &mut caret.index;
 
                 if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                    if let Some(key) = args.key {
-                        match key {
-                            Key::Up => {
-                                args.propagation().stop();
+                    let mut line_diff = 0;
+                    if args.state == KeyState::Pressed {
+                        if let Some(key) = args.key {
+                            match key {
+                                Key::Up => {
+                                    line_diff = -1;
+                                }
+                                Key::Down => {
+                                    line_diff = 1;
+                                    if let Some(txt) = &mut txt.txt {
+                                        if let Some(origin) = txt.caret_origin {}
+                                    }
+                                    args.propagation().stop();
+                                }
+                                _ => {}
                             }
-                            Key::Down => {
-                                args.propagation().stop();
-                            }
-                            _ => {}
                         }
+                    }
+                    if line_diff != 0 {
+                        if let Some(txt) = &mut txt.txt {
+                            if let Some(origin) = txt.caret_origin {
+                                let i = caret_index.unwrap_or(0);
+                                let len = txt.shaped_text.lines_len();
+                                let li = txt.shaped_text.lines().position(|l| l.text_range().contains(i)).unwrap_or(len);
+                                let next_li = li.saturating_add_signed(line_diff).min(len.saturating_sub(1));
+                                if li != next_li {
+                                    *caret_index = txt
+                                        .shaped_text
+                                        .line(next_li)
+                                        .and_then(|l| l.nearest_seg(origin.x))
+                                        .map(|s| s.nearest_char_index(origin.x, resolved.text.text()));
+                                }
+
+                                if let Some(i) = caret_index {
+                                    *i = resolved.text.snap_grapheme_boundary(*i);
+                                }
+                            }
+                        }
+                        if caret_index.is_none() {
+                            *caret_index = Some(0);
+                        }
+                        args.propagation().stop();
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
                         if let Some(txt) = &mut txt.txt {
+                            //if there was at least one layout
                             let info = txt.render_info.get_mut();
                             if let Some(pos) = info
                                 .transform
                                 .inverse()
                                 .and_then(|t| t.transform_point(args.position.to_px(info.scale_factor.0)))
                             {
+                                //if has rendered
                                 *caret_index = txt
                                     .shaped_text
                                     .nearest_line(pos.y)

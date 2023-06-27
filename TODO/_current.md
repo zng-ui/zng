@@ -1,5 +1,6 @@
 # TextInput
 
+* Caret position when clicking after the end of a line goes to the next line.
 * Fix RTL text caret bugs.
     - `txt = var_from("الإعلان"); lang = lang!("ar");`.
     - Click place working correctly.
@@ -7,8 +8,8 @@
         - Disabled ligature handling for RTL to avoid a panic.
 * Support replace (Insert mode in command line).
 * Support buttons:
-    - up and down arrows
     - page up and page down
+* Remember caret x position when up/down and page up/down.
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
