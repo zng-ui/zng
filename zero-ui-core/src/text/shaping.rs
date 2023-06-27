@@ -2309,13 +2309,26 @@ impl<'a> ShapedSegment<'a> {
             for (glyph, advance) in glyphs {
                 if x < glyph.point.x || glyph.point.x + advance > x {
                     let clusters = self.clusters();
-                    let next_i = i + 1;
 
-                    let glyph_cluster = txt_range.start() + clusters[i] as usize;
-                    let next_cluster = if next_i == clusters.len() {
-                        txt_range.end()
+                    let (glyph_cluster, next_cluster) = if is_rtl {
+                        (
+                            txt_range.start() + clusters[i] as usize,
+                            if i == 0 {
+                                txt_range.end()
+                            } else {
+                                txt_range.start() + clusters[i - 1] as usize
+                            },
+                        )
                     } else {
-                        txt_range.start() + clusters[next_i] as usize
+                        let next_i = i + 1;
+                        (
+                            txt_range.start() + clusters[i] as usize,
+                            if next_i == clusters.len() {
+                                txt_range.end()
+                            } else {
+                                txt_range.start() + clusters[next_i] as usize
+                            },
+                        )
                     };
 
                     if !is_rtl && next_cluster - glyph_cluster > 1 {
@@ -2356,7 +2369,13 @@ impl<'a> ShapedSegment<'a> {
                         }
                     }
 
-                    return if x <= glyph.point.x + advance / 2.0 {
+                    return if is_rtl {
+                        if x <= glyph.point.x + advance / 2.0 {
+                            next_cluster
+                        } else {
+                            glyph_cluster
+                        }
+                    } else if x <= glyph.point.x + advance / 2.0 {
                         glyph_cluster
                     } else {
                         next_cluster
