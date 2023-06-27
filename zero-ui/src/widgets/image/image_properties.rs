@@ -256,7 +256,14 @@ pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
 
 /// Sets the [`ImageRepeat`] of all inner images.
 ///
+/// Note that `repeat` converts from `bool` so you can set this property to `img_repeat = true;` to
+/// enable repeat in all inner images.
+///
+/// See also [`img_repeat_spacing`] to control the space between repeated tiles.
+///
 /// This property sets the [`IMAGE_REPEAT_VAR`].
+///
+/// [`img_repeat_spacing`]: fn@img_repeat_spacing
 #[property(CONTEXT, default(IMAGE_REPEAT_VAR), widget_impl(Image))]
 pub fn img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
     with_context_var(child, IMAGE_REPEAT_VAR, repeat)
@@ -264,7 +271,9 @@ pub fn img_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl
 
 /// Sets the spacing between copies of the image if it is repeated.
 ///
-/// Relative lengths are computed on the size of a single repeated tile image.
+/// Relative lengths are computed on the size of a single repeated tile image, so `100.pct()` is *skips*
+/// an entire image of space. The leftover size is set to the space taken by tile images that do not fully
+/// fit inside the clip area, `1.lft()` will insert space to cause only fully visible tiles to remain on screen.
 ///
 /// This property sets the [`IMAGE_REPEAT_SPACING_VAR`].
 #[property(CONTEXT, default(IMAGE_REPEAT_SPACING_VAR), widget_impl(Image))]

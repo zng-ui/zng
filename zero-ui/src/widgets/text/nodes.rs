@@ -1064,10 +1064,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                                 Key::Down => {
                                     line_diff = 1;
-                                    if let Some(txt) = &mut txt.txt {
-                                        if let Some(origin) = txt.caret_origin {}
-                                    }
-                                    args.propagation().stop();
                                 }
                                 _ => {}
                             }
