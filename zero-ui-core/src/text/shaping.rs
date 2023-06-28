@@ -1932,7 +1932,8 @@ impl<'a> ShapedLine<'a> {
     pub fn text_range(&self) -> IndexRange {
         let start = self.seg_range.start();
         let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
-        let end = self.text.segments.0[self.seg_range.end()].text.end;
+        let end = self.seg_range.end();
+        let end = if end == 0 { 0 } else { self.text.segments.0[end - 1].text.end };
 
         IndexRange(start, end)
     }
@@ -2386,7 +2387,11 @@ impl<'a> ShapedSegment<'a> {
             }
         }
 
-        if is_rtl {
+        let mut start = is_rtl;
+        if matches!(self.kind(), TextSegmentKind::LineBreak) {
+            start = !start;
+        }
+        if start {
             txt_range.start()
         } else {
             txt_range.end()

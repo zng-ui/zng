@@ -1073,19 +1073,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if let Some(txt) = &mut txt.txt {
                             if let Some(origin) = txt.caret_origin {
                                 let i = caret_index.unwrap_or(0);
-                                let len = txt.shaped_text.lines_len();
-                                let li = txt.shaped_text.lines().position(|l| l.text_range().contains(i)).unwrap_or(len);
-                                let next_li = li.saturating_add_signed(line_diff).min(len.saturating_sub(1));
+                                let last_line = txt.shaped_text.lines_len().saturating_sub(1);
+                                let li = txt
+                                    .shaped_text
+                                    .lines()
+                                    .position(|l| l.text_range().contains(i))
+                                    .unwrap_or(last_line);
+                                let next_li = li.saturating_add_signed(line_diff).min(last_line);
                                 if li != next_li {
-                                    *caret_index = txt
-                                        .shaped_text
-                                        .line(next_li)
-                                        .and_then(|l| l.nearest_seg(origin.x))
-                                        .map(|s| s.nearest_char_index(origin.x, resolved.text.text()));
-                                }
-
-                                if let Some(i) = caret_index {
-                                    *i = resolved.text.snap_grapheme_boundary(*i);
+                                    let i = match txt.shaped_text.line(next_li) {
+                                        Some(l) => match l.nearest_seg(origin.x) {
+                                            Some(s) => s.nearest_char_index(origin.x, resolved.text.text()),
+                                            None => l.text_range().end(),
+                                        },
+                                        None => 0,
+                                    };
+                                    *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
                                 }
                             }
                         }
@@ -1105,15 +1108,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 .and_then(|t| t.transform_point(args.position.to_px(info.scale_factor.0)))
                             {
                                 //if has rendered
-                                *caret_index = txt
-                                    .shaped_text
-                                    .nearest_line(pos.y)
-                                    .and_then(|l| l.nearest_seg(pos.x))
-                                    .map(|s| s.nearest_char_index(pos.x, resolved.text.text()));
-
-                                if let Some(i) = caret_index {
-                                    *i = resolved.text.snap_grapheme_boundary(*i);
-                                }
+                                let i = match txt.shaped_text.nearest_line(pos.y) {
+                                    Some(l) => match l.nearest_seg(pos.x) {
+                                        Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
+                                        None => l.text_range().end(),
+                                    },
+                                    None => 0,
+                                };
+                                *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
                             }
                         }
                         if caret_index.is_none() {

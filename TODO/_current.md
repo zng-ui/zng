@@ -1,6 +1,5 @@
 # TextInput
 
-* Caret position when clicking after the end of a line goes to the next line.
 * Fix RTL text caret bugs.
     - `txt = var_from("الإعلان"); lang = lang!("ar");`.
     - Click place working correctly.
