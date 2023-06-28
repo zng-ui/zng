@@ -19,8 +19,8 @@ pub use container::Container;
 mod flood;
 pub use flood::flood;
 
-mod gradient;
-pub use gradient::*;
+pub mod gradient;
+pub use gradient::{conic_gradient, gradient, linear_gradient, radial_gradient};
 
 pub mod image;
 pub use image::Image;

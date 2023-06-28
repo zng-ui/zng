@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{impl_length_comp_conversions, DipPoint, Factor2d, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
+use super::{impl_length_comp_conversions, DipPoint, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
 #[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -158,6 +158,27 @@ impl_length_comp_conversions! {
     }
 }
 impl_from_and_into_var! {
+    /// Splat.
+    fn from(all: Length) -> Point {
+        Point::splat(all)
+    }
+    /// Splat relative length.
+    fn from(percent: FactorPercent) -> Point {
+        Point::splat(percent)
+    }
+    /// Splat relative length.
+    fn from(norm: Factor) -> Point {
+        Point::splat(norm)
+    }
+
+    /// Splat exact length.
+    fn from(f: f32) -> Point {
+        Point::splat(f)
+    }
+    /// Splat exact length.
+    fn from(i: i32) -> Point {
+        Point::splat(i)
+    }
     fn from(p: PxPoint) -> Point {
         Point::new(p.x, p.y)
     }

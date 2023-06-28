@@ -60,11 +60,11 @@ fn linear_points() -> impl UiNode {
         ),
         sample(
             "(30, 30) to (90, 90) repeat",
-            repeating_linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]),
+            linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]).repeat(),
         ),
         sample(
             "(30, 30) to (90, 90) reflect",
-            reflecting_linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]),
+            linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]).reflect(),
         ),
         sample(
             "to bottom right",
@@ -76,23 +76,14 @@ fn linear_points() -> impl UiNode {
 fn linear_tile() -> impl UiNode {
     let w = 180 / 5;
     sample_line(ui_vec![
-        sample(
-            "tiles",
-            linear_gradient_full(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0)),
-        ),
+        sample("tiles", linear_gradient(45.deg(), [colors::GREEN, colors::YELLOW]).tile(w, 0),),
         sample(
             "tiles spaced",
-            linear_gradient_full(45.deg(), [colors::MAGENTA, colors::AQUA], ExtendMode::Clamp, (w + 5, w + 5), (5, 5)),
+            linear_gradient(45.deg(), [colors::MAGENTA, colors::AQUA]).tile(w + 5, 5),
         ),
         sample(
             "pattern",
-            linear_gradient_full(
-                45.deg(),
-                [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())],
-                ExtendMode::Clamp,
-                (20, 20),
-                (0, 0),
-            ),
+            linear_gradient(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())]).tile(20, 0),
         ),
     ])
 }
@@ -172,7 +163,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
         children = ui_vec![
             Text!(name),
             Container! {
-                size = (180, 180);
+                size = 180;
                 child = gradient;
             }
         ];
@@ -189,7 +180,7 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
 
 fn icon() -> impl UiNode {
     Text! {
-        size = (36, 36);
+        size = 36;
         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
         corner_radius = 6;
         font_size = 28;

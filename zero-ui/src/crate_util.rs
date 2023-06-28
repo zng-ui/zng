@@ -1,5 +1,7 @@
 use std::{mem, ops};
 
+use crate::core::units::{Px, PxSize};
+
 /// Runs a cleanup action once on drop.
 pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
 impl<F: FnOnce()> RunOnDrop<F> {
@@ -74,4 +76,21 @@ impl<T: Recycle> ops::DerefMut for RecycleVec<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.vec[..self.fresh_len]
     }
+}
+
+pub(crate) fn tile_leftover(tile_size: PxSize, wgt_size: PxSize) -> PxSize {
+    if tile_size.is_empty() || wgt_size.is_empty() {
+        return PxSize::zero();
+    }
+
+    let full_leftover_x = wgt_size.width % tile_size.width;
+    let full_leftover_y = wgt_size.height % tile_size.height;
+    let full_tiles_x = wgt_size.width / tile_size.width;
+    let full_tiles_y = wgt_size.height / tile_size.height;
+    let spaces_x = full_tiles_x - Px(1);
+    let spaces_y = full_tiles_y - Px(1);
+    PxSize::new(
+        if spaces_x > Px(0) { full_leftover_x / spaces_x } else { Px(0) },
+        if spaces_y > Px(0) { full_leftover_y / spaces_y } else { Px(0) },
+    )
 }

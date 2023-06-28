@@ -7,7 +7,7 @@ use super::image_properties::{
     IMAGE_FIT_VAR, IMAGE_LIMITS_VAR, IMAGE_LOADING_GEN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR,
     IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR,
 };
-use crate::core::image::*;
+use crate::{core::image::*, crate_util::tile_leftover};
 
 use super::*;
 
@@ -376,22 +376,9 @@ pub fn image_presenter() -> impl UiNode {
                 r_img_size = wgt_size;
                 r_offset = PxVector::zero();
 
-                let leftover = if r_tile_size.is_empty() {
-                    PxVector::zero()
-                } else {
-                    let full_leftover_x = wgt_size.width % r_tile_size.width;
-                    let full_leftover_y = wgt_size.height % r_tile_size.height;
-                    let full_tiles_x = wgt_size.width / r_tile_size.width;
-                    let full_tiles_y = wgt_size.height / r_tile_size.height;
-                    let spaces_x = full_tiles_x - Px(1);
-                    let spaces_y = full_tiles_y - Px(1);
-                    PxVector::new(
-                        if spaces_x > Px(0) { full_leftover_x / spaces_x } else { Px(0) },
-                        if spaces_y > Px(0) { full_leftover_y / spaces_y } else { Px(0) },
-                    )
-                };
+                let leftover = tile_leftover(r_tile_size, wgt_size);
                 r_tile_spacing = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(r_tile_size), || {
-                    LAYOUT.with_leftover(Some(leftover.x), Some(leftover.y), || IMAGE_REPEAT_SPACING_VAR.layout())
+                    LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || IMAGE_REPEAT_SPACING_VAR.layout())
                 });
             }
 
