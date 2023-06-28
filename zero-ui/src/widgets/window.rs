@@ -68,7 +68,6 @@ impl Window {
             }
 
             wgt.push_intrinsic(NestGroup::EVENT, "layers", nodes::layers);
-            wgt.push_intrinsic(NestGroup::CONTEXT, "context", nodes::color_scheme);
         });
     }
 

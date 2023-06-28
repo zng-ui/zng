@@ -15,6 +15,7 @@ use crate::app::{
     AppEventSender,
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
+use crate::color::COLOR_SCHEME_VAR;
 use crate::context::{RenderUpdates, UpdateOp, WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
@@ -25,6 +26,7 @@ use crate::task::ui::UiTask;
 use crate::task::ParallelIteratorExt;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
+use crate::widget_instance::{BoxedUiNode, NilUiNode, UiNode};
 use crate::{app_local, var::*};
 use crate::{units::*, widget_instance::WidgetId};
 
@@ -35,6 +37,7 @@ pub(super) struct WindowsService {
     exit_on_last_close: ArcVar<bool>,
     default_render_mode: ArcVar<RenderMode>,
     parallel: ArcVar<ParallelWin>,
+    root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
 
     windows: IdMap<WindowId, AppWindow>,
     windows_info: IdMap<WindowId, AppWindowInfo>,
@@ -61,6 +64,9 @@ impl WindowsService {
         Self {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
+            root_extenders: Mutex::new(vec![Box::new(|a| {
+                with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed()).boxed()
+            })]),
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
@@ -585,6 +591,28 @@ impl WINDOWS {
         }
     }
 
+    /// Register a closure `extender` to be called with the root of every new window starting on the next update.
+    ///
+    /// The closure must returns the new root node that will be passed to previous registered root extenders until
+    /// the final root node is created.
+    ///
+    /// This is an advanced API that enables features such as themes to inject context in every new window. The
+    /// extender is called in the context of the window, after the window creation future has completed.
+    ///
+    /// Note that the *root* node passed to the extender is not the root widget, the extended root will be wrapped
+    /// in the root widget node, that is, the final root widget will be `root(extender_nodes(CONTEXT(EVENT(..))))`,
+    /// so extension nodes should operate as `CONTEXT` properties.
+    pub fn register_root_extender<E>(&self, mut extender: impl FnMut(WindowRootExtenderArgs) -> E + Send + 'static)
+    where
+        E: crate::widget_instance::UiNode,
+    {
+        WINDOWS_SV
+            .write()
+            .root_extenders
+            .get_mut()
+            .push(Box::new(move |a| extender(a).boxed()))
+    }
+
     /// Update the reference to the renderer associated with the window, we need
     /// the render to enable the hit-test function.
     pub(super) fn set_renderer(&self, id: WindowId, renderer: ViewRenderer) {
@@ -853,11 +881,19 @@ impl WINDOWS {
             any_ready |= ready;
         }
         if any_ready {
-            let mut wns = WINDOWS_SV.write();
             for mut task in open_tasks {
                 if task.is_ready() {
                     let window_id = task.ctx.id();
-                    let (window, info, responder) = task.finish(wns.open_loading.remove(&window_id).unwrap());
+
+                    let mut wns = WINDOWS_SV.write();
+                    let loading = wns.open_loading.remove(&window_id).unwrap();
+                    let mut root_extenders = mem::take(&mut wns.root_extenders);
+                    drop(wns);
+                    let (window, info, responder) = task.finish(loading, &mut root_extenders.get_mut()[..]);
+
+                    let mut wns = WINDOWS_SV.write();
+                    root_extenders.get_mut().append(wns.root_extenders.get_mut());
+                    wns.root_extenders = root_extenders;
 
                     if wns.windows.insert(window_id, window).is_some() {
                         // id conflict resolved on request.
@@ -1186,9 +1222,21 @@ impl AppWindowTask {
         self.task.get_mut().is_ready()
     }
 
-    fn finish(self, loading: WindowLoading) -> (AppWindow, AppWindowInfo, ResponderVar<WindowId>) {
-        let window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
+    fn finish(
+        self,
+        loading: WindowLoading,
+        extenders: &mut [Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>],
+    ) -> (AppWindow, AppWindowInfo, ResponderVar<WindowId>) {
+        let mut window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
         let mut ctx = self.ctx;
+
+        WINDOW.with_context(&mut ctx, || {
+            for ext in extenders.iter_mut().rev() {
+                let root = mem::replace(&mut window.child, NilUiNode.boxed());
+                window.child = ext(WindowRootExtenderArgs { root });
+            }
+        });
+
         let mode = self.mode;
         let id = ctx.id();
 
@@ -1447,3 +1495,12 @@ pub trait WINDOW_Ext {
     }
 }
 impl WINDOW_Ext for WINDOW {}
+
+/// Arguments for [`WINDOWS.register_root_extender`].
+///
+/// [`WINDOWS.register_root_extender`]: WINDOWS::register_root_extender
+pub struct WindowRootExtenderArgs {
+    /// The window root content, extender must wrap this node with extension nodes or return
+    /// it for no-op.
+    pub root: BoxedUiNode,
+}

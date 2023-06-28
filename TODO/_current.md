@@ -1,5 +1,3 @@
-* BUG - Text in rendered icons does not use the same color-scheme as the parent window.
-
 # TextInput
 
 * Fix RTL text caret bugs.

@@ -65,13 +65,6 @@ impl_from_and_into_var! {
     }
 }
 
-/// Node that binds the [`COLOR_SCHEME_VAR`] to the [`actual_color_scheme`].
-///
-/// [`actual_color_scheme`]: crate::core::window::WindowVars::actual_color_scheme
-pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed())
-}
-
 /// Wrap around the window outer-most event node to create the layers.
 ///
 /// This node is included in the [`NestGroup::EVENT`] group.

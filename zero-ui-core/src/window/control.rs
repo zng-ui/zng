@@ -1268,11 +1268,15 @@ impl HeadlessWithRendererCtrl {
 fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
     let mut handles = VarHandles::dummy();
 
+    if let Some(f) = mfactor {
+        hvars.0.scale_factor.set(f);
+    }
+
     if let Some(parent_vars) = hvars.parent().get().and_then(|id| WINDOWS.vars(id).ok()) {
         // bind parent factor
         if mfactor.is_none() {
-            let h = hvars.0.scale_factor.bind(&parent_vars.0.scale_factor);
-            handles.push(h);
+            hvars.0.scale_factor.set_from(&parent_vars.0.scale_factor);
+            handles.push(parent_vars.0.scale_factor.bind(&hvars.0.scale_factor));
         }
 
         // merge bind color scheme.
@@ -1280,26 +1284,22 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         let parent = &parent_vars.0.actual_color_scheme;
         let actual = &hvars.0.actual_color_scheme;
 
-        let h = user.hook(Box::new(clmv!(parent, actual, |args| {
+        handles.push(user.hook(Box::new(clmv!(parent, actual, |args| {
             let value = *args.downcast_value::<Option<ColorScheme>>().unwrap();
             let scheme = value.unwrap_or_else(|| parent.get());
             actual.set(scheme);
             true
-        })));
-        handles.push(h);
+        }))));
 
-        let h = parent.hook(Box::new(clmv!(user, actual, |args| {
+        handles.push(parent.hook(Box::new(clmv!(user, actual, |args| {
             let scheme = user.get().unwrap_or_else(|| *args.downcast_value::<ColorScheme>().unwrap());
             actual.set(scheme);
             true
-        })));
-        handles.push(h);
+        }))));
 
         actual.modify(clmv!(user, parent, |a| {
             let value = user.get().unwrap_or_else(|| parent.get());
-            if a.as_ref() != &value {
-                a.set(value);
-            }
+            a.set(value);
         }));
     } else {
         // set-bind color scheme
