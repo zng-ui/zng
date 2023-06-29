@@ -216,7 +216,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
                                 disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
-                                    zero_ui::core::clipboard::CLIPBOARD.set_text(&full_path);
+                                    zero_ui::core::clipboard::CLIPBOARD.set_text(full_path);
                                     copied.set(true);
                                     task::deadline(2.secs()).await;
                                     copied.set(false);

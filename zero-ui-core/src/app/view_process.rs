@@ -383,7 +383,7 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(dbg!(data.id)) {
+        if let Some(i) = self.loading_image_index(data.id) {
             let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.write();
@@ -1333,5 +1333,36 @@ impl ViewClipboard {
         Ok(())
     }
 
-    // !!: TODO, other `ClipboardType` methods.
+    /// Read [`ClipboardType::FileList`].
+    pub fn file_list(&self) -> Result<Option<Vec<PathBuf>>> {
+        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
+            Some(ClipboardData::FileList(f)) => Ok(Some(f)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Write [`ClipboardType::FileList`].
+    pub fn set_file_list(&self, list: Vec<PathBuf>) -> Result<()> {
+        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::FileList(list))
+    }
+
+    /// Read [`ClipboardType::Extension`].
+    pub fn extension(&self, data_type: String) -> Result<Option<IpcBytes>> {
+        match VIEW_PROCESS
+            .try_write()?
+            .process
+            .read_clipboard(ClipboardType::Extension(data_type.clone()))?
+        {
+            Some(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Some(data)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Write [`ClipboardType::Extension`].
+    pub fn set_extension(&self, data_type: String, data: IpcBytes) -> Result<()> {
+        VIEW_PROCESS
+            .try_write()?
+            .process
+            .write_clipboard(ClipboardData::Extension { data_type, data })
+    }
 }
