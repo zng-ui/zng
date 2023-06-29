@@ -1081,13 +1081,8 @@ impl ShapedText {
 
         if let Some(line) = self.line(self.lines_len().saturating_sub(1)) {
             let rect = line.rect();
-            if line
-                .seg(line.segs_len().saturating_sub(1))
-                .map(|s| s.direction())
-                .unwrap_or_else(|| self.direction())
-                .is_rtl()
-            {
-                // top-left of last line if it ends in RTL or text is RTL
+            if self.direction().is_rtl() {
+                // top-left of last line if it the text is RTL overall.
                 PxPoint::new(rect.min_x(), rect.min_y())
             } else {
                 // top-right of last line for LTR
