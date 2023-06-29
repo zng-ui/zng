@@ -40,7 +40,6 @@
 
 # Clipboard
 
-* Error handling.
 * Move provider to view-process.
     - Use `clipboard-win` in Windows to avoid defects of `arboard`.
     - Use `clipboard_master` to get events.

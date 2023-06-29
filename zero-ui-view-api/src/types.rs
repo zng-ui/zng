@@ -2794,6 +2794,29 @@ pub enum ClipboardType {
     Extension(String),
 }
 
+/// Clipboard read/write error.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ClipboardError {
+    /// Requested format is not set on the clipboard.
+    NotFound,
+    /// View-process or operating system does not support the data type.
+    NotSupported,
+    /// Other error.
+    ///
+    /// The string can be a debug description of the error, only suitable for logging.
+    Other(String),
+}
+impl fmt::Display for ClipboardError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClipboardError::NotFound => write!(f, "clipboard does not contains requested format"),
+            ClipboardError::NotSupported => write!(f, "clipboard implementation does not support the format"),
+            ClipboardError::Other(_) => write!(f, "internal error"),
+        }
+    }
+}
+impl std::error::Error for ClipboardError {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

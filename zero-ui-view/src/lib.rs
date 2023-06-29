@@ -1388,11 +1388,14 @@ impl App {
         }
     }
 
-    fn arboard(&mut self) -> Option<&mut arboard::Clipboard> {
+    fn arboard(&mut self) -> Result<&mut arboard::Clipboard, ClipboardError> {
         if self.arboard.is_none() {
-            self.arboard = arboard::Clipboard::new().ok();
+            match arboard::Clipboard::new() {
+                Ok(c) => self.arboard = Some(c),
+                Err(e) => return Err(util::arboard_to_clip(e)),
+            }
         }
-        self.arboard.as_mut()
+        Ok(self.arboard.as_mut().unwrap())
     }
 }
 
@@ -1718,11 +1721,11 @@ impl Api for App {
         r_id
     }
 
-    fn read_clipboard(&mut self, data_type: ClipboardType) -> Option<ClipboardData> {
+    fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError> {
         match data_type {
-            ClipboardType::Text => self.arboard()?.get_text().ok().map(ClipboardData::Text),
+            ClipboardType::Text => self.arboard()?.get_text().map_err(util::arboard_to_clip).map(ClipboardData::Text),
             ClipboardType::Image => {
-                let bitmap = self.arboard()?.get_image().ok()?;
+                let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();
                 for rgba in data.chunks_exact_mut(4) {
                     rgba.swap(0, 2); // to bgra
@@ -1736,40 +1739,37 @@ impl Api for App {
                     max_decoded_len: u64::MAX,
                     downscale: None,
                 });
-                Some(ClipboardData::Image(id))
+                Ok(ClipboardData::Image(id))
             }
-            ClipboardType::FileList => None,
-            ClipboardType::Extension(_) => None,
+            ClipboardType::FileList => Err(ClipboardError::NotSupported),
+            ClipboardType::Extension(_) => Err(ClipboardError::NotSupported),
         }
     }
 
-    fn write_clipboard(&mut self, data: ClipboardData) {
+    fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError> {
         match data {
-            ClipboardData::Text(t) => {
-                if let Some(b) = self.arboard() {
-                    let _ = b.set_text(t);
-                }
-            }
+            ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
             ClipboardData::Image(id) => {
-                if self.arboard().is_some() {
-                    if let Some(img) = self.image_cache.get(id) {
-                        let size = img.size();
-                        let mut data = img.bgra8().clone().to_vec();
-                        if let Some(b) = self.arboard() {
-                            for rgba in data.chunks_exact_mut(4) {
-                                rgba.swap(0, 2); // to rgba
-                            }
-                            let _ = b.set_image(arboard::ImageData {
-                                width: size.width.0 as _,
-                                height: size.height.0 as _,
-                                bytes: Cow::Owned(data),
-                            });
-                        }
+                self.arboard()?;
+                if let Some(img) = self.image_cache.get(id) {
+                    let size = img.size();
+                    let mut data = img.bgra8().clone().to_vec();
+                    for rgba in data.chunks_exact_mut(4) {
+                        rgba.swap(0, 2); // to rgba
                     }
+                    let board = self.arboard()?;
+                    let _ = board.set_image(arboard::ImageData {
+                        width: size.width.0 as _,
+                        height: size.height.0 as _,
+                        bytes: Cow::Owned(data),
+                    });
+                    Ok(())
+                } else {
+                    Err(ClipboardError::Other("image not found".to_owned()))
                 }
             }
-            ClipboardData::FileList(_) => {}
-            ClipboardData::Extension { .. } => {}
+            ClipboardData::FileList(_) => Err(ClipboardError::NotSupported),
+            ClipboardData::Extension { .. } => Err(ClipboardError::NotSupported),
         }
     }
 

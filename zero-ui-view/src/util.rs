@@ -3,8 +3,8 @@ use std::{cell::Cell, sync::Arc};
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase,
-    VideoMode,
+    units::*, ButtonState, ClipboardError, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce,
+    TouchPhase, VideoMode,
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -656,4 +656,12 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
     // means that we removed some Webrender profiler instrumentation.
     let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{}", idx)).build();
     Arc::new(worker.unwrap())
+}
+
+pub(crate) fn arboard_to_clip(e: arboard::Error) -> ClipboardError {
+    match e {
+        arboard::Error::ContentNotAvailable => ClipboardError::NotFound,
+        arboard::Error::ClipboardNotSupported => ClipboardError::NotSupported,
+        e => ClipboardError::Other(format!("{e:?}")),
+    }
 }

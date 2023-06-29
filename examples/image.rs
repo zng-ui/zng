@@ -397,7 +397,7 @@ fn paste_image() -> impl UiNode {
                     title = "Paste Image";
                     child_align = Align::FILL;
                     on_paste = hn!(source, |_| {
-                        if let Some(img) = zero_ui::core::clipboard::CLIPBOARD.image() {
+                        if let Some(img) = zero_ui::core::clipboard::CLIPBOARD.image().ok().flatten() {
                             source.set(img);
                         }
                     });

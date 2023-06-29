@@ -513,7 +513,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
                     args.propagation().stop();
 
-                    if let Some(paste) = CLIPBOARD.text() {
+                    if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                         if !paste.is_empty() {
                             // insert
                             let i = caret_index.unwrap();

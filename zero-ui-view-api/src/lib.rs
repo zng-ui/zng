@@ -461,10 +461,10 @@ declare_api! {
     pub fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId;
 
     /// Get the clipboard content that matches the `data_type`.
-    pub  fn read_clipboard(&mut self, data_type: ClipboardType) -> Option<ClipboardData>;
+    pub  fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError>;
 
     /// Set the clipboard content.
-    pub fn write_clipboard(&mut self, data: ClipboardData);
+    pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
 
     /// Call the API extension.
     ///

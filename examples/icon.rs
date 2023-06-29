@@ -3,7 +3,7 @@ use icons::MaterialIcon;
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
@@ -216,10 +216,11 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
                                 disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
-                                    zero_ui::core::clipboard::CLIPBOARD.set_text(full_path);
-                                    copied.set(true);
-                                    task::deadline(2.secs()).await;
-                                    copied.set(false);
+                                    if zero_ui::core::clipboard::CLIPBOARD.set_text(full_path).is_ok() {
+                                        copied.set(true);
+                                        task::deadline(2.secs()).await;
+                                        copied.set(false);
+                                    }
                                 });
                                 when *#is_hovered {
                                     background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));

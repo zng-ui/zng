@@ -31,7 +31,7 @@ use zero_ui_view_api::{
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    ClipboardData, ClipboardType, Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig,
+    ClipboardData, ClipboardError, ClipboardType, Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig,
     MonitorId as ApiMonitorId,
 };
 
@@ -1279,29 +1279,31 @@ struct EncodeRequest {
     listeners: Vec<flume::Sender<std::result::Result<IpcBytes, EncodeError>>>,
 }
 
+type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
+
 /// View-process clipboard methods.
 pub struct ViewClipboard {}
 impl ViewClipboard {
     /// Read [`ClipboardType::Text`].
-    pub fn text(&self) -> Result<Option<String>> {
+    pub fn read_text(&self) -> Result<ClipboardResult<String>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
-            Some(ClipboardData::Text(t)) => Ok(Some(t)),
-            _ => Ok(None),
+            Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
+            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
 
     /// Write [`ClipboardType::Text`].
-    pub fn set_text(&self, txt: String) -> Result<()> {
+    pub fn write_text(&self, txt: String) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
     }
 
     /// Read [`ClipboardType::Image`].
-    pub fn image(&self) -> Result<Option<ViewImage>> {
+    pub fn read_image(&self) -> Result<ClipboardResult<ViewImage>> {
         let mut app = VIEW_PROCESS.try_write()?;
         match app.process.read_clipboard(ClipboardType::Image)? {
-            Some(ClipboardData::Image(id)) => {
+            Ok(ClipboardData::Image(id)) => {
                 if id == ImageId::INVALID {
-                    Ok(None)
+                    Ok(Err(ClipboardError::Other("view-process returned invalid image".to_owned())))
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
@@ -1316,50 +1318,50 @@ impl ViewClipboard {
                         done_signal: SignalOnce::new(),
                     })));
                     app.loading_images.push(Arc::downgrade(&img.0));
-                    Ok(Some(img))
+                    Ok(Ok(img))
                 }
             }
-            _ => Ok(None),
+            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
 
     /// Write [`ClipboardType::Image`].
-    pub fn set_image(&self, img: &ViewImage) -> Result<()> {
+    pub fn write_image(&self, img: &ViewImage) -> Result<ClipboardResult<()>> {
         if img.is_loaded() {
             if let Some(id) = img.id() {
                 return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
             }
         }
-        Ok(())
+        Ok(Err(ClipboardError::Other("image not loaded".to_owned())))
     }
 
     /// Read [`ClipboardType::FileList`].
-    pub fn file_list(&self) -> Result<Option<Vec<PathBuf>>> {
+    pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
-            Some(ClipboardData::FileList(f)) => Ok(Some(f)),
-            _ => Ok(None),
+            Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
+            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
 
     /// Write [`ClipboardType::FileList`].
-    pub fn set_file_list(&self, list: Vec<PathBuf>) -> Result<()> {
+    pub fn write_file_list(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::FileList(list))
     }
 
     /// Read [`ClipboardType::Extension`].
-    pub fn extension(&self, data_type: String) -> Result<Option<IpcBytes>> {
+    pub fn read_extension(&self, data_type: String) -> Result<ClipboardResult<IpcBytes>> {
         match VIEW_PROCESS
             .try_write()?
             .process
             .read_clipboard(ClipboardType::Extension(data_type.clone()))?
         {
-            Some(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Some(data)),
-            _ => Ok(None),
+            Ok(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Ok(data)),
+            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
 
     /// Write [`ClipboardType::Extension`].
-    pub fn set_extension(&self, data_type: String, data: IpcBytes) -> Result<()> {
+    pub fn write_extension(&self, data_type: String, data: IpcBytes) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS
             .try_write()?
             .process
