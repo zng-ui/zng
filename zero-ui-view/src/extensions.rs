@@ -13,11 +13,16 @@ use zero_ui_view_api::{
     webrender_api::{
         AsyncBlobImageRasterizer, BlobImageHandler, BlobImageParams, BlobImageRequest, BlobImageResult, DocumentId, PipelineId,
     },
-    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayListExtension,
+    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayListExtension, Event,
 };
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
+    /// Called once at the start of the view-process.
+    fn init(&mut self, args: ViewExtensionInitArgs) {
+        let _ = args;
+    }
+
     /// Unique name and version of this extension.
     fn name(&self) -> &ApiExtensionName;
 
@@ -245,6 +250,27 @@ pub trait BlobExtension: Send + Any {
     ///
     /// The default is `true`, this method is only called on init if multithreading is disabled.
     fn enable_multithreading(&mut self, enable: bool);
+}
+
+/// Arguments for [`ViewExtension::init`].
+pub struct ViewExtensionInitArgs {
+    /// Sender of [`Event::ExtensionEvent`] events.
+    pub event_sender: ExtensionEventSender,
+}
+
+/// Sender of [`Event::ExtensionEvent`] events.
+///
+/// Available in [`ViewExtensionInitArgs`].
+#[derive(Clone)]
+pub struct ExtensionEventSender {
+    sender: crate::AppEventSender,
+    id: ApiExtensionId,
+}
+impl ExtensionEventSender {
+    /// Send the event `payload`.
+    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zero_ui_view_api::Disconnected> {
+        self.sender.send(crate::AppEvent::Notify(Event::ExtensionEvent(self.id, payload)))
+    }
 }
 
 /// Snapshot of a [`BlobExtension`] that can render/copy pixels.
@@ -503,6 +529,17 @@ impl ViewExtensions {
             .enumerate()
             .filter_map(|(i, e)| e.renderer().map(|e| (ApiExtensionId::from_index(i), e)))
             .collect()
+    }
+
+    pub(crate) fn init(&mut self, event_sender: &crate::AppEventSender) {
+        for (i, ext) in self.exts.iter_mut().enumerate() {
+            ext.init(ViewExtensionInitArgs {
+                event_sender: ExtensionEventSender {
+                    sender: event_sender.clone(),
+                    id: ApiExtensionId::from_index(i),
+                },
+            });
+        }
     }
 }
 

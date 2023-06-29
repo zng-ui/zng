@@ -602,6 +602,7 @@ impl App {
         mut ext: ViewExtensions,
     ) -> Self {
         ext.renderer("zero-ui-view.webrender_debug", extensions::RendererDebugExt::new);
+        ext.init(&app_sender);
         App {
             headless: false,
             started: false,
