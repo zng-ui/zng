@@ -516,7 +516,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                         if !paste.is_empty() {
                             // insert
-                            let i = caret_index.unwrap();
+                            let i = caret_index.unwrap_or(0);
                             *caret_index = Some(i + paste.len());
 
                             let _ = text.modify(move |t| {

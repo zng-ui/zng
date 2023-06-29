@@ -37,7 +37,3 @@
 * Implement custom event sender.
 * Implement OpenGL example.
     - Overlay and texture image.
-
-# Clipboard
-
-* Merge.
