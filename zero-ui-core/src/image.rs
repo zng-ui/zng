@@ -334,7 +334,12 @@ impl ImagesService {
         }
     }
 
-    fn register(&mut self, key: ImageHash, image: ViewImage, downscale: Option<ImageDownscale>) -> Option<ImageVar> {
+    fn register(
+        &mut self,
+        key: ImageHash,
+        image: ViewImage,
+        downscale: Option<ImageDownscale>,
+    ) -> std::result::Result<ImageVar, (ViewImage, ImageVar)> {
         let limits = self.limits.get();
         let limits = ImageLimits {
             max_encoded_len: limits.max_encoded_len,
@@ -343,13 +348,19 @@ impl ImagesService {
             #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
         };
-        let entry = CacheEntry {
-            error: AtomicBool::new(image.is_error()),
-            image: var(Img::new(image)),
-            max_decoded_len: limits.max_decoded_len,
-            downscale,
-        };
-        self.cache.insert(key, entry).map(|v| v.image.read_only())
+
+        match self.cache.entry(key) {
+            hashbrown::hash_map::Entry::Occupied(e) => Err((image, e.get().image.read_only())),
+            hashbrown::hash_map::Entry::Vacant(e) => Ok(e
+                .insert(CacheEntry {
+                    error: AtomicBool::new(image.is_error()),
+                    image: var(Img::new(image)),
+                    max_decoded_len: limits.max_decoded_len,
+                    downscale,
+                })
+                .image
+                .read_only()),
+        }
     }
 
     fn detach(&mut self, image: ImageVar) -> ImageVar {
@@ -811,8 +822,9 @@ impl IMAGES {
 
     /// Associate the `image` with the `key` in the cache.
     ///
-    /// Returns `Some(previous)` if the `key` was already associated with an image.
-    pub fn register(&self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
+    /// Returns `Ok(ImageVar)` with the new image var that tracks `image`, or `Err(ViewImage, ImageVar)`
+    /// that returns the `image` and a clone of the var already associated with the `key`.
+    pub fn register(&self, key: ImageHash, image: ViewImage) -> std::result::Result<ImageVar, (ViewImage, ImageVar)> {
         IMAGES_SV.write().register(key, image, None)
     }
 

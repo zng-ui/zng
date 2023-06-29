@@ -4,7 +4,7 @@
 
 use crate::{
     app::{view_process::VIEW_PROCESS, AppExtension},
-    image::{ImageVar, Img},
+    image::{ImageHasher, ImageVar, Img, IMAGES},
     text::Txt,
 };
 
@@ -48,12 +48,19 @@ impl CLIPBOARD {
     /// The image is loaded in parallel and cached by the [`IMAGES`] service.
     pub fn image(&self) -> Option<ImageVar> {
         let img = VIEW_PROCESS.clipboard().ok()?.image().ok()??;
-        // can we load a view in the IMAGES cache? Otherwise we will need to handle image loading events.
-        todo!("")
+        let id = img.id()?;
+        let mut hash = ImageHasher::new();
+        hash.update("zero_ui_core::CLIPBOARD");
+        hash.update(id.get().to_be_bytes());
+        Some(match IMAGES.register(hash.finish(), img) {
+            Ok(r) => r,
+            Err((_, r)) => r,
+        })
     }
 
     /// Set the image on the clipboard.
     pub fn set_image(&self, img: &Img) {
+        // !!: wait load?
         if let Some(img) = img.view() {
             if let Ok(c) = VIEW_PROCESS.clipboard() {
                 let _ = c.set_image(img);

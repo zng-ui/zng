@@ -346,7 +346,7 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(id) {
+        if let Some(i) = dbg!(self.loading_image_index(dbg!(id))) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
@@ -1297,12 +1297,26 @@ impl ViewClipboard {
 
     /// Read [`ClipboardType::Image`].
     pub fn image(&self) -> Result<Option<ViewImage>> {
-        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Image)? {
+        let mut app = VIEW_PROCESS.try_write()?;
+        match app.process.read_clipboard(ClipboardType::Image)? {
             Some(ClipboardData::Image(id)) => {
                 if id == ImageId::INVALID {
                     Ok(None)
                 } else {
-                    todo!("!!: handle the same way as add_image")
+                    let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
+                        id: Some(id),
+                        app_id: App::current_id(),
+                        generation: app.process.generation(),
+                        size: PxSize::zero(),
+                        partial_size: PxSize::zero(),
+                        ppi: None,
+                        opaque: false,
+                        partial_bgra8: None,
+                        bgra8: None,
+                        done_signal: SignalOnce::new(),
+                    })));
+                    app.loading_images.push(Arc::downgrade(&img.0));
+                    Ok(Some(img))
                 }
             }
             _ => Ok(None),
