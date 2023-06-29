@@ -351,15 +351,31 @@ impl ImagesService {
 
         match self.cache.entry(key) {
             hashbrown::hash_map::Entry::Occupied(e) => Err((image, e.get().image.read_only())),
-            hashbrown::hash_map::Entry::Vacant(e) => Ok(e
-                .insert(CacheEntry {
-                    error: AtomicBool::new(image.is_error()),
-                    image: var(Img::new(image)),
+            hashbrown::hash_map::Entry::Vacant(e) => {
+                let is_error = image.is_error();
+                let is_loading = !is_error && !image.is_loaded();
+                let format = ImageDataFormat::Bgra8 {
+                    size: image.size(),
+                    ppi: image.ppi(),
+                };
+                let img_var = var(Img::new(image));
+                if is_loading {
+                    self.decoding.push(ImageDecodingTask {
+                        format,
+                        data: IpcBytes::from_vec(vec![]),
+                        image: img_var.clone(),
+                    });
+                }
+
+                Ok(e.insert(CacheEntry {
+                    error: AtomicBool::new(is_error),
+                    image: img_var,
                     max_decoded_len: limits.max_decoded_len,
                     downscale,
                 })
                 .image
-                .read_only()),
+                .read_only())
+            }
         }
     }
 

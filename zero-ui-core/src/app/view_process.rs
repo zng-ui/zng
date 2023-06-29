@@ -346,7 +346,7 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>) -> Option<ViewImage> {
-        if let Some(i) = dbg!(self.loading_image_index(dbg!(id))) {
+        if let Some(i) = self.loading_image_index(id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
@@ -383,7 +383,7 @@ impl VIEW_PROCESS {
     }
 
     pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
-        if let Some(i) = self.loading_image_index(data.id) {
+        if let Some(i) = self.loading_image_index(dbg!(data.id)) {
             let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.write();
