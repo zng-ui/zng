@@ -216,16 +216,10 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
                                 disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
-                                    match zero_ui::core::clipboard::CLIPBOARD.set_text(&full_path) {
-                                        Ok(()) => {
-                                            copied.set(true);
-                                            task::deadline(2.secs()).await;
-                                            copied.set(false);
-                                        },
-                                        Err(e) => {
-                                            tracing::error!("failed to copy, {e}");
-                                        }
-                                    }
+                                    zero_ui::core::clipboard::CLIPBOARD.set_text(&full_path);
+                                    copied.set(true);
+                                    task::deadline(2.secs()).await;
+                                    copied.set(false);
                                 });
                                 when *#is_hovered {
                                     background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));

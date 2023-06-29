@@ -460,6 +460,12 @@ declare_api! {
     /// Returns the ID that identifies the response event.
     pub fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId;
 
+    /// Get the clipboard content that matches the `data_type`.
+    pub  fn read_clipboard(&mut self, data_type: ClipboardType) -> Option<ClipboardData>;
+
+    /// Set the clipboard content.
+    pub fn write_clipboard(&mut self, data: ClipboardData);
+
     /// Call the API extension.
     ///
     /// The `extension_id` is the index of an extension in the extensions list provided by the view-process on init.

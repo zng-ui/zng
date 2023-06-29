@@ -513,21 +513,16 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
                     args.propagation().stop();
 
-                    match CLIPBOARD.text() {
-                        Ok(paste) => {
-                            if !paste.is_empty() {
-                                // insert
-                                let i = caret_index.unwrap();
-                                *caret_index = Some(i + paste.len());
+                    if let Some(paste) = CLIPBOARD.text() {
+                        if !paste.is_empty() {
+                            // insert
+                            let i = caret_index.unwrap();
+                            *caret_index = Some(i + paste.len());
 
-                                let _ = text.modify(move |t| {
-                                    t.to_mut().to_mut().insert_str(i, paste.as_str());
-                                });
-                                resolved.pending_edit = true;
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("error pasting, {e}");
+                            let _ = text.modify(move |t| {
+                                t.to_mut().to_mut().insert_str(i, paste.as_str());
+                            });
+                            resolved.pending_edit = true;
                         }
                     }
                 }

@@ -2756,6 +2756,44 @@ pub enum FileDialogResponse {
     Error(String),
 }
 
+/// Clipboard data.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ClipboardData {
+    /// Text string.
+    ///
+    /// View-process can convert between [`String`] and the text formats of the platform.
+    Text(String),
+    /// Image data.
+    ///
+    /// View-process reads from clipboard in any format supported and starts an image decode task
+    /// for the data, the [`ImageId`] may still be decoding when received. For writing the
+    /// view-process will expect the image to already be loaded, the image will be encoded in
+    /// a format compatible with the platform clipboard.
+    Image(ImageId),
+    /// List of paths.
+    FileList(Vec<PathBuf>),
+    /// Any data format supported only by the specific view-process implementation.
+    Extension {
+        /// Type key, must be in a format defined by the view-process.
+        data_type: String,
+        /// The raw data.
+        data: IpcBytes,
+    },
+}
+
+/// Clipboard data type.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ClipboardType {
+    /// A [`ClipboardData::Text`].
+    Text,
+    /// A [`ClipboardData::Image`].
+    Image,
+    /// A [`ClipboardData::FileList`].
+    FileList,
+    /// A [`ClipboardData::Extension`].
+    Extension(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -640,6 +640,14 @@ impl Image {
 
         Ok(())
     }
+
+    pub fn size(&self) -> PxSize {
+        self.0.size
+    }
+
+    pub fn bgra8(&self) -> &IpcBytes {
+        &self.0.bgra8
+    }
 }
 
 // Image data is provided to webrender directly from the BGRA8 shared memory.

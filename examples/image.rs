@@ -397,9 +397,8 @@ fn paste_image() -> impl UiNode {
                     title = "Paste Image";
                     child_align = Align::FILL;
                     on_paste = hn!(source, |_| {
-                        match zero_ui::core::clipboard::CLIPBOARD.image() {
-                            Ok(img) => source.set(img),
-                            Err(e) => tracing::error!("error pasting image, {e}"),
+                        if let Some(img) = zero_ui::core::clipboard::CLIPBOARD.image() {
+                            source.set(img);
                         }
                     });
                     child = Image! {

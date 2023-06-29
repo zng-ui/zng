@@ -32,10 +32,6 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-# Align
-
-* Review align in window background.
-
 # View-Process
 
 * Implement custom event sender.
@@ -45,32 +41,9 @@
 # Clipboard
 
 * Move provider to view-process.
-    - Crate `arboard` is not maintained, see https://github.com/1Password/arboard/issues/24
+    - Use `clipboard-win` in Windows to avoid defects of `arboard`.
     - Use `clipboard_master` to get events.
-* Image paste some pixel columns swapped (wrap around start).
-    - Some corrupted pixels, probably same reason.
-    - Issue if from `arboard`.
-```rust
-// copy an image black|white
-//
-// get image from arboard, inspect the first line:
-for pixel in data[..img.width * 4].chunks_mut(4) {
-    println!("{pixel:?}");
-}
-
-// finds:
-//
-// [0, 0, 0, 255]
-// [0, 0, 0, 255]
-// [0, 0, 0, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// [255, 255, 255, 255]
-// ..
-```
+* Return the same image when pasting the same pixels?
 * Screenshot paste does not have scale-factor.
+    - Window issue?
+* Merge.

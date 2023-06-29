@@ -103,6 +103,7 @@
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 
 use std::{
+    borrow::Cow,
     fmt, mem, thread,
     time::{Duration, Instant},
 };
@@ -376,6 +377,8 @@ pub(crate) struct App {
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
+    arboard: Option<arboard::Clipboard>,
+
     exited: bool,
 }
 impl fmt::Debug for App {
@@ -628,6 +631,7 @@ impl App {
             pressed_modifiers: FxHashMap::default(),
             pending_modifiers_update: None,
             pending_modifiers_focus_clear: false,
+            arboard: None,
         }
     }
 
@@ -1383,6 +1387,13 @@ impl App {
             render_mode,
         }
     }
+
+    fn arboard(&mut self) -> Option<&mut arboard::Clipboard> {
+        if self.arboard.is_none() {
+            self.arboard = arboard::Clipboard::new().ok();
+        }
+        self.arboard.as_mut()
+    }
 }
 
 impl Api for App {
@@ -1705,6 +1716,61 @@ impl Api for App {
             let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
         };
         r_id
+    }
+
+    fn read_clipboard(&mut self, data_type: ClipboardType) -> Option<ClipboardData> {
+        match data_type {
+            ClipboardType::Text => self.arboard()?.get_text().ok().map(ClipboardData::Text),
+            ClipboardType::Image => {
+                let bitmap = self.arboard()?.get_image().ok()?;
+                let mut data = bitmap.bytes.into_owned();
+                for rgba in data.chunks_exact_mut(4) {
+                    rgba.swap(0, 2); // to bgra
+                }
+                let id = self.image_cache.add(ImageRequest {
+                    format: ImageDataFormat::Bgra8 {
+                        size: PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
+                        ppi: None,
+                    },
+                    data: IpcBytes::from_vec(data),
+                    max_decoded_len: u64::MAX,
+                    downscale: None,
+                });
+                Some(ClipboardData::Image(id))
+            }
+            ClipboardType::FileList => None,
+            ClipboardType::Extension(_) => None,
+        }
+    }
+
+    fn write_clipboard(&mut self, data: ClipboardData) {
+        match data {
+            ClipboardData::Text(t) => {
+                if let Some(b) = self.arboard() {
+                    let _ = b.set_text(t);
+                }
+            }
+            ClipboardData::Image(id) => {
+                if self.arboard().is_some() {
+                    if let Some(img) = self.image_cache.get(id) {
+                        let size = img.size();
+                        let mut data = img.bgra8().clone().to_vec();
+                        if let Some(b) = self.arboard() {
+                            for rgba in data.chunks_exact_mut(4) {
+                                rgba.swap(0, 2); // to rgba
+                            }
+                            let _ = b.set_image(arboard::ImageData {
+                                width: size.width.0 as _,
+                                height: size.height.0 as _,
+                                bytes: Cow::Owned(data),
+                            });
+                        }
+                    }
+                }
+            }
+            ClipboardData::FileList(_) => {}
+            ClipboardData::Extension { .. } => {}
+        }
     }
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {

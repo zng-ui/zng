@@ -31,7 +31,8 @@ use zero_ui_view_api::{
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId,
+    ClipboardData, ClipboardType, Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig,
+    MonitorId as ApiMonitorId,
 };
 
 use super::{App, AppId};
@@ -73,6 +74,16 @@ impl VIEW_PROCESS {
 
     fn write(&self) -> MappedRwLockWriteGuard<ViewProcessService> {
         VIEW_PROCESS_SV.write_map(|e| e.as_mut().expect("VIEW_PROCESS not available"))
+    }
+
+    fn try_write(&self) -> Result<MappedRwLockWriteGuard<ViewProcessService>> {
+        let vp = VIEW_PROCESS_SV.write();
+        if let Some(w) = &*vp {
+            if w.process.online() {
+                return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
+            }
+        }
+        Err(ViewProcessOffline)
     }
 
     fn check_app(&self, id: AppId) {
@@ -177,6 +188,15 @@ impl VIEW_PROCESS {
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
         Ok(img)
+    }
+
+    /// View-process clipboard methods.
+    pub fn clipboard(&self) -> Result<&ViewClipboard> {
+        if VIEW_PROCESS.is_online() {
+            Ok(&ViewClipboard {})
+        } else {
+            Err(ViewProcessOffline)
+        }
     }
 
     /// Returns a list of image decoders supported by the view-process backend.
@@ -1257,4 +1277,47 @@ struct EncodeRequest {
     image_id: ImageId,
     format: String,
     listeners: Vec<flume::Sender<std::result::Result<IpcBytes, EncodeError>>>,
+}
+
+/// View-process clipboard methods.
+pub struct ViewClipboard {}
+impl ViewClipboard {
+    /// Read [`ClipboardType::Text`].
+    pub fn text(&self) -> Result<Option<String>> {
+        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
+            Some(ClipboardData::Text(t)) => Ok(Some(t)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Write [`ClipboardType::Text`].
+    pub fn set_text(&self, txt: String) -> Result<()> {
+        VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
+    }
+
+    /// Read [`ClipboardType::Image`].
+    pub fn image(&self) -> Result<Option<ViewImage>> {
+        match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Image)? {
+            Some(ClipboardData::Image(id)) => {
+                if id == ImageId::INVALID {
+                    Ok(None)
+                } else {
+                    todo!("!!: handle the same way as add_image")
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Write [`ClipboardType::Image`].
+    pub fn set_image(&self, img: &ViewImage) -> Result<()> {
+        if img.is_loaded() {
+            if let Some(id) = img.id() {
+                return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
+            }
+        }
+        Ok(())
+    }
+
+    // !!: TODO, other `ClipboardType` methods.
 }
