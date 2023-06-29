@@ -1288,6 +1288,7 @@ impl ViewClipboard {
     pub fn read_text(&self) -> Result<ClipboardResult<String>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
             Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
+            Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
@@ -1321,6 +1322,7 @@ impl ViewClipboard {
                     Ok(Ok(img))
                 }
             }
+            Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
@@ -1339,6 +1341,7 @@ impl ViewClipboard {
     pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
             Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
+            Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }
@@ -1356,6 +1359,7 @@ impl ViewClipboard {
             .read_clipboard(ClipboardType::Extension(data_type.clone()))?
         {
             Ok(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Ok(data)),
+            Err(e) => Ok(Err(e)),
             _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
         }
     }

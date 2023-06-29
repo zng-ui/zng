@@ -641,10 +641,12 @@ impl Image {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn size(&self) -> PxSize {
         self.0.size
     }
 
+    #[allow(unused)]
     pub fn bgra8(&self) -> &IpcBytes {
         &self.0.bgra8
     }

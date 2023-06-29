@@ -103,7 +103,6 @@
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 
 use std::{
-    borrow::Cow,
     fmt, mem, thread,
     time::{Duration, Instant},
 };
@@ -377,6 +376,7 @@ pub(crate) struct App {
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
+    #[cfg(not(windows))]
     arboard: Option<arboard::Clipboard>,
 
     exited: bool,
@@ -631,6 +631,8 @@ impl App {
             pressed_modifiers: FxHashMap::default(),
             pending_modifiers_update: None,
             pending_modifiers_focus_clear: false,
+
+            #[cfg(not(windows))]
             arboard: None,
         }
     }
@@ -1388,6 +1390,7 @@ impl App {
         }
     }
 
+    #[cfg(not(windows))]
     fn arboard(&mut self) -> Result<&mut arboard::Clipboard, ClipboardError> {
         if self.arboard.is_none() {
             match arboard::Clipboard::new() {
@@ -1721,6 +1724,75 @@ impl Api for App {
         r_id
     }
 
+    #[cfg(windows)]
+    fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError> {
+        match data_type {
+            ClipboardType::Text => {
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                clipboard_win::get(clipboard_win::formats::Unicode)
+                    .map_err(util::clipboard_win_to_clip)
+                    .map(ClipboardData::Text)
+            }
+            ClipboardType::Image => {
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
+
+                let id = self.image_cache.add(ImageRequest {
+                    format: ImageDataFormat::FileExtension("bmp".to_owned()),
+                    data: IpcBytes::from_vec(bitmap),
+                    max_decoded_len: u64::MAX,
+                    downscale: None,
+                });
+                Ok(ClipboardData::Image(id))
+            }
+            ClipboardType::FileList => {
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                clipboard_win::get(clipboard_win::formats::FileList)
+                    .map_err(util::clipboard_win_to_clip)
+                    .map(ClipboardData::FileList)
+            }
+            ClipboardType::Extension(_) => Err(ClipboardError::NotSupported),
+        }
+    }
+
+    #[cfg(windows)]
+    fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError> {
+        match data {
+            ClipboardData::Text(t) => {
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                clipboard_win::set(clipboard_win::formats::Unicode, t).map_err(util::clipboard_win_to_clip)
+            }
+            ClipboardData::Image(id) => {
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                if let Some(img) = self.image_cache.get(id) {
+                    let mut bmp = vec![];
+                    img.encode(image::ImageFormat::Bmp, &mut bmp)
+                        .map_err(|e| ClipboardError::Other(format!("{e:?}")))?;
+                    clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
+                } else {
+                    Err(ClipboardError::Other("image not found".to_owned()))
+                }
+            }
+            ClipboardData::FileList(l) => {
+                use clipboard_win::Setter;
+                let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
+
+                // clipboard_win does not implement write from PathBuf
+                let strs = l.into_iter().map(|p| p.display().to_string()).collect::<Vec<String>>();
+                clipboard_win::formats::FileList
+                    .write_clipboard(&strs)
+                    .map_err(util::clipboard_win_to_clip)
+            }
+            ClipboardData::Extension { .. } => Err(ClipboardError::NotSupported),
+        }
+    }
+
+    #[cfg(not(windows))]
     fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError> {
         match data_type {
             ClipboardType::Text => self.arboard()?.get_text().map_err(util::arboard_to_clip).map(ClipboardData::Text),
@@ -1746,6 +1818,7 @@ impl Api for App {
         }
     }
 
+    #[cfg(not(windows))]
     fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError> {
         match data {
             ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
@@ -1761,7 +1834,7 @@ impl Api for App {
                     let _ = board.set_image(arboard::ImageData {
                         width: size.width.0 as _,
                         height: size.height.0 as _,
-                        bytes: Cow::Owned(data),
+                        bytes: std::borrow::Cow::Owned(data),
                     });
                     Ok(())
                 } else {

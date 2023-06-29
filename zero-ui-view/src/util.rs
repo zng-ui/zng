@@ -3,8 +3,8 @@ use std::{cell::Cell, sync::Arc};
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, ClipboardError, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce,
-    TouchPhase, VideoMode,
+    units::*, ButtonState, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase,
+    VideoMode,
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -658,10 +658,20 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
     Arc::new(worker.unwrap())
 }
 
-pub(crate) fn arboard_to_clip(e: arboard::Error) -> ClipboardError {
+#[cfg(not(windows))]
+pub(crate) fn arboard_to_clip(e: arboard::Error) -> zero_ui_view_api::ClipboardError {
     match e {
-        arboard::Error::ContentNotAvailable => ClipboardError::NotFound,
-        arboard::Error::ClipboardNotSupported => ClipboardError::NotSupported,
-        e => ClipboardError::Other(format!("{e:?}")),
+        arboard::Error::ContentNotAvailable => zero_ui_view_api::ClipboardError::NotFound,
+        arboard::Error::ClipboardNotSupported => zero_ui_view_api::ClipboardError::NotSupported,
+        e => zero_ui_view_api::ClipboardError::Other(format!("{e:?}")),
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> zero_ui_view_api::ClipboardError {
+    if e == clipboard_win::SystemError::unimplemented() {
+        zero_ui_view_api::ClipboardError::NotSupported
+    } else {
+        zero_ui_view_api::ClipboardError::Other(format!("{e:?}"))
     }
 }

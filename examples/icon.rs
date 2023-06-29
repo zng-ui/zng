@@ -3,7 +3,7 @@ use icons::MaterialIcon;
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();

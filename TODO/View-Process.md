@@ -20,3 +20,7 @@
 * WebAssembly.
   - Use HtmlElements to render?
   - Wait until we impl automation/screen readers.
+
+# Clipboard
+
+* Pasting the same image generates new images, could be the same one.

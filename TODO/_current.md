@@ -40,10 +40,4 @@
 
 # Clipboard
 
-* Move provider to view-process.
-    - Use `clipboard-win` in Windows to avoid defects of `arboard`.
-    - Use `clipboard_master` to get events.
-* Return the same image when pasting the same pixels?
-* Screenshot paste does not have scale-factor.
-    - Window issue?
 * Merge.
