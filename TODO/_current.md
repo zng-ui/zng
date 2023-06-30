@@ -8,7 +8,6 @@
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down
-* Remember caret x position when up/down and page up/down.
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
@@ -22,7 +21,7 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
-* Watermark text shows caret, it should not fore multiple reasons:
+* Watermark text shows caret, it should not for multiple reasons:
     - The txt property is not set to a read-write var.
     - Background widgets are not interactive.
 

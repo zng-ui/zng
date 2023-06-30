@@ -29,12 +29,18 @@ pub struct CaretInfo {
     ///
     /// This is the insertion offset on the text, it can be the text length.
     pub index: Option<usize>,
+
+    /// If the index was set by using the [`caret_retained_x`].
+    ///
+    /// [`caret_retained_x`]: LayoutText::caret_retained_x
+    pub used_retained_x: bool,
 }
 impl fmt::Debug for CaretInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CaretInfo")
             .field("opacity", &self.opacity.debug())
             .field("index", &self.index)
+            .field("used_retained_x", &self.used_retained_x)
             .finish()
     }
 }
@@ -162,6 +168,9 @@ pub struct LayoutText {
     /// Top-left offset of the caret in the shaped text.
     pub caret_origin: Option<PxPoint>,
 
+    /// The x offset used when pressing up or down.
+    pub caret_retained_x: Px,
+
     /// Info about the last text render or render update.
     pub render_info: Mutex<RenderInfo>,
 }
@@ -179,6 +188,7 @@ impl Clone for LayoutText {
             underlines: self.underlines.clone(),
             underline_thickness: self.underline_thickness,
             caret_origin: self.caret_origin,
+            caret_retained_x: self.caret_retained_x,
             render_info: Mutex::new(self.render_info.lock().clone()),
         }
     }
@@ -310,6 +320,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 caret: Mutex::new(CaretInfo {
                     opacity: caret_opacity,
                     index: None,
+                    used_retained_x: false,
                 }),
             });
 
@@ -412,6 +423,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                                     // restore animation when the caret_index did not change
                                     if *caret_idx == rmv_start {
+                                        caret.used_retained_x = false;
                                         caret.opacity = KEYBOARD.caret_animation();
                                         EditData::get(&mut edit_data).caret_animation =
                                             caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
@@ -528,6 +540,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
 
                 if *caret_index != prev_caret_index {
+                    caret.used_retained_x = false;
                     if caret_index.is_none() {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();
@@ -714,6 +727,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     underlines: vec![],
                     underline_thickness: Px(0),
                     caret_origin: None,
+                    caret_retained_x: Px(0),
                     render_info: Mutex::default(),
                 });
                 self.pending.insert(PendingLayout::RESHAPE);
@@ -942,8 +956,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
 
                 if self.pending.contains(PendingLayout::CARET) {
-                    if let Some(index) = ResolvedText::get().caret.lock().index {
+                    let resolved_text = ResolvedText::get();
+                    let caret = resolved_text.caret.lock();
+                    if let Some(index) = caret.index {
                         let p = r.shaped_text.caret_origin(index);
+                        if !caret.used_retained_x {
+                            r.caret_retained_x = p.x;
+                        }
                         r.caret_origin = Some(p);
                     }
                 }
@@ -1045,6 +1064,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let resolved = RESOLVED_TEXT.get();
                 let mut caret = resolved.caret.lock();
+                let caret = &mut *caret;
 
                 let prev_caret_index = caret.index;
                 let caret_index = &mut caret.index;
@@ -1065,8 +1085,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                     if line_diff != 0 {
+                        caret.used_retained_x = true;
                         if let Some(txt) = &mut txt.txt {
-                            if let Some(origin) = txt.caret_origin {
+                            if txt.caret_origin.is_some() {
                                 let i = caret_index.unwrap_or(0);
                                 let last_line = txt.shaped_text.lines_len().saturating_sub(1);
                                 let li = txt
@@ -1077,8 +1098,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 let next_li = li.saturating_add_signed(line_diff).min(last_line);
                                 if li != next_li {
                                     let i = match txt.shaped_text.line(next_li) {
-                                        Some(l) => match l.nearest_seg(origin.x) {
-                                            Some(s) => s.nearest_char_index(origin.x, resolved.text.text()),
+                                        Some(l) => match l.nearest_seg(txt.caret_retained_x) {
+                                            Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
                                             None => l.text_range().end(),
                                         },
                                         None => 0,
@@ -1094,6 +1115,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
+                        caret.used_retained_x = false;
                         if let Some(txt) = &mut txt.txt {
                             //if there was at least one layout
                             let info = txt.render_info.get_mut();
