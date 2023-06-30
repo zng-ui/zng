@@ -1040,7 +1040,7 @@ impl ShapedText {
                     'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
                         for (glyph, advance) in glyph_adv {
                             if cluster_count == 0 {
-                                if search_lig_caret {
+                                if !is_rtl && search_lig_caret {
                                     let mut font_caret = None;
                                     let mut caret_count = cluster_idx;
                                     for caret in font.ligature_caret_offsets(glyph.index) {
