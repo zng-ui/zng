@@ -1,8 +1,7 @@
 # TextInput
 
-* Fix RTL text caret in ligature bugs.
-    - `txt = var_from("الإعلان"); lang = lang!("ar"); font_family = "(A) Arslan Wessam A";`.
-    - `nearest_char_index`, disabled caret placement to avoid panic.
+* Review `caret_origin` ligature part count.
+    - We are using chars, should it be graphemes?
 
 * Support replace (Insert mode in command line).
 * Support buttons:

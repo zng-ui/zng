@@ -2335,7 +2335,7 @@ impl<'a> ShapedSegment<'a> {
                         )
                     };
 
-                    if !is_rtl && next_cluster - glyph_cluster > 1 {
+                    if next_cluster - glyph_cluster > 1 {
                         // maybe ligature
                         let text = &full_text[glyph_cluster..next_cluster];
 
@@ -2363,12 +2363,22 @@ impl<'a> ShapedSegment<'a> {
                                 // no font caret, ligature glyph is split in equal parts
                                 let lig_part = advance / lig_parts.len() as f32;
                                 let mut lig_x = lig_part;
-                                for c in lig_parts {
-                                    if lig_x > x {
-                                        return glyph_cluster + c as usize;
+                                if is_rtl {
+                                    for c in lig_parts.into_iter().rev() {
+                                        if lig_x > x {
+                                            return glyph_cluster + c as usize;
+                                        }
+                                        lig_x += lig_part;
                                     }
-                                    lig_x += lig_part;
+                                } else {
+                                    for c in lig_parts {
+                                        if lig_x > x {
+                                            return glyph_cluster + c as usize;
+                                        }
+                                        lig_x += lig_part;
+                                    }
                                 }
+                                
                             }
                         }
                     }
