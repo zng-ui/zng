@@ -1,8 +1,5 @@
 # TextInput
 
-* Review `caret_origin` ligature part count.
-    - We are using chars, should it be graphemes?
-
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down

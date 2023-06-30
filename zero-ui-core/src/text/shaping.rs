@@ -1063,12 +1063,15 @@ impl ShapedText {
                                             txt_range.end()
                                         };
 
-                                        let lig_char = full_text[char_start..index].chars().count();
+                                        fn count_graphemes(s: &str) -> usize {
+                                            unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).count()
+                                        }
+                                        let lig_char = count_graphemes(&full_text[char_start..index]);
                                         if is_rtl {
-                                            let lig_char_count = full_text[char_end..char_start].chars().count();
+                                            let lig_char_count = count_graphemes(&full_text[char_end..char_start]);
                                             x -= advance * (lig_char as f32 / lig_char_count as f32)
                                         } else {
-                                            let lig_char_count = full_text[char_start..char_end].chars().count();
+                                            let lig_char_count = count_graphemes(&full_text[char_start..char_end]);
                                             x += advance * (lig_char as f32 / lig_char_count as f32)
                                         }
                                     }
@@ -2378,7 +2381,6 @@ impl<'a> ShapedSegment<'a> {
                                         lig_x += lig_part;
                                     }
                                 }
-                                
                             }
                         }
                     }
