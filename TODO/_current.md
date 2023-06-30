@@ -3,7 +3,6 @@
 * Fix RTL text caret in ligature bugs.
     - `txt = var_from("الإعلان"); lang = lang!("ar"); font_family = "(A) Arslan Wessam A";`.
     - `nearest_char_index`, disabled caret placement to avoid panic.
-    - `caret_origin`,  disabled caret placement to avoid panic.
 
 * Support replace (Insert mode in command line).
 * Support buttons:

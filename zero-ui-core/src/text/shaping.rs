@@ -1063,11 +1063,14 @@ impl ShapedText {
                                             txt_range.end()
                                         };
 
-                                        let lig_char_count = full_text[char_start..char_end].chars().count();
                                         let lig_char = full_text[char_start..index].chars().count();
-
-                                        let caret = advance * (lig_char as f32 / lig_char_count as f32);
-                                        x += caret;
+                                        if is_rtl {
+                                            let lig_char_count = full_text[char_end..char_start].chars().count();
+                                            x -= advance * (lig_char as f32 / lig_char_count as f32)
+                                        } else {
+                                            let lig_char_count = full_text[char_start..char_end].chars().count();
+                                            x += advance * (lig_char as f32 / lig_char_count as f32)
+                                        }
                                     }
                                 }
 
