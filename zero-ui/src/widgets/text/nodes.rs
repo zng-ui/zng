@@ -959,7 +959,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let resolved_text = ResolvedText::get();
                     let caret = resolved_text.caret.lock();
                     if let Some(index) = caret.index {
-                        let p = r.shaped_text.caret_origin(index);
+                        let p = r.shaped_text.caret_origin(index, resolved_text.text.text());
                         if !caret.used_retained_x {
                             r.caret_retained_x = p.x;
                         }

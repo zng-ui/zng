@@ -996,7 +996,7 @@ impl ShapedText {
     }
 
     /// Gets the top-left origin for a caret visual that marks the insert `index` in the string.
-    pub fn caret_origin(&self, index: usize) -> PxPoint {
+    pub fn caret_origin(&self, index: usize, full_text: &str) -> PxPoint {
         for line in self.lines() {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
@@ -1040,7 +1040,7 @@ impl ShapedText {
                     'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
                         for (glyph, advance) in glyph_adv {
                             if cluster_count == 0 {
-                                if !is_rtl && search_lig_caret {
+                                if search_lig_caret {
                                     let mut font_caret = None;
                                     let mut caret_count = cluster_idx;
                                     for caret in font.ligature_caret_offsets(glyph.index) {
@@ -1054,14 +1054,19 @@ impl ShapedText {
                                     if let Some(caret) = font_caret {
                                         x += caret;
                                     } else {
+                                        let cluster_char_start = clusters[closest_cluster as usize] as usize;
+                                        let char_start = text_start + cluster_char_start;
                                         let next_cluster = closest_cluster + 1;
-                                        let cluster_len = if next_cluster < clusters.len() as u32 {
-                                            clusters[next_cluster as usize] - closest_cluster
+                                        let char_end = if next_cluster < clusters.len() as u32 {
+                                            text_start + clusters[next_cluster as usize] as usize
                                         } else {
-                                            (txt_range.end() - txt_range.start()) as u32 - closest_cluster
+                                            txt_range.end()
                                         };
 
-                                        let caret = advance * ((cluster_idx as u32 - closest_cluster) as f32 / cluster_len as f32);
+                                        let lig_char_count = full_text[char_start..char_end].chars().count();
+                                        let lig_char = full_text[char_start..index].chars().count();
+
+                                        let caret = advance * (lig_char as f32 / lig_char_count as f32);
                                         x += caret;
                                     }
                                 }
