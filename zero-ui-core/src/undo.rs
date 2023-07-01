@@ -1,11 +1,14 @@
 //! Undo-redo app extension, service and commands.
 //!
 
-use std::{any::Any, time::Duration};
+use std::{any::Any, fmt, time::Duration};
+
+use atomic::{Atomic, Ordering};
+use parking_lot::Mutex;
 
 use crate::{
-    app::AppExtension, command, context::StateMapRef, event::CommandNameExt, gesture::CommandShortcutExt, shortcut, var::*,
-    widget_instance::WidgetId,
+    app::AppExtension, app_local, command, context::WIDGET, context_local, event::CommandNameExt, gesture::CommandShortcutExt, shortcut,
+    units::*, var::*, widget_instance::WidgetId,
 };
 
 /// Undo-redo app extension.
@@ -29,55 +32,52 @@ impl AppExtension for UndoManager {}
 /// Undo-redo service.
 pub struct UNDO;
 impl UNDO {
-    /// Undo once in the current scope.
-    pub fn undo(&self) {
-        todo!()
+    /// Undo `count` times in the current scope.
+    pub fn undo(&self, count: u32) {
+        UNDO_SCOPE_CTX.get().undo(count);
     }
 
-    /// Redo once in the current scope.
-    pub fn redo(&self) {
-        todo!()
+    /// Redo `count` times in the current scope.
+    pub fn redo(&self, count: u32) {
+        UNDO_SCOPE_CTX.get().redo(count);
     }
 
     /// Gets the parent ID that defines an undo scope, or `None` if undo is registered globally for
     /// the entire app.
     pub fn scope(&self) -> Option<WidgetId> {
-        todo!()
+        UNDO_SCOPE_CTX.get().id()
     }
 
     /// Register the action for undo in the current scope.
     pub fn register(&self, action: impl UndoAction) {
-        let _ = action;
-        todo!()
+        UNDO_SCOPE_CTX.get().register(Box::new(action))
     }
 
-    /// Gets or sets the size limit of the undo stack.
+    /// Gets or sets the size limit of each undo stack in all scopes.
     pub fn max_undo(&self) -> ArcVar<u32> {
-        todo!()
+        UNDO_SV.read().max_undo.clone()
     }
 
-    /// Gets or sets the time interval that groups actions together.
-    pub fn undo_group_interval(&self) -> ArcVar<Duration> {
-        todo!()
+    /// Gets or sets the time interval that groups actions together in all scopes.
+    pub fn undo_interval(&self) -> ArcVar<Duration> {
+        UNDO_SV.read().undo_interval.clone()
     }
 }
 
-/// Represents associated metadata with an undo or redo action.
-pub trait UndoRedoMeta: Send + Any {
-    /// Any metadata associated with the action.
-    fn meta(&self) -> StateMapRef<UNDO> {
-        StateMapRef::empty()
-    }
-}
+/// Represents an undo or redo action.
+///
+/// If formatted to display it should provide a short description of the action
+/// that will be undone or redone.
+pub trait UndoRedoItem: fmt::Debug + fmt::Display + Send + Any {}
 
 /// Represents a single undo action.
-pub trait UndoAction: UndoRedoMeta {
+pub trait UndoAction: UndoRedoItem {
     /// Undo action and returns a [`RedoAction`] that redoes it.
     fn undo(self: Box<Self>) -> Box<dyn RedoAction>;
 }
 
 /// Represents a single redo action.
-pub trait RedoAction: UndoRedoMeta {
+pub trait RedoAction: UndoRedoItem {
     /// Redo action and returns a [`UndoAction`] that undoes it.
     fn redo(self: Box<Self>) -> Box<dyn UndoAction>;
 }
@@ -94,4 +94,72 @@ command! {
         name: "Redo",
         shortcut: [shortcut!(CTRL+Y)],
     };
+}
+
+struct UndoScope {
+    id: Atomic<Option<WidgetId>>,
+    undo: Mutex<Vec<Box<dyn UndoAction>>>,
+    redo: Mutex<Vec<Box<dyn RedoAction>>>,
+}
+impl Default for UndoScope {
+    fn default() -> Self {
+        Self {
+            id: Atomic::new(WIDGET.try_id()),
+            undo: Mutex::new(vec![]),
+            redo: Mutex::new(vec![]),
+        }
+    }
+}
+impl UndoScope {
+    fn register(&self, action: Box<dyn UndoAction>) {
+        self.undo.lock().push(action);
+        self.redo.lock().clear();
+    }
+
+    fn undo(&self, mut count: u32) {
+        while count > 0 {
+            count -= 1;
+
+            if let Some(undo) = self.undo.lock().pop() {
+                let redo = undo.undo();
+                self.redo.lock().push(redo);
+            }
+        }
+    }
+
+    fn redo(&self, mut count: u32) {
+        while count > 0 {
+            count -= 1;
+
+            if let Some(redo) = self.redo.lock().pop() {
+                let undo = redo.redo();
+                self.undo.lock().push(undo);
+            }
+        }
+    }
+
+    fn id(&self) -> Option<WidgetId> {
+        self.id.load(Ordering::Relaxed)
+    }
+}
+
+struct UndoService {
+    max_undo: ArcVar<u32>,
+    undo_interval: ArcVar<Duration>,
+}
+
+impl Default for UndoService {
+    fn default() -> Self {
+        Self {
+            max_undo: var(u32::MAX),
+            undo_interval: var(100.ms()),
+        }
+    }
+}
+
+context_local! {
+    static UNDO_SCOPE_CTX: UndoScope = UndoScope::default();
+}
+app_local! {
+    static UNDO_SV: UndoService = UndoService::default();
 }

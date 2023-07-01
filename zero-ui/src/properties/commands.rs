@@ -1,10 +1,10 @@
 //! Common commands.
 //!
 
+use crate::core::clipboard::*;
 use crate::core::event::*;
 use crate::core::gesture::{shortcut, CommandShortcutExt};
 use crate::prelude::new_property::*;
-use crate::core::clipboard::*;
 
 command! {
 
