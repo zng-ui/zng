@@ -11,7 +11,11 @@ use crate::{
         view_process::{IpcBytes, ViewClipboard, VIEW_PROCESS},
         AppExtension,
     },
+    command,
+    event::{CommandInfoExt, CommandNameExt},
+    gesture::CommandShortcutExt,
     image::{ImageHasher, ImageVar, Img, IMAGES},
+    shortcut,
     text::Txt,
 };
 
@@ -164,4 +168,27 @@ impl CLIPBOARD {
     pub fn set_extension(&self, data_type: impl Into<String>, data: IpcBytes) -> Result<(), ClipboardError> {
         self.set(|v| v.write_extension(data_type.into(), data))
     }
+}
+
+command! {
+    /// Represents the clipboard **cut** action.
+    pub static CUT_CMD = {
+        name: "Cut",
+        info: "Remove the selection and place it in the clipboard.",
+        shortcut: [shortcut!(CTRL+X), shortcut!(SHIFT+Delete)],
+    };
+
+    /// Represents the clipboard **copy** action.
+    pub static COPY_CMD = {
+        name: "Copy",
+        info: "Place a copy of the selection in the clipboard.",
+        shortcut: [shortcut!(CTRL+C), shortcut!(CTRL+Insert)],
+    };
+
+    /// Represents the clipboard **paste** action.
+    pub static PASTE_CMD = {
+        name: "Paste",
+        info: "Insert content from the clipboard.",
+        shortcut: [shortcut!(CTRL+V), shortcut!(SHIFT+Insert)],
+    };
 }

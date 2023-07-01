@@ -68,6 +68,13 @@ impl<'a, U> fmt::Debug for StateMapRef<'a, U> {
         )
     }
 }
+impl<U> StateMapRef<'static, U> {
+    /// Static empty map.
+    pub fn empty() -> Self {
+        static EMPTY: state_map::StateMap = state_map::StateMap::new();
+        Self(&EMPTY, PhantomData)
+    }
+}
 impl<'a, U> StateMapRef<'a, U> {
     /// Gets if the ID is set in this map.
     pub fn contains<T: StateValue>(self, id: impl Into<StateId<T>>) -> bool {

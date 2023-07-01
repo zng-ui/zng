@@ -3,9 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
-use commands::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use font_features::FontVariations;
-use zero_ui_core::{clipboard::CLIPBOARD, keyboard::Key, mouse::MOUSE_INPUT_EVENT, task::parking_lot::Mutex};
 
 use super::text_properties::*;
 use crate::core::{
@@ -15,6 +13,12 @@ use crate::core::{
     window::WindowLoadingHandle,
 };
 use crate::prelude::new_widget::*;
+use zero_ui::core::{
+    clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
+    keyboard::Key,
+    mouse::MOUSE_INPUT_EVENT,
+    task::parking_lot::Mutex,
+};
 
 /// Represents the caret position at the [`ResolvedText`] level.
 #[derive(Clone)]

@@ -44,6 +44,13 @@
         - Explicit require merge too?
             - This can be used to always merge the caret position undo with the text undo.
 
+## Impl
+
+* `undo_scope` property.
+    - Stores and undo and redo stacks.
+    - Subscribes to the commands.
+* Command args that select the number of actions to undo.
+
 # View-Process
 
 * Implement OpenGL example.
