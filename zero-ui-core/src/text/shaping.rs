@@ -1,8 +1,7 @@
 use std::{
     fmt,
     hash::{BuildHasher, Hash, Hasher},
-    mem,
-    ops::{self, ControlFlow},
+    mem, ops,
 };
 
 use super::{
@@ -995,97 +994,79 @@ impl ShapedText {
         }
     }
 
-    /// Gets the top-left origin for a caret visual that marks the insert `index` in the string.
+    /// Gets the top-middle origin for a caret visual that marks the insert `index` in the string.
     pub fn caret_origin(&self, index: usize, full_text: &str) -> PxPoint {
         for line in self.lines() {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if txt_range.contains(index) {
-                    let text_start = txt_range.start();
-
-                    let clusters = seg.clusters();
-                    let cluster_idx = index - text_start;
-                    let mut closest_cluster = 0;
-                    let mut search_lig_caret = true;
-
+                    let local_index = index - txt_range.start();
                     let is_rtl = seg.direction().is_rtl();
 
-                    let find_closest_cluster = |(i, &c)| {
-                        match (c as usize).cmp(&cluster_idx) {
-                            std::cmp::Ordering::Less => closest_cluster = i,
-                            std::cmp::Ordering::Equal => {
-                                closest_cluster = i;
-                                search_lig_caret = false;
-                                return ControlFlow::Break(());
+                    let seg_rect = seg.rect();
+                    let mut origin = seg_rect.origin;
+                    if is_rtl {
+                        origin.x += seg_rect.width();
+                    }
+
+                    let clusters = seg.clusters();
+                    let mut cluster_i = 0;
+                    let mut search_lig = true;
+                    for (i, c) in clusters.iter().enumerate() {
+                        match (*c as usize).cmp(&local_index) {
+                            std::cmp::Ordering::Less => {
+                                cluster_i = i;
                             }
-                            std::cmp::Ordering::Greater => return ControlFlow::Break(()),
+                            std::cmp::Ordering::Equal => {
+                                cluster_i = i;
+                                search_lig = false;
+                                break;
+                            }
+                            std::cmp::Ordering::Greater => break,
                         }
-                        ControlFlow::Continue(())
-                    };
-                    if is_rtl {
-                        clusters.iter().enumerate().rev().try_for_each(find_closest_cluster);
-                    } else {
-                        clusters.iter().enumerate().try_for_each(find_closest_cluster);
                     }
 
-                    let closest_cluster = closest_cluster as u32;
+                    let mut origin_x = origin.x.0 as f32;
 
-                    let mut p = seg.rect().origin;
-                    let mut x = p.x.0 as f32;
+                    let mut glyph_take = cluster_i;
+                    'outer: for (font, glyphs) in seg.glyphs_with_x_advance() {
+                        for (g, advance) in glyphs {
+                            if glyph_take == 0 {
+                                if search_lig {
+                                    let lig_start = txt_range.start() + clusters[cluster_i] as usize;
+                                    let lig_end = clusters
+                                        .get(cluster_i + 1)
+                                        .map(|c| txt_range.start() + *c as usize)
+                                        .unwrap_or_else(|| txt_range.end());
+                                    let maybe_lig = &full_text[lig_start..lig_end];
+                                    let lig_len = unicode_segmentation::UnicodeSegmentation::grapheme_indices(maybe_lig, true).count();
+                                    if lig_len > 1 {
+                                        // is ligature
 
-                    let mut cluster_count = closest_cluster;
-                    if is_rtl {
-                        cluster_count += 1; // to include the advance
-                    }
-                    'outer: for (font, glyph_adv) in seg.glyphs_with_x_advance() {
-                        for (glyph, advance) in glyph_adv {
-                            if cluster_count == 0 {
-                                if search_lig_caret {
-                                    let mut font_caret = None;
-                                    let mut caret_count = cluster_idx;
-                                    for caret in font.ligature_caret_offsets(glyph.index) {
-                                        font_caret = Some(caret);
-                                        if caret_count == 0 {
-                                            break;
+                                        let lig_i = index - lig_start;
+                                        for (i, lig_advance) in font.ligature_caret_offsets(g.index).enumerate() {
+                                            if i == lig_i {
+                                                // font provided ligature caret for index
+                                                origin_x += lig_advance;
+                                                break 'outer;
+                                            }
                                         }
-                                        caret_count -= 1;
-                                    }
 
-                                    if let Some(caret) = font_caret {
-                                        x += caret;
-                                    } else {
-                                        let cluster_char_start = clusters[closest_cluster as usize] as usize;
-                                        let char_start = text_start + cluster_char_start;
-                                        let next_cluster = closest_cluster + 1;
-                                        let char_end = if next_cluster < clusters.len() as u32 {
-                                            text_start + clusters[next_cluster as usize] as usize
-                                        } else {
-                                            txt_range.end()
-                                        };
-
-                                        fn count_graphemes(s: &str) -> usize {
-                                            unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).count()
-                                        }
-                                        let lig_char = count_graphemes(&full_text[char_start..index]);
-                                        if is_rtl {
-                                            let lig_char_count = count_graphemes(&full_text[char_end..char_start]);
-                                            x -= advance * (lig_char as f32 / lig_char_count as f32)
-                                        } else {
-                                            let lig_char_count = count_graphemes(&full_text[char_start..char_end]);
-                                            x += advance * (lig_char as f32 / lig_char_count as f32)
-                                        }
+                                        // synthetic lig. caret
+                                        let lig_advance = advance * (lig_i as f32 / lig_len as f32);
+                                        origin_x += lig_advance;
                                     }
                                 }
-
+                                // glyph_take == 0
                                 break 'outer;
                             }
-                            x += advance;
-                            cluster_count -= 1;
+                            origin_x += advance;
+                            glyph_take -= 1;
                         }
                     }
-                    p.x.0 = x.round() as i32;
 
-                    return p;
+                    origin.x = Px(origin_x.round() as _);
+                    return origin;
                 }
             }
         }

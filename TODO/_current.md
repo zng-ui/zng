@@ -1,5 +1,8 @@
 # TextInput
 
+* Fix caret position in RTL with multiple segs separated by space.
+    - `let txt = var_from("لما كان الاعتراف");lang = lang!("ar");`
+
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down
