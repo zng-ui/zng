@@ -434,6 +434,8 @@ impl ShapedText {
         line_index: usize,
         glyph_range: IndexRange,
     ) -> impl Iterator<Item = (&Font, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
+        // !!: handle RTL
+
         let mut start = glyph_range.start();
         let segs_range = self.lines.segs(line_index);
         let line_end = self.segments.glyphs_range(segs_range).end();
@@ -443,9 +445,9 @@ impl ShapedText {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    line_max_x - g.point.x
+                    dbg!(line_max_x - g.point.x)
                 } else {
-                    self.glyphs[gi].point.x - g.point.x
+                    dbg!(self.glyphs[gi].point.x - g.point.x)
                 };
 
                 (*g, adv)
@@ -1000,39 +1002,63 @@ impl ShapedText {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if txt_range.contains(index) {
+                    println!("!!: {}", &full_text[txt_range.iter()]);
+
                     let local_index = index - txt_range.start();
                     let is_rtl = seg.direction().is_rtl();
 
                     let seg_rect = seg.rect();
                     let mut origin = seg_rect.origin;
-                    if is_rtl {
-                        origin.x += seg_rect.width();
-                    }
 
                     let clusters = seg.clusters();
                     let mut cluster_i = 0;
                     let mut search_lig = true;
-                    for (i, c) in clusters.iter().enumerate() {
-                        match (*c as usize).cmp(&local_index) {
-                            std::cmp::Ordering::Less => {
-                                cluster_i = i;
+
+                    if is_rtl {
+                        for (i, c) in clusters.iter().enumerate().rev() {
+                            match (*c as usize).cmp(&local_index) {
+                                std::cmp::Ordering::Less => {
+                                    cluster_i = i;
+                                }
+                                std::cmp::Ordering::Equal => {
+                                    cluster_i = i;
+                                    search_lig = false;
+                                    break;
+                                }
+                                std::cmp::Ordering::Greater => break,
                             }
-                            std::cmp::Ordering::Equal => {
-                                cluster_i = i;
-                                search_lig = false;
-                                break;
+                        }
+                    } else {
+                        for (i, c) in clusters.iter().enumerate() {
+                            match (*c as usize).cmp(&local_index) {
+                                std::cmp::Ordering::Less => {
+                                    cluster_i = i;
+                                }
+                                std::cmp::Ordering::Equal => {
+                                    cluster_i = i;
+                                    search_lig = false;
+                                    break;
+                                }
+                                std::cmp::Ordering::Greater => break,
                             }
-                            std::cmp::Ordering::Greater => break,
                         }
                     }
 
                     let mut origin_x = origin.x.0 as f32;
 
+                    // glyphs are always in display order (LTR) and map
+                    // to each cluster entry.
+                    //
+                    // in both LTR and RTL we sum advance until `cluster_i` is found,
+                    // but in RTL we sum *back* to the char (so it needs to be covered +1)
                     let mut glyph_take = cluster_i;
+                    if is_rtl {
+                        glyph_take += 1;
+                    }
                     'outer: for (font, glyphs) in seg.glyphs_with_x_advance() {
                         for (g, advance) in glyphs {
                             if glyph_take == 0 {
-                                if search_lig {
+                                if !is_rtl && search_lig {
                                     let lig_start = txt_range.start() + clusters[cluster_i] as usize;
                                     let lig_end = clusters
                                         .get(cluster_i + 1)
