@@ -17,6 +17,7 @@ use crate::l10n::L10nManager;
 use crate::task::ui::UiTask;
 use crate::text::Txt;
 use crate::timer::TimersService;
+use crate::undo::UndoManager;
 use crate::units::Deadline;
 use crate::var::VARS;
 use crate::window::WindowMode;
@@ -820,6 +821,7 @@ impl App {
     /// * [`FontManager`]
     /// * [`FocusManager`]
     /// * [`ImageManager`]
+    /// * [`UndoManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::minimal()
@@ -834,6 +836,7 @@ impl App {
             .extend(FocusManager::default())
             .extend(ImageManager::default())
             .extend(ClipboardManager::default())
+            .extend(UndoManager::default())
     }
 }
 
@@ -871,6 +874,7 @@ impl App {
     /// * [`FocusManager`]
     /// * [`ImageManager`]
     /// * [`ClipboardManager`]
+    /// * [`UndoManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::minimal()
@@ -885,6 +889,7 @@ impl App {
             .extend(FocusManager::default())
             .extend(ImageManager::default())
             .extend(ClipboardManager::default())
+            .extend(UndoManager::default())
     }
 }
 
