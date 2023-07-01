@@ -270,8 +270,10 @@ impl FontRangeVec {
 /// [text layout]: Font::shape_text
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapedText {
+    // glyphs are in text order by segments and in visual (LTR) order within segments.
     glyphs: Vec<GlyphInstance>,
-    clusters: Vec<u32>, // char byte index of each glyph in the segment that covers it.
+    // char byte index of each glyph in the segment that covers it.
+    clusters: Vec<u32>,
     // segments of `glyphs` and `clusters`.
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
@@ -334,6 +336,11 @@ impl ShapedText {
     }
 
     /// Glyphs by font.
+    ///
+    /// The glyphs are in text order by segments and in visual order (LTR) within segments, so
+    /// the RTL text "لما " will have the space glyph first, then "’álif", "miim", "láam".
+    ///
+    /// All glyph points are set as offsets to the top-left of the text full text.
     pub fn glyphs(&self) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
         self.fonts.iter_glyphs().map(move |(f, r)| (f, &self.glyphs[r.iter()]))
     }
@@ -428,34 +435,27 @@ impl ShapedText {
         &self.clusters[range.iter()]
     }
 
-    /// Glyphs by font in the range, each glyph instance is paired with the *x-advance* to the next glyph or line end.
-    fn glyphs_with_x_advance_range(
+    fn seg_glyphs_with_x_advance(
         &self,
-        line_index: usize,
-        glyph_range: IndexRange,
+        seg_idx: usize,
+        glyphs_range: IndexRange,
     ) -> impl Iterator<Item = (&Font, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
-        // !!: handle RTL
+        let mut gi = glyphs_range.start();
+        let seg_x = self.glyphs[gi].point.x;
+        let seg_advance = self.segments.0[seg_idx].advance;
+        self.glyphs_range(glyphs_range).map(move |(font, glyphs)| {
+            let g_adv = glyphs.iter().map(move |g| {
+                gi += 1;
 
-        let mut start = glyph_range.start();
-        let segs_range = self.lines.segs(line_index);
-        let line_end = self.segments.glyphs_range(segs_range).end();
-        let line_max_x = self.lines.x_offset(line_index) + self.lines.width(line_index);
-        self.glyphs_range(glyph_range).map(move |(font, glyphs)| {
-            let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
-                let gi = start + i + 1;
-
-                let adv = if gi == line_end {
-                    dbg!(line_max_x - g.point.x)
+                let adv = if gi == glyphs_range.end() {
+                    (seg_x + seg_advance) - g.point.x
                 } else {
-                    dbg!(self.glyphs[gi].point.x - g.point.x)
+                    self.glyphs[gi].point.x - g.point.x
                 };
-
                 (*g, adv)
             });
 
-            start += glyphs.len();
-
-            (font, glyphs_with_adv)
+            (font, g_adv)
         })
     }
 
@@ -1002,8 +1002,6 @@ impl ShapedText {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if txt_range.contains(index) {
-                    println!("!!: {}", &full_text[txt_range.iter()]);
-
                     let local_index = index - txt_range.start();
                     let is_rtl = seg.direction().is_rtl();
 
@@ -1865,15 +1863,19 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Glyphs in the line.
+    ///
+    /// The glyphs are in text order by segments and in visual order (LTR) within segments, so
+    /// the RTL text "لما " will have the space glyph first, then "’álif", "miim", "láam".
+    ///
+    /// All glyph points are set as offsets to the top-left of the text full text.
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a {
         let r = self.glyphs_range();
         self.text.glyphs_range(r)
     }
 
-    /// Glyphs in the line paired with the *x-advance* to the next glyph or the end of the line.
+    /// Glyphs in the line paired with the *x-advance*.
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
-        let r = self.glyphs_range();
-        self.text.glyphs_with_x_advance_range(self.index, r)
+        self.segs().flat_map(|s| s.glyphs_with_x_advance())
     }
 
     fn glyphs_range(&self) -> IndexRange {
@@ -2072,6 +2074,11 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Glyphs in the word or space.
+    ///
+    /// The glyphs are in visual order (LTR) within segments, so
+    /// the RTL text "لما" will yield "’álif", "miim", "láam".
+    ///
+    /// All glyph points are set as offsets to the top-left of the text full text.
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> {
         let r = self.glyphs_range();
         self.text.glyphs_range(r)
@@ -2082,10 +2089,10 @@ impl<'a> ShapedSegment<'a> {
         self.text.clusters_range(r)
     }
 
-    /// Glyphs in the word or space, paired with the *x-advance* to then next glyph or line end.
+    /// Glyphs in the word or space, paired with the *x-advance*.
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyphs_range();
-        self.text.glyphs_with_x_advance_range(self.line_index, r)
+        self.text.seg_glyphs_with_x_advance(self.index, r)
     }
 
     fn x_width(&self) -> (Px, Px) {
