@@ -1,3 +1,6 @@
+* Bug, `when` changed UI node causes update before info.
+    - In text example, collapse the menu to the smaller size.
+
 # TextInput
 
 * Support replace (Insert mode in command line).
@@ -52,9 +55,3 @@
 
 * Implement OpenGL example.
     - Overlay and texture image.
-
-# Media Query
-
-* `actual_size` widget property.
-* Overflow check?
-    - Test case, text menu, show labels if there is space, otherwise collapse text and only keep icon.

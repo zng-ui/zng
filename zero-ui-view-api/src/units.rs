@@ -276,7 +276,7 @@ impl std::iter::Sum for Px {
 pub struct Dip(i32);
 impl Dip {
     /// New from round integer value.
-    pub fn new(dip: i32) -> Self {
+    pub const fn new(dip: i32) -> Self {
         Dip(dip * DIP_TO_PX)
     }
 

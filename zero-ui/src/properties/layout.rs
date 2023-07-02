@@ -1357,3 +1357,152 @@ impl WIDGET_SIZE {
 }
 
 static WIDGET_SIZE_ID: StaticStateId<euclid::Size2D<WidgetLength, ()>> = StaticStateId::new_unique();
+
+/// Getter property, gets the latest rendered widget inner size.
+#[property(LAYOUT)]
+pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNode {
+    let size = size.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Render { frame } => {
+            c.render(frame);
+
+            let f = frame.scale_factor().0;
+            let s = WIDGET.info().bounds_info().inner_size().to_dip(f);
+            if size.get() != s {
+                let _ = size.set(s);
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            c.render_update(update);
+
+            let info = WIDGET.info();
+            let f = info.tree().scale_factor().0;
+            let s = info.bounds_info().inner_size().to_dip(f);
+            if size.get() != s {
+                let _ = size.set(s);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner width in device independent pixels.
+#[property(LAYOUT)]
+pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode {
+    let width = width.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Render { frame } => {
+            c.render(frame);
+
+            let f = frame.scale_factor().0;
+            let w = WIDGET.info().bounds_info().inner_size().width.to_dip(f);
+            if width.get() != w {
+                let _ = width.set(w);
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            c.render_update(update);
+
+            let info = WIDGET.info();
+            let f = info.tree().scale_factor().0;
+            let w = info.bounds_info().inner_size().width.to_dip(f);
+            if width.get() != w {
+                let _ = width.set(w);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner height.
+#[property(LAYOUT)]
+pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNode {
+    let height = height.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Render { frame } => {
+            c.render(frame);
+
+            let f = frame.scale_factor().0;
+            let h = WIDGET.info().bounds_info().inner_size().height.to_dip(f);
+            if height.get() != h {
+                let _ = height.set(h);
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            c.render_update(update);
+
+            let info = WIDGET.info();
+            let f = info.tree().scale_factor().0;
+            let h = info.bounds_info().inner_size().height.to_dip(f);
+            if height.get() != h {
+                let _ = height.set(h);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner size.
+#[property(LAYOUT)]
+pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl UiNode {
+    let size = size.into_var();
+    match_node(child, move |c, op| match &op {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            c.op(op);
+            let s = WIDGET.info().bounds_info().inner_size();
+            if size.get() != s {
+                // avoid pushing var changes every frame.
+                let _ = size.set(s);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner width.
+#[property(LAYOUT)]
+pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNode {
+    let width = width.into_var();
+    match_node(child, move |c, op| match &op {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            c.op(op);
+            let w = WIDGET.info().bounds_info().inner_size().width;
+            if width.get() != w {
+                let _ = width.set(w);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner height.
+#[property(LAYOUT)]
+pub fn actual_height_px(child: impl UiNode, height: impl IntoVar<Px>) -> impl UiNode {
+    let height = height.into_var();
+    match_node(child, move |c, op| match &op {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            c.op(op);
+            let h = WIDGET.info().bounds_info().inner_size().height;
+            if height.get() != h {
+                let _ = height.set(h);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Getter property, gets the latest rendered widget inner transform.
+#[property(LAYOUT)]
+pub fn actual_transform(child: impl UiNode, transform: impl IntoVar<PxTransform>) -> impl UiNode {
+    let transform = transform.into_var();
+    match_node(child, move |c, op| match &op {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            c.op(op);
+            let t = WIDGET.info().bounds_info().inner_transform();
+            if transform.get() != t {
+                let _ = transform.set(t);
+            }
+        }
+        _ => {}
+    })
+}

@@ -2,7 +2,10 @@
 use std::sync::Arc;
 
 use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
-use zero_ui::core::{clipboard::{CUT_CMD, COPY_CMD, PASTE_CMD}, undo::{UNDO_CMD, REDO_CMD, CommandUndoExt}};
+use zero_ui::core::{
+    clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
+    undo::{CommandUndoExt, REDO_CMD, UNDO_CMD},
+};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -371,124 +374,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             ];
             cells = ui_vec![
                 // menu
-                Stack! {
-                    alt_focus_scope = true;
-                    grid::cell::at = (1, 0);
-                    spacing = 4;
-                    direction = StackDirection::left_to_right();
-                    padding = 4;
-                    button::extend_style = Style! {
-                        padding = (2, 4);
-                        corner_radius = 2;
-                        icon::ico_size = 16;
-                    };
-                    children = ui_vec![
-                        Button! {
-                            child_insert_left = Icon!(zero_ui_material_icons::sharp::INSERT_DRIVE_FILE), 4;
-                            child = Text!(NEW_CMD.name());
-                            tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
-
-                            click_shortcut = NEW_CMD.shortcut();
-                            on_click = async_hn!(editor, |_| {
-                                editor.create().await;
-                                FOCUS.focus_widget(editor.input_wgt_id(), false);
-                            });
-                        },
-                        Button! {
-                            child_insert_left = Icon!(zero_ui_material_icons::sharp::FOLDER_OPEN), 4;
-                            child = Text!(OPEN_CMD.name());
-                            tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
-
-                            click_shortcut = OPEN_CMD.shortcut();
-                            on_click = async_hn!(editor, |_| {
-                                editor.open().await;
-                            });
-                        },
-                        Button! {
-                            child_insert_left = Icon!(zero_ui_material_icons::sharp::SAVE), 4;
-                            child = Text!(SAVE_CMD.name());
-                            tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
-                            
-                            enabled = editor.unsaved.clone();
-                            click_shortcut = SAVE_CMD.shortcut();
-                            on_click = async_hn!(editor, |_| {
-                                editor.save().await;
-                                FOCUS.focus_widget(editor.input_wgt_id(), false);
-                            });
-                        },
-                        Button! {
-                            child = Text!(SAVE_AS_CMD.name());
-                            tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));
-
-                            click_shortcut = SAVE_AS_CMD.shortcut();
-                            on_click = async_hn!(editor, |_| {
-                                editor.save_as().await;
-                            });
-                        },
-                        Vr!(),
-                        {
-                            let cmd = CUT_CMD.focus_scoped();
-                            Button! {
-                                child = Icon!(zero_ui_material_icons::sharp::CUT);
-                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                                enabled = cmd.flat_map(|c| c.is_enabled());
-                                
-                                on_click = hn!(|_| {
-                                    cmd.get().notify();
-                                });
-                            }
-                        },
-                        {
-                            let cmd = COPY_CMD.focus_scoped();
-                            Button! {
-                                child = Icon!(zero_ui_material_icons::sharp::COPY);
-                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                                enabled = cmd.flat_map(|c| c.is_enabled());
-                                
-                                on_click = hn!(|_| {
-                                    cmd.get().notify();
-                                });
-                            }
-                        },
-                        {
-                            let cmd = PASTE_CMD.focus_scoped();
-                            Button! {
-                                child = Icon!(zero_ui_material_icons::sharp::PASTE);
-                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                                enabled = cmd.flat_map(|c| c.is_enabled());
-                                
-                                on_click = hn!(|_| {
-                                    cmd.get().notify();
-                                });
-                            }
-                        },
-                        Vr!(),
-                        {
-                            let cmd = UNDO_CMD.undo_scoped();
-                            Button! {
-                                child = Icon!(zero_ui_material_icons::sharp::UNDO);
-                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                                enabled = cmd.flat_map(|c| c.is_enabled());
-                                
-                                on_click = hn!(|_| {
-                                    cmd.get().notify();
-                                });
-                            }
-                        },
-                        {
-                            let cmd = REDO_CMD.undo_scoped();
-                            Button! {
-                                child = Icon!(zero_ui_material_icons::sharp::REDO);
-                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                                enabled = cmd.flat_map(|c| c.is_enabled());
-                                
-                                on_click = hn!(|_| {
-                                    cmd.get().notify();
-                                });
-                            }
-                        },
-                    ]
-                },
+                text_editor_menu(editor.clone()),
                 // editor
                 TextInput! {
                     id = editor.input_wgt_id();
@@ -537,6 +423,140 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
     }
 }
 
+fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
+    let menu_width = var(units::Dip::MAX);
+    let gt_700 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(700)));
+    let gt_600 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(600)));
+    let gt_500 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(500)));
+    Stack! {
+        alt_focus_scope = true;
+        grid::cell::at = (1, 0);
+        spacing = 4;
+        direction = StackDirection::left_to_right();
+        padding = 4;
+        actual_width = menu_width;
+        button::extend_style = Style! {
+            padding = (2, 4);
+            corner_radius = 2;
+            icon::ico_size = 16;
+        };
+        children = ui_vec![
+            Button! {
+                child = Icon!(zero_ui_material_icons::sharp::INSERT_DRIVE_FILE);
+                child_insert_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
+                tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
+
+                click_shortcut = NEW_CMD.shortcut();
+                on_click = async_hn!(editor, |_| {
+                    editor.create().await;
+                    FOCUS.focus_widget(editor.input_wgt_id(), false);
+                });
+            },
+            Button! {
+                child = Icon!(zero_ui_material_icons::sharp::FOLDER_OPEN);
+                child_insert_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
+                tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
+
+                click_shortcut = OPEN_CMD.shortcut();
+                on_click = async_hn!(editor, |_| {
+                    editor.open().await;
+                });
+            },
+            Button! {
+                child = Icon!(zero_ui_material_icons::sharp::SAVE);
+                child_insert_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
+                tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
+
+                enabled = editor.unsaved.clone();
+                click_shortcut = SAVE_CMD.shortcut();
+                on_click = async_hn!(editor, |_| {
+                    editor.save().await;
+                    FOCUS.focus_widget(editor.input_wgt_id(), false);
+                });
+            },
+            Button! {
+                child = Text!(SAVE_AS_CMD.name());
+                when #{gt_500}.is_collapsed() {
+                    child = Icon!(zero_ui_material_icons::sharp::SAVE_AS);
+                }
+
+                tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));
+
+                click_shortcut = SAVE_AS_CMD.shortcut();
+                on_click = async_hn!(editor, |_| {
+                    editor.save_as().await;
+                });
+            },
+            Vr!(),
+            {
+                let cmd = CUT_CMD.focus_scoped();
+                Button! {
+                    child = Icon!(zero_ui_material_icons::sharp::CUT);
+                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                    enabled = cmd.flat_map(|c| c.is_enabled());
+
+                    on_click = hn!(|_| {
+                        cmd.get().notify();
+                    });
+                }
+            },
+            {
+                let cmd = COPY_CMD.focus_scoped();
+                Button! {
+                    child = Icon!(zero_ui_material_icons::sharp::COPY);
+                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                    enabled = cmd.flat_map(|c| c.is_enabled());
+
+                    on_click = hn!(|_| {
+                        cmd.get().notify();
+                    });
+                }
+            },
+            {
+                let cmd = PASTE_CMD.focus_scoped();
+                Button! {
+                    child = Icon!(zero_ui_material_icons::sharp::PASTE);
+                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
+                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                    enabled = cmd.flat_map(|c| c.is_enabled());
+
+                    on_click = hn!(|_| {
+                        cmd.get().notify();
+                    });
+                }
+            },
+            Vr!(),
+            {
+                let cmd = UNDO_CMD.undo_scoped();
+                Button! {
+                    child = Icon!(zero_ui_material_icons::sharp::UNDO);
+                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                    enabled = cmd.flat_map(|c| c.is_enabled());
+
+                    on_click = hn!(|_| {
+                        cmd.get().notify();
+                    });
+                }
+            },
+            {
+                let cmd = REDO_CMD.undo_scoped();
+                Button! {
+                    child = Icon!(zero_ui_material_icons::sharp::REDO);
+                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700), 4;
+                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                    enabled = cmd.flat_map(|c| c.is_enabled());
+
+                    on_click = hn!(|_| {
+                        cmd.get().notify();
+                    });
+                }
+            },
+        ]
+    }
+}
 struct TextEditor {
     input_wgt_id: WidgetId,
     file: ArcVar<Option<std::path::PathBuf>>,

@@ -45,3 +45,8 @@
 * Can maybe avoid some measure passes in panels with a single child.
   - Is it worth-it? Its a single extra measure and a special behavior that can mess-up tests.
   - See what other frameworks do.
+
+# Responsive Layout
+
+* Right now we use the `actual_width` to implement something *media query* and give it a margin of error
+  for different localizations.

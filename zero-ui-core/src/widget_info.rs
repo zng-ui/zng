@@ -1907,6 +1907,22 @@ pub enum Visibility {
     /// Collapsed widgets always measure to zero and are not rendered.
     Collapsed,
 }
+impl Visibility {
+    /// Is visible.
+    pub fn is_visible(self) -> bool {
+        matches!(self, Self::Visible)
+    }
+
+    /// Is hidden.
+    pub fn is_hidden(self) -> bool {
+        matches!(self, Self::Hidden)
+    }
+
+    /// Is collapsed.
+    pub fn is_collapsed(self) -> bool {
+        matches!(self, Self::Collapsed)
+    }
+}
 impl fmt::Debug for Visibility {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
