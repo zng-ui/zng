@@ -32,7 +32,7 @@ pub mod markdown;
 pub use markdown::Markdown;
 
 pub mod rule_line;
-pub use rule_line::{hr::Hr, RuleLine};
+pub use rule_line::{hr::Hr, vr::Vr, RuleLine};
 
 pub mod scroll;
 pub use scroll::Scroll;

@@ -9,13 +9,15 @@ use parking_lot::Mutex;
 use crate::{
     app::AppExtension,
     app_local, command,
-    context::WIDGET,
+    context::{StaticStateId, WIDGET},
     context_local,
-    event::{AnyEventArgs, CommandNameExt},
+    event::{AnyEventArgs, Command, CommandNameExt, CommandScope},
+    focus::commands::CommandFocusExt,
     gesture::CommandShortcutExt,
     shortcut,
     units::*,
     var::*,
+    widget_info::WidgetInfo,
     widget_instance::WidgetId,
 };
 
@@ -107,6 +109,11 @@ command! {
     /// # Param
     ///
     /// If the command parameter is a `u32` it is the count of undo actions to run, otherwise runs `1` action.
+    ///
+    /// # Scope
+    ///
+    /// You can use [`CommandUndoExt::undo_scoped`] to get a command variable that is always scoped on the
+    /// focused undo scope.
     pub static UNDO_CMD = {
         name: "Undo",
         shortcut: [shortcut!(CTRL+Z)],
@@ -216,8 +223,8 @@ mod properties {
         let mut undo_cmd = CommandHandle::dummy();
         let mut redo_cmd = CommandHandle::dummy();
         let enabled = enabled.into_var();
-        match_node(child, move |c, op| {
-            match op {
+        match_node(child, move |c, mut op| {
+            match &mut op {
                 UiNodeOp::Init => {
                     let id = WIDGET.id();
                     let s = UndoScope {
@@ -238,6 +245,9 @@ mod properties {
                     undo_cmd = CommandHandle::dummy();
                     redo_cmd = CommandHandle::dummy();
                     return;
+                }
+                UiNodeOp::Info { info } => {
+                    info.flag_meta(&FOCUS_SCOPE_ID);
                 }
                 UiNodeOp::Event { update } => {
                     let id = WIDGET.id();
@@ -268,3 +278,46 @@ mod properties {
     }
 }
 pub use properties::undo_scope;
+
+/// Undo extension methods for widget info.
+pub trait WidgetInfoUndoExt {
+    /// Returns `true` if the widget is an undo scope.
+    fn is_undo_scope(&self) -> bool;
+
+    /// Gets the first ancestor that is an undo scope.
+    fn undo_scope(&self) -> Option<WidgetInfo>;
+}
+impl WidgetInfoUndoExt for WidgetInfo {
+    fn is_undo_scope(&self) -> bool {
+        self.meta().flagged(&FOCUS_SCOPE_ID)
+    }
+
+    fn undo_scope(&self) -> Option<WidgetInfo> {
+        self.ancestors().find(WidgetInfoUndoExt::is_undo_scope)
+    }
+}
+
+static FOCUS_SCOPE_ID: StaticStateId<()> = StaticStateId::new_unique();
+
+/// Undo extension methods for commands.
+pub trait CommandUndoExt {
+    /// Gets the command scoped in the undo scope widget that is or contains the focused widget, or
+    /// scoped on the app if there is no focused undo scope.
+    fn undo_scoped(self) -> BoxedVar<Command>;
+}
+impl CommandUndoExt for Command {
+    fn undo_scoped(self) -> BoxedVar<Command> {
+        self.focus_scoped_with(|w| match w {
+            Some(w) => {
+                if w.is_undo_scope() {
+                    CommandScope::Widget(w.id())
+                } else if let Some(scope) = w.undo_scope() {
+                    CommandScope::Widget(scope.id())
+                } else {
+                    CommandScope::App
+                }
+            }
+            None => CommandScope::App,
+        })
+    }
+}

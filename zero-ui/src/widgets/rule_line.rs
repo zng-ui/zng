@@ -136,7 +136,7 @@ pub mod hr {
 
     context_var! {
         /// Line color, inherits from [`FONT_COLOR_VAR`].
-        pub static COLOR_VAR: Rgba = text::FONT_COLOR_VAR;
+        pub static COLOR_VAR: Rgba = text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
 
         /// Line stroke thickness, default is `1.dip()`
         pub static STROKE_THICKNESS_VAR: Length = 1.dip();
@@ -158,6 +158,55 @@ pub mod hr {
     }
 
     /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
+    #[property(CONTEXT, default(LINE_STYLE_VAR))]
+    pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
+        with_context_var(child, LINE_STYLE_VAR, style)
+    }
+}
+
+/// Vertical rule line.
+pub mod vr {
+    use crate::prelude::new_widget::*;
+
+    /// Draws a vertical [`RuleLine!`](struct@RuleLine).
+    #[widget($crate::widgets::Vr)]
+    pub struct Vr(super::RuleLine);
+    impl Vr {
+        fn widget_intrinsic(&mut self) {
+            widget_set! {
+                self;
+                orientation = LineOrientation::Vertical;
+                color = COLOR_VAR;
+                stroke_thickness  = STROKE_THICKNESS_VAR;
+                line_style = LINE_STYLE_VAR;
+            }
+        }
+    }
+
+    context_var! {
+        /// Line color, inherits from [`FONT_COLOR_VAR`].
+        pub static COLOR_VAR: Rgba = text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
+
+        /// Line stroke thickness, default is `1.dip()`
+        pub static STROKE_THICKNESS_VAR: Length = 1.dip();
+
+        /// Line style, default is `Solid`.
+        pub static LINE_STYLE_VAR: LineStyle = LineStyle::Solid;
+    }
+
+    /// Sets the [`COLOR_VAR`] that affects all vertical rules inside the widget.
+    #[property(CONTEXT, default(COLOR_VAR))]
+    pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+        with_context_var(child, COLOR_VAR, color)
+    }
+
+    /// Sets the [`STROKE_THICKNESS_VAR`] that affects all vertical rules inside the widget.
+    #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
+    pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
+        with_context_var(child, STROKE_THICKNESS_VAR, thickness)
+    }
+
+    /// Sets the [`LINE_STYLE_VAR`] that affects all vertical rules inside the widget.
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
     pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)

@@ -5,17 +5,24 @@ Commands core API is implemented, TODO implement extensions and test all use cas
 * Make default `command_property!` be widget is enabled.
 * Add filter to `command_property!`.
   - We want to declare `on_cmd_disabled` like for some event properties do.
+* Make `command_property!` generate an user controlled enabled?
+  - Some commands depend on the content, can only `SAVE_AS` if there is a document open for example.
+  - Right now the command is always enabled.
 
 * Localize provided commands.
   - Don't need to actually translate, just `l10n!` it.
+  - Very verbose?
+    - Maybe we can implement an exception in the scrapper?
+      - Like a `.l10n("cmd-key").name("Fallback Name")`.
+      - Needs to be supported in command extensions too.
+        - Maybe `.l10n` returns a different type?
+  - Localize shortcuts?
+    - Some apps localize some shortcuts.
+    - Implement `l10n_parse!`?
+
+* Implement automatic "alt" shortcuts.
+  - When you press alt the command buttons inside the alt scope change the
+    text to highlight the first unique char that can be pressed to receive
+    a click from the command.
+
 * Implement *check-box* commands, probably an extension, need to test in menus when that is implemented.
-* Implement `Command::focused_scope`.
-  - For commands that work on the current focus or return-focus.
-  - Like undo, or paste?
-    - Yes, editors like VSCode Edit->Undo applies to the focused text area.
-    - Needs to be a `Var<Command>`?
-      - Can `flat_map(|c| c.is_enabled())`.
-  - Not just focused, custom info query?
-    - Scope may be a parent of the current focus.
-  - Extension?
-    - `CommandFocusExt::focused_scope` and `CommandFocusExt::focused_scope`.

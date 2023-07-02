@@ -1,6 +1,6 @@
 //! Commands that control focus and [`Command`] extensions.
 
-use crate::{event::*, gesture::*, var::*};
+use crate::{event::*, gesture::*, var::*, widget_info::WidgetInfo};
 
 use super::*;
 
@@ -165,7 +165,7 @@ impl FocusCommands {
 
 /// Focus extension methods for commands.
 pub trait CommandFocusExt {
-    /// Gets a variable that always points to the command `self` scoped to the focused (non-alt) widget.
+    /// Gets a command variable with `self` scoped to the focused (non-alt) widget or app.
     ///
     /// The scope is [`alt_return`] if is set, otherwise it is [`focused`], otherwise the
     /// command is not scoped (app scope). This means that you can bind the command variable to
@@ -186,6 +186,16 @@ pub trait CommandFocusExt {
     /// paste_in_focused_cmd.get().notify();
     /// ```
     fn focus_scoped(self) -> BoxedVar<Command>;
+
+    /// Gets a command variable with `self` scoped to the output of `map`.
+    ///
+    /// The `map` closure is called every time the non-alt focused widget changes, that is the [`alt_return`] or
+    /// the [`focused`]. The closure input is the [`WidgetInfo`] for the focused widget and the output must be
+    /// a [`CommandScope`] for the command.
+    ///
+    /// [`alt_return`]: FOCUS::alt_return
+    /// [`focused`]: FOCUS::focused
+    fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command>;
 }
 
 impl CommandFocusExt for Command {
@@ -196,6 +206,19 @@ impl CommandFocusExt for Command {
                 Some(p) => cmd.scoped(p.widget_id()),
                 None => cmd,
             }
-        }).boxed()
+        })
+        .boxed()
+    }
+
+    fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command> {
+        let cmd = self.scoped(CommandScope::App);
+        merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
+            match alt.as_ref().or(f.as_ref()) {
+                Some(p) => WINDOWS.widget_tree(p.window_id()).ok()?.get(p.widget_id()),
+                None => None,
+            }
+        })
+        .map(move |w| cmd.scoped(map(w.clone())))
+        .boxed()
     }
 }

@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
+use zero_ui::core::{clipboard::{CUT_CMD, COPY_CMD, PASTE_CMD}, undo::{UNDO_CMD, REDO_CMD}};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -19,7 +20,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
         let fs = var(Length::Pt(11.0));
 
         Window! {
@@ -371,6 +372,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             cells = ui_vec![
                 // menu
                 Stack! {
+                    alt_focus_scope = true;
                     grid::cell::at = (1, 0);
                     spacing = 4;
                     direction = StackDirection::left_to_right();
@@ -378,45 +380,98 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     button::extend_style = Style! {
                         padding = (2, 4);
                         corner_radius = 2;
+                        icon::ico_size = 16;
                     };
                     children = ui_vec![
                         Button! {
-                            child = Text!("New");
-                            click_shortcut = shortcut![CTRL+N];
-                            tooltip = Tip!(Text!("New - Ctrl+N"));
+                            child_insert_left = Icon!(zero_ui_material_icons::sharp::INSERT_DRIVE_FILE), 4;
+                            child = Text!(NEW_CMD.name());
+                            tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
+
+                            click_shortcut = NEW_CMD.shortcut();
                             on_click = async_hn!(editor, |_| {
                                 editor.create().await;
+                                FOCUS.focus_widget(editor.input_wgt_id(), false);
                             });
                         },
                         Button! {
-                            child = Text!("Open…");
-                            click_shortcut = shortcut![CTRL+O];
-                            tooltip = Tip!(Text!("Open - Ctrl+O"));
+                            child_insert_left = Icon!(zero_ui_material_icons::sharp::FOLDER_OPEN), 4;
+                            child = Text!(OPEN_CMD.name());
+                            tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
+
+                            click_shortcut = OPEN_CMD.shortcut();
                             on_click = async_hn!(editor, |_| {
                                 editor.open().await;
                             });
                         },
                         Button! {
-                            child = Text!("Save");
-                            click_shortcut = shortcut![CTRL+S];
-                            tooltip = Tip!(Text!("Save - Ctrl+S"));
+                            child_insert_left = Icon!(zero_ui_material_icons::sharp::SAVE), 4;
+                            child = Text!(SAVE_CMD.name());
+                            tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
+                            
                             enabled = editor.unsaved.clone();
+                            click_shortcut = SAVE_CMD.shortcut();
                             on_click = async_hn!(editor, |_| {
                                 editor.save().await;
+                                FOCUS.focus_widget(editor.input_wgt_id(), false);
                             });
                         },
                         Button! {
-                            child = Text!("Save As…");
-                            click_shortcut = shortcut![CTRL|SHIFT+S];
-                            tooltip = Tip!(Text!("Save As - Ctrl+Shift+S"));
+                            child = Text!(SAVE_AS_CMD.name());
+                            tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));
+
+                            click_shortcut = SAVE_AS_CMD.shortcut();
                             on_click = async_hn!(editor, |_| {
                                 editor.save_as().await;
+                            });
+                        },
+                        Vr!(),
+                        Button! {
+                            child = Icon!(zero_ui_material_icons::sharp::CUT);
+                            tooltip = Tip!(Text!(CUT_CMD.name_with_shortcut()));
+                            
+                            on_click = hn!(|_| {
+                                CUT_CMD.notify();
+                            });
+                        },
+                        Button! {
+                            child = Icon!(zero_ui_material_icons::sharp::COPY);
+                            tooltip = Tip!(Text!(COPY_CMD.name_with_shortcut()));
+                            
+                            on_click = hn!(|_| {
+                                COPY_CMD.notify();
+                            });
+                        },
+                        Button! {
+                            child = Icon!(zero_ui_material_icons::sharp::PASTE);
+                            tooltip = Tip!(Text!(PASTE_CMD.name_with_shortcut()));
+                            
+                            on_click = hn!(|_| {
+                                PASTE_CMD.notify();
+                            });
+                        },
+                        Vr!(),
+                        Button! {
+                            child = Icon!(zero_ui_material_icons::sharp::UNDO);
+                            tooltip = Tip!(Text!(UNDO_CMD.name_with_shortcut()));
+                            
+                            on_click = hn!(|_| {
+                                UNDO_CMD.notify();
+                            });
+                        },
+                        Button! {
+                            child = Icon!(zero_ui_material_icons::sharp::REDO);
+                            tooltip = Tip!(Text!(REDO_CMD.name_with_shortcut()));
+                            
+                            on_click = hn!(|_| {
+                                REDO_CMD.notify();
                             });
                         },
                     ]
                 },
                 // editor
                 TextInput! {
+                    id = editor.input_wgt_id();
                     grid::cell::at = (1, 1);
                     txt = editor.txt.clone();
                     get_caret_status = editor.caret_status.clone();
@@ -463,6 +518,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
 }
 
 struct TextEditor {
+    input_wgt_id: WidgetId,
     file: ArcVar<Option<std::path::PathBuf>>,
     txt: ArcVar<Txt>,
 
@@ -478,6 +534,7 @@ impl TextEditor {
         let unsaved = var(false);
         txt.bind_map(&unsaved, |_| true).perm();
         Arc::new(Self {
+            input_wgt_id: WidgetId::new_unique(),
             file: var(None),
             txt,
             unsaved,
@@ -485,6 +542,10 @@ impl TextEditor {
             lines: var(text::LinesWrapCount::NoWrap(0)),
             busy: var(0),
         })
+    }
+
+    pub fn input_wgt_id(&self) -> WidgetId {
+        self.input_wgt_id
     }
 
     pub fn title(&self) -> impl Var<Txt> {
