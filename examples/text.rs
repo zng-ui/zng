@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
-use zero_ui::core::{clipboard::{CUT_CMD, COPY_CMD, PASTE_CMD}, undo::{UNDO_CMD, REDO_CMD}};
+use zero_ui::core::{clipboard::{CUT_CMD, COPY_CMD, PASTE_CMD}, undo::{UNDO_CMD, REDO_CMD, CommandUndoExt}};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -426,46 +426,66 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                             });
                         },
                         Vr!(),
-                        Button! {
-                            child = Icon!(zero_ui_material_icons::sharp::CUT);
-                            tooltip = Tip!(Text!(CUT_CMD.name_with_shortcut()));
-                            
-                            on_click = hn!(|_| {
-                                CUT_CMD.notify();
-                            });
+                        {
+                            let cmd = CUT_CMD.focus_scoped();
+                            Button! {
+                                child = Icon!(zero_ui_material_icons::sharp::CUT);
+                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                                enabled = cmd.flat_map(|c| c.is_enabled());
+                                
+                                on_click = hn!(|_| {
+                                    cmd.get().notify();
+                                });
+                            }
                         },
-                        Button! {
-                            child = Icon!(zero_ui_material_icons::sharp::COPY);
-                            tooltip = Tip!(Text!(COPY_CMD.name_with_shortcut()));
-                            
-                            on_click = hn!(|_| {
-                                COPY_CMD.notify();
-                            });
+                        {
+                            let cmd = COPY_CMD.focus_scoped();
+                            Button! {
+                                child = Icon!(zero_ui_material_icons::sharp::COPY);
+                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                                enabled = cmd.flat_map(|c| c.is_enabled());
+                                
+                                on_click = hn!(|_| {
+                                    cmd.get().notify();
+                                });
+                            }
                         },
-                        Button! {
-                            child = Icon!(zero_ui_material_icons::sharp::PASTE);
-                            tooltip = Tip!(Text!(PASTE_CMD.name_with_shortcut()));
-                            
-                            on_click = hn!(|_| {
-                                PASTE_CMD.notify();
-                            });
+                        {
+                            let cmd = PASTE_CMD.focus_scoped();
+                            Button! {
+                                child = Icon!(zero_ui_material_icons::sharp::PASTE);
+                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                                enabled = cmd.flat_map(|c| c.is_enabled());
+                                
+                                on_click = hn!(|_| {
+                                    cmd.get().notify();
+                                });
+                            }
                         },
                         Vr!(),
-                        Button! {
-                            child = Icon!(zero_ui_material_icons::sharp::UNDO);
-                            tooltip = Tip!(Text!(UNDO_CMD.name_with_shortcut()));
-                            
-                            on_click = hn!(|_| {
-                                UNDO_CMD.notify();
-                            });
+                        {
+                            let cmd = UNDO_CMD.undo_scoped();
+                            Button! {
+                                child = Icon!(zero_ui_material_icons::sharp::UNDO);
+                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                                enabled = cmd.flat_map(|c| c.is_enabled());
+                                
+                                on_click = hn!(|_| {
+                                    cmd.get().notify();
+                                });
+                            }
                         },
-                        Button! {
-                            child = Icon!(zero_ui_material_icons::sharp::REDO);
-                            tooltip = Tip!(Text!(REDO_CMD.name_with_shortcut()));
-                            
-                            on_click = hn!(|_| {
-                                REDO_CMD.notify();
-                            });
+                        {
+                            let cmd = REDO_CMD.undo_scoped();
+                            Button! {
+                                child = Icon!(zero_ui_material_icons::sharp::REDO);
+                                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                                enabled = cmd.flat_map(|c| c.is_enabled());
+                                
+                                on_click = hn!(|_| {
+                                    cmd.get().notify();
+                                });
+                            }
                         },
                     ]
                 },

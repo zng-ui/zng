@@ -52,3 +52,9 @@
 
 * Implement OpenGL example.
     - Overlay and texture image.
+
+# Media Query
+
+* `actual_size` widget property.
+* Overflow check?
+    - Test case, text menu, show labels if there is space, otherwise collapse text and only keep icon.
