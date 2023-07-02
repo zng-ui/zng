@@ -1,6 +1,6 @@
-//! Commands that control focus.
+//! Commands that control focus and [`Command`] extensions.
 
-use crate::{event::*, gesture::*};
+use crate::{event::*, gesture::*, var::*};
 
 use super::*;
 
@@ -160,5 +160,42 @@ impl FocusCommands {
                 });
             }
         }
+    }
+}
+
+/// Focus extension methods for commands.
+pub trait CommandFocusExt {
+    /// Gets a variable that always points to the command `self` scoped to the focused (non-alt) widget.
+    ///
+    /// The scope is [`alt_return`] if is set, otherwise it is [`focused`], otherwise the
+    /// command is not scoped (app scope). This means that you can bind the command variable to
+    /// a menu or toolbar button inside an *alt-scope* without losing track of the intended target
+    /// of the command.
+    ///
+    /// [`alt_return`]: FOCUS::alt_return
+    /// [`focused`]: FOCUS::focused
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use zero_ui_core::{clipboard::PASTE_CMD, focus::commands::CommandFocusExt, var::*};
+    /// # let _app = zero_ui_core::app::App::minimal();
+    ///
+    /// let paste_in_focused_cmd = PASTE_CMD.focus_scoped();
+    /// let is_enabled = paste_in_focused_cmd.flat_map(|c| c.is_enabled());
+    /// paste_in_focused_cmd.get().notify();
+    /// ```
+    fn focus_scoped(self) -> BoxedVar<Command>;
+}
+
+impl CommandFocusExt for Command {
+    fn focus_scoped(self) -> BoxedVar<Command> {
+        let cmd = self.scoped(CommandScope::App);
+        merge_var!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
+            match alt.as_ref().or(f.as_ref()) {
+                Some(p) => cmd.scoped(p.widget_id()),
+                None => cmd,
+            }
+        }).boxed()
     }
 }

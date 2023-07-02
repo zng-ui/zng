@@ -44,10 +44,10 @@
     - Track caret position?
         - Or at least set it when undoing an insert for example.
 - UNDO_CMD button.
-    - Find `undo_scope` parent of the current focus (or return focus).
-    - Binds to this command.
-    - This is a general pattern?
-        - Copy/Paste buttons can use this too.
+    - Review `Commands.md`.
+    - Mark `undo_scope` in the info tree.
+    - Add undo list reference to the command meta?
+        - For use in "Undo Stack" widgets.
 
 # View-Process
 
