@@ -362,6 +362,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
             editor.on_close_requested(args).await;
         });
+        min_width = 450;
         child = Grid! {
             columns = ui_vec![
                 grid::Column!(),

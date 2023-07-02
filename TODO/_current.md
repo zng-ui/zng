@@ -1,6 +1,3 @@
-* Bug, `when` changed UI node causes update before info.
-    - In text example, collapse the menu to the smaller size.
-
 # TextInput
 
 * Support replace (Insert mode in command line).

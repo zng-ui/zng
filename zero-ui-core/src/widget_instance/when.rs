@@ -142,33 +142,32 @@ impl UiNode for WhenUiNode {
         let mut any = false;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if i < self.current {
-                // if activated < current
                 if c.get() {
-                    any = true;
+                    // if activated < current
                     self.change_child(i);
-
-                    break;
+                    return;
                 }
             } else if i == self.current {
-                // if deactivated current
                 if c.get() {
+                    // if did not deactivate current
                     any = true;
                     break;
                 }
             } else if c.get() {
                 // if deactivated current and had another active after
-                any = true;
                 self.change_child(i);
-
-                break;
+                return;
             }
         }
 
         if !any && self.current != usize::MAX {
             // if no longer has not active condition.
             self.change_child(usize::MAX);
+            return;
         }
 
+        // only update if did not change
+        // to not update before first info build
         self.with(|c| c.update(updates));
     }
 
