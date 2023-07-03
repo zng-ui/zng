@@ -20,9 +20,9 @@ fn app_main() {
     App::default().run_window(async {
         set_fallback_font().await;
 
-        let calc = var(Calculator::default());
         Window! {
             title = "Calculator";
+            data = var(Calculator::default());
             // zero_ui::properties::inspector::show_bounds = true;
             resizable = false;
             auto_size = true;
@@ -32,28 +32,28 @@ fn app_main() {
                 spacing = 5;
                 children = ui_vec![
                     Text! {
-                        txt = calc.map_ref(|c| c.text());
+                        txt = DATA.req::<Calculator>().map_ref(|c| c.text());
                         align = Align::RIGHT;
                         font_size = 32.pt();
 
-                        when #{calc.clone()}.error() {
+                        when #{DATA.req::<Calculator>()}.error() {
                             font_color = colors::RED;
                         }
                     },
-                    controls(calc)
+                    controls()
                 ];
             };
         }
     })
 }
 
-fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
-    let bn = |c| btn(calc.clone(), c);
-    let b_squre = btn_square(calc.clone());
-    let b_sroot = btn_square_root(calc.clone());
-    let b_clear = btn_clear(calc.clone());
-    let b_back = btn_backspace(calc.clone());
-    let b_equal = btn_eval(calc.clone());
+fn controls() -> impl UiNode {
+    let bn = btn;
+    let b_squre = btn_square();
+    let b_sroot = btn_square_root();
+    let b_clear = btn_clear();
+    let b_back = btn_backspace();
+    let b_equal = btn_eval();
 
     Grid! {
         spacing = 2;
@@ -70,45 +70,45 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
     }
 }
 
-fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
+fn btn_square() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| calc.modify(| c|c.to_mut().square()));
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().square()).unwrap());
         child = Text!("x²");
     }
 }
 
-fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
+fn btn_square_root() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| calc.modify(| c|c.to_mut().square_root()));
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().square_root()).unwrap());
         child = Text!("√x");
     }
 }
 
-fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
+fn btn_clear() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| calc.modify(| c|c.to_mut().clear()));
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().clear()).unwrap());
         click_shortcut = shortcut!(Escape);
         child = Text!("C");
     }
 }
 
-fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
+fn btn_backspace() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| calc.modify(|c|c.to_mut().backspace()));
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c|c.to_mut().backspace()).unwrap());
         click_shortcut = shortcut!(Backspace);
         child = Text!("⌫");
     }
 }
 
-fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
+fn btn(c: char) -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| {
-            calc.modify(move |b| b.to_mut().push(c))
+            DATA.req::<Calculator>().modify(move |b| b.to_mut().push(c)).unwrap();
         });
         click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
@@ -119,10 +119,10 @@ fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
     }
 }
 
-fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
+fn btn_eval() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| calc.modify(|c|c.to_mut().eval()));
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c|c.to_mut().eval()).unwrap());
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         child = Text!("=");
     }

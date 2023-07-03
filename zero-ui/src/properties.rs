@@ -12,6 +12,10 @@ mod border_;
 pub use border_::*;
 
 pub mod commands;
+
+mod data_;
+pub use data_::*;
+
 pub mod events;
 pub mod filters;
 pub mod focus;
