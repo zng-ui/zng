@@ -25,7 +25,7 @@ impl DATA {
     ///
     /// Panics if the context data is not set to a variable of type `T` on the first usage of the returned variable.
     pub fn req<T: VarValue>(&self) -> ContextualizedVar<T, BoxedVar<T>> {
-        self.get(|| panic!("expected data context of type `{}`", std::any::type_name::<T>()))
+        self.get(|| panic!("expected DATA of type `{}`", std::any::type_name::<T>()))
     }
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
@@ -39,6 +39,15 @@ impl DATA {
                 .map(|b| *b)
                 .unwrap_or_else(|_| LocalVar(fallback()).boxed())
         }))
+    }
+
+    /// Gets the current context data.
+    ///
+    /// Note that this is does not return a contextualizing var like [`get`], it gets the data var in the calling context.
+    ///
+    /// [`get`]: Self::get
+    pub fn get_any(&self) -> BoxedAnyVar {
+        DATA_CTX.get().clone_any()
     }
 }
 
