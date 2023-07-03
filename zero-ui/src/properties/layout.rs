@@ -1506,3 +1506,19 @@ pub fn actual_transform(child: impl UiNode, transform: impl IntoVar<PxTransform>
         _ => {}
     })
 }
+
+/// Getter property, gets the latest rendered widget inner bounds in the window space.
+#[property(LAYOUT)]
+pub fn actual_bounds(child: impl UiNode, bounds: impl IntoVar<PxRect>) -> impl UiNode {
+    let bounds = bounds.into_var();
+    match_node(child, move |c, op| match &op {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            c.op(op);
+            let t = WIDGET.info().bounds_info().inner_bounds();
+            if bounds.get() != t {
+                let _ = bounds.set(t);
+            }
+        }
+        _ => {}
+    })
+}
