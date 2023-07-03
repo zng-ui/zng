@@ -239,7 +239,63 @@ impl UNDO {
 
         UNDO_SCOPE_CTX.with_context_value(scope, f)
     }
+
+    /// Track changes on `var`, registering undo actions for it.
+    ///
+    /// The variable will be tracked until the returned handle or the var is dropped.
+    ///
+    /// Note that this will keep strong clones of previous and new value every time the variable changes, but
+    /// it will only keep weak references to the variable. Dropping the handle or the var will not remove undo/redo
+    /// entries for it, they will still try to assign the variable, failing silently if the variable is dropped too.
+    /// 
+    /// Var updates caused by undo and redo are tagged with [`UndoVarModifyTag`].
+    pub fn watch_var<T: VarValue>(&self, description: impl Into<Txt>, var: impl Var<T>) -> VarHandle {
+        if var.capabilities().is_always_read_only() {
+            return VarHandle::dummy();
+        }
+        let var = var.actual_var();
+        let wk_var = var.downgrade();
+
+        let mut prev_value = Some(var.get());
+        let description = description.into();
+
+        var.trace_value(move |args| {
+            if args.downcast_tags::<UndoVarModifyTag>().next().is_none() {
+                let prev = prev_value.take().unwrap();
+                let new = args.value();
+                if &prev == new {
+                    // no actual change
+                    prev_value = Some(prev);
+                    return;
+                }
+                prev_value = Some(new.clone());
+                UNDO.register_op(
+                    description.clone(),
+                    clmv!(wk_var, new, |op| if let Some(var) = wk_var.upgrade() {
+                        let _ = match op {
+                            UndoOp::Undo => var.modify(clmv!(prev, |args| {
+                                args.set(prev);
+                                args.push_tag(UndoVarModifyTag);
+                            })),
+                            UndoOp::Redo => var.modify(clmv!(new, |args| {
+                                args.set(new);
+                                args.push_tag(UndoVarModifyTag);
+                            })),
+                        };
+                    }),
+                );
+            }
+        })
+    }
 }
+
+/// Identifies that a var modify requested by undo/redo action.
+///
+/// See [`UNDO.watch_var`] for more details.
+///
+/// [`UNDO.watch_var`]: UNDO::watch_var
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UndoVarModifyTag;
 
 /// Represents an undo or redo action.
 ///
@@ -956,6 +1012,38 @@ mod tests {
 
         UNDO.redo_t(t);
         assert_eq!(&[1, 2], &data.lock()[..]);
+    }
+
+    #[test]
+    fn watch_var() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test_var = var(0);
+        UNDO.watch_var("set test var", test_var.clone()).perm();
+
+        test_var.set(10);
+        app.update(false).assert_wait();
+
+        test_var.set(20);
+        app.update(false).assert_wait();
+
+        assert_eq!(20, test_var.get());
+
+        UNDO.undo_n(1);
+        app.update(false).assert_wait();
+        assert_eq!(10, test_var.get());
+
+        UNDO.undo_n(1);
+        app.update(false).assert_wait();
+        assert_eq!(0, test_var.get());
+
+        UNDO.redo_n(1);
+        app.update(false).assert_wait();
+        assert_eq!(10, test_var.get());
+
+        UNDO.redo_n(1);
+        app.update(false).assert_wait();
+        assert_eq!(20, test_var.get());
     }
 
     #[derive(Debug)]
