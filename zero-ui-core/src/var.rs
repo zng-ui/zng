@@ -1238,10 +1238,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Get a clone of the current value into `value` if the current value is not equal to it.
-    fn get_ne(&self, value: &mut T) -> bool
-    where
-        T: PartialEq,
-    {
+    fn get_ne(&self, value: &mut T) -> bool {
         self.with(var_get_ne(value))
     }
 
@@ -1270,10 +1267,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Get a clone of the current value into `value` if the variable value [`is_new`] and not equal to the `value`.
     ///
     /// [`is_new`]: AnyVar::is_new
-    fn get_new_ne(&self, value: &mut T) -> bool
-    where
-        T: PartialEq,
-    {
+    fn get_new_ne(&self, value: &mut T) -> bool {
         self.is_new() && self.get_ne(value)
     }
 

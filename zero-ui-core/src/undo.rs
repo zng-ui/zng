@@ -5,7 +5,7 @@ use std::{
     any::Any,
     fmt, mem,
     sync::{atomic::AtomicBool, Arc},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use atomic::{Atomic, Ordering};
@@ -49,10 +49,10 @@ impl AppExtension for UndoManager {
         // app scope handler
         if let Some(args) = UNDO_CMD.on_unhandled(update) {
             args.propagation().stop();
-            UNDO.undo(args.param::<u32>().copied().unwrap_or(1));
+            UNDO.undo_n(args.param::<u32>().copied().unwrap_or(1));
         } else if let Some(args) = UNDO_CMD.on_unhandled(update) {
             args.propagation().stop();
-            UNDO.redo(args.param::<u32>().copied().unwrap_or(1));
+            UNDO.redo_n(args.param::<u32>().copied().unwrap_or(1));
         }
     }
 }
@@ -61,11 +61,21 @@ impl AppExtension for UndoManager {
 pub struct UNDO;
 impl UNDO {
     /// Gets or sets the size limit of each undo stack in all scopes.
+    ///
+    /// Is `u32::MAX` by default. If the limit is reached the oldest undo action is dropped without redo.
     pub fn max_undo(&self) -> ArcVar<u32> {
         UNDO_SV.read().max_undo.clone()
     }
 
-    /// Gets or sets the time interval that groups actions together in all scopes.
+    /// Gets or sets the time interval that [`undo`] and [`redo`] cover each call.
+    ///
+    /// This value applies to all scopes and defines the max interval of actions are are undone/redone
+    /// starting from the latest one.
+    ///
+    /// Is `100.ms()` by default.
+    ///
+    /// [`undo`]: Self::undo
+    /// [`redo`]: Self::redo
     pub fn undo_interval(&self) -> ArcVar<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
@@ -76,17 +86,41 @@ impl UNDO {
     ///
     /// [`register`]: Self::register
     pub fn is_enabled(&self) -> bool {
-        UNDO_SCOPE_CTX.get().enabled.load(Ordering::Relaxed)
+        UNDO_SCOPE_CTX.get().enabled.load(Ordering::Relaxed) && UNDO_SV.read().max_undo.get() > 0
     }
 
-    /// Undo `count` times in the current scope.
-    pub fn undo(&self, count: u32) {
-        UNDO_SCOPE_CTX.get().undo(count);
+    /// Undo `n` times in the current scope.
+    pub fn undo_n(&self, n: u32) {
+        UNDO_SCOPE_CTX.get().undo_n(n);
     }
 
-    /// Redo `count` times in the current scope.
-    pub fn redo(&self, count: u32) {
-        UNDO_SCOPE_CTX.get().redo(count);
+    /// Redo `n` times in the current scope.
+    pub fn redo_n(&self, n: u32) {
+        UNDO_SCOPE_CTX.get().redo_n(n);
+    }
+
+    /// Undo all actions within the `t` interval, starting from the most recent action.
+    pub fn undo_t(&self, t: Duration) {
+        UNDO_SCOPE_CTX.get().undo_t(t);
+    }
+
+    /// Redo all actions within the `t` interval, starting from the most recent action.
+    pub fn redo_t(&self, t: Duration) {
+        UNDO_SCOPE_CTX.get().redo_t(t);
+    }
+
+    /// Undo all actions within the [`undo_interval`].
+    ///
+    /// [`undo_interval`]: Self::undo_interval
+    pub fn undo(&self) {
+        self.undo_t(UNDO_SV.read().undo_interval.get());
+    }
+
+    /// Redo all actions within the [`undo_interval`].
+    ///
+    /// [`undo_interval`]: Self::undo_interval
+    pub fn redo(&self) {
+        self.redo_t(UNDO_SV.read().undo_interval.get());
     }
 
     /// Gets the parent ID that defines an undo scope, or `None` if undo is registered globally for
@@ -148,7 +182,7 @@ impl UNDO {
         let t_scope = Arc::new(scope);
         let _panic_undo = RunOnDrop::new(clmv!(t_scope, || {
             for undo in mem::take(&mut *t_scope.undo.lock()).into_iter().rev() {
-                let _ = undo.undo();
+                let _ = undo.action.undo();
             }
         }));
 
@@ -159,6 +193,51 @@ impl UNDO {
         let undo = mem::take(&mut *scope.undo.lock());
 
         UndoTransaction { undo }
+    }
+
+    /// Run `actions` as a [`transaction`] and commits as a group if the result is `Ok(O)` and at least one
+    /// undo action was registered, or undoes all if result is `Err(E)`.
+    ///
+    /// [`transaction`]: Self::transaction
+    pub fn try_group<O, E>(&self, description: impl Into<Txt>, actions: impl FnOnce() -> Result<O, E>) -> Result<O, E> {
+        let mut r = None;
+        let t = self.transaction(|| r = Some(actions()));
+        let r = r.unwrap();
+        if !t.is_empty() {
+            if r.is_ok() {
+                t.commit_group(description);
+            } else {
+                t.undo();
+            }
+        }
+        r
+    }
+
+    /// Run `actions` as a [`transaction`] and commits if the result is `Ok(O)`, or undoes all if result is `Err(E)`.
+    ///
+    /// [`transaction`]: Self::transaction
+    pub fn try_commit<O, E>(&self, actions: impl FnOnce() -> Result<O, E>) -> Result<O, E> {
+        let mut r = None;
+        let t = self.transaction(|| r = Some(actions()));
+        let r = r.unwrap();
+        if !t.is_empty() {
+            if r.is_ok() {
+                t.commit();
+            } else {
+                t.undo();
+            }
+        }
+        r
+    }
+
+    /// Runs `f` in a disabled scope, all undo actions registered inside `f` are ignored.
+    pub fn with_disabled<R>(&self, f: impl FnOnce() -> R) -> R {
+        let mut scope = UndoScope::default();
+        let parent_scope = UNDO_SCOPE_CTX.get();
+        *scope.enabled.get_mut() = false;
+        *scope.id.get_mut() = parent_scope.id.load(Ordering::Relaxed);
+
+        UNDO_SCOPE_CTX.with_context_value(scope, f)
     }
 }
 
@@ -200,7 +279,7 @@ pub enum UndoOp {
 /// [`UNDO.transaction`]: UNDO::transaction
 #[must_use = "dropping the transaction undoes all captured actions"]
 pub struct UndoTransaction {
-    undo: Vec<Box<dyn UndoAction>>,
+    undo: Vec<UndoEntry>,
 }
 impl UndoTransaction {
     /// If the transaction did not capture any undo action.
@@ -210,7 +289,11 @@ impl UndoTransaction {
 
     /// Push all undo actions captured by the transaction into the current undo scope.
     pub fn commit(mut self) {
-        let undo = mem::take(&mut self.undo);
+        let mut undo = mem::take(&mut self.undo);
+        let now = Instant::now();
+        for u in &mut undo {
+            u.timestamp = now;
+        }
         let ctx = UNDO_SCOPE_CTX.get();
         let mut ctx_undo = ctx.undo.lock();
         if ctx_undo.is_empty() {
@@ -241,7 +324,7 @@ impl UndoTransaction {
 impl Drop for UndoTransaction {
     fn drop(&mut self) {
         for undo in self.undo.drain(..).rev() {
-            let _ = undo.undo();
+            let _ = undo.action.undo();
         }
     }
 }
@@ -274,8 +357,8 @@ command! {
 }
 struct UndoScope {
     id: Atomic<Option<WidgetId>>,
-    undo: Mutex<Vec<Box<dyn UndoAction>>>,
-    redo: Mutex<Vec<Box<dyn RedoAction>>>,
+    undo: Mutex<Vec<UndoEntry>>,
+    redo: Mutex<Vec<RedoEntry>>,
     enabled: AtomicBool,
 }
 impl Default for UndoScope {
@@ -289,39 +372,139 @@ impl Default for UndoScope {
     }
 }
 impl UndoScope {
+    fn with_enabled_undo_redo(&self, f: impl FnOnce(&mut Vec<UndoEntry>, &mut Vec<RedoEntry>)) {
+        let mut undo = self.undo.lock();
+        let mut redo = self.redo.lock();
+
+        let max_undo = if self.enabled.load(Ordering::Relaxed) {
+            UNDO_SV.read().max_undo.get() as usize
+        } else {
+            0
+        };
+
+        if undo.len() > max_undo {
+            undo.reverse();
+            while undo.len() > max_undo {
+                undo.pop();
+            }
+            undo.reverse();
+        }
+
+        if redo.len() > max_undo {
+            redo.reverse();
+            while redo.len() > max_undo {
+                redo.pop();
+            }
+            redo.reverse();
+        }
+
+        if max_undo > 0 {
+            f(&mut undo, &mut redo);
+        }
+    }
+
     fn register(&self, action: Box<dyn UndoAction>) {
-        if !self.enabled.load(Ordering::Relaxed) {
-            return;
-        }
-        self.undo.lock().push(action);
-        self.redo.lock().clear();
+        self.with_enabled_undo_redo(|undo, _| {
+            undo.push(UndoEntry {
+                timestamp: Instant::now(),
+                action,
+            });
+        });
     }
 
-    fn undo(&self, mut count: u32) {
-        if !self.enabled.load(Ordering::Relaxed) {
-            return;
-        }
-        while count > 0 {
-            count -= 1;
+    fn undo_n(&self, mut count: u32) {
+        let mut actions = Vec::with_capacity(count.min(5) as usize);
 
-            if let Some(undo) = self.undo.lock().pop() {
-                let redo = undo.undo();
-                self.redo.lock().push(redo);
+        self.with_enabled_undo_redo(|undo, _| {
+            while count > 0 {
+                count -= 1;
+                if let Some(undo) = undo.pop() {
+                    actions.push(undo);
+                } else {
+                    break;
+                }
             }
+        });
+
+        for undo in actions {
+            let redo = undo.action.undo();
+            self.redo.lock().push(RedoEntry {
+                timestamp: undo.timestamp,
+                action: redo,
+            });
         }
     }
 
-    fn redo(&self, mut count: u32) {
-        if !self.enabled.load(Ordering::Relaxed) {
-            return;
-        }
-        while count > 0 {
-            count -= 1;
+    fn redo_n(&self, mut count: u32) {
+        let mut actions = Vec::with_capacity(count.min(5) as usize);
 
-            if let Some(redo) = self.redo.lock().pop() {
-                let undo = redo.redo();
-                self.undo.lock().push(undo);
+        self.with_enabled_undo_redo(|_, redo| {
+            while count > 0 {
+                count -= 1;
+                if let Some(redo) = redo.pop() {
+                    actions.push(redo);
+                } else {
+                    break;
+                }
             }
+        });
+
+        for redo in actions {
+            let undo = redo.action.redo();
+            self.undo.lock().push(UndoEntry {
+                timestamp: redo.timestamp,
+                action: undo,
+            });
+        }
+    }
+
+    fn undo_t(&self, t: Duration) {
+        let mut actions = vec![];
+
+        self.with_enabled_undo_redo(|undo, _| {
+            if let Some(latest) = undo.last().map(|e| e.timestamp) {
+                while let Some(action) = undo.pop() {
+                    if latest.checked_duration_since(action.timestamp).unwrap_or(t) <= t {
+                        actions.push(action);
+                    } else {
+                        undo.push(action);
+                        break;
+                    }
+                }
+            }
+        });
+
+        for undo in actions {
+            let redo = undo.action.undo();
+            self.redo.lock().push(RedoEntry {
+                timestamp: undo.timestamp,
+                action: redo,
+            });
+        }
+    }
+
+    fn redo_t(&self, t: Duration) {
+        let mut actions = vec![];
+
+        self.with_enabled_undo_redo(|_, redo| {
+            if let Some(oldest) = redo.last().map(|e| e.timestamp) {
+                while let Some(action) = redo.pop() {
+                    if action.timestamp.checked_duration_since(oldest).unwrap_or(t) <= t {
+                        actions.push(action);
+                    } else {
+                        redo.push(action);
+                        break;
+                    }
+                }
+            }
+        });
+
+        for redo in actions {
+            let undo = redo.action.redo();
+            self.undo.lock().push(UndoEntry {
+                timestamp: redo.timestamp,
+                action: undo,
+            });
         }
     }
 
@@ -338,9 +521,19 @@ impl UndoScope {
     }
 }
 
+struct UndoEntry {
+    timestamp: Instant,
+    action: Box<dyn UndoAction>,
+}
+
+struct RedoEntry {
+    timestamp: Instant,
+    action: Box<dyn RedoAction>,
+}
+
 struct UndoGroup {
     description: Txt,
-    undo: Vec<Box<dyn UndoAction>>,
+    undo: Vec<UndoEntry>,
 }
 impl fmt::Debug for UndoGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -360,7 +553,10 @@ impl UndoAction for UndoGroup {
     fn undo(self: Box<Self>) -> Box<dyn RedoAction> {
         let mut redo = Vec::with_capacity(self.undo.len());
         for undo in self.undo.into_iter().rev() {
-            redo.push(undo.undo());
+            redo.push(RedoEntry {
+                timestamp: undo.timestamp,
+                action: undo.action.undo(),
+            });
         }
         Box::new(RedoGroup {
             description: self.description,
@@ -370,7 +566,7 @@ impl UndoAction for UndoGroup {
 }
 struct RedoGroup {
     description: Txt,
-    redo: Vec<Box<dyn RedoAction>>,
+    redo: Vec<RedoEntry>,
 }
 impl fmt::Debug for RedoGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -390,7 +586,10 @@ impl RedoAction for RedoGroup {
     fn redo(self: Box<Self>) -> Box<dyn UndoAction> {
         let mut undo = Vec::with_capacity(self.redo.len());
         for redo in self.redo.into_iter().rev() {
-            undo.push(redo.redo());
+            undo.push(UndoEntry {
+                timestamp: redo.timestamp,
+                action: redo.action.redo(),
+            });
         }
         Box::new(UndoGroup {
             description: self.description,
@@ -497,11 +696,11 @@ mod properties {
                     if let Some(args) = UNDO_CMD.scoped(id).on_unhandled(update) {
                         args.propagation().stop();
                         let scope = scope.as_ref().unwrap();
-                        scope.undo(args.param::<u32>().copied().unwrap_or(1));
+                        scope.undo_n(args.param::<u32>().copied().unwrap_or(1));
                     } else if let Some(args) = REDO_CMD.scoped(id).on_unhandled(update) {
                         args.propagation().stop();
                         let scope = scope.as_ref().unwrap();
-                        scope.redo(args.param::<u32>().copied().unwrap_or(1));
+                        scope.redo_n(args.param::<u32>().copied().unwrap_or(1));
                     }
                 }
                 UiNodeOp::Update { .. } => {
@@ -586,14 +785,14 @@ mod tests {
         });
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -622,14 +821,14 @@ mod tests {
         push_1_2(&data);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -643,7 +842,7 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.undo();
@@ -660,19 +859,19 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.commit();
 
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo(1);
+        UNDO.redo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -686,15 +885,76 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.commit_group("push 1, 2");
 
-        UNDO.undo(1);
+        UNDO.undo_n(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo(1);
+        UNDO.redo_n(1);
+        assert_eq!(&[1, 2], &data.lock()[..]);
+    }
+
+    fn push_1_sleep_2(data: &Arc<Mutex<Vec<u8>>>) {
+        UNDO.run_op(
+            "push 1",
+            clmv!(data, |op| match op {
+                UndoOp::Undo => assert_eq!(data.lock().pop(), Some(1)),
+                UndoOp::Redo => data.lock().push(1),
+            }),
+        );
+        std::thread::sleep(100.ms());
+        UNDO.run_op(
+            "push 2",
+            clmv!(data, |op| match op {
+                UndoOp::Undo => assert_eq!(data.lock().pop(), Some(2)),
+                UndoOp::Redo => data.lock().push(2),
+            }),
+        );
+    }
+
+    #[test]
+    fn undo_redo_t_zero() {
+        let _a = App::minimal();
+        let data = Arc::new(Mutex::new(vec![]));
+
+        push_1_sleep_2(&data);
+        assert_eq!(&[1, 2], &data.lock()[..]);
+
+        UNDO.undo_t(Duration::ZERO);
+        assert_eq!(&[1], &data.lock()[..]);
+        UNDO.undo_t(Duration::ZERO);
+        assert_eq!(&[] as &[u8], &data.lock()[..]);
+
+        UNDO.redo_t(Duration::ZERO);
+        assert_eq!(&[1], &data.lock()[..]);
+        UNDO.redo_t(Duration::ZERO);
+        assert_eq!(&[1, 2], &data.lock()[..]);
+    }
+
+    #[test]
+    fn undo_redo_t_max() {
+        undo_redo_t_large(Duration::MAX);
+    }
+
+    #[test]
+    fn undo_redo_t_10s() {
+        undo_redo_t_large(10.secs());
+    }
+
+    fn undo_redo_t_large(t: Duration) {
+        let _a = App::minimal();
+        let data = Arc::new(Mutex::new(vec![]));
+
+        push_1_sleep_2(&data);
+        assert_eq!(&[1, 2], &data.lock()[..]);
+
+        UNDO.undo_t(t);
+        assert_eq!(&[] as &[u8], &data.lock()[..]);
+
+        UNDO.redo_t(t);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
