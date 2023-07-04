@@ -1,6 +1,5 @@
 # TextInput
 
-* Disable editable when text is not enabled.
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down
@@ -16,10 +15,6 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
-
-* Watermark text shows caret, it should not for multiple reasons:
-    - The txt property is not set to a read-write var.
-    - Background widgets are not interactive.
 
 * Ctrl+Shift+I when focusing TextInput inserts a tab and still opens the Inspector.
     - We are receiving a TAB for some reason, but we are stopping propagation.

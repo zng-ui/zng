@@ -250,7 +250,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 3],
+        events: [EventHandle; 4],
         caret_animation: VarHandle,
         cut: CommandHandle,
         copy: CommandHandle,
@@ -335,6 +335,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
                 d.events[1] = KEY_INPUT_EVENT.subscribe(id);
                 d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
+                d.events[3] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
 
                 d.cut = CUT_CMD.scoped(id).subscribe(true);
                 d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -380,180 +381,190 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
-            } else if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() {
+            } else if TEXT_EDITABLE_VAR.get() {
                 let resolved = resolved.as_mut().unwrap();
                 let caret = resolved.caret.get_mut();
                 let prev_caret_index = caret.index;
                 let caret_index = &mut caret.index;
 
-                if let Some(args) = CHAR_INPUT_EVENT.on(update) {
-                    if !args.propagation().is_stopped()
-                        && text.capabilities().contains(VarCapabilities::MODIFY)
-                        && args.is_enabled(WIDGET.id())
-                    {
-                        if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
-                            || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
-                            || caret_index.is_none()
-                        {
-                            return;
-                        }
-                        args.propagation().stop();
-
-                        if args.is_backspace() {
-                            // backspace removes mostly by char.
-                            if let Some(caret_idx) = caret_index {
-                                let rmv = resolved.text.backspace_range(*caret_idx);
-                                if !rmv.is_empty() {
-                                    *caret_idx = rmv.start;
-                                    let _ = text.modify(move |t| {
-                                        let t = t.to_mut().to_mut();
-                                        t.replace_range(rmv, "");
-                                    });
-                                    resolved.pending_edit = true;
-                                }
-                            }
-                        } else if args.is_delete() {
-                            // delete removes by grapheme cluster
-                            if let Some(caret_idx) = caret_index {
-                                let rmv = resolved.text.delete_range(*caret_idx);
-                                if !rmv.is_empty() {
-                                    let rmv_start = rmv.start;
-
-                                    let _ = text.modify(move |t| {
-                                        let t = t.to_mut().to_mut();
-                                        t.replace_range(rmv, "");
-                                    });
-                                    resolved.pending_edit = true;
-
-                                    // restore animation when the caret_index did not change
-                                    if *caret_idx == rmv_start {
-                                        caret.used_retained_x = false;
-                                        caret.opacity = KEYBOARD.caret_animation();
-                                        EditData::get(&mut edit_data).caret_animation =
-                                            caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
-                                    } else {
-                                        *caret_idx = rmv_start;
-                                    }
-                                }
-                            }
-                        } else if let Some(c) = args.insert_char() {
-                            // insert
-                            let i = caret_index.unwrap();
-                            *caret_index = Some(i + c.len_utf8());
-
-                            let _ = text.modify(move |t| {
-                                t.to_mut().to_mut().insert(i, c);
-                            });
-                            resolved.pending_edit = true;
-                        }
-                    }
-                } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                    if let Some(key) = args.key {
-                        match key {
-                            Key::Tab => {
-                                if ACCEPTS_TAB_VAR.get() {
-                                    args.propagation().stop();
-                                }
-                            }
-                            Key::Enter => {
-                                if ACCEPTS_ENTER_VAR.get() {
-                                    args.propagation().stop();
-                                }
-                            }
-                            Key::Right => {
-                                args.propagation().stop();
-
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        *i = resolved.text.next_insert_index(*i);
-                                    }
-                                }
-                            }
-                            Key::Left => {
-                                args.propagation().stop();
-
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        *i = resolved.text.prev_insert_index(*i);
-                                    }
-                                }
-                            }
-                            Key::Home => {
-                                args.propagation().stop();
-
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        if args.modifiers.is_only_ctrl() {
-                                            *i = 0;
-                                        } else if args.modifiers.is_empty() {
-                                            *i = resolved.text.line_start_index(*i);
-                                        }
-                                    }
-                                }
-                            }
-                            Key::End => {
-                                args.propagation().stop();
-
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        if args.modifiers.is_only_ctrl() {
-                                            *i = resolved.text.text().len();
-                                        } else if args.modifiers.is_empty() {
-                                            *i = resolved.text.line_end_index(*i);
-                                        }
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if args.is_focused(WIDGET.id()) {
-                        if caret_index.is_none() {
-                            *caret_index = Some(0);
-                        } else {
-                            // restore animation when the caret_index did not change
-                            caret.opacity = KEYBOARD.caret_animation();
-                            EditData::get(&mut edit_data).caret_animation = caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
-                        }
-                    } else {
+                if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
+                    if args.is_disable(WIDGET.id()) {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();
-                    }
-                } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
-                    args.propagation().stop();
-                    tracing::error!("TODO cut");
-                } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
-                    args.propagation().stop();
-                    tracing::error!("TODO copy");
-                } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
-                    args.propagation().stop();
-
-                    if let Some(paste) = CLIPBOARD.text().ok().flatten() {
-                        if !paste.is_empty() {
-                            // insert
-                            let i = caret_index.unwrap_or(0);
-                            *caret_index = Some(i + paste.len());
-
-                            let _ = text.modify(move |t| {
-                                t.to_mut().to_mut().insert_str(i, paste.as_str());
-                            });
-                            resolved.pending_edit = true;
-                        }
                     }
                 }
 
-                if *caret_index != prev_caret_index {
-                    caret.used_retained_x = false;
-                    if caret_index.is_none() {
-                        EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
-                        caret.opacity = var(0.fct()).read_only();
-                    } else {
-                        caret.opacity = KEYBOARD.caret_animation();
-                        EditData::get(&mut edit_data).caret_animation = caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                if WIDGET.info().interactivity().is_enabled() {
+                    if let Some(args) = CHAR_INPUT_EVENT.on(update) {
+                        if !args.propagation().is_stopped()
+                            && text.capabilities().contains(VarCapabilities::MODIFY)
+                            && args.is_enabled(WIDGET.id())
+                        {
+                            if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
+                                || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
+                                || caret_index.is_none()
+                            {
+                                return;
+                            }
+                            args.propagation().stop();
+
+                            if args.is_backspace() {
+                                // backspace removes mostly by char.
+                                if let Some(caret_idx) = caret_index {
+                                    let rmv = resolved.text.backspace_range(*caret_idx);
+                                    if !rmv.is_empty() {
+                                        *caret_idx = rmv.start;
+                                        let _ = text.modify(move |t| {
+                                            let t = t.to_mut().to_mut();
+                                            t.replace_range(rmv, "");
+                                        });
+                                        resolved.pending_edit = true;
+                                    }
+                                }
+                            } else if args.is_delete() {
+                                // delete removes by grapheme cluster
+                                if let Some(caret_idx) = caret_index {
+                                    let rmv = resolved.text.delete_range(*caret_idx);
+                                    if !rmv.is_empty() {
+                                        let rmv_start = rmv.start;
+
+                                        let _ = text.modify(move |t| {
+                                            let t = t.to_mut().to_mut();
+                                            t.replace_range(rmv, "");
+                                        });
+                                        resolved.pending_edit = true;
+
+                                        // restore animation when the caret_index did not change
+                                        if *caret_idx == rmv_start {
+                                            caret.used_retained_x = false;
+                                            caret.opacity = KEYBOARD.caret_animation();
+                                            EditData::get(&mut edit_data).caret_animation =
+                                                caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                                        } else {
+                                            *caret_idx = rmv_start;
+                                        }
+                                    }
+                                }
+                            } else if let Some(c) = args.insert_char() {
+                                // insert
+                                let i = caret_index.unwrap();
+                                *caret_index = Some(i + c.len_utf8());
+
+                                let _ = text.modify(move |t| {
+                                    t.to_mut().to_mut().insert(i, c);
+                                });
+                                resolved.pending_edit = true;
+                            }
+                        }
+                    } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                        if let Some(key) = args.key {
+                            match key {
+                                Key::Tab => {
+                                    if ACCEPTS_TAB_VAR.get() {
+                                        args.propagation().stop();
+                                    }
+                                }
+                                Key::Enter => {
+                                    if ACCEPTS_ENTER_VAR.get() {
+                                        args.propagation().stop();
+                                    }
+                                }
+                                Key::Right => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        if let Some(i) = caret_index {
+                                            *i = resolved.text.next_insert_index(*i);
+                                        }
+                                    }
+                                }
+                                Key::Left => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        if let Some(i) = caret_index {
+                                            *i = resolved.text.prev_insert_index(*i);
+                                        }
+                                    }
+                                }
+                                Key::Home => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        if let Some(i) = caret_index {
+                                            if args.modifiers.is_only_ctrl() {
+                                                *i = 0;
+                                            } else if args.modifiers.is_empty() {
+                                                *i = resolved.text.line_start_index(*i);
+                                            }
+                                        }
+                                    }
+                                }
+                                Key::End => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        if let Some(i) = caret_index {
+                                            if args.modifiers.is_only_ctrl() {
+                                                *i = resolved.text.text().len();
+                                            } else if args.modifiers.is_empty() {
+                                                *i = resolved.text.line_end_index(*i);
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                        if args.is_focused(WIDGET.id()) {
+                            if caret_index.is_none() {
+                                *caret_index = Some(0);
+                            } else {
+                                // restore animation when the caret_index did not change
+                                caret.opacity = KEYBOARD.caret_animation();
+                                EditData::get(&mut edit_data).caret_animation =
+                                    caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                            }
+                        } else {
+                            EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
+                            caret.opacity = var(0.fct()).read_only();
+                        }
+                    } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
+                        args.propagation().stop();
+                        tracing::error!("TODO cut");
+                    } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
+                        args.propagation().stop();
+                        tracing::error!("TODO copy");
+                    } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
+                        args.propagation().stop();
+
+                        if let Some(paste) = CLIPBOARD.text().ok().flatten() {
+                            if !paste.is_empty() {
+                                // insert
+                                let i = caret_index.unwrap_or(0);
+                                *caret_index = Some(i + paste.len());
+
+                                let _ = text.modify(move |t| {
+                                    t.to_mut().to_mut().insert_str(i, paste.as_str());
+                                });
+                                resolved.pending_edit = true;
+                            }
+                        }
                     }
-                    resolved.pending_layout |= PendingLayout::CARET;
-                    WIDGET.layout(); // update caret_origin
+
+                    if *caret_index != prev_caret_index {
+                        caret.used_retained_x = false;
+                        if caret_index.is_none() {
+                            EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
+                            caret.opacity = var(0.fct()).read_only();
+                        } else {
+                            caret.opacity = KEYBOARD.caret_animation();
+                            EditData::get(&mut edit_data).caret_animation = caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                        }
+                        resolved.pending_layout |= PendingLayout::CARET;
+                        WIDGET.layout(); // update caret_origin
+                    }
                 }
             }
 
@@ -1065,7 +1076,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
-            if TEXT_EDITABLE_VAR.get() {
+            if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() {
                 let resolved = RESOLVED_TEXT.get();
                 let mut caret = resolved.caret.lock();
                 let caret = &mut *caret;
