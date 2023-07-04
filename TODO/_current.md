@@ -1,5 +1,8 @@
+* Updated webrender to fx115.
+
 # TextInput
 
+* Disable editable when text is not enabled.
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down

@@ -380,7 +380,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
-            } else if TEXT_EDITABLE_VAR.get() {
+            } else if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() {
                 let resolved = resolved.as_mut().unwrap();
                 let caret = resolved.caret.get_mut();
                 let prev_caret_index = caret.index;

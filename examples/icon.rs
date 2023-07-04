@@ -83,6 +83,7 @@ fn icons() -> impl UiNode {
         children_align = Align::TOP;
         children = ui_vec![
             TextInput! {
+                id = "input";
                 txt = search.clone();
                 margin = (15, 0, 0, 0);
                 padding = (7, 15, 7, 26);
@@ -94,6 +95,7 @@ fn icons() -> impl UiNode {
                     margin = (0, 0, 0, 6);
                 };
                 background = Text! {
+                    id = "background";
                     padding = (7, 15, 7, 26);
                     txt = "search icons";
                     opacity = 50.pct();

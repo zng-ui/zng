@@ -207,9 +207,6 @@ impl WidgetInfoBuilder {
 
     /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
     ///
-    /// Note that this must be called just before [`push_widget`], trying to modify the current widget info using the returned
-    /// builder will not work properly.
-    ///
     /// [`parallel_fold`]: Self::parallel_fold
     /// [`push_widget`]: Self::push_widget
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
@@ -235,6 +232,16 @@ impl WidgetInfoBuilder {
 
         self.interactivity_filters.append(&mut split.interactivity_filters);
         self.pushed_widgets += split.pushed_widgets;
+        // self.meta is already the same
+        {
+            let mut split_node = split.tree.root_mut();
+            let mut node = self.node(self.node);
+            let split_node = split_node.value();
+            let node = node.value();
+
+            node.interactivity_filters.append(&mut split_node.interactivity_filters);
+            node.local_interactivity |= split_node.local_interactivity;
+        }
 
         self.tree.index_mut(self.node).parallel_fold(split.tree, &mut |d| WidgetInfoData {
             id: d.id,
