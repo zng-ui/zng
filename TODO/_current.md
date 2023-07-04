@@ -1,3 +1,5 @@
+* Review shortcuts in all examples.
+
 # TextInput
 
 * Support replace (Insert mode in command line).

@@ -940,9 +940,11 @@ impl GesturesService {
 ///    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
 ///    * Command scoped in a widget that is enabled and focused.
 ///    * Contextual [`click_shortcut`] targeting a widget that is enabled and focused.
-///    * Primary [`click_shortcut`] targeting a widget that is enabled.
-///    * Command scoped in a widget that is enabled.
-///    * Contextual [`click_shortcut`] targeting a widget that is enabled.
+///    * Primary, command scoped or contextual targeting a widget that is enabled and closest to the focused widget,
+///      child first (of the focused).
+///    * Primary, command scoped or contextual targeting a widget that is enabled in the focused window.
+///    * Primary, command scoped or contextual targeting a widget that is enabled.
+///    * [`focus_shortcut`] targeting a widget that is in the focused window.
 ///    * [`focus_shortcut`] targeting a widget that is enabled.
 ///    * The [`click_focused`] and [`context_click_focused`].
 ///    * *Same as the above, but for disabled widgets*
@@ -1078,9 +1080,11 @@ impl ShortcutActions {
         //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
         //    * Command scoped in a widget that is enabled and focused.
         //    * Contextual [`click_shortcut`] targeting a widget that is enabled and focused.
-        //    * Primary [`click_shortcut`] targeting a widget that is enabled.
-        //    * Command scoped in a widget that is enabled.
-        //    * Contextual [`click_shortcut`] targeting a widget that is enabled.
+        //    * Primary, command scoped or contextual targeting a widget that is enabled and closest to the focused widget,
+        //      child first (of the focused).
+        //    * Primary, command scoped or contextual targeting a widget that is enabled in the focused window.
+        //    * Primary, command scoped or contextual targeting a widget that is enabled.
+        //    * [`focus_shortcut`] targeting a widget that is in the focused window.
         //    * [`focus_shortcut`] targeting a widget that is enabled.
         //    * The [`click_focused`] and [`context_click_focused`].
         //    * *Same as the above, but for disabled widgets*
@@ -1093,177 +1097,187 @@ impl ShortcutActions {
 
         let focused = FOCUS.focused().get();
 
-        let mut primary_click_focused = None;
-        let mut primary_click_not_focused = None;
-        let mut primary_click_disabled_focused = None;
-        let mut primary_click_disabled_not_focused = None;
+        enum Kind {
+            Click(InteractionPath, ShortcutClick),
+            Command(InteractionPath, Command),
+            Focus(InteractionPath),
+        }
+        impl Kind {
+            fn kind_key(&self) -> u8 {
+                match self {
+                    Kind::Click(p, s) => {
+                        if p.interactivity().is_enabled() {
+                            match s {
+                                ShortcutClick::Primary => 0,
+                                ShortcutClick::Context => 2,
+                            }
+                        } else {
+                            match s {
+                                ShortcutClick::Primary => 10,
+                                ShortcutClick::Context => 12,
+                            }
+                        }
+                    }
+                    Kind::Command(p, _) => {
+                        if p.interactivity().is_enabled() {
+                            1
+                        } else {
+                            11
+                        }
+                    }
+                    Kind::Focus(p) => {
+                        if p.interactivity().is_enabled() {
+                            4
+                        } else {
+                            14
+                        }
+                    }
+                }
+            }
+        }
 
-        let mut context_click_focused = None;
-        let mut context_click_not_focused = None;
-        let mut context_click_disabled_focused = None;
-        let mut context_click_disabled_not_focused = None;
+        fn distance_key(focused: &Option<InteractionPath>, p: &InteractionPath) -> u32 {
+            let mut key = u32::MAX - 1;
+            if let Some(focused) = focused {
+                key -= 1;
+                if p.window_id() == focused.window_id() {
+                    if let Some(i) = p.widgets_path().iter().position(|&id| id == focused.widget_id()) {
+                        // is descendant of focused (or it)
+                        key = (p.widgets_path().len() - i) as u32;
+                    } else if let Some(i) = focused.widgets_path().iter().position(|&id| id == p.widget_id()) {
+                        // is ancestor of focused
+                        key = key / 2 + (focused.widgets_path().len() - i) as u32;
+                    }
+                }
+            }
+            key
+        }
 
-        let mut cmd_focused_widget = None;
-        let mut cmd_not_focused_widget = None;
+        let mut some_primary_dropped = false;
+        let primary_click_matches = gestures.primary_clicks.iter().filter_map(|(s, entry)| {
+            if entry.handle.is_dropped() {
+                some_primary_dropped = true;
+                return None;
+            }
+            if *s != shortcut {
+                return None;
+            }
+
+            let p = entry.resolve_path()?;
+            Some((distance_key(&focused, &p), Kind::Click(p, ShortcutClick::Primary)))
+        });
+
+        let mut some_ctx_dropped = false;
+        let context_click_matches = gestures.context_clicks.iter().filter_map(|(s, entry)| {
+            if entry.handle.is_dropped() {
+                some_ctx_dropped = true;
+                return None;
+            }
+            if *s != shortcut {
+                return None;
+            }
+
+            let p = entry.resolve_path()?;
+            Some((distance_key(&focused, &p), Kind::Click(p, ShortcutClick::Context)))
+        });
+
+        let mut some_focus_dropped = false;
+        let focus_matches = gestures.focus.iter().filter_map(|(s, entry)| {
+            if entry.handle.is_dropped() {
+                some_focus_dropped = true;
+                return None;
+            }
+            if *s != shortcut {
+                return None;
+            }
+
+            let p = entry.resolve_path()?;
+            Some((distance_key(&focused, &p), Kind::Focus(p)))
+        });
+
         let mut cmd_window = vec![];
-        let mut cmd_other = vec![];
-
-        let mut focus_enabled = None;
-        let mut focus_disabled = None;
-
-        let mut cleanup = true;
-
-        // primary click
-        for (s, entry) in &gestures.primary_clicks {
-            if shortcut == *s {
-                if entry.handle.is_dropped() {
-                    cleanup = true;
-                    continue;
-                }
-
-                if let Some(p) = entry.resolve_path() {
-                    if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
-                        if p.interactivity().is_enabled() {
-                            primary_click_focused = Some(p);
-                            break;
-                        } else if primary_click_disabled_focused.is_none() {
-                            primary_click_disabled_focused = Some(p);
-                        }
-                    } else if p.interactivity().is_enabled() {
-                        if primary_click_not_focused.is_none() {
-                            primary_click_not_focused = Some(p);
-                        }
-                    } else if primary_click_disabled_not_focused.is_none() {
-                        primary_click_disabled_not_focused = Some(p);
-                    }
-                }
+        let mut cmd_app = vec![];
+        let cmd_matches = EVENTS.commands().into_iter().filter_map(|cmd| {
+            if !cmd.shortcut_matches(shortcut) {
+                return None;
             }
-        }
 
-        // commands
-        for cmd in EVENTS.commands() {
-            if cmd.shortcut_matches(shortcut) {
-                match cmd.scope() {
-                    CommandScope::Window(w) => {
-                        if let Some(f) = &focused {
-                            if f.window_id() == w {
-                                cmd_window.push(cmd);
-                            }
-                        }
-                    }
-                    CommandScope::Widget(id) => {
-                        if primary_click_focused.is_none() && cmd_focused_widget.is_none() {
-                            if focused.as_ref().map(|f| f.widget_id() == id).unwrap_or(false) {
-                                cmd_focused_widget = Some(cmd);
-                            } else if cmd_not_focused_widget.is_none() {
-                                for tree in WINDOWS.widget_trees() {
-                                    if let Some(info) = tree.get(id) {
-                                        if info.interactivity().is_enabled() {
-                                            cmd_not_focused_widget = Some(cmd);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    CommandScope::App => cmd_other.push(cmd),
-                }
-            }
-        }
-
-        // context click
-        if primary_click_focused.is_none() && cmd_focused_widget.is_none() {
-            for (s, entry) in &gestures.context_clicks {
-                if shortcut == *s {
-                    if entry.handle.is_dropped() {
-                        cleanup = true;
-                        continue;
-                    }
-
-                    if let Some(p) = entry.resolve_path() {
-                        if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
-                            if p.interactivity().is_enabled() {
-                                context_click_focused = Some(p);
-                                break;
-                            } else if context_click_disabled_focused.is_none() {
-                                context_click_disabled_focused = Some(p);
-                            }
-                        } else if p.interactivity().is_enabled() {
-                            if context_click_not_focused.is_none() {
-                                context_click_not_focused = Some(p);
-                            }
-                        } else if context_click_disabled_not_focused.is_none() {
-                            context_click_disabled_not_focused = Some(p);
+            match cmd.scope() {
+                CommandScope::Window(w) => {
+                    if let Some(f) = &focused {
+                        if f.window_id() == w {
+                            cmd_window.push(cmd);
                         }
                     }
                 }
-            }
-        }
+                CommandScope::Widget(id) => {
+                    for tree in WINDOWS.widget_trees() {
+                        if let Some(info) = tree.get(id) {
+                            let p = info.interaction_path();
 
-        // resolve click given the primary, context and command options.
-        #[allow(clippy::manual_map)]
-        let mut click = if let Some(p) = primary_click_focused {
-            cmd_focused_widget = None;
-            Some((p, ShortcutClick::Primary))
-        } else if cmd_focused_widget.is_some() {
+                            return Some((distance_key(&focused, &p), Kind::Command(p, cmd)));
+                        }
+                    }
+                }
+                CommandScope::App => cmd_app.push(cmd),
+            }
+
             None
-        } else if let Some(p) = context_click_focused {
-            Some((p, ShortcutClick::Context))
-        } else if let Some(p) = primary_click_not_focused {
-            cmd_not_focused_widget = None;
-            Some((p, ShortcutClick::Primary))
-        } else if cmd_not_focused_widget.is_some() {
-            None
-        } else if let Some(p) = context_click_not_focused {
-            Some((p, ShortcutClick::Context))
-        } else {
-            None
-        };
+        });
 
-        // focus shortcut
-        if click.is_none() {
-            for (s, entry) in &gestures.focus {
-                if shortcut == *s {
-                    if entry.handle.is_dropped() {
-                        cleanup = true;
-                        continue;
-                    }
+        let mut best_kind = u8::MAX;
+        let mut best_distance = u32::MAX;
+        let mut best = None;
 
-                    if let Some(p) = entry.resolve_path() {
-                        if p.interactivity().is_enabled() {
-                            focus_enabled = Some(p.widget_id());
-                            break;
-                        } else if focus_disabled.is_none() {
-                            focus_disabled = Some(p.widget_id())
-                        }
+        for (distance_key, choice) in primary_click_matches
+            .chain(cmd_matches)
+            .chain(context_click_matches)
+            .chain(focus_matches)
+        {
+            let kind_key = choice.kind_key();
+            match kind_key.cmp(&best_kind) {
+                std::cmp::Ordering::Less => {
+                    best_kind = kind_key;
+                    best_distance = distance_key;
+                    best = Some(choice);
+                }
+                std::cmp::Ordering::Equal => {
+                    if distance_key < best_distance {
+                        best_distance = distance_key;
+                        best = Some(choice);
                     }
+                }
+                std::cmp::Ordering::Greater => {}
+            }
+        }
+
+        let mut click = None;
+        let mut focus = None;
+        let mut commands = vec![];
+
+        match best {
+            Some(k) => match k {
+                Kind::Click(p, s) => click = Some((p, s)),
+                Kind::Command(_, cmd) => commands.push(cmd),
+                Kind::Focus(p) => focus = Some(p.widget_id()),
+            },
+            None => {
+                if let Some(p) = focused {
+                    click = if gestures.click_focused.with(|c| c.contains(shortcut)) {
+                        Some((p, ShortcutClick::Primary))
+                    } else if gestures.context_click_focused.with(|c| c.contains(shortcut)) {
+                        Some((p, ShortcutClick::Context))
+                    } else {
+                        None
+                    };
                 }
             }
         }
-        let focus = focus_enabled.or(focus_disabled);
 
-        // click focused if no click or focus request matched.
-        if click.is_none() && focus.is_none() {
-            if let Some(p) = focused {
-                click = if gestures.click_focused.with(|c| c.contains(shortcut)) {
-                    Some((p, ShortcutClick::Primary))
-                } else if gestures.context_click_focused.with(|c| c.contains(shortcut)) {
-                    Some((p, ShortcutClick::Context))
-                } else {
-                    None
-                };
-            }
-        }
+        commands.append(&mut cmd_window);
+        commands.append(&mut cmd_app);
 
-        let commands = cmd_focused_widget
-            .or(cmd_not_focused_widget)
-            .into_iter()
-            .chain(cmd_window)
-            .chain(cmd_other)
-            .collect();
-
-        if cleanup {
+        if some_primary_dropped || some_ctx_dropped || some_focus_dropped {
             gestures.cleanup();
         }
 
