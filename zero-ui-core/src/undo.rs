@@ -230,6 +230,11 @@ impl UNDO {
         r
     }
 
+    /// Runs `f` in a new `scope`. All undo actions inside `f` are registered in the `scope`.
+    pub fn with_scope<R>(&self, scope: &mut WidgetUndoScope, f: impl FnOnce() -> R) -> R {
+        UNDO_SCOPE_CTX.with_context(&mut scope.0, f)
+    }
+
     /// Runs `f` in a disabled scope, all undo actions registered inside `f` are ignored.
     pub fn with_disabled<R>(&self, f: impl FnOnce() -> R) -> R {
         let mut scope = UndoScope::default();
@@ -247,7 +252,7 @@ impl UNDO {
     /// Note that this will keep strong clones of previous and new value every time the variable changes, but
     /// it will only keep weak references to the variable. Dropping the handle or the var will not remove undo/redo
     /// entries for it, they will still try to assign the variable, failing silently if the variable is dropped too.
-    /// 
+    ///
     /// Var updates caused by undo and redo are tagged with [`UndoVarModifyTag`].
     pub fn watch_var<T: VarValue>(&self, description: impl Into<Txt>, var: impl Var<T>) -> VarHandle {
         if var.capabilities().is_always_read_only() {
@@ -411,6 +416,60 @@ command! {
         shortcut: [shortcut!(CTRL+Y)],
     };
 }
+
+/// Represents an widget undo scope.
+///
+/// See [`UNDO.with_scope`] for more details.
+///
+/// [`UNDO.with_scope`]: UNDO::with_scope
+pub struct WidgetUndoScope(Option<Arc<UndoScope>>);
+impl WidgetUndoScope {
+    /// New, not inited in an widget.
+    pub const fn new() -> Self {
+        Self(None)
+    }
+
+    /// if the scope is already inited in a widget.
+    pub fn is_inited(&self) -> bool {
+        self.0.is_some()
+    }
+
+    /// Init the scope in the [`WIDGET`].
+    pub fn init(&mut self) {
+        let mut scope = UndoScope::default();
+        *scope.id.get_mut() = Some(WIDGET.id());
+    }
+
+    /// Sets the [`WIDGET`] info.
+    pub fn info(&mut self, info: &mut crate::widget_info::WidgetInfoBuilder) {
+        info.flag_meta(&FOCUS_SCOPE_ID);
+    }
+
+    /// Deinit the scope in the [`WIDGET`].
+    ///
+    /// This clears the undo/redo stack of the scope.
+    pub fn deinit(&mut self) {
+        self.0 = None;
+    }
+
+    /// Sets if the undo/redo is enabled in this scope.
+    ///
+    /// Is `true` by default.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.0.as_ref().unwrap().enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    /// Gets if the undo stack is not empty.
+    pub fn can_undo(&self) -> bool {
+        !self.0.as_ref().unwrap().undo.lock().is_empty()
+    }
+
+    /// Gets if the redo stack is not empty.
+    pub fn can_redo(&self) -> bool {
+        !self.0.as_ref().unwrap().redo.lock().is_empty()
+    }
+}
+
 struct UndoScope {
     id: Atomic<Option<WidgetId>>,
     undo: Mutex<Vec<UndoEntry>>,
@@ -564,14 +623,6 @@ impl UndoScope {
         }
     }
 
-    fn set_enabled(&self, enabled: bool) {
-        self.enabled.store(enabled, Ordering::Relaxed);
-        if !enabled {
-            self.undo.lock().clear();
-            self.redo.lock().clear();
-        }
-    }
-
     fn id(&self) -> Option<WidgetId> {
         self.id.load(Ordering::Relaxed)
     }
@@ -704,78 +755,6 @@ context_local! {
 app_local! {
     static UNDO_SV: UndoService = UndoService::default();
 }
-
-mod properties {
-    use std::sync::Arc;
-
-    use super::*;
-    use crate::{event::CommandHandle, widget_instance::*, *};
-
-    /// Defines an undo/redo scope in the widget.
-    ///
-    /// If `enabled` is `false` undo/redo is disabled for the widget and descendants, if it is
-    /// `true` all undo/redo actions
-    #[property(WIDGET)]
-    pub fn undo_scope(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        let mut scope = None;
-        let mut undo_cmd = CommandHandle::dummy();
-        let mut redo_cmd = CommandHandle::dummy();
-        let enabled = enabled.into_var();
-        match_node(child, move |c, mut op| {
-            match &mut op {
-                UiNodeOp::Init => {
-                    let id = WIDGET.id();
-                    let s = UndoScope {
-                        id: Atomic::new(Some(id)),
-                        enabled: AtomicBool::new(enabled.get()),
-                        ..Default::default()
-                    };
-                    scope = Some(Arc::new(s));
-
-                    undo_cmd = UNDO_CMD.scoped(id).subscribe(false);
-                    redo_cmd = REDO_CMD.scoped(id).subscribe(false);
-
-                    WIDGET.sub_var(&enabled);
-                }
-                UiNodeOp::Deinit => {
-                    UNDO_SCOPE_CTX.with_context(&mut scope, || c.deinit());
-                    scope = None;
-                    undo_cmd = CommandHandle::dummy();
-                    redo_cmd = CommandHandle::dummy();
-                    return;
-                }
-                UiNodeOp::Info { info } => {
-                    info.flag_meta(&FOCUS_SCOPE_ID);
-                }
-                UiNodeOp::Event { update } => {
-                    let id = WIDGET.id();
-                    if let Some(args) = UNDO_CMD.scoped(id).on_unhandled(update) {
-                        args.propagation().stop();
-                        let scope = scope.as_ref().unwrap();
-                        scope.undo_n(args.param::<u32>().copied().unwrap_or(1));
-                    } else if let Some(args) = REDO_CMD.scoped(id).on_unhandled(update) {
-                        args.propagation().stop();
-                        let scope = scope.as_ref().unwrap();
-                        scope.redo_n(args.param::<u32>().copied().unwrap_or(1));
-                    }
-                }
-                UiNodeOp::Update { .. } => {
-                    if let Some(enabled) = enabled.get_new() {
-                        scope.as_ref().unwrap().set_enabled(enabled);
-                    }
-                }
-                _ => {}
-            }
-
-            UNDO_SCOPE_CTX.with_context(&mut scope, || c.op(op));
-
-            let scope = scope.as_ref().unwrap();
-            undo_cmd.set_enabled(!scope.undo.lock().is_empty());
-            redo_cmd.set_enabled(!scope.redo.lock().is_empty());
-        })
-    }
-}
-pub use properties::undo_scope;
 
 /// Undo extension methods for widget info.
 pub trait WidgetInfoUndoExt {

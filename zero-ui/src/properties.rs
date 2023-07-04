@@ -22,6 +22,9 @@ pub mod focus;
 pub mod states;
 pub mod transform;
 
+mod undo;
+pub use undo::*;
+
 mod capture;
 pub use capture::*;
 
