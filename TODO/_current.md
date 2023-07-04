@@ -1,5 +1,3 @@
-* Updated webrender to fx115.
-
 # TextInput
 
 * Disable editable when text is not enabled.
