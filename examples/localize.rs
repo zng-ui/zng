@@ -104,54 +104,57 @@ fn window_content() -> impl UiNode {
 /// multiple languages on a list that the user can sort, this way missing messages
 /// of the top preference can have a better fallback.
 fn locale_menu() -> impl UiNode {
-    presenter(
-        L10N.available_langs(),
-        wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
-            let mut actual = vec![];
-            let mut pseudo = vec![];
-            let mut template = vec![];
-
-            for key in langs.keys() {
-                if key.language.as_str() == "template" {
-                    template.push(key);
-                } else if key.language.as_str() == "pseudo" {
-                    pseudo.push(key);
-                } else {
-                    actual.push(key);
-                }
-            }
-
-            tracing::info!(
-                "{} langs, {} pseudo and {} template available",
-                actual.len(),
-                pseudo.len(),
-                template.len()
-            );
-
-            actual.sort();
-            pseudo.sort();
-            template.sort();
-
-            let others = pseudo.into_iter().chain(template).map(|l| (l, false));
-            let options = actual.into_iter().map(|l| (l, true)).chain(others);
-
-            let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
-            Stack! {
-                align = Align::TOP_LEFT;
-                direction = StackDirection::left_to_right();
-                spacing = 5;
-                margin = 10;
-                toggle::selector = toggle::Selector::single_opt(selected);
-                children = options.map(|(l, actual)| {
-                    Toggle! {
-                        text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
-                        child = Text!("{l}");
-                        value::<Lang> = l.clone();
+    Container! {
+        alt_focus_scope = true;
+        child = presenter(
+            L10N.available_langs(),
+            wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
+                let mut actual = vec![];
+                let mut pseudo = vec![];
+                let mut template = vec![];
+    
+                for key in langs.keys() {
+                    if key.language.as_str() == "template" {
+                        template.push(key);
+                    } else if key.language.as_str() == "pseudo" {
+                        pseudo.push(key);
+                    } else {
+                        actual.push(key);
                     }
-                }).collect::<UiNodeVec>()
-            }
-        }),
-    )
+                }
+    
+                tracing::info!(
+                    "{} langs, {} pseudo and {} template available",
+                    actual.len(),
+                    pseudo.len(),
+                    template.len()
+                );
+    
+                actual.sort();
+                pseudo.sort();
+                template.sort();
+    
+                let others = pseudo.into_iter().chain(template).map(|l| (l, false));
+                let options = actual.into_iter().map(|l| (l, true)).chain(others);
+    
+                let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
+                Stack! {
+                    align = Align::TOP_LEFT;
+                    direction = StackDirection::left_to_right();
+                    spacing = 5;
+                    margin = 10;
+                    toggle::selector = toggle::Selector::single_opt(selected);
+                    children = options.map(|(l, actual)| {
+                        Toggle! {
+                            text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
+                            child = Text!("{l}");
+                            value::<Lang> = l.clone();
+                        }
+                    }).collect::<UiNodeVec>()
+                }
+            }),
+        )
+    }
 }
 
 // l10n-### Another standalone comment, also added to the top of all template files.

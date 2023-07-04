@@ -1,7 +1,7 @@
-* Review shortcuts in all examples.
-
 # TextInput
 
+* `accepts_tab = false` causes panic on tab.
+    - `accepts_enter = false` too (on enter).
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down
@@ -24,6 +24,10 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
+# Gradient
+
+* Add cool examples of radial and conic gradients.
+
 # Undo Service
 
 * Custom `Text!` undo action.
@@ -43,3 +47,12 @@
 
 * Implement OpenGL example.
     - Overlay and texture image.
+
+## WR Items
+
+* Finish items implemented by webrender.
+    - Nine-patch border.
+    - Backdrop filter.
+    - iFrame.
+    - Review why there is a `push_shadow`?
+        - Can already do shadow with filters.

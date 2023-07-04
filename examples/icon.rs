@@ -87,6 +87,9 @@ fn icons() -> impl UiNode {
                 margin = (15, 0, 0, 0);
                 padding = (7, 15, 7, 26);
                 min_width = 40.vh_pct();
+                focus_shortcut = [shortcut![S], shortcut![CTRL+F]];
+                accepts_tab = false;
+                accepts_enter = false;
                 foreground = Icon! {
                     align = Align::LEFT;
                     ico = icons::outlined::SEARCH;
@@ -99,6 +102,7 @@ fn icons() -> impl UiNode {
                     opacity = 50.pct();
                     visibility = search.map(|t| t.is_empty().into());
                 };
+                tooltip = Tip!(Text!("search icons (S, Ctrl+F)"));
             },
             Stack! {
                 margin = (10, 0, 20, 0);
