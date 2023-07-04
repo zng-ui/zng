@@ -85,8 +85,8 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                             scope.init();
 
                             let id = WIDGET.id();
-                            undo_cmd = UNDO_CMD.scoped(id).subscribe(true);
-                            redo_cmd = REDO_CMD.scoped(id).subscribe(true);
+                            undo_cmd = UNDO_CMD.scoped(id).subscribe(false);
+                            redo_cmd = REDO_CMD.scoped(id).subscribe(false);
                         }
                     } else if scope.is_inited() {
                         scope.deinit();

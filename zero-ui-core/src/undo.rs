@@ -438,6 +438,7 @@ impl WidgetUndoScope {
     pub fn init(&mut self) {
         let mut scope = UndoScope::default();
         *scope.id.get_mut() = Some(WIDGET.id());
+        self.0 = Some(Arc::new(scope));
     }
 
     /// Sets the [`WIDGET`] info.
