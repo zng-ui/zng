@@ -25,6 +25,19 @@
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
 * "Zalgo" text causes glyph.x > line.max_x.
+* Test clicks in:
+1. ﷽
+
+2. 𒐫
+
+3. 𒈙
+
+4. ⸻
+
+5. ꧅
+
+Number 1 followed by line break causes panic by keyboard and mouse.
+
 
 # Gradient
 
