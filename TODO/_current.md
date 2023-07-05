@@ -1,15 +1,5 @@
 # TextInput
 
-* What happens with undo if the text var is modified externally?
-    - Say a text var in a "properties grid".
-    - It is editable from the text and as a part of whatever is selected in the "canvas".
-    - How does the undo even work in this case?
-        - Review Microsoft Blend 
-        - Unreal Engine.
-            - Uses a global undo history.
-            - Property text inputs has an undo context menu, it does nothing.
-
-
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down

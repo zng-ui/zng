@@ -2,9 +2,20 @@
 
 use crate::prelude::new_widget::*;
 
-/// Text box widget.
+/// Simple text editor widget.
+/// 
+/// If `txt` is set to a variable that can be modified the widget becomes interactive, it implements
+/// the usual *text box* capabilities, keyboard controlled editing of short text in a single style, mouse
+/// selecting and caret positioning.
+/// 
+/// You can also use the [`text::commands`] to edit the text.
+/// 
+/// # Undo/Redo
+/// 
+/// Undo/redo is enabled by default, the widget is an undo scope and handles undo commands. Note that external
+/// changes to the `txt` variable will clear the undo stack, only changes done by the widget can be undone.
 #[widget($crate::widgets::TextInput)]
-pub struct TextInput(StyleMix<EnabledMix<text::Text>>);
+pub struct TextInput(StyleMix<UndoMix<EnabledMix<text::Text>>>);
 impl TextInput {
     fn widget_intrinsic(&mut self) {
         widget_set! {

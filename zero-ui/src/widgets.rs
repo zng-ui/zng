@@ -3,6 +3,7 @@
 pub mod layouts;
 
 pub mod focusable_mix;
+pub mod undo_mix;
 
 pub mod ansi_text;
 pub use ansi_text::AnsiText;

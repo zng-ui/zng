@@ -361,6 +361,7 @@ pub mod prelude {
             layouts::{stack_nodes, stack_nodes_layout_by},
             presenter, presenter_opt, style,
             style::{style_fn, Style, StyleFn, StyleMix},
+            undo_mix::UndoMix,
             wgt_fn, Container, WidgetFn,
         };
     }

@@ -1,8 +1,6 @@
-//! Focusable widget mixin, properties and nodes..
+//! Focusable widget mixin, properties and nodes.
 
 use crate::prelude::new_widget::*;
-
-use crate::core::widget_mixin;
 
 /// Focusable widget mixin. Enables keyboard focusing on the widget and adds a focused highlight visual.
 #[widget_mixin]
