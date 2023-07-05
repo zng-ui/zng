@@ -1,6 +1,6 @@
 # TextInput
 
-* Refactor all text edit actions into `TextEditOp` to support undo.
+* What happens with undo if the text var is modified externally?
 
 * Support replace (Insert mode in command line).
 * Support buttons:
@@ -45,12 +45,8 @@ Number 1 followed by line break causes panic by keyboard and mouse.
 
 # Undo Service
 
+* Can still redo after new undo.
 * Clear.
-
-* Custom `Text!` undo action.
-    - No need to clone the entire text.
-    - Track caret position?
-        - Or at least set it when undoing an insert for example.
 
 - UNDO_CMD.
     - Add undo list info to the command meta?

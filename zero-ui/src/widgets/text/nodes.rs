@@ -14,7 +14,6 @@ use crate::{
         focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
         keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
         text::*,
-        undo::UndoOp,
         window::WindowLoadingHandle,
     },
     prelude::new_widget::*,
@@ -40,6 +39,12 @@ pub struct CaretInfo {
     /// This is the insertion offset on the text, it can be the text length.
     pub index: Option<usize>,
 
+    /// Value incremented by one every time the `index` is set.
+    ///
+    /// This is used to signal interaction with the `index` value by [`TextEditOp`]
+    /// even if the interaction only sets-it to the index same value.
+    pub index_version: u8,
+
     /// If the index was set by using the [`caret_retained_x`].
     ///
     /// [`caret_retained_x`]: LayoutText::caret_retained_x
@@ -50,8 +55,16 @@ impl fmt::Debug for CaretInfo {
         f.debug_struct("CaretInfo")
             .field("opacity", &self.opacity.debug())
             .field("index", &self.index)
+            .field("index_version", &self.index_version)
             .field("used_retained_x", &self.used_retained_x)
             .finish()
+    }
+}
+impl CaretInfo {
+    /// Set the index and update the index version.
+    pub fn set_index(&mut self, index: usize) {
+        self.index = Some(index);
+        self.index_version = self.index_version.wrapping_add(1);
     }
 }
 
@@ -110,6 +123,11 @@ impl ResolvedText {
     /// Panics if requested in a node outside [`resolve_text`].
     pub fn get() -> Arc<ResolvedText> {
         RESOLVED_TEXT.get()
+    }
+
+    fn call_edit_op(ctx: &mut Option<Self>, op: impl FnOnce()) {
+        RESOLVED_TEXT.with_context_opt(ctx, op);
+        ctx.as_mut().unwrap().pending_edit = true;
     }
 }
 
@@ -331,6 +349,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 caret: Mutex::new(CaretInfo {
                     opacity: caret_opacity,
                     index: None,
+                    index_version: 0,
                     used_retained_x: false,
                 }),
             });
@@ -390,19 +409,22 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
             } else if TEXT_EDITABLE_VAR.get() {
-                let resolved = resolved.as_mut().unwrap();
-                let caret = resolved.caret.get_mut();
-                let prev_caret_index = caret.index;
-                let caret_index = &mut caret.index;
+                let prev_caret = {
+                    let caret = resolved.as_mut().unwrap().caret.get_mut();
+                    (caret.index, caret.index_version)
+                };
 
                 if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
                     if args.is_disable(WIDGET.id()) {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
-                        caret.opacity = var(0.fct()).read_only();
+                        resolved.as_mut().unwrap().caret.get_mut().opacity = var(0.fct()).read_only();
                     }
                 }
 
-                if WIDGET.info().interactivity().is_enabled() {
+                if !resolved.as_mut().unwrap().pending_edit
+                    && text.capabilities().can_modify()
+                    && WIDGET.info().interactivity().is_enabled()
+                {
                     if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                         if !args.propagation().is_stopped()
                             && text.capabilities().contains(VarCapabilities::MODIFY)
@@ -411,56 +433,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             args.propagation().stop();
 
                             if args.is_backspace() {
-                                // backspace removes mostly by char.
-                                if let Some(caret_idx) = caret_index {
-                                    let rmv = resolved.text.backspace_range(*caret_idx);
-                                    if !rmv.is_empty() {
-                                        *caret_idx = rmv.start;
-                                        let _ = text.modify(move |t| {
-                                            let t = t.to_mut().to_mut();
-                                            t.replace_range(rmv, "");
-                                        });
-                                        resolved.pending_edit = true;
-                                    }
+                                if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(0) > 0 {
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace("backspace").call(&text));
                                 }
                             } else if args.is_delete() {
-                                // delete removes by grapheme cluster
-                                if let Some(caret_idx) = caret_index {
-                                    let rmv = resolved.text.delete_range(*caret_idx);
-                                    if !rmv.is_empty() {
-                                        let rmv_start = rmv.start;
-
-                                        let _ = text.modify(move |t| {
-                                            let t = t.to_mut().to_mut();
-                                            t.replace_range(rmv, "");
-                                        });
-                                        resolved.pending_edit = true;
-
-                                        // restore animation when the caret_index did not change
-                                        if *caret_idx == rmv_start {
-                                            caret.used_retained_x = false;
-                                            caret.opacity = KEYBOARD.caret_animation();
-                                            EditData::get(&mut edit_data).caret_animation =
-                                                caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
-                                        } else {
-                                            *caret_idx = rmv_start;
-                                        }
-                                    }
+                                let r = resolved.as_mut().unwrap();
+                                let caret_idx = r.caret.get_mut().index.unwrap_or(0);
+                                if !r.text.delete_range(caret_idx).is_empty() {
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete("delete").call(&text));
                                 }
                             } else if let Some(c) = args.insert_char() {
-                                let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get())
-                                    || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
-                                    || caret_index.is_none();
-
+                                let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                 if !skip {
-                                    // insert
-                                    let i = caret_index.unwrap();
-                                    *caret_index = Some(i + c.len_utf8());
-
-                                    let _ = text.modify(move |t| {
-                                        t.to_mut().to_mut().insert(i, c);
-                                    });
-                                    resolved.pending_edit = true;
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert("type", Txt::from_char(c)).call(&text));
                                 }
                             }
                         }
@@ -481,6 +466,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     args.propagation().stop();
 
                                     if args.state == KeyState::Pressed {
+                                        let resolved = resolved.as_mut().unwrap();
+                                        let caret_index = &mut resolved.caret.get_mut().index;
+
                                         if let Some(i) = caret_index {
                                             *i = resolved.text.next_insert_index(*i);
                                         }
@@ -490,6 +478,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     args.propagation().stop();
 
                                     if args.state == KeyState::Pressed {
+                                        let resolved = resolved.as_mut().unwrap();
+                                        let caret_index = &mut resolved.caret.get_mut().index;
+
                                         if let Some(i) = caret_index {
                                             *i = resolved.text.prev_insert_index(*i);
                                         }
@@ -499,6 +490,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     args.propagation().stop();
 
                                     if args.state == KeyState::Pressed {
+                                        let resolved = resolved.as_mut().unwrap();
+                                        let caret_index = &mut resolved.caret.get_mut().index;
+
                                         if let Some(i) = caret_index {
                                             if args.modifiers.is_only_ctrl() {
                                                 *i = 0;
@@ -512,6 +506,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     args.propagation().stop();
 
                                     if args.state == KeyState::Pressed {
+                                        let resolved = resolved.as_mut().unwrap();
+                                        let caret_index = &mut resolved.caret.get_mut().index;
+
                                         if let Some(i) = caret_index {
                                             if args.modifiers.is_only_ctrl() {
                                                 *i = resolved.text.text().len();
@@ -525,6 +522,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             }
                         }
                     } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                        let resolved = resolved.as_mut().unwrap();
+                        let caret = resolved.caret.get_mut();
+                        let caret_index = &mut caret.index;
+
                         if args.is_focused(WIDGET.id()) {
                             if caret_index.is_none() {
                                 *caret_index = Some(0);
@@ -549,35 +550,27 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {
-                                // insert
-                                TextEditOp::new("paste", move |text, op| match op {
-                                    UndoOp::Undo => todo!(),
-                                    UndoOp::Redo => todo!(), // !!: TODO, how to handle caret_index change animation
+                                ResolvedText::call_edit_op(&mut resolved, || {
+                                    TextEditOp::insert("paste", paste).call(&text);
                                 });
-
-                                let i = caret_index.unwrap_or(0);
-                                *caret_index = Some(i + paste.len());
-
-                                let _ = text.modify(move |t| {
-                                    t.to_mut().to_mut().insert_str(i, paste.as_str());
-                                });
-                                resolved.pending_edit = true;
                             }
                         }
                     } else if let Some(args) = EDIT_CMD.scoped(WIDGET.id()).on(update) {
                         args.propagation().stop();
 
-                        // !!: TODO, call inside RESOLVED_TEXT.with_context_opt
                         if let Some(op) = args.param::<UndoTextEditOp>() {
-                            op.call(&text);
+                            ResolvedText::call_edit_op(&mut resolved, || op.call(&text));
                         } else if let Some(op) = args.param::<TextEditOp>() {
-                            op.clone().call(&text);
+                            ResolvedText::call_edit_op(&mut resolved, || op.clone().call(&text));
                         }
                     }
 
-                    if *caret_index != prev_caret_index {
+                    let resolved = resolved.as_mut().unwrap();
+                    let caret = resolved.caret.get_mut();
+
+                    if (caret.index, caret.index_version) != prev_caret {
                         caret.used_retained_x = false;
-                        if caret_index.is_none() {
+                        if caret.index.is_none() {
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                             caret.opacity = var(0.fct()).read_only();
                         } else {

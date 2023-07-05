@@ -248,6 +248,11 @@ impl VarCapabilities {
     pub fn is_always_static(self) -> bool {
         self.is_empty()
     }
+
+    /// Has the `MODIFY` capability.
+    pub fn can_modify(self) -> bool {
+        self.contains(Self::MODIFY)
+    }
 }
 
 /// Error when an attempt to modify a variable without the [`MODIFY`] capability is made.
