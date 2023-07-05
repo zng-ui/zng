@@ -1,7 +1,10 @@
 # TextInput
 
-* "Zalgo" text causes glyph.x > line.max_x.
 * Test clicks in, does not snap to the tips, clicking at width 70% goes to the start:
+    - Problem is caused by these chars being rendered using multiple glyphs.
+        - We just check the middle of a single glyph.
+    - They are sort of inverse of ligatures.
+```
 1. ﷽
 
 2. 𒐫
@@ -12,6 +15,7 @@
 
 5. ꧅
 
+```
 
 * What happens with undo if the text var is modified externally?
     - Say a text var in a "properties grid".
@@ -58,9 +62,6 @@
     - Can be `CowVar<u32>`, with the parent context config?
 
 * Test undo actions trying to register undo.
-
-* Should windows be undo scopes?
-    - Looks like it should be by widget only.
 
 - UNDO_CMD.
     - Add undo list info to the command meta?

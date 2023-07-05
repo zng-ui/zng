@@ -952,6 +952,24 @@ impl ShapedText {
     fn debug_assert_ranges(&self) {
         #[cfg(debug_assertions)]
         {
+            #[allow(unused)]
+            macro_rules! trace_assert {
+                ($cond:expr $(,)?) => {
+                    #[allow(clippy::all)]
+                    if !($cond) {
+                        tracing::error!("{}", stringify!($cond));
+                        return;
+                    }
+                };
+                ($cond:expr, $($arg:tt)+) => {
+                    #[allow(clippy::all)]
+                    if !($cond) {
+                        tracing::error!($($arg)*);
+                        return;
+                    }
+                };
+            }
+
             let mut prev_seg_end = 0;
             for seg in &self.segments.0 {
                 assert!(seg.end >= prev_seg_end);
@@ -967,6 +985,9 @@ impl ShapedText {
                 let line_max = line.x_offset + line.width;
                 let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
                 for g in &self.glyphs[glyphs.iter()] {
+                    // false positive in cases of heavy use of combining chars
+                    // only observed in "Zalgo" text, remove if we there is a legitimate
+                    // Script that causing this error.
                     trace_assert!(
                         g.point.x <= line_max,
                         "glyph.x({:?}) > line[{i}].x+width({:?})",
