@@ -1139,8 +1139,8 @@ impl ShortcutActions {
         fn distance_key(focused: &Option<InteractionPath>, p: &InteractionPath) -> u32 {
             let mut key = u32::MAX - 1;
             if let Some(focused) = focused {
-                key -= 1;
                 if p.window_id() == focused.window_id() {
+                    key -= 1;
                     if let Some(i) = p.widgets_path().iter().position(|&id| id == focused.widget_id()) {
                         // is descendant of focused (or it)
                         key = (p.widgets_path().len() - i) as u32;

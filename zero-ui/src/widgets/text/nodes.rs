@@ -407,12 +407,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             && text.capabilities().contains(VarCapabilities::MODIFY)
                             && args.is_enabled(WIDGET.id())
                         {
-                            if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
-                                || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
-                                || caret_index.is_none()
-                            {
-                                return;
-                            }
                             args.propagation().stop();
 
                             if args.is_backspace() {
@@ -453,14 +447,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     }
                                 }
                             } else if let Some(c) = args.insert_char() {
-                                // insert
-                                let i = caret_index.unwrap();
-                                *caret_index = Some(i + c.len_utf8());
+                                let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get())
+                                    || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
+                                    || caret_index.is_none();
 
-                                let _ = text.modify(move |t| {
-                                    t.to_mut().to_mut().insert(i, c);
-                                });
-                                resolved.pending_edit = true;
+                                if !skip {
+                                    // insert
+                                    let i = caret_index.unwrap();
+                                    *caret_index = Some(i + c.len_utf8());
+
+                                    let _ = text.modify(move |t| {
+                                        t.to_mut().to_mut().insert(i, c);
+                                    });
+                                    resolved.pending_edit = true;
+                                }
                             }
                         }
                     } else if let Some(args) = KEY_INPUT_EVENT.on(update) {

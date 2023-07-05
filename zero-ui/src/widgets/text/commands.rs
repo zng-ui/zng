@@ -96,7 +96,6 @@ impl UndoAction for UndoTextEditOp {
         self
     }
 }
-
 impl RedoAction for UndoTextEditOp {
     fn redo(self: Box<Self>) -> Box<dyn UndoAction> {
         EDIT_CMD.scoped(self.target).notify_param(Self {

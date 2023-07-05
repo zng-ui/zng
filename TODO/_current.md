@@ -1,7 +1,5 @@
 # TextInput
 
-* `accepts_tab = false` causes panic on tab.
-    - `accepts_enter = false` too (on enter).
 * Make `TextInput!` an undo scope by default.
 * Refactor all text edit actions into `TextEditOp` to support undo.
 
