@@ -14,6 +14,7 @@ impl TextInput {
             capture_mouse = true;
             txt_align = Align::TOP_START;
             focusable = true;
+            undo_scope = true;
             style_fn = STYLE_VAR;
         }
     }

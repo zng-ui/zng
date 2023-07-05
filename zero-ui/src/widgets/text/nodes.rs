@@ -14,6 +14,7 @@ use crate::{
         focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
         keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
         text::*,
+        undo::UndoOp,
         window::WindowLoadingHandle,
     },
     prelude::new_widget::*,
@@ -549,6 +550,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {
                                 // insert
+                                TextEditOp::new("paste", move |text, op| match op {
+                                    UndoOp::Undo => todo!(),
+                                    UndoOp::Redo => todo!(), // !!: TODO, how to handle caret_index change animation
+                                });
+
                                 let i = caret_index.unwrap_or(0);
                                 *caret_index = Some(i + paste.len());
 
@@ -561,6 +567,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     } else if let Some(args) = EDIT_CMD.scoped(WIDGET.id()).on(update) {
                         args.propagation().stop();
 
+                        // !!: TODO, call inside RESOLVED_TEXT.with_context_opt
                         if let Some(op) = args.param::<UndoTextEditOp>() {
                             op.call(&text);
                         } else if let Some(op) = args.param::<TextEditOp>() {

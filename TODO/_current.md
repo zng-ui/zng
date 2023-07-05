@@ -1,6 +1,5 @@
 # TextInput
 
-* Make `TextInput!` an undo scope by default.
 * Refactor all text edit actions into `TextEditOp` to support undo.
 
 * Support replace (Insert mode in command line).
@@ -24,6 +23,8 @@
     - Char event is not linked with key press event stop propagation does nothing.
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
+
+* "Zalgo" text causes glyph.x > line.max_x.
 
 # Gradient
 
