@@ -441,7 +441,7 @@ impl ShapedText {
         glyphs_range: IndexRange,
     ) -> impl Iterator<Item = (&Font, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
         let mut gi = glyphs_range.start();
-        let seg_x = self.glyphs[gi].point.x;
+        let seg_x = if gi < self.glyphs.len() { self.glyphs[gi].point.x } else { 0.0 };
         let seg_advance = self.segments.0[seg_idx].advance;
         self.glyphs_range(glyphs_range).map(move |(font, glyphs)| {
             let g_adv = glyphs.iter().map(move |g| {
@@ -1053,63 +1053,64 @@ impl ShapedText {
                     if is_rtl {
                         glyph_take += 1;
                     }
-                    let mut search_lig_data = None;
-
-                    'outer: for (font, glyphs) in seg.glyphs_with_x_advance() {
-                        for (g, advance) in glyphs {
-                            search_lig_data = Some((font, g.index, advance));
-
-                            if glyph_take == 0 {
-                                break 'outer;
-                            }
-                            origin_x += advance;
-                            glyph_take -= 1;
-                        }
-                    }
 
                     if search_lig {
-                        let (font, g_index, advance) = search_lig_data.unwrap();
+                        let mut search_lig_data = None;
 
-                        let lig_start = txt_range.start() + clusters[cluster_i] as usize;
-                        let lig_end = if is_rtl {
-                            if cluster_i == 0 {
-                                txt_range.end()
-                            } else {
-                                txt_range.start() + clusters[cluster_i - 1] as usize
-                            }
-                        } else {
-                            clusters
-                                .get(cluster_i + 1)
-                                .map(|c| txt_range.start() + *c as usize)
-                                .unwrap_or_else(|| txt_range.end())
-                        };
+                        'outer: for (font, glyphs) in seg.glyphs_with_x_advance() {
+                            for (g, advance) in glyphs {
+                                search_lig_data = Some((font, g.index, advance));
 
-                        let maybe_lig = &full_text[lig_start..lig_end];
-
-                        let lig_len = unicode_segmentation::UnicodeSegmentation::grapheme_indices(maybe_lig, true).count();
-                        if lig_len > 1 {
-                            // is ligature
-
-                            let lig_taken = &full_text[lig_start..index];
-                            let lig_taken = unicode_segmentation::UnicodeSegmentation::grapheme_indices(lig_taken, true).count();
-
-                            for (i, lig_advance) in font.ligature_caret_offsets(g_index).enumerate() {
-                                if i == lig_taken {
-                                    // font provided ligature caret for index
-                                    origin_x += lig_advance;
-                                    search_lig = false;
-                                    break;
+                                if glyph_take == 0 {
+                                    break 'outer;
                                 }
+                                origin_x += advance;
+                                glyph_take -= 1;
                             }
+                        }
 
-                            if search_lig {
-                                // synthetic lig. caret
-                                let lig_advance = advance * (lig_taken as f32 / lig_len as f32);
-
-                                if is_rtl {
-                                    origin_x -= lig_advance;
+                        if let Some((font, g_index, advance)) = search_lig_data {
+                            let lig_start = txt_range.start() + clusters[cluster_i] as usize;
+                            let lig_end = if is_rtl {
+                                if cluster_i == 0 {
+                                    txt_range.end()
                                 } else {
-                                    origin_x += lig_advance;
+                                    txt_range.start() + clusters[cluster_i - 1] as usize
+                                }
+                            } else {
+                                clusters
+                                    .get(cluster_i + 1)
+                                    .map(|c| txt_range.start() + *c as usize)
+                                    .unwrap_or_else(|| txt_range.end())
+                            };
+
+                            let maybe_lig = &full_text[lig_start..lig_end];
+
+                            let lig_len = unicode_segmentation::UnicodeSegmentation::grapheme_indices(maybe_lig, true).count();
+                            if lig_len > 1 {
+                                // is ligature
+
+                                let lig_taken = &full_text[lig_start..index];
+                                let lig_taken = unicode_segmentation::UnicodeSegmentation::grapheme_indices(lig_taken, true).count();
+
+                                for (i, lig_advance) in font.ligature_caret_offsets(g_index).enumerate() {
+                                    if i == lig_taken {
+                                        // font provided ligature caret for index
+                                        origin_x += lig_advance;
+                                        search_lig = false;
+                                        break;
+                                    }
+                                }
+
+                                if search_lig {
+                                    // synthetic lig. caret
+                                    let lig_advance = advance * (lig_taken as f32 / lig_len as f32);
+
+                                    if is_rtl {
+                                        origin_x -= lig_advance;
+                                    } else {
+                                        origin_x += lig_advance;
+                                    }
                                 }
                             }
                         }

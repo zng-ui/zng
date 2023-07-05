@@ -1,7 +1,7 @@
 # TextInput
 
 * "Zalgo" text causes glyph.x > line.max_x.
-* Test clicks in:
+* Test clicks in, does not snap to the tips, clicking at width 70% goes to the start:
 1. ﷽
 
 2. 𒐫
@@ -12,13 +12,16 @@
 
 5. ꧅
 
-Number 1 followed by line break causes panic by keyboard and mouse.
 
 * What happens with undo if the text var is modified externally?
     - Say a text var in a "properties grid".
     - It is editable from the text and as a part of whatever is selected in the "canvas".
     - How does the undo even work in this case?
-        - Review Microsoft Blend / Unreal Engine.
+        - Review Microsoft Blend 
+        - Unreal Engine.
+            - Uses a global undo history.
+            - Property text inputs has an undo context menu, it does nothing.
+
 
 * Support replace (Insert mode in command line).
 * Support buttons:
