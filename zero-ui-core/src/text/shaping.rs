@@ -341,6 +341,8 @@ impl ShapedText {
     /// the RTL text "لما " will have the space glyph first, then "’álif", "miim", "láam".
     ///
     /// All glyph points are set as offsets to the top-left of the text full text.
+    ///
+    /// Note that multiple glyphs can map to the same char and multiple chars can map to the same glyph.
     pub fn glyphs(&self) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
         self.fonts.iter_glyphs().map(move |(f, r)| (f, &self.glyphs[r.iter()]))
     }
@@ -453,6 +455,56 @@ impl ShapedText {
                     self.glyphs[gi].point.x - g.point.x
                 };
                 (*g, adv)
+            });
+
+            (font, g_adv)
+        })
+    }
+
+    fn seg_cluster_glyphs_with_x_advance(
+        &self,
+        seg_idx: usize,
+        glyphs_range: IndexRange,
+    ) -> impl Iterator<Item = (&Font, impl Iterator<Item = (u32, &[GlyphInstance], f32)>)> {
+        let mut gi = glyphs_range.start();
+        let seg_x = if gi < self.glyphs.len() { self.glyphs[gi].point.x } else { 0.0 };
+        let seg_advance = self.segments.0[seg_idx].advance;
+        let seg_clusters = self.clusters_range(glyphs_range);
+        let mut cluster_i = 0;
+
+        self.glyphs_range(glyphs_range).map(move |(font, glyphs)| {
+            let clusters = &seg_clusters[cluster_i..cluster_i + glyphs.len()];
+            cluster_i += glyphs.len();
+
+            struct Iter<'a> {
+                clusters: &'a [u32],
+                glyphs: &'a [GlyphInstance],
+            }
+            impl<'a> Iterator for Iter<'a> {
+                type Item = (u32, &'a [GlyphInstance]);
+
+                fn next(&mut self) -> Option<Self::Item> {
+                    if let Some(c) = self.clusters.first() {
+                        let end = self.clusters.iter().rposition(|rc| rc == c).unwrap();
+                        let glyphs = &self.glyphs[..=end];
+                        self.clusters = &self.clusters[end + 1..];
+                        self.glyphs = &self.glyphs[end + 1..];
+                        Some((*c, glyphs))
+                    } else {
+                        None
+                    }
+                }
+            }
+
+            let g_adv = Iter { clusters, glyphs }.map(move |(c, gs)| {
+                gi += gs.len();
+
+                let adv = if gi == glyphs_range.end() {
+                    (seg_x + seg_advance) - gs[0].point.x
+                } else {
+                    self.glyphs[gi].point.x - gs[0].point.x
+                };
+                (c, gs, adv)
             });
 
             (font, g_adv)
@@ -2127,20 +2179,41 @@ impl<'a> ShapedSegment<'a> {
     /// the RTL text "لما" will yield "’álif", "miim", "láam".
     ///
     /// All glyph points are set as offsets to the top-left of the text full text.
+    ///
+    /// Note that multiple glyphs can map to the same char and multiple chars can map to the same glyph, you can use the [`clusters`]
+    /// map to find the char for each glyph.
+    ///
+    /// [`clusters`]: Self::clusters
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> {
         let r = self.glyphs_range();
         self.text.glyphs_range(r)
     }
 
-    fn clusters(&self) -> &[u32] {
+    /// Map glyph -> char.
+    ///
+    /// Each [`glyphs`] glyph pairs with an entry in this slice that is the char byte index in [`text`].
+    ///
+    /// [`glyphs`]: Self::glyphs
+    /// [`text`]: Self::text
+    pub fn clusters(&self) -> &[u32] {
         let r = self.glyphs_range();
         self.text.clusters_range(r)
     }
 
-    /// Glyphs in the word or space, paired with the *x-advance*.
+    /// Glyphs in the segment, paired with the *x-advance*.
+    ///
+    /// Yields `(Font, [(glyph, advance)])`.
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyphs_range();
         self.text.seg_glyphs_with_x_advance(self.index, r)
+    }
+
+    /// Glyphs per cluster in the segment, paired with the *x-advance* of the cluster.
+    ///
+    /// Yields `(Font, [(cluster, [glyph], advance)])`.
+    pub fn cluster_glyphs_with_x_advance(&self) -> impl Iterator<Item = (&Font, impl Iterator<Item = (u32, &[GlyphInstance], f32)>)> {
+        let r = self.glyphs_range();
+        self.text.seg_cluster_glyphs_with_x_advance(self.index, r)
     }
 
     fn x_width(&self) -> (Px, Px) {
@@ -2372,95 +2445,98 @@ impl<'a> ShapedSegment<'a> {
         let txt_range = self.text_range();
         let is_rtl = self.direction().is_rtl();
         let x = x.0 as f32;
-        let mut i = 0;
-        // search glyph that contains `x` or is after it.
-        for (font, glyphs) in self.glyphs_with_x_advance() {
-            for (glyph, advance) in glyphs {
-                if x < glyph.point.x || glyph.point.x + advance > x {
-                    let clusters = self.clusters();
 
-                    let (glyph_cluster, next_cluster) = if is_rtl {
-                        (
-                            txt_range.start() + clusters[i] as usize,
-                            if i == 0 {
-                                txt_range.end()
-                            } else {
-                                txt_range.start() + clusters[i - 1] as usize
-                            },
-                        )
+        let seg_clusters = self.clusters();
+
+        for (font, clusters) in self.cluster_glyphs_with_x_advance() {
+            for (cluster, glyphs, advance) in clusters {
+                let found = x < glyphs[0].point.x || glyphs[0].point.x + advance > x;
+                if !found {
+                    continue;
+                }
+                let cluster_i = seg_clusters.iter().position(|&c| c == cluster).unwrap();
+
+                let char_a = txt_range.start() + cluster as usize;
+                let char_b = if is_rtl {
+                    if cluster_i == 0 {
+                        txt_range.end()
                     } else {
-                        let next_i = i + 1;
-                        (
-                            txt_range.start() + clusters[i] as usize,
-                            if next_i == clusters.len() {
-                                txt_range.end()
-                            } else {
-                                txt_range.start() + clusters[next_i] as usize
-                            },
-                        )
-                    };
+                        txt_range.start() + seg_clusters[cluster_i - 1] as usize
+                    }
+                } else {
+                    let next_cluster = cluster_i + glyphs.len();
+                    if next_cluster == seg_clusters.len() {
+                        txt_range.end()
+                    } else {
+                        txt_range.start() + seg_clusters[next_cluster] as usize
+                    }
+                };
 
-                    if next_cluster - glyph_cluster > 1 {
-                        // maybe ligature
-                        let text = &full_text[glyph_cluster..next_cluster];
+                if char_b - char_a > 1 && glyphs.len() == 1 {
+                    // maybe ligature
 
-                        let mut lig_parts = smallvec::SmallVec::<[u16; 6]>::new_const();
-                        for (i, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(text, true) {
-                            lig_parts.push(i as u16);
-                        }
+                    let text = &full_text[char_a..char_b];
 
-                        if lig_parts.len() > 1 {
-                            let x = x - glyph.point.x;
+                    let mut lig_parts = smallvec::SmallVec::<[u16; 6]>::new_const();
+                    for (i, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(text, true) {
+                        lig_parts.push(i as u16);
+                    }
 
-                            let mut split = true;
-                            // try font caret points
-                            for (i, font_caret) in font.ligature_caret_offsets(glyph.index).enumerate() {
-                                if i == lig_parts.len() {
-                                    break;
-                                }
-                                split = false;
+                    if lig_parts.len() > 1 {
+                        // is ligature
 
-                                if font_caret > x {
-                                    return glyph_cluster + lig_parts[i] as usize;
-                                }
+                        let x = x - glyphs[0].point.x;
+
+                        let mut split = true;
+                        for (i, font_caret) in font.ligature_caret_offsets(glyphs[0].index).enumerate() {
+                            if i == lig_parts.len() {
+                                break;
                             }
-                            if split {
-                                // no font caret, ligature glyph is split in equal parts
-                                let lig_part = advance / lig_parts.len() as f32;
-                                let mut lig_x = lig_part;
-                                if is_rtl {
-                                    for c in lig_parts.into_iter().rev() {
-                                        if lig_x > x {
-                                            return glyph_cluster + c as usize;
-                                        }
-                                        lig_x += lig_part;
+                            split = false;
+
+                            if font_caret > x {
+                                // found font defined caret
+                                return char_a + lig_parts[i] as usize;
+                            }
+                        }
+                        if split {
+                            // no font caret, ligature glyph is split in equal parts
+                            let lig_part = advance / lig_parts.len() as f32;
+                            let mut lig_x = lig_part;
+                            if is_rtl {
+                                for c in lig_parts.into_iter().rev() {
+                                    if lig_x > x {
+                                        // fond
+                                        return char_a + c as usize;
                                     }
-                                } else {
-                                    for c in lig_parts {
-                                        if lig_x > x {
-                                            return glyph_cluster + c as usize;
-                                        }
-                                        lig_x += lig_part;
+                                    lig_x += lig_part;
+                                }
+                            } else {
+                                for c in lig_parts {
+                                    if lig_x > x {
+                                        return char_a + c as usize;
                                     }
+                                    lig_x += lig_part;
                                 }
                             }
                         }
                     }
-
-                    return if is_rtl {
-                        if x <= glyph.point.x + advance / 2.0 {
-                            next_cluster
-                        } else {
-                            glyph_cluster
-                        }
-                    } else if x <= glyph.point.x + advance / 2.0 {
-                        glyph_cluster
-                    } else {
-                        next_cluster
-                    };
                 }
+                // not ligature
 
-                i += 1;
+                let middle_x = glyphs[0].point.x + advance / 2.0;
+
+                return if is_rtl {
+                    if x <= middle_x {
+                        char_b
+                    } else {
+                        char_a
+                    }
+                } else if x <= middle_x {
+                    char_a
+                } else {
+                    char_b
+                };
             }
         }
 
