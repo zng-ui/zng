@@ -2,6 +2,9 @@
 
 * `accepts_tab = false` causes panic on tab.
     - `accepts_enter = false` too (on enter).
+* Make `TextInput!` an undo scope by default.
+* Refactor all text edit actions into `TextEditOp` to support undo.
+
 * Support replace (Insert mode in command line).
 * Support buttons:
     - page up and page down
@@ -29,6 +32,8 @@
 * Add cool examples of radial and conic gradients.
 
 # Undo Service
+
+* Clear.
 
 * Custom `Text!` undo action.
     - No need to clone the entire text.

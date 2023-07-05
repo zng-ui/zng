@@ -2,6 +2,7 @@
 
 use crate::prelude::new_widget::*;
 
+pub mod commands;
 pub mod nodes;
 mod text_properties;
 pub use text_properties::*;

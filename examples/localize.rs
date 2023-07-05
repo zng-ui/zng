@@ -112,7 +112,7 @@ fn locale_menu() -> impl UiNode {
                 let mut actual = vec![];
                 let mut pseudo = vec![];
                 let mut template = vec![];
-    
+
                 for key in langs.keys() {
                     if key.language.as_str() == "template" {
                         template.push(key);
@@ -122,21 +122,21 @@ fn locale_menu() -> impl UiNode {
                         actual.push(key);
                     }
                 }
-    
+
                 tracing::info!(
                     "{} langs, {} pseudo and {} template available",
                     actual.len(),
                     pseudo.len(),
                     template.len()
                 );
-    
+
                 actual.sort();
                 pseudo.sort();
                 template.sort();
-    
+
                 let others = pseudo.into_iter().chain(template).map(|l| (l, false));
                 let options = actual.into_iter().map(|l| (l, true)).chain(others);
-    
+
                 let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
                 Stack! {
                     align = Align::TOP_LEFT;

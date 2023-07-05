@@ -5,14 +5,19 @@ use std::{fmt, sync::Arc};
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
 
-use super::text_properties::*;
-use crate::core::{
-    focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
-    keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
-    text::*,
-    window::WindowLoadingHandle,
+use super::{
+    commands::{TextEditOp, UndoTextEditOp, EDIT_CMD},
+    text_properties::*,
 };
-use crate::prelude::new_widget::*;
+use crate::{
+    core::{
+        focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
+        keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
+        text::*,
+        window::WindowLoadingHandle,
+    },
+    prelude::new_widget::*,
+};
 use zero_ui::core::{
     clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
     keyboard::Key,
@@ -255,6 +260,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         cut: CommandHandle,
         copy: CommandHandle,
         paste: CommandHandle,
+        edit: CommandHandle,
     }
     impl EditData {
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
@@ -262,7 +268,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         }
     }
 
-    let text = text.into_var();
+    let text = text.into_var().boxed();
     let mut loading_faces = None;
     let mut resolved = None;
 
@@ -340,6 +346,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 d.cut = CUT_CMD.scoped(id).subscribe(true);
                 d.copy = COPY_CMD.scoped(id).subscribe(true);
                 d.paste = PASTE_CMD.scoped(id).subscribe(true);
+                d.edit = EDIT_CMD.scoped(id).subscribe(true);
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
@@ -551,6 +558,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 resolved.pending_edit = true;
                             }
                         }
+                    } else if let Some(args) = EDIT_CMD.scoped(WIDGET.id()).on(update) {
+                        args.propagation().stop();
+
+                        if let Some(op) = args.param::<UndoTextEditOp>() {
+                            op.call(&text);
+                        } else if let Some(op) = args.param::<TextEditOp>() {
+                            op.clone().call(&text);
+                        }
                     }
 
                     if *caret_index != prev_caret_index {
@@ -643,6 +658,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     d.cut = CUT_CMD.scoped(id).subscribe(true);
                     d.copy = COPY_CMD.scoped(id).subscribe(true);
                     d.paste = PASTE_CMD.scoped(id).subscribe(true);
+                    d.edit = EDIT_CMD.scoped(id).subscribe(true);
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
