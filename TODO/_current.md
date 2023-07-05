@@ -1,22 +1,5 @@
 # TextInput
 
-* Test clicks in, does not snap to the tips, clicking at width 70% goes to the start:
-    - Problem is caused by these chars being rendered using multiple glyphs.
-        - We just check the middle of a single glyph.
-    - They are sort of inverse of ligatures.
-```
-1. ﷽
-
-2. 𒐫
-
-3. 𒈙
-
-4. ⸻
-
-5. ꧅
-
-```
-
 * What happens with undo if the text var is modified externally?
     - Say a text var in a "properties grid".
     - It is editable from the text and as a part of whatever is selected in the "canvas".
