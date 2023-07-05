@@ -1,6 +1,24 @@
 # TextInput
 
+* "Zalgo" text causes glyph.x > line.max_x.
+* Test clicks in:
+1. ﷽
+
+2. 𒐫
+
+3. 𒈙
+
+4. ⸻
+
+5. ꧅
+
+Number 1 followed by line break causes panic by keyboard and mouse.
+
 * What happens with undo if the text var is modified externally?
+    - Say a text var in a "properties grid".
+    - It is editable from the text and as a part of whatever is selected in the "canvas".
+    - How does the undo even work in this case?
+        - Review Microsoft Blend / Unreal Engine.
 
 * Support replace (Insert mode in command line).
 * Support buttons:
@@ -24,29 +42,22 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-* "Zalgo" text causes glyph.x > line.max_x.
-* Test clicks in:
-1. ﷽
-
-2. 𒐫
-
-3. 𒈙
-
-4. ⸻
-
-5. ꧅
-
-Number 1 followed by line break causes panic by keyboard and mouse.
-
-
 # Gradient
 
 * Add cool examples of radial and conic gradients.
 
 # Undo Service
 
-* Can still redo after new undo.
-* Clear.
+* Refactored interval to always work from the previous action.
+    - Set it to the cover the key repeat interval.
+    - Basically we want to undo a long press run in one go.
+* Configure max and interval per-scope?
+    - Can be `CowVar<u32>`, with the parent context config?
+
+* Test undo actions trying to register undo.
+
+* Should windows be undo scopes?
+    - Looks like it should be by widget only.
 
 - UNDO_CMD.
     - Add undo list info to the command meta?

@@ -292,6 +292,19 @@ impl UNDO {
             }
         })
     }
+
+    /// Clear all redo actions.
+    pub fn clear_redo(&self) {
+        UNDO_SCOPE_CTX.get().redo.lock().clear();
+    }
+
+    /// Clear all undo and redo actions.
+    pub fn clear(&self) {
+        let ctx = UNDO_SCOPE_CTX.get();
+        let mut u = ctx.undo.lock();
+        u.clear();
+        ctx.redo.lock().clear();
+    }
 }
 
 /// Identifies that a var modify requested by undo/redo action.
@@ -520,11 +533,12 @@ impl UndoScope {
     }
 
     fn register(&self, action: Box<dyn UndoAction>) {
-        self.with_enabled_undo_redo(|undo, _| {
+        self.with_enabled_undo_redo(|undo, redo| {
             undo.push(UndoEntry {
                 timestamp: Instant::now(),
                 action,
             });
+            redo.clear();
         });
     }
 
