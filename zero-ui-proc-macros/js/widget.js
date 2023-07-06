@@ -193,16 +193,20 @@
         });
     }
 
-    async function fetchInherits(doc, propertiesSet, inherits) {
+    async function fetchInherits(doc, propertiesSet, inherits, fetchUrls) {
         for (e of doc.querySelectorAll('h2.inherit-fetch')) {
             let page;
             let url = e.querySelector('a').href;
             let place = e.nextElementSibling;
             try {
                 page = await fetch(url);
+                if (!page.ok) {
+                    throw page.statusText;
+                }
                 var parser = new DOMParser();
                 page = parser.parseFromString(await page.text(), 'text/html');
             } catch (error) {
+                console.error("error fetching '" + url + "', " + error);
                 place.innerText = error;
                 continue;
             }
@@ -213,7 +217,7 @@
                 link, page
             });
 
-            await refactorDocument(page, propertiesSet, inherits);
+            await refactorDocument(page, propertiesSet, inherits, fetchUrls);
 
             place.remove();
             e.remove();

@@ -1,3 +1,8 @@
+* Docs error.
+    - `TextInput` does not fetch all properties.
+    - Tries to fetch `http://127.0.0.1:4000/zero_ui/widgets/text_input/struct.TextWrapMix.html`.
+    - Is actually in `text/struct.TextWrapMix.html`.
+
 # TextInput
 
 * Support replace (Insert mode in command line).
@@ -25,10 +30,6 @@
 * Spellchecker.
     - Use https://docs.rs/hunspell-rs
     - Used by Firefox and Chrome.
-
-* Docs error.
-    - `fetchUrls undefined`
-    - Other widgets work.
 
 # Gradient
 
