@@ -51,7 +51,17 @@
 
 * Finish items implemented by webrender.
     - Nine-patch border.
+        - Can accept gradients as "image".
+        - CSS does not support corner radius for this.
+            - We could clip the border for the user.
     - Backdrop filter.
     - iFrame.
-    - Review why there is a `push_shadow`?
-        - Can already do shadow with filters.
+    - 3D transforms.
+        - "transform-style".
+            - Is flat by default?
+            - If yes, we may not want to implement the other.
+            - The user should use sibling widgets to preserve-3d.
+        - rotate_x.
+        - Perspective.
+            - These are just matrix API and testing.
+        - Backface vis.
