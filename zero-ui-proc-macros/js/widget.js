@@ -162,16 +162,18 @@
 
                     }
                 });
+
+                // insert property sections before first impl sections.
+                // used here and by `mergeInherits`
+                let insertPoint = doc.querySelector('#properties-side-insert-pt');
+                if (insertPoint == null) {
+                    insertPoint = doc.createElement('div');
+                    insertPoint.id = 'properties-side-insert-pt';
+                    sideBar.insertBefore(insertPoint, e);
+                }
+
                 if (propList.hasChildNodes()) {
                     propList.classList.add('block');
-
-                    // insert property sections before first impl sections.
-                    let insertPoint = doc.querySelector('#properties-side-insert-pt');
-                    if (insertPoint == null) {
-                        insertPoint = doc.createElement('div');
-                        insertPoint.id = 'properties-side-insert-pt';
-                        sideBar.insertBefore(insertPoint, e);
-                    }
 
                     let title = doc.createElement('h3');
                     let mtdsFrom = e.querySelector('a').href.indexOf('#deref-methods-');
@@ -205,6 +207,10 @@
                 }
                 var parser = new DOMParser();
                 page = parser.parseFromString(await page.text(), 'text/html');
+
+                let baseEl = page.createElement('base');
+                baseEl.setAttribute('href', url);
+                page.head.append(baseEl);
             } catch (error) {
                 console.error("error fetching '" + url + "', " + error);
                 place.innerText = error;
