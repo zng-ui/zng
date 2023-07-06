@@ -292,7 +292,7 @@ pub mod nodes {
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             wgt.push_intrinsic(NestGroup::CHILD, "widget_child", nodes::widget_child);
-            wgt.push_intrinsic(NestGroup::BORDER, "widget_inner", nodes::widget_inner);
+            wgt.push_intrinsic(NestGroup::WIDGET_INNER, "widget_inner", nodes::widget_inner);
         });
     }
 

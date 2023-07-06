@@ -117,7 +117,7 @@ pub mod prelude {
     pub use crate::core::{
         app::App,
         async_clmv,
-        border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
+        border::{BorderSide, BorderSides, BorderStyle, LineOrientation, LineStyle},
         clmv,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         context::{LayoutDirection, WIDGET, WINDOW},

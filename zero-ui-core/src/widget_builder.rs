@@ -318,18 +318,27 @@ macro_rules! nest_group_items {
         /// These properties must accumulatively affect the measure and layout, they must avoid rendering. The computed layout is
         /// usually rendered by the widget as a single transform, the layout properties don't need to render transforms.
         pub const LAYOUT: NestGroup = NestGroup(NestGroup::EVENT.0 + NestGroup::NEXT_GROUP);
+
         /// Property strongly enforces a widget size.
         ///
         /// Usually the widget final size is a side-effect of all the layout properties, but some properties may enforce a size, they
         /// can use this group to ensure that they are inside the other layout properties.
         pub const SIZE: NestGroup = NestGroup(NestGroup::LAYOUT.0 + NestGroup::NEXT_GROUP);
+
+        /// Minimal widget visual position, any property or node can render, but usually only properties inside
+        /// this position render. Trying to render a border outside of this will position automatically, inside will.
+        ///
+        /// This is rarely used, prefer using `BORDER-n` to declare properties that are visually outside the bounds, only
+        /// use this node for intrinsics that define some inner context or service for the visual properties.
+        pub const WIDGET_INNER: NestGroup = NestGroup(NestGroup::SIZE.0 + NestGroup::NEXT_GROUP);
+
         /// Property renders a border visual.
         ///
         /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this group
         /// may render at will, the renderer is already configured to apply the final layout and size.
         ///
         /// [`border`]: crate::border
-        pub const BORDER: NestGroup = NestGroup(NestGroup::SIZE.0 + NestGroup::NEXT_GROUP);
+        pub const BORDER: NestGroup = NestGroup(NestGroup::WIDGET_INNER.0 + NestGroup::NEXT_GROUP);
         /// Property defines a visual of the  widget.
         ///
         /// This is the main render group, it usually defines things like a background fill, but it can render over child nodes simply
@@ -370,20 +379,21 @@ pub mod nest_group_items {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NestGroup(u16);
 impl NestGroup {
-    const NEXT_GROUP: u16 = u16::MAX / 9;
+    const NEXT_GROUP: u16 = u16::MAX / 10;
 
     nest_group_items!();
 
-    /// All priorities, from outermost([`WIDGET`]) to innermost([`CHILD`]).
+    /// All groups, from outermost([`WIDGET`]) to innermost([`CHILD`]).
     ///
     /// [`WIDGET`]: Self::WIDGET
     /// [`CHILD`]: Self::CHILD
-    pub const ITEMS: [Self; 10] = [
+    pub const ITEMS: [Self; 11] = [
         Self::WIDGET,
         Self::CONTEXT,
         Self::EVENT,
         Self::LAYOUT,
         Self::SIZE,
+        Self::WIDGET_INNER,
         Self::BORDER,
         Self::FILL,
         Self::CHILD_CONTEXT,
@@ -473,7 +483,7 @@ fn nest_group_spacing() {
         assert_eq!(expected, g.0);
         expected += NestGroup::NEXT_GROUP;
     }
-    assert_eq!(expected, (u16::MAX / 9) * 9); // 65529
+    assert_eq!(expected, (u16::MAX / 10) * 10); // 65530
 }
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
