@@ -820,6 +820,7 @@ impl CommandUndoExt for Command {
 #[cfg(test)]
 mod tests {
     use crate::app::App;
+    use crate::units::*;
 
     use super::*;
 
