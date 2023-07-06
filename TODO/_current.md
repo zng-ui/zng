@@ -26,6 +26,10 @@
     - Use https://docs.rs/hunspell-rs
     - Used by Firefox and Chrome.
 
+* Docs error.
+    - `fetchUrls undefined`
+    - Other widgets work.
+
 # Gradient
 
 * Add cool examples of radial and conic gradients.
