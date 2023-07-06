@@ -57,14 +57,33 @@ impl AppExtension for UndoManager {
     }
 }
 
+context_var! {
+    /// Contextual undo limit.
+    ///
+    /// Is [`UNDO.undo_limit`] by default.
+    ///
+    /// [`UNDO.undo_limit`]: UNDO::undo_limit
+    pub static UNDO_LIMIT_VAR: u32 = UNDO.undo_limit();
+
+    /// Contextual undo interval.
+    ///
+    /// Is [`UNDO.undo_interval`] by default.
+    ///
+    /// [`UNDO.undo_interval`]: UNDO::undo_interval
+    pub static UNDO_INTERVAL_VAR: Duration = UNDO.undo_interval();
+}
+
 /// Undo-redo service.
 pub struct UNDO;
 impl UNDO {
-    /// Gets or sets the size limit of each undo stack of each scope.
+    /// Gets or sets the maximum length of each undo stack of each scope.
     ///
     /// Is `u32::MAX` by default. If the limit is reached the oldest undo action is dropped without redo.
-    pub fn max_undo(&self) -> BoxedVar<u32> {
-        UNDO_SV.read().max_undo.clone()
+    ///
+    /// Note that undo scopes get the max undo from [`UNDO_LIMIT_VAR`] in context, the context var is
+    /// set to this var by default.
+    pub fn undo_limit(&self) -> BoxedVar<u32> {
+        UNDO_SV.read().undo_limit.clone()
     }
 
     /// Gets or sets the time interval that [`undo`] and [`redo`] cover each call.
@@ -73,6 +92,9 @@ impl UNDO {
     /// that are undone in a single call.
     ///
     /// Is the [keyboard repeat interval] times 4 by default.
+    ///
+    /// Note that undo scopes get the interval from [`UNDO_INTERVAL_VAR`] in context, the context var is
+    /// set to this var by default.
     ///
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
@@ -87,7 +109,7 @@ impl UNDO {
     ///
     /// [`register`]: Self::register
     pub fn is_enabled(&self) -> bool {
-        UNDO_SCOPE_CTX.get().enabled.load(Ordering::Relaxed) && UNDO_SV.read().max_undo.get() > 0
+        UNDO_SCOPE_CTX.get().enabled.load(Ordering::Relaxed) && UNDO_SV.read().undo_limit.get() > 0
     }
 
     /// Undo `n` times in the current scope.
@@ -114,14 +136,14 @@ impl UNDO {
     ///
     /// [`undo_interval`]: Self::undo_interval
     pub fn undo(&self) {
-        self.undo_t(UNDO_SV.read().undo_interval.get());
+        self.undo_t(UNDO_INTERVAL_VAR.get());
     }
 
     /// Redo all actions within the [`undo_interval`].
     ///
     /// [`undo_interval`]: Self::undo_interval
     pub fn redo(&self) {
-        self.redo_t(UNDO_SV.read().undo_interval.get());
+        self.redo_t(UNDO_INTERVAL_VAR.get());
     }
 
     /// Gets the parent ID that defines an undo scope, or `None` if undo is registered globally for
@@ -409,7 +431,12 @@ command! {
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32` it is the count of undo actions to run, otherwise runs `1` action.
+    /// If the command parameter is a `u32` calls [`undo_n`], if it is `Duration` calls [`undo_t`], otherwise calls
+    /// [`undo`].
+    ///
+    /// [`undo_n`]: UNDO::undo_n
+    /// [`undo_t`]: UNDO::undo_t
+    /// [`undo`]: UNDO::undo
     ///
     /// # Scope
     ///
@@ -420,14 +447,28 @@ command! {
         shortcut: [shortcut!(CTRL+Z)],
     };
 
-    /// Represents the clipboard **redo** action.
+    /// Represents the **redo** action.
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32` it is the count of redo actions to run, otherwise runs `1` action.
+    /// If the command parameter is a `u32` calls [`redo_n`], if it is `Duration` calls [`redo_t`], otherwise calls
+    /// [`redo`].
+    ///
+    /// [`redo_n`]: UNDO::redo_n
+    /// [`redo_t`]: UNDO::redo_t
+    /// [`redo`]: UNDO::redo
     pub static REDO_CMD = {
         name: "Redo",
         shortcut: [shortcut!(CTRL+Y)],
+    };
+
+    /// Represents the **clear history** action.
+    ///
+    /// Implementers call [`clear`] in the undo scope.
+    ///
+    /// [`clear`]: UNDO::clear
+    pub static CLEAR_HISTORY_CMD = {
+        name: "Clear History",
     };
 }
 
@@ -507,7 +548,7 @@ impl UndoScope {
         let mut redo = self.redo.lock();
 
         let max_undo = if self.enabled.load(Ordering::Relaxed) {
-            UNDO_SV.read().max_undo.get() as usize
+            UNDO_LIMIT_VAR.get() as usize
         } else {
             0
         };
@@ -754,14 +795,14 @@ impl RedoAction for UndoRedoOp {
 }
 
 struct UndoService {
-    max_undo: BoxedVar<u32>,
+    undo_limit: BoxedVar<u32>,
     undo_interval: BoxedVar<Duration>,
 }
 
 impl Default for UndoService {
     fn default() -> Self {
         Self {
-            max_undo: var(u32::MAX).boxed(),
+            undo_limit: var(u32::MAX).boxed(),
             undo_interval: KEYBOARD.repeat_config().map(|c| c.interval * 4).cow().boxed(),
         }
     }

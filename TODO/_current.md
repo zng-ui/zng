@@ -32,9 +32,6 @@
 
 # Undo Service
 
-* Configure max and interval per-scope?
-    - Can be `CowVar<u32>`, with the parent context config?
-
 * Test undo actions trying to register undo.
 
 - UNDO_CMD.

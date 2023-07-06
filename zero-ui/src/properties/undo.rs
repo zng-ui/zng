@@ -8,11 +8,12 @@ use crate::core::undo::*;
 ///
 /// If `true` the widget will handle [`UNDO_CMD`] and [`REDO_CMD`] for all undo actions
 /// that happen inside it.
-#[property(WIDGET, default(false))]
+#[property(CONTEXT - 10, default(false))]
 pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     let mut scope = WidgetUndoScope::new();
     let mut undo_cmd = CommandHandle::dummy();
     let mut redo_cmd = CommandHandle::dummy();
+    let mut clear_cmd = CommandHandle::dummy();
     let is_scope = is_scope.into_var();
     match_node(child, move |c, mut op| {
         match &mut op {
@@ -26,8 +27,9 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                 scope.init();
 
                 let id = WIDGET.id();
-                undo_cmd = UNDO_CMD.scoped(id).subscribe(true);
-                redo_cmd = REDO_CMD.scoped(id).subscribe(true);
+                undo_cmd = UNDO_CMD.scoped(id).subscribe(false);
+                redo_cmd = REDO_CMD.scoped(id).subscribe(false);
+                clear_cmd = CLEAR_HISTORY_CMD.scoped(id).subscribe(false);
             }
             UiNodeOp::Deinit => {
                 if !is_scope.get() {
@@ -74,6 +76,11 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                             UNDO.redo();
                         }
                     });
+                } else if let Some(args) = CLEAR_HISTORY_CMD.scoped(id).on_unhandled(update) {
+                    args.propagation().stop();
+                    UNDO.with_scope(&mut scope, || {
+                        UNDO.clear();
+                    });
                 }
             }
             UiNodeOp::Update { .. } => {
@@ -107,8 +114,11 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
 
         UNDO.with_scope(&mut scope, || c.op(op));
 
-        undo_cmd.set_enabled(scope.can_undo());
-        redo_cmd.set_enabled(scope.can_redo());
+        let can_undo = scope.can_undo();
+        let can_redo = scope.can_redo();
+        undo_cmd.set_enabled(can_undo);
+        redo_cmd.set_enabled(can_redo);
+        clear_cmd.set_enabled(can_undo || can_redo);
     })
 }
 
@@ -121,4 +131,23 @@ pub fn undo_enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
             UNDO.with_disabled(|| c.op(op))
         }
     })
+}
+
+/// Sets the maximum length for undo/redo stacks in the widget and descendants.
+///
+/// This property sets the [`UNDO_LIMIT_VAR`].
+#[property(CONTEXT - 11, default(UNDO_LIMIT_VAR))]
+pub fn undo_limit(child: impl UiNode, max: impl IntoVar<u32>) -> impl UiNode {
+    with_context_var(child, UNDO_LIMIT_VAR, max)
+}
+
+/// Sets the time interval that undo and redo cover each call for undo handlers in the widget and descendants.
+///
+/// When undo is requested inside the context all actions after the latest that are within `interval` of the
+/// previous are undone.
+///
+/// This property sets the [`UNDO_INTERVAL_VAR`].
+#[property(CONTEXT - 11, default(UNDO_INTERVAL_VAR))]
+pub fn undo_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
+    with_context_var(child, UNDO_INTERVAL_VAR, interval)
 }

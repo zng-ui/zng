@@ -1,6 +1,8 @@
 //! Undo scope mix.
 //!
 
+use std::time::Duration;
+
 use crate::prelude::new_widget::*;
 
 /// Undo scope widget mixin.
@@ -28,5 +30,14 @@ impl<P: WidgetImpl> UndoMix<P> {
         ///
         /// Is `true` by default in this widget, if set to `false` disables undo in the widget.
         pub crate::properties::undo_enabled(enabled: impl IntoVar<bool>);
+
+        /// Sets the maximum number of undo/redo actions that are retained in the widget.
+        pub crate::properties::undo_limit(limit: impl IntoVar<u32>);
+
+        /// Sets the time interval that undo and redo cover each call for undo handlers in the widget and descendants.
+        ///
+        /// When undo is requested inside the context all actions after the latest that are within `interval` of the
+        /// previous are undone.
+        pub crate::properties::undo_interval(interval: impl IntoVar<Duration>);
     }
 }
