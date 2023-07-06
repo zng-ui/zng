@@ -22,15 +22,16 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
+* Spellchecker.
+    - Use https://docs.rs/hunspell-rs
+    - Used by Firefox and Chrome.
+
 # Gradient
 
 * Add cool examples of radial and conic gradients.
 
 # Undo Service
 
-* Refactored interval to always work from the previous action.
-    - Set it to the cover the key repeat interval.
-    - Basically we want to undo a long press run in one go.
 * Configure max and interval per-scope?
     - Can be `CowVar<u32>`, with the parent context config?
 

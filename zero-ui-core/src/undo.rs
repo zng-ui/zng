@@ -20,9 +20,9 @@ use crate::{
     event::{AnyEventArgs, Command, CommandNameExt, CommandScope},
     focus::commands::CommandFocusExt,
     gesture::CommandShortcutExt,
+    keyboard::KEYBOARD,
     shortcut,
     text::Txt,
-    units::*,
     var::*,
     widget_info::WidgetInfo,
     widget_instance::WidgetId,
@@ -60,23 +60,24 @@ impl AppExtension for UndoManager {
 /// Undo-redo service.
 pub struct UNDO;
 impl UNDO {
-    /// Gets or sets the size limit of each undo stack in all scopes.
+    /// Gets or sets the size limit of each undo stack of each scope.
     ///
     /// Is `u32::MAX` by default. If the limit is reached the oldest undo action is dropped without redo.
-    pub fn max_undo(&self) -> ArcVar<u32> {
+    pub fn max_undo(&self) -> BoxedVar<u32> {
         UNDO_SV.read().max_undo.clone()
     }
 
     /// Gets or sets the time interval that [`undo`] and [`redo`] cover each call.
     ///
-    /// This value applies to all scopes and defines the max interval of actions are are undone/redone
-    /// starting from the latest one.
+    /// This value applies to all scopes and defines the max interval between actions
+    /// that are undone in a single call.
     ///
-    /// Is `100.ms()` by default.
+    /// Is the [keyboard repeat interval] times 4 by default.
     ///
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
-    pub fn undo_interval(&self) -> ArcVar<Duration> {
+    /// [keyboard repeat interval]: crate::keyboard::KEYBOARD::repeat_config
+    pub fn undo_interval(&self) -> BoxedVar<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
 
@@ -99,12 +100,12 @@ impl UNDO {
         UNDO_SCOPE_CTX.get().redo_n(n);
     }
 
-    /// Undo all actions within the `t` interval, starting from the most recent action.
+    /// Undo all actions within the `t` interval of each other, starting from the most recent action.
     pub fn undo_t(&self, t: Duration) {
         UNDO_SCOPE_CTX.get().undo_t(t);
     }
 
-    /// Redo all actions within the `t` interval, starting from the most recent action.
+    /// Redo all actions within the `t` interval of each other, starting from the most recent action.
     pub fn redo_t(&self, t: Duration) {
         UNDO_SCOPE_CTX.get().redo_t(t);
     }
@@ -592,9 +593,10 @@ impl UndoScope {
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|undo, _| {
-            if let Some(latest) = undo.last().map(|e| e.timestamp) {
+            if let Some(mut prev_ts) = undo.last().map(|e| e.timestamp) {
                 while let Some(action) = undo.pop() {
-                    if latest.checked_duration_since(action.timestamp).unwrap_or(t) <= t {
+                    if prev_ts.checked_duration_since(action.timestamp).unwrap_or(t) <= t {
+                        prev_ts = action.timestamp;
                         actions.push(action);
                     } else {
                         undo.push(action);
@@ -617,9 +619,10 @@ impl UndoScope {
         let mut actions = vec![];
 
         self.with_enabled_undo_redo(|_, redo| {
-            if let Some(oldest) = redo.last().map(|e| e.timestamp) {
+            if let Some(mut prev_ts) = redo.last().map(|e| e.timestamp) {
                 while let Some(action) = redo.pop() {
-                    if action.timestamp.checked_duration_since(oldest).unwrap_or(t) <= t {
+                    if action.timestamp.checked_duration_since(prev_ts).unwrap_or(t) <= t {
+                        prev_ts = action.timestamp;
                         actions.push(action);
                     } else {
                         redo.push(action);
@@ -751,15 +754,15 @@ impl RedoAction for UndoRedoOp {
 }
 
 struct UndoService {
-    max_undo: ArcVar<u32>,
-    undo_interval: ArcVar<Duration>,
+    max_undo: BoxedVar<u32>,
+    undo_interval: BoxedVar<Duration>,
 }
 
 impl Default for UndoService {
     fn default() -> Self {
         Self {
-            max_undo: var(u32::MAX),
-            undo_interval: var(100.ms()),
+            max_undo: var(u32::MAX).boxed(),
+            undo_interval: KEYBOARD.repeat_config().map(|c| c.interval * 4).cow().boxed(),
         }
     }
 }
