@@ -21,19 +21,19 @@ command! {
 /// Represents a text edit operation that can be send to an editable text using [`EDIT_CMD`].
 #[derive(Clone)]
 pub struct TextEditOp {
-    description: Txt,
+    info: Arc<dyn UndoInfo>,
     op: Arc<Mutex<dyn FnMut(&BoxedVar<Txt>, UndoOp) + Send>>,
 }
 impl fmt::Debug for TextEditOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TextEditOp")
-            .field("description", &self.description)
+            .field("info", &self.info.description())
             .finish_non_exhaustive()
     }
 }
 impl fmt::Display for TextEditOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description)
+        write!(f, "{}", self.info.description())
     }
 }
 impl TextEditOp {
@@ -48,11 +48,9 @@ impl TextEditOp {
     /// text edit operations must be undoable, first [`UndoOp::Redo`] is called to "do", then undo and redo again
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
-    ///
-    /// The `description` must be a short display name for the undo/redo action.
-    pub fn new(description: impl Into<Txt>, op: impl FnMut(&BoxedVar<Txt>, UndoOp) + Send + 'static) -> Self {
+    pub fn new(undo_info: impl UndoInfo, op: impl FnMut(&BoxedVar<Txt>, UndoOp) + Send + 'static) -> Self {
         Self {
-            description: description.into(),
+            info: undo_info.into_dyn(),
             op: Arc::new(Mutex::new(op)),
         }
     }
@@ -61,10 +59,10 @@ impl TextEditOp {
     ///
     /// The `insert` text is inserted at the current caret index or at `0`, or replaces the current selection,
     /// after insert the caret is positioned after the inserted text.
-    pub fn insert(description: impl Into<Txt>, insert: impl Into<Txt>) -> Self {
+    pub fn insert(undo_info: impl UndoInfo, insert: impl Into<Txt>) -> Self {
         let insert = insert.into();
         let mut insert_idx = usize::MAX;
-        Self::new(description, move |txt, op| match op {
+        Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -96,11 +94,11 @@ impl TextEditOp {
     /// Remove one *backspace range* ending at the caret index, or removes the selection.
     ///
     /// See [`zero_ui::core::text::SegmentedText::backspace_range`] for more details about what is removed.
-    pub fn backspace(description: impl Into<Txt>) -> Self {
+    pub fn backspace(undo_info: impl UndoInfo) -> Self {
         let mut removed = Txt::from_static("");
         let mut undo_idx = usize::MAX;
 
-        Self::new(description, move |txt, op| match op {
+        Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -147,10 +145,10 @@ impl TextEditOp {
     /// Remove one *delete range* starting at the caret index, or removes the selection.
     ///
     /// See [`zero_ui::core::text::SegmentedText::delete_range`] for more details about what is removed.
-    pub fn delete(description: impl Into<Txt>) -> Self {
+    pub fn delete(undo_info: impl UndoInfo) -> Self {
         let mut removed = Txt::from_static("");
 
-        Self::new(description, move |txt, op| match op {
+        Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -204,7 +202,7 @@ impl TextEditOp {
     ///
     /// All indexes are snapped to the nearest grapheme, you can use empty ranges to just position the caret.
     pub fn replace(
-        description: impl Into<Txt>,
+        undo_info: impl UndoInfo,
         mut select_before: ops::Range<usize>,
         insert: impl Into<Txt>,
         mut select_after: ops::Range<usize>,
@@ -212,7 +210,7 @@ impl TextEditOp {
         let insert = insert.into();
         let mut removed = Txt::from_static("");
 
-        Self::new(description, move |txt, op| match op {
+        Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
 
@@ -251,7 +249,7 @@ impl TextEditOp {
 
     pub(super) fn call(self, text: &BoxedVar<Txt>) {
         (self.op.lock())(text, UndoOp::Redo);
-        UNDO.register(UndoTextEditOp::new(self))
+        UNDO.register(self.info.clone(), UndoTextEditOp::new(self))
     }
 }
 
@@ -261,11 +259,6 @@ pub(super) struct UndoTextEditOp {
     pub target: WidgetId,
     edit_op: TextEditOp,
     exec_op: UndoOp,
-}
-impl fmt::Display for UndoTextEditOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.edit_op)
-    }
 }
 impl UndoTextEditOp {
     fn new(edit_op: TextEditOp) -> Self {
@@ -280,7 +273,6 @@ impl UndoTextEditOp {
         (self.edit_op.op.lock())(text, self.exec_op)
     }
 }
-impl UndoRedoItem for UndoTextEditOp {}
 impl UndoAction for UndoTextEditOp {
     fn undo(self: Box<Self>) -> Box<dyn RedoAction> {
         EDIT_CMD.scoped(self.target).notify_param(Self {
