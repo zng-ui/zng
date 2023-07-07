@@ -20,7 +20,7 @@ pub struct MarkdownStyle {
 ///
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
-/// See [`TEXT_GEN_VAR`] for more details.
+/// See [`TEXT_FN_VAR`] for more details.
 pub struct TextFnArgs {
     /// The text run.
     pub txt: Txt,
@@ -30,7 +30,7 @@ pub struct TextFnArgs {
 
 /// Arguments for a markdown inlined link view.
 ///
-/// See [`LINK_GEN_VAR`] for more details.
+/// See [`LINK_FN_VAR`] for more details.
 pub struct LinkFnArgs {
     /// The link.
     pub url: Txt,
@@ -46,7 +46,7 @@ pub struct LinkFnArgs {
 ///
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
-/// See [`CODE_INLINE_GEN_VAR`] for more details.
+/// See [`CODE_INLINE_FN_VAR`] for more details.
 pub struct CodeInlineFnArgs {
     /// The code text run.
     pub txt: Txt,
@@ -56,7 +56,7 @@ pub struct CodeInlineFnArgs {
 
 /// Arguments for a markdown code block view.
 ///
-/// See [`CODE_BLOCK_GEN_VAR`] for more details.
+/// See [`CODE_BLOCK_FN_VAR`] for more details.
 pub struct CodeBlockFnArgs {
     /// Code language, can be empty.
     pub lang: Txt,
@@ -66,7 +66,7 @@ pub struct CodeBlockFnArgs {
 
 /// Arguments for a markdown paragraph view.
 ///
-/// See [`PARAGRAPH_GEN_VAR`] for more details.
+/// See [`PARAGRAPH_FN_VAR`] for more details.
 pub struct ParagraphFnArgs {
     /// Zero-sized index of the paragraph.
     pub index: u32,
@@ -163,7 +163,7 @@ pub struct FootnoteRefFnArgs {
 
 /// Arguments for a markdown footnote definition view.
 ///
-/// See [`PARAGRAPH_GEN_VAR`] for more details.
+/// See [`PARAGRAPH_FN_VAR`] for more details.
 pub struct FootnoteDefFnArgs {
     /// Identifier label.
     pub label: Txt,
@@ -173,7 +173,7 @@ pub struct FootnoteDefFnArgs {
 
 /// Arguments for a markdown table view.
 ///
-/// See [`TABLE_GEN_VAR`] for more details.
+/// See [`TABLE_FN_VAR`] for more details.
 pub struct TableFnArgs {
     /// Column definitions with align.
     pub columns: Vec<Align>,
@@ -183,7 +183,7 @@ pub struct TableFnArgs {
 
 /// Arguments for a markdown table cell view.
 ///
-/// See [`TABLE_CELL_GEN_VAR`] for more details.
+/// See [`TABLE_CELL_FN_VAR`] for more details.
 pub struct TableCellFnArgs {
     /// If the cell is inside the header row.
     pub is_heading: bool,
@@ -197,7 +197,7 @@ pub struct TableCellFnArgs {
 
 /// Arguments for a markdown panel.
 ///
-/// See [`PANEL_GEN_VAR`] for more details.
+/// See [`PANEL_FN_VAR`] for more details.
 pub struct PanelFnArgs {
     /// Block items.
     pub items: UiNodeVec,
@@ -205,187 +205,187 @@ pub struct PanelFnArgs {
 
 context_var! {
     /// Widget function for a markdown text segment.
-    pub static TEXT_GEN_VAR: WidgetFn<TextFnArgs> = WidgetFn::new(default_text_fn);
+    pub static TEXT_FN_VAR: WidgetFn<TextFnArgs> = WidgetFn::new(default_text_fn);
 
     /// Widget function for a markdown link segment.
-    pub static LINK_GEN_VAR: WidgetFn<LinkFnArgs> = WidgetFn::new(default_link_fn);
+    pub static LINK_FN_VAR: WidgetFn<LinkFnArgs> = WidgetFn::new(default_link_fn);
 
     /// Widget function for a markdown inline code segment.
-    pub static CODE_INLINE_GEN_VAR: WidgetFn<CodeInlineFnArgs> = WidgetFn::new(default_code_inline_fn);
+    pub static CODE_INLINE_FN_VAR: WidgetFn<CodeInlineFnArgs> = WidgetFn::new(default_code_inline_fn);
 
     /// Widget function for a markdown code block segment.
-    pub static CODE_BLOCK_GEN_VAR: WidgetFn<CodeBlockFnArgs> = WidgetFn::new(default_code_block_fn);
+    pub static CODE_BLOCK_FN_VAR: WidgetFn<CodeBlockFnArgs> = WidgetFn::new(default_code_block_fn);
 
     /// Widget function for a markdown paragraph.
-    pub static PARAGRAPH_GEN_VAR: WidgetFn<ParagraphFnArgs> = WidgetFn::new(default_paragraph_fn);
+    pub static PARAGRAPH_FN_VAR: WidgetFn<ParagraphFnArgs> = WidgetFn::new(default_paragraph_fn);
 
     /// Widget function for a markdown heading.
-    pub static HEADING_GEN_VAR: WidgetFn<HeadingFnArgs> = WidgetFn::new(default_heading_fn);
+    pub static HEADING_FN_VAR: WidgetFn<HeadingFnArgs> = WidgetFn::new(default_heading_fn);
 
     /// Widget function for a markdown list.
-    pub static LIST_GEN_VAR: WidgetFn<ListFnArgs> = WidgetFn::new(default_list_fn);
+    pub static LIST_FN_VAR: WidgetFn<ListFnArgs> = WidgetFn::new(default_list_fn);
 
     /// Widget function for a markdown list item bullet, checkmark or number.
-    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetFn<ListItemBulletFnArgs> = WidgetFn::new(default_list_item_bullet_fn);
+    pub static LIST_ITEM_BULLET_FN_VAR: WidgetFn<ListItemBulletFnArgs> = WidgetFn::new(default_list_item_bullet_fn);
 
     /// Widget function for a markdown list item content.
-    pub static LIST_ITEM_GEN_VAR: WidgetFn<ListItemFnArgs> = WidgetFn::new(default_list_item_fn);
+    pub static LIST_ITEM_FN_VAR: WidgetFn<ListItemFnArgs> = WidgetFn::new(default_list_item_fn);
 
     /// Widget function for a markdown image.
-    pub static IMAGE_GEN_VAR: WidgetFn<ImageFnArgs> = WidgetFn::new(default_image_fn);
+    pub static IMAGE_FN_VAR: WidgetFn<ImageFnArgs> = WidgetFn::new(default_image_fn);
 
     /// Widget function for a markdown rule line.
-    pub static RULE_GEN_VAR: WidgetFn<RuleFnArgs> = WidgetFn::new(default_rule_fn);
+    pub static RULE_FN_VAR: WidgetFn<RuleFnArgs> = WidgetFn::new(default_rule_fn);
 
     /// Widget function for a markdown block quote.
-    pub static BLOCK_QUOTE_GEN_VAR: WidgetFn<BlockQuoteFnArgs> = WidgetFn::new(default_block_quote_fn);
+    pub static BLOCK_QUOTE_FN_VAR: WidgetFn<BlockQuoteFnArgs> = WidgetFn::new(default_block_quote_fn);
 
     /// Widget function for an inline reference to a footnote.
-    pub static FOOTNOTE_REF_GEN_VAR: WidgetFn<FootnoteRefFnArgs> = WidgetFn::new(default_footnote_ref_fn);
+    pub static FOOTNOTE_REF_FN_VAR: WidgetFn<FootnoteRefFnArgs> = WidgetFn::new(default_footnote_ref_fn);
 
     /// Widget function for a footnote definition block.
-    pub static FOOTNOTE_DEF_GEN_VAR: WidgetFn<FootnoteDefFnArgs> = WidgetFn::new(default_footnote_def_fn);
+    pub static FOOTNOTE_DEF_FN_VAR: WidgetFn<FootnoteDefFnArgs> = WidgetFn::new(default_footnote_def_fn);
 
     /// Widget function for a markdown table.
-    pub static TABLE_GEN_VAR: WidgetFn<TableFnArgs> = WidgetFn::new(default_table_fn);
+    pub static TABLE_FN_VAR: WidgetFn<TableFnArgs> = WidgetFn::new(default_table_fn);
 
     /// Widget function for a markdown table body cell.
-    pub static TABLE_CELL_GEN_VAR: WidgetFn<TableCellFnArgs> = WidgetFn::new(default_table_cell_fn);
+    pub static TABLE_CELL_FN_VAR: WidgetFn<TableCellFnArgs> = WidgetFn::new(default_table_cell_fn);
 
     /// Widget function for a markdown panel.
-    pub static PANEL_GEN_VAR: WidgetFn<PanelFnArgs> = WidgetFn::new(default_panel_fn);
+    pub static PANEL_FN_VAR: WidgetFn<PanelFnArgs> = WidgetFn::new(default_panel_fn);
 }
 
 /// Widget function that converts [`TextFnArgs`] to widgets.
 ///
-/// Sets the [`TEXT_GEN_VAR`].
-#[property(CONTEXT, default(TEXT_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`TEXT_FN_VAR`].
+#[property(CONTEXT, default(TEXT_FN_VAR), widget_impl(Markdown))]
 pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> impl UiNode {
-    with_context_var(child, TEXT_GEN_VAR, wgt_fn)
+    with_context_var(child, TEXT_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`LinkFnArgs`] to widgets.
 ///
-/// Sets the [`LINK_GEN_VAR`].
-#[property(CONTEXT, default(LINK_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`LINK_FN_VAR`].
+#[property(CONTEXT, default(LINK_FN_VAR), widget_impl(Markdown))]
 pub fn link_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -> impl UiNode {
-    with_context_var(child, LINK_GEN_VAR, wgt_fn)
+    with_context_var(child, LINK_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`CodeInlineFnArgs`] to widgets.
 ///
-/// Sets the [`CODE_INLINE_GEN_VAR`].
-#[property(CONTEXT, default(CODE_INLINE_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`CODE_INLINE_FN_VAR`].
+#[property(CONTEXT, default(CODE_INLINE_FN_VAR), widget_impl(Markdown))]
 pub fn code_inline_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInlineFnArgs>>) -> impl UiNode {
-    with_context_var(child, CODE_INLINE_GEN_VAR, wgt_fn)
+    with_context_var(child, CODE_INLINE_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`CodeBlockFnArgs`] to widgets.
 ///
-/// Sets the [`CODE_BLOCK_GEN_VAR`].
-#[property(CONTEXT, default(CODE_BLOCK_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`CODE_BLOCK_FN_VAR`].
+#[property(CONTEXT, default(CODE_BLOCK_FN_VAR), widget_impl(Markdown))]
 pub fn code_block_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlockFnArgs>>) -> impl UiNode {
-    with_context_var(child, CODE_BLOCK_GEN_VAR, wgt_fn)
+    with_context_var(child, CODE_BLOCK_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ParagraphFnArgs`] to widgets.
 ///
-/// Sets the [`PARAGRAPH_GEN_VAR`].
-#[property(CONTEXT, default(PARAGRAPH_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`PARAGRAPH_FN_VAR`].
+#[property(CONTEXT, default(PARAGRAPH_FN_VAR), widget_impl(Markdown))]
 pub fn paragraph_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphFnArgs>>) -> impl UiNode {
-    with_context_var(child, PARAGRAPH_GEN_VAR, wgt_fn)
+    with_context_var(child, PARAGRAPH_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`HeadingFnArgs`] to widgets.
 ///
-/// Sets the [`HEADING_GEN_VAR`].
-#[property(CONTEXT, default(HEADING_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`HEADING_FN_VAR`].
+#[property(CONTEXT, default(HEADING_FN_VAR), widget_impl(Markdown))]
 pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArgs>>) -> impl UiNode {
-    with_context_var(child, HEADING_GEN_VAR, wgt_fn)
+    with_context_var(child, HEADING_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ListFnArgs`] to widgets.
 ///
-/// Sets the [`LIST_GEN_VAR`].
-#[property(CONTEXT, default(LIST_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`LIST_FN_VAR`].
+#[property(CONTEXT, default(LIST_FN_VAR), widget_impl(Markdown))]
 pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_GEN_VAR, wgt_fn)
+    with_context_var(child, LIST_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ListItemBulletFnArgs`] to widgets.
 ///
-/// Sets the [`LIST_ITEM_BULLET_GEN_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_BULLET_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`LIST_ITEM_BULLET_FN_VAR`].
+#[property(CONTEXT, default(LIST_ITEM_BULLET_FN_VAR), widget_impl(Markdown))]
 pub fn list_item_bullet_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_ITEM_BULLET_GEN_VAR, wgt_fn)
+    with_context_var(child, LIST_ITEM_BULLET_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ListItemFnArgs`] to widgets.
 ///
-/// Sets the [`LIST_ITEM_GEN_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`LIST_ITEM_FN_VAR`].
+#[property(CONTEXT, default(LIST_ITEM_FN_VAR), widget_impl(Markdown))]
 pub fn list_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFnArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_ITEM_GEN_VAR, wgt_fn)
+    with_context_var(child, LIST_ITEM_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ImageFnArgs`] to widgets.
 ///
-/// Sets the [`IMAGE_GEN_VAR`].
-#[property(CONTEXT, default(IMAGE_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`IMAGE_FN_VAR`].
+#[property(CONTEXT, default(IMAGE_FN_VAR), widget_impl(Markdown))]
 pub fn image_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_GEN_VAR, wgt_fn)
+    with_context_var(child, IMAGE_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`RuleFnArgs`] to widgets.
 ///
-/// Sets the [`RULE_GEN_VAR`].
-#[property(CONTEXT, default(RULE_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`RULE_FN_VAR`].
+#[property(CONTEXT, default(RULE_FN_VAR), widget_impl(Markdown))]
 pub fn rule_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -> impl UiNode {
-    with_context_var(child, RULE_GEN_VAR, wgt_fn)
+    with_context_var(child, RULE_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`BlockQuoteFnArgs`] to widgets.
 ///
-/// Sets the [`BLOCK_QUOTE_GEN_VAR`].
-#[property(CONTEXT, default(BLOCK_QUOTE_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`BLOCK_QUOTE_FN_VAR`].
+#[property(CONTEXT, default(BLOCK_QUOTE_FN_VAR), widget_impl(Markdown))]
 pub fn block_quote_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuoteFnArgs>>) -> impl UiNode {
-    with_context_var(child, BLOCK_QUOTE_GEN_VAR, wgt_fn)
+    with_context_var(child, BLOCK_QUOTE_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`FootnoteRefFnArgs`] to widgets.
 ///
-/// Sets the [`FOOTNOTE_REF_GEN_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_REF_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`FOOTNOTE_REF_FN_VAR`].
+#[property(CONTEXT, default(FOOTNOTE_REF_FN_VAR), widget_impl(Markdown))]
 pub fn footnote_ref_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteRefFnArgs>>) -> impl UiNode {
-    with_context_var(child, FOOTNOTE_REF_GEN_VAR, wgt_fn)
+    with_context_var(child, FOOTNOTE_REF_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`FootnoteDefFnArgs`] to widgets.
 ///
-/// Sets the [`FOOTNOTE_DEF_GEN_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_DEF_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`FOOTNOTE_DEF_FN_VAR`].
+#[property(CONTEXT, default(FOOTNOTE_DEF_FN_VAR), widget_impl(Markdown))]
 pub fn footnote_def_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> impl UiNode {
-    with_context_var(child, FOOTNOTE_DEF_GEN_VAR, wgt_fn)
+    with_context_var(child, FOOTNOTE_DEF_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`TableFnArgs`] to widgets.
 ///
-/// Sets the [`TABLE_GEN_VAR`].
-#[property(CONTEXT, default(TABLE_GEN_VAR), widget_impl(Markdown))]
+/// Sets the [`TABLE_FN_VAR`].
+#[property(CONTEXT, default(TABLE_FN_VAR), widget_impl(Markdown))]
 pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>) -> impl UiNode {
-    with_context_var(child, TABLE_GEN_VAR, wgt_fn)
+    with_context_var(child, TABLE_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`PanelFnArgs`] to a widget.
 ///
 /// This generates the panel that contains all markdown blocks, it is the child of the [`Markdown!`] widget.
 ///
-/// Sets the [`PANEL_GEN_VAR`].
+/// Sets the [`PANEL_FN_VAR`].
 ///
 /// [`Markdown!`]: struct@crate::widgets::Markdown
-#[property(CONTEXT, default(PANEL_GEN_VAR), widget_impl(Markdown))]
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Markdown))]
 pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
-    with_context_var(child, PANEL_GEN_VAR, wgt_fn)
+    with_context_var(child, PANEL_FN_VAR, wgt_fn)
 }
 
 fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
@@ -420,7 +420,7 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
 
 /// Default text view.
 ///
-/// See [`TEXT_GEN_VAR`] for more details.
+/// See [`TEXT_FN_VAR`] for more details.
 pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
     builder.widget_build()
@@ -428,7 +428,7 @@ pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
 
 /// Default inlined code text view.
 ///
-/// See [`CODE_INLINE_GEN_VAR`] for more details.
+/// See [`CODE_INLINE_FN_VAR`] for more details.
 pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
 
@@ -443,7 +443,7 @@ pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
 
 /// Default inlined link view.
 ///
-/// See [`LINK_GEN_VAR`] for more details.
+/// See [`LINK_FN_VAR`] for more details.
 pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
@@ -479,7 +479,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 ///
 /// Is [`AnsiText!`] for the `ansi` language, and only raw text for the rest.
 ///
-/// See [`CODE_BLOCK_GEN_VAR`] for more details.
+/// See [`CODE_BLOCK_FN_VAR`] for more details.
 ///
 /// [`AnsiText!`]: struct@crate::widgets::AnsiText
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
@@ -505,7 +505,7 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
 
 /// Default paragraph view.
 ///
-/// See [`PARAGRAPH_GEN_VAR`] for more details.
+/// See [`PARAGRAPH_FN_VAR`] for more details.
 pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
@@ -521,7 +521,7 @@ pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> impl UiNode {
 
 /// Default heading view.
 ///
-/// See [`HEADING_GEN_VAR`] for more details.
+/// See [`HEADING_FN_VAR`] for more details.
 pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
@@ -546,7 +546,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
 ///
 /// Uses a [`Grid!`] with two columns, one default for the bullet or number, the other fills the leftover space.
 ///
-/// See [`LIST_GEN_VAR`] for more details.
+/// See [`LIST_FN_VAR`] for more details.
 ///
 /// [`Grid!`]: struct@crate::widgets::layouts::Grid
 pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
@@ -570,7 +570,7 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
 
 /// Default list item bullet, check mark or number view.
 ///
-/// See [`LIST_ITEM_BULLET_GEN_VAR`] for more details.
+/// See [`LIST_ITEM_BULLET_FN_VAR`] for more details.
 pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -625,7 +625,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
 
 /// Default list item view.
 ///
-/// See [`LIST_ITEM_GEN_VAR`] for more details.
+/// See [`LIST_ITEM_FN_VAR`] for more details.
 pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -670,7 +670,7 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
 
 /// Default image view.
 ///
-/// See [`IMAGE_GEN_VAR`] for more details.
+/// See [`IMAGE_FN_VAR`] for more details.
 pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -702,7 +702,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
 
 /// Default rule view.
 ///
-/// See [`RULE_GEN_VAR`] for more details.
+/// See [`RULE_FN_VAR`] for more details.
 pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
     crate::widgets::Hr! {
         opacity = 50.pct();
@@ -711,7 +711,7 @@ pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
 
 /// Default block quote view.
 ///
-/// See [`BLOCK_QUOTE_GEN_VAR`] for more details.
+/// See [`BLOCK_QUOTE_FN_VAR`] for more details.
 pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -740,7 +740,7 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
 
 /// Default markdown table.
 ///
-/// See [`TABLE_GEN_VAR`] for more details.
+/// See [`TABLE_FN_VAR`] for more details.
 pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
     use crate::widgets::layouts::{grid, Grid};
 
@@ -772,7 +772,7 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
 
 /// Default markdown table.
 ///
-/// See [`TABLE_CELL_GEN_VAR`] for more details.
+/// See [`TABLE_CELL_FN_VAR`] for more details.
 pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -800,7 +800,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
 
 /// Default markdown panel.
 ///
-/// See [`PANEL_GEN_VAR`] for more details.
+/// See [`PANEL_FN_VAR`] for more details.
 pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
@@ -818,7 +818,7 @@ pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
 
 /// Default markdown footnote reference.
 ///
-/// See [`FOOTNOTE_REF_GEN_VAR`] for more details.
+/// See [`FOOTNOTE_REF_FN_VAR`] for more details.
 pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
     use crate::widgets::*;
 
@@ -840,7 +840,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
 
 /// Default markdown footnote definition.
 ///
-/// See [`FOOTNOTE_DEF_GEN_VAR`] for more details.
+/// See [`FOOTNOTE_DEF_FN_VAR`] for more details.
 pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
     use crate::prelude::*;
 

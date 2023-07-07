@@ -62,21 +62,21 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&md)
-                .sub_var(&TEXT_GEN_VAR)
-                .sub_var(&LINK_GEN_VAR)
-                .sub_var(&CODE_INLINE_GEN_VAR)
-                .sub_var(&CODE_BLOCK_GEN_VAR)
-                .sub_var(&PARAGRAPH_GEN_VAR)
-                .sub_var(&HEADING_GEN_VAR)
-                .sub_var(&LIST_GEN_VAR)
-                .sub_var(&LIST_ITEM_BULLET_GEN_VAR)
-                .sub_var(&LIST_ITEM_GEN_VAR)
-                .sub_var(&IMAGE_GEN_VAR)
-                .sub_var(&RULE_GEN_VAR)
-                .sub_var(&BLOCK_QUOTE_GEN_VAR)
-                .sub_var(&TABLE_GEN_VAR)
-                .sub_var(&TABLE_CELL_GEN_VAR)
-                .sub_var(&PANEL_GEN_VAR)
+                .sub_var(&TEXT_FN_VAR)
+                .sub_var(&LINK_FN_VAR)
+                .sub_var(&CODE_INLINE_FN_VAR)
+                .sub_var(&CODE_BLOCK_FN_VAR)
+                .sub_var(&PARAGRAPH_FN_VAR)
+                .sub_var(&HEADING_FN_VAR)
+                .sub_var(&LIST_FN_VAR)
+                .sub_var(&LIST_ITEM_BULLET_FN_VAR)
+                .sub_var(&LIST_ITEM_FN_VAR)
+                .sub_var(&IMAGE_FN_VAR)
+                .sub_var(&RULE_FN_VAR)
+                .sub_var(&BLOCK_QUOTE_FN_VAR)
+                .sub_var(&TABLE_FN_VAR)
+                .sub_var(&TABLE_CELL_FN_VAR)
+                .sub_var(&PANEL_FN_VAR)
                 .sub_var(&IMAGE_RESOLVER_VAR)
                 .sub_var(&LINK_RESOLVER_VAR);
 
@@ -94,21 +94,21 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
             use view_fn::*;
 
             if md.is_new()
-                || TEXT_GEN_VAR.is_new()
-                || LINK_GEN_VAR.is_new()
-                || CODE_INLINE_GEN_VAR.is_new()
-                || CODE_BLOCK_GEN_VAR.is_new()
-                || PARAGRAPH_GEN_VAR.is_new()
-                || HEADING_GEN_VAR.is_new()
-                || LIST_GEN_VAR.is_new()
-                || LIST_ITEM_BULLET_GEN_VAR.is_new()
-                || LIST_ITEM_GEN_VAR.is_new()
-                || IMAGE_GEN_VAR.is_new()
-                || RULE_GEN_VAR.is_new()
-                || BLOCK_QUOTE_GEN_VAR.is_new()
-                || TABLE_GEN_VAR.is_new()
-                || TABLE_CELL_GEN_VAR.is_new()
-                || PANEL_GEN_VAR.is_new()
+                || TEXT_FN_VAR.is_new()
+                || LINK_FN_VAR.is_new()
+                || CODE_INLINE_FN_VAR.is_new()
+                || CODE_BLOCK_FN_VAR.is_new()
+                || PARAGRAPH_FN_VAR.is_new()
+                || HEADING_FN_VAR.is_new()
+                || LIST_FN_VAR.is_new()
+                || LIST_ITEM_BULLET_FN_VAR.is_new()
+                || LIST_ITEM_FN_VAR.is_new()
+                || IMAGE_FN_VAR.is_new()
+                || RULE_FN_VAR.is_new()
+                || BLOCK_QUOTE_FN_VAR.is_new()
+                || TABLE_FN_VAR.is_new()
+                || TABLE_CELL_FN_VAR.is_new()
+                || PANEL_FN_VAR.is_new()
                 || IMAGE_RESOLVER_VAR.is_new()
                 || LINK_RESOLVER_VAR.is_new()
             {
@@ -131,22 +131,22 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
     let mut emphasis = 0;
     let mut strikethrough = 0;
 
-    let text_view = TEXT_GEN_VAR.get();
-    let link_view = LINK_GEN_VAR.get();
-    let code_inline_view = CODE_INLINE_GEN_VAR.get();
-    let code_block_view = CODE_BLOCK_GEN_VAR.get();
-    let heading_view = HEADING_GEN_VAR.get();
-    let paragraph_view = PARAGRAPH_GEN_VAR.get();
-    let list_view = LIST_GEN_VAR.get();
-    let list_item_bullet_view = LIST_ITEM_BULLET_GEN_VAR.get();
-    let list_item_view = LIST_ITEM_GEN_VAR.get();
-    let image_view = IMAGE_GEN_VAR.get();
-    let rule_view = RULE_GEN_VAR.get();
-    let block_quote_view = BLOCK_QUOTE_GEN_VAR.get();
-    let footnote_ref_view = FOOTNOTE_REF_GEN_VAR.get();
-    let footnote_def_view = FOOTNOTE_DEF_GEN_VAR.get();
-    let table_view = TABLE_GEN_VAR.get();
-    let table_cell_view = TABLE_CELL_GEN_VAR.get();
+    let text_view = TEXT_FN_VAR.get();
+    let link_view = LINK_FN_VAR.get();
+    let code_inline_view = CODE_INLINE_FN_VAR.get();
+    let code_block_view = CODE_BLOCK_FN_VAR.get();
+    let heading_view = HEADING_FN_VAR.get();
+    let paragraph_view = PARAGRAPH_FN_VAR.get();
+    let list_view = LIST_FN_VAR.get();
+    let list_item_bullet_view = LIST_ITEM_BULLET_FN_VAR.get();
+    let list_item_view = LIST_ITEM_FN_VAR.get();
+    let image_view = IMAGE_FN_VAR.get();
+    let rule_view = RULE_FN_VAR.get();
+    let block_quote_view = BLOCK_QUOTE_FN_VAR.get();
+    let footnote_ref_view = FOOTNOTE_REF_FN_VAR.get();
+    let footnote_def_view = FOOTNOTE_DEF_FN_VAR.get();
+    let table_view = TABLE_FN_VAR.get();
+    let table_cell_view = TABLE_CELL_FN_VAR.get();
 
     let image_resolver = IMAGE_RESOLVER_VAR.get();
     let link_resolver = LINK_RESOLVER_VAR.get();
@@ -456,5 +456,5 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
         }
     }
 
-    PANEL_GEN_VAR.get()(PanelFnArgs { items: blocks.into() })
+    PANEL_FN_VAR.get()(PanelFnArgs { items: blocks.into() })
 }

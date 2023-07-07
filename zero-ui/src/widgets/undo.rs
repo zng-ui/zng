@@ -46,5 +46,5 @@ impl<P: WidgetImpl> UndoMix<P> {
 pub struct UndoHistory(WidgetBase);
 
 // context_var! {
-//     pub static UNDO_FN_VAR: WidgetFn<&UndoEntry> = WidgetFn::nil();
+//     pub static UNDO_FN_VAR: WidgetFn<for<'a> &'a UndoEntry> = WidgetFn::nil();
 // }

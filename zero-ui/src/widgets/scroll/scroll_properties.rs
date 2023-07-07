@@ -4,13 +4,13 @@ use super::{commands::ScrollToMode, types::*, *};
 
 context_var! {
     /// Widget function for creating the vertical scrollbar of an scroll widget.
-    pub static VERTICAL_SCROLLBAR_GEN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
+    pub static VERTICAL_SCROLLBAR_FN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
 
     /// Widget function for creating the vertical scrollbar of an scroll widget.
-    pub static HORIZONTAL_SCROLLBAR_GEN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
+    pub static HORIZONTAL_SCROLLBAR_FN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
 
     /// Widget function for the little square that joins the two scrollbars when both are visible.
-    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetFn<()> = wgt_fn!(|_| flood(scrollbar::vis::BACKGROUND_VAR));
+    pub static SCROLLBAR_JOINER_FN_VAR: WidgetFn<()> = wgt_fn!(|_| flood(scrollbar::vis::BACKGROUND_VAR));
 
     /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
     ///
@@ -95,15 +95,15 @@ fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
 }
 
 /// Vertical scrollbar function for all scroll widget descendants.
-#[property(CONTEXT, default(VERTICAL_SCROLLBAR_GEN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
+#[property(CONTEXT, default(VERTICAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
 pub fn v_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, VERTICAL_SCROLLBAR_GEN_VAR, wgt_fn)
+    with_context_var(child, VERTICAL_SCROLLBAR_FN_VAR, wgt_fn)
 }
 
 /// Horizontal scrollbar function for all scroll widget descendants.
-#[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_GEN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
+#[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
 pub fn h_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, HORIZONTAL_SCROLLBAR_GEN_VAR, wgt_fn)
+    with_context_var(child, HORIZONTAL_SCROLLBAR_FN_VAR, wgt_fn)
 }
 
 /// Scrollbar function for both orientations applicable to all scroll widget descendants.

@@ -69,7 +69,7 @@ impl<D> WidgetFn<D> {
     /// # pub struct Foo;
     /// context_var! {
     ///     /// Widget function for `Foo` items.
-    ///     pub static FOO_GEN_VAR: WidgetFn<Foo> = WidgetFn::nil();
+    ///     pub static FOO_FN_VAR: WidgetFn<Foo> = WidgetFn::nil();
     /// }
     /// ```
     pub fn nil() -> Self {

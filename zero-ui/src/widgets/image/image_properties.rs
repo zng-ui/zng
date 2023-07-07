@@ -92,10 +92,10 @@ context_var! {
     pub static IMAGE_CACHE_VAR: bool = true;
 
     /// Widget function for the content shown when the image does not load.
-    pub static IMAGE_ERROR_GEN_VAR: WidgetFn<ImgErrorArgs> = WidgetFn::nil();
+    pub static IMAGE_ERROR_FN_VAR: WidgetFn<ImgErrorArgs> = WidgetFn::nil();
 
     /// Widget function for the content shown when the image is still loading.
-    pub static IMAGE_LOADING_GEN_VAR: WidgetFn<ImgLoadingArgs> = WidgetFn::nil();
+    pub static IMAGE_LOADING_FN_VAR: WidgetFn<ImgLoadingArgs> = WidgetFn::nil();
 
     /// Custom image load and decode limits.
     ///
@@ -363,17 +363,17 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
-#[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR), widget_impl(Image))]
+#[property(CONTEXT, default(IMAGE_ERROR_FN_VAR), widget_impl(Image))]
 pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_ERROR_GEN_VAR, wgt_fn)
+    with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
 }
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
-#[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR), widget_impl(Image))]
+#[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
 pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_LOADING_GEN_VAR, wgt_fn)
+    with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)
 }
 
 /// Arguments for [`img_loading_fn`].

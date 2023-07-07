@@ -213,16 +213,16 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
 /// Create a node that generates and presents the [vertical scrollbar].
 ///
-/// [vertical scrollbar]: VERTICAL_SCROLLBAR_GEN_VAR
+/// [vertical scrollbar]: VERTICAL_SCROLLBAR_FN_VAR
 pub fn v_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(VERTICAL_SCROLLBAR_GEN_VAR, Orientation::Vertical)
+    scrollbar_presenter(VERTICAL_SCROLLBAR_FN_VAR, Orientation::Vertical)
 }
 
 /// Create a node that generates and presents the [horizontal scrollbar].
 ///
-/// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_GEN_VAR
+/// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_FN_VAR
 pub fn h_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(HORIZONTAL_SCROLLBAR_GEN_VAR, Orientation::Horizontal)
+    scrollbar_presenter(HORIZONTAL_SCROLLBAR_FN_VAR, Orientation::Horizontal)
 }
 
 fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: Orientation) -> impl UiNode {
@@ -231,9 +231,9 @@ fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: 
 
 /// Create a node that generates and presents the [scrollbar joiner].
 ///
-/// [scrollbar joiner]: SCROLLBAR_JOINER_GEN_VAR
+/// [scrollbar joiner]: SCROLLBAR_JOINER_FN_VAR
 pub fn scrollbar_joiner_presenter() -> impl UiNode {
-    crate::widgets::presenter((), SCROLLBAR_JOINER_GEN_VAR)
+    crate::widgets::presenter((), SCROLLBAR_JOINER_FN_VAR)
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
