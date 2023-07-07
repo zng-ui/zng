@@ -1046,6 +1046,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     }
     // Use `EditData::get` to access.
     let mut edit_data = None;
+    let mut viewport_height = Px(0);
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1105,6 +1106,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 if let Some(args) = KEY_INPUT_EVENT.on(update) {
                     let mut line_diff = 0;
+                    let mut page_diff = 0;
                     if args.state == KeyState::Pressed {
                         if let Some(key) = args.key {
                             match key {
@@ -1113,6 +1115,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                                 Key::Down => {
                                     line_diff = 1;
+                                }
+                                Key::PageUp => {
+                                    page_diff = -1;
+                                }
+                                Key::PageDown => {
+                                    page_diff = 1;
                                 }
                                 _ => {}
                             }
@@ -1132,6 +1140,35 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 let next_li = li.saturating_add_signed(line_diff).min(last_line);
                                 if li != next_li {
                                     let i = match txt.shaped_text.line(next_li) {
+                                        Some(l) => match l.nearest_seg(txt.caret_retained_x) {
+                                            Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
+                                            None => l.text_range().end(),
+                                        },
+                                        None => 0,
+                                    };
+                                    *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
+                                }
+                            }
+                        }
+                        if caret_index.is_none() {
+                            *caret_index = Some(0);
+                        }
+                        args.propagation().stop();
+                    } else if page_diff != 0 {
+                        let page_y = viewport_height * Px(page_diff);
+                        caret.used_retained_x = true;
+                        if let Some(txt) = &mut txt.txt {
+                            if txt.caret_origin.is_some() {
+                                let i = caret_index.unwrap_or(0);
+                                let last_line = txt.shaped_text.lines_len().saturating_sub(1);
+                                let li = txt
+                                    .shaped_text
+                                    .lines()
+                                    .position(|l| l.text_range().contains(i))
+                                    .unwrap_or(last_line);
+                                if let Some(li) = txt.shaped_text.line(li) {
+                                    let target_line_y = li.rect().origin.y + page_y;
+                                    let i = match txt.shaped_text.nearest_line(target_line_y) {
                                         Some(l) => match l.nearest_seg(txt.caret_retained_x) {
                                             Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
                                             None => l.text_range().end(),
@@ -1319,6 +1356,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             child.delegated();
 
             let metrics = LAYOUT.metrics();
+            viewport_height = metrics.viewport().height;
             let resolved_txt = RESOLVED_TEXT.get();
             *final_size = txt.layout(&metrics, &resolved_txt, false);
 

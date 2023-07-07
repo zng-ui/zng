@@ -1,8 +1,10 @@
 # TextInput
 
+* `text.rs` example editor:
+    - if one of the lines wraps then clicking undo no longer removes the line numbers on the left
 * Support replace (Insert mode in command line).
-* Support buttons:
-    - page up and page down
+* Implement scroll integration:
+    - scroll to caret
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
