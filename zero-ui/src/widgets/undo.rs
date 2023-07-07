@@ -1,5 +1,4 @@
-//! Undo scope mix.
-//!
+//! Undo scope mix and undo history widget.
 
 use std::time::Duration;
 
@@ -41,3 +40,11 @@ impl<P: WidgetImpl> UndoMix<P> {
         pub crate::properties::undo_interval(interval: impl IntoVar<Duration>);
     }
 }
+
+/// Undo/redo stack view.
+#[widget($crate::widgets::undo::UndoHistory)]
+pub struct UndoHistory(WidgetBase);
+
+// context_var! {
+//     pub static UNDO_FN_VAR: WidgetFn<&UndoEntry> = WidgetFn::nil();
+// }

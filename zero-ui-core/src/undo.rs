@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 use crate::{
     app::AppExtension,
     app_local, clmv, command,
-    context::{StaticStateId, WIDGET},
+    context::{StateMapRef, StaticStateId, WIDGET},
     context_local,
     crate_util::RunOnDrop,
     event::{AnyEventArgs, Command, CommandNameExt, CommandScope},
@@ -342,6 +342,38 @@ impl UNDO {
         u.clear();
         ctx.redo.lock().clear();
     }
+
+    /// If the undo stack is not empty.
+    pub fn can_undo(&self) -> bool {
+        !UNDO_SCOPE_CTX.get().undo.lock().is_empty()
+    }
+
+    /// If the redo stack is not empty.
+    pub fn can_redo(&self) -> bool {
+        !UNDO_SCOPE_CTX.get().redo.lock().is_empty()
+    }
+
+    /// Visit the undo stack.
+    ///
+    /// Note that the stack is locked during the call to `visit`, a **deadlock** will
+    /// happen if you try to undo inside it.
+    ///
+    /// The stack is from oldest to latest.
+    pub fn with_undo_stack<R>(&self, visit: impl FnOnce(&[UndoEntry]) -> R) -> R {
+        visit(&UNDO_SCOPE_CTX.get().undo.lock())
+    }
+
+    /// Visit the redo stack.
+    ///
+    /// Note that the stack is locked during the call to `visit`, a **deadlock** will
+    /// happen if you try to redo inside it.
+    ///
+    /// The stack is from oldest to latest undone. Note that the timestamp of
+    /// each entry is still from the time the undo was registered so they will
+    /// be reversed here, oldest timestamp in the last item.
+    pub fn with_redo_stack<R>(&self, visit: impl FnOnce(&[RedoEntry]) -> R) -> R {
+        visit(&UNDO_SCOPE_CTX.get().redo.lock())
+    }
 }
 
 /// Identifies that a var modify requested by undo/redo action.
@@ -356,7 +388,18 @@ pub struct UndoVarModifyTag;
 ///
 /// If formatted to display it should provide a short description of the action
 /// that will be undone or redone.
-pub trait UndoRedoItem: fmt::Debug + fmt::Display + Send + Any {}
+pub trait UndoRedoItem: fmt::Debug + fmt::Display + Send + Any {
+    /// Any extra metadata associated with the item.
+    ///
+    /// The action description/name is the [`fmt::Display`] print of the item, for any other
+    /// metadata the action can use this API. This can be a thumbnail of an image edit action for example,
+    /// or an icon.
+    ///
+    /// Is empty by default.
+    fn meta(&self) -> StateMapRef<UNDO> {
+        StateMapRef::empty()
+    }
+}
 
 /// Represents a single undo action.
 pub trait UndoAction: UndoRedoItem {
@@ -647,14 +690,20 @@ impl UndoScope {
     }
 }
 
-struct UndoEntry {
-    timestamp: Instant,
-    action: Box<dyn UndoAction>,
+/// Represents one undo action in the undo stack.
+pub struct UndoEntry {
+    /// The moment the undo action was first registered.
+    pub timestamp: Instant,
+    /// The undo action.
+    pub action: Box<dyn UndoAction>,
 }
 
-struct RedoEntry {
-    timestamp: Instant,
-    action: Box<dyn RedoAction>,
+/// Represents one redo action in the redo stack.
+pub struct RedoEntry {
+    /// The moment the undo action that was undone was first registered.
+    pub timestamp: Instant,
+    /// The redo action.
+    pub action: Box<dyn RedoAction>,
 }
 
 struct UndoGroup {

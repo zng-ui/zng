@@ -36,13 +36,11 @@
 
 * Test undo actions trying to register undo.
 
-- UNDO_CMD.
-    - Add undo list info to the command meta?
-        - For use in "UndoStack" widgets.
-    - Can undo/redo.
-
-- `UndoStack!` widget.
-    - Pop-up hover down selecting (See Word widget).
+- `UndoHistory!` widget.
+    - Similar with other composite widgets, use `WidgetFn` for all parts.
+    - Need to support pop-up hover down selecting (See Word widget).
+        - How does the undo context work in this case?
+        - This is an issue with layers in general.
 
 # View-Process
 
