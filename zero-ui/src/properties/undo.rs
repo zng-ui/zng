@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::prelude::new_property::*;
 
@@ -58,9 +58,11 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                     args.propagation().stop();
                     UNDO.with_scope(&mut scope, || {
                         if let Some(&n) = args.param::<u32>() {
-                            UNDO.undo_n(n);
-                        } else if let Some(&t) = args.param::<Duration>() {
-                            UNDO.undo_t(t);
+                            UNDO.undo_select(n);
+                        } else if let Some(&i) = args.param::<Duration>() {
+                            UNDO.undo_select(i);
+                        } else if let Some(&t) = args.param::<Instant>() {
+                            UNDO.undo_select(t);
                         } else {
                             UNDO.undo();
                         }
@@ -69,9 +71,11 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                     args.propagation().stop();
                     UNDO.with_scope(&mut scope, || {
                         if let Some(&n) = args.param::<u32>() {
-                            UNDO.redo_n(n);
-                        } else if let Some(&t) = args.param::<Duration>() {
-                            UNDO.redo_t(t);
+                            UNDO.redo_select(n);
+                        } else if let Some(&i) = args.param::<Duration>() {
+                            UNDO.redo_select(i);
+                        } else if let Some(&t) = args.param::<Instant>() {
+                            UNDO.redo_select(t);
                         } else {
                             UNDO.redo();
                         }

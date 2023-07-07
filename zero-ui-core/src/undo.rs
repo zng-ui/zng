@@ -49,10 +49,26 @@ impl AppExtension for UndoManager {
         // app scope handler
         if let Some(args) = UNDO_CMD.on_unhandled(update) {
             args.propagation().stop();
-            UNDO.undo_n(args.param::<u32>().copied().unwrap_or(1));
-        } else if let Some(args) = UNDO_CMD.on_unhandled(update) {
+            if let Some(c) = args.param::<u32>() {
+                UNDO.undo_select(*c);
+            } else if let Some(i) = args.param::<Duration>() {
+                UNDO.undo_select(*i);
+            } else if let Some(t) = args.param::<Instant>() {
+                UNDO.undo_select(*t);
+            } else {
+                UNDO.undo();
+            }
+        } else if let Some(args) = REDO_CMD.on_unhandled(update) {
             args.propagation().stop();
-            UNDO.redo_n(args.param::<u32>().copied().unwrap_or(1));
+            if let Some(c) = args.param::<u32>() {
+                UNDO.redo_select(*c);
+            } else if let Some(i) = args.param::<Duration>() {
+                UNDO.redo_select(*i);
+            } else if let Some(t) = args.param::<Instant>() {
+                UNDO.redo_select(*t);
+            } else {
+                UNDO.redo();
+            }
         }
     }
 }
@@ -112,38 +128,36 @@ impl UNDO {
         UNDO_SCOPE_CTX.get().enabled.load(Ordering::Relaxed) && UNDO_SV.read().undo_limit.get() > 0
     }
 
-    /// Undo `n` times in the current scope.
-    pub fn undo_n(&self, n: u32) {
-        UNDO_SCOPE_CTX.get().undo_n(n);
+    /// Undo a selection of actions.
+    ///
+    /// # Selectors
+    ///
+    /// These types can be used as selector:
+    ///
+    /// * `u32` - Count of actions to undo.
+    /// * `Duration` - Interval between each action.
+    /// * `Instant` - Inclusive timestamp to undo back to.
+    pub fn undo_select(&self, selector: impl UndoSelector) {
+        UNDO_SCOPE_CTX.get().undo_select(selector);
     }
 
-    /// Redo `n` times in the current scope.
-    pub fn redo_n(&self, n: u32) {
-        UNDO_SCOPE_CTX.get().redo_n(n);
-    }
-
-    /// Undo all actions within the `t` interval of each other, starting from the most recent action.
-    pub fn undo_t(&self, t: Duration) {
-        UNDO_SCOPE_CTX.get().undo_t(t);
-    }
-
-    /// Redo all actions within the `t` interval of each other, starting from the most recent action.
-    pub fn redo_t(&self, t: Duration) {
-        UNDO_SCOPE_CTX.get().redo_t(t);
+    /// Redo a selection of actions.
+    pub fn redo_select(&self, selector: impl UndoSelector) {
+        UNDO_SCOPE_CTX.get().redo_select(selector);
     }
 
     /// Undo all actions within the [`undo_interval`].
     ///
     /// [`undo_interval`]: Self::undo_interval
     pub fn undo(&self) {
-        self.undo_t(UNDO_INTERVAL_VAR.get());
+        self.undo_select(UNDO_INTERVAL_VAR.get());
     }
 
     /// Redo all actions within the [`undo_interval`].
     ///
     /// [`undo_interval`]: Self::undo_interval
     pub fn redo(&self) {
-        self.redo_t(UNDO_INTERVAL_VAR.get());
+        self.redo_select(UNDO_INTERVAL_VAR.get());
     }
 
     /// Gets the parent ID that defines an undo scope, or `None` if undo is registered globally for
@@ -431,11 +445,10 @@ command! {
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32` calls [`undo_n`], if it is `Duration` calls [`undo_t`], otherwise calls
+    /// If the command parameter is a `u32`, `Duration` or `Instant` calls [`undo_select`], otherwise calls
     /// [`undo`].
     ///
-    /// [`undo_n`]: UNDO::undo_n
-    /// [`undo_t`]: UNDO::undo_t
+    /// [`undo_select`]: UNDO::undo_select
     /// [`undo`]: UNDO::undo
     ///
     /// # Scope
@@ -451,11 +464,10 @@ command! {
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32` calls [`redo_n`], if it is `Duration` calls [`redo_t`], otherwise calls
+    /// If the command parameter is a `u32`, `Duration` or `Instant` calls [`redo_select`], otherwise calls
     /// [`redo`].
     ///
-    /// [`redo_n`]: UNDO::redo_n
-    /// [`redo_t`]: UNDO::redo_t
+    /// [`redo_select`]: UNDO::redo_select
     /// [`redo`]: UNDO::redo
     pub static REDO_CMD = {
         name: "Redo",
@@ -584,14 +596,14 @@ impl UndoScope {
         });
     }
 
-    fn undo_n(&self, mut count: u32) {
-        let mut actions = Vec::with_capacity(count.min(5) as usize);
+    fn undo_select(&self, selector: impl UndoSelector) {
+        let mut actions = vec![];
 
         self.with_enabled_undo_redo(|undo, _| {
-            while count > 0 {
-                count -= 1;
-                if let Some(undo) = undo.pop() {
-                    actions.push(undo);
+            let mut select = selector.select(UndoOp::Undo);
+            while let Some(entry) = undo.last() {
+                if select.include(entry.timestamp) {
+                    actions.push(undo.pop().unwrap());
                 } else {
                     break;
                 }
@@ -607,68 +619,16 @@ impl UndoScope {
         }
     }
 
-    fn redo_n(&self, mut count: u32) {
-        let mut actions = Vec::with_capacity(count.min(5) as usize);
+    fn redo_select(&self, selector: impl UndoSelector) {
+        let mut actions = vec![];
 
         self.with_enabled_undo_redo(|_, redo| {
-            while count > 0 {
-                count -= 1;
-                if let Some(redo) = redo.pop() {
-                    actions.push(redo);
+            let mut select = selector.select(UndoOp::Redo);
+            while let Some(entry) = redo.last() {
+                if select.include(entry.timestamp) {
+                    actions.push(redo.pop().unwrap());
                 } else {
                     break;
-                }
-            }
-        });
-
-        for redo in actions {
-            let undo = redo.action.redo();
-            self.undo.lock().push(UndoEntry {
-                timestamp: redo.timestamp,
-                action: undo,
-            });
-        }
-    }
-
-    fn undo_t(&self, t: Duration) {
-        let mut actions = vec![];
-
-        self.with_enabled_undo_redo(|undo, _| {
-            if let Some(mut prev_ts) = undo.last().map(|e| e.timestamp) {
-                while let Some(action) = undo.pop() {
-                    if prev_ts.checked_duration_since(action.timestamp).unwrap_or(t) <= t {
-                        prev_ts = action.timestamp;
-                        actions.push(action);
-                    } else {
-                        undo.push(action);
-                        break;
-                    }
-                }
-            }
-        });
-
-        for undo in actions {
-            let redo = undo.action.undo();
-            self.redo.lock().push(RedoEntry {
-                timestamp: undo.timestamp,
-                action: redo,
-            });
-        }
-    }
-
-    fn redo_t(&self, t: Duration) {
-        let mut actions = vec![];
-
-        self.with_enabled_undo_redo(|_, redo| {
-            if let Some(mut prev_ts) = redo.last().map(|e| e.timestamp) {
-                while let Some(action) = redo.pop() {
-                    if action.timestamp.checked_duration_since(prev_ts).unwrap_or(t) <= t {
-                        prev_ts = action.timestamp;
-                        actions.push(action);
-                    } else {
-                        redo.push(action);
-                        break;
-                    }
                 }
             }
         });
@@ -858,6 +818,113 @@ impl CommandUndoExt for Command {
     }
 }
 
+/// Represents an entry in the undo stack.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UndoInfo {
+    /// Moment the action was registered.
+    pub timestamp: Instant,
+    /// Display print of the action.
+    pub display: Txt,
+}
+
+/// Represents a type that can select actions for undo or redo once.
+///
+/// This API is sealed, only core crate can implement it.
+///
+/// See [`UNDO::undo_select`] for more details.
+pub trait UndoSelector: crate::private::Sealed {
+    /// Selection collector.
+    type Select: UndoSelect;
+
+    /// Start selecting action for the `op`.
+    fn select(self, op: UndoOp) -> Self::Select;
+}
+
+/// Selects actions to undo or redo.
+pub trait UndoSelect {
+    /// Called for each undo or redo action from the last item in the stack and back.
+    ///
+    /// The `timestamp` is the moment the item was pushed in the undo stack, if this
+    /// function is called for [`UndoOp::Redo`] it will not be more recent than the next action.
+    fn include(&mut self, timestamp: Instant) -> bool;
+}
+impl crate::private::Sealed for u32 {}
+impl UndoSelector for u32 {
+    type Select = u32;
+
+    fn select(self, op: UndoOp) -> Self::Select {
+        let _ = op;
+        self
+    }
+}
+impl UndoSelect for u32 {
+    fn include(&mut self, _: Instant) -> bool {
+        let i = *self > 0;
+        if i {
+            *self -= 1;
+        }
+        i
+    }
+}
+impl crate::private::Sealed for Duration {}
+impl UndoSelector for Duration {
+    type Select = UndoSelectInterval;
+
+    fn select(self, op: UndoOp) -> Self::Select {
+        UndoSelectInterval {
+            prev: None,
+            interval: self,
+            op,
+        }
+    }
+}
+#[doc(hidden)]
+pub struct UndoSelectInterval {
+    prev: Option<Instant>,
+    interval: Duration,
+    op: UndoOp,
+}
+impl UndoSelect for UndoSelectInterval {
+    fn include(&mut self, timestamp: Instant) -> bool {
+        if let Some(prev) = &mut self.prev {
+            let (older, newer) = match self.op {
+                UndoOp::Undo => (timestamp, *prev),
+                UndoOp::Redo => (*prev, timestamp),
+            };
+            if newer.saturating_duration_since(older) <= self.interval {
+                *prev = timestamp;
+                true
+            } else {
+                false
+            }
+        } else {
+            self.prev = Some(timestamp);
+            true
+        }
+    }
+}
+impl crate::private::Sealed for Instant {}
+impl UndoSelector for Instant {
+    type Select = UndoSelectLtEq;
+
+    fn select(self, op: UndoOp) -> Self::Select {
+        UndoSelectLtEq { instant: self, op }
+    }
+}
+#[doc(hidden)]
+pub struct UndoSelectLtEq {
+    instant: Instant,
+    op: UndoOp,
+}
+impl UndoSelect for UndoSelectLtEq {
+    fn include(&mut self, timestamp: Instant) -> bool {
+        match self.op {
+            UndoOp::Undo => timestamp <= self.instant,
+            UndoOp::Redo => timestamp >= self.instant,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::app::App;
@@ -880,14 +947,14 @@ mod tests {
         });
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -916,14 +983,14 @@ mod tests {
         push_1_2(&data);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -937,7 +1004,7 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.undo();
@@ -954,19 +1021,19 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.commit();
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -980,15 +1047,15 @@ mod tests {
         });
 
         assert_eq!(&[1, 2], &data.lock()[..]);
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         t.commit_group("push 1, 2");
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -1018,14 +1085,14 @@ mod tests {
         push_1_sleep_2(&data);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo_t(Duration::ZERO);
+        UNDO.undo_select(Duration::ZERO);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.undo_t(Duration::ZERO);
+        UNDO.undo_select(Duration::ZERO);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_t(Duration::ZERO);
+        UNDO.redo_select(Duration::ZERO);
         assert_eq!(&[1], &data.lock()[..]);
-        UNDO.redo_t(Duration::ZERO);
+        UNDO.redo_select(Duration::ZERO);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -1046,10 +1113,10 @@ mod tests {
         push_1_sleep_2(&data);
         assert_eq!(&[1, 2], &data.lock()[..]);
 
-        UNDO.undo_t(t);
+        UNDO.undo_select(t);
         assert_eq!(&[] as &[u8], &data.lock()[..]);
 
-        UNDO.redo_t(t);
+        UNDO.redo_select(t);
         assert_eq!(&[1, 2], &data.lock()[..]);
     }
 
@@ -1068,19 +1135,19 @@ mod tests {
 
         assert_eq!(20, test_var.get());
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         app.update(false).assert_wait();
         assert_eq!(10, test_var.get());
 
-        UNDO.undo_n(1);
+        UNDO.undo_select(1);
         app.update(false).assert_wait();
         assert_eq!(0, test_var.get());
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         app.update(false).assert_wait();
         assert_eq!(10, test_var.get());
 
-        UNDO.redo_n(1);
+        UNDO.redo_select(1);
         app.update(false).assert_wait();
         assert_eq!(20, test_var.get());
     }
