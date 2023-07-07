@@ -56,6 +56,7 @@ fn alt_scope() -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
+        focus_click_behavior = FocusClickBehavior::Exit;
         button::extend_style = Style! {
             border = unset!;
             corner_radius = unset!;

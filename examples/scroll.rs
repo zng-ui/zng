@@ -61,15 +61,20 @@ fn commands() -> impl UiNode {
     let show = var(false);
 
     Stack! {
+        id = "menu";
         direction = StackDirection::top_to_bottom();
         align = Align::TOP;
         padding = 5;
         background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
+        on_focus_leave = hn!(show, |_| {
+            show.set(false);
+        });
 
         children = ui_vec![
             Stack! {
+                focus_click_behavior = FocusClickBehavior::Exit;
                 direction = StackDirection::top_to_bottom();
                 visibility = show.map_into();
                 spacing = 3;

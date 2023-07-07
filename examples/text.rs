@@ -432,6 +432,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let gt_500 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(500)));
     Stack! {
         alt_focus_scope = true;
+        focus_click_behavior = FocusClickBehavior::Exit;
         grid::cell::at = (1, 0);
         spacing = 4;
         direction = StackDirection::left_to_right();
@@ -451,7 +452,6 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 click_shortcut = NEW_CMD.shortcut();
                 on_click = async_hn!(editor, |_| {
                     editor.create().await;
-                    FOCUS.focus_widget(editor.input_wgt_id(), false);
                 });
             },
             Button! {
@@ -473,7 +473,6 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 click_shortcut = SAVE_CMD.shortcut();
                 on_click = async_hn!(editor, |_| {
                     editor.save().await;
-                    FOCUS.focus_widget(editor.input_wgt_id(), false);
                 });
             },
             Button! {

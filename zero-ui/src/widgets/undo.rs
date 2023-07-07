@@ -62,7 +62,7 @@ context_var! {
 /// Returns a `Button!` with the [`UndoRedoButtonStyle!`] and the entry displayed in a `Text!` child.
 /// The button notifies [`UNDO_CMD`] with the entry timestamp, the command is scoped on the
 /// undo parent of the caller not of the button.
-/// 
+///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_undo_fn(args: UndoEntryArgs) -> impl UiNode {
     let mut cmd = UNDO_CMD;
@@ -85,7 +85,7 @@ pub fn default_undo_fn(args: UndoEntryArgs) -> impl UiNode {
 /// Returns a `Button!` with the [`UndoRedoButtonStyle!`] and the entry displayed in a `Text!` child.
 /// The button notifies [`REDO_CMD`] with the entry timestamp, the command is scoped on the
 /// undo parent of the caller not of the button.
-/// 
+///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_redo_fn(args: RedoEntryArgs) -> impl UiNode {
     let mut cmd = REDO_CMD;
@@ -119,12 +119,12 @@ pub struct RedoEntryArgs {
     pub info: Arc<dyn UndoInfo>,
 }
 
-/// Menu entry in a 
+/// Menu entry in a undo/redo list.
 #[widget($crate::widgets::undo::UndoRedoButtonStyle)]
 pub struct UndoRedoButtonStyle(crate::widgets::button::DefaultStyle);
 impl UndoRedoButtonStyle {
     fn widget_intrinsic(&mut self) {
-        widget_set! { 
+        widget_set! {
             self;
             corner_radius = 0;
             padding = (4, 6);

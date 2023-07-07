@@ -42,6 +42,11 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 /// Widget is the ALT focus scope.
 ///
 /// ALT focus scopes are also, `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
+///
+/// Also see [`focus_click_behavior`] that can be used to return focus automatically when any widget inside the ALT scope
+/// handles a click.
+///
+/// [`focus_click_behavior`]: fn@focus_click_behavior
 #[property(CONTEXT, default(false))]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     focus_scope_impl(child, is_scope, true)
@@ -144,6 +149,63 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
             FocusInfoBuilder::new(info).skip_directional(enabled.get());
         }
         _ => {}
+    })
+}
+
+/// Behavior of an widget when a click event is send to it or a descendant.
+///
+/// See [`focus_click_behavior`] for more details.
+///
+/// [`focus_click_behavior`]: fn@focus_click_behavior
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FocusClickBehavior {
+    /// Click event always ignored.
+    Ignore,
+    /// Exit focus if a click event was send to the widget or descendant.
+    Exit,
+    /// Exit focus if a click event was send to the enabled widget or enabled descendant.
+    ExitEnabled,
+    /// Exit focus if the click event was received by the widget or descendant and event propagation was stopped.
+    ExitHandled,
+}
+
+impl std::fmt::Debug for FocusClickBehavior {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "FocusClickBehavior::")?;
+        }
+        match self {
+            Self::Ignore => write!(f, "Ignore"),
+            Self::Exit => write!(f, "Exit"),
+            Self::ExitEnabled => write!(f, "ExitEnabled"),
+            Self::ExitHandled => write!(f, "ExitHandled"),
+        }
+    }
+}
+
+/// Behavior of an widget when a click event is send to it or a descendant.
+///
+/// When a [`CLICK_EVENT`] targets the widget or descendant the `behavior` is applied.
+///
+/// Note that this property does not subscribe to the event, it only observes events flowing trough.
+#[property(CONTEXT, default(FocusClickBehavior::Ignore))]
+pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClickBehavior>) -> impl UiNode {
+    let behavior = behavior.into_var();
+    match_node(child, move |c, op| {
+        if let UiNodeOp::Event { update } = op {
+            c.event(update);
+            if let Some(args) = CLICK_EVENT.on(update) {
+                let exit = match behavior.get() {
+                    FocusClickBehavior::Ignore => false,
+                    FocusClickBehavior::Exit => true,
+                    FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
+                    FocusClickBehavior::ExitHandled => args.propagation().is_stopped(),
+                };
+                if exit {
+                    FOCUS.focus_exit();
+                }
+            }
+        }
     })
 }
 

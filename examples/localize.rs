@@ -106,6 +106,7 @@ fn window_content() -> impl UiNode {
 fn locale_menu() -> impl UiNode {
     Container! {
         alt_focus_scope = true;
+        focus_click_behavior = FocusClickBehavior::Exit;
         child = presenter(
             L10N.available_langs(),
             wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
