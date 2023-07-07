@@ -331,7 +331,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let txt = WHITE_SPACE_VAR.with(|t| t.transform(txt));
 
             let editable = TEXT_EDITABLE_VAR.get();
-            let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
+            let caret_opacity = if editable && FOCUS.is_focused(WIDGET.id()).get() {
                 let v = KEYBOARD.caret_animation();
                 EditData::get(&mut edit_data).caret_animation = v.subscribe(UpdateOp::Update, WIDGET.id());
                 v
@@ -570,7 +570,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     if (caret.index, caret.index_version) != prev_caret {
                         caret.used_retained_x = false;
-                        if caret.index.is_none() {
+                        if caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                             caret.opacity = var(0.fct()).read_only();
                         } else {
@@ -663,7 +663,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     d.paste = PASTE_CMD.scoped(id).subscribe(true);
                     d.edit = EDIT_CMD.scoped(id).subscribe(true);
 
-                    if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
+                    if FOCUS.is_focused(id).get() {
                         let new_animation = KEYBOARD.caret_animation();
                         d.caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, id);
                         r.caret.get_mut().opacity = new_animation;
@@ -1213,7 +1213,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
 
                 if *caret_index != prev_caret_index {
-                    if caret_index.is_none() {
+                    if caret_index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();
                     } else {

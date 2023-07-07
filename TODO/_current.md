@@ -4,7 +4,8 @@
 
 # TextInput
 
-* Caret not always positioned at end of wrapped line (visual line not actual end).
+* Caret not always positioned at end of wrapped line.
+    - Include a line_index in the caret position.
 * `shaped_text_version` updating just by pressing Home?
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).

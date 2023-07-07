@@ -631,6 +631,20 @@ impl FOCUS {
         self.focused().map(move |p| matches!(p, Some(p) if p.window_id() == window_id))
     }
 
+    /// If the [`focused`] path contains the given `widget_id`.
+    ///
+    /// [`focused`]: Self::focused
+    pub fn is_focus_within(&self, widget_id: WidgetId) -> impl Var<bool> {
+        self.focused().map(move |p| matches!(p, Some(p) if p.contains(widget_id)))
+    }
+
+    /// If the [`focused`] path is to the given `widget_id`.
+    ///
+    /// [`focused`]: Self::focused
+    pub fn is_focused(&self, widget_id: WidgetId) -> impl Var<bool> {
+        self.focused().map(move |p| matches!(p, Some(p) if p.widget_id() == widget_id))
+    }
+
     /// Current ALT return focus.
     #[must_use]
     pub fn alt_return(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
