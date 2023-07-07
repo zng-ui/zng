@@ -1,7 +1,11 @@
 # TextInput
 
-* `text.rs` example editor:
-    - if one of the lines wraps then clicking undo no longer removes the line numbers on the left
+* Caret not always positioned at end of wrapped line (visual line not actual end).
+* `shaped_text_version` updating just by pressing Home?
+
+* After undo by menu click TextInput is not actually focused?  
+    - Caret is blinking.
+* Large single word does not wrap (it wraps for a bit then it becomes a single line again).
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret

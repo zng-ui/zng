@@ -1847,11 +1847,13 @@ fn lines_wrap_count(prev: &super::LinesWrapCount, txt: &ShapedText) -> Option<su
             }
         }
         super::LinesWrapCount::Wrap(counts) => {
+            // find `counts[i]` that diverges from counts, OR
+            // find if all new counts is now NoWrap
             let mut prev_counts = counts.iter();
-            let mut counter = lines_wrap_counter(txt);
+            let mut new_counts = lines_wrap_counter(txt);
             let mut eq_l = 0;
             let mut eq_wrap = false;
-            for c in &mut counter {
+            for c in &mut new_counts {
                 if prev_counts.next() == Some(&c) {
                     eq_l += 1;
                     eq_wrap |= c != 1;
@@ -1859,17 +1861,17 @@ fn lines_wrap_count(prev: &super::LinesWrapCount, txt: &ShapedText) -> Option<su
                     // not eq, and already found a wrap line
                     let mut wrap = counts[..eq_l].to_vec();
                     wrap.push(c);
-                    wrap.extend(&mut counter);
+                    wrap.extend(&mut new_counts);
                     return Some(super::LinesWrapCount::Wrap(wrap));
                 } else {
                     // not eq, but maybe no wrap
-                    let mut l = eq_l;
-                    for c in &mut counter {
+                    let mut l = eq_l + 1; // +1 is +c
+                    for c in &mut new_counts {
                         if c != 1 {
                             // nope, found a line wrap
                             let mut wrap = vec![1; l];
                             wrap.push(c);
-                            wrap.extend(&mut counter);
+                            wrap.extend(&mut new_counts);
                             return Some(super::LinesWrapCount::Wrap(wrap));
                         }
                         l += 1;
@@ -1878,8 +1880,11 @@ fn lines_wrap_count(prev: &super::LinesWrapCount, txt: &ShapedText) -> Option<su
                     return Some(super::LinesWrapCount::NoWrap(l));
                 }
             }
-
-            None
+            if prev_counts.next().is_some() {
+                Some(super::LinesWrapCount::Wrap(counts[..eq_l].to_vec()))
+            } else {
+                None
+            }
         }
     }
 }
@@ -1894,7 +1899,7 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
         fn next(&mut self) -> Option<u32> {
             loop {
                 let line = self.lines.next()?;
-                if line.started_by_wrap() {
+                if line.ended_by_wrap() {
                     self.count += 1;
                     continue;
                 }

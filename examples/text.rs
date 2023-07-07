@@ -383,12 +383,12 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     txt = editor.txt.clone();
                     get_caret_status = editor.caret_status.clone();
                     get_lines_wrap_count = editor.lines.clone();
-                    font_family = "Arial";
                 },
                 // line numbers
                 Text! {
                     grid::cell::at = (0, 1);
-                    padding = (8, 4);
+                    border = 1, BorderStyle::Hidden; // 1dip + 7dip to px
+                    padding = (7, 4);
                     txt_align = Align::TOP_RIGHT;
                     opacity = 80.pct();
                     min_width = 24;
