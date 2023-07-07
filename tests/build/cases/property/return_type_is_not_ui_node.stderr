@@ -7,3 +7,4 @@ error[E0277]: the trait bound `NotUiNode: zero_ui::prelude::UiNode` is not satis
   |                                                                          ^^^^^^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `NotUiNode`
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNode`:
+            <implementers-list>
