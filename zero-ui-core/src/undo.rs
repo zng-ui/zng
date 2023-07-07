@@ -3,7 +3,7 @@
 
 use std::{
     any::Any,
-    fmt, mem,
+    mem,
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
@@ -167,41 +167,35 @@ impl UNDO {
     }
 
     /// Register an already executed action for undo in the current scope.
-    pub fn register(&self, action: impl UndoAction) {
-        UNDO_SCOPE_CTX.get().register(Box::new(action))
+    pub fn register(&self, info: impl UndoInfo, action: impl UndoAction) {
+        UNDO_SCOPE_CTX.get().register(info.into_dyn(), Box::new(action))
     }
 
     /// Register an already executed action for undo in the current scope.
     ///
     /// The action is defined as a closure `op` that matches over [`UndoOp`] to implement undo and redo.
-    pub fn register_op(&self, description: impl Into<Txt>, op: impl FnMut(UndoOp) + Send + 'static) {
-        self.register(UndoRedoOp {
-            description: description.into(),
-            op: Box::new(op),
-        })
+    pub fn register_op(&self, info: impl UndoInfo, op: impl FnMut(UndoOp) + Send + 'static) {
+        self.register(info, UndoRedoOp { op: Box::new(op) })
     }
 
     /// Run the `action` and register the undo in the current scope.
-    pub fn run(&self, action: impl RedoAction) {
-        UNDO_SCOPE_CTX.get().register(Box::new(action).redo())
+    pub fn run(&self, info: impl UndoInfo, action: impl RedoAction) {
+        UNDO_SCOPE_CTX.get().register(info.into_dyn(), Box::new(action).redo())
     }
 
     /// Run the `op` once with [`UndoOp::Redo`] and register it for undo in the current scope.
-    pub fn run_op(&self, description: impl Into<Txt>, op: impl FnMut(UndoOp) + Send + 'static) {
-        self.run(UndoRedoOp {
-            description: description.into(),
-            op: Box::new(op),
-        })
+    pub fn run_op(&self, info: impl UndoInfo, op: impl FnMut(UndoOp) + Send + 'static) {
+        self.run(info, UndoRedoOp { op: Box::new(op) })
     }
 
     /// Run `actions` as a [`transaction`] and commits as a group if any undo action is captured.
     ///
     /// [`transaction`]: Self::transaction
-    pub fn group(&self, description: impl Into<Txt>, actions: impl FnOnce()) -> bool {
+    pub fn group(&self, info: impl UndoInfo, actions: impl FnOnce()) -> bool {
         let t = self.transaction(actions);
         let any = !t.is_empty();
         if any {
-            t.commit_group(description);
+            t.commit_group(info);
         }
         any
     }
@@ -236,13 +230,13 @@ impl UNDO {
     /// undo action was registered, or undoes all if result is `Err(E)`.
     ///
     /// [`transaction`]: Self::transaction
-    pub fn try_group<O, E>(&self, description: impl Into<Txt>, actions: impl FnOnce() -> Result<O, E>) -> Result<O, E> {
+    pub fn try_group<O, E>(&self, info: impl UndoInfo, actions: impl FnOnce() -> Result<O, E>) -> Result<O, E> {
         let mut r = None;
         let t = self.transaction(|| r = Some(actions()));
         let r = r.unwrap();
         if !t.is_empty() {
             if r.is_ok() {
-                t.commit_group(description);
+                t.commit_group(info);
             } else {
                 t.undo();
             }
@@ -291,7 +285,7 @@ impl UNDO {
     /// entries for it, they will still try to assign the variable, failing silently if the variable is dropped too.
     ///
     /// Var updates caused by undo and redo are tagged with [`UndoVarModifyTag`].
-    pub fn watch_var<T: VarValue>(&self, description: impl Into<Txt>, var: impl Var<T>) -> VarHandle {
+    pub fn watch_var<T: VarValue>(&self, info: impl UndoInfo, var: impl Var<T>) -> VarHandle {
         if var.capabilities().is_always_read_only() {
             return VarHandle::dummy();
         }
@@ -299,7 +293,7 @@ impl UNDO {
         let wk_var = var.downgrade();
 
         let mut prev_value = Some(var.get());
-        let description = description.into();
+        let info = info.into_dyn();
 
         var.trace_value(move |args| {
             if args.downcast_tags::<UndoVarModifyTag>().next().is_none() {
@@ -312,7 +306,7 @@ impl UNDO {
                 }
                 prev_value = Some(new.clone());
                 UNDO.register_op(
-                    description.clone(),
+                    info.clone(),
                     clmv!(wk_var, new, |op| if let Some(var) = wk_var.upgrade() {
                         let _ = match op {
                             UndoOp::Undo => var.modify(clmv!(prev, |args| {
@@ -353,26 +347,32 @@ impl UNDO {
         !UNDO_SCOPE_CTX.get().redo.lock().is_empty()
     }
 
-    /// Visit the undo stack.
+    /// Clones the timestamp and info of all entries in the current undo stack.
     ///
-    /// Note that the stack is locked during the call to `visit`, a **deadlock** will
-    /// happen if you try to undo inside it.
-    ///
-    /// The stack is from oldest to latest.
-    pub fn with_undo_stack<R>(&self, visit: impl FnOnce(&[UndoEntry]) -> R) -> R {
-        visit(&UNDO_SCOPE_CTX.get().undo.lock())
+    /// The latest undo action is the last entry in the list.
+    pub fn undo_stack(&self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+        UNDO_SCOPE_CTX
+            .get()
+            .undo
+            .lock()
+            .iter()
+            .map(|e| (e.timestamp, e.info.clone()))
+            .collect()
     }
 
-    /// Visit the redo stack.
+    /// Clones the timestamp and info of all entries in the current redo stack.
     ///
-    /// Note that the stack is locked during the call to `visit`, a **deadlock** will
-    /// happen if you try to redo inside it.
-    ///
-    /// The stack is from oldest to latest undone. Note that the timestamp of
-    /// each entry is still from the time the undo was registered so they will
-    /// be reversed here, oldest timestamp in the last item.
-    pub fn with_redo_stack<R>(&self, visit: impl FnOnce(&[RedoEntry]) -> R) -> R {
-        visit(&UNDO_SCOPE_CTX.get().redo.lock())
+    /// The latest undone action is the last entry in the list. Note that the
+    /// timestamp is marks the moment the original undo registered the action, so the
+    /// newest timestamp is in the first entry.
+    pub fn redo_stack(&self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+        UNDO_SCOPE_CTX
+            .get()
+            .redo
+            .lock()
+            .iter()
+            .map(|e| (e.timestamp, e.info.clone()))
+            .collect()
     }
 }
 
@@ -389,15 +389,51 @@ pub trait UndoInfo: Send + Sync + Any {
     /// Short display description of the action that will be undone/redone.
     fn description(&self) -> Txt;
 
-    /// Any extra metadata associated with the item.
-    ///
-    /// The action description/name is the [`fmt::Display`] print of the item, for any other
-    /// metadata the action can use this API. This can be a thumbnail of an image edit action for example,
-    /// or an icon.
+    /// Any extra metadata associated with the item. This can be a thumbnail of an image
+    ///  edit action for example, or an icon.
     ///
     /// Is empty by default.
     fn meta(&self) -> StateMapRef<UNDO> {
         StateMapRef::empty()
+    }
+
+    /// Into `Arc<dyn UndoInfo>` without double wrapping.
+    fn into_dyn(self) -> Arc<dyn UndoInfo>
+    where
+        Self: Sized,
+    {
+        Arc::new(self)
+    }
+}
+impl UndoInfo for Txt {
+    fn description(&self) -> Txt {
+        self.clone()
+    }
+}
+impl UndoInfo for BoxedVar<Txt> {
+    fn description(&self) -> Txt {
+        self.get()
+    }
+}
+impl UndoInfo for &'static str {
+    fn description(&self) -> Txt {
+        Txt::from_static(self)
+    }
+}
+impl UndoInfo for Arc<dyn UndoInfo> {
+    fn description(&self) -> Txt {
+        self.as_ref().description()
+    }
+
+    fn meta(&self) -> StateMapRef<UNDO> {
+        self.as_ref().meta()
+    }
+
+    fn into_dyn(self) -> Arc<dyn UndoInfo>
+    where
+        Self: Sized,
+    {
+        self
     }
 }
 
@@ -461,11 +497,13 @@ impl UndoTransaction {
     /// actions in the transaction.
     ///
     /// Note that this will register a group item even if the transaction is empty.
-    pub fn commit_group(mut self, description: impl Into<Txt>) {
-        UNDO.register(UndoGroup {
-            description: description.into(),
-            undo: mem::take(&mut self.undo),
-        })
+    pub fn commit_group(mut self, info: impl UndoInfo) {
+        UNDO.register(
+            info,
+            UndoGroup {
+                undo: mem::take(&mut self.undo),
+            },
+        )
     }
 
     /// Cancel the transaction, undoes all captured actions.
@@ -629,10 +667,11 @@ impl UndoScope {
         }
     }
 
-    fn register(&self, action: Box<dyn UndoAction>) {
+    fn register(&self, info: Arc<dyn UndoInfo>, action: Box<dyn UndoAction>) {
         self.with_enabled_undo_redo(|undo, redo| {
             undo.push(UndoEntry {
                 timestamp: Instant::now(),
+                info,
                 action,
             });
             redo.clear();
@@ -657,6 +696,7 @@ impl UndoScope {
             let redo = undo.action.undo();
             self.redo.lock().push(RedoEntry {
                 timestamp: undo.timestamp,
+                info: undo.info,
                 action: redo,
             });
         }
@@ -680,6 +720,7 @@ impl UndoScope {
             let undo = redo.action.redo();
             self.undo.lock().push(UndoEntry {
                 timestamp: redo.timestamp,
+                info: redo.info,
                 action: undo,
             });
         }
@@ -690,106 +731,54 @@ impl UndoScope {
     }
 }
 
-/// Represents one undo action in the undo stack.
-pub struct UndoEntry {
-    /// The moment the undo action was first registered.
-    pub timestamp: Instant,
-    /// The undo action.
-    pub action: Box<dyn UndoAction>,
+struct UndoEntry {
+    timestamp: Instant,
+    info: Arc<dyn UndoInfo>,
+    action: Box<dyn UndoAction>,
 }
 
-/// Represents one redo action in the redo stack.
-pub struct RedoEntry {
-    /// The moment the undo action that was undone was first registered.
+struct RedoEntry {
     pub timestamp: Instant,
-    /// The redo action.
+    info: Arc<dyn UndoInfo>,
     pub action: Box<dyn RedoAction>,
 }
 
 struct UndoGroup {
-    description: Txt,
     undo: Vec<UndoEntry>,
 }
-impl fmt::Debug for UndoGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("UndoGroup")
-            .field("description", &self.description)
-            .field("len()", &self.undo.len())
-            .finish()
-    }
-}
-impl fmt::Display for UndoGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description)
-    }
-}
-impl UndoRedoItem for UndoGroup {}
 impl UndoAction for UndoGroup {
     fn undo(self: Box<Self>) -> Box<dyn RedoAction> {
         let mut redo = Vec::with_capacity(self.undo.len());
         for undo in self.undo.into_iter().rev() {
             redo.push(RedoEntry {
                 timestamp: undo.timestamp,
+                info: undo.info,
                 action: undo.action.undo(),
             });
         }
-        Box::new(RedoGroup {
-            description: self.description,
-            redo,
-        })
+        Box::new(RedoGroup { redo })
     }
 }
 struct RedoGroup {
-    description: Txt,
     redo: Vec<RedoEntry>,
 }
-impl fmt::Debug for RedoGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RedoGroup")
-            .field("description", &self.description)
-            .field("len()", &self.redo.len())
-            .finish()
-    }
-}
-impl fmt::Display for RedoGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description)
-    }
-}
-impl UndoRedoItem for RedoGroup {}
 impl RedoAction for RedoGroup {
     fn redo(self: Box<Self>) -> Box<dyn UndoAction> {
         let mut undo = Vec::with_capacity(self.redo.len());
         for redo in self.redo.into_iter().rev() {
             undo.push(UndoEntry {
                 timestamp: redo.timestamp,
+                info: redo.info,
                 action: redo.action.redo(),
             });
         }
-        Box::new(UndoGroup {
-            description: self.description,
-            undo,
-        })
+        Box::new(UndoGroup { undo })
     }
 }
 
 struct UndoRedoOp {
-    description: Txt,
     op: Box<dyn FnMut(UndoOp) + Send>,
 }
-impl fmt::Debug for UndoRedoOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("UndoRedoOp")
-            .field("description", &self.description)
-            .finish_non_exhaustive()
-    }
-}
-impl fmt::Display for UndoRedoOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description)
-    }
-}
-impl UndoRedoItem for UndoRedoOp {}
 impl UndoAction for UndoRedoOp {
     fn undo(mut self: Box<Self>) -> Box<dyn RedoAction> {
         (self.op)(UndoOp::Undo);
@@ -977,14 +966,20 @@ mod tests {
         let _a = App::minimal();
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
-        UNDO.register(PushAction {
-            data: data.clone(),
-            item: 1,
-        });
-        UNDO.register(PushAction {
-            data: data.clone(),
-            item: 2,
-        });
+        UNDO.register(
+            "push",
+            PushAction {
+                data: data.clone(),
+                item: 1,
+            },
+        );
+        UNDO.register(
+            "push",
+            PushAction {
+                data: data.clone(),
+                item: 2,
+            },
+        );
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         UNDO.undo_select(1);
@@ -1192,17 +1187,10 @@ mod tests {
         assert_eq!(20, test_var.get());
     }
 
-    #[derive(Debug)]
     struct PushAction {
         data: Arc<Mutex<Vec<u8>>>,
         item: u8,
     }
-    impl fmt::Display for PushAction {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "push {}", self.item)
-        }
-    }
-    impl UndoRedoItem for PushAction {}
     impl UndoAction for PushAction {
         fn undo(self: Box<Self>) -> Box<dyn RedoAction> {
             assert_eq!(self.data.lock().pop(), Some(self.item));
