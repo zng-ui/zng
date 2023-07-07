@@ -384,11 +384,11 @@ impl UNDO {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UndoVarModifyTag;
 
-/// Represents an undo or redo action.
-///
-/// If formatted to display it should provide a short description of the action
-/// that will be undone or redone.
-pub trait UndoRedoItem: fmt::Debug + fmt::Display + Send + Any {
+/// Metadata info about an action registered for undo action.
+pub trait UndoInfo: Send + Sync + Any {
+    /// Short display description of the action that will be undone/redone.
+    fn description(&self) -> Txt;
+
     /// Any extra metadata associated with the item.
     ///
     /// The action description/name is the [`fmt::Display`] print of the item, for any other
@@ -402,13 +402,13 @@ pub trait UndoRedoItem: fmt::Debug + fmt::Display + Send + Any {
 }
 
 /// Represents a single undo action.
-pub trait UndoAction: UndoRedoItem {
+pub trait UndoAction: Send + Any {
     /// Undo action and returns a [`RedoAction`] that redoes it.
     fn undo(self: Box<Self>) -> Box<dyn RedoAction>;
 }
 
 /// Represents a single redo action.
-pub trait RedoAction: UndoRedoItem {
+pub trait RedoAction: Send + Any {
     /// Redo action and returns a [`UndoAction`] that undoes it.
     fn redo(self: Box<Self>) -> Box<dyn UndoAction>;
 }
@@ -865,15 +865,6 @@ impl CommandUndoExt for Command {
             None => CommandScope::App,
         })
     }
-}
-
-/// Represents an entry in the undo stack.
-#[derive(Debug, Clone, PartialEq)]
-pub struct UndoInfo {
-    /// Moment the action was registered.
-    pub timestamp: Instant,
-    /// Display print of the action.
-    pub display: Txt,
 }
 
 /// Represents a type that can select actions for undo or redo once.

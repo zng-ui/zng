@@ -2,7 +2,12 @@
 
 use std::time::Duration;
 
+
 use crate::prelude::new_widget::*;
+
+use crate::core::undo::{RedoEntry, UndoEntry, UNDO_CMD, REDO_CMD, UNDO};
+use crate::core::gesture::ClickArgs;
+use crate::widgets::{Button, Text};
 
 /// Undo scope widget mixin.
 ///
@@ -45,6 +50,31 @@ impl<P: WidgetImpl> UndoMix<P> {
 #[widget($crate::widgets::undo::UndoHistory)]
 pub struct UndoHistory(WidgetBase);
 
-// context_var! {
-//     pub static UNDO_FN_VAR: WidgetFn<for<'a> &'a UndoEntry> = WidgetFn::nil();
+context_var! {
+    /// Widget function for a single undo entry.
+    pub static UNDO_ENTRY_FN_VAR: WidgetFn<&RedoEntry> = WidgetFn::nil();
+    /// Widget function for a single redo entry.
+    pub static REDO_ENTRY_FN_VAR: WidgetFn<&RedoEntry> = WidgetFn::nil();
+}
+
+// /// Default [`UNDO_ENTRY_FN_VAR`].
+// ///
+// /// Returns a `Button!` with the [`UndoRedoButtonStyle!`] and the entry displayed in a `Text!` child.
+// /// The button notifies [`UNDO_CMD`] with the entry timestamp, the command is scoped on the
+// /// undo parent of the caller not of the button.
+// pub fn default_undo_fn(args: UndoEntryArgs) -> impl UiNode {
+//     let mut cmd = UNDO_CMD;
+//     if let Some(w) = UNDO.scope() {
+//         cmd = cmd.scoped(w);
+//     }
+//     let entry = args.entry();
+//     let ts = entry.timestamp;
+//     Button! {
+//         child = Text!("{}", entry.action);
+//         // TODO style, is_sibling_below_hovered
+//         on_click = hn!(|args: &ClickArgs| {
+//             args.propagation().stop();
+//             cmd.notify_param(ts);
+//         });
+//     }
 // }
