@@ -1,4 +1,3 @@
-* "collapsed rendered" error on the scroll example when the menu closes.
 * Cannot use arrow keys to navigate focus in the scroll example menu because they are scroll command shortcuts.
     - The scroll is not focused so this is weird.
 

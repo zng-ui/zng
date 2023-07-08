@@ -1984,6 +1984,11 @@ impl FrameUpdate {
         }
 
         let bounds = WIDGET.bounds();
+        if bounds.is_collapsed() {
+            let _ = WIDGET.take_update(UpdateFlags::RENDER_UPDATE);
+            return;
+        }
+
         let tree = WINDOW.widget_tree();
 
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);

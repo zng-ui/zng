@@ -1015,7 +1015,10 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
                 child.delegated();
                 #[cfg(debug_assertions)]
                 {
-                    tracing::error!("collapsed rendered, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget")
+                    tracing::error!(
+                        "collapsed {} rendered, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget",
+                        WIDGET.trace_id()
+                    )
                 }
             }
         },
@@ -1026,7 +1029,10 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
                 child.delegated();
                 #[cfg(debug_assertions)]
                 {
-                    tracing::error!("collapsed rendered, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget")
+                    tracing::error!(
+                        "collapsed {} render-updated, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget",
+                        WIDGET.trace_id()
+                    )
                 }
             }
         },
