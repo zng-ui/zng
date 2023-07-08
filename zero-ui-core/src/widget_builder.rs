@@ -401,37 +401,52 @@ impl NestGroup {
         Self::CHILD,
     ];
 
+    fn exact_name(self) -> &'static str {
+        if self.0 == Self::WIDGET.0 {
+            "WIDGET"
+        } else if self.0 == Self::CONTEXT.0 {
+            "CONTEXT"
+        } else if self.0 == Self::EVENT.0 {
+            "EVENT"
+        } else if self.0 == Self::LAYOUT.0 {
+            "LAYOUT"
+        } else if self.0 == Self::SIZE.0 {
+            "SIZE"
+        } else if self.0 == Self::WIDGET_INNER.0 {
+            "WIDGET_INNER"
+        } else if self.0 == Self::BORDER.0 {
+            "BORDER"
+        } else if self.0 == Self::FILL.0 {
+            "FILL"
+        } else if self.0 == Self::CHILD_CONTEXT.0 {
+            "CHILD_CONTEXT"
+        } else if self.0 == Self::CHILD_LAYOUT.0 {
+            "CHILD_LAYOUT"
+        } else if self.0 == Self::CHILD.0 {
+            "CHILD"
+        } else {
+            ""
+        }
+    }
+
     /// Group name.
     ///
     /// Is a static str for values that are a group `const`, or a display format for the others.
     pub fn name(self) -> Txt {
-        if self.0 == Self::WIDGET.0 {
-            Txt::from_static("WIDGET")
-        } else if self.0 == Self::CONTEXT.0 {
-            Txt::from_static("CONTEXT")
-        } else if self.0 == Self::EVENT.0 {
-            Txt::from_static("EVENT")
-        } else if self.0 == Self::LAYOUT.0 {
-            Txt::from_static("LAYOUT")
-        } else if self.0 == Self::SIZE.0 {
-            Txt::from_static("SIZE")
-        } else if self.0 == Self::BORDER.0 {
-            Txt::from_static("BORDER")
-        } else if self.0 == Self::FILL.0 {
-            Txt::from_static("FILL")
-        } else if self.0 == Self::CHILD_CONTEXT.0 {
-            Txt::from_static("CHILD_CONTEXT")
-        } else if self.0 == Self::CHILD_LAYOUT.0 {
-            Txt::from_static("CHILD_LAYOUT")
-        } else if self.0 == Self::CHILD.0 {
-            Txt::from_static("CHILD")
-        } else {
+        let name = self.exact_name();
+        if name.is_empty() {
             let closest = Self::ITEMS
                 .into_iter()
                 .min_by_key(|i| ((self.0 as i32 - i.0 as i32).abs()))
                 .unwrap();
             let diff = self.0 as i32 - closest.0 as i32;
+
+            let name = closest.exact_name();
+            debug_assert!(!name.is_empty());
+
             formatx!("{closest}{diff:+}")
+        } else {
+            Txt::from_static(name)
         }
     }
 }
