@@ -1748,8 +1748,16 @@ pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
     fn shortcut(self) -> CommandMetaVar<Shortcuts>;
 
+    /// Gets a read-write variable that sets a filter for when the [`shortcut`] is valid.
+    ///
+    /// [`shortcut`]: CommandShortcutExt::shortcut
+    fn shortcut_filter(self) -> CommandMetaVar<ShortcutFilter>;
+
     /// Sets the initial shortcuts.
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self;
+
+    /// Sets the initial shortcut filters.
+    fn init_shortcut_filter(self, filter: impl Into<ShortcutFilter>) -> Self;
 
     /// Returns `true` if the command has handlers, enabled or disabled, and the shortcut if one of the command shortcuts.
     ///
@@ -1762,14 +1770,111 @@ impl CommandShortcutExt for Command {
         self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_ID))
     }
 
+    fn shortcut_filter(self) -> CommandMetaVar<ShortcutFilter> {
+        self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_FILTER_ID))
+    }
+
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
         self.with_meta(|m| m.init_var(&COMMAND_SHORTCUT_ID, shortcut.into()));
         self
     }
 
+    fn init_shortcut_filter(self, filter: impl Into<ShortcutFilter>) -> Self {
+        self.with_meta(|m| m.init_var(&COMMAND_SHORTCUT_FILTER_ID, filter.into()));
+        self
+    }
+
     fn shortcut_matches(self, shortcut: Shortcut) -> bool {
-        self.has_handlers().get() && self.shortcut().with(|s| s.contains(shortcut))
+        if !self.has_handlers().get() {
+            return false;
+        }
+
+        let s = match self.with_meta(|m| m.get_var(&COMMAND_SHORTCUT_ID)) {
+            Some(v) => v,
+            None => return false,
+        };
+
+        if !s.with(|c| c.contains(shortcut)) {
+            return false;
+        }
+
+        match self.with_meta(|m| m.get_var(&COMMAND_SHORTCUT_FILTER_ID)) {
+            Some(v) => {
+                let filter = v.get();
+                if filter.is_empty() {
+                    return true;
+                }
+
+                match self.scope() {
+                    CommandScope::App => false,
+                    CommandScope::Window(id) => {
+                        if filter.contains(ShortcutFilter::FOCUSED) {
+                            FOCUS.focused().with(|p| {
+                                let p = match p {
+                                    Some(p) => p,
+                                    None => return false,
+                                };
+                                if p.window_id() != id {
+                                    return false;
+                                }
+                                !filter.contains(ShortcutFilter::ENABLED)
+                                    || p.interaction_path().next().map(|i| i.is_enabled()).unwrap_or(false)
+                            })
+                        } else {
+                            debug_assert_eq!(filter, ShortcutFilter::ENABLED);
+
+                            let tree = match WINDOWS.widget_tree(id) {
+                                Ok(t) => t,
+                                Err(_) => return false,
+                            };
+
+                            tree.root().interactivity().is_enabled()
+                        }
+                    }
+                    CommandScope::Widget(id) => {
+                        if filter.contains(ShortcutFilter::FOCUSED) {
+                            FOCUS.focused().with(|p| {
+                                let p = match p {
+                                    Some(p) => p,
+                                    None => return false,
+                                };
+                                if !p.contains(id) {
+                                    return false;
+                                }
+                                !filter.contains(ShortcutFilter::ENABLED) || p.interactivity_of(id).map(|i| i.is_enabled()).unwrap_or(false)
+                            })
+                        } else {
+                            debug_assert_eq!(filter, ShortcutFilter::ENABLED);
+
+                            for tree in WINDOWS.widget_trees() {
+                                if let Some(w) = tree.get(id) {
+                                    return w.interactivity().is_enabled();
+                                }
+                            }
+
+                            false
+                        }
+                    }
+                }
+            }
+            None => true,
+        }
+    }
+}
+
+bitflags! {
+    /// Conditions that must be met for the shortcut to apply.
+    #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct ShortcutFilter: u8 {
+        /// Shortcut only applies if the scope is enabled.
+        const ENABLED = 0b001;
+        /// Shortcut only applies if the scope is in the [`FOCUS.focused`] path.
+        ///
+        /// [`FOCUS.focused`]: FOCUS::focused
+        const FOCUSED = 0b010;
     }
 }
 
 static COMMAND_SHORTCUT_ID: StaticCommandMetaVarId<Shortcuts> = StaticCommandMetaVarId::new_unique();
+static COMMAND_SHORTCUT_FILTER_ID: StaticCommandMetaVarId<ShortcutFilter> = StaticCommandMetaVarId::new_unique();

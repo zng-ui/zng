@@ -86,8 +86,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 /// When modal mode is enabled in a widget only it and widget descendants [allows interaction], all other widgets behave as if disabled, but
 /// without the visual indication of disabled. This property is a building block for modal overlay widgets.
 ///
-/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal, this
-/// is by design to support dialog overlays that open another dialog overlay.
+/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
 ///
 /// [allows interaction]: crate::core::widget_info::WidgetInfo::interactivity
 #[property(CONTEXT, default(false))]

@@ -802,6 +802,20 @@ impl<'a> CommandMeta<'a> {
         self.get_or_insert(id, Default::default)
     }
 
+    /// Clone a meta value identified by a [`StateId`] if it is set.
+    pub fn get<T>(&self, id: impl Into<StateId<T>>) -> Option<T>
+    where
+        T: StateValue + Clone,
+    {
+        let id = id.into();
+        if let Some(scope) = &self.scope {
+            scope.get(id).or_else(|| self.meta.get(id))
+        } else {
+            self.meta.get(id)
+        }
+        .cloned()
+    }
+
     /// Set the meta value associated with the [`StateId`].
     ///
     /// Returns the previous value if any was set.
@@ -850,6 +864,23 @@ impl<'a> CommandMeta<'a> {
                 .boxed()
         } else {
             self.meta.entry(id.app()).or_insert_with(|| var(init())).clone().boxed()
+        }
+    }
+
+    /// Clone a meta variable identified by a [`CommandMetaVarId`] it is was set.
+    pub fn get_var<T>(&self, id: impl Into<CommandMetaVarId<T>>) -> Option<CommandMetaVar<T>>
+    where
+        T: StateValue + VarValue,
+    {
+        let id = id.into();
+        if let Some(scope) = &self.scope {
+            let meta = &self.meta;
+            scope
+                .get(id.scope())
+                .map(|c| c.clone().boxed())
+                .or_else(|| meta.get(id.app()).map(|c| c.clone().boxed()))
+        } else {
+            self.meta.get(id.app()).map(|c| c.clone().boxed())
         }
     }
 

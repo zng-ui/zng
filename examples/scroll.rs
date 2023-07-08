@@ -68,6 +68,7 @@ fn commands() -> impl UiNode {
         background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
+        modal = show.clone();
         on_focus_leave = hn!(show, |_| {
             show.set(false);
         });
