@@ -915,10 +915,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
             }
 
-            if !self.pending.contains(PendingLayout::RESHAPE_LINES) {
-                if r.shaped_text.align_size() != metrics.constraints().fill_size_or(r.shaped_text.block_size()) {
-                    self.pending.insert(PendingLayout::RESHAPE_LINES);
-                }
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES)
+                && r.shaped_text.align_size() != metrics.constraints().fill_size_or(r.shaped_text.block_size())
+            {
+                self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
             if !is_measure {

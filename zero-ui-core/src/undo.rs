@@ -436,7 +436,6 @@ impl UndoInfo for Arc<dyn UndoInfo> {
         self
     }
 }
-
 /// Represents a single undo action.
 pub trait UndoAction: Send + Any {
     /// Undo action and returns a [`RedoAction`] that redoes it.

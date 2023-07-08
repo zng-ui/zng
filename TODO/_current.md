@@ -42,10 +42,10 @@
 * Test undo actions trying to register undo.
 
 - `UndoHistory!` widget.
-    - Similar with other composite widgets, use `WidgetFn` for all parts.
+    - Property to select the stack?
     - Need to support pop-up hover down selecting (See Word widget).
-        - How does the undo context work in this case?
-        - This is an issue with layers in general.
+        - Need a `HOVERED_TIMESTAMP_VAR`?
+        - To highlight the covered entries.
 
 # View-Process
 
