@@ -909,17 +909,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             /*
                 APPLY
             */
-            let prev_final_size = r.shaped_text.size();
 
             if self.pending.contains(PendingLayout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
                 self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
             }
 
-            if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-                && prev_final_size != metrics.constraints().fill_size_or(r.shaped_text.size())
-            {
-                self.pending.insert(PendingLayout::RESHAPE_LINES);
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES) {
+                if r.shaped_text.align_size() != metrics.constraints().fill_size_or(r.shaped_text.block_size()) {
+                    self.pending.insert(PendingLayout::RESHAPE_LINES);
+                }
             }
 
             if !is_measure {
