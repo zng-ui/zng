@@ -1218,7 +1218,7 @@ impl WidgetFocusInfo {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from(&scope, from_pt, Orientation2D::Above, true, false)
+                        self.directional_from(&scope, from_pt, Orientation2D::Above, false, false)
                     })
                 }
             }
@@ -1243,7 +1243,7 @@ impl WidgetFocusInfo {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from(&scope, from_pt, Orientation2D::Right, true, false)
+                    self.directional_from(&scope, from_pt, Orientation2D::Right, false, false)
                 }),
             }
         } else {
@@ -1267,7 +1267,7 @@ impl WidgetFocusInfo {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from(&scope, from_pt, Orientation2D::Below, true, false)
+                    self.directional_from(&scope, from_pt, Orientation2D::Below, false, false)
                 }),
             }
         } else {
@@ -1291,7 +1291,7 @@ impl WidgetFocusInfo {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from(&scope, from_pt, Orientation2D::Left, true, false)
+                    self.directional_from(&scope, from_pt, Orientation2D::Left, false, false)
                 }),
             }
         } else {

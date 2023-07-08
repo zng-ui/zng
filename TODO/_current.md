@@ -1,7 +1,12 @@
-* Scroll menu issues.
-    - Scroll shortcuts don't work after closing menu if it sets `modal`.
-    - Horizontal focus navigation does not wrap correctly.
-        - It should search from the edge right?
+# Scroll Menu Issues
+
+* Scroll shortcuts don't work after closing menu if it sets `modal`.
+    - Focus returned to root, not scroll.
+    - Two issues?
+        - `cleanup_returns` wipes the scroll from return because it cannot be focused.
+        - Window scope does not focus first focusable child.
+    - Is same issue, `FocusScopeOnFocus::LastFocused` thinks it has last-focused, but
+      the return was changed to just the scope..
 
 # TextInput
 
