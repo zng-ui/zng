@@ -1,5 +1,3 @@
-* In a window with only the root scope and an alt scope the focus does not exit the alt scope.
-
 # TextInput
 
 * Caret not always positioned at end of wrapped line.
@@ -69,3 +67,5 @@
         - Perspective.
             - These are just matrix API and testing.
         - Backface vis.
+    - Touch events.
+        - Use `Spacedesk` to generate touch events.

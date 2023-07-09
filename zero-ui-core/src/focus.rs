@@ -996,6 +996,7 @@ impl FocusService {
     }
 
     /// Return focus from the alt scope, handles cases when the return focus is temporarily blocked.
+    #[must_use]
     fn new_focus_for_alt_exit(&mut self, prev_w: WidgetFocusInfo, is_info_retry: bool, highlight: bool) -> Option<WidgetFocusInfo> {
         let (_, return_path) = self.alt_return.as_ref().unwrap();
 
@@ -1314,7 +1315,7 @@ impl FocusService {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(new_focus.path.widget_id())
                 {
-                    if widget.scopes().all(|s| !s.is_alt_scope()) {
+                    if !widget.is_alt_scope() && widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 
                         for scope in widget
