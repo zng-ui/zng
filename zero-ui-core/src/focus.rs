@@ -489,20 +489,28 @@ impl AppExtension for FocusManager {
         if let Some(request) = request {
             let mut focus = FOCUS_SV.write();
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(request);
+            let args = focus.fulfill_request(request, false);
             self.notify(&mut focus, args);
         }
     }
 
     fn update(&mut self) {
         let mut focus = FOCUS_SV.write();
-        if let Some(request) = focus.request.take() {
+        if let Some((request, is_retry)) = focus.request.take_update() {
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(request);
+            let args = focus.fulfill_request(request, is_retry);
             self.notify(&mut focus, args);
         } else if mem::take(&mut focus.pending_highlight) {
             let args = focus.continue_focus_highlight(true);
             self.notify(&mut focus, args);
+        }
+    }
+
+    fn info(&mut self, _: &mut InfoUpdates) {
+        let mut focus = FOCUS_SV.write();
+        if let Some(r) = focus.request.take_info() {
+            focus.request = PendingFocusRequest::RetryUpdate(r);
+            UPDATES.update(None);
         }
     }
 }
@@ -669,7 +677,7 @@ impl FOCUS {
     pub fn focus(&self, request: FocusRequest) {
         let mut f = FOCUS_SV.write();
         f.pending_window_focus = None;
-        f.request = Some(request);
+        f.request = PendingFocusRequest::Update(request);
         UPDATES.update(None);
     }
 
@@ -827,12 +835,46 @@ impl FOCUS {
     }
 }
 
+enum PendingFocusRequest {
+    None,
+    InfoRetry(FocusRequest, Instant),
+    Update(FocusRequest),
+    RetryUpdate(FocusRequest),
+}
+impl PendingFocusRequest {
+    fn take_update(&mut self) -> Option<(FocusRequest, bool)> {
+        match mem::replace(self, PendingFocusRequest::None) {
+            PendingFocusRequest::Update(r) => Some((r, false)),
+            PendingFocusRequest::RetryUpdate(r) => Some((r, true)),
+            r => {
+                *self = r;
+                None
+            }
+        }
+    }
+    fn take_info(&mut self) -> Option<FocusRequest> {
+        match mem::replace(self, PendingFocusRequest::None) {
+            PendingFocusRequest::InfoRetry(r, i) => {
+                if i.elapsed() < 100.ms() {
+                    Some(r)
+                } else {
+                    None
+                }
+            }
+            r => {
+                *self = r;
+                None
+            }
+        }
+    }
+}
+
 struct FocusService {
     auto_highlight: ArcVar<Option<Duration>>,
     focus_disabled_widgets: ArcVar<bool>,
     focus_hidden_widgets: ArcVar<bool>,
 
-    request: Option<FocusRequest>,
+    request: PendingFocusRequest,
 
     focused_var: ArcVar<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
@@ -859,7 +901,7 @@ impl FocusService {
             focus_disabled_widgets: var(true),
             focus_hidden_widgets: var(true),
 
-            request: None,
+            request: PendingFocusRequest::None,
 
             focused_var: var(None),
             focused: None,
@@ -881,7 +923,7 @@ impl FocusService {
     }
 
     #[must_use]
-    fn fulfill_request(&mut self, request: FocusRequest) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, request: FocusRequest, is_info_retry: bool) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
             (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, false, request),
             (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(widget_id, request.highlight, false, true, request),
@@ -899,7 +941,7 @@ impl FocusService {
                             FocusTarget::Exit => {
                                 if self.alt_return.is_some() && (w.is_alt_scope() || w.parent().map(|w| w.is_alt_scope()).unwrap_or(false))
                                 {
-                                    info.get_or_parent(&self.alt_return.as_ref().unwrap().1)
+                                    self.new_focus_for_alt_exit(w, is_info_retry, request.highlight)
                                 } else {
                                     w.ancestors().next()
                                 }
@@ -913,9 +955,10 @@ impl FocusService {
                             FocusTarget::Alt => {
                                 if let Some(alt) = w.alt_scope() {
                                     Some(alt)
-                                } else if let Some((_, p)) = &self.alt_return {
+                                } else if self.alt_return.is_some() {
                                     // Alt toggles when there is no alt scope.
-                                    info.get_or_parent(p)
+
+                                    self.new_focus_for_alt_exit(w, is_info_retry, request.highlight)
                                 } else {
                                     None
                                 }
@@ -950,6 +993,39 @@ impl FocusService {
             }
             _ => None,
         }
+    }
+
+    /// Return focus from the alt scope, handles cases when the return focus is temporarily blocked.
+    fn new_focus_for_alt_exit(&mut self, prev_w: WidgetFocusInfo, is_info_retry: bool, highlight: bool) -> Option<WidgetFocusInfo> {
+        let (_, return_path) = self.alt_return.as_ref().unwrap();
+
+        let return_interac = return_path.interactivity();
+        let return_id = return_path.widget_id();
+        let info = prev_w.focus_tree();
+
+        let r = info.get_or_parent(return_path);
+        if let Some(w) = &r {
+            if w.info().id() != return_id && !is_info_retry && return_interac.is_blocked() {
+                // blocked return may not have unblocked yet
+
+                if let Some(exists) = info.tree().get(return_id) {
+                    let exists = exists.into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets());
+                    if !exists.is_focusable() && exists.info().interactivity().is_blocked() {
+                        // Still blocked. A common pattern is to set a `modal` filter on the alt-scope
+                        // then remove the modal filter when alt-scope loses focus.
+                        //
+                        // Here we know that the return focus was blocked after the alt got focus, because
+                        // blocked widgets can't before return focus, and we know that we are moving focus
+                        // to some `r`. So we setup an info retry, the focus will move to `r` momentarily,
+                        // exiting the alt-scope, and if it removes the modal filter the focus will return.
+                        self.request =
+                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, highlight), Instant::now());
+                    }
+                }
+            }
+        }
+
+        r
     }
 
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
@@ -1289,12 +1365,17 @@ impl FocusService {
 
             let mut retain = false;
 
-            if let Some(widget) = info.get(widget_path.widget_id()) {
-                if let Some(scope) = widget.scopes().find(|s| s.info().id() == scope_id) {
+            if let Some(widget) = info.tree().get(widget_path.widget_id()) {
+                if let Some(scope) = widget
+                    .clone()
+                    .into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets())
+                    .scopes()
+                    .find(|s| s.info().id() == scope_id)
+                {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
 
-                        let path = widget.info().interaction_path();
+                        let path = widget.interaction_path();
                         if &path != widget_path {
                             // widget moved inside scope.
                             r.push(ReturnFocusChangedArgs::now(
@@ -1372,14 +1453,24 @@ impl FocusService {
 
                 retain_alt = false; // will retain only if still valid
 
-                if let Some(widget) = info.get(widget_path.widget_id()) {
-                    if !widget.scopes().any(|s| s.info().id() == scope.widget_id()) {
+                if let Some(widget) = info.tree().get(widget_path.widget_id()) {
+                    if !widget
+                        .clone()
+                        .into_focus_info(info.focus_disabled_widgets(), info.focus_hidden_widgets())
+                        .scopes()
+                        .any(|s| s.info().id() == scope.widget_id())
+                    {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
-                        let path = widget.info().interaction_path();
+                        let path = widget.interaction_path();
                         if &path != widget_path {
-                            // widget moved outside ALT scope.
-                            r.push(ReturnFocusChangedArgs::now(scope.clone(), Some(widget_path.clone()), Some(path)));
+                            // widget moved without entering the ALT scope.
+                            r.push(ReturnFocusChangedArgs::now(
+                                scope.clone(),
+                                Some(widget_path.clone()),
+                                Some(path.clone()),
+                            ));
+                            *widget_path = path;
                         }
                     }
                 } else if let Some(parent) = info.get_or_parent(widget_path) {

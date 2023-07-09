@@ -583,6 +583,14 @@ impl WidgetFocusInfo {
         self.ancestors().last().unwrap_or_else(|| self.clone())
     }
 
+    /// Clone a reference to the [`FocusInfoTree`] that owns this widget.
+    pub fn focus_tree(&self) -> FocusInfoTree {
+        FocusInfoTree {
+            tree: self.info.tree().clone(),
+            mode: self.mode,
+        }
+    }
+
     /// If the widget is focusable.
     ///
     /// ## Note
@@ -627,9 +635,37 @@ impl WidgetFocusInfo {
         true
     }
 
+    fn mode_allows_focus_ignore_blocked(&self) -> bool {
+        let int = self.info.interactivity();
+        if !self.mode.contains(FocusMode::DISABLED) && int.is_vis_disabled() {
+            return false;
+        }
+
+        let vis = self.info.visibility();
+        if self.mode.contains(FocusMode::HIDDEN) {
+            if vis == Visibility::Collapsed {
+                return false;
+            }
+        } else if vis != Visibility::Visible {
+            return false;
+        }
+
+        true
+    }
+
     /// Widget focus metadata.
     pub fn focus_info(&self) -> FocusInfo {
         if self.mode_allows_focus() {
+            if let Some(builder) = self.info.meta().get(&FOCUS_INFO_ID) {
+                return builder.build();
+            }
+        }
+        FocusInfo::NotFocusable
+    }
+
+    /// Widget focus metadata, all things equal except the widget interactivity is blocked.
+    pub fn focus_info_ignore_blocked(&self) -> FocusInfo {
+        if self.mode_allows_focus_ignore_blocked() {
             if let Some(builder) = self.info.meta().get(&FOCUS_INFO_ID) {
                 return builder.build();
             }
