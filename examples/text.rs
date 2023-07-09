@@ -469,7 +469,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 child_insert_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
-                enabled = editor.unsaved.clone();
+                enabled = editor.unsaved();
                 click_shortcut = SAVE_CMD.shortcut();
                 on_click = async_hn!(editor, |_| {
                     editor.save().await;
@@ -563,7 +563,7 @@ struct TextEditor {
     file: ArcVar<Option<std::path::PathBuf>>,
     txt: ArcVar<Txt>,
 
-    unsaved: ArcVar<bool>,
+    txt_touched: ArcVar<bool>,
 
     caret_status: ArcVar<text::CaretStatus>,
     lines: ArcVar<text::LinesWrapCount>,
@@ -578,7 +578,7 @@ impl TextEditor {
             input_wgt_id: WidgetId::new_unique(),
             file: var(None),
             txt,
-            unsaved,
+            txt_touched: unsaved,
             caret_status: var(text::CaretStatus::none()),
             lines: var(text::LinesWrapCount::NoWrap(0)),
             busy: var(0),
@@ -590,7 +590,7 @@ impl TextEditor {
     }
 
     pub fn title(&self) -> impl Var<Txt> {
-        merge_var!(self.unsaved.clone(), self.file.clone(), |u, f| {
+        merge_var!(self.txt_touched.clone(), self.file.clone(), |u, f| {
             let mut t = "Text Example - Editor".to_owned();
             if *u {
                 t.push('*');
@@ -603,6 +603,11 @@ impl TextEditor {
         })
     }
 
+    pub fn unsaved(&self) -> impl Var<bool> {
+        let can_undo = UNDO_CMD.scoped(self.input_wgt_id).is_enabled();
+        merge_var!(self.txt_touched.clone(), can_undo, |&t, &u| t && u)
+    }
+
     pub fn enabled(&self) -> impl Var<bool> {
         self.busy.map(|&b| b == 0)
     }
@@ -613,7 +618,7 @@ impl TextEditor {
         if self.handle_unsaved().await {
             self.txt.set(Txt::from_static(""));
             self.file.set(None);
-            self.unsaved.set(false);
+            self.txt_touched.set(false);
         }
     }
 
@@ -639,7 +644,7 @@ impl TextEditor {
                 match r {
                     Ok(t) => {
                         self.txt.set(Txt::from_str(&t));
-                        self.unsaved.set(false);
+                        self.txt_touched.set(false);
                     }
                     Err(e) => {
                         self.handle_error("reading file", e.to_string()).await;
@@ -680,7 +685,7 @@ impl TextEditor {
             FileDialogResponse::Selected(mut s) => {
                 if let Some(file) = s.pop() {
                     let ok = self.write(file.clone()).await;
-                    self.unsaved.set(ok);
+                    self.txt_touched.set(!ok);
                     if ok {
                         self.file.set(Some(file));
                     }
@@ -697,10 +702,10 @@ impl TextEditor {
     }
 
     pub async fn on_close_requested(&self, args: WindowCloseRequestedArgs) {
-        if self.unsaved.get() {
+        if self.unsaved().get() {
             args.propagation().stop();
             if self.handle_unsaved().await {
-                self.unsaved.set(false);
+                self.txt_touched.set(false);
                 WINDOW.close();
             }
         }
@@ -719,7 +724,7 @@ impl TextEditor {
     }
 
     async fn handle_unsaved(&self) -> bool {
-        if !self.unsaved.get() {
+        if !self.unsaved().get() {
             return true;
         }
 

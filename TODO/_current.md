@@ -38,11 +38,13 @@
 
 * Test undo actions trying to register undo.
 
-- `UndoHistory!` widget.
+* `UndoHistory!` widget.
     - Property to select the stack?
     - Need to support pop-up hover down selecting (See Word widget).
         - Need a `HOVERED_TIMESTAMP_VAR`?
         - To highlight the covered entries.
+
+* `REGISTER_UNDO_CMD`.
 
 # View-Process
 
