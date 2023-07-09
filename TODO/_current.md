@@ -1,6 +1,4 @@
-* Alt does not focus alt-scope if it is inside the root scope and the root scope is focused?
-    - Overserved while debugging scroll example.
-    - Try setting the focus behavior to allow focus in the scope in an example.
+* In a window with only the root scope and an alt scope the focus does not exit the alt scope.
 
 # TextInput
 

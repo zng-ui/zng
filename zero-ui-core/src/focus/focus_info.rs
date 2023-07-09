@@ -1482,9 +1482,9 @@ impl WidgetFocusInfo {
 
             nav |= self.enabled_tab_nav(&scope, scope_info, false, FocusNavAction::empty());
             nav |= self.enabled_directional_nav(&scope, scope_info, false, FocusNavAction::empty());
-
-            nav.set(FocusNavAction::ALT, self.in_alt_scope() || self.alt_scope().is_some());
         }
+
+        nav.set(FocusNavAction::ALT, self.in_alt_scope() || self.alt_scope().is_some());
 
         nav
     }
