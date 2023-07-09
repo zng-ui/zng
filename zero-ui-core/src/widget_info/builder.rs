@@ -210,7 +210,16 @@ impl WidgetInfoBuilder {
     /// [`parallel_fold`]: Self::parallel_fold
     /// [`push_widget`]: Self::push_widget
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        let tree = Tree::new(self.tree.root().value().clone());
+        let node = self.tree.index(self.node).value();
+        let tree = Tree::new(WidgetInfoData {
+            id: node.id,
+            bounds_info: node.bounds_info.clone(),
+            border_info: node.border_info.clone(),
+            meta: node.meta.clone(),
+            interactivity_filters: vec![],
+            local_interactivity: node.local_interactivity,
+            cache: Mutex::new(WidgetInfoCache { interactivity: None }),
+        });
         ParallelBuilder(Some(Self {
             info_widgets: self.info_widgets.clone(),
             window_id: self.window_id,
@@ -232,8 +241,9 @@ impl WidgetInfoBuilder {
 
         self.interactivity_filters.append(&mut split.interactivity_filters);
         self.pushed_widgets += split.pushed_widgets;
-        // self.meta is already the same
         {
+            debug_assert!(Arc::ptr_eq(&self.meta, &split.meta));
+
             let mut split_node = split.tree.root_mut();
             let mut node = self.node(self.node);
             let split_node = split_node.value();
