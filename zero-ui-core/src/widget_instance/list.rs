@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     mem, ops,
     sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
+        atomic::{AtomicBool, AtomicU8, Ordering::Relaxed},
         Arc,
     },
 };
@@ -1767,26 +1767,59 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 }
 
+///
+pub struct PanelListRangeHandle(Arc<AtomicU8>);
+
 /// Defines the first and last child widget in a [`PanelList`].
 #[derive(Debug, Clone)]
 pub struct PanelListRange {
     // none is empty
     range: Option<(WidgetId, WidgetId)>,
+    version: u8,
 }
 impl PanelListRange {
-    /// Iterate over the panel children range.
-    pub fn get(parent: crate::widget_info::WidgetInfo, panel_id: impl Into<StateId<Self>>) -> crate::widget_info::iter::Children {
-        let range = parent.meta().get_clone(panel_id).and_then(|r| r.range);
-        let tree = parent.tree();
-        if let Some((s, e)) = range {
-            if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
-                let parent = Some(parent);
-                if s.parent() == parent && e.parent() == parent {
-                    return crate::widget_info::iter::Children::new_range(s, e);
+    /// Gets the panel children if it may have changed since `last_version`.
+    ///
+    /// The [`PanelList`] requests an update for each child after info rebuild if it has changed,
+    /// the item properties should used this method on update to react.
+    pub fn update(
+        parent: &crate::widget_info::WidgetInfo,
+        panel_id: impl Into<StateId<Self>>,
+        last_version: &mut Option<u8>,
+    ) -> Option<crate::widget_info::iter::Children> {
+        let range = parent.meta().get_clone(panel_id);
+        if let Some(Self { range, version }) = range {
+            let version = Some(version);
+            if *last_version != version {
+                *last_version = version;
+
+                if let Some((s, e)) = range {
+                    let tree = parent.tree();
+                    if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
+                        let parent = Some(parent);
+                        if s.parent().as_ref() == parent && e.parent().as_ref() == parent {
+                            return Some(crate::widget_info::iter::Children::new_range(s, e));
+                        }
+                    }
                 }
             }
         }
-        crate::widget_info::iter::Children::empty()
+        None
+    }
+
+    /// Gets the panel children if the `parent` contains the `panel_id`.
+    pub fn get(parent: &crate::widget_info::WidgetInfo, panel_id: impl Into<StateId<Self>>) -> Option<crate::widget_info::iter::Children> {
+        let range = parent.meta().get_clone(panel_id);
+        if let Some(Self { range: Some((s, e)), .. }) = range {
+            let tree = parent.tree();
+            if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
+                let parent = Some(parent);
+                if s.parent().as_ref() == parent && e.parent().as_ref() == parent {
+                    return Some(crate::widget_info::iter::Children::new_range(s, e));
+                }
+            }
+        }
+        None
     }
 }
 
@@ -1796,7 +1829,11 @@ impl PanelListRange {
 /// item data. By default the item data is a [`PxVector`] that represents the offset of each item inside the panel,
 /// but it can be any type that implements [`PanelListData`].
 ///
+/// Panel widgets can also mark the list using [`track_info_range`] and implement getter properties for the items
+/// to enable styling of each odd/even item for example.
+///
 /// [`z_index`]: fn@z_index
+/// [`track_info_range`]: Self::track_info_range
 pub struct PanelList<D = DefaultPanelListData>
 where
     D: PanelListData,
@@ -1805,7 +1842,7 @@ where
     data: Vec<Mutex<D>>, // Mutex to implement `par_each_mut`.
 
     offset_key: FrameValueKey<PxTransform>,
-    info_id: Option<StateId<PanelListRange>>,
+    info_id: Option<(StateId<PanelListRange>, u8, bool)>,
 
     z_map: Vec<u64>,
     z_naturally_sorted: bool,
@@ -1843,7 +1880,7 @@ where
     /// that are the panel children as the info tree may track extra widgets as children
     /// when they are set by other properties, like background.
     pub fn track_info_range(mut self, info_id: impl Into<StateId<PanelListRange>>) -> Self {
-        self.info_id = Some(info_id.into());
+        self.info_id = Some((info_id.into(), 0, true));
         self
     }
 
@@ -1856,7 +1893,7 @@ where
         FrameValueKey<PxTransform>,
         Option<StateId<PanelListRange>>,
     ) {
-        (self.list, self.data, self.offset_key, self.info_id)
+        (self.list, self.data, self.offset_key, self.info_id.map(|t| t.0))
     }
 
     /// New from list and associated data.
@@ -1875,7 +1912,7 @@ where
             list,
             data,
             offset_key,
-            info_id,
+            info_id: info_id.map(|i| (i, 0, true)),
             z_map: vec![],
             z_naturally_sorted: false,
         }
@@ -1885,7 +1922,7 @@ where
     ///
     /// [`track_info_range`]: Self::track_info_range
     pub fn info_id(&self) -> Option<StateId<PanelListRange>> {
-        self.info_id
+        self.info_id.as_ref().map(|t| t.0)
     }
 
     /// Visit the specific node, panic if `index` is out of bounds.
@@ -2152,7 +2189,8 @@ where
 
     fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
         self.list.info_all(info);
-        if let Some(id) = self.info_id {
+
+        if let Some((id, version, pump_update)) = &mut self.info_id {
             let start = self.list.with_node(0, |c| c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()));
             let end = self
                 .list
@@ -2161,7 +2199,13 @@ where
                 (Some(s), Some(e)) => Some((s, e)),
                 _ => None,
             };
-            info.set_meta(id, PanelListRange { range })
+            info.set_meta(*id, PanelListRange { range, version: *version });
+
+            if *pump_update {
+                self.list.for_each(|_, c| {
+                    c.with_context(WidgetUpdateMode::Bubble, || WIDGET.update());
+                });
+            }
         }
     }
 
@@ -2176,12 +2220,23 @@ where
             observer,
         };
         let resort = Z_INDEX.with(WIDGET.id(), || self.list.update_all(updates, &mut observer));
+        let observer_changed = observer.changed;
         if resort || (observer.changed && self.z_naturally_sorted) {
             self.z_map.clear();
             self.z_naturally_sorted = false;
             WIDGET.render();
         }
         self.data.resize_with(self.list.len(), Default::default);
+
+        if observer_changed {
+            if let Some((_, v, u)) = &mut self.info_id {
+                if !*u {
+                    *v = v.wrapping_add(1);
+                    *u = true;
+                }
+                // WIDGET.info(); already requested by init/deinit of children
+            }
+        }
     }
 
     fn render_all(&mut self, frame: &mut FrameBuilder) {

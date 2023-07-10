@@ -629,11 +629,11 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_core::widget_instance::PanelListRang
 ///     direction = StackDirection::top_to_bottom();
 ///     spacing = 2;
 ///     children = (0..30).map(|i| Button! { child = Text!("Row {i}") }.boxed()).collect::<UiNodeVec>();
-///     button::extend_style = Style! {
-///         when *stack::get_index % 3 == 0 {
+///     button::extend_style = style_fn!(|_| Style! {
+///         when *#stack::get_index % 3 == 0 {
 ///             background_color = colors::DARK_GRAY;
 ///         }
-///     };
+///     });
 /// }
 /// # ;
 /// ```
@@ -719,4 +719,20 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     super::panel_nodes::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id == Some(0));
     })
+}
+
+/// Extension methods for [`WidgetInfo`] that may be a [`Stack!`] instance.
+///
+/// [`Stack!`]: struct@Stack
+/// [`WidgetInfo`]: crate::core::widget_info::WidgetInfo
+pub trait WidgetInfoStackExt {
+    /// Gets the stack children, if this widget is a [`Stack!`] instance.
+    ///
+    /// [`Stack!`]: struct@Stack
+    fn stack_children(&self) -> Option<crate::core::widget_info::iter::Children>;
+}
+impl WidgetInfoStackExt for crate::core::widget_info::WidgetInfo {
+    fn stack_children(&self) -> Option<crate::core::widget_info::iter::Children> {
+        crate::core::widget_instance::PanelListRange::get(self, &PANEL_LIST_ID)
+    }
 }
