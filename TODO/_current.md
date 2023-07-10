@@ -13,9 +13,19 @@
     - Impl cut & copy.
 * Research text editors.
 
-* Implement custom node access to text.
-    - Clone text var in `ResolvedText`?
-    - Getter property `get_transformed_text`, to get the text after whitespace transforms?
+* Review `WhiteSpace::Merge`.
+    - HTML `textarea` with `white-space: normal` does not show extra spaces, but it does add the spaces if typed.
+* Review `TextTransformFn::Uppercase`.
+    - Same behavior as whitespace, only a visual change.
+    - See https://drafts.csswg.org/css-text/#text-transform
+    - How does `TextTransformFn::Custom` event works?
+        - CSS is always the same char length?
+        - Maybe when editable transform the text by grapheme?
+            - User may have a find/replace transform.
+        - Custom needs to be a trait that maps caret points back to the source text.
+* Getter property `get_transformed_txt`, to get the text after whitespace & transforms?
+    - Transformed should be in the SegmentedText already.
+    - Whitespace needs processing.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
@@ -36,15 +46,11 @@
 
 # Undo Service
 
-* Test undo actions trying to register undo.
-
 * `UndoHistory!` widget.
     - Property to select the stack?
     - Need to support pop-up hover down selecting (See Word widget).
         - Need a `HOVERED_TIMESTAMP_VAR`?
         - To highlight the covered entries.
-
-* `REGISTER_UNDO_CMD`.
 
 # View-Process
 
