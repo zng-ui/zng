@@ -113,6 +113,11 @@ pub fn node(
                 .sub_var_layout(&direction)
                 .sub_var_layout(&spacing)
                 .sub_var_layout(&children_align);
+
+            let len = c.len();
+            c.for_each(|i, c| {
+                c.with_context(WidgetUpdateMode::Ignore, || WIDGET.set_state(&INDEX_ID, (i, len)));
+            });
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
@@ -120,6 +125,16 @@ pub fn node(
 
             if changed {
                 WIDGET.layout();
+
+                let len = c.len();
+                c.for_each(|i, c| {
+                    c.with_context(WidgetUpdateMode::Bubble, || {
+                        let prev = WIDGET.set_state(&INDEX_ID, (i, len));
+                        if prev != Some((i, len)) {
+                            WIDGET.update();
+                        }
+                    });
+                });
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
@@ -609,4 +624,153 @@ pub fn stack_nodes_layout_by(
         }
         _ => {}
     })
+}
+
+/// Item index, total in the parent widget set by the parent.
+static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
+
+/// If the child index is even.
+///
+/// Child index is zero-based, so the first is even, the next [`is_odd`].
+///
+/// [`is_odd`]: fn@is_odd
+#[property(CONTEXT)]
+pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
+}
+
+/// If the child index is odd.
+///
+/// Child index is zero-based, so the first [`is_even`], the next one is odd.
+///
+/// [`is_even`]: fn@is_even
+#[property(CONTEXT)]
+pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
+}
+
+/// If the child is the first.
+#[property(CONTEXT)]
+pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    widget_state_is_state(
+        child,
+        |w| {
+            let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+            i == 0 && l > 0
+        },
+        |_| false,
+        state,
+    )
+}
+
+/// If the child is the last.
+#[property(CONTEXT)]
+pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    widget_state_is_state(
+        child,
+        |w| {
+            let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+            i < l && i == l - 1
+        },
+        |_| false,
+        state,
+    )
+}
+
+/// Get the child index for custom `when` expressions.
+///
+/// The child index is zero-based.
+///
+/// # Examples
+///
+/// This uses `get_index` to give every third button a different background.
+///
+/// ```
+/// # use zero_ui::{prelude::*, properties::background_color, core::color::colors};
+/// # let _scope = zero_ui::core::app::App::minimal();
+/// # let _ =
+/// Stack! {
+///     direction = StackDirection::top_to_bottom();
+///     spacing = 2;
+///     children = (0..30).map(|i| Button! { child = Text!("Row {i}") }.boxed()).collect::<UiNodeVec>();
+///     button::extend_style = Style! {
+///         when *stack::get_index % 3 == 0 {
+///             background_color = colors::DARK_GRAY;
+///         }
+///     };
+/// }
+/// # ;
+/// ```
+#[property(CONTEXT)]
+pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    widget_state_get_state(
+        child,
+        |w, &i| {
+            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
+            if a != i {
+                Some(a)
+            } else {
+                None
+            }
+        },
+        |_, &i| if i != 0 { Some(0) } else { None },
+        state,
+    )
+}
+
+/// Get the child index and number of children.
+#[property(CONTEXT)]
+pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+    widget_state_get_state(
+        child,
+        |w, &i| {
+            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+            if a != i {
+                Some(a)
+            } else {
+                None
+            }
+        },
+        |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
+        state,
+    )
+}
+
+/// Get the child index, starting from the last child at `0`.
+#[property(CONTEXT)]
+pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+    widget_state_get_state(
+        child,
+        |w, &i| {
+            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+            let a = a.1 - a.0;
+            if a != i {
+                Some(a)
+            } else {
+                None
+            }
+        },
+        |_, &i| if i != 0 { Some(0) } else { None },
+        state,
+    )
+}
+
+/// Get the child index as a factor of the total number of children.
+#[property(CONTEXT, default(0.fct()))]
+pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
+    widget_state_get_state(
+        child,
+        |w, &f| {
+            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+            let a = a.1 as f32 / a.0 as f32;
+            let a = Factor(a);
+            if a != f {
+                Some(a)
+            } else {
+                None
+            }
+        },
+        |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
+        state,
+    )
 }

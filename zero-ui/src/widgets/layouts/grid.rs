@@ -126,7 +126,7 @@ pub fn node(
         UiNodeOp::Init => {
             WIDGET.sub_var(&auto_grow_fn).sub_var(&auto_grow_mode).sub_var_layout(&spacing);
             c.init_all();
-            grid.update(c.children(), auto_grow_mode.get(), &auto_grow_fn);
+            grid.update_entries(c.children(), auto_grow_mode.get(), &auto_grow_fn);
         }
         UiNodeOp::Deinit => {
             c.deinit_all();
@@ -148,7 +148,7 @@ pub fn node(
                 any = true;
             }
             if any {
-                grid.update(c.children(), auto_grow_mode.get(), &auto_grow_fn);
+                grid.update_entries(c.children(), auto_grow_mode.get(), &auto_grow_fn);
                 WIDGET.layout();
             }
         }
@@ -728,7 +728,7 @@ pub mod row {
         )
     }
 
-    /// Get the column index and number of columns.
+    /// Get the row index and number of rows.
     #[property(CONTEXT, widget_impl(Row))]
     pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
         widget_state_get_state(
@@ -1102,7 +1102,7 @@ impl GridLayout {
     }
 
     /// add/remove info entries, auto-grow/shrink
-    fn update(&mut self, children: &mut GridChildren, auto_mode: AutoGrowMode, auto_grow_fn: &impl Var<WidgetFn<AutoGrowFnArgs>>) {
+    fn update_entries(&mut self, children: &mut GridChildren, auto_mode: AutoGrowMode, auto_grow_fn: &impl Var<WidgetFn<AutoGrowFnArgs>>) {
         // max needed column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
