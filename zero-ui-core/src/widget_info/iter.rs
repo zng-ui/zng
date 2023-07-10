@@ -47,12 +47,37 @@ pub struct Children {
 }
 impl Children {
     pub(super) fn new(parent: WidgetInfo) -> Self {
-        Children {
+        Self {
             front_enter: true,
             front: Some(parent.clone()),
 
             back_enter: true,
             back: Some(parent),
+        }
+    }
+
+    /// New empty iterator.
+    pub fn empty() -> Self {
+        Self {
+            front_enter: false,
+            front: None,
+            back_enter: false,
+            back: None,
+        }
+    }
+
+    /// New with a children selection.
+    pub fn new_range(front: WidgetInfo, back: WidgetInfo) -> Self {
+        assert_eq!(
+            front.node().parent().unwrap().id(),
+            back.node().parent().unwrap().id(),
+            "front and back not siblings"
+        );
+        Self {
+            front_enter: false,
+            front: Some(front),
+            back_enter: false,
+            back: Some(back),
         }
     }
 }

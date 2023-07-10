@@ -1767,6 +1767,29 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 }
 
+/// Defines the first and last child widget in a [`PanelList`].
+#[derive(Debug, Clone)]
+pub struct PanelListRange {
+    // none is empty
+    range: Option<(WidgetId, WidgetId)>,
+}
+impl PanelListRange {
+    /// Iterate over the panel children range.
+    pub fn get(parent: crate::widget_info::WidgetInfo, panel_id: impl Into<StateId<Self>>) -> crate::widget_info::iter::Children {
+        let range = parent.meta().get_clone(panel_id).and_then(|r| r.range);
+        let tree = parent.tree();
+        if let Some((s, e)) = range {
+            if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
+                let parent = Some(parent);
+                if s.parent() == parent && e.parent() == parent {
+                    return crate::widget_info::iter::Children::new_range(s, e);
+                }
+            }
+        }
+        crate::widget_info::iter::Children::empty()
+    }
+}
+
 /// Represents the final [`UiNodeList`] in a panel layout node.
 ///
 /// Panel widgets should wrap their children list on this type to support [`z_index`] sorting list and easily track
@@ -1782,6 +1805,7 @@ where
     data: Vec<Mutex<D>>, // Mutex to implement `par_each_mut`.
 
     offset_key: FrameValueKey<PxTransform>,
+    info_id: Option<StateId<PanelListRange>>,
 
     z_map: Vec<u64>,
     z_naturally_sorted: bool,
@@ -1807,14 +1831,32 @@ where
             },
             list: list.boxed(),
             offset_key: FrameValueKey::new_unique(),
+            info_id: None,
             z_map: vec![],
             z_naturally_sorted: false,
         }
     }
 
+    /// Enable tracking the first and last child in the parent widget info.
+    ///
+    /// The info is set in the `info_id`, it can be used to identify the children widgets
+    /// that are the panel children as the info tree may track extra widgets as children
+    /// when they are set by other properties, like background.
+    pub fn track_info_range(mut self, info_id: impl Into<StateId<PanelListRange>>) -> Self {
+        self.info_id = Some(info_id.into());
+        self
+    }
+
     /// Into list and associated data.
-    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<Mutex<D>>, FrameValueKey<PxTransform>) {
-        (self.list, self.data, self.offset_key)
+    pub fn into_parts(
+        self,
+    ) -> (
+        BoxedUiNodeList,
+        Vec<Mutex<D>>,
+        FrameValueKey<PxTransform>,
+        Option<StateId<PanelListRange>>,
+    ) {
+        (self.list, self.data, self.offset_key, self.info_id)
     }
 
     /// New from list and associated data.
@@ -1822,15 +1864,28 @@ where
     /// # Panics
     ///
     /// Panics if the `list` and `data` don't have the same length.
-    pub fn from_parts(list: BoxedUiNodeList, data: Vec<Mutex<D>>, offset_key: FrameValueKey<PxTransform>) -> Self {
+    pub fn from_parts(
+        list: BoxedUiNodeList,
+        data: Vec<Mutex<D>>,
+        offset_key: FrameValueKey<PxTransform>,
+        info_id: Option<StateId<PanelListRange>>,
+    ) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
             list,
             data,
             offset_key,
+            info_id,
             z_map: vec![],
             z_naturally_sorted: false,
         }
+    }
+
+    /// Gets the ID set on the parent widget info if [`track_info_range`] was enabled.
+    ///
+    /// [`track_info_range`]: Self::track_info_range
+    pub fn info_id(&self) -> Option<StateId<PanelListRange>> {
+        self.info_id
     }
 
     /// Visit the specific node, panic if `index` is out of bounds.
@@ -2097,6 +2152,17 @@ where
 
     fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
         self.list.info_all(info);
+        if let Some(id) = self.info_id {
+            let start = self.list.with_node(0, |c| c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()));
+            let end = self
+                .list
+                .with_node(self.list.len() - 1, |c| c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()));
+            let range = match (start, end) {
+                (Some(s), Some(e)) => Some((s, e)),
+                _ => None,
+            };
+            info.set_meta(id, PanelListRange { range })
+        }
     }
 
     fn event_all(&mut self, update: &EventUpdate) {

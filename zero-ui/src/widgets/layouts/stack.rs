@@ -102,7 +102,7 @@ pub fn node(
     spacing: impl IntoVar<Length>,
     children_align: impl IntoVar<Align>,
 ) -> impl UiNode {
-    let children = PanelList::new(children);
+    let children = PanelList::new(children).track_info_range(&PANEL_LIST_ID);
     let direction = direction.into_var();
     let spacing = spacing.into_var();
     let children_align = children_align.into_var();
@@ -113,11 +113,6 @@ pub fn node(
                 .sub_var_layout(&direction)
                 .sub_var_layout(&spacing)
                 .sub_var_layout(&children_align);
-
-            let len = c.len();
-            c.for_each(|i, c| {
-                c.with_context(WidgetUpdateMode::Ignore, || WIDGET.set_state(&INDEX_ID, (i, len)));
-            });
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
@@ -125,16 +120,6 @@ pub fn node(
 
             if changed {
                 WIDGET.layout();
-
-                let len = c.len();
-                c.for_each(|i, c| {
-                    c.with_context(WidgetUpdateMode::Bubble, || {
-                        let prev = WIDGET.set_state(&INDEX_ID, (i, len));
-                        if prev != Some((i, len)) {
-                            WIDGET.update();
-                        }
-                    });
-                });
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
@@ -626,56 +611,7 @@ pub fn stack_nodes_layout_by(
     })
 }
 
-/// Item index, total in the parent widget set by the parent.
-static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
-
-/// If the child index is even.
-///
-/// Child index is zero-based, so the first is even, the next [`is_odd`].
-///
-/// [`is_odd`]: fn@is_odd
-#[property(CONTEXT)]
-pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
-}
-
-/// If the child index is odd.
-///
-/// Child index is zero-based, so the first [`is_even`], the next one is odd.
-///
-/// [`is_even`]: fn@is_even
-#[property(CONTEXT)]
-pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
-}
-
-/// If the child is the first.
-#[property(CONTEXT)]
-pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    widget_state_is_state(
-        child,
-        |w| {
-            let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-            i == 0 && l > 0
-        },
-        |_| false,
-        state,
-    )
-}
-
-/// If the child is the last.
-#[property(CONTEXT)]
-pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    widget_state_is_state(
-        child,
-        |w| {
-            let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-            i < l && i == l - 1
-        },
-        |_| false,
-        state,
-    )
-}
+static PANEL_LIST_ID: StaticStateId<zero_ui_core::widget_instance::PanelListRange> = StaticStateId::new_unique();
 
 /// Get the child index for custom `when` expressions.
 ///
@@ -703,74 +639,84 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// ```
 #[property(CONTEXT)]
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
-    widget_state_get_state(
-        child,
-        |w, &i| {
-            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
-            if a != i {
-                Some(a)
-            } else {
-                None
-            }
-        },
-        |_, &i| if i != 0 { Some(0) } else { None },
-        state,
-    )
+    let state = state.into_var();
+    super::panel_nodes::with_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id.unwrap_or(0));
+    })
 }
 
 /// Get the child index and number of children.
 #[property(CONTEXT)]
 pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
-    widget_state_get_state(
-        child,
-        |w, &i| {
-            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-            if a != i {
-                Some(a)
-            } else {
-                None
-            }
-        },
-        |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
-        state,
-    )
+    let state = state.into_var();
+    super::panel_nodes::with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
+        let _ = state.set(id_len.unwrap_or((0, 0)));
+    })
 }
 
 /// Get the child index, starting from the last child at `0`.
 #[property(CONTEXT)]
 pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
-    widget_state_get_state(
-        child,
-        |w, &i| {
-            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-            let a = a.1 - a.0;
-            if a != i {
-                Some(a)
-            } else {
-                None
-            }
-        },
-        |_, &i| if i != 0 { Some(0) } else { None },
-        state,
-    )
+    let state = state.into_var();
+    super::panel_nodes::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id.unwrap_or(0));
+    })
 }
 
 /// Get the child index as a factor of the total number of children.
 #[property(CONTEXT, default(0.fct()))]
 pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
-    widget_state_get_state(
-        child,
-        |w, &f| {
-            let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-            let a = a.1 as f32 / a.0 as f32;
-            let a = Factor(a);
-            if a != f {
-                Some(a)
-            } else {
-                None
-            }
-        },
-        |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
-        state,
-    )
+    let state = state.into_var();
+    super::panel_nodes::with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
+        let (i, l) = id_len.unwrap_or((0, 0));
+        if i == 0 || l == 0 {
+            let _ = state.set(0.fct());
+        } else {
+            let _ = state.set((l as f32).fct() / (i as f32).fct());
+        }
+    })
+}
+
+/// If the child index is even.
+///
+/// Child index is zero-based, so the first is even, the next [`is_odd`].
+///
+/// [`is_odd`]: fn@is_odd
+#[property(CONTEXT)]
+pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    super::panel_nodes::with_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
+    })
+}
+
+/// If the child index is odd.
+///
+/// Child index is zero-based, so the first [`is_even`], the next one is odd.
+///
+/// [`is_even`]: fn@is_even
+#[property(CONTEXT)]
+pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    super::panel_nodes::with_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
+    })
+}
+
+/// If the child is the first.
+#[property(CONTEXT)]
+pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    super::panel_nodes::with_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id == Some(0));
+    })
+}
+
+/// If the child is the last.
+#[property(CONTEXT)]
+pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    super::panel_nodes::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+        let _ = state.set(id == Some(0));
+    })
 }
