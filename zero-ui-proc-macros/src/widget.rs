@@ -520,6 +520,13 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let expr = when_expr.expr;
         let expr_str = &when.condition_expr_str;
 
+        let box_expr = quote_spanned! {expr.span()=>
+            {
+                let expr_var = #core::var::expr_var!{#expr};
+                #core::widget_builder::when_condition_expr_var(expr_var)
+            }
+        };
+
         set_whens.extend(quote! {
             #attrs {
                 #when_expr_vars
@@ -528,7 +535,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 ]);
                 #core::widget_base::WidgetImpl::base(&mut *wgt__).start_when_block(
                     inputs__,
-                    #core::widget_builder::when_condition_expr_var! { #expr },
+                    #box_expr,
                     #expr_str,
                     #core::widget_builder::source_location!(),
                 );

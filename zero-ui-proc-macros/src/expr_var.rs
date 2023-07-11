@@ -17,7 +17,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         if parse2::<Expr>(expr.clone()).is_ok() {
             quote_spanned! {expr.span()=>
-                #mod_::IntoVar::<bool>::into_var(#expr)
+                #mod_::types::expr_var_into(#expr)
             }
         } else {
             // support statement blocks using the macro braces, if we just add the braces for
@@ -25,20 +25,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // the span so that type mismatch gets highlighted correctly, so we *try* parse as expr and only
             // add the braces if not.
             quote_spanned! {expr.span()=>
-                #mod_::IntoVar::<bool>::into_var({#expr})
+                #mod_::types::expr_var_into({#expr})
             }
         }
     } else if vars.len() == 1 {
         let (ident, eval) = &vars[0];
-        if token_stream_eq(expr.clone(), ident.to_token_stream()) {
+
+        if token_stream_eq(expr.clone(), quote!(#ident)) || token_stream_eq(expr.clone(), quote!(*#ident)) {
             // full expr is an interpolation, just return the  var.
             quote_spanned! {expr.span()=>
-                {#eval}
+                #mod_::types::expr_var_as(#eval)
             }
         } else {
             quote_spanned! {expr.span()=>
                 // single var interpolation, use map.
-                #mod_::Var::map(&{#eval}, move |#[allow(non_snake_case)]#ident|{ #expr })
+                #mod_::types::expr_var_map(#eval, move |#[allow(non_snake_case)]#ident|{ #expr })
             }
         }
     } else {
@@ -46,7 +47,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let idents = vars.iter().map(|(id, _)| id);
         let evals = vars.iter().map(|(_, ev)| ev);
         quote_spanned! {expr.span()=>
-            #mod_::merge_var!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
+            #mod_::types::expr_var_as(
+                #mod_::merge_var!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
+            )
         }
     };
 
@@ -87,14 +90,29 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
         }
         // recursive parse groups:
         else if input.peek(token::Brace) {
-            let inner = parse_replace_expr(&non_user_braced!(input), vars);
-            expr.extend(quote! { { #inner } });
+            assert_group(|| {
+                let inner;
+                let group = syn::braced!(inner in input);
+                let inner = parse_replace_expr(&inner, vars);
+                group.surround(&mut expr, |e| e.extend(inner));
+                Ok(())
+            });
         } else if input.peek(token::Paren) {
-            let inner = parse_replace_expr(&non_user_parenthesized!(input), vars);
-            expr.extend(quote! { ( #inner ) });
+            assert_group(|| {
+                let inner;
+                let group = syn::parenthesized!(inner in input);
+                let inner = parse_replace_expr(&inner, vars);
+                group.surround(&mut expr, |e| e.extend(inner));
+                Ok(())
+            });
         } else if input.peek(token::Bracket) {
-            let inner = parse_replace_expr(&non_user_bracketed!(input), vars);
-            expr.extend(quote! { [ #inner ] });
+            assert_group(|| {
+                let inner;
+                let group = syn::bracketed!(inner in input);
+                let inner = parse_replace_expr(&inner, vars);
+                group.surround(&mut expr, |e| e.extend(inner));
+                Ok(())
+            });
         }
         // keep other tokens the same:
         else {
@@ -104,6 +122,10 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
     }
 
     expr
+}
+/// syn::braced! generates an error return.
+fn assert_group(f: impl FnOnce() -> syn::parse::Result<()>) {
+    f().unwrap()
 }
 
 /// Like [`syn::Expr::parse_without_eager_brace`] but does not actually parse anything and includes

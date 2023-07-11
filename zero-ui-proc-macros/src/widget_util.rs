@@ -372,8 +372,8 @@ pub(crate) struct WhenExpr {
     pub inputs: HashMap<(syn::Path, WhenInputMember), Ident>,
     pub expr: TokenStream,
 }
-impl WhenExpr {
-    fn parse_inner(input: parse::ParseStream) -> syn::Result<Self> {
+impl Parse for WhenExpr {
+    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let mut inputs = HashMap::new();
         let mut expr = TokenStream::default();
 
@@ -419,20 +419,23 @@ impl WhenExpr {
             }
             // recursive parse groups:
             else if input.peek(token::Brace) {
-                let inner = WhenExpr::parse_inner(&non_user_braced!(input))?;
+                let inner;
+                let group = syn::braced!(inner in input);
+                let inner = WhenExpr::parse(&inner)?;
                 inputs.extend(inner.inputs);
-                let inner = inner.expr;
-                expr.extend(quote_spanned! {inner.span()=> { #inner } });
+                group.surround(&mut expr, |e| e.extend(inner.expr));
             } else if input.peek(token::Paren) {
-                let inner = WhenExpr::parse_inner(&non_user_parenthesized!(input))?;
+                let inner;
+                let group = syn::parenthesized!(inner in input);
+                let inner = WhenExpr::parse(&inner)?;
                 inputs.extend(inner.inputs);
-                let inner = inner.expr;
-                expr.extend(quote_spanned! {inner.span()=> ( #inner ) });
+                group.surround(&mut expr, |e| e.extend(inner.expr));
             } else if input.peek(token::Bracket) {
-                let inner = WhenExpr::parse_inner(&non_user_bracketed!(input))?;
+                let inner;
+                let group = syn::bracketed!(inner in input);
+                let inner = WhenExpr::parse(&inner)?;
                 inputs.extend(inner.inputs);
-                let inner = inner.expr;
-                expr.extend(quote_spanned! {inner.span()=> [ #inner ] });
+                group.surround(&mut expr, |e| e.extend(inner.expr));
             }
             // keep other tokens the same:
             else {
@@ -442,20 +445,6 @@ impl WhenExpr {
         }
 
         Ok(WhenExpr { inputs, expr })
-    }
-}
-impl Parse for WhenExpr {
-    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let mut r = WhenExpr::parse_inner(input)?;
-        let expr = &mut r.expr;
-
-        // assert expression type.
-        *expr = quote_spanned! {expr.span()=>
-            let __result__: bool = { #expr };
-            __result__
-        };
-
-        Ok(r)
     }
 }
 

@@ -76,7 +76,7 @@ pub mod types {
     pub use super::context::{context_var_init, with_new_context_init_id, WeakContextInitHandle};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
     pub use super::cow::{ArcCowVar, WeakCowVar};
-    pub use super::expr::__expr_var;
+    pub use super::expr::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNotAnimatingFut, WaitUpdateFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};

@@ -106,10 +106,3 @@ pub fn with_index_len_node(
         _ => {}
     })
 }
-
-/*
- # !!: ISSUES
-
-    * How to pump update if the item is reused?
-        -
-*/

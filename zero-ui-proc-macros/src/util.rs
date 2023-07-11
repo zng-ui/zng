@@ -278,6 +278,7 @@ macro_rules! non_user_braced {
 }
 
 /// Does a `parenthesized!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
+#[allow(unused)]
 macro_rules! non_user_parenthesized {
     ($input:expr) => {
         non_user_group! { parenthesized, $input }

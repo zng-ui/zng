@@ -69,3 +69,20 @@ pub use crate::expr_var;
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;
+
+use super::{IntoVar, Var, VarValue};
+
+#[doc(hidden)]
+pub fn expr_var_into<T: VarValue>(expr: impl IntoVar<T>) -> impl Var<T> {
+    expr.into_var()
+}
+
+#[doc(hidden)]
+pub fn expr_var_as<T: VarValue>(var: impl Var<T>) -> impl Var<T> {
+    var
+}
+
+#[doc(hidden)]
+pub fn expr_var_map<I: VarValue, O: VarValue>(input: impl Var<I>, map: impl FnMut(&I) -> O + Send + 'static) -> impl Var<O> {
+    input.map(map)
+}

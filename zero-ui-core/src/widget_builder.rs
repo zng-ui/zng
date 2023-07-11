@@ -53,14 +53,9 @@ impl fmt::Display for SourceLocation {
 }
 
 #[doc(hidden)]
-#[macro_export]
-macro_rules! when_condition_expr_var {
-    ($($tt:tt)*) => {
-        $crate::var::Var::boxed($crate::var::expr_var!{$($tt)*})
-    };
+pub fn when_condition_expr_var(expr_var: impl Var<bool>) -> BoxedVar<bool> {
+    expr_var.boxed()
 }
-#[doc(hidden)]
-pub use when_condition_expr_var;
 
 #[doc(hidden)]
 pub struct WgtInfo;

@@ -25,8 +25,8 @@ Stack! {
 * Issue does not happen if `zero_ui::core::widget_base::parallel = false;`.
 
 ```log
-!!: with_index_node update in WidgetId("btn-1")/Arc(0x1ab36d78e80) to Some(1)
-!!: with_index_node update in WidgetId("btn-0")/Arc(0x1ab36d78be0) to Some(0)
+with_index_node update in WidgetId("btn-1")/Arc(0x1ab36d78e80) to Some(1)
+with_index_node update in WidgetId("btn-0")/Arc(0x1ab36d78be0) to Some(0)
 ```
 
 * Issue is with when expressions?
@@ -48,51 +48,51 @@ WhenInputVar.new (use)
 
 parallel = false
 
-!!: set when 0x197df0a83e0 Arc(0x197e119d220)
-!!: set when 0x197e10cb790 Arc(0x197e119d280)
-!!: set when 0x197e10cb2e0 Arc(0x197e119c5c0)
-!!: set when 0x197e10cb3a0 Arc(0x197e119cf20)
-!!: set when 0x197df0a8170 Arc(0x197e119d4c0)
-!!: use when 0x197e10cb790 Arc(0x197e119d280)
-!!: use when 0x197e10cb3a0 Arc(0x197e119cf20)
-!!: use when 0x197df0a83e0 Arc(0x197e119d220)
-!!: use when 0x197e10cb2e0 Arc(0x197e119c5c0)
-!!: use when 0x197df0a8170 Arc(0x197e119d4c0)
-!!: set when 0x197df0a83e0 Arc(0x197defd2800)
-!!: set when 0x197e3d82b00 Arc(0x197defd2860)
-!!: set when 0x197e3d81b10 Arc(0x197defd28c0)
-!!: set when 0x197e3d82130 Arc(0x197defd2920)
-!!: set when 0x197df0a7f30 Arc(0x197defd2b00)
-!!: use when 0x197e3d82b00 Arc(0x197defd2860)
-!!: use when 0x197e3d82130 Arc(0x197defd2920)
-!!: use when 0x197df0a83e0 Arc(0x197defd2800)
-!!: use when 0x197e3d81b10 Arc(0x197defd28c0)
-!!: use when 0x197df0a7f30 Arc(0x197defd2b00)
+set when 0x197df0a83e0 Arc(0x197e119d220)
+set when 0x197e10cb790 Arc(0x197e119d280)
+set when 0x197e10cb2e0 Arc(0x197e119c5c0)
+set when 0x197e10cb3a0 Arc(0x197e119cf20)
+set when 0x197df0a8170 Arc(0x197e119d4c0)
+use when 0x197e10cb790 Arc(0x197e119d280)
+use when 0x197e10cb3a0 Arc(0x197e119cf20)
+use when 0x197df0a83e0 Arc(0x197e119d220)
+use when 0x197e10cb2e0 Arc(0x197e119c5c0)
+use when 0x197df0a8170 Arc(0x197e119d4c0)
+set when 0x197df0a83e0 Arc(0x197defd2800)
+set when 0x197e3d82b00 Arc(0x197defd2860)
+set when 0x197e3d81b10 Arc(0x197defd28c0)
+set when 0x197e3d82130 Arc(0x197defd2920)
+set when 0x197df0a7f30 Arc(0x197defd2b00)
+use when 0x197e3d82b00 Arc(0x197defd2860)
+use when 0x197e3d82130 Arc(0x197defd2920)
+use when 0x197df0a83e0 Arc(0x197defd2800)
+use when 0x197e3d81b10 Arc(0x197defd28c0)
+use when 0x197df0a7f30 Arc(0x197defd2b00)
 
 
 ==========
 parallel = true
 
-!!: set when 0x238206fccc0 Arc(0x23820711480)
-!!: set when 0x238206fccc0 Arc(0x23820710ca0) !!
-!!: set when 0x238231e8540 Arc(0x238207114e0)
-!!: set when 0x238231e2aa0 Arc(0x23820711600)
-!!: set when 0x238231e86f0 Arc(0x23820710dc0)
-!!: set when 0x238231e25c0 Arc(0x238207116c0)
-!!: set when 0x238206fc240 Arc(0x23820711720)
-!!: set when 0x238231e2170 Arc(0x238207115a0)
-!!: set when 0x238231e2bf0 Arc(0x23820711660)
-!!: set when 0x238206fc300 Arc(0x238207117e0)
-!!: use when 0x238231e8540 Arc(0x238207114e0)
-!!: use when 0x238231e86f0 Arc(0x23820710dc0)
-!!: use when 0x238231e25c0 Arc(0x238207116c0)
-!!: use when 0x238231e2bf0 Arc(0x23820711660)
-!!: use when 0x238206fc300 Arc(0x238207117e0)
-!!: use when 0x238206fc240 Arc(0x23820711720)
-!!: use when 0x238206fccc0 Arc(0x23820710ca0)
-!!: use when 0x238206fccc0 Arc(0x23820710ca0)
-!!: use when 0x238231e2170 Arc(0x238207115a0)
-!!: use when 0x238231e2aa0 Arc(0x23820711600)
+set when 0x238206fccc0 Arc(0x23820711480)
+set when 0x238206fccc0 Arc(0x23820710ca0) !!
+set when 0x238231e8540 Arc(0x238207114e0)
+set when 0x238231e2aa0 Arc(0x23820711600)
+set when 0x238231e86f0 Arc(0x23820710dc0)
+set when 0x238231e25c0 Arc(0x238207116c0)
+set when 0x238206fc240 Arc(0x23820711720)
+set when 0x238231e2170 Arc(0x238207115a0)
+set when 0x238231e2bf0 Arc(0x23820711660)
+set when 0x238206fc300 Arc(0x238207117e0)
+use when 0x238231e8540 Arc(0x238207114e0)
+use when 0x238231e86f0 Arc(0x23820710dc0)
+use when 0x238231e25c0 Arc(0x238207116c0)
+use when 0x238231e2bf0 Arc(0x23820711660)
+use when 0x238206fc300 Arc(0x238207117e0)
+use when 0x238206fc240 Arc(0x23820711720)
+use when 0x238206fccc0 Arc(0x23820710ca0)
+use when 0x238206fccc0 Arc(0x23820710ca0)
+use when 0x238231e2170 Arc(0x238207115a0)
+use when 0x238231e2aa0 Arc(0x23820711600)
 ```
 
 * Issue is parallel init of the returned `WhenInputVar::new`.
@@ -120,4 +120,5 @@ parallel = true
         - These use ContextualizedVar inside.
         - No way to visit the captures of the ContextualizedVar closure.
     - Have a `PlaceholderVar<T>`.
-        - Implement `AnyVar::clone_with`.
+        - It works like ContextualizedVar, but gets it value from some sort
+          of context wrap?
