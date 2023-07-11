@@ -115,3 +115,9 @@ parallel = true
     - Could expand the var API to allow visiting all components.
     - And implement a custom var type for this purpose, instead of the ContextualizedVar.
     - Instead of `Arc` is there a data struct that can "clone the graph"?
+    - We definitely need a var `deep_clone`.
+        - `expr_var!` expands to map or merge for when expressions with input.
+        - These use ContextualizedVar inside.
+        - No way to visit the captures of the ContextualizedVar closure.
+    - Have a `PlaceholderVar<T>`.
+        - Implement `AnyVar::clone_with`.
