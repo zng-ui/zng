@@ -97,4 +97,21 @@ parallel = true
 
 * Issue is parallel init of the returned `WhenInputVar::new`.
     - Can't deep clone because the returned var is the same.
-    - 
+
+# How To Fix
+
+* `WhenInputVar` needs to store multiple values.
+    - We may need a node to set context ids, to identify the value in the contextualized var.
+    - No guarantee the when var is actualized on init?
+        - If this is the case even non-parallel usages might be broken.
+        - VERIFY.
+* Both input and var are in `WhenInfo`.
+    - Var is merged, but its there.
+    - Maybe we can refactor when to some sort of closure that generates the condition var only
+      after all inputs are resolved.
+    - Need large refactor, right now the var is embedded in an `expr_var!` that is created at
+      the declaration point, turning the expr to a closure will mess that up.
+* On clone of `WhenInfo` visit the placeholder ContextualizedVar, somehow.
+    - Could expand the var API to allow visiting all components.
+    - And implement a custom var type for this purpose, instead of the ContextualizedVar.
+    - Instead of `Arc` is there a data struct that can "clone the graph"?
