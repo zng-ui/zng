@@ -879,6 +879,12 @@ impl<const N: usize> IntoVar<FontNames> for [Txt; N] {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CaretIndex {
+    pub index: usize,
+    pub line: usize,
+}
+
 const INLINE_MAX: usize = mem::size_of::<usize>() * 3;
 
 fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {

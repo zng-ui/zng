@@ -938,7 +938,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 
 /// Gets the caret char index, if the text is editable.
 #[property(EVENT, default(None), widget_impl(TextEditMix<P>))]
-pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<usize>>) -> impl UiNode {
+pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
     super::nodes::get_caret_index(child, index)
 }
 
