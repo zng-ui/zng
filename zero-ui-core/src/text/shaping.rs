@@ -2066,7 +2066,7 @@ impl<'a> ShapedLine<'a> {
         &full_text[start..end]
     }
 
-    /// Gets the segment that contains `x` or is nearest to it;
+    /// Gets the segment that contains `x` or is nearest to it.
     pub fn nearest_seg(&self, x: Px) -> Option<ShapedSegment<'a>> {
         let mut min = None;
         let mut min_dist = Px::MAX;
@@ -2085,6 +2085,11 @@ impl<'a> ShapedLine<'a> {
             }
         }
         min
+    }
+
+    /// Gets the line index
+    pub fn index(&self) -> usize {
+        self.index
     }
 }
 
