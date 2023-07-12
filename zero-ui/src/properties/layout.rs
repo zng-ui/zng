@@ -1205,7 +1205,7 @@ pub fn child_insert(
 /// Insert the `insert` node in the `place` relative to the widget's child, but outside of the child layout.
 ///
 /// This is still *inside* the parent widget, but outside of properties like padding.
-/// 
+///
 /// This property disables inline layout for the widget.
 #[property(CHILD_LAYOUT - 1, default(ChildInsertPlace::Start, NilUiNode, 0))]
 pub fn child_out_insert(

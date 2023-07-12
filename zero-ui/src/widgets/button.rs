@@ -174,10 +174,10 @@ impl Split {
 }
 
 /// Turns the button into an *split-button*.
-/// 
+///
 /// Can be set to any widget, the [`Split!`] is recommended.
-/// 
-/// [`Split!`]: struct@Split 
+///
+/// [`Split!`]: struct@Split
 #[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Button))]
 pub fn split(child: impl UiNode, split: impl UiNode) -> impl UiNode {
     child_insert(child, SPLIT_PLACE_VAR, split, SPLIT_SPACING_VAR)
@@ -194,7 +194,7 @@ pub fn split_place(child: impl UiNode, place: impl IntoVar<ChildInsertPlace>) ->
 }
 
 /// Space between the [`split`] widget and the button content.
-/// 
+///
 /// Sets the [`SPLIT_SPACING_VAR`].
 ///     
 /// [`split`]: fn@split
@@ -205,12 +205,12 @@ pub fn split_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 
 context_var! {
     /// Placement of the [`split`] widget.
-    /// 
+    ///
     /// [`split`]: fn@split
     pub static SPLIT_PLACE_VAR: ChildInsertPlace = ChildInsertPlace::End;
-    
+
     /// Space between the [`split`] widget and the button content.
-    /// 
+    ///
     /// [`split`]: fn@split
     pub static SPLIT_SPACING_VAR: Length = 4;
 }

@@ -1153,6 +1153,18 @@ impl AnchorMode {
         }
     }
 
+    /// Mode where widget behaves like a flyout menu for the anchor.
+    pub fn popup(place: AnchorOffset) -> Self {
+        AnchorMode {
+            transform: place.into(),
+            size: AnchorSize::InnerSize,
+            visibility: true,
+            viewport_bound: true,
+            interactivity: true,
+            corner_radius: true,
+        }
+    }
+
     /// Returns the mode with `transform` set.
     pub fn with_transform(mut self, transform: impl Into<AnchorTransform>) -> Self {
         self.transform = transform.into();

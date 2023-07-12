@@ -157,13 +157,7 @@ fn toggle_buttons() -> impl UiNode {
                 checked_opt = var(Some(false));
                 tristate = true;
             },
-            Toggle! {
-                child = TextInput! {
-                    txt = var_from("Combo");
-                    on_click = hn!(|a: &ClickArgs| a.propagation().stop());
-                };
-                style_fn = toggle::ComboStyle!();
-            },
+            combo_box(),
             Toggle! {
                 child = Text!("Switch");
                 checked = var(false);
@@ -203,5 +197,40 @@ fn toggle_buttons() -> impl UiNode {
                 ];
             }
         ]
+    }
+}
+
+fn combo_box() -> impl UiNode {
+    let txt = var(Txt::from_static("Combo"));
+    let options = ["Combo", "Congo"];
+    Toggle! {
+        child = TextInput! {
+            txt = txt.clone();
+            on_click = hn!(|a: &ClickArgs| a.propagation().stop());
+        };
+        style_fn = toggle::ComboStyle!();
+        checked_popup = wgt_fn!(|_| {
+            Stack! {
+                direction = StackDirection::top_to_bottom();
+                children = options.into_iter().map(|o| Button! {
+                    child = Text!(o);
+                    on_click = hn!(txt, |_| {
+                        txt.set(o);
+                    });
+
+                }.boxed())
+                .collect::<UiNodeVec>();
+
+                button::replace_style = button::DefaultStyle! {
+                    corner_radius = 0;
+                    padding = 2;
+                    border = unset!;
+
+                    when *#stack::is_even {
+                        base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
+                    }
+                };
+            }
+        })
     }
 }

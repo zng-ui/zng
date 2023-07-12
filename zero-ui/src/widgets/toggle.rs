@@ -7,6 +7,7 @@ use task::parking_lot::Mutex;
 use crate::core::gesture::CLICK_EVENT;
 
 use crate::prelude::new_widget::*;
+use crate::widgets::window::layers;
 
 /// A toggle button that flips a `bool` or `Option<bool>` variable on click, or selects a value.
 ///
@@ -884,19 +885,37 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 #[property(EVENT, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();
+    let mut popup_id = None;
     match_node(child, move |_, op| {
         let new = match op {
             UiNodeOp::Init => {
                 WIDGET.sub_var(&IS_CHECKED_VAR);
-                Some(true)
+                IS_CHECKED_VAR.get()
             }
             UiNodeOp::Deinit => Some(false),
             UiNodeOp::Update { .. } => IS_CHECKED_VAR.get_new().map(|o| o.unwrap_or(false)),
             _ => None,
         };
         if let Some(is_open) = new {
-            
-            todo!("!!:")
+            if is_open {
+                if popup_id.is_none() {
+                    let mut popup = popup.get()(());
+                    popup_id = popup.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                    if popup_id.is_none() {
+                        popup = Container!(popup).boxed();
+                        popup_id = popup.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                    }
+
+                    layers::LAYERS.insert_anchored(
+                        layers::LayerIndex::TOP_MOST,
+                        WIDGET.id(),
+                        layers::AnchorMode::popup(layers::AnchorOffset::out_bottom()),
+                        popup,
+                    );
+                }
+            } else if let Some(open) = popup_id.take() {
+                layers::LAYERS.remove(open);
+            }
         }
     })
 }

@@ -46,13 +46,26 @@
 
 * Add cool examples of radial and conic gradients.
 
+# Menu
+
+* Implement split button, see `button::split`.
+
+* Implement styleable stack `Menu!`.
+    - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
+    - Nested menus, auto-close on click.
+    - Arrow key open close.
+* Implement `toggle::MenuStyle!`.
+* Implement `toggle::ListItemStyle!`.
+    - Use it in the combo-box example.
+
 # Undo Service
 
 * `UndoHistory!` widget.
     - Property to select the stack?
-    - Need to support pop-up hover down selecting (See Word widget).
+    - Need to support pop-up hover down selecting.
         - Need a `HOVERED_TIMESTAMP_VAR`?
         - To highlight the covered entries.
+        - Reuse the `toggle::ListItemStyle!` looks.
 
 # View-Process
 
