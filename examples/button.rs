@@ -32,12 +32,14 @@ fn app_main() {
                             example(),
                             example(),
                             disabled(),
+                            separator(),
                             image_button(),
                             repeat_button(),
-                            separator(),
-                            toggle_buttons(),
-                            ];
+                        ];
                     },
+
+                    toggle_buttons(),
+
                     dyn_buttons(),
                 ]
             };
@@ -61,7 +63,6 @@ fn example() -> impl UiNode {
         child = Text!(t);
     }
 }
-
 fn disabled() -> impl UiNode {
     Button! {
         on_click = hn!(|_| panic!("disabled button"));
@@ -71,7 +72,6 @@ fn disabled() -> impl UiNode {
         disabled_tooltip = Tip!(Text!("disabled tooltip"));
     }
 }
-
 fn image_button() -> impl UiNode {
     Button! {
         id = "img-btn";
@@ -88,7 +88,6 @@ fn image_button() -> impl UiNode {
         };
     }
 }
-
 fn repeat_button() -> impl UiNode {
     Button! {
         id = "repeat-btn";
@@ -98,44 +97,6 @@ fn repeat_button() -> impl UiNode {
         });
 
         child = Text!("Repeat Click!");
-    }
-}
-
-fn dyn_buttons() -> impl UiNode {
-    let dyn_children = EditableUiNodeList::new();
-    let children_ref = dyn_children.reference();
-    let mut btn = 'A';
-
-    Stack! {
-        direction = StackDirection::top_to_bottom();
-        spacing = 5;
-        children = dyn_children.chain(ui_vec![
-            Button! {
-                child = Text!("Add Button");
-                on_click = hn!(|_| {
-                    children_ref.push(Button! {
-                        child = Text!("Remove {}", btn);
-                        on_click = hn!(children_ref, |_| {
-                            children_ref.remove(WIDGET.id());
-                        })
-                    });
-
-                    if btn == 'Z' {
-                        btn = 'A'
-                    } else {
-                        btn = std::char::from_u32(btn as u32 + 1).unwrap();
-                    }
-                })
-            }
-        ])
-    }
-}
-
-fn separator() -> impl UiNode {
-    Hr! {
-        color = rgba(1.0, 1.0, 1.0, 0.2);
-        margin = (0, 8);
-        line_style = LineStyle::Dashed;
     }
 }
 
@@ -157,7 +118,9 @@ fn toggle_buttons() -> impl UiNode {
                 checked_opt = var(Some(false));
                 tristate = true;
             },
+            separator(),
             combo_box(),
+            separator(),
             Toggle! {
                 child = Text!("Switch");
                 checked = var(false);
@@ -174,6 +137,7 @@ fn toggle_buttons() -> impl UiNode {
                 tristate = true;
                 style_fn = toggle::CheckStyle!();
             },
+            separator(),
             Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
@@ -232,5 +196,56 @@ fn combo_box() -> impl UiNode {
                 };
             }
         })
+    }
+}
+
+fn dyn_buttons() -> impl UiNode {
+    let dyn_children = EditableUiNodeList::new();
+    let children_ref = dyn_children.reference();
+    let mut btn = 'A';
+
+    Stack! {
+        direction = StackDirection::top_to_bottom();
+        spacing = 5;
+        children = dyn_children.chain(ui_vec![
+            separator_not_first(),
+            Button! {
+                child = Text!("Add Button");
+                on_click = hn!(|_| {
+                    children_ref.push(Button! {
+                        child = Text!("Remove {}", btn);
+                        on_click = hn!(children_ref, |_| {
+                            children_ref.remove(WIDGET.id());
+                        })
+                    });
+
+                    if btn == 'Z' {
+                        btn = 'A'
+                    } else {
+                        btn = std::char::from_u32(btn as u32 + 1).unwrap();
+                    }
+                })
+            }
+        ])
+    }
+}
+
+fn separator() -> impl UiNode {
+    Hr! {
+        color = rgba(1.0, 1.0, 1.0, 0.2);
+        margin = (0, 8);
+        line_style = LineStyle::Dashed;
+    }
+}
+
+fn separator_not_first() -> impl UiNode {
+    let is_first = var(false);
+    Hr! {
+        stack::is_first = is_first.clone();
+        visibility = is_first.map(|&f| (!f).into());
+
+        color = rgba(1.0, 1.0, 1.0, 0.2);
+        margin = (0, 8);
+        line_style = LineStyle::Dashed;
     }
 }

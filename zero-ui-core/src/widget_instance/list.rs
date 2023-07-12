@@ -2201,7 +2201,7 @@ where
             };
             info.set_meta(*id, PanelListRange { range, version: *version });
 
-            if *pump_update {
+            if mem::take(pump_update) {
                 self.list.for_each(|_, c| {
                     c.with_context(WidgetUpdateMode::Bubble, || WIDGET.update());
                 });
