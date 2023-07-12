@@ -1171,7 +1171,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if let Some(txt) = &mut txt.txt {
                             if txt.caret_origin.is_some() {
                                 let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
-                                let last_line = txt.shaped_text.lines_len().saturating_sub(1);
                                 let li = i.line;
                                 if let Some(li) = txt.shaped_text.line(li) {
                                     let target_line_y = li.rect().origin.y + page_y;
