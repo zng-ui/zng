@@ -1,6 +1,3 @@
-* Review style issue.
-* Implement `get_index` and related for `Wrap!` and `Grid!` cells.
-
  TextInput
 
 * Caret not always positioned at end of wrapped line.
