@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak, SegmentedText,
-    TextSegment, TextSegmentKind, Txt, WordBreak,
+    font_features::RFontFeatures, lang, CaretIndex, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak,
+    SegmentedText, TextSegment, TextSegmentKind, Txt, WordBreak,
 };
 use crate::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
@@ -1070,7 +1070,8 @@ impl ShapedText {
     }
 
     /// Gets the top-middle origin for a caret visual that marks the insert `index` in the string.
-    pub fn caret_origin(&self, index: usize, full_text: &str) -> PxPoint {
+    pub fn caret_origin(&self, caret: CaretIndex, full_text: &str) -> PxPoint {
+        let index = caret.index; // !!: TODO, consider caret.line.
         for line in self.lines() {
             for seg in line.segs() {
                 let txt_range = seg.text_range();

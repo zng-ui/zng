@@ -879,10 +879,26 @@ impl<const N: usize> IntoVar<FontNames> for [Txt; N] {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// Defines an insert offset in a shaped text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CaretIndex {
+    /// Char byte offset in the full text.
+    ///
+    /// This index can be computed using the [`SegmentedText`].
     pub index: usize,
+    /// Line index in the shaped text.
+    ///
+    /// Note that this counts wrap lines, this value is used disambiguate
+    /// between the *end* of a wrap and the *start* of the next, the text
+    /// it-self does not have any line break but visually the user interacts
+    /// with two lines.
+    ///
+    /// This index can be computed using the [`ShapedText::snap_caret_line`].
     pub line: usize,
+}
+impl CaretIndex {
+    /// First position.
+    pub const ZERO: CaretIndex = CaretIndex { index: 0, line: 0 };
 }
 
 const INLINE_MAX: usize = mem::size_of::<usize>() * 3;

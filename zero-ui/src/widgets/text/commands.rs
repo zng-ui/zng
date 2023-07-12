@@ -61,26 +61,33 @@ impl TextEditOp {
     /// after insert the caret is positioned after the inserted text.
     pub fn insert(undo_info: impl UndoInfo, insert: impl Into<Txt>) -> Self {
         let insert = insert.into();
-        let mut insert_idx = usize::MAX;
+        let mut insert_idx = CaretIndex {
+            index: usize::MAX,
+            line: 0,
+        };
         Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                if insert_idx == usize::MAX {
-                    insert_idx = caret.index.unwrap_or(0);
+                if insert_idx.index == usize::MAX {
+                    insert_idx = caret.index.unwrap_or(CaretIndex::ZERO);
                 }
 
+                let i = insert_idx.index;
                 txt.modify(clmv!(insert, |args| {
-                    args.to_mut().to_mut().insert_str(insert_idx, insert.as_str());
+                    args.to_mut().to_mut().insert_str(i, insert.as_str());
                 }))
                 .unwrap();
 
-                caret.set_index(insert_idx + insert.len());
+                let mut i = insert_idx;
+                i.index += insert.len();
+                caret.set_index(i);
             }
             UndoOp::Undo => {
                 let len = insert.len();
+                let i = insert_idx.index;
                 txt.modify(move |args| {
-                    args.to_mut().to_mut().replace_range(insert_idx..insert_idx + len, "");
+                    args.to_mut().to_mut().replace_range(i..i + len, "");
                 })
                 .unwrap();
 
@@ -96,15 +103,18 @@ impl TextEditOp {
     /// See [`zero_ui::core::text::SegmentedText::backspace_range`] for more details about what is removed.
     pub fn backspace(undo_info: impl UndoInfo) -> Self {
         let mut removed = Txt::from_static("");
-        let mut undo_idx = usize::MAX;
+        let mut undo_idx = CaretIndex {
+            index: usize::MAX,
+            line: 0,
+        };
 
         Self::new(undo_info, move |txt, op| match op {
             UndoOp::Redo => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                let caret_idx = caret.index.unwrap_or(0);
-                let rmv = ctx.text.backspace_range(caret_idx);
+                let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
+                let rmv = ctx.text.backspace_range(caret_idx.index);
                 if rmv.is_empty() {
                     removed = Txt::from_static("");
                     return;
@@ -114,7 +124,8 @@ impl TextEditOp {
                     let r = &t[rmv.clone()];
                     if r != removed {
                         removed = Txt::from_str(r);
-                        undo_idx = caret_idx - removed.len();
+                        undo_idx.index = caret_idx.index - removed.len();
+                        undo_idx.line = caret_idx.line;
                     }
                 });
 
@@ -130,14 +141,17 @@ impl TextEditOp {
                     return;
                 }
 
+                let i = undo_idx.index;
                 txt.modify(clmv!(removed, |args| {
-                    args.to_mut().to_mut().insert_str(undo_idx, removed.as_str());
+                    args.to_mut().to_mut().insert_str(i, removed.as_str());
                 }))
                 .unwrap();
 
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                caret.set_index(undo_idx + removed.len());
+                let mut i = undo_idx;
+                i.index += removed.len();
+                caret.set_index(i);
             }
         })
     }
@@ -153,9 +167,9 @@ impl TextEditOp {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                let caret_idx = caret.index.unwrap_or(0);
+                let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
 
-                let rmv = ctx.text.delete_range(caret_idx);
+                let rmv = ctx.text.delete_range(caret_idx.index);
 
                 if rmv.is_empty() {
                     removed = Txt::from_static("");
@@ -183,14 +197,17 @@ impl TextEditOp {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                let caret_idx = caret.index.unwrap_or(0);
+                let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
 
+                let i = caret_idx.index;
                 txt.modify(clmv!(removed, |args| {
-                    args.to_mut().to_mut().insert_str(caret_idx, removed.as_str());
+                    args.to_mut().to_mut().insert_str(i, removed.as_str());
                 }))
                 .unwrap();
 
-                caret.set_index(caret_idx + removed.len());
+                let mut i = caret_idx;
+                i.index += removed.len();
+                caret.set_index(i);
             }
         })
     }
@@ -229,7 +246,7 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                ctx.caret.lock().set_index(select_after.start); // TODO, selection
+                ctx.caret.lock().set_char_index(select_after.start); // TODO, selection
             }
             UndoOp::Undo => {
                 let ctx = ResolvedText::get();
@@ -242,7 +259,7 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                ctx.caret.lock().set_index(select_before.start); // TODO, selection
+                ctx.caret.lock().set_char_index(select_before.start); // TODO, selection
             }
         })
     }

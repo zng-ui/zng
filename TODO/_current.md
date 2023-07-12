@@ -1,7 +1,9 @@
- TextInput
+# TextInput
 
-* Caret not always positioned at end of wrapped line.
-    - Include a line_index in the caret position.
+* Implement `CaretIndex` everywhere.
+    - Line cannot be be set at the `resolve_text` because we need the shaped text to find the line.
+    - Implement `ShapedText::snap_caret_line(&self, caret: CaretIndex) -> CaretIndex`.
+        - If only changes the line if the index is not possible in the current line.
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
 * Support replace (Insert mode in command line).

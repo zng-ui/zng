@@ -66,6 +66,18 @@ impl CaretInfo {
         self.index = Some(index);
         self.index_version = self.index_version.wrapping_add(1);
     }
+
+    /// Set the car byte index and update the index version.
+    ///
+    /// The caret line is always snapped when the caret changes, so the line value will be updated.
+    pub fn set_char_index(&mut self, index: usize) {
+        if let Some(i) = &mut self.index {
+            i.index = index;
+        } else {
+            self.index = Some(CaretIndex { index, line: 0 });
+        }
+        self.index_version = self.index_version.wrapping_add(1);
+    }
 }
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
@@ -433,12 +445,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             args.propagation().stop();
 
                             if args.is_backspace() {
-                                if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or_default().index > 0 {
+                                if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
                                     ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace("backspace").call(&text));
                                 }
                             } else if args.is_delete() {
                                 let r = resolved.as_mut().unwrap();
-                                let caret_idx = r.caret.get_mut().index.unwrap_or_default();
+                                let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
                                 if !r.text.delete_range(caret_idx.index).is_empty() {
                                     ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete("delete").call(&text));
                                 }
@@ -470,7 +482,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         let caret_index = &mut resolved.caret.get_mut().index;
 
                                         if let Some(i) = caret_index {
-                                            *i = resolved.text.next_insert_index(*i);
+                                            i.index = resolved.text.next_insert_index(i.index);
                                         }
                                     }
                                 }
@@ -482,7 +494,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         let caret_index = &mut resolved.caret.get_mut().index;
 
                                         if let Some(i) = caret_index {
-                                            *i = resolved.text.prev_insert_index(*i);
+                                            i.index = resolved.text.prev_insert_index(i.index);
                                         }
                                     }
                                 }
@@ -497,7 +509,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                             if args.modifiers.is_only_ctrl() {
                                                 i.index = 0;
                                             } else if args.modifiers.is_empty() {
-                                                *i = resolved.text.line_start_index(*i);
+                                                i.index = resolved.text.line_start_index(i.index);
                                             }
                                         }
                                     }
@@ -513,7 +525,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                             if args.modifiers.is_only_ctrl() {
                                                 i.index = resolved.text.text().len();
                                             } else if args.modifiers.is_empty() {
-                                                *i = resolved.text.line_end_index(*i);
+                                                i.index = resolved.text.line_end_index(i.index);
                                             }
                                         }
                                     }
@@ -528,7 +540,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                         if args.is_focused(WIDGET.id()) {
                             if caret_index.is_none() {
-                                *caret_index = Some(CaretIndex::default());
+                                *caret_index = Some(CaretIndex::ZERO);
                             } else {
                                 // restore animation when the caret_index did not change
                                 caret.opacity = KEYBOARD.caret_animation();
@@ -603,7 +615,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if r.text.text() != text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
                     if let Some(i) = &mut r.caret.get_mut().index {
-                        *i = r.text.snap_grapheme_boundary(*i);
+                        i.index = r.text.snap_grapheme_boundary(i.index);
                     }
 
                     r.pending_layout = PendingLayout::RESHAPE;
@@ -1129,27 +1141,28 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         caret.used_retained_x = true;
                         if let Some(txt) = &mut txt.txt {
                             if txt.caret_origin.is_some() {
-                                let mut i = caret_index.unwrap_or_default();
+                                let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
                                 let last_line = txt.shaped_text.lines_len().saturating_sub(1);
                                 let li = i.line;
                                 let next_li = li.saturating_add_signed(line_diff).min(last_line);
                                 if li != next_li {
                                     match txt.shaped_text.line(next_li) {
-                                        Some(l) => { 
+                                        Some(l) => {
                                             i.line = next_li;
                                             i.index = match l.nearest_seg(txt.caret_retained_x) {
                                                 Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
                                                 None => l.text_range().end(),
                                             }
-                                        },
-                                        None => i = CaretIndex::default(),
+                                        }
+                                        None => i = CaretIndex::ZERO,
                                     };
-                                    *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
+                                    i.index = resolved.text.snap_grapheme_boundary(i.index);
+                                    *caret_index = Some(i);
                                 }
                             }
                         }
                         if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::default());
+                            *caret_index = Some(CaretIndex::ZERO);
                         }
                         args.propagation().stop();
                     } else if page_diff != 0 {
@@ -1157,7 +1170,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         caret.used_retained_x = true;
                         if let Some(txt) = &mut txt.txt {
                             if txt.caret_origin.is_some() {
-                                let mut i = caret_index.unwrap_or_default();
+                                let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
                                 let last_line = txt.shaped_text.lines_len().saturating_sub(1);
                                 let li = i.line;
                                 if let Some(li) = txt.shaped_text.line(li) {
@@ -1169,15 +1182,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                                 Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
                                                 None => l.text_range().end(),
                                             }
-                                        },
-                                        None => i = CaretIndex::default(),
+                                        }
+                                        None => i = CaretIndex::ZERO,
                                     };
-                                    *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
+                                    i.index = resolved.text.snap_grapheme_boundary(i.index);
+                                    *caret_index = Some(i);
                                 }
                             }
                         }
                         if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::default());
+                            *caret_index = Some(CaretIndex::ZERO);
                         }
                         args.propagation().stop();
                     }
@@ -1193,18 +1207,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 .and_then(|t| t.transform_point(args.position.to_px(info.scale_factor.0)))
                             {
                                 //if has rendered
-                                let i = match txt.shaped_text.nearest_line(pos.y) {
-                                    Some(l) => match l.nearest_seg(pos.x) {
-                                        Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
-                                        None => l.text_range().end(),
+                                let mut i = match txt.shaped_text.nearest_line(pos.y) {
+                                    Some(l) => CaretIndex {
+                                        line: l.index(),
+                                        index: match l.nearest_seg(pos.x) {
+                                            Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
+                                            None => l.text_range().end(),
+                                        },
                                     },
-                                    None => 0,
+                                    None => CaretIndex::ZERO,
                                 };
-                                *caret_index = Some(resolved.text.snap_grapheme_boundary(i));
+                                i.index = resolved.text.snap_grapheme_boundary(i.index);
+                                *caret_index = Some(i);
                             }
                         }
                         if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::default());
+                            *caret_index = Some(CaretIndex::ZERO);
                         }
                     }
                 }

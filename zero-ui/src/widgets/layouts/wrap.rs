@@ -991,7 +991,6 @@ impl InlineLayout {
     }
 }
 
-
 static PANEL_LIST_ID: StaticStateId<zero_ui_core::widget_instance::PanelListRange> = StaticStateId::new_unique();
 
 /// Get the child index for custom `when` expressions.
@@ -1096,7 +1095,6 @@ impl WidgetInfoWrapExt for crate::core::widget_info::WidgetInfo {
         crate::core::widget_instance::PanelListRange::get(self, &PANEL_LIST_ID)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
