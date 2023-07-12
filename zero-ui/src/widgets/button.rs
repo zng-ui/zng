@@ -128,6 +128,21 @@ impl DefaultStyle {
     }
 }
 
+/// Button style for use inside a [`toggle::ComboStyle!()`] toggle.
+#[widget($crate::widgets::button::SplitStyle)]
+pub struct SplitStyle(DefaultStyle);
+impl SplitStyle {
+    fn widget_intrinsic(&mut self) {
+        use crate::properties::*;
+        widget_set! {
+            self;
+
+            margin = (-1, 0, -1, -1);
+            corner_radius = (4, 0, 0, 4);
+        }
+    }
+}
+
 /// Button link style.
 ///
 /// Looks like a web hyperlink.
@@ -155,62 +170,4 @@ impl LinkStyle {
             }
         }
     }
-}
-
-/// The flyout widget that can be set on a [`Button!`] to turn it into a *split-button*.
-#[widget($crate::widgets::button::Split)]
-pub struct Split(super::Toggle); // !!: inherit from ComboStyle.
-impl Split {
-    fn widget_intrinsic(&mut self) {
-        widget_set! {
-            self;
-            crate::core::widget_base::child = NilUiNode;
-            capture_mouse = true;
-            on_pre_click = hn!(|args: &crate::core::gesture::ClickArgs| {
-                args.propagation().stop();
-            });
-        }
-    }
-}
-
-/// Turns the button into an *split-button*.
-///
-/// Can be set to any widget, the [`Split!`] is recommended.
-///
-/// [`Split!`]: struct@Split
-#[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Button))]
-pub fn split(child: impl UiNode, split: impl UiNode) -> impl UiNode {
-    child_insert(child, SPLIT_PLACE_VAR, split, SPLIT_SPACING_VAR)
-}
-
-/// Placement of the [`split`] widget in relation to the button content.
-///
-/// Sets the [`SPLIT_PLACE_VAR`].
-///     
-/// [`split`]: fn@split
-#[property(CONTEXT, default(SPLIT_PLACE_VAR), widget_impl(Button))]
-pub fn split_place(child: impl UiNode, place: impl IntoVar<ChildInsertPlace>) -> impl UiNode {
-    with_context_var(child, SPLIT_PLACE_VAR, place)
-}
-
-/// Space between the [`split`] widget and the button content.
-///
-/// Sets the [`SPLIT_SPACING_VAR`].
-///     
-/// [`split`]: fn@split
-#[property(CONTEXT, default(SPLIT_SPACING_VAR), widget_impl(Button))]
-pub fn split_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    with_context_var(child, SPLIT_SPACING_VAR, spacing)
-}
-
-context_var! {
-    /// Placement of the [`split`] widget.
-    ///
-    /// [`split`]: fn@split
-    pub static SPLIT_PLACE_VAR: ChildInsertPlace = ChildInsertPlace::End;
-
-    /// Space between the [`split`] widget and the button content.
-    ///
-    /// [`split`]: fn@split
-    pub static SPLIT_SPACING_VAR: Length = 4;
 }

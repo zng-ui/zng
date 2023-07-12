@@ -35,6 +35,7 @@ fn app_main() {
                             separator(),
                             image_button(),
                             repeat_button(),
+                            split_button(),
                         ];
                     },
 
@@ -77,15 +78,15 @@ fn image_button() -> impl UiNode {
         id = "img-btn";
         tooltip = Tip!(Text!("image button"));
         on_click = hn!(|_| println!("Clicked image button"));
-        child = Stack! {
-            direction = StackDirection::left_to_right();
-            children_align = Align::CENTER;
-            children = ui_vec![
-                Image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
-                Text!("Click Me!")
-            ];
-            spacing = 5;
+        child_insert_start = {
+            insert: Image! {
+                source = "examples/res/window/icon-bytes.png";
+                size = 16;
+                align = Align::CENTER;
+            },
+            spacing: 5,
         };
+        child = Text!("Image!");
     }
 }
 fn repeat_button() -> impl UiNode {
@@ -97,6 +98,39 @@ fn repeat_button() -> impl UiNode {
         });
 
         child = Text!("Repeat Click!");
+    }
+}
+
+fn split_button() -> impl UiNode {
+    let button_count = var(0u32);
+    let split_count = var(0u32);
+
+    Toggle! {
+        style_fn = toggle::ComboStyle!();
+
+        on_click = hn!(split_count, |_| {
+            println!("Clicked split part");
+            split_count.set(split_count.get() + 1);
+        });
+
+        child = Button! {
+            style_fn = button::SplitStyle!();
+
+            on_click = hn!(button_count, |args: &ClickArgs| {
+                println!("Clicked button part");
+                button_count.set(button_count.get() + 1);
+
+                args.propagation().stop();
+            });
+
+            child = Text!(merge_var!(button_count, split_count, |&b, &s| {
+                if b == 0 && s == 0 {
+                    formatx!("Split!")
+                } else {
+                    formatx!("button {b}, split {s}")
+                }
+            }));
+        };
     }
 }
 
