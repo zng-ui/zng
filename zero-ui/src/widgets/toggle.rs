@@ -811,7 +811,7 @@ context_var! {
 }
 
 /// Spacing between the checkmark and the content.
-#[property(CONTEXT, default(CHECK_SPACING_VAR))]
+#[property(CONTEXT, default(CHECK_SPACING_VAR), widget_impl(CheckStyle))]
 pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, CHECK_SPACING_VAR, spacing)
 }
@@ -819,7 +819,7 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
     crate::widgets::Text! {
         hit_test_mode = false;
-        size = (1.2.em(), 1.2.em());
+        size = 1.2.em();
         font_family = FontNames::system_ui(&lang!(und));
         txt_align = Align::CENTER;
         align = Align::CENTER;
@@ -840,6 +840,80 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         when *#{parent_hovered} {
             #[easing(0.ms())]
             background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+        }
+    }
+}
+
+/// Popup toggle style.
+///
+/// Style a [`Toggle!`] widget to look like the popup toggle button in a *combo-box*.
+///
+/// [`Toggle!`]: struct@Toggle
+#[widget($crate::widgets::toggle::ComboStyle)]
+pub struct ComboStyle(DefaultStyle);
+impl ComboStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            child_align = Align::FILL;
+            padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(0, e.clone(), 0, 0));
+            checked = var(false);
+            crate::properties::child_insert_end = {
+                insert: combomark_visual(),
+                spacing: COMBO_SPACING_VAR,
+            };
+        }
+    }
+}
+context_var! {
+    /// Spacing between the arrow symbol and the content.
+    pub static COMBO_SPACING_VAR: Length = 2;
+}
+
+/// Spacing between the arrow symbol and the content.
+#[property(CONTEXT, default(COMBO_SPACING_VAR), widget_impl(ComboStyle))]
+pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, COMBO_SPACING_VAR, spacing)
+}
+
+/// Popup open when the toggle button is checked.
+///
+/// This property can be used together with the [`ComboStyle!`] to implement a *combo-box* flyout widget.
+///
+/// [`ComboStyle!`]: struct@ComboStyle
+#[property(EVENT, widget_impl(Toggle))]
+pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    let popup = popup.into_var();
+    match_node(child, move |_, op| {
+        let new = match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&IS_CHECKED_VAR);
+                Some(true)
+            }
+            UiNodeOp::Deinit => Some(false),
+            UiNodeOp::Update { .. } => IS_CHECKED_VAR.get_new().map(|o| o.unwrap_or(false)),
+            _ => None,
+        };
+        if let Some(is_open) = new {
+            
+            todo!("!!:")
+        }
+    })
+}
+
+#[allow(non_snake_case)]
+fn combomark_visual() -> impl UiNode {
+    crate::widgets::Text! {
+        hit_test_mode = false;
+        font_family = FontNames::system_ui(&lang!(und));
+        txt_align = Align::CENTER;
+        align = Align::CENTER;
+        font_size = 0.6.em();
+
+        txt = "▼";
+
+        when #{IS_CHECKED_VAR}.unwrap_or(true) {
+            scale_y = -1.0f32;
         }
     }
 }

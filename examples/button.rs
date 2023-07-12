@@ -158,6 +158,13 @@ fn toggle_buttons() -> impl UiNode {
                 tristate = true;
             },
             Toggle! {
+                child = TextInput! {
+                    txt = var_from("Combo");
+                    on_click = hn!(|a: &ClickArgs| a.propagation().stop());
+                };
+                style_fn = toggle::ComboStyle!();
+            },
+            Toggle! {
                 child = Text!("Switch");
                 checked = var(false);
                 style_fn = toggle::SwitchStyle!();
