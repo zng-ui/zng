@@ -1279,31 +1279,50 @@ impl fmt::Debug for WhenInput {
     }
 }
 
-enum WhenInputVarActual<T: VarValue> {
-    None,
-    Some(BoxedVar<T>),
+struct WhenInputInitData<T: VarValue> {
+    data: Vec<(types::WeakContextInitHandle, BoxedVar<T>)>,
 }
-trait AnyWhenInputVarInner: Any + Send {
-    fn as_any(&self) -> &dyn Any;
-    fn is_some(&self) -> bool;
-    fn set(&mut self, var: BoxedAnyVar);
+impl<T: VarValue> WhenInputInitData<T> {
+    const fn empty() -> Self {
+        Self { data: vec![] }
+    }
+    fn get(&mut self) -> BoxedVar<T> {
+        let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get().downgrade();
+        let mut r = None;
+        self.data.retain(|(id, val)| {
+            let retain = id.is_alive();
+            if retain && id == &current_id {
+                r = Some(val.clone());
+            }
+            retain
+        });
+        r.expect("when input not inited")
+    }
 }
-impl<T: VarValue> AnyWhenInputVarInner for WhenInputVarActual<T> {
-    fn set(&mut self, var: BoxedAnyVar) {
+crate::context_local! {
+    static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
+}
+impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn set(&mut self, handle: types::WeakContextInitHandle, var: BoxedAnyVar) {
         let var = var
             .double_boxed_any()
             .downcast::<BoxedVar<T>>()
             .expect("incorrect when input var type");
-        *self = Self::Some(var);
-    }
 
-    fn as_any(&self) -> &dyn Any {
-        self
+        if let Some(i) = self.data.iter().position(|(i, _)| i == &handle) {
+            self.data[i].1 = var;
+        } else {
+            self.data.push((handle, var));
+        }
     }
-
-    fn is_some(&self) -> bool {
-        matches!(self, Self::Some(_))
-    }
+}
+trait AnyWhenInputVarInner: Any + Send {
+    fn as_any(&mut self) -> &mut dyn Any;
+    fn set(&mut self, handle: types::WeakContextInitHandle, var: BoxedAnyVar);
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
@@ -1314,38 +1333,21 @@ pub struct WhenInputVar {
 impl WhenInputVar {
     /// New input setter and input var.
     ///
-    /// Trying to use the input var before [`can_use`] is `true` will panic. The input var will pull
-    /// the actual var on first use of each instance, that means you can *refresh* the input var by cloning.
+    /// Trying to use the input var outside of the widget will panic.
     ///
     /// [`can_use`]: Self::can_use
     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-        let rc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputVarActual::<T>::None));
+        let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
         (
-            WhenInputVar { var: rc.clone() },
+            WhenInputVar { var: arc.clone() },
             crate::var::types::ContextualizedVar::new(Arc::new(move || {
-                match rc.lock().as_any().downcast_ref::<WhenInputVarActual<T>>().unwrap() {
-                    WhenInputVarActual::Some(var) => var.read_only(),
-                    WhenInputVarActual::None => panic!("when expr input not inited"),
-                }
+                arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()
             })),
         )
     }
 
-    /// Returns `true` an actual var is configured, trying to use the input var when this is `false` panics.
-    pub fn can_use(&self) -> bool {
-        self.var.lock().is_some()
-    }
-
-    /// Set the actual input var.
-    ///
-    /// After this call [`can_use`] is `true`. Note that if the input was already set and used that instance of the
-    /// var will not be replaced, input vars pull the `var` on the first use of the instance, that means that a new
-    /// clone of the input var must be made to
-    ///
-    /// [`can_use`]: Self::can_use
-    /// [`new`]: Self::new
-    pub fn set(&self, var: BoxedAnyVar) {
-        self.var.lock().set(var);
+    fn set(&self, handle: types::WeakContextInitHandle, var: BoxedAnyVar) {
+        self.var.lock().set(handle, var);
     }
 }
 
@@ -1402,9 +1404,7 @@ pub struct WhenInfo {
     ///
     /// # Panics
     ///
-    /// If used when [`can_use`] is `false`.
-    ///
-    /// [`can_use`]: Self::can_use
+    /// If used outside of the widget instance.
     pub state: BoxedVar<bool>,
 
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
@@ -1419,15 +1419,6 @@ pub struct WhenInfo {
 
     /// When declaration location.
     pub location: SourceLocation,
-}
-impl WhenInfo {
-    /// Returns `true` if the [`state`] var is valid because it does not depend of any property input or all
-    /// property inputs are inited with a value or have a default.
-    ///
-    /// [`state`]: Self::state
-    pub fn can_use(&self) -> bool {
-        self.inputs.iter().all(|i| i.var.can_use())
-    }
 }
 impl fmt::Debug for WhenInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2009,8 +2000,12 @@ impl WidgetBuilder {
 
         let mut p_build_actions = self.p_build_actions.into_iter().collect();
 
+        let mut when_init_context_handle = None;
+
         if !self.whens.is_empty() {
-            building.build_whens(self.whens, &mut p_build_actions);
+            let handle = ContextInitHandle::new();
+            building.build_whens(self.whens, handle.downgrade(), &mut p_build_actions);
+            when_init_context_handle = Some(handle);
         }
 
         if !p_build_actions.is_empty() {
@@ -2021,7 +2016,7 @@ impl WidgetBuilder {
             (action.lock())(&mut building);
         }
 
-        building.build()
+        building.build(when_init_context_handle)
     }
 }
 impl ops::Deref for WidgetBuilder {
@@ -2243,7 +2238,12 @@ impl WidgetBuilding {
         Some(handler)
     }
 
-    fn build_whens(&mut self, mut whens: Vec<WhenItemPositioned>, build_actions: &mut PropertyBuildActionsVec) {
+    fn build_whens(
+        &mut self,
+        mut whens: Vec<WhenItemPositioned>,
+        when_init_context_id: types::WeakContextInitHandle,
+        build_actions: &mut PropertyBuildActionsVec,
+    ) {
         whens.sort_unstable_by_key(|w| w.sort_key());
 
         struct Input<'a> {
@@ -2434,7 +2434,7 @@ impl WidgetBuilding {
                 InputKind::Value => args.value(member_i).clone_boxed_var(),
                 _ => panic!("can only ref var or values in when expr"),
             };
-            input.var.set(actual);
+            input.var.set(when_init_context_id.clone(), actual);
         }
 
         for (
@@ -2509,7 +2509,7 @@ impl WidgetBuilding {
         }
     }
 
-    fn build(mut self) -> BoxedUiNode {
+    fn build(mut self, when_init_context_handle: Option<ContextInitHandle>) -> BoxedUiNode {
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
 
@@ -2575,6 +2575,14 @@ impl WidgetBuilding {
 
         // ensure `when` reuse works, by forcing input refresh on (re)init.
         node = types::with_new_context_init_id(node).boxed();
+
+        if let Some(handle) = when_init_context_handle {
+            // ensure shared/cloned when input expressions work.
+            node = crate::widget_instance::match_node(node, move |c, op| {
+                WHEN_INPUT_CONTEXT_INIT_ID.with_context_value(handle.clone(), || c.op(op));
+            })
+            .boxed();
+        }
 
         node
     }
