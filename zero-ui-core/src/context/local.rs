@@ -138,12 +138,10 @@ impl LocalContext {
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
         let data = mem::take(&mut self.data);
         let prev = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), data));
-
-        let r = f();
-
-        self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
-
-        r
+        let _restore = RunOnDrop::new(|| {
+            self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
+        });
+        f()
     }
 
     fn contains(key: TypeId) -> bool {

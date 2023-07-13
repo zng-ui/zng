@@ -273,10 +273,10 @@ fn separator() -> impl UiNode {
 }
 
 fn separator_not_first() -> impl UiNode {
-    let is_first = var(false);
     Hr! {
-        stack::is_first = is_first.clone();
-        visibility = is_first.map(|&f| (!f).into());
+        when #stack::is_first {
+            visibility = Visibility::Collapsed;
+        }
 
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);

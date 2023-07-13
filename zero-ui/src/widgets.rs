@@ -6,6 +6,7 @@ pub mod focusable_mix;
 pub mod undo;
 
 pub mod ansi_text;
+pub mod popup;
 pub use ansi_text::AnsiText;
 
 pub mod button;
