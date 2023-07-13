@@ -45,10 +45,6 @@
 
 # Menu
 
-* Review `button::SplitStyle!()`.
-    - Clicks not blocked.
-    - Hover not blocked.
-
 * Implement styleable stack `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
     - Nested menus, auto-close on click.
