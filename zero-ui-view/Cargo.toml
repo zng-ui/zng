@@ -62,9 +62,12 @@ software = ["swgl"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+# Firefox 115 release
+webrender = { git = "https://github.com/servo/webrender.git", rev = "ac434de50b49830032391a042359b7c588b2350b" }
+swgl = { git = "https://github.com/servo/webrender.git", rev = "ac434de50b49830032391a042359b7c588b2350b", optional = true }
+
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
-webrender = { path = "../dependencies/webrender/webrender" }
-swgl = { path = "../dependencies/webrender/swgl", optional = true }
+
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
 winit = { version = "0.28", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }

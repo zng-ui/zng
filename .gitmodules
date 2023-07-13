@@ -1,3 +1,0 @@
-[submodule "dependencies/webrender"]
-	path = dependencies/webrender
-	url = https://github.com/servo/webrender.git
