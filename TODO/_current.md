@@ -51,7 +51,6 @@
 * Review `button::SplitStyle!()`.
     - Clicks not blocked.
     - Hover not blocked.
-    - Height not the same as other buttons?
 
 * Implement styleable stack `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.

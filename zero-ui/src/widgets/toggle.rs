@@ -857,7 +857,9 @@ impl ComboStyle {
         widget_set! {
             self;
             child_align = Align::FILL;
-            padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(0, e.clone(), 0, 0));
+            border_over = false;
+            border_align = 1.fct();
+            padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(-1, e.clone(), -1, -1));
             checked = var(false);
             crate::properties::child_insert_end = {
                 insert: combomark_visual(),

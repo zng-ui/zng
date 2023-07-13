@@ -114,7 +114,7 @@ fn split_button() -> impl UiNode {
         });
 
         child = Button! {
-            style_fn = button::SplitStyle!();
+            corner_radius = (4, 0, 0, 4);
 
             on_click = hn!(button_count, |args: &ClickArgs| {
                 println!("Clicked button part");

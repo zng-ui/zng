@@ -128,21 +128,6 @@ impl DefaultStyle {
     }
 }
 
-/// Button style for use inside a [`toggle::ComboStyle!()`] toggle.
-#[widget($crate::widgets::button::SplitStyle)]
-pub struct SplitStyle(DefaultStyle);
-impl SplitStyle {
-    fn widget_intrinsic(&mut self) {
-        use crate::properties::*;
-        widget_set! {
-            self;
-
-            margin = (-1, 0, -1, -1);
-            corner_radius = (4, 0, 0, 4);
-        }
-    }
-}
-
 /// Button link style.
 ///
 /// Looks like a web hyperlink.

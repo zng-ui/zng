@@ -658,6 +658,8 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 /// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`BORDER`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border.
 ///
+/// Sets the [`CORNER_RADIUS_FIT_VAR`].
+///
 /// [`corner_radius`]: fn@corner_radius
 #[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
@@ -676,10 +678,25 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 ///
 /// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
 ///
+/// Sets the [`BORDER_ALIGN_VAR`].
+///
 /// [`corner_radius`]: fn@corner_radius
 #[property(CONTEXT, default(BORDER_ALIGN_VAR))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
     with_context_var(child, BORDER_ALIGN_VAR, align)
+}
+
+/// If the border is rendered over the fill and child visuals.
+///
+/// Is `true` by default, if set to `false` the borders will render under the fill. Note that
+/// this means the border will be occluded by the *background* if [`border_align`] is not set to `1.fct()`.
+///
+/// Sets the [`BORDER_OVER_VAR`].
+/// 
+/// [`border_align`]: fn@border_align
+#[property(CONTEXT, default(BORDER_OVER_VAR))]
+pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, BORDER_OVER_VAR, over)
 }
 
 context_var! {
@@ -687,6 +704,11 @@ context_var! {
     ///
     /// See [`border_align`](fn@border_align) for more details.
     pub static BORDER_ALIGN_VAR: FactorSideOffsets = FactorSideOffsets::zero();
+
+    /// If the border is rendered over the child nodes.
+    ///
+    /// See [`border_over`](fn@border_over) for more details.
+    pub static BORDER_OVER_VAR: bool = true;
 
     /// Corner radius.
     ///
@@ -825,7 +847,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
     match_node_list(ui_vec![child, border_visual], move |children, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&offsets);
+            WIDGET.sub_var_layout(&offsets).sub_var_render(&BORDER_OVER_VAR);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let offsets = offsets.layout();
@@ -874,10 +896,17 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             *final_size = border_rect.size;
         }
         UiNodeOp::Render { frame } => {
-            children.with_node(0, |c| c.render(frame));
-            BORDER.with_border_layout(border_rect, render_offsets, || {
-                children.with_node(1, |c| c.render(frame));
-            });
+            if BORDER_OVER_VAR.get() {
+                children.with_node(0, |c| c.render(frame));
+                BORDER.with_border_layout(border_rect, render_offsets, || {
+                    children.with_node(1, |c| c.render(frame));
+                });
+            } else {
+                BORDER.with_border_layout(border_rect, render_offsets, || {
+                    children.with_node(1, |c| c.render(frame));
+                });
+                children.with_node(0, |c| c.render(frame));                
+            }
         }
         UiNodeOp::RenderUpdate { update } => {
             children.with_node(0, |c| c.render_update(update));
