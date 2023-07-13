@@ -1,10 +1,6 @@
 # TextInput
 
-* Implement `CaretIndex` everywhere.
-    - Line cannot be be set at the `resolve_text` because we need the shaped text to find the line.
-    - Implement `ShapedText::snap_caret_line(&self, caret: CaretIndex) -> CaretIndex`.
-        - If only changes the line if the index is not possible in the current line.
-
+* Pressing Home does not go to the start of the visual line (wrapped line).
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
@@ -13,6 +9,7 @@
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
+* Implement `CTRL+Left/Right` advance caret by word.
 * Research text editors.
 
 * Review `WhiteSpace::Merge`.

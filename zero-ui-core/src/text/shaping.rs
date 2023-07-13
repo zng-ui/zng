@@ -1071,8 +1071,9 @@ impl ShapedText {
 
     /// Gets the top-middle origin for a caret visual that marks the insert `index` in the string.
     pub fn caret_origin(&self, caret: CaretIndex, full_text: &str) -> PxPoint {
-        let index = caret.index; // !!: TODO, consider caret.line.
-        for line in self.lines() {
+        let index = caret.index;
+        let mut end_line = None;
+        for line in self.line(caret.line).into_iter().chain(self.lines()) {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if !txt_range.contains(index) {
@@ -1195,9 +1196,17 @@ impl ShapedText {
                 origin.x = Px(origin_x.round() as _);
                 return origin;
             }
+
+            if line.index == caret.line && line.text_range().end() == index && line.ended_by_wrap() {
+                // is at the end of a wrap.
+                end_line = Some(line.index);
+                break;
+            }
         }
 
-        if let Some(line) = self.line(self.lines_len().saturating_sub(1)) {
+        // position at the end of the end_line.
+        let line_end = end_line.unwrap_or_else(|| self.lines_len().saturating_sub(1));
+        if let Some(line) = self.line(line_end) {
             let rect = line.rect();
             if self.direction().is_rtl() {
                 // top-left of last line if it the text is RTL overall.
@@ -1228,6 +1237,33 @@ impl ShapedText {
                 width: Px(w.round() as i32),
             })
         }
+    }
+
+    /// Changes the caret line if the current line cannot contain the current char byte index.
+    ///
+    /// This retains the same line at ambiguous points at the end/start of wrapped lines.
+    pub fn snap_caret_line(&self, mut caret: CaretIndex) -> CaretIndex {
+        for line in self.lines() {
+            let range = line.text_range();
+
+            if range.start() == caret.index {
+                // at start that can be by wrap
+                if line.started_by_wrap() {
+                    if caret.line >= line.index {
+                        caret.line = line.index
+                    } else {
+                        caret.line = line.index.saturating_sub(1);
+                    }
+                }
+                return caret;
+            } else if range.contains(caret.index) {
+                // inside of line
+                caret.line = line.index;
+                return caret;
+            }
+        }
+        caret.line = self.lines.0.len().saturating_sub(1);
+        caret
     }
 }
 

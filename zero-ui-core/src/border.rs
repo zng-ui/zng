@@ -692,7 +692,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 /// this means the border will be occluded by the *background* if [`border_align`] is not set to `1.fct()`.
 ///
 /// Sets the [`BORDER_OVER_VAR`].
-/// 
+///
 /// [`border_align`]: fn@border_align
 #[property(CONTEXT, default(BORDER_OVER_VAR))]
 pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode {
@@ -905,7 +905,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 BORDER.with_border_layout(border_rect, render_offsets, || {
                     children.with_node(1, |c| c.render(frame));
                 });
-                children.with_node(0, |c| c.render(frame));                
+                children.with_node(0, |c| c.render(frame));
             }
         }
         UiNodeOp::RenderUpdate { update } => {
