@@ -260,7 +260,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::CodeBlock(kind) => {
                     if let Some(mut txt) = code_block_text.take() {
-                        if txt.chars().rev().next() == Some('\n') {
+                        if txt.ends_with('\n') {
                             txt.pop();
                         }
                         blocks.push(code_block_view(CodeBlockFnArgs {

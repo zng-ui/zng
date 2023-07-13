@@ -1,9 +1,8 @@
 //! Popup widget.
 
 use crate::prelude::new_widget::*;
-use crate::widgets::window::layers::LAYERS;
 
-/// An overlay container designed for use in [`LAYERS`].
+/// An overlay container.
 #[widget($crate::widgets::popup::Popup)]
 pub struct Popup(FocusableMix<StyleMix<EnabledMix<Container>>>);
 impl Popup {

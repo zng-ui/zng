@@ -1405,7 +1405,7 @@ impl AsRef<str> for Txt {
 }
 impl std::borrow::Borrow<str> for Txt {
     fn borrow(&self) -> &str {
-        self.0.borrow()
+        self.as_str()
     }
 }
 impl<'a> std::ops::Add<&'a str> for Txt {

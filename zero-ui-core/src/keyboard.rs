@@ -217,7 +217,7 @@ event! {
 /// [`FOCUS`]: crate::focus::FOCUS
 /// [`WINDOWS`]: crate::window::WINDOWS
 #[derive(Default)]
-pub struct KeyboardManager;
+pub struct KeyboardManager {}
 impl AppExtension for KeyboardManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
