@@ -207,29 +207,27 @@ fn combo_box() -> impl UiNode {
             on_click = hn!(|a: &ClickArgs| a.propagation().stop());
         };
         style_fn = toggle::ComboStyle!();
-        checked_popup = wgt_fn!(|_| {
-            Stack! {
-                direction = StackDirection::top_to_bottom();
-                children = options.into_iter().map(|o| Button! {
-                    child = Text!(o);
-                    on_click = hn!(txt, |_| {
-                        txt.set(o);
-                    });
+        checked_popup = wgt_fn!(|_| popup::Popup!(Stack! {
+            direction = StackDirection::top_to_bottom();
+            children = options.into_iter().map(|o| Button! {
+                child = Text!(o);
+                on_click = hn!(txt, |_| {
+                    txt.set(o);
+                });
 
-                }.boxed())
-                .collect::<UiNodeVec>();
+            }.boxed())
+            .collect::<UiNodeVec>();
 
-                button::replace_style = button::DefaultStyle! {
-                    corner_radius = 0;
-                    padding = 2;
-                    border = unset!;
+            button::replace_style = button::DefaultStyle! {
+                corner_radius = 0;
+                padding = 2;
+                border = unset!;
 
-                    when *#stack::is_even {
-                        base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
-                    }
-                };
-            }
-        })
+                when *#stack::is_even {
+                    base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
+                }
+            };
+        }))
     }
 }
 

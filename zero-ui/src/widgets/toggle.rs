@@ -883,7 +883,13 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 ///
 /// This property can be used together with the [`ComboStyle!`] to implement a *combo-box* flyout widget.
 ///
+/// The `popup` can be any widget, but note that it will be inited out-of-context in the [`LAYERS`] top-most,
+/// a [`Popup!`] or derived widget is recommended, these widgets handle the context issue, plus auto-close on
+/// focus loss.
+///
 /// [`ComboStyle!`]: struct@ComboStyle
+/// [`Popup!`]: struct@crate::widgets::popup::Popup
+/// [`LAYERS`]: layer::LAYERS
 #[property(EVENT, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();
@@ -900,7 +906,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
         };
         if let Some(is_open) = new {
             if is_open {
-                if popup_id.is_none() {
+                if popup_id.map(|i| !WINDOW.widget_tree().contains(i)).unwrap_or(true) {
                     let mut popup = popup.get()(());
                     popup_id = popup.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
                     if popup_id.is_none() {
