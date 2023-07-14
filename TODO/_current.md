@@ -52,6 +52,10 @@
 * Implement `toggle::MenuStyle!`.
 * Implement `toggle::ListItemStyle!`.
     - Use it in the combo-box example.
+* Review `with_context_blend` after usage in menus.
+    - Implement filtering capture?
+        - Only capture context-vars.
+        - Only capture selection of context items.
 
 # Undo Service
 

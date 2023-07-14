@@ -156,6 +156,8 @@ impl LocalContext {
     ///
     /// If `over` is `true` all the values of `self` are set over the parent values, if `false` only
     /// the values not already set in the parent are set.
+    /// 
+    /// [`with_context`]: Self::with_context
     pub fn with_context_blend<R>(&mut self, over: bool, f: impl FnOnce() -> R) -> R {
         if self.data.is_empty() {
             f()
@@ -1039,8 +1041,8 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
 /// This node breaks this assumption, specially with `over: true` you may cause unexpected behavior if you don't consider
 /// carefully what context is being captured and what context is being replaced.
 ///
-/// As a general rule, only capture during init or update, only wrap full widgets and only place the wrapped
-/// widget in a parent's `CHILD` group for a parent that has no special expectations about the child.
+/// As a general rule, only capture during init or update in [`NestGroup::CHILD`], only wrap full widgets and only place the wrapped
+/// widget in a parent's [`NestGroup::CHILD`] for a parent that has no special expectations about the child.
 ///
 /// As an example of things that can go wrong, if you capture during layout, the `LAYOUT` context is captured
 /// and replaces `over` the actual layout context during all subsequent layouts in the actual parent.
@@ -1048,6 +1050,8 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
 /// # Panics
 ///
 /// Panics during init if `ctx` is not from the same app as the init context.
+/// 
+/// [`NestGroup::CHILD`]: crate::widget_builder::NestGroup::CHILD
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
     match_widget(child, move |c, op| {
         if let UiNodeOp::Init = op {
