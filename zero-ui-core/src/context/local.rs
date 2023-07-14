@@ -11,7 +11,7 @@ use crate::{
     app::AppId,
     crate_util::RunOnDrop,
     units::TimeUnits,
-    widget_instance::{match_node, UiNode, UiNodeOp},
+    widget_instance::{match_node, match_widget, UiNode, UiNodeOp},
 };
 
 type LocalValue = Arc<dyn Any + Send + Sync>;
@@ -135,6 +135,11 @@ impl LocalContext {
     }
 
     /// Calls `f` in the captured context.
+    ///
+    /// Note that this fully replaces the parent context for the duration of the `f` call, see [`with_context_blend`]
+    /// for a blending alternative.
+    ///
+    /// [`with_context_blend`]: Self::with_context_blend
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
         let data = mem::take(&mut self.data);
         let prev = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), data));
@@ -142,6 +147,39 @@ impl LocalContext {
             self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
         });
         f()
+    }
+
+    /// Calls `f` while all contextual values of `self` are set on the parent context.
+    ///
+    /// Unlike [`with_context`] this does not remove values that are only set in the parent context, the
+    /// downside is that this call is more expensive.
+    ///
+    /// If `over` is `true` all the values of `self` are set over the parent values, if `false` only
+    /// the values not already set in the parent are set.
+    pub fn with_context_blend<R>(&mut self, over: bool, f: impl FnOnce() -> R) -> R {
+        if self.data.is_empty() {
+            f()
+        } else if LOCAL.with(|c| c.borrow().is_empty()) {
+            self.with_context(f)
+        } else {
+            let prev = LOCAL.with(|c| {
+                let mut parent = c.borrow_mut();
+                let (mut base, over) = if over {
+                    (parent.clone(), &self.data)
+                } else {
+                    (self.data.clone(), &*parent)
+                };
+                for (k, v) in over {
+                    base.insert(*k, v.clone());
+                }
+
+                mem::replace(&mut *parent, base)
+            });
+            let _restore = RunOnDrop::new(|| {
+                self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
+            });
+            f()
+        }
     }
 
     fn contains(key: TypeId) -> bool {
@@ -982,6 +1020,45 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
 
         if is_deinit {
             value = None;
+        }
+    })
+}
+
+/// Helper for declaring widgets that are recontextualized to take in some of the context
+/// of an *original* parent.
+///
+/// See [`LocalContext::with_context_blend`] for more details about `over`. The returned
+/// node will delegate all node operations to inside the blend. The [`UiNode::with_context`]
+/// will delegate to the `child` widget context, but the `ctx` is not blended for this method, only
+/// for [`UiNodeOp`] methods.
+///
+/// # Warning
+///
+/// Properties, context vars and context locals are implemented with the assumption that all consumers have
+/// released the context on return, that is even if the context was shared with worker threads all work was block-waited.
+/// This node breaks this assumption, specially with `over: true` you may cause unexpected behavior if you don't consider
+/// carefully what context is being captured and what context is being replaced.
+///
+/// As a general rule, only capture during init or update, only wrap full widgets and only place the wrapped
+/// widget in a parent's `CHILD` group for a parent that has no special expectations about the child.
+///
+/// As an example of things that can go wrong, if you capture during layout, the `LAYOUT` context is captured
+/// and replaces `over` the actual layout context during all subsequent layouts in the actual parent.
+///
+/// # Panics
+///
+/// Panics during init if `ctx` is not from the same app as the init context.
+pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
+    match_widget(child, move |c, op| {
+        if let UiNodeOp::Init = op {
+            let init_app = LocalContext::current_app();
+            ctx.with_context_blend(over, || {
+                let ctx_app = LocalContext::current_app();
+                assert_eq!(init_app, ctx_app);
+                c.op(op)
+            });
+        } else {
+            ctx.with_context_blend(over, || c.op(op));
         }
     })
 }

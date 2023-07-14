@@ -49,15 +49,15 @@ impl Popup {
         }
     }
 
-    /*
-    !!: TODO
-    
-    /// Builds [`with_local_context`] capturing the current context.
+    /// Builds the popup widget, if `context_capture` is enabled the calling context is captured.
     pub fn widget_build(&mut self) -> impl UiNode {
-        let wgt = self.widget_take().build();
-        with_local_context(LocalContext::capture(), wgt)
+        match self.widget_builder().capture_value_or_default(property_id!(Self::context_capture)) {
+            ContextCapture::CaptureBlend { over } => {
+                with_context_blend(LocalContext::capture(), over, WidgetBase::widget_build(self)).boxed()
+            }
+            ContextCapture::DontCapture => WidgetBase::widget_build(self).boxed(),
+        }
     }
-    */
 
     widget_impl! {
         /// Popup focus behavior when it or a descendant receives a click.
@@ -66,6 +66,15 @@ impl Popup {
         pub focus_click_behavior(behavior: impl IntoVar<FocusClickBehavior>);
     }
 }
+
+/// Defines if the popup captures the build/instantiate context and sets it
+/// in the node context.
+///
+/// This is enabled by default and lets the popup use context values from the widget
+/// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
+/// There are potential issues with this, see [`ContextCapture`] for more details.
+#[property(WIDGET, capture, widget_impl(Popup))]
+pub fn context_capture(mode: impl IntoValue<ContextCapture>) {}
 
 context_var! {
     /// Popup style in a context.
@@ -121,44 +130,36 @@ impl DefaultStyle {
     }
 }
 
-// # !!: ISSUES
-//
-// * If the popup is created in a layer, the context style will not apply.
-// * We could try to capture the context, see what happens.
-//   - Panic because `LAYOUT` is not available.
-//   - This is a general issue, we need to capture only context-vars?
-// * We can use a different context tracker for context-vars.
-//   - Not impossible to have a context-var that is used like `LAYOUT` and
-//     a `context_local!` that affects style.
-
-/// Node that re-contextualizes `child` to `ctx`.
+/// Defines if a [`Popup!`] captures the build/instantiation context.
 ///
-/// Context vars will have the values they have inside `ctx`, not where the node is inited, same for
-/// most `context_local!` values.
+/// If enabled (default), the popup will build [`with_context_blend`].
 ///
-/// If `child` is a widget, the returned node will be that widget, that is, [`UiNode::with_context`]
-/// will be the same as `child.with_context`, the `ctx` is not loaded for this, only for the node operations.
-///
-/// # Warning
-///
-/// Not all contexts will work, in particular, `context_local!` used for immediate communication between
-/// parent and child will break if used by `child`. The **only recommended usage** is when `child` is
-/// a full widget and it will only have the window for parent ([`LAYERS`]).
-///
-/// # Panics
-///
-/// Panics if the `ctx` is from a different app.
-pub fn with_local_context(mut ctx: LocalContext, child: impl UiNode) -> impl UiNode {
-    match_widget(child, move |c, op| {
-        if let UiNodeOp::Init = op {
-            let init_app = LocalContext::current_app();
-            ctx.with_context(|| {
-                let ctx_app = LocalContext::current_app();
-                assert_eq!(init_app, ctx_app);
-                c.op(op)
-            });
+/// [`Popup!`]: struct@Popup
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ContextCapture {
+    /// No context capture or blending, the popup will have
+    /// the context it is inited in, like any other widget.
+    DontCapture,
+    /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].
+    CaptureBlend {
+        /// If the captured context is blended over or under the node context. If `true` all
+        /// context locals and context vars captured replace any set in the node context, otherwise
+        /// only captures not in the node context are inserted.
+        over: bool,
+    },
+}
+impl Default for ContextCapture {
+    /// Is `CaptureBlend { over: true }` by default.
+    fn default() -> Self {
+        Self::CaptureBlend { over: true }
+    }
+}
+impl_from_and_into_var! {
+    fn from(capture_blend_over: bool) -> ContextCapture {
+        if capture_blend_over {
+            ContextCapture::CaptureBlend { over: true }
         } else {
-            ctx.with_context(|| c.op(op));
+            ContextCapture::DontCapture
         }
-    })
+    }
 }
