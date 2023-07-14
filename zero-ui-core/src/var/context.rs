@@ -88,7 +88,7 @@ impl<T: VarValue> ContextVar<T> {
     ///
     /// [contextualized]: types::ContextualizedVar
     pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<BoxedVar<T>>>, action: impl FnOnce() -> R) -> R {
-        self.0.with_context(var, move || id.with_context(action))
+        self.0.with_context_var(var, move || id.with_context(action))
     }
 
     /// Runs `action` with this context var representing the other `var` in the current thread.
@@ -104,6 +104,10 @@ impl<T: VarValue> ContextVar<T> {
     pub fn with_context_var<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> R {
         let mut var = Some(Arc::new(var.into_var().actual_var().boxed()));
         self.with_context(id, &mut var, action)
+    }
+
+    pub(crate) fn context_local(&'static self) -> &'static ContextLocal<BoxedVar<T>> {
+        self.0
     }
 }
 impl<T: VarValue> Copy for ContextVar<T> {}

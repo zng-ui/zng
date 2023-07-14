@@ -170,7 +170,8 @@ fn anchor_example() -> impl UiNode {
     let idx = var(0);
     let anchor_mode = idx.map(move |&i| AnchorMode {
         transform: offsets[i].clone().into(),
-        size: layers::AnchorSize::Unbounded,
+        min_size: layers::AnchorSize::Unbounded,
+        max_size: layers::AnchorSize::Unbounded,
         visibility: true,
         interactivity: false,
         corner_radius: false,

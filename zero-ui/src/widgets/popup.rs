@@ -52,11 +52,14 @@ impl Popup {
     /// Builds the popup widget, if `context_capture` is enabled the calling context is captured.
     pub fn widget_build(&mut self) -> impl UiNode {
         match self.widget_builder().capture_value_or_default(property_id!(Self::context_capture)) {
-            ContextCapture::CaptureBlend { over } => {
-                with_context_blend(LocalContext::capture(), over, WidgetBase::widget_build(self)).boxed()
+            ContextCapture::CaptureBlend { filter, over } if filter != CaptureFilter::None => {
+                let ctx = LocalContext::capture_filtered(filter);
+                let wgt = WidgetBase::widget_build(self);
+                return with_context_blend(ctx, over, wgt).boxed();
             }
-            ContextCapture::DontCapture => WidgetBase::widget_build(self).boxed(),
+            _ => {}
         }
+        WidgetBase::widget_build(self).boxed()
     }
 
     widget_impl! {
@@ -135,13 +138,16 @@ impl DefaultStyle {
 /// If enabled (default), the popup will build [`with_context_blend`].
 ///
 /// [`Popup!`]: struct@Popup
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ContextCapture {
     /// No context capture or blending, the popup will have
     /// the context it is inited in, like any other widget.
     DontCapture,
     /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].
     CaptureBlend {
+        /// What context values are captured.
+        filter: CaptureFilter,
+
         /// If the captured context is blended over or under the node context. If `true` all
         /// context locals and context vars captured replace any set in the node context, otherwise
         /// only captures not in the node context are inserted.
@@ -149,17 +155,26 @@ pub enum ContextCapture {
     },
 }
 impl Default for ContextCapture {
-    /// Is `CaptureBlend { over: true }` by default.
+    /// Captures all context-vars by default, and blend then over the node context.
     fn default() -> Self {
-        Self::CaptureBlend { over: true }
+        Self::CaptureBlend {
+            filter: CaptureFilter::ContextVars {
+                exclude: ContextValueSet::new(),
+            },
+            over: true,
+        }
     }
 }
 impl_from_and_into_var! {
-    fn from(capture_blend_over: bool) -> ContextCapture {
-        if capture_blend_over {
-            ContextCapture::CaptureBlend { over: true }
+    fn from(capture_vars_blend_over: bool) -> ContextCapture {
+        if capture_vars_blend_over {
+            ContextCapture::CaptureBlend { filter: CaptureFilter::ContextVars { exclude: ContextValueSet::new() }, over: true }
         } else {
             ContextCapture::DontCapture
         }
+    }
+
+    fn from(filter_over: CaptureFilter) -> ContextCapture {
+        ContextCapture::CaptureBlend { filter: filter_over, over: true }
     }
 }

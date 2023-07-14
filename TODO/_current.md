@@ -1,3 +1,5 @@
+* Review foreground_color in popup.
+
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
@@ -51,10 +53,6 @@
 * Implement `toggle::MenuStyle!`.
 * Implement `toggle::ListItemStyle!`.
     - Use it in the combo-box example.
-* Review `with_context_blend` after usage in menus.
-    - Implement filtering capture?
-        - Only capture context-vars.
-        - Only capture selection of context items.
 
 # Undo Service
 

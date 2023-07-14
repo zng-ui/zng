@@ -226,16 +226,27 @@ impl LAYERS {
                     let mode = mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
-                        *desired_size = LAYOUT.with_constraints(
-                            match mode.size {
-                                AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
-                                AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
-                                AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
-                                AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
-                            },
-                            || widget.measure(wm),
-                        );
+                        let mut constraints = match mode.min_size {
+                            AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
+                            AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
+                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
+                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
+                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
+                        };
+                        if mode.max_size != mode.min_size {
+                            constraints = match mode.max_size {
+                                AnchorSize::Unbounded => constraints.with_unbounded(),
+                                AnchorSize::Window => {
+                                    let w = LAYOUT.constraints();
+                                    constraints.with_new_max(w.x.max().unwrap_or(Px::MAX), w.y.max().unwrap_or(Px::MAX))
+                                }
+                                AnchorSize::InnerSize => constraints.with_new_max_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => constraints.with_new_max_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
+                            };
+                        }
+
+                        *desired_size = LAYOUT.with_constraints(constraints, || widget.measure(wm));
                     }
                 }
             }
@@ -248,30 +259,41 @@ impl LAYERS {
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         // if we don't link visibility or anchor is not collapsed.
 
-                        let layer_size = LAYOUT.with_constraints(
-                            match mode.size {
-                                AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
-                                AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
-                                AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
-                                AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
-                            },
-                            || {
-                                if mode.corner_radius {
-                                    let mut cr = border.corner_radius();
-                                    if let AnchorSize::InnerBorder = mode.size {
-                                        cr = cr.deflate(border.offsets());
-                                    }
-                                    CORNER_RADIUS_VAR.with_context_var(
-                                        corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
-                                        cr,
-                                        || BORDER.with_corner_radius(|| widget.layout(wl)),
-                                    )
-                                } else {
-                                    widget.layout(wl)
+                        let mut constraints = match mode.min_size {
+                            AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
+                            AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
+                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
+                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
+                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
+                        };
+                        if mode.max_size != mode.min_size {
+                            constraints = match mode.max_size {
+                                AnchorSize::Unbounded => constraints.with_unbounded(),
+                                AnchorSize::Window => {
+                                    let w = LAYOUT.constraints();
+                                    constraints.with_new_max(w.x.max().unwrap_or(Px::MAX), w.y.max().unwrap_or(Px::MAX))
                                 }
-                            },
-                        );
+                                AnchorSize::InnerSize => constraints.with_new_max_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => constraints.with_new_max_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
+                            };
+                        }
+
+                        let layer_size = LAYOUT.with_constraints(constraints, || {
+                            if mode.corner_radius {
+                                let mut cr = border.corner_radius();
+                                if let AnchorSize::InnerBorder = mode.max_size {
+                                    cr = cr.deflate(border.offsets());
+                                }
+                                CORNER_RADIUS_VAR.with_context_var(
+                                    corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
+                                    cr,
+                                    || BORDER.with_corner_radius(|| widget.layout(wl)),
+                                )
+                            } else {
+                                widget.layout(wl)
+                            }
+                        });
 
                         if let Some((p, update)) = match &mode.transform {
                             AnchorTransform::Cursor(p) => Some((p, true)),
@@ -1102,8 +1124,12 @@ pub enum AnchorSize {
 pub struct AnchorMode {
     /// What transforms are copied from the anchor widget and applied as a *parent* transform of the widget.
     pub transform: AnchorTransform,
-    /// What size is copied from the anchor widget and used as the available size and final size of the widget.
-    pub size: AnchorSize,
+
+    /// What size is copied from the anchor widget and used as the available and final min size of the widget.
+    pub min_size: AnchorSize,
+    /// What size is copied from the anchor widget and used as the available and final max size of the widget.
+    pub max_size: AnchorSize,
+
     /// After the `transform` and `size` are resolved the transform is adjusted so that the layered widget is
     /// fully visible in the window.
     pub viewport_bound: bool,
@@ -1128,10 +1154,11 @@ pub struct AnchorMode {
 impl AnchorMode {
     /// Mode where widget behaves like an unanchored widget, except that it is still only
     /// layout an rendered if the anchor widget exists in the same window.
-    pub fn none() -> Self {
+    pub fn window() -> Self {
         AnchorMode {
             transform: AnchorTransform::None,
-            size: AnchorSize::Window,
+            min_size: AnchorSize::Window,
+            max_size: AnchorSize::Window,
             viewport_bound: false,
             visibility: false,
             interactivity: false,
@@ -1145,7 +1172,8 @@ impl AnchorMode {
     pub fn foreground() -> Self {
         AnchorMode {
             transform: AnchorTransform::InnerTransform,
-            size: AnchorSize::InnerSize,
+            min_size: AnchorSize::InnerSize,
+            max_size: AnchorSize::InnerSize,
             visibility: true,
             viewport_bound: false,
             interactivity: false,
@@ -1157,11 +1185,12 @@ impl AnchorMode {
     pub fn popup(place: AnchorOffset) -> Self {
         AnchorMode {
             transform: place.into(),
-            size: AnchorSize::InnerSize,
+            min_size: AnchorSize::InnerSize,
+            max_size: AnchorSize::Window,
             visibility: true,
             viewport_bound: true,
             interactivity: true,
-            corner_radius: true,
+            corner_radius: false,
         }
     }
 
@@ -1171,9 +1200,23 @@ impl AnchorMode {
         self
     }
 
-    /// Returns the mode with `size` set.
+    /// Returns the mode with `min_size` set.
+    pub fn with_min_size(mut self, size: impl Into<AnchorSize>) -> Self {
+        self.min_size = size.into();
+        self
+    }
+
+    /// Returns the mode with `max_size` set.
+    pub fn with_max_size(mut self, size: impl Into<AnchorSize>) -> Self {
+        self.max_size = size.into();
+        self
+    }
+
+    /// Returns the mode with `min_size` and `max_size` set.
     pub fn with_size(mut self, size: impl Into<AnchorSize>) -> Self {
-        self.size = size.into();
+        let size = size.into();
+        self.min_size = size;
+        self.max_size = size;
         self
     }
 
@@ -1206,7 +1249,8 @@ impl Default for AnchorMode {
     fn default() -> Self {
         AnchorMode {
             transform: AnchorTransform::InnerOffset(AnchorOffset::in_top_left()),
-            size: AnchorSize::Unbounded,
+            min_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Unbounded,
             viewport_bound: false,
             visibility: true,
             interactivity: false,
@@ -1229,9 +1273,11 @@ impl_from_and_into_var! {
 
     /// Custom transform and size, all else default.
     fn from<T: Into<AnchorTransform>, S: Into<AnchorSize>>((transform, size): (T, S)) -> AnchorMode {
+        let size = size.into();
         AnchorMode {
             transform: transform.into(),
-            size: size.into(),
+            min_size: size,
+            max_size: size,
             ..AnchorMode::default()
         }
     }

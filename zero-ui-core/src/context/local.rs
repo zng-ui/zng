@@ -1,7 +1,7 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    fmt, mem,
+    fmt, mem, ops,
     sync::Arc,
 };
 
@@ -14,7 +14,26 @@ use crate::{
     widget_instance::{match_node, match_widget, UiNode, UiNodeOp},
 };
 
-type LocalValue = Arc<dyn Any + Send + Sync>;
+#[derive(Clone, Copy)]
+enum LocalValueKind {
+    Local,
+    Var,
+    App,
+}
+impl LocalValueKind {
+    /// Include in local captures.
+    fn include_local(self) -> bool {
+        !matches!(self, Self::Var)
+    }
+
+    /// Include in var captures.
+    fn include_var(self) -> bool {
+        !matches!(self, Self::Local)
+    }
+}
+
+/// `(value, is_context_var)`
+type LocalValue = (Arc<dyn Any + Send + Sync>, LocalValueKind);
 type LocalData = crate::crate_util::IdMap<TypeId, LocalValue>;
 
 /// Ends app on drop.
@@ -38,7 +57,7 @@ impl fmt::Debug for LocalContext {
         let app = self
             .data
             .get(&TypeId::of::<AppId>())
-            .map(|c| c.downcast_ref::<AppId>().unwrap())
+            .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
             .copied();
 
         f.debug_struct("LocalContext")
@@ -64,7 +83,7 @@ impl LocalContext {
             match c.entry(TypeId::of::<AppId>()) {
                 hashbrown::hash_map::Entry::Occupied(_) => false,
                 hashbrown::hash_map::Entry::Vacant(e) => {
-                    e.insert(Arc::new(id));
+                    e.insert((Arc::new(id), LocalValueKind::App));
                     true
                 }
             }
@@ -80,7 +99,7 @@ impl LocalContext {
         let valid = LOCAL.with(|c| {
             let mut c = c.borrow_mut();
             if c.get(&TypeId::of::<AppId>())
-                .map(|v| v.downcast_ref::<AppId>() == Some(&id))
+                .map(|(v, _)| v.downcast_ref::<AppId>() == Some(&id))
                 .unwrap_or(false)
             {
                 Some(mem::take(&mut *c))
@@ -101,7 +120,7 @@ impl LocalContext {
         LOCAL.with(|c| {
             c.borrow()
                 .get(&TypeId::of::<AppId>())
-                .map(|c| c.downcast_ref::<AppId>().unwrap())
+                .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
                 .copied()
         })
     }
@@ -119,8 +138,8 @@ impl LocalContext {
             let mut c = c.borrow_mut();
             let c = c
                 .entry(TypeId::of::<CleanupList>())
-                .or_insert_with(|| Arc::new(Mutex::new(CleanupList::new())));
-            c.downcast_ref::<Mutex<CleanupList>>().unwrap().lock().push(cleanup);
+                .or_insert_with(|| (Arc::new(Mutex::new(CleanupList::new())), LocalValueKind::App));
+            c.0.downcast_ref::<Mutex<CleanupList>>().unwrap().lock().push(cleanup);
         });
     }
 
@@ -132,6 +151,74 @@ impl LocalContext {
         Self {
             data: LOCAL.with(|c| c.borrow().clone()),
         }
+    }
+
+    /// Capture a snapshot of the current context that only includes `filter`.
+    pub fn capture_filtered(filter: CaptureFilter) -> Self {
+        match filter {
+            CaptureFilter::None => Self::new(),
+            CaptureFilter::All => Self::capture(),
+            CaptureFilter::ContextVars { exclude } => {
+                let mut data = LocalData::new();
+                LOCAL.with(|c| {
+                    let d = c.borrow();
+                    for (k, (v, kind)) in d.iter() {
+                        if kind.include_var() && !exclude.0.contains(k) {
+                            data.insert(*k, (v.clone(), *kind));
+                        }
+                    }
+                });
+                Self { data }
+            }
+            CaptureFilter::ContextLocals { exclude } => {
+                let mut data = LocalData::new();
+                LOCAL.with(|c| {
+                    let d = c.borrow();
+                    for (k, (v, kind)) in d.iter() {
+                        if kind.include_local() && !exclude.0.contains(k) {
+                            data.insert(*k, (v.clone(), *kind));
+                        }
+                    }
+                });
+                Self { data }
+            }
+            CaptureFilter::Include(set) => {
+                let mut data = LocalData::new();
+                LOCAL.with(|c| {
+                    let d = c.borrow();
+                    for (k, v) in d.iter() {
+                        if set.0.contains(k) {
+                            data.insert(*k, v.clone());
+                        }
+                    }
+                });
+                Self { data }
+            }
+            CaptureFilter::Exclude(set) => {
+                let mut data = LocalData::new();
+                LOCAL.with(|c| {
+                    let d = c.borrow();
+                    for (k, v) in d.iter() {
+                        if !set.0.contains(k) {
+                            data.insert(*k, v.clone());
+                        }
+                    }
+                });
+                Self { data }
+            }
+        }
+    }
+
+    /// Collects a set of all the values in the context.
+    pub fn value_set(&self) -> ContextValueSet {
+        let mut set = ContextValueSet::new();
+        LOCAL.with(|c| {
+            let d = c.borrow();
+            for k in d.keys() {
+                set.0.insert(*k);
+            }
+        });
+        set
     }
 
     /// Calls `f` in the captured context.
@@ -161,8 +248,6 @@ impl LocalContext {
     pub fn with_context_blend<R>(&mut self, over: bool, f: impl FnOnce() -> R) -> R {
         if self.data.is_empty() {
             f()
-        } else if LOCAL.with(|c| c.borrow().is_empty()) {
-            self.with_context(f)
         } else {
             let prev = LOCAL.with(|c| {
                 let mut parent = c.borrow_mut();
@@ -199,9 +284,14 @@ impl LocalContext {
         LOCAL.with(|c| c.borrow_mut().remove(&key))
     }
 
-    fn with_value_ctx<T: Send + Sync + 'static, R>(key: &'static ContextLocal<T>, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
+    fn with_value_ctx<T: Send + Sync + 'static, R>(
+        key: &'static ContextLocal<T>,
+        kind: LocalValueKind,
+        value: &mut Option<Arc<T>>,
+        f: impl FnOnce() -> R,
+    ) -> R {
         let key = key.key();
-        let prev = Self::set(key, value.take().expect("no `value` to set"));
+        let prev = Self::set(key, (value.take().expect("no `value` to set"), kind));
         let _restore = RunOnDrop::new(move || {
             let back = if let Some(prev) = prev {
                 Self::set(key, prev)
@@ -209,7 +299,7 @@ impl LocalContext {
                 Self::remove(key)
             }
             .unwrap();
-            *value = Some(Arc::downcast(back).unwrap());
+            *value = Some(Arc::downcast(back.0).unwrap());
         });
 
         f()
@@ -231,6 +321,17 @@ thread_local! {
     static LOCAL: RefCell<LocalData> = const {
         RefCell::new(LocalData::new())
     };
+}
+
+/// A local context that can be loaded cheaply.
+pub struct FullLocalContext(LocalContext);
+impl FullLocalContext {}
+impl ops::Deref for FullLocalContext {
+    type Target = LocalContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /*
@@ -755,7 +856,13 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     pub fn with_context<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        LocalContext::with_value_ctx(self, value, f)
+        LocalContext::with_value_ctx(self, LocalValueKind::Local, value, f)
+    }
+
+    pub(crate) fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+        LocalContext::with_value_ctx(self, LocalValueKind::Var, value, f)
     }
 
     /// Calls `f` with the `value` loaded in context.
@@ -801,7 +908,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     pub fn get(&'static self) -> Arc<T> {
         let cl = self.data.read();
         match LocalContext::get((cl.key)()) {
-            Some(c) => Arc::downcast(c).unwrap(),
+            Some(c) => Arc::downcast(c.0).unwrap(),
             None => match &cl.default_value {
                 Some(d) => d.clone(),
                 None => {
@@ -827,7 +934,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     {
         let cl = self.data.read();
         match LocalContext::get((cl.key)()) {
-            Some(c) => c.downcast_ref::<T>().unwrap().clone(),
+            Some(c) => c.0.downcast_ref::<T>().unwrap().clone(),
             None => match &cl.default_value {
                 Some(d) => d.as_ref().clone(),
                 None => {
@@ -1065,4 +1172,95 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
             ctx.with_context_blend(over, || c.op(op));
         }
     })
+}
+
+/// Defines a [`LocalContext::capture_filtered`] filter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CaptureFilter {
+    /// Don't capture any.
+    None,
+
+    /// Capture all.
+    All,
+    /// Capture all [`context_var!`] not excluded, and no [`context_local!`].
+    ///
+    /// [`context_var!`]: crate::var::context_var
+    ContextVars {
+        /// Vars to not include.
+        exclude: ContextValueSet,
+    },
+    /// Capture all [`context_local!`] not excluded, no [`context_var!`].
+    ///
+    /// [`context_var!`]: crate::var::context_var
+    ContextLocals {
+        /// Locals to not include.
+        exclude: ContextValueSet,
+    },
+
+    /// Capture only this set.
+    Include(ContextValueSet),
+
+    /// Capture all except this set.
+    Exclude(ContextValueSet),
+}
+
+/// Identifies a selection of [`LocalContext`] values.
+#[derive(Default, Clone, PartialEq, Eq)]
+pub struct ContextValueSet(crate::IdSet<TypeId>);
+impl ContextValueSet {
+    /// New empty.
+    pub const fn new() -> Self {
+        Self(crate::IdSet::new())
+    }
+
+    /// Insert a [`context_local!`].
+    pub fn insert_context_local<T>(&mut self, value: &'static ContextLocal<T>) -> bool
+    where
+        T: Send + Sync + 'static,
+    {
+        self.0.insert(value.key())
+    }
+
+    /// Insert a [`context_var!`].
+    ///
+    /// [`context_var!`]: crate::var::context_var
+    pub fn insert_context_var<T>(&mut self, var: &'static crate::var::ContextVar<T>) -> bool
+    where
+        T: crate::var::VarValue,
+    {
+        self.insert_context_local(var.context_local())
+    }
+
+    /// Checks if the [`context_local!`] is in the set.
+    pub fn contains_context_local<T>(&self, value: &'static ContextLocal<T>) -> bool
+    where
+        T: Send + Sync + 'static,
+    {
+        self.0.contains(&value.key())
+    }
+
+    /// Checks if the [`context_var!`] is in the set.
+    ///
+    /// [`context_var!`]: crate::var::context_var
+    pub fn contains_context_var<T>(&self, var: &'static crate::var::ContextVar<T>) -> bool
+    where
+        T: crate::var::VarValue,
+    {
+        self.contains_context_local(var.context_local())
+    }
+
+    /// Number of unique values in the set.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// If the set has any values.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+impl fmt::Debug for ContextValueSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ContextValueSet").field("len()", &self.len()).finish()
+    }
 }

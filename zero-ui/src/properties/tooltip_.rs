@@ -316,7 +316,8 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Atomic<Optio
 
     let mode = AnchorMode {
         transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
-        size: AnchorSize::Window,
+        min_size: AnchorSize::Window,
+        max_size: AnchorSize::Window,
         viewport_bound: true,
         visibility: true,
         interactivity: false,

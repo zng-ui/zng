@@ -207,7 +207,9 @@ fn combo_box() -> impl UiNode {
             on_click = hn!(|a: &ClickArgs| a.propagation().stop());
         };
         style_fn = toggle::ComboStyle!();
+
         checked_popup = wgt_fn!(|_| popup::Popup! {
+            foreground_color = colors::RED; // !!: review this
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = options.into_iter().map(|o| Button! {
