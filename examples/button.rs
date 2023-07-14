@@ -217,12 +217,12 @@ fn combo_box() -> impl UiNode {
                     });
                 })
                 .collect::<UiNodeVec>();
-    
+
                 button::replace_style = button::DefaultStyle! {
                     corner_radius = 0;
                     padding = 2;
                     border = unset!;
-    
+
                     when *#stack::is_even {
                         base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
                     }

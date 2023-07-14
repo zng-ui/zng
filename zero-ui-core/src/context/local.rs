@@ -156,7 +156,7 @@ impl LocalContext {
     ///
     /// If `over` is `true` all the values of `self` are set over the parent values, if `false` only
     /// the values not already set in the parent are set.
-    /// 
+    ///
     /// [`with_context`]: Self::with_context
     pub fn with_context_blend<R>(&mut self, over: bool, f: impl FnOnce() -> R) -> R {
         if self.data.is_empty() {
@@ -1050,7 +1050,7 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
 /// # Panics
 ///
 /// Panics during init if `ctx` is not from the same app as the init context.
-/// 
+///
 /// [`NestGroup::CHILD`]: crate::widget_builder::NestGroup::CHILD
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
     match_widget(child, move |c, op| {

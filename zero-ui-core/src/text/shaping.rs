@@ -2081,12 +2081,39 @@ impl<'a> ShapedLine<'a> {
                 .unwrap_or(false)
     }
 
-    /// Get the text bytes range of this segment in the original text.
+    /// Get the text bytes range of this line in the original text.
     pub fn text_range(&self) -> IndexRange {
         let start = self.seg_range.start();
         let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
         let end = self.seg_range.end();
         let end = if end == 0 { 0 } else { self.text.segments.0[end - 1].text.end };
+
+        IndexRange(start, end)
+    }
+
+    /// Get the text bytes range of this line in the original text, excluding the line break
+    /// to keep [`end`] in the same line.
+    ///
+    /// [`end`]: IndexRange::end
+    pub fn text_caret_range(&self) -> IndexRange {
+        let start = self.seg_range.start();
+        let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
+        let end = self.seg_range.end();
+        let end = if end == 0 {
+            0
+        } else {
+            let seg = &self.text.segments.0[end - 1];
+            if !matches!(seg.text.kind, TextSegmentKind::LineBreak) {
+                seg.text.end
+            } else {
+                // start of LineBreak segment
+                if end == 1 {
+                    0
+                } else {
+                    self.text.segments.0[end - 2].text.end
+                }
+            }
+        };
 
         IndexRange(start, end)
     }

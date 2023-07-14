@@ -1,6 +1,5 @@
 # TextInput
 
-* Pressing Home does not go to the start of the visual line (wrapped line).
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
 * Support replace (Insert mode in command line).
 * Implement scroll integration:

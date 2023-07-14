@@ -498,38 +498,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         }
                                     }
                                 }
-                                Key::Home => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        let resolved = resolved.as_mut().unwrap();
-                                        let caret_index = &mut resolved.caret.get_mut().index;
-
-                                        if let Some(i) = caret_index {
-                                            if args.modifiers.is_only_ctrl() {
-                                                i.index = 0;
-                                            } else if args.modifiers.is_empty() {
-                                                i.index = resolved.text.line_start_index(i.index);
-                                            }
-                                        }
-                                    }
-                                }
-                                Key::End => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        let resolved = resolved.as_mut().unwrap();
-                                        let caret_index = &mut resolved.caret.get_mut().index;
-
-                                        if let Some(i) = caret_index {
-                                            if args.modifiers.is_only_ctrl() {
-                                                i.index = resolved.text.text().len();
-                                            } else if args.modifiers.is_empty() {
-                                                i.index = resolved.text.line_end_index(i.index);
-                                            }
-                                        }
-                                    }
-                                }
                                 _ => {}
                             }
                         }
@@ -1194,6 +1162,47 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             *caret_index = Some(CaretIndex::ZERO);
                         }
                         args.propagation().stop();
+                    } else if let Some(key) = args.key {
+                        match key {
+                            Key::Home => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = caret_index {
+                                        if args.modifiers.is_only_ctrl() {
+                                            *i = CaretIndex::ZERO;
+                                        } else if args.modifiers.is_empty() {
+                                            if let Some(txt) = &mut txt.txt {
+                                                if let Some(li) = txt.shaped_text.line(i.line) {
+                                                    i.index = li.text_range().start();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Key::End => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = caret_index {
+                                        if args.modifiers.is_only_ctrl() {
+                                            i.index = resolved.text.text().len();
+                                            if let Some(txt) = &mut txt.txt {
+                                                i.line = txt.shaped_text.lines_len();
+                                            }
+                                        } else if args.modifiers.is_empty() {
+                                            if let Some(txt) = &mut txt.txt {
+                                                if let Some(li) = txt.shaped_text.line(i.line) {
+                                                    i.index = li.text_caret_range().end();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
