@@ -84,6 +84,8 @@ pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> im
 }
 
 /// Defines the popup placement and size for popups open by the widget or descendants.
+/// 
+/// This property sets the [`ANCHOR_MODE_VAR`].
 #[property(CONTEXT, default(ANCHOR_MODE_VAR))]
 pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, ANCHOR_MODE_VAR, mode)
@@ -97,6 +99,8 @@ pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl U
 /// There are potential issues with this, see [`ContextCapture`] for more details.
 ///
 /// Note that updates to this property do not affect popups already open, just subsequent popups.
+/// 
+/// This property sets the [`CONTEXT_CAPTURE_VAR`].
 #[property(CONTEXT, default(CONTEXT_CAPTURE_VAR))]
 pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
     with_context_var(child, CONTEXT_CAPTURE_VAR, capture)
@@ -252,7 +256,7 @@ impl DefaultStyle {
 pub enum ContextCapture {
     /// No context capture or blending, the popup will have
     /// the context it is inited in, like any other widget.
-    DontCapture,
+    NoCapture,
     /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].
     CaptureBlend {
         /// What context values are captured.
@@ -280,7 +284,7 @@ impl_from_and_into_var! {
         if capture_vars_blend_over {
             ContextCapture::CaptureBlend { filter: CaptureFilter::ContextVars { exclude: ContextValueSet::new() }, over: true }
         } else {
-            ContextCapture::DontCapture
+            ContextCapture::NoCapture
         }
     }
 

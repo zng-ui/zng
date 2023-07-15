@@ -264,8 +264,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 }
                 _ => {}
             });
-            // !!: TODO, more context vars.
-            pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, ContextCapture::DontCapture);
+            pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, TOOLTIP_CONTEXT_CAPTURE_VAR.get());
 
             let duration = TOOLTIP_DURATION_VAR.get();
             if duration > Duration::ZERO {
@@ -290,6 +289,23 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 #[property(CONTEXT, default(TOOLTIP_ANCHOR_VAR))]
 pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, TOOLTIP_ANCHOR_VAR, mode)
+}
+
+/// Defines if the tooltip captures the build/instantiate context and sets it
+/// in the node context.
+///
+/// This is enabled by default and lets the tooltip use context values from the widget
+/// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
+/// There are potential issues with this, see [`ContextCapture`] for more details.
+///
+/// Note that updates to this property do not affect tooltips already open, just subsequent tooltips.
+/// 
+/// This property sets the [`TOOLTIP_CONTEXT_CAPTURE_VAR`].
+///
+/// [`LAYERS`]: crate::widgets::window::layers::LAYERS
+#[property(CONTEXT, default(TOOLTIP_CONTEXT_CAPTURE_VAR))]
+pub fn tooltip_context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
+    with_context_var(child, TOOLTIP_CONTEXT_CAPTURE_VAR, capture)
 }
 
 /// Set the duration the cursor must be over the widget or its descendants before the tip widget is opened.
@@ -370,6 +386,11 @@ context_var! {
 
     /// Maximum time a tooltip stays open, zero is indefinitely.
     pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
+
+    /// Tooltip context capture.
+    /// 
+    /// Is [`ContextCapture::NoCapture`] by default.
+    pub static TOOLTIP_CONTEXT_CAPTURE_VAR: ContextCapture = ContextCapture::NoCapture;
 }
 
 /// A tooltip popup.

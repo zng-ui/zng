@@ -1,6 +1,4 @@
 * Unify, tooltip, popup API.
-    - Test fade-out.
-    - Review !!:.
     - Merge.
 
 # TextInput
