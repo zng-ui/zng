@@ -1,5 +1,4 @@
 * Unify, tooltip, popup API.
-    - Tooltip messes with focus in text editor example.
     - Review if `OPEN_TOOLTIP` and `TOOLTIP_LAST_CLOSED` is in full sync.
     - Review !!:.
     - Merge.

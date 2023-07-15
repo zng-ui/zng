@@ -371,12 +371,16 @@ context_var! {
         child = $child;
     };
 })]
-pub struct Tip(StyleMix<FocusableMix<Popup>>);
+pub struct Tip(Popup);
 impl Tip {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             hit_test_mode = false;
+
+            alt_focus_scope = unset!;
+            focus_on_init = unset!;
+
             style_fn = STYLE_VAR;
         }
     }
