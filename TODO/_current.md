@@ -1,5 +1,4 @@
-* Unify, tooltip, popup API.
-    - Merge.
+* Implement combo-box popup animations.
 
 # TextInput
 
