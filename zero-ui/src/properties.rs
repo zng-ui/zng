@@ -34,8 +34,8 @@ pub use mouse::*;
 mod lazy_;
 pub use lazy_::*;
 
-pub use crate::widgets::tooltip::{
-    disabled_tooltip, disabled_tooltip_fn, tooltip, tooltip_delay, tooltip_duration, tooltip_fn, tooltip_interval, tooltip_anchor,
+pub use crate::widgets::tip::{
+    disabled_tooltip, disabled_tooltip_fn, tooltip, tooltip_anchor, tooltip_delay, tooltip_duration, tooltip_fn, tooltip_interval,
 };
 
 pub use crate::core::widget_base::{enabled, hit_test_mode, interactive};

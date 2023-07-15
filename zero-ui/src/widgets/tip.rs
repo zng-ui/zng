@@ -345,7 +345,7 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 }
 
 /// Tip default style.
-#[widget($crate::widgets::tooltip::DefaultStyle)]
+#[widget($crate::widgets::tip::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
