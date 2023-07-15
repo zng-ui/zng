@@ -1120,7 +1120,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                             i.line = next_li;
                                             i.index = match l.nearest_seg(txt.caret_retained_x) {
                                                 Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
-                                                None => l.text_range().end(),
+                                                None => l.text_range().end,
                                             }
                                         }
                                         None => i = CaretIndex::ZERO,
@@ -1148,7 +1148,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                             i.line = l.index();
                                             i.index = match l.nearest_seg(txt.caret_retained_x) {
                                                 Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
-                                                None => l.text_range().end(),
+                                                None => l.text_range().end,
                                             }
                                         }
                                         None => i = CaretIndex::ZERO,
@@ -1174,7 +1174,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                         } else if args.modifiers.is_empty() {
                                             if let Some(txt) = &mut txt.txt {
                                                 if let Some(li) = txt.shaped_text.line(i.line) {
-                                                    i.index = li.text_range().start();
+                                                    i.index = li.text_range().start;
                                                 }
                                             }
                                         }
@@ -1194,7 +1194,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                         } else if args.modifiers.is_empty() {
                                             if let Some(txt) = &mut txt.txt {
                                                 if let Some(li) = txt.shaped_text.line(i.line) {
-                                                    i.index = li.text_caret_range().end();
+                                                    i.index = li.text_caret_range().end;
                                                 }
                                             }
                                         }
@@ -1221,7 +1221,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                         line: l.index(),
                                         index: match l.nearest_seg(pos.x) {
                                             Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
-                                            None => l.text_range().end(),
+                                            None => l.text_range().end,
                                         },
                                     },
                                     None => CaretIndex::ZERO,

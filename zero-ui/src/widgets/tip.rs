@@ -21,14 +21,14 @@ use super::popup::{ContextCapture, Popup, PopupState, POPUP};
 ///
 /// # Context
 ///
-/// This property can be configured by [`tooltip_transform`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
+/// This property can be configured by [`tooltip_anchor`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
 ///
 /// # Disabled
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
 ///
 /// [`Tip!`]: struct@crate::widgets::Tip
-/// [`tooltip_transform`]: fn@tooltip_transform
+/// [`tooltip_anchor`]: fn@tooltip_anchor
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
 /// [`tooltip_duration`]: fn@tooltip_duration
@@ -45,14 +45,14 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// # Context
 ///
-/// This property can be configured by [`tooltip_transform`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
+/// This property can be configured by [`tooltip_anchor`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
 ///
 /// # Disabled
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
 /// [`Tip!`]: struct@crate::widgets::Tip
-/// [`tooltip_transform`]: fn@tooltip_transform
+/// [`tooltip_anchor`]: fn@tooltip_anchor
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
 /// [`tooltip_duration`]: fn@tooltip_duration
@@ -281,7 +281,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
 /// Set the position of the tip widgets opened for the widget or its descendants.
 ///
-/// Tips are inserted as [`LayerIndex::TOP_MOST`] when shown, this property defines how the tip layer
+/// Tips are inserted as [`POPUP`] when shown, this property defines how the tip layer
 /// is aligned with the *anchor* widget, or the cursor.
 ///
 /// By default tips are aligned below the cursor position at the time they are opened.

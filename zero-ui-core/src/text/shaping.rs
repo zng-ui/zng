@@ -1197,7 +1197,7 @@ impl ShapedText {
                 return origin;
             }
 
-            if line.index == caret.line && line.text_range().end() == index && line.ended_by_wrap() {
+            if line.index == caret.line && line.text_range().end == index && line.ended_by_wrap() {
                 // is at the end of a wrap.
                 end_line = Some(line.index);
                 break;
@@ -1246,7 +1246,7 @@ impl ShapedText {
         for line in self.lines() {
             let range = line.text_range();
 
-            if range.start() == caret.index {
+            if range.start == caret.index {
                 // at start that can be by wrap
                 if line.started_by_wrap() {
                     if caret.line >= line.index {
@@ -1256,7 +1256,7 @@ impl ShapedText {
                     }
                 }
                 return caret;
-            } else if range.contains(caret.index) {
+            } else if range.contains(&caret.index) {
                 // inside of line
                 caret.line = line.index;
                 return caret;
@@ -2082,20 +2082,20 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Get the text bytes range of this line in the original text.
-    pub fn text_range(&self) -> IndexRange {
+    pub fn text_range(&self) -> ops::Range<usize> {
         let start = self.seg_range.start();
         let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
         let end = self.seg_range.end();
         let end = if end == 0 { 0 } else { self.text.segments.0[end - 1].text.end };
 
-        IndexRange(start, end)
+        IndexRange(start, end).iter()
     }
 
     /// Get the text bytes range of this line in the original text, excluding the line break
     /// to keep [`end`] in the same line.
     ///
-    /// [`end`]: IndexRange::end
-    pub fn text_caret_range(&self) -> IndexRange {
+    /// [`end`]: ops::Range<usize>::end
+    pub fn text_caret_range(&self) -> ops::Range<usize> {
         let start = self.seg_range.start();
         let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
         let end = self.seg_range.end();
@@ -2115,17 +2115,17 @@ impl<'a> ShapedLine<'a> {
             }
         };
 
-        IndexRange(start, end)
+        IndexRange(start, end).iter()
     }
 
     /// Select the string represented by this line.
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
     pub fn text<'s>(&self, full_text: &'s str) -> &'s str {
-        let IndexRange(start, end) = self.text_range();
+        let r = self.text_range();
 
-        let start = start.min(full_text.len());
-        let end = end.min(full_text.len());
+        let start = r.start.min(full_text.len());
+        let end = r.end.min(full_text.len());
 
         &full_text[start..end]
     }

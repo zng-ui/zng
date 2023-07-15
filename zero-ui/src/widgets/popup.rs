@@ -367,10 +367,10 @@ fn setup_popup_close_service() {
 
 /// Awaits `delay` before requesting a direct close for the popup widget after close is requested.
 ///
-/// You can use this delay to await a closing animation for example. This property sets [`is_popup_close_delaying`]
+/// You can use this delay to await a closing animation for example. This property sets [`is_close_delaying`]
 /// while awaiting the `delay`.
 ///
-/// [`is_popup_close_delaying`]: fn@is_popup_close_delaying
+/// [`is_close_delaying`]: fn@is_close_delaying
 #[property(EVENT, default(Duration::ZERO), widget_impl(Popup))]
 pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
     let delay = delay.into_var();
@@ -419,12 +419,12 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
     })
 }
 
-/// If close was requested for this layered widget and it is just awaiting for the [`popup_close_delay`].
+/// If close was requested for this layered widget and it is just awaiting for the [`close_delay`].
 ///
-/// [`popup_close_delay`]: fn@popup_close_delay
+/// [`close_delay`]: fn@close_delay
 #[property(CONTEXT, widget_impl(Popup))]
 pub fn is_close_delaying(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    // reverse context var, is set by `popup_close_delay`.
+    // reverse context var, is set by `close_delay`.
     with_context_var(child, IS_CLOSE_DELAYED_VAR, state)
 }
 
