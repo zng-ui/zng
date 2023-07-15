@@ -1,19 +1,10 @@
 //! Window layers.
 
-use crate::core::{
-    mouse::MOUSE,
-    task::parking_lot::Mutex,
-    timer::{DeadlineHandle, TIMERS},
-    units::DipToPx,
-    window::WIDGET_INFO_CHANGED_EVENT,
-};
+use crate::core::{mouse::MOUSE, task::parking_lot::Mutex, units::DipToPx, window::WIDGET_INFO_CHANGED_EVENT};
 use crate::prelude::new_property::*;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem, ops};
-use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
 
 use crate::crate_util::RunOnDrop;
 
@@ -530,147 +521,6 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
 static WINDOW_PRE_INIT_LAYERS_ID: StaticStateId<Vec<Mutex<BoxedUiNode>>> = StaticStateId::new_unique();
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
-
-static HAS_LAYER_REMOVE_HANDLERS_ID: StaticStateId<()> = StaticStateId::new_unique();
-event_args! {
-    /// Arguments for [`on_layer_remove_requested`].
-    /// 
-    /// [`on_layer_remove_requested`]: fn@on_layer_remove_requested
-    pub struct LayerRemoveRequestedArgs {
-        list: EditableUiNodeListRef,
-        ..
-        /// No target, only the layered widget receives the event.
-        fn delivery_list(&self, _delivery_list: &mut UpdateDeliveryList) {}
-    }
-}
-event! {
-    static LAYER_REMOVE_REQUESTED_EVENT: LayerRemoveRequestedArgs;
-}
-context_var! {
-    static IS_LAYER_REMOVING_VAR: bool = false;
-    static LAYER_REMOVE_CANCELLABLE_VAR: bool = true;
-}
-
-/// If layer remove can be cancelled by this widget.
-///
-/// Layer remove is cancellable by  default, if this is set to `false` handlers of [`on_layer_remove_requested`]
-/// cannot cancel the layer remove by stopping propagation and the [`layer_remove_delay`] is not applied.
-///
-/// Widget implementers can set this property as a node of high-priority to override control of the layer remove cancel
-/// feature.
-///
-/// [`layer_remove_delay`]: fn@layer_remove_delay
-/// [`on_layer_remove_requested`]: fn@on_layer_remove_requested
-#[property(CONTEXT, default(LAYER_REMOVE_CANCELLABLE_VAR))]
-pub fn layer_remove_cancellable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    with_context_var(child, LAYER_REMOVE_CANCELLABLE_VAR, enabled)
-}
-
-/// Event that a layered widget receives when it is about to be removed.
-///
-/// You can stop the [`LayerRemoveRequestedArgs::propagation`] to cancel the remove. Note that after cancel
-/// you can request remove again. Also note that remove cancellation can be disabled by the widget by
-/// setting [`layer_remove_cancellable`] to false.
-///
-/// This event property must be set on the outer-most widget inserted in [`LAYERS`], the event does not propagate
-/// to descendants of the layered widget.
-///
-/// [`layer_remove_cancellable`]: fn@layer_remove_cancellable
-#[property(EVENT)]
-pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler<LayerRemoveRequestedArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.flag_state(&HAS_LAYER_REMOVE_HANDLERS_ID);
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
-                if LAYER_REMOVE_CANCELLABLE_VAR.get() {
-                    handler.event(args);
-                } else {
-                    handler.event(&LayerRemoveRequestedArgs::new(
-                        args.timestamp,
-                        EventPropagationHandle::new(),
-                        EditableUiNodeListRef::dummy(),
-                    ));
-                }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            handler.update();
-        }
-        _ => {}
-    })
-}
-
-/// Awaits `delay` before actually removing the layered widget after remove is requested.
-///
-/// Note that layered widgets will still be removed instantly if [`layer_remove_cancellable`] is false,
-/// some widgets may disable it when they need to be removed immediately, as an example, tooltip widgets
-/// will ignore the delay when another tooltip is already opening.
-///
-/// [`layer_remove_cancellable`]: fn@layer_remove_cancellable
-#[property(EVENT, default(Duration::ZERO))]
-pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
-    let delay = delay.into_var();
-    let mut timer = None::<DeadlineHandle>;
-
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.flag_state(&HAS_LAYER_REMOVE_HANDLERS_ID);
-        }
-        UiNodeOp::Deinit => {
-            timer = None;
-            let _ = IS_LAYER_REMOVING_VAR.set(false);
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
-                if !LAYER_REMOVE_CANCELLABLE_VAR.get() {
-                    // allow
-                    return;
-                }
-
-                if let Some(timer) = &timer {
-                    if timer.has_executed() {
-                        // allow
-                        return;
-                    } else {
-                        args.propagation().stop();
-                        // timer already running.
-                        return;
-                    }
-                }
-
-                let delay = delay.get();
-                if delay != Duration::ZERO {
-                    args.propagation().stop();
-
-                    let list = args.list.clone();
-                    let id = WIDGET.id();
-
-                    let _ = IS_LAYER_REMOVING_VAR.set(true);
-
-                    timer = Some(TIMERS.on_deadline(
-                        delay,
-                        app_hn_once!(|_| {
-                            list.remove(id);
-                        }),
-                    ));
-                }
-            }
-        }
-        _ => {}
-    })
-}
-
-/// If remove was requested for this layered widget and it is just awaiting for the [`layer_remove_delay`].
-///
-/// [`layer_remove_delay`]: fn@layer_remove_delay
-#[property(CONTEXT)]
-pub fn is_layer_removing(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    // reverse context var, is set by `layer_remove_delay`.
-    with_context_var(child, IS_LAYER_REMOVING_VAR, state)
-}
 
 /// Represents a layer in a window.
 ///
@@ -1317,63 +1167,6 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
-            {
-                let editable_list = c.children().1.list();
-
-                let mut retains = editable_list.take_retain_requests();
-
-                if !retains.is_empty() {
-                    editable_list.retain_mut(|n| {
-                        enum Action {
-                            Remove,
-                            Event,
-                            Retain,
-                        }
-                        let remove_requested = retains.iter_mut().any(|r| !r(n));
-                        let action = n
-                            .with_context(WidgetUpdateMode::Bubble, || {
-                                if remove_requested {
-                                    if WIDGET.get_state(&HAS_LAYER_REMOVE_HANDLERS_ID).is_some() {
-                                        Action::Event
-                                    } else {
-                                        Action::Remove
-                                    }
-                                } else {
-                                    Action::Retain
-                                }
-                            })
-                            .unwrap_or(if remove_requested { Action::Remove } else { Action::Retain });
-
-                        match action {
-                            Action::Remove => {
-                                n.deinit();
-                                WIDGET.info();
-                                changed = true;
-                                false
-                            }
-                            Action::Event => {
-                                let args = LayerRemoveRequestedArgs::now(layered.clone());
-                                let propagation = args.propagation().clone();
-                                let mut delivery_list = UpdateDeliveryList::new_any();
-                                n.with_context(WidgetUpdateMode::Bubble, || {
-                                    delivery_list.insert_wgt(&WIDGET.info());
-                                });
-                                n.event(&LAYER_REMOVE_REQUESTED_EVENT.new_update_custom(args, delivery_list));
-                                if propagation.is_stopped() {
-                                    true
-                                } else {
-                                    n.deinit();
-                                    WIDGET.info();
-                                    changed = true;
-                                    false
-                                }
-                            }
-                            Action::Retain => true,
-                        }
-                    });
-                }
-            }
-
             c.update_all(updates, &mut changed);
 
             if changed {

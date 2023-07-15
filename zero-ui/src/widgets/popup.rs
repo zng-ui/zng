@@ -1,10 +1,12 @@
 //! Popup widget.
 
-use zero_ui_core::focus::FOCUS_CHANGED_EVENT;
-
-use crate::core::focus::{DirectionalNav, TabNav};
+use std::time::Duration;
 
 use crate::{
+    core::{
+        focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT},
+        timer::{DeadlineHandle, TIMERS},
+    },
     prelude::new_widget::*,
     widgets::window::layers::{AnchorMode, AnchorOffset, LayerIndex, LAYERS},
 };
@@ -144,7 +146,7 @@ impl POPUP {
                             match args.param::<PopupCloseMode>() {
                                 Some(s) => match s {
                                     PopupCloseMode::Request => POPUP.close(id),
-                                    PopupCloseMode::Close => LAYERS.remove(id),
+                                    PopupCloseMode::Force => LAYERS.remove(id),
                                 },
                                 None => POPUP.close(id),
                             }
@@ -175,6 +177,11 @@ impl POPUP {
     pub fn close(&self, widget_id: WidgetId) {
         setup_popup_close_service();
         POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(widget_id));
+    }
+
+    /// Close the popup widget without notifying the request event.
+    pub fn force_close(&self, widget_id: WidgetId) {
+        POPUP_CLOSE_CMD.scoped(widget_id).notify_param(PopupCloseMode::Force);
     }
 }
 
@@ -289,6 +296,17 @@ event! {
     /// [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
     pub static POPUP_CLOSE_REQUESTED_EVENT: PopupCloseRequestedArgs;
 }
+event_property! {
+    /// Closing popup event.
+    ///
+    /// Requesting [`propagation().stop()`] on this event cancels the popup close.
+    ///
+    /// [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
+    pub fn popup_close_requested {
+        event: POPUP_CLOSE_REQUESTED_EVENT,
+        args: PopupCloseRequestedArgs,
+    }
+}
 
 command! {
     /// Close the popup.
@@ -305,11 +323,15 @@ command! {
 /// Optional parameter for [`POPUP_CLOSE_CMD`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PopupCloseMode {
-    /// Notifies the [`POPUP_CLOSE_REQUESTED_EVENT`], only close is no subscriber stops the propagation.
+    /// Calls [`POPUP.close`].
+    ///
+    /// [`POPUP.close`]: POPUP::close
     #[default]
     Request,
-    /// Close immediately.
-    Close,
+    /// Calls [`POPUP.force_close`].
+    ///
+    /// [`POPUP.force_close`]: POPUP::force_close
+    Force,
 }
 
 fn setup_popup_close_service() {
@@ -321,9 +343,76 @@ fn setup_popup_close_service() {
         POPUP_CLOSE_REQUESTED_EVENT
             .on_event(app_hn!(|args: &PopupCloseRequestedArgs, _| {
                 if !args.propagation().is_stopped() {
-                    POPUP_CLOSE_CMD.scoped(args.popup).notify_param(PopupCloseMode::Close);
+                    POPUP_CLOSE_CMD.scoped(args.popup).notify_param(PopupCloseMode::Force);
                 }
             }))
             .perm();
     }
+}
+
+/// Awaits `delay` before requesting a direct close for the popup widget after close is requested.
+///
+/// You can use this delay to await a closing animation for example. This property sets [`is_popup_close_delaying`]
+/// while awaiting the `delay`.
+///
+/// [`is_popup_close_delaying`]: fn@is_popup_close_delaying
+#[property(EVENT, default(Duration::ZERO), widget_impl(Popup))]
+pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+    let delay = delay.into_var();
+    let mut timer = None::<DeadlineHandle>;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+        }
+        UiNodeOp::Deinit => {
+            timer = None;
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
+                if args.popup != WIDGET.id() {
+                    return;
+                }
+
+                if let Some(timer) = &timer {
+                    if timer.has_executed() {
+                        // allow
+                        return;
+                    } else {
+                        args.propagation().stop();
+                        // timer already running.
+                        return;
+                    }
+                }
+
+                let delay = delay.get();
+                if delay != Duration::ZERO {
+                    args.propagation().stop();
+
+                    let _ = IS_CLOSE_DELAYED_VAR.set(true);
+                    let cmd = POPUP_CLOSE_CMD.scoped(args.popup);
+                    timer = Some(TIMERS.on_deadline(
+                        delay,
+                        app_hn_once!(|_| {
+                            cmd.notify_param(PopupCloseMode::Force);
+                        }),
+                    ));
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// If close was requested for this layered widget and it is just awaiting for the [`popup_close_delay`].
+///
+/// [`popup_close_delay`]: fn@popup_close_delay
+#[property(CONTEXT, widget_impl(Popup))]
+pub fn is_close_delaying(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    // reverse context var, is set by `popup_close_delay`.
+    with_context_var(child, IS_CLOSE_DELAYED_VAR, state)
+}
+
+context_var! {
+    static IS_CLOSE_DELAYED_VAR: bool = false;
 }

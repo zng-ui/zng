@@ -48,8 +48,8 @@ pub use text::{Em, Strong, Text};
 pub mod text_input;
 pub use text_input::TextInput;
 
-pub mod tip;
-pub use tip::Tip;
+pub mod tooltip;
+pub use tooltip::Tip;
 
 pub mod toggle;
 pub use toggle::Toggle;

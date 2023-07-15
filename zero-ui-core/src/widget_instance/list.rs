@@ -1043,11 +1043,6 @@ impl EditableUiNodeList {
         self.ctrl.clone()
     }
 
-    /// Take the list of pending retain requests, the widgets will not be removed on the next update.
-    pub fn take_retain_requests(&mut self) -> Vec<Box<dyn FnMut(&mut BoxedUiNode) -> bool + Send>> {
-        self.ctrl.take_retain_requests()
-    }
-
     fn fullfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
         if let Some(r) = self.ctrl.take_requests() {
             if r.clear {
@@ -1484,10 +1479,6 @@ impl EditableUiNodeListRef {
         let mut s = self.0.lock();
         s.clear = true;
         UPDATES.update(s.target);
-    }
-
-    fn take_retain_requests(&self) -> Vec<Box<dyn FnMut(&mut BoxedUiNode) -> bool + Send>> {
-        mem::take(&mut self.0.lock().retain)
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
