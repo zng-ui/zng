@@ -105,11 +105,27 @@ pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>
 /// Popup service.
 pub struct POPUP;
 impl POPUP {
-    /// Open the `popup` with the current context.
+    /// Open the `popup` using the current context configuration.
     pub fn open(&self, popup: impl UiNode) -> ReadOnlyArcVar<PopupState> {
-        self.open_impl(popup.boxed())
+        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR, CONTEXT_CAPTURE_VAR.get())
     }
-    fn open_impl(&self, mut popup: BoxedUiNode) -> ReadOnlyArcVar<PopupState> {
+
+    /// Open the `popup` using the custom config vars.
+    pub fn open_config(
+        &self,
+        popup: impl UiNode,
+        anchor_mode: impl IntoVar<AnchorMode>,
+        context_capture: impl IntoValue<ContextCapture>,
+    ) -> ReadOnlyArcVar<PopupState> {
+        self.open_impl(popup.boxed(), anchor_mode.into_var(), context_capture.into())
+    }
+
+    fn open_impl(
+        &self,
+        mut popup: BoxedUiNode,
+        anchor_mode: impl Var<AnchorMode>,
+        context_capture: ContextCapture,
+    ) -> ReadOnlyArcVar<PopupState> {
         let state = var(PopupState::Opening);
         let mut _close_handle = CommandHandle::dummy();
 
@@ -158,13 +174,12 @@ impl POPUP {
         )
         .boxed();
 
-        let capture = CONTEXT_CAPTURE_VAR.get();
-        if let ContextCapture::CaptureBlend { filter, over } = capture {
+        if let ContextCapture::CaptureBlend { filter, over } = context_capture {
             if filter != CaptureFilter::None {
                 popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
             }
         }
-        LAYERS.insert_anchored(LayerIndex::TOP_MOST, WIDGET.id(), ANCHOR_MODE_VAR, popup);
+        LAYERS.insert_anchored(LayerIndex::TOP_MOST, WIDGET.id(), anchor_mode, popup);
 
         state.read_only()
     }

@@ -2,11 +2,17 @@
 
 use std::time::{Duration, Instant};
 
-use zero_ui_core::mouse::MOUSE_HOVERED_EVENT;
+use crate::{
+    core::{
+        mouse::MOUSE_HOVERED_EVENT,
+        timer::{DeadlineVar, TIMERS},
+    },
+    prelude::AnchorMode,
+};
 
 use crate::prelude::{layers::AnchorTransform, new_widget::*, AnchorOffset};
 
-use super::popup::{Popup, PopupState, POPUP};
+use super::popup::{ContextCapture, Popup, PopupState, POPUP};
 
 /// Widget tooltip.
 ///
@@ -79,51 +85,112 @@ pub fn disabled_tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<Toolti
 fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, disabled_only: bool) -> impl UiNode {
     let tip = tip.into_var();
     let mut pop_state = var(PopupState::Closed).read_only();
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&tip).sub_event(&MOUSE_HOVERED_EVENT);
-        }
-        UiNodeOp::Deinit => {
-            child.deinit();
+    let mut open_delay = None::<DeadlineVar>;
+    match_node(child, move |child, op| {
+        let mut open = false;
 
-            if let PopupState::Open(not_closed) = pop_state.get() {
-                POPUP.force_close(not_closed);
-                TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+        match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&tip).sub_event(&MOUSE_HOVERED_EVENT);
             }
-        }
-        UiNodeOp::Event { update } => {
-            child.event(update);
+            UiNodeOp::Deinit => {
+                child.deinit();
 
-            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                match pop_state.get() {
-                    PopupState::Opening => {
-                        if args.is_mouse_leave() {
-                            pop_state
-                                .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
-                                    match a.value {
-                                        PopupState::Open(id) => {
-                                            POPUP.force_close(id);
-                                        }
-                                        PopupState::Closed => {}
-                                        PopupState::Opening => unreachable!(),
-                                    }
-                                }))
-                                .perm();
-                        }
-                    }
-                    PopupState::Open(id) => {
-                        if args.is_mouse_leave() {
-                            POPUP.close(id);
-                        }
-                    }
-                    PopupState::Closed => if args.is_mouse_enter() {
-                        // open
-                        
-                    },
+                open_delay = None;
+                if let PopupState::Open(not_closed) = pop_state.get() {
+                    POPUP.force_close(not_closed);
+                    TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                 }
             }
+            UiNodeOp::Event { update } => {
+                child.event(update);
+
+                if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                    if open_delay.is_some() && args.is_mouse_leave() {
+                        open_delay = None;
+                    }
+
+                    match pop_state.get() {
+                        PopupState::Opening => {
+                            if args.is_mouse_leave() {
+                                // cancel
+                                pop_state
+                                    .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
+                                        match a.value {
+                                            PopupState::Open(id) => {
+                                                POPUP.force_close(id);
+                                            }
+                                            PopupState::Closed => {}
+                                            PopupState::Opening => unreachable!(),
+                                        }
+                                    }))
+                                    .perm();
+                            }
+                        }
+                        PopupState::Open(id) => {
+                            if !args
+                                .target
+                                .as_ref()
+                                .map(|t| t.contains(id) || t.contains(WIDGET.id()))
+                                .unwrap_or(true)
+                            {
+                                // mouse not over self and tooltip
+                                POPUP.close(id);
+                            }
+                        }
+                        PopupState::Closed => {
+                            if (disabled_only && args.is_mouse_enter_disabled()) || args.is_mouse_enter_enabled() {
+                                // open
+
+                                let mut delay = if TOOLTIP_LAST_CLOSED
+                                    .get()
+                                    .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
+                                    .unwrap_or(true)
+                                {
+                                    TOOLTIP_DELAY_VAR.get()
+                                } else {
+                                    Duration::ZERO
+                                };
+
+                                if let Some(open) = OPEN_TOOLTIP.write().take() {
+                                    POPUP.force_close(open);
+
+                                    // yield an update for the close deinit
+                                    // the `tooltip` property is a singleton
+                                    // that takes the widget on init, this op
+                                    // only takes the widget immediately if it
+                                    // is already deinited
+                                    delay = 1.ms();
+                                }
+
+                                if delay == Duration::ZERO {
+                                    open = true;
+                                } else {
+                                    let delay = TIMERS.deadline(delay);
+                                    delay.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                                    open_delay = Some(delay);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            UiNodeOp::Update { .. } => {
+                if let Some(d) = &open_delay {
+                    if d.get().has_elapsed() {
+                        open = true;
+                        open_delay = None;
+                    }
+                }
+            }
+            _ => {}
         }
-        _ => {}
+
+        if open {
+            let popup = tip.get()(TooltipArgs { disabled: disabled_only });
+            // !!: TODO, more context vars.
+            pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, ContextCapture::DontCapture);
+        }
     })
 }
 
@@ -134,10 +201,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 ///
 /// By default tips are aligned below the cursor position at the time they are opened.
 ///
-/// This property sets the [`TOOLTIP_TRANSFORM_VAR`].
-#[property(CONTEXT, default(TOOLTIP_TRANSFORM_VAR))]
-pub fn tooltip_transform(child: impl UiNode, transform: impl IntoVar<AnchorTransform>) -> impl UiNode {
-    with_context_var(child, TOOLTIP_TRANSFORM_VAR, transform)
+/// This property sets the [`TOOLTIP_ANCHOR_VAR`].
+#[property(CONTEXT, default(TOOLTIP_ANCHOR_VAR))]
+pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+    with_context_var(child, TOOLTIP_ANCHOR_VAR, mode)
 }
 
 /// Set the duration the cursor must be over the widget or its descendants before the tip widget is opened.
@@ -178,7 +245,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 /// [`tooltip_fn`]: fn@tooltip_fn
 /// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
 pub struct TooltipArgs {
-    /// If the tooltip is for [`disabled_tooltip_fn`], if `false` is for [`tooltip_fn`].
+    /// Is `true` if the tooltip is for [`disabled_tooltip_fn`], is `false` for [`tooltip_fn`].
     ///
     /// [`tooltip_fn`]: fn@tooltip_fn
     /// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
@@ -193,13 +260,20 @@ app_local! {
     ///
     /// [`tooltip`]: fn@tooltip
     pub static TOOLTIP_LAST_CLOSED: Option<Instant> = None;
+
+    /// Id of the current open tooltip.
+    ///
+    /// Custom tooltip implementers must take the ID and [`POPUP::force_close`] it to integrate with the [`tooltip`] implementation.
+    ///
+    /// [`tooltip`]: fn@tooltip
+    pub static OPEN_TOOLTIP: Option<WidgetId> = None;
 }
 
 context_var! {
     /// Position of the tip widget in relation to the anchor widget.
     ///
     /// By default the tip widget is shown below the cursor.
-    pub static TOOLTIP_TRANSFORM_VAR: AnchorTransform = AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left());
+    pub static TOOLTIP_ANCHOR_VAR: AnchorMode = AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left());
 
     /// Duration the cursor must be over the anchor widget before the tip widget is opened.
     pub static TOOLTIP_DELAY_VAR: Duration = 500.ms();
