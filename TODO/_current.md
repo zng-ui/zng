@@ -1,5 +1,5 @@
 * Unify, tooltip, popup API.
-    - Review if `OPEN_TOOLTIP` and `TOOLTIP_LAST_CLOSED` is in full sync.
+    - Test fade-out.
     - Review !!:.
     - Merge.
 

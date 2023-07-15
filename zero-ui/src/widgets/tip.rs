@@ -101,11 +101,6 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 auto_close = None;
                 if let PopupState::Open(not_closed) = pop_state.get() {
                     POPUP.force_close(not_closed);
-                    let mut global = OPEN_TOOLTIP.write();
-                    if *global == Some(not_closed) {
-                        *global = None;
-                    }
-                    TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                 }
             }
             UiNodeOp::Event { update } => {
@@ -158,7 +153,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                                     Duration::ZERO
                                 };
 
-                                if let Some(open) = OPEN_TOOLTIP.write().take() {
+                                if let Some(open) = OPEN_TOOLTIP.get() {
                                     POPUP.force_close(open);
 
                                     // yield an update for the close deinit
@@ -229,7 +224,23 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         // will not receive mouse-leave, because it is not the logical parent of the tooltip,
                         // so we need to duplicate cleanup logic here.
                         WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+
+                        let mut global = OPEN_TOOLTIP.write();
+                        if let Some(id) = global.take() {
+                            POPUP.force_close(id);
+                        }
+                        *global = Some(WIDGET.id());
                     });
+                }
+                UiNodeOp::Deinit => {
+                    c.with_context(WidgetUpdateMode::Bubble, || {
+                        let mut global = OPEN_TOOLTIP.write();
+                        if *global == Some(WIDGET.id()) {
+                            *global = None;
+                            TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+                        }
+                    });
+                    c.deinit();
                 }
                 UiNodeOp::Event { update } => {
                     c.event(update);
