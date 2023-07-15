@@ -219,6 +219,40 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
         if open {
             let popup = tip.get()(TooltipArgs { disabled: disabled_only });
+            let anchor_id = WIDGET.id();
+            let popup = match_widget(popup, move |c, op| match op {
+                UiNodeOp::Init => {
+                    c.init();
+
+                    c.with_context(WidgetUpdateMode::Bubble, || {
+                        // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
+                        // will not receive mouse-leave, because it is not the logical parent of the tooltip,
+                        // so we need to duplicate cleanup logic here.
+                        WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+                    });
+                }
+                UiNodeOp::Event { update } => {
+                    c.event(update);
+
+                    if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                        let tooltip_id = match c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+                            Some(id) => id,
+                            None => {
+                                // was widget on init, now is not,
+                                // this can happen if child is an `ArcNode` that was moved
+                                return;
+                            }
+                        };
+
+                        if let Some(t) = &args.target {
+                            if !t.contains(anchor_id) && !t.contains(tooltip_id) {
+                                POPUP.close(tooltip_id);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            });
             // !!: TODO, more context vars.
             pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, ContextCapture::DontCapture);
 
