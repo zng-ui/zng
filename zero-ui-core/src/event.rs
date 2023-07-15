@@ -176,7 +176,7 @@ impl<A: EventArgs> Event<A> {
 
     /// Get the event update args if the update is for this event and propagation is not stopped.
     pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a A> {
-        self.on(update).filter(|a| a.propagation().is_stopped())
+        self.on(update).filter(|a| !a.propagation().is_stopped())
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.

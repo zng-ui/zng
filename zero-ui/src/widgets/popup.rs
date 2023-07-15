@@ -109,31 +109,44 @@ impl POPUP {
     }
     fn open_impl(&self, mut popup: BoxedUiNode) -> ReadOnlyArcVar<PopupState> {
         let state = var(PopupState::Opening);
+        let mut _close_handle = CommandHandle::dummy();
 
         popup = match_widget(
             popup,
             clmv!(state, |c, op| match op {
                 UiNodeOp::Init => {
                     c.init();
+
                     let id = c.with_context(WidgetUpdateMode::Bubble, || {
                         WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
                         WIDGET.id()
                     });
                     if let Some(id) = id {
                         state.set(PopupState::Open(id));
+                        _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     } else {
                         state.set(PopupState::Closed);
                     }
                 }
                 UiNodeOp::Deinit => {
                     state.set(PopupState::Closed);
+                    _close_handle = CommandHandle::dummy();
                 }
                 UiNodeOp::Event { update } => {
                     c.with_context(WidgetUpdateMode::Bubble, || {
+                        let id = WIDGET.id();
+
                         if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                            let id = WIDGET.id();
                             if args.is_focus_leave(id) && CLOSE_ON_FOCUS_LEAVE_VAR.get() {
                                 POPUP.close(id);
+                            }
+                        } else if let Some(args) = POPUP_CLOSE_CMD.scoped(id).on_unhandled(update) {
+                            match args.param::<PopupCloseMode>() {
+                                Some(s) => match s {
+                                    PopupCloseMode::Request => POPUP.close(id),
+                                    PopupCloseMode::Close => LAYERS.remove(id),
+                                },
+                                None => POPUP.close(id),
                             }
                         }
                     });
@@ -154,9 +167,14 @@ impl POPUP {
         state.read_only()
     }
 
-    /// Deinit and drop the popup widget.
+    /// Close the popup widget.
+    ///
+    /// Notifies [`POPUP_CLOSE_REQUESTED_EVENT`] and then close if no subscriber stops propagation for it.
+    ///
+    /// You can also use the [`POPUP_CLOSE_CMD`] to request or force close.
     pub fn close(&self, widget_id: WidgetId) {
-        LAYERS.remove(widget_id);
+        setup_popup_close_service();
+        POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(widget_id));
     }
 }
 
@@ -246,5 +264,66 @@ impl_from_and_into_var! {
 
     fn from(filter_over: CaptureFilter) -> ContextCapture {
         ContextCapture::CaptureBlend { filter: filter_over, over: true }
+    }
+}
+
+event_args! {
+    /// Arguments for [`POPUP_CLOSE_REQUESTED_EVENT`].
+    pub struct PopupCloseRequestedArgs {
+        /// The popup that has close requested.
+        pub popup: WidgetId,
+
+        ..
+
+        fn delivery_list(&self, delivery_list: &mut UpdateDeliveryList) {
+            delivery_list.search_widget(self.popup)
+        }
+    }
+}
+
+event! {
+    /// Closing popup event.
+    ///
+    /// Requesting [`propagation().stop()`] on this event cancels the popup close.
+    ///
+    /// [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
+    pub static POPUP_CLOSE_REQUESTED_EVENT: PopupCloseRequestedArgs;
+}
+
+command! {
+    /// Close the popup.
+    ///
+    /// # Param
+    ///
+    /// The parameter can be [`PopupCloseMode`]. If not set the normal
+    /// [`POPUP.close`] behavior is invoked.
+    ///
+    /// [`POPUP.close`]: POPUP::close
+    pub static POPUP_CLOSE_CMD;
+}
+
+/// Optional parameter for [`POPUP_CLOSE_CMD`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PopupCloseMode {
+    /// Notifies the [`POPUP_CLOSE_REQUESTED_EVENT`], only close is no subscriber stops the propagation.
+    #[default]
+    Request,
+    /// Close immediately.
+    Close,
+}
+
+fn setup_popup_close_service() {
+    app_local! {
+        static POPUP_SETUP: bool = false;
+    }
+
+    if !std::mem::replace(&mut *POPUP_SETUP.write(), true) {
+        POPUP_CLOSE_REQUESTED_EVENT
+            .on_event(app_hn!(|args: &PopupCloseRequestedArgs, _| {
+                if !args.propagation().is_stopped() {
+                    POPUP_CLOSE_CMD.scoped(args.popup).notify_param(PopupCloseMode::Close);
+                }
+            }))
+            .perm();
     }
 }

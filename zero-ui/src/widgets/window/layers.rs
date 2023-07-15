@@ -534,6 +534,8 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 static HAS_LAYER_REMOVE_HANDLERS_ID: StaticStateId<()> = StaticStateId::new_unique();
 event_args! {
     /// Arguments for [`on_layer_remove_requested`].
+    /// 
+    /// [`on_layer_remove_requested`]: fn@on_layer_remove_requested
     pub struct LayerRemoveRequestedArgs {
         list: EditableUiNodeListRef,
         ..
@@ -1099,7 +1101,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Options for [`AnchorMode::size`].
+/// Options for [`AnchorMode`] size constraints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AnchorSize {
     /// Widget does not copy any size from the anchor widget, the available size is infinite, the

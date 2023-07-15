@@ -1,3 +1,10 @@
+* Unify, tooltip, popup API.
+    - Tooltip use POPUP.
+    - Implement POPUP_CLOSE_REQUESTED_EVENT.
+        - POPUP.request_close(id).
+    - Move layer is removing stuff to POPUP.
+    - Remove layer is removing stuff.
+
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
