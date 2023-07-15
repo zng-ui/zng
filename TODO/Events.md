@@ -2,3 +2,4 @@
 
 * Measure handlers time and print warning for calls that don't return immediately.
 * Implement `PropertyInfoNode::event` TODO.
+* Implement `ClickMode` for always down+up, no double/repeats.

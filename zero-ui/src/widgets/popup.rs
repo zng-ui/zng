@@ -197,7 +197,7 @@ impl DefaultStyle {
             drop_shadow = {
                 offset: 2,
                 blur_radius: 2,
-                color: colors::BLACK,
+                color: colors::BLACK.with_alpha(50.pct()),
             };
         }
     }

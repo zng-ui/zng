@@ -3,6 +3,7 @@
 use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use task::parking_lot::Mutex;
+use zero_ui_core::mouse::MOUSE_INPUT_EVENT;
 
 use crate::core::gesture::CLICK_EVENT;
 
@@ -96,7 +97,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                     {
                         args.propagation().stop();
 
-                        let _ = checked.modify(|c| c.set(!**c));
+                        let _ = checked.set(!checked.get());
                     }
                 } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on(update) {
                     if let Some(b) = args.param::<bool>() {
@@ -109,7 +110,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                         }
                     } else {
                         args.propagation().stop();
-                        let _ = checked.modify(|c| c.set(!**c));
+                        let _ = checked.set(!checked.get());
                     }
                 }
             }
@@ -187,19 +188,15 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                 if cycle {
                     if IS_TRISTATE_VAR.get() {
-                        let _ = checked.modify(|c| {
-                            c.set(match *c.as_ref() {
-                                Some(true) => None,
-                                Some(false) => Some(true),
-                                None => Some(false),
-                            });
+                        let _ = checked.set(match checked.get() {
+                            Some(true) => None,
+                            Some(false) => Some(true),
+                            None => Some(false),
                         });
                     } else {
-                        let _ = checked.modify(|c| {
-                            c.set(match *c.as_ref() {
-                                Some(true) | None => Some(false),
-                                Some(false) => Some(true),
-                            });
+                        let _ = checked.set(match checked.get() {
+                            Some(true) | None => Some(false),
+                            Some(false) => Some(true),
                         });
                     }
                 }
@@ -937,29 +934,48 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();
     let mut state = var(PopupState::Closed).read_only();
+    let mut _state_handle = VarHandle::dummy();
     match_node(child, move |_, op| {
         let new = match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&IS_CHECKED_VAR);
+                WIDGET.sub_var(&IS_CHECKED_VAR).sub_event(&MOUSE_INPUT_EVENT);
                 IS_CHECKED_VAR.get()
             }
-            UiNodeOp::Deinit => Some(false),
-            UiNodeOp::Update { .. } => IS_CHECKED_VAR.get_new().map(|o| o.unwrap_or(false)),
+            UiNodeOp::Deinit => {
+                _state_handle = VarHandle::dummy();
+                Some(false)
+            }
+            UiNodeOp::Event { update } => {
+                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    // close on mouse down to avoid issue when the popup closes on mouse-down (due to focus loss),
+                    // but a click is formed (down+up) on the toggle that immediately opens the popup again.
+                    if args.is_mouse_down() && args.is_primary() && IS_CHECKED_VAR.get() == Some(true) {
+                        args.propagation().stop();
+                        commands::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
+                    }
+                }
+                None
+            }
+            UiNodeOp::Update { .. } => {
+                if let Some(s) = state.get_new() {
+                    if matches!(s, PopupState::Closed) {
+                        if IS_CHECKED_VAR.get() != Some(false) {
+                            commands::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
+                        }
+                        _state_handle = VarHandle::dummy();
+                    }
+                    None
+                } else {
+                    IS_CHECKED_VAR.get_new().map(|o| o.unwrap_or(false))
+                }
+            }
             _ => None,
         };
         if let Some(open) = new {
             if open {
                 if matches!(state.get(), PopupState::Closed) {
                     state = POPUP.open(popup.get()(()));
-                    let cmd = commands::TOGGLE_CMD.scoped(WIDGET.id());
-                    state
-                        .on_pre_new(app_hn!(|a: &OnVarArgs<PopupState>, h| {
-                            if matches!(&a.value, PopupState::Closed) {
-                                cmd.notify_param(Some(false));
-                                h.unsubscribe();
-                            }
-                        }))
-                        .perm();
+                    _state_handle = state.subscribe(UpdateOp::Update, WIDGET.id());
                 }
             } else if let PopupState::Open(id) = state.get() {
                 POPUP.close(id);
