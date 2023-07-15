@@ -7,7 +7,9 @@ use task::parking_lot::Mutex;
 use crate::core::gesture::CLICK_EVENT;
 
 use crate::prelude::new_widget::*;
-use crate::widgets::window::layers;
+use crate::widgets::popup::{PopupState, POPUP};
+
+pub mod commands;
 
 /// A toggle button that flips a `bool` or `Option<bool>` variable on click, or selects a value.
 ///
@@ -72,11 +74,16 @@ context_var! {
 #[property(CONTEXT, default(false), widget_impl(Toggle))]
 pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
     let checked = checked.into_var();
+    let mut _toggle_handle = CommandHandle::dummy();
     let node = match_node(
         child,
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
                 WIDGET.sub_event(&CLICK_EVENT);
+                _toggle_handle = commands::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+            }
+            UiNodeOp::Deinit => {
+                _toggle_handle = CommandHandle::dummy();
             }
             UiNodeOp::Event { update } => {
                 child.event(update);
@@ -89,6 +96,19 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                     {
                         args.propagation().stop();
 
+                        let _ = checked.modify(|c| c.set(!**c));
+                    }
+                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on(update) {
+                    if let Some(b) = args.param::<bool>() {
+                        args.propagation().stop();
+                        let _ = checked.set(*b);
+                    } else if let Some(b) = args.param::<Option<bool>>() {
+                        if let Some(b) = b {
+                            args.propagation().stop();
+                            let _ = checked.set(*b);
+                        }
+                    } else {
+                        args.propagation().stop();
                         let _ = checked.modify(|c| c.set(!**c));
                     }
                 }
@@ -122,15 +142,19 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
     let checked = checked.into_var();
+    let mut _toggle_handle = CommandHandle::dummy();
 
     let node = match_node(
         child,
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
                 WIDGET.sub_event(&CLICK_EVENT);
+                _toggle_handle = commands::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
             }
             UiNodeOp::Event { update } => {
                 child.event(update);
+
+                let mut cycle = false;
 
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
@@ -140,22 +164,43 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
                     {
                         args.propagation().stop();
 
+                        cycle = true;
+                    }
+                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on(update) {
+                    if let Some(b) = args.param::<bool>() {
+                        args.propagation().stop();
+                        let _ = checked.set(Some(*b));
+                    } else if let Some(b) = args.param::<Option<bool>>() {
                         if IS_TRISTATE_VAR.get() {
-                            let _ = checked.modify(|c| {
-                                c.set(match *c.as_ref() {
-                                    Some(true) => None,
-                                    Some(false) => Some(true),
-                                    None => Some(false),
-                                });
-                            });
-                        } else {
-                            let _ = checked.modify(|c| {
-                                c.set(match *c.as_ref() {
-                                    Some(true) | None => Some(false),
-                                    Some(false) => Some(true),
-                                });
-                            });
+                            args.propagation().stop();
+                            let _ = checked.set(*b);
+                        } else if let Some(b) = b {
+                            args.propagation().stop();
+                            let _ = checked.set(Some(*b));
                         }
+                    } else {
+                        args.propagation().stop();
+
+                        cycle = true;
+                    }
+                }
+
+                if cycle {
+                    if IS_TRISTATE_VAR.get() {
+                        let _ = checked.modify(|c| {
+                            c.set(match *c.as_ref() {
+                                Some(true) => None,
+                                Some(false) => Some(true),
+                                None => Some(false),
+                            });
+                        });
+                    } else {
+                        let _ = checked.modify(|c| {
+                            c.set(match *c.as_ref() {
+                                Some(true) | None => Some(false),
+                                Some(false) => Some(true),
+                            });
+                        });
                     }
                 }
             }
@@ -883,9 +928,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 ///
 /// This property can be used together with the [`ComboStyle!`] to implement a *combo-box* flyout widget.
 ///
-/// The `popup` can be any widget, but note that it will be inited out-of-context in the [`LAYERS`] top-most,
-/// a [`Popup!`] or derived widget is recommended, these widgets handle the context issue, plus auto-close on
-/// focus loss.
+/// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
 /// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@crate::widgets::popup::Popup
@@ -893,7 +936,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();
-    let mut popup_id = None;
+    let mut state = var(PopupState::Closed).read_only();
     match_node(child, move |_, op| {
         let new = match op {
             UiNodeOp::Init => {
@@ -904,25 +947,22 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
             UiNodeOp::Update { .. } => IS_CHECKED_VAR.get_new().map(|o| o.unwrap_or(false)),
             _ => None,
         };
-        if let Some(is_open) = new {
-            if is_open {
-                if popup_id.map(|i| !WINDOW.widget_tree().contains(i)).unwrap_or(true) {
-                    let mut popup = popup.get()(());
-                    popup_id = popup.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
-                    if popup_id.is_none() {
-                        popup = Container!(popup).boxed();
-                        popup_id = popup.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
-                    }
-
-                    layers::LAYERS.insert_anchored(
-                        layers::LayerIndex::TOP_MOST,
-                        WIDGET.id(),
-                        layers::AnchorMode::popup(layers::AnchorOffset::out_bottom()),
-                        popup,
-                    );
+        if let Some(open) = new {
+            if open {
+                if matches!(state.get(), PopupState::Closed) {
+                    state = POPUP.open(popup.get()(()));
+                    let cmd = commands::TOGGLE_CMD.scoped(WIDGET.id());
+                    state
+                        .on_pre_new(app_hn!(|a: &OnVarArgs<PopupState>, h| {
+                            if matches!(&a.value, PopupState::Closed) {
+                                cmd.notify_param(Some(false));
+                                h.unsubscribe();
+                            }
+                        }))
+                        .perm();
                 }
-            } else if let Some(open) = popup_id.take() {
-                layers::LAYERS.remove(open);
+            } else if let PopupState::Open(id) = state.get() {
+                POPUP.close(id);
             }
         }
     })

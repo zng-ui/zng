@@ -1,24 +1,21 @@
 //! Popup widget.
 
+use zero_ui_core::focus::FOCUS_CHANGED_EVENT;
+
 use crate::core::focus::{DirectionalNav, TabNav};
 
-use crate::{prelude::new_widget::*, widgets::window::layers::LAYERS};
+use crate::{
+    prelude::new_widget::*,
+    widgets::window::layers::{AnchorMode, AnchorOffset, LayerIndex, LAYERS},
+};
 
 /// An overlay container.
 ///
-/// # LAYERS
+/// # POPUP
 ///
 /// The popup widget is designed to be used as a temporary *flyover* container inserted as a
-/// top-most layer using [`LAYERS`]. By default the widget is an [`alt_focus_scope`] that is [`focus_on_init`],
-/// cycles [`directional_nav`] and [`tab_nav`], has [`FocusClickBehavior::ExitEnabled`] and removes itself
-/// when it loses focus.
-///
-/// # Context Capture
-///
-/// This widget captures the context (context vars, locals) at the moment the widget is instantiated,
-/// it then loads this context for all node operations. This means that you can instantiate a popup
-/// in a context that sets styles that affect the popup contents, even though the popup will not
-/// be initialized inside that context.
+/// top-most layer using [`POPUP`]. By default the widget is an [`alt_focus_scope`] that is [`focus_on_init`],
+/// cycles [`directional_nav`] and [`tab_nav`], and has [`FocusClickBehavior::ExitEnabled`].
 ///
 /// [`alt_focus_scope`]: fn@alt_focus_scope
 /// [`focus_on_init`]: fn@focus_on_init
@@ -40,26 +37,8 @@ impl Popup {
             directional_nav = DirectionalNav::Cycle;
             tab_nav = TabNav::Cycle;
             focus_click_behavior = FocusClickBehavior::ExitEnabled;
-
-            on_focus_leave = hn!(|_| {
-                if CLOSE_ON_FOCUS_LEAVE_VAR.get() {
-                    LAYERS.remove(WIDGET.id());
-                }
-            });
+            focus_on_init = true;
         }
-    }
-
-    /// Builds the popup widget, if `context_capture` is enabled the calling context is captured.
-    pub fn widget_build(&mut self) -> impl UiNode {
-        match self.widget_builder().capture_value_or_default(property_id!(Self::context_capture)) {
-            ContextCapture::CaptureBlend { filter, over } if filter != CaptureFilter::None => {
-                let ctx = LocalContext::capture_filtered(filter);
-                let wgt = WidgetBase::widget_build(self);
-                return with_context_blend(ctx, over, wgt).boxed();
-            }
-            _ => {}
-        }
-        WidgetBase::widget_build(self).boxed()
     }
 
     widget_impl! {
@@ -70,15 +49,6 @@ impl Popup {
     }
 }
 
-/// Defines if the popup captures the build/instantiate context and sets it
-/// in the node context.
-///
-/// This is enabled by default and lets the popup use context values from the widget
-/// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
-/// There are potential issues with this, see [`ContextCapture`] for more details.
-#[property(WIDGET, capture, widget_impl(Popup))]
-pub fn context_capture(mode: impl IntoValue<ContextCapture>) {}
-
 context_var! {
     /// Popup style in a context.
     ///
@@ -88,7 +58,17 @@ context_var! {
     pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 
     /// If popup will close when it it is no longer contains the focused widget.
+    ///
+    /// Is `true` by default.
     pub static CLOSE_ON_FOCUS_LEAVE_VAR: bool = true;
+
+    /// Popup anchor mode.
+    ///
+    /// Is `AnchorMode::popup(AnchorOffset::out_bottom())` by default.
+    pub static ANCHOR_MODE_VAR: AnchorMode = AnchorMode::popup(AnchorOffset::out_bottom());
+
+    /// Popup context capture.
+    pub static CONTEXT_CAPTURE_VAR: ContextCapture = ContextCapture::default();
 }
 
 /// Popup behavior when it loses focus.
@@ -97,8 +77,98 @@ context_var! {
 ///
 /// Sets the [`CLOSE_ON_FOCUS_LEAVE_VAR`].
 #[property(CONTEXT, default(CLOSE_ON_FOCUS_LEAVE_VAR))]
-pub fn clone_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> impl UiNode {
+pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, CLOSE_ON_FOCUS_LEAVE_VAR, close)
+}
+
+/// Defines the popup placement and size for popups open by the widget or descendants.
+#[property(CONTEXT, default(ANCHOR_MODE_VAR))]
+pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+    with_context_var(child, ANCHOR_MODE_VAR, mode)
+}
+
+/// Defines if the popup captures the build/instantiate context and sets it
+/// in the node context.
+///
+/// This is enabled by default and lets the popup use context values from the widget
+/// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
+/// There are potential issues with this, see [`ContextCapture`] for more details.
+///
+/// Note that updates to this property do not affect popups already open, just subsequent popups.
+#[property(CONTEXT, default(CONTEXT_CAPTURE_VAR))]
+pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
+    with_context_var(child, CONTEXT_CAPTURE_VAR, capture)
+}
+
+/// Popup service.
+pub struct POPUP;
+impl POPUP {
+    /// Open the `popup` with the current context.
+    pub fn open(&self, popup: impl UiNode) -> ReadOnlyArcVar<PopupState> {
+        self.open_impl(popup.boxed())
+    }
+    fn open_impl(&self, mut popup: BoxedUiNode) -> ReadOnlyArcVar<PopupState> {
+        let state = var(PopupState::Opening);
+
+        popup = match_widget(
+            popup,
+            clmv!(state, |c, op| match op {
+                UiNodeOp::Init => {
+                    c.init();
+                    let id = c.with_context(WidgetUpdateMode::Bubble, || {
+                        WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
+                        WIDGET.id()
+                    });
+                    if let Some(id) = id {
+                        state.set(PopupState::Open(id));
+                    } else {
+                        state.set(PopupState::Closed);
+                    }
+                }
+                UiNodeOp::Deinit => {
+                    state.set(PopupState::Closed);
+                }
+                UiNodeOp::Event { update } => {
+                    c.with_context(WidgetUpdateMode::Bubble, || {
+                        if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                            let id = WIDGET.id();
+                            if args.is_focus_leave(id) && CLOSE_ON_FOCUS_LEAVE_VAR.get() {
+                                POPUP.close(id);
+                            }
+                        }
+                    });
+                }
+                _ => {}
+            }),
+        )
+        .boxed();
+
+        let capture = CONTEXT_CAPTURE_VAR.get();
+        if let ContextCapture::CaptureBlend { filter, over } = capture {
+            if filter != CaptureFilter::None {
+                popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
+            }
+        }
+        LAYERS.insert_anchored(LayerIndex::TOP_MOST, WIDGET.id(), ANCHOR_MODE_VAR, popup);
+
+        state.read_only()
+    }
+
+    /// Deinit and drop the popup widget.
+    pub fn close(&self, widget_id: WidgetId) {
+        LAYERS.remove(widget_id);
+    }
+}
+
+/// Identifies the lifetime state of a popup managed by [`POPUP`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PopupState {
+    /// Popup will open on the next update.
+    Opening,
+    /// Popup is open and can close it self, or be closed using the ID.
+    Open(WidgetId),
+    /// Popup is closed.
+    Closed,
 }
 
 /// Sets the popup style in a context, the parent style is fully replaced.

@@ -1186,7 +1186,7 @@ impl AnchorMode {
         AnchorMode {
             transform: place.into(),
             min_size: AnchorSize::InnerSize,
-            max_size: AnchorSize::Window,
+            max_size: AnchorSize::Unbounded,
             visibility: true,
             viewport_bound: true,
             interactivity: true,

@@ -1,5 +1,3 @@
-* Review foreground_color in popup.
-
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
@@ -46,6 +44,8 @@
 
 # Menu
 
+* Support close animation in `Popup!`.
+    - Needs the same mechanism we invented for `Tooltip!`?
 * Implement styleable stack `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
     - Nested menus, auto-close on click.
