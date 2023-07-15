@@ -86,6 +86,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
     let tip = tip.into_var();
     let mut pop_state = var(PopupState::Closed).read_only();
     let mut open_delay = None::<DeadlineVar>;
+    let mut auto_close = None::<DeadlineVar>;
     match_node(child, move |child, op| {
         let mut open = false;
 
@@ -97,8 +98,13 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 child.deinit();
 
                 open_delay = None;
+                auto_close = None;
                 if let PopupState::Open(not_closed) = pop_state.get() {
                     POPUP.force_close(not_closed);
+                    let mut global = OPEN_TOOLTIP.write();
+                    if *global == Some(not_closed) {
+                        *global = None;
+                    }
                     TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                 }
             }
@@ -182,6 +188,31 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         open_delay = None;
                     }
                 }
+                if let Some(d) = &auto_close {
+                    if d.get().has_elapsed() {
+                        auto_close = None;
+                        match pop_state.get() {
+                            PopupState::Opening => {
+                                // cancel
+                                pop_state
+                                    .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
+                                        match a.value {
+                                            PopupState::Open(id) => {
+                                                POPUP.force_close(id);
+                                            }
+                                            PopupState::Closed => {}
+                                            PopupState::Opening => unreachable!(),
+                                        }
+                                    }))
+                                    .perm();
+                            }
+                            PopupState::Open(id) => {
+                                POPUP.close(id);
+                            }
+                            PopupState::Closed => {}
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -190,6 +221,15 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
             let popup = tip.get()(TooltipArgs { disabled: disabled_only });
             // !!: TODO, more context vars.
             pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, ContextCapture::DontCapture);
+
+            let duration = TOOLTIP_DURATION_VAR.get();
+            if duration > Duration::ZERO {
+                let d = TIMERS.deadline(duration);
+                d.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                auto_close = Some(d);
+            } else {
+                auto_close = None;
+            }
         }
     })
 }
@@ -233,6 +273,8 @@ pub fn tooltip_interval(child: impl UiNode, interval: impl IntoVar<Duration>) ->
 ///
 /// Note that the tooltip closes at the moment the cursor leaves the widget, this duration defines the
 /// time the tooltip is closed even if the cursor is still hovering the widget.
+///
+/// Zero means indefinitely, is zero by default.
 ///
 /// This property sets the [`TOOLTIP_DURATION_VAR`].
 #[property(CONTEXT, default(TOOLTIP_DURATION_VAR))]
@@ -281,7 +323,7 @@ context_var! {
     /// Maximum duration from the last time a tooltip was shown that a new tooltip opens instantly.
     pub static TOOLTIP_INTERVAL_VAR: Duration = 100.ms();
 
-    /// Maximum time a tooltip stays open.
+    /// Maximum time a tooltip stays open, zero is indefinitely.
     pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
 }
 
