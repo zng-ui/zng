@@ -151,7 +151,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 
                 match mode {
                     ClickMode::Default => Some(hovered && is_down),
-                    ClickMode::Repeat | ClickMode::Mixed => Some(is_down || is_captured),
+                    ClickMode::Repeat | ClickMode::DefaultRepeat => Some(is_down || is_captured),
                 }
             }
         },

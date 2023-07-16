@@ -803,7 +803,7 @@ impl MouseManager {
 
             let timer = match click_mode {
                 ClickMode::Default => None,
-                ClickMode::Repeat | ClickMode::Mixed => {
+                ClickMode::Repeat | ClickMode::DefaultRepeat => {
                     let t = mouse.repeat_config.get().start_delay;
                     Some(TIMERS.deadline(t))
                 }
@@ -1506,7 +1506,7 @@ enum ClickState {
         stop_handle: EventPropagationHandle,
     },
     /// At least one click completed, as long as subsequent presses happen
-    /// within the window of time, widget and distance from the initial press
+    /// within the interval, widget and distance from the initial press
     /// multi-click events are generated.
     Clicked {
         start_time: Instant,
@@ -1518,36 +1518,43 @@ enum ClickState {
     },
 }
 
+/// Represents mouse gestures that can initiate a click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum ClickGesture {
+    /// Widget is clicked when the same mouse button is pressed and released on it.
+    PressRelease,
+    /// Widget is clicked when a mouse button is pressed on it.
+    Press,
+    /// Widget is clicked when a mouse button is released on it, even if not pressed on it.
+    Release,
+    /// Widget is clicked when the mouse enters it.
+    Hover(MouseButton),
+}
+
 /// Defines how click events are generated for a widget.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum ClickMode {
-    /// First click happens after button press and release, subsequent clicks happen on button press within
-    /// the "double-click" window.
-    #[default]
-    Default,
-    /// Click happens immediately on button down, and after a button press is held for a period of time, and subsequent
-    /// repeat clicks happens on an interval while the button press is held.
-    ///
-    /// The initial delay and interval can be configured in [`MOUSE.repeat_config`].
-    Repeat,
-    /// Like `Repeat`, but click does not happen immediately on button down, and a click happens if pressed and released
-    /// before the repeat delay elapses, just like `Default`.
-    Mixed,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ClickMode {
+    /// Gesture that causes the *first* click, that is a click that is not in the double-click interval.
+    pub first: ClickGesture,
+
+    /// Gesture that causes the subsequent clicks, if done within the double-click interval.
+    /// 
+    /// Note that `Hovered` is always ignored here.
+    pub double: ClickGesture,
+
+    /// If a mouse button is held pressed after a delay generate repeat clicks on an interval.
+    /// 
+    /// If first is [`ClickGesture::Hovered`] the repeat delay is from the mouse enter.
+    pub repeat: bool,
 }
-impl fmt::Debug for ClickMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ClickMode::")?;
-        match self {
-            Self::Default => write!(f, "Default"),
-            Self::Repeat => write!(f, "Repeat"),
-            Self::Mixed => write!(f, "Mixed"),
+impl Default for ClickMode {
+    /// First `PressRelease`, double `Press` and no repeat.
+    fn default() -> Self {
+        Self {
+            first: ClickGesture::PressRelease,
+            double: ClickGesture::Press,
+            repeat: false,
         }
-    }
-}
-impl ClickMode {
-    /// If this click mode will generate "repeat" clicks if the mouse is held pressed over the widget.
-    pub fn repeats_on_press(self) -> bool {
-        matches!(self, ClickMode::Repeat | ClickMode::Mixed)
     }
 }
 impl IntoVar<Option<ClickMode>> for ClickMode {
@@ -1555,6 +1562,34 @@ impl IntoVar<Option<ClickMode>> for ClickMode {
 
     fn into_var(self) -> Self::Var {
         Some(self).into_var()
+    }
+}
+impl_from_and_into_var! {
+    fn from(gesture: ClickGesture) -> ClickMode {
+        ClickMode {
+            first: gesture,
+            double: gesture,
+            repeat: false,
+        }
+    }
+}
+impl ClickMode {
+    /// Click on press and repeat.
+    pub fn repeat() -> Self {
+        Self {
+            first: ClickGesture::Press,
+            double: ClickGesture::Press,
+            repeat: true,
+        }
+    }
+
+    /// Click on press+release or repeat.
+    pub fn mixed_repeat() -> Self {
+        Self {
+            first: ClickGesture::PressRelease,
+            double: ClickGesture::Press,
+            repeat: true,
+        }
     }
 }
 
@@ -1570,7 +1605,7 @@ impl WidgetInfoMouseExt for WidgetInfo {
                 return m;
             }
         }
-        ClickMode::Default
+        ClickMode::default()
     }
 }
 
@@ -1656,7 +1691,7 @@ impl MOUSE {
         MOUSE_SV.read().multi_click_config.read_only()
     }
 
-    /// Variable that gets and sets the config for [`ClickMode::Repeat`] and [`ClickMode::Mixed`] clicks.
+    /// Variable that gets and sets the config for [`ClickMode::Repeat`] and [`ClickMode::DefaultRepeat`] clicks.
     ///
     /// Note that this variable is linked with [`KEYBOARD.repeat_config`] until it is set, so if it is never set
     /// it will update with the keyboard value.

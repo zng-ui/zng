@@ -1,3 +1,8 @@
+* Implement `ClickMode` for always down+up, no double/repeats.
+* Change toggle buttons to `ClickGesture::Press`.
+* Test everything.
+* Merge.
+
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
