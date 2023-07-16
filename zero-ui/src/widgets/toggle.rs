@@ -896,6 +896,7 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 pub struct ComboStyle(DefaultStyle);
 impl ComboStyle {
     fn widget_intrinsic(&mut self) {
+        use super::popup;
         widget_set! {
             self;
             child_align = Align::FILL;
@@ -906,6 +907,24 @@ impl ComboStyle {
             crate::properties::child_insert_end = {
                 insert: combomark_visual(),
                 spacing: COMBO_SPACING_VAR,
+            };
+
+            popup::extend_style = Style! {
+                #[easing(100.ms())]
+                opacity = 0.pct();
+                #[easing(100.ms())]
+                y = -10;
+
+                when *#is_inited {
+                    opacity = 100.pct();
+                    y = 0;
+                }
+
+                popup::close_delay = 100.ms();
+                when *#popup::is_close_delaying {
+                    opacity = 0.pct();
+                    y = -10;
+                }
             };
         }
     }

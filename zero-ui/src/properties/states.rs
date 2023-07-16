@@ -282,5 +282,46 @@ pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
     bind_is_state(child, merge_var!(pointer_pressed, shortcut_pressed, |&p, &s| p || s), state)
 }
 
+/// If the widget has inited.
+///
+/// The `state` is set to `true` on init and to `false` on deinit. This property is useful for
+/// declaring transition animations that play on init using `when` blocks.
+///
+/// # Examples
+///
+/// Animate a popup when it opens:
+///
+/// ```
+/// use zero_ui::prelude::*;
+///
+/// # let _ =
+/// popup::Popup! {
+///     opacity = 0.pct();
+///     y = -10;
+///     when *#is_inited {
+///         #[easing(100.ms())]
+///         opacity = 100.pct();
+///         #[easing(100.ms())]
+///         y = 0;
+///     }
+///     
+///     // ..
+/// }
+/// #;
+/// ```
+#[property(CONTEXT)]
+pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            let _ = state.set(true);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(false);
+        }
+        _ => {}
+    })
+}
+
 #[doc(no_inline)]
 pub use crate::core::widget_base::{is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_visible};

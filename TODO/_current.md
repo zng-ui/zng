@@ -1,5 +1,3 @@
-* Implement combo-box popup animations.
-
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).

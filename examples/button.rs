@@ -228,6 +228,12 @@ fn combo_box() -> impl UiNode {
                         base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
                     }
                 };
+
+                opacity = 0.fct();
+                when true {
+                    #[easing(1200.ms())]
+                    opacity = 1.fct();
+                }
             };
         })
     }
