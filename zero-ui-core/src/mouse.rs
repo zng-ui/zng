@@ -1092,8 +1092,18 @@ impl MouseManager {
         }
     }
 
-    fn on_window_blur(&mut self, window_id: WindowId) {
-        self.release_window_capture(window_id);
+    fn on_window_blur(&mut self, prev_window: WindowId, new_window: Option<WindowId>) {
+        self.release_window_capture(prev_window);
+
+        if new_window.is_some() {
+            if let Some(p) = self.pos_window {
+                if p == prev_window {
+                    self.clean_all_state();
+                }
+            }
+        } else {
+            self.clean_all_state();
+        }
     }
 
     fn on_window_closed(&mut self, window_id: WindowId) {
@@ -1191,6 +1201,59 @@ impl MouseManager {
             MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, None));
         }
     }
+
+    fn clean_all_state(&mut self) {
+        let mut mouse = MOUSE_SV.write();
+
+        if let Some(window_id) = self.pos_window.take() {
+            if let Some(path) = self.hovered.take() {
+                mouse.buttons.with(|b| {
+                    for btn in b {
+                        let args = MouseInputArgs::now(
+                            window_id,
+                            None,
+                            *btn,
+                            DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                            ModifiersState::empty(),
+                            ButtonState::Released,
+                            HitTestInfo::no_hits(window_id),
+                            path.clone(),
+                            None,
+                            None,
+                        );
+                        MOUSE_INPUT_EVENT.notify(args);
+                    }
+                });
+
+                let args = MouseHoverArgs::now(
+                    window_id,
+                    None,
+                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                    HitTestInfo::no_hits(window_id),
+                    Some(path),
+                    None,
+                    None,
+                    None,
+                );
+                MOUSE_HOVERED_EVENT.notify(args);
+            }
+        }
+        if let Some(cap) = self.current_capture.take() {
+            mouse.capture.set(None);
+            let args = MouseCaptureArgs::now(cap, None);
+            MOUSE_CAPTURE_EVENT.notify(args);
+        }
+        mouse.buttons.set(vec![]);
+        mouse.capture_request = None;
+        mouse.release_requested = false;
+        self.capture_count = 0;
+        self.clicking.clear();
+        self.pos_device = None;
+        self.pos_window = None;
+        self.pos_hits = None;
+        mouse.position.set(None);
+        mouse.hovered.set(None);
+    }
 }
 impl AppExtension for MouseManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -1236,7 +1299,7 @@ impl AppExtension for MouseManager {
             self.on_cursor_left_window(args.window_id, args.device_id);
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if let Some(window_id) = args.prev_focus {
-                self.on_window_blur(window_id);
+                self.on_window_blur(window_id, args.new_focus);
             }
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id);
@@ -1247,54 +1310,7 @@ impl AppExtension for MouseManager {
             MOUSE_SV.read().multi_click_config.set(args.multi_click_config);
 
             if args.is_respawn {
-                let mut mouse = MOUSE_SV.write();
-
-                if let Some(window_id) = self.pos_window.take() {
-                    if let Some(path) = self.hovered.take() {
-                        mouse.buttons.with(|b| {
-                            for btn in b {
-                                let args = MouseInputArgs::now(
-                                    window_id,
-                                    None,
-                                    *btn,
-                                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                                    ModifiersState::empty(),
-                                    ButtonState::Released,
-                                    HitTestInfo::no_hits(window_id),
-                                    path.clone(),
-                                    None,
-                                    None,
-                                );
-                                MOUSE_INPUT_EVENT.notify(args);
-                            }
-                        });
-                        let args = MouseHoverArgs::now(
-                            window_id,
-                            None,
-                            DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                            HitTestInfo::no_hits(window_id),
-                            Some(path),
-                            None,
-                            None,
-                            None,
-                        );
-                        MOUSE_HOVERED_EVENT.notify(args);
-                    }
-                }
-                if let Some(cap) = self.current_capture.take() {
-                    mouse.capture.set(None);
-                    let args = MouseCaptureArgs::now(cap, None);
-                    MOUSE_CAPTURE_EVENT.notify(args);
-                }
-                mouse.capture_request = None;
-                mouse.release_requested = false;
-                self.capture_count = 0;
-                self.clicking.clear();
-                self.pos_device = None;
-                self.pos_window = None;
-                self.pos_hits = None;
-                mouse.position.set(None);
-                mouse.hovered.set(None);
+                self.clean_all_state();
             }
         }
     }

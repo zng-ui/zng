@@ -129,10 +129,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             }
                         }
                         PopupState::Open(id) => {
-                            if !args
+                            if args
                                 .target
                                 .as_ref()
-                                .map(|t| t.contains(id) || t.contains(WIDGET.id()))
+                                .map(|t| !t.contains(id) && !t.contains(WIDGET.id()))
                                 .unwrap_or(true)
                             {
                                 // mouse not over self and tooltip
