@@ -8,11 +8,13 @@ struct Foo;
 impl Foo {
     #[property(CONTEXT)]
     pub fn self_method1(self, input: impl IntoVar<bool>) -> impl UiNode {
+        let _ = input;
         NilUiNode
     }
 
     #[property(CONTEXT)]
     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
+        let _ = input;
         NilUiNode
     }
 }

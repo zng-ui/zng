@@ -84,7 +84,7 @@ pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> im
 }
 
 /// Defines the popup placement and size for popups open by the widget or descendants.
-/// 
+///
 /// This property sets the [`ANCHOR_MODE_VAR`].
 #[property(CONTEXT, default(ANCHOR_MODE_VAR))]
 pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
@@ -99,7 +99,7 @@ pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl U
 /// There are potential issues with this, see [`ContextCapture`] for more details.
 ///
 /// Note that updates to this property do not affect popups already open, just subsequent popups.
-/// 
+///
 /// This property sets the [`CONTEXT_CAPTURE_VAR`].
 #[property(CONTEXT, default(CONTEXT_CAPTURE_VAR))]
 pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {

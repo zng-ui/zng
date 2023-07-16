@@ -1,14 +1,5 @@
-error[E0412]: cannot find type `Unknown` in this scope
+error[E0412]: cannot find type `UnknownType` in this scope
  --> cases/widget/unknown_inherit.rs:4:23
   |
-4 | pub struct TestWidget(Unknown);
-  |                       ^^^^^^^ not found in this scope
-  |
-help: there is an enum variant `core::fmt::rt::v1::Alignment::Unknown` and 3 others; try using the variant's enum
-  |
-4 | pub struct TestWidget(core::fmt::rt::v1::Alignment);
-  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-4 | pub struct TestWidget(crate::unic_langid::LanguageIdentifierError);
-  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-4 | pub struct TestWidget(std::fmt::rt::v1::Alignment);
-  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 | pub struct TestWidget(UnknownType);
+  |                       ^^^^^^^^^^^ not found in this scope

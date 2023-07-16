@@ -299,7 +299,7 @@ pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> imp
 /// There are potential issues with this, see [`ContextCapture`] for more details.
 ///
 /// Note that updates to this property do not affect tooltips already open, just subsequent tooltips.
-/// 
+///
 /// This property sets the [`TOOLTIP_CONTEXT_CAPTURE_VAR`].
 ///
 /// [`LAYERS`]: crate::widgets::window::layers::LAYERS
@@ -388,7 +388,7 @@ context_var! {
     pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
 
     /// Tooltip context capture.
-    /// 
+    ///
     /// Is [`ContextCapture::NoCapture`] by default.
     pub static TOOLTIP_CONTEXT_CAPTURE_VAR: ContextCapture = ContextCapture::NoCapture;
 }

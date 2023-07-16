@@ -2,6 +2,7 @@ use zero_ui::prelude::{new_property::*, *};
 
 #[property(CONTEXT)]
 pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
+    let _ = (simple_a, simple_b);
     child
 }
 

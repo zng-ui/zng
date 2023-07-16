@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
-  --> cases/widget_new/incorrect_arg_type6.rs:13:23
+  --> cases/widget_new/incorrect_arg_type6.rs:14:23
    |
-13 |             simple_b: true,
+14 |             simple_b: true,
    |             --------  ^^^^ the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
    |             |
    |             required by a bound introduced by this call

@@ -11,7 +11,7 @@ error: property input can only have `impl OneTrait` types
   |                                           ^^^^
 
 error[E0601]: `main` function not found in crate `$CRATE`
- --> cases/property/incorrect_attr_args.rs:6:2
+ --> cases/property/incorrect_attr_args.rs:7:2
   |
-6 | }
+7 | }
   |  ^ consider adding a `main` function to `$DIR/cases/property/incorrect_attr_args.rs`

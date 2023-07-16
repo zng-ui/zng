@@ -5,7 +5,7 @@ error: methods cannot be properties
    |                         ^^^^
 
 error: methods cannot be properties
-  --> cases/property/method_cannot_be_property.rs:15:25
+  --> cases/property/method_cannot_be_property.rs:16:25
    |
-15 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
+16 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
    |                         ^^^^

@@ -8,7 +8,7 @@ struct NotUiNode;
 
 #[property(CONTEXT)]
 pub fn invalid_child(child: NotUiNode, input: impl IntoVar<bool>) -> impl UiNode {
-    let _ = input;
+    let _ = (child, input);
     NilUiNode
 }
 
