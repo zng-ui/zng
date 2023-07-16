@@ -90,14 +90,18 @@ fn image_button() -> impl UiNode {
     }
 }
 fn repeat_button() -> impl UiNode {
+    let t = var(Txt::from_static("Repeat Click!"));
+
     Button! {
         id = "repeat-btn";
-        click_mode = ClickMode::Repeat;
-        on_click = hn!(|args: &ClickArgs| {
-            println!("Clicked repeat button, is_repeat={}, click_count={}", args.is_repeat, args.click_count);
+        click_mode = ClickMode::repeat();
+        on_click = hn!(t, |args: &ClickArgs| {
+            let new_txt = formatx!("repeat: {}, count: {}", args.is_repeat, args.click_count);
+            t.set(new_txt);
         });
 
-        child = Text!("Repeat Click!");
+        child = Text!(t);
+        tooltip = Tip!(Text!("Repeat Click!"));
     }
 }
 

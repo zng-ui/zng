@@ -88,8 +88,8 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// the widget is fully [`ENABLED`].
 ///
 /// This state property only considers mouse capture for repeat [click modes](ClickMode), if the pointer is captured by a widget
-/// with [`ClickMode::Default`] and the pointer is not actually over the widget the state is `false`, use [`is_cap_pointer_pressed`] to
-/// always include the captured state.
+/// with [`ClickMode::repeat`] `false` and the pointer is not actually over the widget the state is `false`,
+/// use [`is_cap_pointer_pressed`] to always include the captured state.
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
@@ -139,7 +139,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
         },
         {
             let mut info_gen = 0;
-            let mut mode = ClickMode::Default;
+            let mut mode = ClickMode::default();
 
             move |hovered, is_down, is_captured| {
                 // cache mode
@@ -149,9 +149,10 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
                     info_gen = tree.stats().generation;
                 }
 
-                match mode {
-                    ClickMode::Default => Some(hovered && is_down),
-                    ClickMode::Repeat | ClickMode::DefaultRepeat => Some(is_down || is_captured),
+                if mode.repeat {
+                    Some(is_down || is_captured)
+                } else {
+                    Some(hovered && is_down)
                 }
             }
         },

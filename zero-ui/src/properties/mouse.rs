@@ -63,7 +63,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 
 /// Defines how click events are generated for the widget.
 ///
-/// Setting this to `None` will cause the widget to inherit the parent mode, or [`ClickMode::Default`] if
+/// Setting this to `None` will cause the widget to inherit the parent mode, or [`ClickMode::default()`] if
 /// no parent sets the click mode.
 #[property(CONTEXT, default(None))]
 pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> impl UiNode {

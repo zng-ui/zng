@@ -12,7 +12,7 @@ impl Scrollbar {
         widget_set! {
             self;
             crate::properties::background_color = vis::BACKGROUND_VAR;
-            crate::properties::click_mode = ClickMode::Repeat;
+            crate::properties::click_mode = ClickMode::repeat();
             crate::properties::events::mouse::on_mouse_click = scroll_click_handler();
         }
 
