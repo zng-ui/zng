@@ -1,3 +1,8 @@
+* Panic on inspect.
+    - Caused by trying to get a when set var outside the widget.
+    - Fix for shared when in shared `Style!` broke this.
+* Find-out why `Toggle!` sets cursor to `Default`.
+
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
@@ -45,6 +50,7 @@
 # Menu
 
 * ComboStyle, implement press on toggle, drag and release to click option.
+    - Need to transfer the mouse capture to the popup?
 * Support close animation in `Popup!`.
     - Needs the same mechanism we invented for `Tooltip!`?
 * Implement styleable stack `Menu!`.

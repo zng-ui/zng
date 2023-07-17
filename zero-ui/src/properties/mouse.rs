@@ -23,7 +23,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     let cursor = cursor.into_var();
     let mut hovered_binding = None;
 
-    match_node(child, move |child, op| match op {
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
         }
@@ -31,8 +31,6 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
             hovered_binding = None;
         }
         UiNodeOp::Event { update } => {
-            child.event(update);
-
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 let is_over = args.target.as_ref().map(|t| t.as_path().contains(WIDGET.id())).unwrap_or(false);
                 if is_over {
