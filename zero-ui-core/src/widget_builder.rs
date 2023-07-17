@@ -1299,7 +1299,7 @@ impl<T: VarValue> WhenInputInitData<T> {
         match r {
             Some(r) => r,
             None => {
-                if self.data.len() > 0 {
+                if !self.data.is_empty() {
                     tracing::error!("when input not inited");
                     self.data[0].1.clone()
                 } else {
@@ -2570,6 +2570,7 @@ impl WidgetBuilding {
                 crate::inspector::InspectorInfo {
                     builder,
                     items: inspector_items.into_boxed_slice(),
+                    context: crate::inspector::InspectorContext::new(),
                 },
             )
             .boxed();

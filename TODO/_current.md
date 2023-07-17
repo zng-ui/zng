@@ -1,3 +1,11 @@
+* Error when scrolling to end.
+    - "zero_ui_core::var::contextualized: index out of bounds: the len is 1062 but the index is 1070".
+    - There are also a lot more contexts then expected.
+    - Happens in the icon example too.
+        - Maybe caused by lazy?
+* Error on re-inspect.
+    - Update before info.
+
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
@@ -90,17 +98,3 @@
         - Backface vis.
     - Touch events.
         - Use `Spacedesk` to generate touch events.
-
-# Inspector
-
-* Variables are not resolved in the right context.
-    - Very visible now that when vars log an error.
-    - This was already a problem?
-        - If a var depends on context it was not resolved to the right actual for inspection.
-* Capture context for inspector.
-    - Once on info for every widget?
-        - May be to too expensive.
-        - Solves the error print issue, but not the issue with context on the same widget (inside inspector node)
-          affecting the read.
-    - Capture only when key?
-        - Quick fix for the panic/error, leaves better fixes for when we design the actual inspector.

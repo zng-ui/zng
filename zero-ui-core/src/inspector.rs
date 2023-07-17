@@ -9,12 +9,18 @@ pub mod prompt;
 mod inspector_only {
     use std::sync::Arc;
 
-    use crate::widget_instance::{match_node, BoxedUiNode, UiNode, UiNodeOp};
+    use crate::{
+        context::LocalContext,
+        widget_instance::{match_node, BoxedUiNode, UiNode, UiNodeOp},
+    };
 
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
         let insp_info = Arc::new(info);
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
+                let ctx = LocalContext::capture();
+                *insp_info.context.ctx.lock() = ctx;
+
                 info.set_meta(&super::INSPECTOR_INFO_ID, insp_info.clone());
             }
         })
@@ -22,11 +28,12 @@ mod inspector_only {
 }
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
+use parking_lot::Mutex;
 
 use std::{any::TypeId, sync::Arc};
 
 use crate::{
-    context::{StaticStateId, WidgetUpdateMode, WIDGET},
+    context::{LocalContext, StaticStateId, WidgetUpdateMode, WIDGET},
     widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     widget_info::WidgetInfo,
 };
@@ -66,6 +73,11 @@ pub struct InspectorInfo {
 
     /// Final instance items.
     pub items: Box<[InstanceItem]>,
+
+    /// Widget context.
+    ///
+    /// Property variables can only be resolved inside this context.
+    pub context: InspectorContext,
 }
 impl InspectorInfo {
     /// Iterate over property items.
@@ -77,9 +89,35 @@ impl InspectorInfo {
     }
 }
 
+/// Latest info [`LocalContext`] that must be used to inspect property variables.
+///
+/// The context is captured every info update, so may not reflect the exact context the
+/// widget properties read the variable.
+pub struct InspectorContext {
+    ctx: Arc<Mutex<LocalContext>>,
+}
+impl InspectorContext {
+    /// New with empty context.
+    pub fn new() -> Self {
+        Self {
+            ctx: Arc::new(Mutex::new(LocalContext::new())),
+        }
+    }
+
+    /// Clone the latest context.
+    pub fn latest_capture(&self) -> LocalContext {
+        self.ctx.lock().clone()
+    }
+}
+impl Default for InspectorContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Extensions methods for [`WidgetInfo`].
 pub trait WidgetInfoInspectorExt {
-    /// Reference the builder that was used to instantiate the widget and the builder generated items.
+    /// Reference the builder that was used to generate the widget, the builder generated items and the widget info context.
     ///
     /// Returns `None` if not build with the `"inspector"` feature, or if the widget instance was not created using
     /// the standard builder.

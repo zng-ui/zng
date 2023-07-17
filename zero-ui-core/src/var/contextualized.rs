@@ -60,7 +60,14 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         drop(act);
 
         let act = self.actual.read_recursive();
-        RwLockReadGuard::map(act, move |m| &m[i].1)
+        RwLockReadGuard::map(act, move |m| {
+            if i < m.len() || m.is_empty() {
+                &m[i].1
+            } else {
+                tracing::error!("index out of bounds: the len is {} but the index is {}", m.len(), i);
+                &m[m.len() - 1].1
+            }
+        })
     }
 
     /// Unwraps the initialized actual var or initializes it now.

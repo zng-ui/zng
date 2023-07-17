@@ -67,63 +67,66 @@ impl WriteTreeState {
     fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {
         let mut wgt_name = "<widget>";
         if let Some(inf) = info.inspector_info() {
-            wgt_name = inf.builder.widget_type().name();
+            let mut ctx = inf.context.latest_capture();
+            ctx.with_context(|| {
+                wgt_name = inf.builder.widget_type().name();
 
-            let widget_id = info.id();
-            let (parent_name, parent_prop) = match info.parent_property() {
-                Some((p, _)) => (
-                    info.parent().unwrap().inspector_info().unwrap().builder.widget_type().name(),
-                    info.parent().unwrap().inspect_property(p).unwrap().property().name,
-                ),
-                None => ("", ""),
-            };
-
-            fmt.open_widget(wgt_name, parent_name, parent_prop);
-
-            for item in inf.items.iter() {
-                let args = match item {
-                    super::InstanceItem::Property { args, .. } => args,
-                    super::InstanceItem::Intrinsic { group, name } => {
-                        fmt.write_instrinsic(group.name(), name);
-                        continue;
-                    }
+                let widget_id = info.id();
+                let (parent_name, parent_prop) = match info.parent_property() {
+                    Some((p, _)) => (
+                        info.parent().unwrap().inspector_info().unwrap().builder.widget_type().name(),
+                        info.parent().unwrap().inspect_property(p).unwrap().property().name,
+                    ),
+                    None => ("", ""),
                 };
 
-                let info = args.property();
-                let group = info.group.name();
-                let name = info.name;
-                let user_assigned = if let Some(p) = inf.builder.property(args.id()) {
-                    p.importance == Importance::INSTANCE
-                } else {
-                    false
-                };
+                fmt.open_widget(wgt_name, parent_name, parent_prop);
 
-                if info.inputs.len() == 1 {
-                    let version = match info.inputs[0].kind {
-                        InputKind::Var => Some(args.var(0).last_update()),
-                        _ => None,
+                for item in inf.items.iter() {
+                    let args = match item {
+                        super::InstanceItem::Property { args, .. } => args,
+                        super::InstanceItem::Intrinsic { group, name } => {
+                            fmt.write_instrinsic(group.name(), name);
+                            continue;
+                        }
                     };
-                    let value = print_fmt::Diff {
-                        value: args.debug(0),
-                        changed: version.map(|ver| self.update((widget_id, args.id(), 0), ver)).unwrap_or(false),
+
+                    let info = args.property();
+                    let group = info.group.name();
+                    let name = info.name;
+                    let user_assigned = if let Some(p) = inf.builder.property(args.id()) {
+                        p.importance == Importance::INSTANCE
+                    } else {
+                        false
                     };
-                    fmt.write_property(group, name, user_assigned, version.is_some(), value);
-                } else {
-                    fmt.open_property(group, name, user_assigned);
-                    for (i, input) in info.inputs.iter().enumerate() {
-                        let version = match input.kind {
-                            InputKind::Var => Some(args.var(i).last_update()),
+
+                    if info.inputs.len() == 1 {
+                        let version = match info.inputs[0].kind {
+                            InputKind::Var => Some(args.var(0).last_update()),
                             _ => None,
                         };
                         let value = print_fmt::Diff {
-                            value: args.debug(i),
-                            changed: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
+                            value: args.debug(0),
+                            changed: version.map(|ver| self.update((widget_id, args.id(), 0), ver)).unwrap_or(false),
                         };
-                        fmt.write_property_arg(input.name, user_assigned, version.is_some(), value);
+                        fmt.write_property(group, name, user_assigned, version.is_some(), value);
+                    } else {
+                        fmt.open_property(group, name, user_assigned);
+                        for (i, input) in info.inputs.iter().enumerate() {
+                            let version = match input.kind {
+                                InputKind::Var => Some(args.var(i).last_update()),
+                                _ => None,
+                            };
+                            let value = print_fmt::Diff {
+                                value: args.debug(i),
+                                changed: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
+                            };
+                            fmt.write_property_arg(input.name, user_assigned, version.is_some(), value);
+                        }
+                        fmt.close_property(user_assigned);
                     }
-                    fmt.close_property(user_assigned);
                 }
-            }
+            });
         } else {
             fmt.open_widget(wgt_name, "", "");
         }
