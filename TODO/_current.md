@@ -1,8 +1,4 @@
-* Error when scrolling to end.
-    - "zero_ui_core::var::contextualized: index out of bounds: the len is 1062 but the index is 1070".
-    - There are also a lot more contexts then expected.
-    - Happens in the icon example too.
-        - Maybe caused by lazy?
+* `ContextualizedVar::borrow_init` gets a lot more contexts than expected (>1000).
 * Error on re-inspect.
     - Update before info.
 

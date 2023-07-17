@@ -45,7 +45,8 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<S> {
-        let current_ctx = ContextInitHandle::current().downgrade();
+        let current_ctx = ContextInitHandle::current();
+        let current_ctx = current_ctx.downgrade();
 
         let act = self.actual.read_recursive();
         if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
@@ -56,16 +57,20 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         let mut act = self.actual.write();
         act.retain(|(h, _)| h.is_alive());
         let i = act.len();
-        act.push((current_ctx, (self.init)()));
+
+        if !act.iter().any(|(c, _)| c == &current_ctx) {
+            act.push((current_ctx.clone(), (self.init)()));
+        }
         drop(act);
 
         let act = self.actual.read_recursive();
         RwLockReadGuard::map(act, move |m| {
-            if i < m.len() || m.is_empty() {
+            if i < m.len() && m[i].0 == current_ctx {
+                &m[i].1
+            } else if let Some(i) = m.iter().position(|(h, _)| h == &current_ctx) {
                 &m[i].1
             } else {
-                tracing::error!("index out of bounds: the len is {} but the index is {}", m.len(), i);
-                &m[m.len() - 1].1
+                unreachable!()
             }
         })
     }
