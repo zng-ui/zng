@@ -9,9 +9,10 @@ use std::sync::Arc;
 
 /// Capture mouse for the widget on mouse down.
 ///
-/// The mouse is captured when the widget gets the first mouse down and the `mode` is [`Widget`] or [`Subtree`].
+/// The mouse is captured when the widget is pressed by a mouse button and the `mode` is [`Widget`] or [`Subtree`].
 ///
-/// The capture is released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
+/// Mouse captures are released when all mouse buttons stop being pressed on the window.
+/// The capture is also released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
 ///
 /// # Examples
 ///
@@ -56,6 +57,63 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                         }
                         CaptureMode::Window => (),
                     }
+                }
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(new_mode) = mode.get_new() {
+                let tree = WINDOW.widget_tree();
+                let widget_id = WIDGET.id();
+                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
+                    if let Some((current, _)) = MOUSE.current_capture().get() {
+                        if current.widget_id() == widget_id {
+                            // If mode updated and we are capturing the mouse:
+                            match new_mode {
+                                CaptureMode::Widget => MOUSE.capture_widget(widget_id),
+                                CaptureMode::Subtree => MOUSE.capture_subtree(widget_id),
+                                CaptureMode::Window => MOUSE.release_capture(),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Capture mouse for the widget on init.
+///
+/// The mouse is captured only if any mouse button is pressed on the window and the `mode` is [`Widget`] or [`Subtree`].
+///
+/// Mouse captures are released when all mouse buttons stop being pressed on the window.
+/// The capture is also released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
+///
+/// [`Widget`]: CaptureMode::Widget
+/// [`Subtree`]: CaptureMode::Subtree
+/// [`Window`]: CaptureMode::Window
+#[property(CONTEXT, default(false))]
+pub fn capture_mouse_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
+    let mode = mode.into_var();
+    let mut capture = true;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&mode);
+            capture = true; // wait for info
+        }
+        UiNodeOp::Info { .. } => {
+            if std::mem::take(&mut capture) {
+                let widget_id = WIDGET.id();
+
+                match mode.get() {
+                    CaptureMode::Widget => {
+                        MOUSE.capture_widget(widget_id);
+                    }
+                    CaptureMode::Subtree => {
+                        MOUSE.capture_subtree(widget_id);
+                    }
+                    CaptureMode::Window => (),
                 }
             }
         }

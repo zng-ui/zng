@@ -206,6 +206,8 @@ fn combo_box() -> impl UiNode {
     let txt = var(Txt::from_static("Combo"));
     let options = ["Combo", "Congo"];
     Toggle! {
+
+        id = "combo";
         child = TextInput! {
             txt = txt.clone();
             on_click = hn!(|a: &ClickArgs| a.propagation().stop());
@@ -213,6 +215,7 @@ fn combo_box() -> impl UiNode {
         style_fn = toggle::ComboStyle!();
 
         checked_popup = wgt_fn!(|_| popup::Popup! {
+            id = "popup";
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = options.into_iter().map(|o| Button! {
@@ -222,16 +225,6 @@ fn combo_box() -> impl UiNode {
                     });
                 })
                 .collect::<UiNodeVec>();
-
-                button::replace_style = button::DefaultStyle! {
-                    corner_radius = 0;
-                    padding = 2;
-                    border = unset!;
-
-                    when *#stack::is_even {
-                        base_colors = (rgb(0.18, 0.18, 0.28), rgb(0.82, 0.82, 0.92));
-                    }
-                };
 
                 opacity = 0.fct();
                 when true {
