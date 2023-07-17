@@ -1,6 +1,3 @@
-* ComboStyle, implement press on toggle, drag and release to click option.
-* Merge.
-
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).
@@ -47,6 +44,7 @@
 
 # Menu
 
+* ComboStyle, implement press on toggle, drag and release to click option.
 * Support close animation in `Popup!`.
     - Needs the same mechanism we invented for `Tooltip!`?
 * Implement styleable stack `Menu!`.
