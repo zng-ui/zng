@@ -1296,7 +1296,17 @@ impl<T: VarValue> WhenInputInitData<T> {
             }
             retain
         });
-        r.expect("when input not inited")
+        match r {
+            Some(r) => r,
+            None => {
+                if self.data.len() > 0 {
+                    tracing::error!("when input not inited");
+                    self.data[0].1.clone()
+                } else {
+                    panic!("when input not inited")
+                }
+            }
+        }
     }
 }
 crate::context_local! {
