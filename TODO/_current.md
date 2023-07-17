@@ -46,8 +46,7 @@
 
 * ComboStyle, implement press on toggle, drag and release to click option.
     - Need to transfer the mouse capture to the popup?
-* Support close animation in `Popup!`.
-    - Needs the same mechanism we invented for `Tooltip!`?
+
 * Implement styleable stack `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
     - Nested menus, auto-close on click.

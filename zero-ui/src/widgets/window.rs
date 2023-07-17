@@ -58,6 +58,9 @@ impl Window {
             save_state = SaveState::enabled();
             // Use the `FONT_SIZE_VAR` default as the root font size.
             font_size = crate::widgets::text::FONT_SIZE_VAR;
+
+            // optimization, actualize `FONT_PALETTE_VAR` early, see `Variables.md`.
+            crate::widgets::text::font_palette = crate::widgets::text::FONT_PALETTE_VAR;
         }
 
         self.widget_builder().push_build_action(|wgt| {

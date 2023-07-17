@@ -58,6 +58,11 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         act.retain(|(h, _)| h.is_alive());
         let i = act.len();
 
+        #[cfg(debug_assertions)]
+        if i > 50 {
+            tracing::warn!("variable actualized >50 times, see Variables.md");
+        }
+
         if !act.iter().any(|(c, _)| c == &current_ctx) {
             act.push((current_ctx.clone(), (self.init)()));
         }
