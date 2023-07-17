@@ -1,7 +1,3 @@
-* `ContextualizedVar::borrow_init` gets a lot more contexts than expected (>1000).
-* Error on re-inspect.
-    - Update before info.
-
 # TextInput
 
 * Large single word does not wrap (it wraps for a bit then it becomes a single line again).

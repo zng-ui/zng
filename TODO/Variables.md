@@ -1,5 +1,9 @@
 # Variables TODO
 
+* `ContextualizedVar` can get very large.
+    - `FONT_PALETTE_VAR` for example, is mapped from `COLOR_SCHEME_VAR` but otherwise not set.
+       In screens with many text widgets it can group to thousands of "actual" values, all for
+       the same mapped var.
 * Try to use sleep for `Var::steps`, right now it runs hot trying to match the step.
 * Implement more oscillate animations.
 

@@ -1287,7 +1287,9 @@ impl<T: VarValue> WhenInputInitData<T> {
         Self { data: vec![] }
     }
     fn get(&mut self) -> BoxedVar<T> {
-        let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get().downgrade();
+        let current_id = WHEN_INPUT_CONTEXT_INIT_ID.get();
+        let current_id = current_id.downgrade();
+
         let mut r = None;
         self.data.retain(|(id, val)| {
             let retain = id.is_alive();
@@ -1301,7 +1303,8 @@ impl<T: VarValue> WhenInputInitData<T> {
             None => {
                 if !self.data.is_empty() {
                     tracing::error!("when input not inited");
-                    self.data[0].1.clone()
+                    let last = self.data.len() - 1;
+                    self.data[last].1.clone()
                 } else {
                     panic!("when input not inited")
                 }
