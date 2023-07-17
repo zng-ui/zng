@@ -1,6 +1,4 @@
-* Implement `ClickMode` for always down+up, no double/repeats.
-* Change toggle buttons to `ClickGesture::Press`.
-* Test everything.
+* ComboStyle, implement press on toggle, drag and release to click option.
 * Merge.
 
 # TextInput

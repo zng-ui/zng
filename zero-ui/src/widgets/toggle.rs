@@ -896,7 +896,9 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 pub struct ComboStyle(DefaultStyle);
 impl ComboStyle {
     fn widget_intrinsic(&mut self) {
-        use super::popup;
+        use super::{button, popup};
+        use crate::core::mouse::ClickMode;
+
         widget_set! {
             self;
             child_align = Align::FILL;
@@ -909,7 +911,13 @@ impl ComboStyle {
                 spacing: COMBO_SPACING_VAR,
             };
 
+            click_mode = ClickMode::press();
+
             popup::extend_style = Style! {
+                button::extend_style = Style! {
+                    click_mode = ClickMode::release();
+                };
+
                 #[easing(100.ms())]
                 opacity = 0.pct();
                 #[easing(100.ms())]

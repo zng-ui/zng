@@ -1465,6 +1465,13 @@ impl IntoVar<Option<ClickMode>> for ClickMode {
         Some(self).into_var()
     }
 }
+impl IntoVar<Option<ClickMode>> for ClickTrigger {
+    type Var = crate::var::LocalVar<Option<ClickMode>>;
+
+    fn into_var(self) -> Self::Var {
+        Some(ClickMode::from(self)).into_var()
+    }
+}
 impl_from_and_into_var! {
     fn from(gesture: ClickTrigger) -> ClickMode {
         ClickMode {
@@ -1475,6 +1482,24 @@ impl_from_and_into_var! {
     }
 }
 impl ClickMode {
+    /// Click on [`ClickTrigger::Press`].
+    pub fn press() -> Self {
+        Self {
+            single: ClickTrigger::Press,
+            double: ClickTrigger::Press,
+            repeat: false,
+        }
+    }
+
+    /// Click on release.
+    pub fn release() -> Self {
+        Self {
+            single: ClickTrigger::Release,
+            double: ClickTrigger::Release,
+            repeat: false,
+        }
+    }
+
     /// Click on press and repeat.
     pub fn repeat() -> Self {
         Self {
