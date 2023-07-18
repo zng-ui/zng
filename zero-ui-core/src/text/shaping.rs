@@ -1474,16 +1474,16 @@ impl ShapedTextBuilder {
                                 // break word
                                 self.push_split_seg(shaped_seg, seg, info, self.letter_spacing, text);
                             } else if !hyphenated {
-                                // normal wrap, glyphs overflow
-                                self.push_line_break(true, text);
-
-                                // try to hyphenate with full width available
-                                let hyphenaded = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
-
-                                if !hyphenaded {
-                                    self.push_glyphs(shaped_seg, self.letter_spacing);
-                                    self.push_text_seg(seg, info);
+                                let current_start = if self.out.lines.0.is_empty() {
+                                    0
+                                } else {
+                                    self.out.lines.last().end
+                                };
+                                if !self.out.segments.0[current_start..].is_empty() {
+                                    self.push_line_break(true, text);
                                 }
+                                self.push_glyphs(shaped_seg, self.letter_spacing);
+                                self.push_text_seg(seg, info);
                             }
                         } else {
                             self.push_line_break(true, text);

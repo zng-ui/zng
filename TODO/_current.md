@@ -1,6 +1,5 @@
 # TextInput
 
-* Large single word does not wrap (it wraps for a bit then it becomes a single line again).
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret
