@@ -8,6 +8,9 @@ use zero_ui_core::{
 
 use crate::{core::widget_instance::ArcNode, prelude::new_widget::*};
 
+mod vec;
+pub use vec::*;
+
 type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 
 /// Boxed shared closure that generates an widget for a given data.
@@ -241,7 +244,7 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
     })
 }
 
-/// Arguments for the [`View!`] widget function.
+/// Arguments for the [`View!`] widget.
 ///
 /// [`View!`]: struct@View
 #[derive(Clone)]
@@ -292,7 +295,7 @@ impl<D: VarValue> ViewArgs<D> {
 
 /// Dynamically presents a data variable.
 ///
-/// The `update` widget function is used to generate the view UI from the `data`, it is called on init and
+/// The `update` widget handler is used to generate the view UI from the `data`, it is called on init and
 /// every time `data` or `update` are new. The view is set by calling [`ViewArgs::set_view`] in the widget function
 /// args, note that the data variable is available in [`ViewArgs::data`], a good view will bind to the variable
 /// to support some changes, only replacing the UI for major changes.
@@ -418,4 +421,169 @@ pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl
         }
         _ => {}
     })
+}
+
+/// Node that presents `list` using `element_fn` for each new element.
+///
+/// The node's children is always the result of `element_fn` called for each element in the `list`, removed
+/// elements are deinited, inserted elements get a call to `element_fn` and are inserted in the same position
+/// on the list.
+pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, element_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+    ListPresenter {
+        list: list.into_var(),
+        element_fn: element_fn.into_var(),
+        view: vec![],
+        _e: std::marker::PhantomData,
+    }
+}
+
+struct ListPresenter<D: VarValue, L: Var<ObservableVec<D>>, E: Var<WidgetFn<D>>> {
+    list: L,
+    element_fn: E,
+    view: Vec<BoxedUiNode>,
+    _e: std::marker::PhantomData<D>,
+}
+
+impl<D, L, E> UiNodeList for ListPresenter<D, L, E>
+where
+    D: VarValue,
+    L: Var<ObservableVec<D>>,
+    E: Var<WidgetFn<D>>,
+{
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.view.with_node(index, f)
+    }
+
+    fn for_each<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode),
+    {
+        self.view.for_each(f)
+    }
+
+    fn par_each<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.view.par_each(f)
+    }
+
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    where
+        T: Send + 'static,
+        I: Fn() -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
+    {
+        self.view.par_fold_reduce(identity, fold, reduce)
+    }
+
+    fn len(&self) -> usize {
+        self.view.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.view.drain_into(vec);
+        tracing::warn!("drained `list_presenter`, now out of sync with data");
+    }
+
+    fn init_all(&mut self) {
+        debug_assert!(self.view.is_empty());
+        self.view.clear();
+
+        WIDGET.sub_var(&self.list).sub_var(&self.element_fn);
+
+        let e_fn = self.element_fn.get();
+        self.list.with(|l| {
+            for el in l.iter() {
+                let child = e_fn(el.clone());
+                self.view.push(child);
+            }
+        });
+
+        self.view.init_all();
+    }
+
+    fn deinit_all(&mut self) {
+        self.view.deinit_all();
+        self.view.clear();
+    }
+
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut need_reset = self.element_fn.is_new();
+
+        let is_new = self
+            .list
+            .with_new(|l| {
+                need_reset |= l.changes().is_empty() || l.changes() == [VecChange::Clear];
+
+                if need_reset {
+                    return;
+                }
+
+                // update before new items to avoid update before init.
+                self.view.update_all(updates, observer);
+
+                let e_fn = self.element_fn.get();
+
+                for change in l.changes() {
+                    match change {
+                        VecChange::Insert { index, count } => {
+                            for i in *index..(*index + count) {
+                                let mut el = e_fn(l[i].clone());
+                                el.init();
+                                self.view.insert(i, el);
+                                observer.inserted(i);
+                            }
+                        }
+                        VecChange::Remove { index, count } => {
+                            let mut count = *count;
+                            let index = *index;
+                            while count > 0 {
+                                count -= 1;
+
+                                let mut el = self.view.remove(index);
+                                el.deinit();
+                                observer.removed(index);
+                            }
+                        }
+                        VecChange::Move { from_index, to_index } => {
+                            let el = self.view.remove(*from_index);
+                            self.view.insert(*to_index, el);
+                            observer.moved(*from_index, *to_index);
+                        }
+                        VecChange::Clear => unreachable!(),
+                    }
+                }
+            })
+            .is_some();
+
+        if !need_reset && !is_new && self.list.with(|l| l.len() != self.view.len()) {
+            need_reset = true;
+        }
+
+        if need_reset {
+            self.view.deinit_all();
+            self.view.clear();
+
+            let e_fn = self.element_fn.get();
+            self.list.with(|l| {
+                for el in l.iter() {
+                    let child = e_fn(el.clone());
+                    self.view.push(child);
+                }
+            });
+
+            self.view.init_all();
+        } else if !is_new {
+            self.view.update_all(updates, observer);
+        }
+    }
 }

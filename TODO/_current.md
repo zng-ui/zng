@@ -1,5 +1,13 @@
+* `list_presenter`.
+    - Resolve issue with tracking changes that are overridden in the same update.
+        - Example,  "insert(0, 3), remove(0, 4), insert(0, 1)" when iterated the
+          first insert will point to invalid data.
+    - Refactor some examples to use this.
+
 # TextInput
 
+* Implement `SELECT_CMD`.
+    - Move all caret positioning code to its param.
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret
@@ -62,6 +70,8 @@
 
 # View-Process
 
+* Update to winit-29 when released.
+    - Lots of breaking changes.
 * Implement OpenGL example.
     - Overlay and texture image.
 
