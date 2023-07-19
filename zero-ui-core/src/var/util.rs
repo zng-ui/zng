@@ -78,9 +78,8 @@ macro_rules! impl_from_and_into_var {
         $crate::__impl_from_and_into_var! { $($tt)* }
     };
 }
-use std::{cell::UnsafeCell, mem};
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 
 use crate::context::UPDATES;
 #[doc(inline)]
@@ -256,116 +255,93 @@ macro_rules! __impl_from_and_into_var {
     };
 }
 
-struct VarMeta {
+struct VarDataInner<T> {
+    value: T,
     last_update: VarUpdateId,
     hooks: Vec<VarHook>,
     animation: ModifyInfo,
 }
 
-pub(super) struct VarData<T: VarValue> {
-    value: VarLock<T>,
-    meta: Mutex<VarMeta>,
-}
+pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner<T>>);
 impl<T: VarValue> VarData<T> {
     pub fn new(value: T) -> Self {
-        Self {
-            value: VarLock::new(value),
-            meta: Mutex::new(VarMeta {
-                last_update: VarUpdateId::never(),
-                hooks: vec![],
-                animation: ModifyInfo::never(),
-            }),
-        }
+        Self(RwLock::new(VarDataInner {
+            value,
+            last_update: VarUpdateId::never(),
+            hooks: vec![],
+            animation: ModifyInfo::never(),
+        }))
     }
 
     pub fn into_value(self) -> T {
-        self.value.value.into_inner()
+        self.0.into_inner().value
     }
 
     /// Read the value.
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        self.value.with(f)
+        f(&self.0.read().value)
     }
 
     pub fn last_update(&self) -> VarUpdateId {
-        self.meta.lock().last_update
+        self.0.read().last_update
     }
 
     pub fn is_animating(&self) -> bool {
-        self.meta.lock().animation.is_animating()
+        self.0.read().animation.is_animating()
     }
 
     pub fn modify_importance(&self) -> usize {
-        self.meta.lock().animation.importance()
+        self.0.read().animation.importance()
     }
 
     pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
-        self.meta.lock().hooks.push(weak);
+        self.0.write().hooks.push(weak);
         hook
     }
 
     pub fn push_animation_hook(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
-        self.meta.lock().animation.hook_animation_stop(handler)
+        self.0.write().animation.hook_animation_stop(handler)
     }
 
     /// Calls `modify` on the value.
     pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>)) {
-        {
-            let mut meta = self.meta.lock();
-            let curr_anim = VARS.current_modify();
-            if curr_anim.importance() < meta.animation.importance() {
-                return;
-            }
-            meta.animation = curr_anim;
+        let mut meta = self.0.write();
+        let curr_anim = VARS.current_modify();
+        if curr_anim.importance() < meta.animation.importance() {
+            return;
         }
+        meta.animation = curr_anim;
 
-        let (notify, new_value, update, tags) = self.with(|value| {
-            let mut value = VarModify::new(value);
-            modify(&mut value);
-            value.finish()
-        });
+        let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
+        let mut value = VarModify::new(&meta.value);
+        modify(&mut value);
+        let (notify, new_value, update, tags) = value.finish();
 
         if notify {
-            let mut meta = self.meta.lock();
+            drop(meta);
+            let mut meta = self.0.write();
             if let Some(nv) = new_value {
-                let _ = self.value.replace(nv);
+                meta.value = nv;
             }
             meta.last_update = VARS.update_id();
 
-            self.with(|val| {
-                let args = VarHookArgs::new(val, update, &tags);
-                meta.hooks.retain(|h| h.call(&args));
-            });
+            let mut hooks = std::mem::take(&mut meta.hooks);
+
+            if !hooks.is_empty() {
+                let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
+
+                let args = VarHookArgs::new(&meta.value, update, &tags);
+                hooks.retain(|h| h.call(&args));
+
+                drop(meta);
+
+                let mut meta = self.0.write();
+                hooks.append(&mut meta.hooks);
+                meta.hooks = hooks;
+            }
+
             UPDATES.update(None);
         }
     }
 }
-
-struct VarLock<T: VarValue> {
-    value: UnsafeCell<T>,
-}
-impl<T: VarValue> VarLock<T> {
-    pub fn new(value: T) -> Self {
-        VarLock {
-            value: UnsafeCell::new(value),
-        }
-    }
-
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        let _lock = VAR_LOCK.read_recursive();
-        // SAFETY: safe because we exclusive lock to replace.
-        f(unsafe { &*self.value.get() })
-    }
-
-    pub fn replace(&self, new_value: T) -> T {
-        let _lock = VAR_LOCK.write();
-        // SAFETY: safe because we are holding an exclusive lock.
-        mem::replace(unsafe { &mut *self.value.get() }, new_value)
-    }
-}
-// SAFETY: safe because all data access is gated by `VAR_LOCK`.
-unsafe impl<T: VarValue> Send for VarLock<T> {}
-unsafe impl<T: VarValue> Sync for VarLock<T> {}
-
-static VAR_LOCK: RwLock<()> = RwLock::new(());

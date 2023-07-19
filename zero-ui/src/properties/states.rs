@@ -308,7 +308,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 ///     
 ///     // ..
 /// }
-/// #;
+/// # ;
 /// ```
 #[property(CONTEXT)]
 pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
