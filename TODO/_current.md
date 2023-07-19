@@ -1,8 +1,6 @@
 # TextInput
 
-* Implement `SELECT_CMD`.
-    - Move all caret positioning code to its param.
-    - up, down, page-up, page-down, home, end, click.
+* Implement `CTRL+Left/Right` advance caret by word.
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret
@@ -10,7 +8,7 @@
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
-* Implement `CTRL+Left/Right` advance caret by word.
+        - VsCode copies the current line if there is no selection, how common is this?
 * Research text editors.
 
 * Review `WhiteSpace::Merge`.

@@ -213,6 +213,9 @@ pub struct LayoutText {
 
     /// Info about the last text render or render update.
     pub render_info: Mutex<RenderInfo>,
+
+    /// Latest layout viewport.
+    pub viewport: PxSize,
 }
 
 impl Clone for LayoutText {
@@ -230,6 +233,7 @@ impl Clone for LayoutText {
             caret_origin: self.caret_origin,
             caret_retained_x: self.caret_retained_x,
             render_info: Mutex::new(self.render_info.lock().clone()),
+            viewport: PxSize::zero(),
         }
     }
 }
@@ -440,11 +444,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     && text.capabilities().can_modify()
                     && WIDGET.info().interactivity().is_enabled()
                 {
-                    if let Some(args) = CHAR_INPUT_EVENT.on(update) {
-                        if !args.propagation().is_stopped()
-                            && text.capabilities().contains(VarCapabilities::MODIFY)
-                            && args.is_enabled(WIDGET.id())
-                        {
+                    if let Some(args) = CHAR_INPUT_EVENT.on_unhandled(update) {
+                        if text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id()) {
                             args.propagation().stop();
 
                             if args.is_backspace() {
@@ -482,28 +483,28 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                             caret.opacity = var(0.fct()).read_only();
                         }
-                    } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
-                        args.propagation().stop();
+                    } else if let Some(_args) = CUT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         tracing::error!("TODO cut");
-                    } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
-                        args.propagation().stop();
+                    } else if let Some(_args) = COPY_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         tracing::error!("TODO copy");
-                    } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
-                        args.propagation().stop();
-
+                    } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {
+                                args.propagation().stop();
+
                                 ResolvedText::call_edit_op(&mut resolved, || {
                                     TextEditOp::insert("paste", paste).call(&text);
                                 });
                             }
                         }
-                    } else if let Some(args) = EDIT_CMD.scoped(WIDGET.id()).on(update) {
-                        args.propagation().stop();
-
+                    } else if let Some(args) = EDIT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         if let Some(op) = args.param::<UndoTextEditOp>() {
+                            args.propagation().stop();
+
                             ResolvedText::call_edit_op(&mut resolved, || op.call(&text));
                         } else if let Some(op) = args.param::<TextEditOp>() {
+                            args.propagation().stop();
+
                             ResolvedText::call_edit_op(&mut resolved, || op.clone().call(&text));
                         }
                     }
@@ -706,6 +707,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     caret_origin: None,
                     caret_retained_x: Px(0),
                     render_info: Mutex::default(),
+                    viewport: metrics.viewport(),
                 });
                 self.pending.insert(PendingLayout::RESHAPE);
             }
@@ -990,7 +992,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     }
     // Use `EditData::get` to access.
     let mut edit_data = None;
-    let mut viewport_height = Px(0);
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1046,204 +1047,128 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = resolved.caret.lock().index;
 
-                if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                    let mut line_diff = 0;
-                    let mut page_diff = 0;
-                    if args.state == KeyState::Pressed {
-                        if let Some(key) = args.key {
-                            match key {
-                                Key::Tab => {
-                                    if ACCEPTS_TAB_VAR.get() {
-                                        args.propagation().stop();
-                                    }
-                                }
-                                Key::Enter => {
-                                    if ACCEPTS_ENTER_VAR.get() {
-                                        args.propagation().stop();
-                                    }
-                                }
-                                Key::Right => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        LayoutText::call_select_op(&mut txt.txt, || {
-                                            TextSelectOp::next().call();
-                                        });
-                                    }
-                                }
-                                Key::Left => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        LayoutText::call_select_op(&mut txt.txt, || {
-                                            TextSelectOp::prev().call();
-                                        });
-                                    }
-                                }
-                                Key::Up => {
-                                    line_diff = -1;
-                                }
-                                Key::Down => {
-                                    line_diff = 1;
-                                }
-                                Key::PageUp => {
-                                    page_diff = -1;
-                                }
-                                Key::PageDown => {
-                                    page_diff = 1;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    if line_diff != 0 {
-                        let mut caret = resolved.caret.lock();
-                        let caret = &mut *caret;
-                        let caret_index = &mut caret.index;
-
-                        caret.used_retained_x = true;
-                        if let Some(txt) = &mut txt.txt {
-                            if txt.caret_origin.is_some() {
-                                let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
-                                let last_line = txt.shaped_text.lines_len().saturating_sub(1);
-                                let li = i.line;
-                                let next_li = li.saturating_add_signed(line_diff).min(last_line);
-                                if li != next_li {
-                                    match txt.shaped_text.line(next_li) {
-                                        Some(l) => {
-                                            i.line = next_li;
-                                            i.index = match l.nearest_seg(txt.caret_retained_x) {
-                                                Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
-                                                None => l.text_range().end,
-                                            }
-                                        }
-                                        None => i = CaretIndex::ZERO,
-                                    };
-                                    i.index = resolved.text.snap_grapheme_boundary(i.index);
-                                    *caret_index = Some(i);
-                                }
-                            }
-                        }
-                        if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::ZERO);
-                        }
-                        args.propagation().stop();
-                    } else if page_diff != 0 {
-                        let mut caret = resolved.caret.lock();
-                        let caret = &mut *caret;
-                        let caret_index = &mut caret.index;
-
-                        let page_y = viewport_height * Px(page_diff);
-                        caret.used_retained_x = true;
-                        if let Some(txt) = &mut txt.txt {
-                            if txt.caret_origin.is_some() {
-                                let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
-                                let li = i.line;
-                                if let Some(li) = txt.shaped_text.line(li) {
-                                    let target_line_y = li.rect().origin.y + page_y;
-                                    match txt.shaped_text.nearest_line(target_line_y) {
-                                        Some(l) => {
-                                            i.line = l.index();
-                                            i.index = match l.nearest_seg(txt.caret_retained_x) {
-                                                Some(s) => s.nearest_char_index(txt.caret_retained_x, resolved.text.text()),
-                                                None => l.text_range().end,
-                                            }
-                                        }
-                                        None => i = CaretIndex::ZERO,
-                                    };
-                                    i.index = resolved.text.snap_grapheme_boundary(i.index);
-                                    *caret_index = Some(i);
-                                }
-                            }
-                        }
-                        if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::ZERO);
-                        }
-                        args.propagation().stop();
-                    } else if let Some(key) = args.key {
-                        let mut caret = resolved.caret.lock();
-                        let caret = &mut *caret;
-                        let caret_index = &mut caret.index;
-
+                if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+                    if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
                         match key {
-                            Key::Home => {
-                                args.propagation().stop();
+                            Key::Tab => {
+                                if args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
+                                    args.propagation().stop();
+                                }
+                            }
+                            Key::Enter => {
+                                if args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
+                                    args.propagation().stop();
+                                }
+                            }
+                            Key::Right => {
+                                if args.modifiers.is_only_ctrl() {
+                                    args.propagation().stop();
 
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        if args.modifiers.is_only_ctrl() {
-                                            *i = CaretIndex::ZERO;
-                                        } else if args.modifiers.is_empty() {
-                                            if let Some(txt) = &mut txt.txt {
-                                                if let Some(li) = txt.shaped_text.line(i.line) {
-                                                    i.index = li.text_range().start;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::word_next().call();
+                                    });
+                                } else if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::grapheme_next().call();
+                                    });
+                                }
+                            }
+                            Key::Left => {
+                                if args.modifiers.is_only_ctrl() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::word_prev().call();
+                                    });
+                                } else if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::grapheme_prev().call();
+                                    });
+                                }
+                            }
+                            Key::Up => {
+                                if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::line_up().call();
+                                    });
+                                }
+                            }
+                            Key::Down => {
+                                if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::line_down().call();
+                                    });
+                                }
+                            }
+                            Key::PageUp => {
+                                if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::page_up().call();
+                                    });
+                                }
+                            }
+                            Key::PageDown => {
+                                if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::page_down().call();
+                                    });
+                                }
+                            }
+                            Key::Home => {
+                                if args.modifiers.is_only_ctrl() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::text_start().call();
+                                    });
+                                } else if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::line_start().call();
+                                    });
                                 }
                             }
                             Key::End => {
-                                args.propagation().stop();
+                                if args.modifiers.is_only_ctrl() {
+                                    args.propagation().stop();
 
-                                if args.state == KeyState::Pressed {
-                                    if let Some(i) = caret_index {
-                                        if args.modifiers.is_only_ctrl() {
-                                            i.index = resolved.text.text().len();
-                                            if let Some(txt) = &mut txt.txt {
-                                                i.line = txt.shaped_text.lines_len();
-                                            }
-                                        } else if args.modifiers.is_empty() {
-                                            if let Some(txt) = &mut txt.txt {
-                                                if let Some(li) = txt.shaped_text.line(i.line) {
-                                                    i.index = li.text_caret_range().end;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::text_end().call();
+                                    });
+                                } else if args.modifiers.is_empty() {
+                                    args.propagation().stop();
+
+                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                        TextSelectOp::line_end().call();
+                                    });
                                 }
                             }
                             _ => {}
                         }
                     }
-                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                     if args.is_primary() && args.is_mouse_down() {
-                        let mut caret = resolved.caret.lock();
-                        let caret = &mut *caret;
-                        let caret_index = &mut caret.index;
-
-                        caret.used_retained_x = false;
-                        if let Some(txt) = &mut txt.txt {
-                            //if there was at least one layout
-                            let info = txt.render_info.get_mut();
-                            if let Some(pos) = info
-                                .transform
-                                .inverse()
-                                .and_then(|t| t.transform_point(args.position.to_px(info.scale_factor.0)))
-                            {
-                                //if has rendered
-                                let mut i = match txt.shaped_text.nearest_line(pos.y) {
-                                    Some(l) => CaretIndex {
-                                        line: l.index(),
-                                        index: match l.nearest_seg(pos.x) {
-                                            Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
-                                            None => l.text_range().end,
-                                        },
-                                    },
-                                    None => CaretIndex::ZERO,
-                                };
-                                i.index = resolved.text.snap_grapheme_boundary(i.index);
-                                *caret_index = Some(i);
-                            }
-                        }
-                        if caret_index.is_none() {
-                            *caret_index = Some(CaretIndex::ZERO);
-                        }
+                        LayoutText::call_select_op(&mut txt.txt, || {
+                            TextSelectOp::nearest_to(args.position).call();
+                        });
                     }
-                } else if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on(update) {
-                    args.propagation().stop();
-
+                } else if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(op) = args.param::<TextSelectOp>() {
+                        args.propagation().stop();
+
                         LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
                     }
                 }
@@ -1394,7 +1319,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             child.delegated();
 
             let metrics = LAYOUT.metrics();
-            viewport_height = metrics.viewport().height;
+
+            if let Some(l) = &mut txt.txt {
+                l.viewport = metrics.viewport();
+            }
+
             let resolved_txt = RESOLVED_TEXT.get();
             *final_size = txt.layout(&metrics, &resolved_txt, false);
 
