@@ -42,6 +42,7 @@ fn app_main() {
                     toggle_buttons(),
 
                     dyn_buttons(),
+                    dyn_buttons_from_data(),
                 ]
             };
         }
@@ -236,6 +237,7 @@ fn combo_box() -> impl UiNode {
     }
 }
 
+// dynamic add and remove buttons created directly
 fn dyn_buttons() -> impl UiNode {
     let dyn_children = EditableUiNodeList::new();
     let children_ref = dyn_children.reference();
@@ -248,12 +250,55 @@ fn dyn_buttons() -> impl UiNode {
             separator_not_first(),
             Button! {
                 child = Text!("Add Button");
+                tooltip = Tip!(Text!("Add `Button!` directly"));
                 on_click = hn!(|_| {
-                    children_ref.push(Button! {
-                        child = Text!("Remove {}", btn);
-                        on_click = hn!(children_ref, |_| {
-                            children_ref.remove(WIDGET.id());
-                        })
+                    children_ref.push(dyn_button(btn, clmv!(children_ref, || {
+                        children_ref.remove(WIDGET.id());
+                    })));
+
+                    if btn == 'Z' {
+                        btn = 'A'
+                    } else {
+                        btn = std::char::from_u32(btn as u32 + 1).unwrap();
+                    }
+                })
+            }
+        ])
+    }
+}
+
+// dynamic add and remove buttons created from a data source.
+fn dyn_buttons_from_data() -> impl UiNode {
+    let data_source = var(ObservableVec::<char>::new());
+    let mut btn = 'A';
+
+    let view = list_presenter(
+        data_source.clone(),
+        wgt_fn!(data_source, |data: char| {
+            dyn_button(
+                data,
+                clmv!(data_source, || {
+                    data_source.modify(move |a| {
+                        if let Some(i) = a.iter().position(|&c| c == data) {
+                            a.to_mut().remove(i);
+                        }
+                    });
+                }),
+            )
+        }),
+    );
+
+    Stack! {
+        direction = StackDirection::top_to_bottom();
+        spacing = 5;
+        children = view.chain(ui_vec![
+            separator_not_first(),
+            Button! {
+                child = Text!("Add Button");
+                tooltip = Tip!(Text!("Add data that generates `Button!`"));
+                on_click = hn!(|_| {
+                    data_source.modify(move |a| {
+                        a.to_mut().push(btn);
                     });
 
                     if btn == 'Z' {
@@ -264,6 +309,39 @@ fn dyn_buttons() -> impl UiNode {
                 })
             }
         ])
+    }
+}
+
+// button that animates in and out.
+fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> impl UiNode {
+    let remove = std::sync::Arc::new(remove);
+    let removing = var(false);
+
+    Button! {
+        child = Text!("Remove {content}");
+
+        #[easing(100.ms())]
+        opacity = 0.pct();
+        #[easing(100.ms())]
+        margin = (0, 0, -10, 0);
+
+        when *#is_inited {
+            opacity = 100.pct();
+            margin = 0;
+        }
+
+        when *#{removing} {
+            interactive = false;
+            opacity = 0.pct();
+            margin = (0, 0, -30, 0);
+        }
+
+        on_click = async_hn!(remove, removing, |_| {
+            FOCUS.focus_next();
+            removing.set(true);
+            task::deadline(100.ms()).await;
+            remove();
+        });
     }
 }
 

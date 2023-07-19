@@ -11,6 +11,11 @@ use crate::core::var::{VarUpdateId, VarValue, VARS};
 /// element *expanding* into place, it also allows the retention of widget state for elements
 /// that did not change.
 ///
+/// Changes are logged using the [`VecChange`] enum, note that the enum only tracks indexes at the
+/// moment the change happens, that means that you cannot get the removed items and [`VecChange::Insert`]
+/// must be the last change in an update cycle. If any change is made that invalidates an `Insert` all
+/// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid  this try removing or moving before insert.
+///
 /// [`list_presenter`]: crate::widgets::list_presenter
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservableVec<T: VarValue> {
@@ -207,6 +212,25 @@ impl<T: VarValue> ObservableVec<T> {
         }
     }
 
+    /// Move the element `from` index `to` index.
+    ///
+    /// If `from < to` this is the same as `self.insert(to - 1, self.remove(from))`, otherwise
+    /// is the same as `self.insert(to, self.remove(from))`, but the change is tracked
+    /// as a single [`VecChange::Move`].
+    pub fn reinsert(&mut self, from: usize, mut to: usize) {
+        if from != to {
+            if from < to {
+                to -= 1;
+            }
+            let el = self.list.remove(from);
+            self.list.insert(to, el);
+            self.changes.moved(from, to);
+        } else {
+            // assert contained
+            let _ = &self.list[to];
+        }
+    }
+
     /// Mutate the `index`.
     ///
     /// This logs a [`VecChange::Remove`] and [`VecChange::Insert`] for the `index`, if it is valid.
@@ -287,6 +311,10 @@ pub enum VecChange {
     /// Elements inserted.
     Insert {
         /// Index of the first element inserted, at the time of insertion.
+        ///
+        /// In [`ObservableVec::changes`] the index and count can be used to select
+        /// the new elements in the vec because if any (re)move is made after insert the
+        /// changes are collapsed to a `Clear`.
         index: usize,
         /// Number of elements inserted.
         count: usize,
