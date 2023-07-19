@@ -6,7 +6,7 @@ use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
 
 use super::{
-    commands::{TextEditOp, UndoTextEditOp, EDIT_CMD},
+    commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_CMD},
     text_properties::*,
 };
 use crate::{
@@ -252,6 +252,10 @@ impl LayoutText {
     pub fn get() -> Arc<LayoutText> {
         LAYOUT_TEXT.get()
     }
+
+    fn call_select_op(ctx: &mut Option<Self>, op: impl FnOnce()) {
+        LAYOUT_TEXT.with_context_opt(ctx, op);
+    }
 }
 
 context_local! {
@@ -286,7 +290,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 4],
+        events: [EventHandle; 3],
         caret_animation: VarHandle,
         cut: CommandHandle,
         copy: CommandHandle,
@@ -371,9 +375,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                 let d = EditData::get(&mut edit_data);
                 d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
-                d.events[1] = KEY_INPUT_EVENT.subscribe(id);
-                d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
-                d.events[3] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
+                d.events[1] = FOCUS_CHANGED_EVENT.subscribe(id);
+                d.events[2] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
 
                 d.cut = CUT_CMD.scoped(id).subscribe(true);
                 d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -459,46 +462,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 if !skip {
                                     ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert("type", Txt::from_char(c)).call(&text));
                                 }
-                            }
-                        }
-                    } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                        if let Some(key) = args.key {
-                            match key {
-                                Key::Tab => {
-                                    if ACCEPTS_TAB_VAR.get() {
-                                        args.propagation().stop();
-                                    }
-                                }
-                                Key::Enter => {
-                                    if ACCEPTS_ENTER_VAR.get() {
-                                        args.propagation().stop();
-                                    }
-                                }
-                                Key::Right => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        let resolved = resolved.as_mut().unwrap();
-                                        let caret_index = &mut resolved.caret.get_mut().index;
-
-                                        if let Some(i) = caret_index {
-                                            i.index = resolved.text.next_insert_index(i.index);
-                                        }
-                                    }
-                                }
-                                Key::Left => {
-                                    args.propagation().stop();
-
-                                    if args.state == KeyState::Pressed {
-                                        let resolved = resolved.as_mut().unwrap();
-                                        let caret_index = &mut resolved.caret.get_mut().index;
-
-                                        if let Some(i) = caret_index {
-                                            i.index = resolved.text.prev_insert_index(i.index);
-                                        }
-                                    }
-                                }
-                                _ => {}
                             }
                         }
                     } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -1018,6 +981,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct EditData {
         events: [EventHandle; 2],
         caret_animation: VarHandle,
+        select: CommandHandle,
     }
     impl EditData {
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
@@ -1069,6 +1033,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 d.events[0] = KEY_INPUT_EVENT.subscribe(id);
                 d.events[1] = MOUSE_INPUT_EVENT.subscribe(id);
+
+                d.select = SELECT_CMD.scoped(id).subscribe(true);
             }
         }
         UiNodeOp::Deinit => {
@@ -1078,11 +1044,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Event { update } => {
             if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() {
                 let resolved = RESOLVED_TEXT.get();
-                let mut caret = resolved.caret.lock();
-                let caret = &mut *caret;
-
-                let prev_caret_index = caret.index;
-                let caret_index = &mut caret.index;
+                let prev_caret_index = resolved.caret.lock().index;
 
                 if let Some(args) = KEY_INPUT_EVENT.on(update) {
                     let mut line_diff = 0;
@@ -1090,6 +1052,34 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if args.state == KeyState::Pressed {
                         if let Some(key) = args.key {
                             match key {
+                                Key::Tab => {
+                                    if ACCEPTS_TAB_VAR.get() {
+                                        args.propagation().stop();
+                                    }
+                                }
+                                Key::Enter => {
+                                    if ACCEPTS_ENTER_VAR.get() {
+                                        args.propagation().stop();
+                                    }
+                                }
+                                Key::Right => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            TextSelectOp::next().call();
+                                        });
+                                    }
+                                }
+                                Key::Left => {
+                                    args.propagation().stop();
+
+                                    if args.state == KeyState::Pressed {
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            TextSelectOp::prev().call();
+                                        });
+                                    }
+                                }
                                 Key::Up => {
                                     line_diff = -1;
                                 }
@@ -1107,6 +1097,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                     if line_diff != 0 {
+                        let mut caret = resolved.caret.lock();
+                        let caret = &mut *caret;
+                        let caret_index = &mut caret.index;
+
                         caret.used_retained_x = true;
                         if let Some(txt) = &mut txt.txt {
                             if txt.caret_origin.is_some() {
@@ -1135,6 +1129,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                         args.propagation().stop();
                     } else if page_diff != 0 {
+                        let mut caret = resolved.caret.lock();
+                        let caret = &mut *caret;
+                        let caret_index = &mut caret.index;
+
                         let page_y = viewport_height * Px(page_diff);
                         caret.used_retained_x = true;
                         if let Some(txt) = &mut txt.txt {
@@ -1163,6 +1161,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                         args.propagation().stop();
                     } else if let Some(key) = args.key {
+                        let mut caret = resolved.caret.lock();
+                        let caret = &mut *caret;
+                        let caret_index = &mut caret.index;
+
                         match key {
                             Key::Home => {
                                 args.propagation().stop();
@@ -1206,6 +1208,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
+                        let mut caret = resolved.caret.lock();
+                        let caret = &mut *caret;
+                        let caret_index = &mut caret.index;
+
                         caret.used_retained_x = false;
                         if let Some(txt) = &mut txt.txt {
                             //if there was at least one layout
@@ -1234,9 +1240,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             *caret_index = Some(CaretIndex::ZERO);
                         }
                     }
+                } else if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on(update) {
+                    args.propagation().stop();
+
+                    if let Some(op) = args.param::<TextSelectOp>() {
+                        LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
+                    }
                 }
 
-                if *caret_index != prev_caret_index {
+                let mut caret = resolved.caret.lock();
+                let caret_index = caret.index;
+                if caret_index != prev_caret_index {
                     if caret_index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();

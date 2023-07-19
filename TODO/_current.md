@@ -2,6 +2,7 @@
 
 * Implement `SELECT_CMD`.
     - Move all caret positioning code to its param.
+    - up, down, page-up, page-down, home, end, click.
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret

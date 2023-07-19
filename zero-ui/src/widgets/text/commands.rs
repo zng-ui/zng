@@ -16,6 +16,11 @@ command! {
     ///
     /// The request must be set as the command parameter.
     pub static EDIT_CMD;
+
+    /// Applies the [`TextSelectOp`] into the text if it is editable.
+    ///
+    /// The request must be set as the command parameter.
+    pub static SELECT_CMD;
 }
 
 /// Represents a text edit operation that can be send to an editable text using [`EDIT_CMD`].
@@ -37,7 +42,7 @@ impl fmt::Display for TextEditOp {
     }
 }
 impl TextEditOp {
-    /// New text edit op.
+    /// New text edit operation.
     ///
     /// The editable text widget that handles [`EDIT_CMD`] will call `op` during event handling in
     /// the [`nodes::resolve_text`] context. You can position the caret using [`ResolvedText::caret`],
@@ -308,5 +313,64 @@ impl RedoAction for UndoTextEditOp {
             exec_op: UndoOp::Redo,
         });
         self
+    }
+}
+
+/// Represents a text selection operation that can be send to an editable text using [`SELECT_CMD`].
+#[derive(Clone)]
+pub struct TextSelectOp {
+    info: Arc<dyn UndoInfo>,
+    op: Arc<Mutex<dyn FnMut() + Send>>,
+}
+impl fmt::Debug for TextSelectOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TextSelectOp")
+            .field("info", &self.info.description())
+            .finish_non_exhaustive()
+    }
+}
+impl fmt::Display for TextSelectOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.info.description())
+    }
+}
+impl TextSelectOp {
+    /// New text select operation.
+    ///
+    /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
+    /// the [`nodes::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
+    /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
+    /// the caret index is also snapped to the nearest grapheme start.
+    pub fn new(undo_info: impl UndoInfo, op: impl FnMut() + Send + 'static) -> Self {
+        Self {
+            info: undo_info.into_dyn(),
+            op: Arc::new(Mutex::new(op)),
+        }
+    }
+
+    /// Caret to next insert operation.
+    pub fn next() -> Self {
+        Self::new(Txt::from_static("→"), || {
+            let ctx = ResolvedText::get();
+            let mut c = ctx.caret.lock();
+            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+            caret.index = ctx.text.next_insert_index(caret.index);
+            c.index = Some(caret);
+        })
+    }
+
+    /// Caret to prev insert operation.
+    pub fn prev() -> Self {
+        Self::new(Txt::from_static("←"), || {
+            let ctx = ResolvedText::get();
+            let mut c = ctx.caret.lock();
+            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+            caret.index = ctx.text.prev_insert_index(caret.index);
+            c.index = Some(caret);
+        })
+    }
+
+    pub(super) fn call(self) {
+        (self.op.lock())();
     }
 }
