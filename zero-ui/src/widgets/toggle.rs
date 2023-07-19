@@ -913,6 +913,10 @@ impl ComboStyle {
 
             click_mode = ClickMode::press();
 
+            button::extend_style = Style! { // button in child.
+                click_mode = ClickMode::default();
+            };
+
             popup::extend_style = Style! {
                 button::extend_style = Style! {
                     click_mode = ClickMode::release();
@@ -926,7 +930,7 @@ impl ComboStyle {
                 //
                 // - `Toggle!` inherits `capture_mouse = true` from `Button!`.
                 // - `ComboStyle!` sets `click_mode = press`.
-                // - `ComboStyle!` sets inner `Button!` to `click_mode = release`.
+                // - `ComboStyle!` sets popup descendant `Button!` to `click_mode = release`.
                 //
                 // So the user can press to open the drop-down, then drag over an option and release to select it.
                 capture_mouse_on_init = crate::core::mouse::CaptureMode::Subtree;
