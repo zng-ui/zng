@@ -817,8 +817,6 @@ impl<'a> CommandMeta<'a> {
     }
 
     /// Set the meta value associated with the [`StateId`].
-    ///
-    /// Returns the previous value if any was set.
     pub fn set<T>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>)
     where
         T: StateValue + Clone,

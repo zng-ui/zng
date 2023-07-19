@@ -584,8 +584,16 @@ impl WidgetUndoScope {
     /// Init the scope in the [`WIDGET`].
     pub fn init(&mut self) {
         let mut scope = UndoScope::default();
-        *scope.id.get_mut() = Some(WIDGET.id());
-        self.0 = Some(Arc::new(scope));
+        let id = WIDGET.id();
+        *scope.id.get_mut() = Some(id);
+
+        let scope = Arc::new(scope);
+        let wk_scope = Arc::downgrade(&scope);
+
+        UNDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, wk_scope.clone()));
+        REDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, wk_scope));
+
+        self.0 = Some(scope);
     }
 
     /// Sets the [`WIDGET`] info.
@@ -837,6 +845,11 @@ pub trait CommandUndoExt {
     /// Gets the command scoped in the undo scope widget that is or contains the focused widget, or
     /// scoped on the app if there is no focused undo scope.
     fn undo_scoped(self) -> BoxedVar<Command>;
+
+    /// Latest undo stack for the given scope, same as calling [`UNDO::undo_stack`] inside the scope.
+    fn undo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)>;
+    /// Latest undo stack for the given scope, same as calling [`UNDO::redo_stack`] inside the scope.
+    fn redo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)>;
 }
 impl CommandUndoExt for Command {
     fn undo_scoped(self) -> BoxedVar<Command> {
@@ -853,7 +866,39 @@ impl CommandUndoExt for Command {
             None => CommandScope::App,
         })
     }
+
+    fn undo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+        let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
+        if let Some(scope) = scope {
+            if let Some(scope) = scope.upgrade() {
+                return scope.undo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect();
+            }
+        }
+
+        if let CommandScope::App = self.scope() {
+            return UNDO_SCOPE_CTX.with_default(|| UNDO.undo_stack());
+        }
+
+        vec![]
+    }
+
+    fn redo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+        let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
+        if let Some(scope) = scope {
+            if let Some(scope) = scope.upgrade() {
+                return scope.redo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect();
+            }
+        }
+
+        if let CommandScope::App = self.scope() {
+            return UNDO_SCOPE_CTX.with_default(|| UNDO.redo_stack());
+        }
+
+        vec![]
+    }
 }
+
+static WEAK_UNDO_SCOPE_ID: StaticStateId<std::sync::Weak<UndoScope>> = StaticStateId::new_unique();
 
 /// Represents a type that can select actions for undo or redo once.
 ///

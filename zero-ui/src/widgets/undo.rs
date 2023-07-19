@@ -4,10 +4,12 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use zero_ui_core::undo::CommandUndoExt;
+
 use crate::prelude::new_widget::*;
 
 use crate::core::gesture::ClickArgs;
-use crate::core::undo::{UndoInfo, UndoOp, REDO_CMD, UNDO, UNDO_CMD};
+use crate::core::undo::{UndoInfo, UndoOp, UNDO_CMD};
 use crate::widgets::button;
 use crate::widgets::{
     layouts::{stack::StackDirection, Stack},
@@ -111,14 +113,8 @@ pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanel
 ///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
-    let mut cmd = match args.op {
-        UndoOp::Undo => UNDO_CMD,
-        UndoOp::Redo => REDO_CMD,
-    };
-    if let Some(w) = UNDO.scope() {
-        cmd = cmd.scoped(w);
-    }
     let ts = args.timestamp;
+    let cmd = args.cmd;
     Button! {
         child = Text!(args.info.description());
         undo_entry = args;
@@ -146,6 +142,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
                 timestamp: ts,
                 info,
                 op: args.op,
+                cmd: args.cmd,
             })
         })
         .collect::<UiNodeVec>();
@@ -160,9 +157,11 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
 /// Default [`UNDO_PANEL_FN_VAR`].
 pub fn default_undo_panel_fn(_: UndoPanelArgs) -> impl UiNode {
     let stack = UNDO_STACK_FN_VAR.get();
+    let cmd = UNDO_CMD.undo_scoped().get();
     stack(UndoStackArgs {
-        stack: UNDO.undo_stack(),
+        stack: cmd.undo_stack(),
         op: UndoOp::Undo,
+        cmd,
     })
 }
 
@@ -175,8 +174,12 @@ pub struct UndoEntryArgs {
     pub timestamp: Instant,
     /// Info about the action.
     pub info: Arc<dyn UndoInfo>,
+
     /// What stack this entry is at.
     pub op: UndoOp,
+
+    /// The undo or redo command in the correct scope.
+    pub cmd: Command,
 }
 // this is just in case the args gets placed in a var
 // false positives (ne when is eq) does not matter.
@@ -203,6 +206,8 @@ pub struct UndoStackArgs {
     pub stack: Vec<(Instant, Arc<dyn UndoInfo>)>,
     /// What stack this is.
     pub op: UndoOp,
+    /// The undo or redo command, scoped.
+    pub cmd: Command,
 }
 
 // this is just in case the args gets placed in a var
