@@ -1,5 +1,3 @@
-Tooltip not moving in view.
-
 # TextInput
 
 * Implement `CTRL+Left/Right` advance caret by word.

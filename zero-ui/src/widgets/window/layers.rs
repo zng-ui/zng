@@ -1046,6 +1046,19 @@ impl AnchorMode {
         }
     }
 
+    /// Mode where the widget behaves like a tooltip anchored to the cursor.
+    pub fn tooltip() -> Self {
+        AnchorMode {
+            transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
+            min_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Unbounded,
+            viewport_bound: true,
+            corner_radius: false,
+            visibility: true,
+            interactivity: false,
+        }
+    }
+
     /// Returns the mode with `transform` set.
     pub fn with_transform(mut self, transform: impl Into<AnchorTransform>) -> Self {
         self.transform = transform.into();

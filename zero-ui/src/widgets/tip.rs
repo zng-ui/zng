@@ -10,7 +10,7 @@ use crate::{
     prelude::AnchorMode,
 };
 
-use crate::prelude::{layers::AnchorTransform, new_widget::*, AnchorOffset};
+use crate::prelude::new_widget::*;
 
 use super::popup::{ContextCapture, Popup, PopupState, POPUP};
 
@@ -376,7 +376,7 @@ context_var! {
     /// Position of the tip widget in relation to the anchor widget.
     ///
     /// By default the tip widget is shown below the cursor.
-    pub static TOOLTIP_ANCHOR_VAR: AnchorMode = AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left());
+    pub static TOOLTIP_ANCHOR_VAR: AnchorMode = AnchorMode::tooltip();
 
     /// Duration the cursor must be over the anchor widget before the tip widget is opened.
     pub static TOOLTIP_DELAY_VAR: Duration = 500.ms();
