@@ -2179,6 +2179,10 @@ where
     }
 
     fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        if self.list.is_empty() {
+            return;
+        }
+
         self.list.info_all(info);
 
         if let Some((id, version, pump_update)) = &mut self.info_id {

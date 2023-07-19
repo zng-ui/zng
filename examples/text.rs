@@ -547,7 +547,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     };
 
                     checked_popup = wgt_fn!(|_| popup::Popup! {
-                        child = Text!("TODO");
+                        child = undo::UndoHistory!();
                     });
                 }
             },

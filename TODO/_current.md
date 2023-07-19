@@ -56,6 +56,8 @@
 
 * `UndoHistory!` widget.
     - Property to select the stack?
+        - How to link from the `UNDO_CMD.scoped(..)` alone?
+        - Needs to be a command meta?
     - Need to support pop-up hover down selecting.
         - Need a `HOVERED_TIMESTAMP_VAR`?
         - To highlight the covered entries.
