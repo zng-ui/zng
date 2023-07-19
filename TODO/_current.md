@@ -1,9 +1,3 @@
-* `list_presenter`.
-    - Resolve issue with tracking changes that are overridden in the same update.
-        - Example,  "insert(0, 3), remove(0, 4), insert(0, 1)" when iterated the
-          first insert will point to invalid data.
-    - Refactor some examples to use this.
-
 # TextInput
 
 * Implement `SELECT_CMD`.
@@ -51,6 +45,11 @@
 
 # Menu
 
+* `list_presenter`.
+    - Resolve issue with tracking changes that are overridden in the same update.
+        - Example,  "insert(0, 3), remove(0, 4), insert(0, 1)" when iterated the
+          first insert will point to invalid data.
+    - Refactor some examples to use this.
 * Implement styleable stack `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
     - Nested menus, auto-close on click.

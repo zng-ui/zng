@@ -60,7 +60,7 @@ impl<T: VarValue> ObservableVec<T> {
     /// See [`Vec::insert`].
     pub fn insert(&mut self, index: usize, element: T) {
         self.list.insert(index, element);
-        self.changes.push(VecChange::Insert { index, count: 1 });
+        self.changes.inserted(index, 1);
     }
 
     /// Insert the `element` at the end of the vec.
@@ -74,10 +74,7 @@ impl<T: VarValue> ObservableVec<T> {
     ///
     /// See [`Vec::append`].
     pub fn append(&mut self, other: &mut Vec<T>) {
-        self.changes.push(VecChange::Insert {
-            index: self.list.len(),
-            count: other.len(),
-        });
+        self.changes.inserted(self.list.len(), other.len());
         self.list.append(other);
     }
 
@@ -86,7 +83,7 @@ impl<T: VarValue> ObservableVec<T> {
     /// See [`Vec::remove`].
     pub fn remove(&mut self, index: usize) -> T {
         let r = self.list.remove(index);
-        self.changes.push(VecChange::Remove { index, count: 1 });
+        self.changes.removed(index, 1);
         r
     }
 
@@ -107,7 +104,7 @@ impl<T: VarValue> ObservableVec<T> {
     pub fn truncate(&mut self, len: usize) {
         if len < self.len() {
             let count = self.len() - len;
-            self.changes.push(VecChange::Remove { index: len, count });
+            self.changes.removed(len, count);
         }
         self.list.truncate(len);
     }
@@ -118,11 +115,8 @@ impl<T: VarValue> ObservableVec<T> {
     pub fn swap_remove(&mut self, index: usize) -> T {
         let r = self.list.swap_remove(index);
 
-        self.changes.push(VecChange::Remove { index, count: 1 });
-        self.changes.push(VecChange::Move {
-            from_index: self.list.len() - 1,
-            to_index: index,
-        });
+        self.changes.removed(index, 1);
+        self.changes.moved(self.list.len() - 1, index);
 
         r
     }
@@ -133,7 +127,7 @@ impl<T: VarValue> ObservableVec<T> {
     pub fn clear(&mut self) {
         if !self.is_empty() {
             self.clear();
-            self.changes.clear();
+            self.changes.cleared();
         }
     }
 
@@ -151,7 +145,7 @@ impl<T: VarValue> ObservableVec<T> {
             if retain {
                 i += 1;
             } else {
-                self.changes.push(VecChange::Remove { index: i, count: 1 });
+                self.changes.removed(i, 1);
             }
             retain
         })
@@ -168,10 +162,7 @@ impl<T: VarValue> ObservableVec<T> {
         let r = self.list.drain(range.clone());
 
         if !range.is_empty() {
-            self.changes.push(VecChange::Remove {
-                index: range.start,
-                count: range.len(),
-            });
+            self.changes.removed(range.start, range.len());
         }
 
         r
@@ -185,7 +176,7 @@ impl<T: VarValue> ObservableVec<T> {
             self.truncate(new_len);
         } else {
             let count = new_len - self.len();
-            self.changes.push(VecChange::Insert { index: self.len(), count });
+            self.changes.inserted(self.len(), count);
             self.list.resize(new_len, value);
         }
     }
@@ -195,10 +186,7 @@ impl<T: VarValue> ObservableVec<T> {
     /// See [`Vec::extend_from_slice`].
     pub fn extend_from_slice(&mut self, other: &[T]) {
         if !other.is_empty() {
-            self.changes.push(VecChange::Insert {
-                index: self.len(),
-                count: other.len(),
-            });
+            self.changes.inserted(self.len(), other.len());
         }
         self.list.extend_from_slice(other);
     }
@@ -215,7 +203,7 @@ impl<T: VarValue> ObservableVec<T> {
         self.list.extend_from_within(src.clone());
 
         if !src.is_empty() {
-            self.changes.push(VecChange::Insert { index, count: src.len() });
+            self.changes.inserted(index, src.len());
         }
     }
 
@@ -225,8 +213,8 @@ impl<T: VarValue> ObservableVec<T> {
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         let r = self.list.get_mut(index);
         if r.is_some() {
-            self.changes.push(VecChange::Remove { index, count: 1 });
-            self.changes.push(VecChange::Insert { index, count: 1 });
+            self.changes.removed(index, 1);
+            self.changes.inserted(index, 1);
         }
         r
     }
@@ -243,8 +231,8 @@ impl<T: VarValue> ObservableVec<T> {
 
         let count = range.len();
         if count > 0 {
-            self.changes.push(VecChange::Remove { index: range.start, count });
-            self.changes.push(VecChange::Insert { index: range.start, count });
+            self.changes.removed(range.start, count);
+            self.changes.inserted(range.start, count);
         }
 
         r
@@ -268,7 +256,7 @@ impl<T: VarValue> Extend<T> for ObservableVec<T> {
         self.list.extend(iter);
         let count = self.len() - index;
         if count > 0 {
-            self.changes.push(VecChange::Insert { index, count });
+            self.changes.inserted(index, count);
         }
     }
 }
@@ -343,42 +331,81 @@ impl VecChanges {
         }
     }
 
-    pub fn push(&mut self, change: VecChange) {
+    pub fn inserted(&mut self, i: usize, n: usize) {
         let update_id = VARS.update_id();
         if self.update_id != update_id {
             self.changes.clear();
-            self.changes.push(change);
+            self.changes.push(VecChange::Insert { index: i, count: n });
+            self.update_id = update_id;
+        } else if self.changes != [VecChange::Clear] {
+            if let Some(VecChange::Insert { index, count }) = self.changes.last_mut() {
+                if i >= *index && i <= *index + *count {
+                    // new insert inside previous
+                    *count += n;
+                    return;
+                } else {
+                    // insert indexes need to be patched.
+                    self.changes.clear();
+                    self.changes.push(VecChange::Clear);
+                    return;
+                }
+            }
+            self.changes.push(VecChange::Insert { index: i, count: n });
+        }
+    }
+
+    pub fn moved(&mut self, f: usize, t: usize) {
+        let update_id = VARS.update_id();
+        if self.update_id != update_id {
+            self.changes.clear();
+            self.changes.push(VecChange::Move {
+                from_index: f,
+                to_index: t,
+            });
+            self.update_id = update_id;
+        } else if self.changes != [VecChange::Clear] {
+            self.changes.push(VecChange::Move {
+                from_index: f,
+                to_index: t,
+            });
+        }
+    }
+
+    pub fn removed(&mut self, i: usize, n: usize) {
+        let update_id = VARS.update_id();
+        if self.update_id != update_id {
+            self.changes.clear();
+            self.changes.push(VecChange::Remove { index: i, count: n });
             self.update_id = update_id;
         } else if self.changes != [VecChange::Clear] {
             if let Some(last) = self.changes.last_mut() {
                 match last {
                     VecChange::Remove { index, count } => {
-                        if let VecChange::Remove { index: i2, count: c2 } = change {
-                            let i1 = *index;
-                            if i1 == i2 {
-                                *count += c2;
-                            }
+                        let s = i;
+                        let e = i + n;
+
+                        if s <= *index && e > *index {
+                            // new remove contains previous remove.
+                            *index = s;
+                            *count += n;
+                            return;
                         }
                     }
-                    VecChange::Insert { index, count } => {
-                        if let VecChange::Insert { index: i2, count: c2 } = change {
-                            let i1 = *index;
-                            let c1 = *count;
-                            if i2 == i1 + c1 {
-                                *count += c2;
-                            }
-                        }
+                    VecChange::Insert { .. } => {
+                        // insert indexes need to be patched.
+                        self.changes.clear();
+                        self.changes.push(VecChange::Clear);
+                        return;
                     }
-                    VecChange::Move { .. } => {}
-                    VecChange::Clear => unreachable!(),
+                    _ => {}
                 }
-            } else {
-                self.changes.push(change);
             }
+
+            self.changes.push(VecChange::Remove { index: i, count: n });
         }
     }
 
-    pub fn clear(&mut self) {
+    pub fn cleared(&mut self) {
         self.changes.clear();
         self.changes.push(VecChange::Clear);
         self.update_id = VARS.update_id();
