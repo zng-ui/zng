@@ -513,6 +513,51 @@ impl SegmentedText {
         }
     }
 
+    /// Find the next word segment, after `from`.
+    ///
+    /// This operation is saturating.
+    pub fn next_word_index(&self, from: usize) -> usize {
+        let mut segs = self.segs().iter();
+        for seg in &mut segs {
+            if from < seg.end {
+                let mut start = seg.end;
+                for seg in segs {
+                    if seg.kind.is_word() {
+                        return start;
+                    }
+                    start = seg.end;
+                }
+                break;
+            }
+        }
+        self.text.len()
+    }
+
+    /// Find the previous word segment, before `from`.
+    ///
+    /// This operation is saturating.
+    pub fn prev_word_index(&self, from: usize) -> usize {
+        let mut segs = self.segs().iter().rev();
+        let mut seg_kind = TextSegmentKind::Space;
+        for seg in &mut segs {
+            if seg.end < from {
+                if seg_kind.is_word() {
+                    return seg.end;
+                }
+                seg_kind = seg.kind;
+                for seg in segs {
+                    if seg_kind.is_word() {
+                        return seg.end;
+                    }
+                    seg_kind = seg.kind;
+                }
+                break;
+            }
+            seg_kind = seg.kind;
+        }
+        0
+    }
+
     /// Find the start of the line that contains `from`.
     ///
     /// # Panics

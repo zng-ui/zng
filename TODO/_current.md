@@ -1,6 +1,6 @@
 # TextInput
 
-* Implement `CTRL+Left/Right` advance caret by word.
+* Implement `CTRL+Backspace/Delete`.
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret

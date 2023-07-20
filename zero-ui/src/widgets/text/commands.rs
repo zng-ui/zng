@@ -374,14 +374,28 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Right` shortcut operation.
     pub fn word_next() -> Self {
-        Self::new(|| todo!())
+        Self::new(|| {
+            let ctx = ResolvedText::get();
+            let mut c = ctx.caret.lock();
+            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+            caret.index = ctx.text.next_word_index(caret.index);
+            c.index = Some(caret);
+            c.used_retained_x = false;
+        })
     }
 
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn word_prev() -> Self {
-        Self::new(|| todo!())
+        Self::new(|| {
+            let ctx = ResolvedText::get();
+            let mut c = ctx.caret.lock();
+            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+            caret.index = ctx.text.prev_word_index(caret.index);
+            c.index = Some(caret);
+            c.used_retained_x = false;
+        })
     }
 
     /// Clear selection and move the caret in the nearest insert index on the previous line.
