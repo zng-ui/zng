@@ -54,9 +54,10 @@
 
 # Undo Service
 
-* `UndoHistory!` widget.
-    - Review performance of undo in text.
-        - We are allocating for each key press, maybe set a limit at least.
+* Review performance of undo in text.
+    - We are allocating for each key press, maybe set a limit at least.
+    - Visual Studio shows merged entries.
+        - Or at least it does not show an entry for each key press.
 
 # View-Process
 

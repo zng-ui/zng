@@ -9,7 +9,7 @@ use zero_ui_core::undo::CommandUndoExt;
 use crate::prelude::new_widget::*;
 
 use crate::core::gesture::ClickArgs;
-use crate::core::undo::{UndoInfo, UndoOp, UNDO_CMD};
+use crate::core::undo::{UndoInfo, UndoOp, REDO_CMD, UNDO_CMD};
 use crate::widgets::button;
 use crate::widgets::{
     layouts::{stack::StackDirection, Stack},
@@ -54,12 +54,20 @@ impl<P: WidgetImpl> UndoMix<P> {
 }
 
 /// Undo/redo stack view.
-#[widget($crate::widgets::undo::UndoHistory)]
+///
+/// This widget shows a snapshot of the undo/redo stacks of the focused undo scope when the history widget is open.
+/// Note that the stack is not live, this widget is designed to work as a menu popup content.
+#[widget($crate::widgets::undo::UndoHistory {
+    ($op:expr) => {
+        op = $op;
+    }
+})]
 pub struct UndoHistory(WidgetBase);
 impl UndoHistory {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
-            wgt.set_child(view::presenter(UndoPanelArgs {}, UNDO_PANEL_FN_VAR));
+            let op = wgt.capture_value::<UndoOp>(property_id!(Self::op)).unwrap_or(UndoOp::Undo);
+            wgt.set_child(view::presenter(UndoPanelArgs { op }, UNDO_PANEL_FN_VAR));
         });
     }
 }
@@ -104,6 +112,10 @@ pub fn undo_stack_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoStack
 pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanelArgs>>) -> impl UiNode {
     with_context_var(child, UNDO_PANEL_FN_VAR, wgt_fn)
 }
+
+/// Identifies what stack history is shown by the widget.
+#[property(CONTEXT, capture, default(UndoOp::Undo), widget_impl(UndoHistory))]
+pub fn op(op: impl IntoValue<UndoOp>) {}
 
 /// Default [`UNDO_ENTRY_FN_VAR`].
 ///
@@ -155,14 +167,26 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
 }
 
 /// Default [`UNDO_PANEL_FN_VAR`].
-pub fn default_undo_panel_fn(_: UndoPanelArgs) -> impl UiNode {
+pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
     let stack = UNDO_STACK_FN_VAR.get();
-    let cmd = UNDO_CMD.undo_scoped().get();
-    stack(UndoStackArgs {
-        stack: cmd.undo_stack(),
-        op: UndoOp::Undo,
-        cmd,
-    })
+    match args.op {
+        UndoOp::Undo => {
+            let cmd = UNDO_CMD.undo_scoped().get();
+            stack(UndoStackArgs {
+                stack: cmd.undo_stack(),
+                op: UndoOp::Undo,
+                cmd,
+            })
+        }
+        UndoOp::Redo => {
+            let cmd = REDO_CMD.undo_scoped().get();
+            stack(UndoStackArgs {
+                stack: cmd.redo_stack(),
+                op: UndoOp::Redo,
+                cmd,
+            })
+        }
+    }
 }
 
 /// Represents an action in the undo or redo stack.
@@ -236,12 +260,12 @@ impl fmt::Debug for UndoStackArgs {
 
 /// Args to present the child of [`UndoHistory!`].
 ///
-/// The args are empty in the current release, you can use [`UNDO`] to
-/// get all the data needed.
-///
 /// [`UndoHistory!`]: struct@UndoHistory
 #[derive(Debug, Clone, PartialEq)]
-pub struct UndoPanelArgs {}
+pub struct UndoPanelArgs {
+    /// What stack history must be shown.
+    pub op: UndoOp,
+}
 
 /// Menu style button for an entry in a undo/redo stack.
 #[widget($crate::widgets::undo::UndoRedoButtonStyle)]
@@ -353,9 +377,13 @@ pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -
     // check the hovered timestamp
     bind_is_state(
         child,
-        merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, |&ts, entry| {
+        merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
             match (ts, entry) {
-                (Some(ts), Some(entry)) => entry.timestamp >= ts,
+                (Some(ts), Some(entry)) => match op {
+                    Some(UndoOp::Undo) => entry.timestamp >= ts,
+                    Some(UndoOp::Redo) => entry.timestamp <= ts,
+                    None => false,
+                },
                 _ => false,
             }
         }),

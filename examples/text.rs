@@ -553,14 +553,24 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             },
             {
                 let cmd = REDO_CMD.undo_scoped();
-                Button! {
-                    child = Icon!(zero_ui_material_icons::sharp::REDO);
-                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700), 4;
-                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                Toggle! {
+                    style_fn = toggle::ComboStyle!();
+
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
-                    on_click = hn!(|_| {
-                        cmd.get().notify();
+                    child = Button! {
+                        child = Icon!(zero_ui_material_icons::sharp::REDO);
+                        child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                        tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+
+                        on_click = hn!(|a: &ClickArgs| {
+                            a.propagation().stop();
+                            cmd.get().notify();
+                        });
+                    };
+
+                    checked_popup = wgt_fn!(|_| popup::Popup! {
+                        child = undo::UndoHistory!(zero_ui::core::undo::UndoOp::Redo);
                     });
                 }
             },
