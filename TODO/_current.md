@@ -55,7 +55,7 @@
 # Undo Service
 
 * `UndoHistory!` widget.
-    - Hovered item not selecting correctly.
+    - Undo to timestamp not working.
     - Review performance of undo in text.
         - We are allocating for each key press, maybe set a limit at least.
 

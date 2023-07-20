@@ -315,8 +315,19 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
     let child = is_cap_hovered(child, is_hovered.clone());
     let child = match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
+            let actual = HOVERED_TIMESTAMP_VAR.actual_var();
             is_hovered
-                .bind_map(&HOVERED_TIMESTAMP_VAR, move |&ih| if ih { Some(timestamp) } else { None })
+                .hook(Box::new(move |a| {
+                    let is_hovered = *a.downcast_value::<bool>().unwrap();
+                    let _ = actual.modify(move |a| {
+                        if is_hovered {
+                            a.set(Some(timestamp));
+                        } else if a.as_ref() == &Some(timestamp) {
+                            a.set(None);
+                        }
+                    });
+                    true
+                }))
                 .perm();
         }
     });
