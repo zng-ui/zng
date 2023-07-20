@@ -992,8 +992,8 @@ pub struct UndoSelectLtEq {
 impl UndoSelect for UndoSelectLtEq {
     fn include(&mut self, timestamp: Instant) -> bool {
         match self.op {
-            UndoOp::Undo => timestamp <= self.instant,
-            UndoOp::Redo => timestamp >= self.instant,
+            UndoOp::Undo => timestamp >= self.instant,
+            UndoOp::Redo => timestamp <= self.instant,
         }
     }
 }

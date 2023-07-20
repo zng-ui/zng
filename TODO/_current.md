@@ -55,7 +55,6 @@
 # Undo Service
 
 * `UndoHistory!` widget.
-    - Undo to timestamp not working.
     - Review performance of undo in text.
         - We are allocating for each key press, maybe set a limit at least.
 
