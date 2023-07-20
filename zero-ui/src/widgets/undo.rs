@@ -344,7 +344,7 @@ pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -
         child,
         merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, |&ts, entry| {
             match (ts, entry) {
-                (Some(ts), Some(entry)) => entry.timestamp <= ts,
+                (Some(ts), Some(entry)) => entry.timestamp >= ts,
                 _ => false,
             }
         }),

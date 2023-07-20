@@ -55,15 +55,9 @@
 # Undo Service
 
 * `UndoHistory!` widget.
-    - Property to select the stack?
-        - How to link from the `UNDO_CMD.scoped(..)` alone?
-        - Needs to be a command meta?
-            - Set in `WidgetUndoScope::init`.
-            - Need to be a weak reference.
-    - Need to support pop-up hover down selecting.
-        - Need a `HOVERED_TIMESTAMP_VAR`?
-        - To highlight the covered entries.
-        - Reuse the `toggle::ListItemStyle!` looks.
+    - Hovered item not selecting correctly.
+    - Review performance of undo in text.
+        - We are allocating for each key press, maybe set a limit at least.
 
 # View-Process
 

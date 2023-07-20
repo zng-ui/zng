@@ -461,7 +461,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             } else if let Some(c) = args.insert_char() {
                                 let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                 if !skip {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert("type", Txt::from_char(c)).call(&text));
+                                    ResolvedText::call_edit_op(&mut resolved, || {
+                                        TextEditOp::insert(formatx!("type \"{c}\""), Txt::from_char(c)).call(&text)
+                                    });
                                 }
                             }
                         }
@@ -493,7 +495,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 args.propagation().stop();
 
                                 ResolvedText::call_edit_op(&mut resolved, || {
-                                    TextEditOp::insert("paste", paste).call(&text);
+                                    let name = if paste.len() < 5 {
+                                        formatx!("paste \"{}\"", paste)
+                                    } else {
+                                        formatx!("paste \"{}…\"", &paste[..5])
+                                    };
+                                    TextEditOp::insert(name, paste).call(&text);
                                 });
                             }
                         }
