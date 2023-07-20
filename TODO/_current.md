@@ -54,6 +54,8 @@
 
 # Undo Service
 
+* Implement undo grouping in view.
+    - Implement scroll.
 * Review performance of undo in text.
     - We are allocating for each key press, maybe set a limit at least.
     - Visual Studio shows merged entries.

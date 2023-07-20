@@ -9,7 +9,7 @@ use zero_ui_core::undo::CommandUndoExt;
 use crate::prelude::new_widget::*;
 
 use crate::core::gesture::ClickArgs;
-use crate::core::undo::{UndoInfo, UndoOp, REDO_CMD, UNDO_CMD};
+use crate::core::undo::{UndoInfo, UndoOp, UndoStackInfo, REDO_CMD, UNDO_CMD};
 use crate::widgets::button;
 use crate::widgets::{
     layouts::{stack::StackDirection, Stack},
@@ -147,6 +147,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
     let children = args
         .stack
+        .stack
         .into_iter()
         .rev()
         .map(|(ts, info)| {
@@ -227,7 +228,7 @@ impl fmt::Debug for UndoEntryArgs {
 #[derive(Clone)]
 pub struct UndoStackArgs {
     /// Stack, latest at the end.
-    pub stack: Vec<(Instant, Arc<dyn UndoInfo>)>,
+    pub stack: UndoStackInfo,
     /// What stack this is.
     pub op: UndoOp,
     /// The undo or redo command, scoped.
@@ -240,11 +241,12 @@ pub struct UndoStackArgs {
 impl PartialEq for UndoStackArgs {
     fn eq(&self, other: &Self) -> bool {
         self.op == other.op
-            && self.stack.len() == other.stack.len()
+            && self.stack.stack.len() == other.stack.stack.len()
             && self
                 .stack
+                .stack
                 .iter()
-                .zip(&other.stack)
+                .zip(&other.stack.stack)
                 .all(|((t0, a0), (t1, a1))| t0 == t1 && Arc::ptr_eq(a0, a1))
     }
 }
@@ -252,7 +254,7 @@ impl PartialEq for UndoStackArgs {
 impl fmt::Debug for UndoStackArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("UndoStackArgs")
-            .field("stack.len()", &self.stack.len())
+            .field("stack.len()", &self.stack.stack.len())
             .field("op", &self.op)
             .finish()
     }

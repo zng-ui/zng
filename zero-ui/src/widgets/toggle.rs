@@ -915,6 +915,7 @@ impl ComboStyle {
 
             button::extend_style = Style! { // button in child.
                 click_mode = ClickMode::default();
+                corner_radius = (4, 0, 0, 4);
             };
 
             popup::extend_style = Style! {

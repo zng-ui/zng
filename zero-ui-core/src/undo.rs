@@ -350,14 +350,8 @@ impl UNDO {
     /// Clones the timestamp and info of all entries in the current undo stack.
     ///
     /// The latest undo action is the last entry in the list.
-    pub fn undo_stack(&self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
-        UNDO_SCOPE_CTX
-            .get()
-            .undo
-            .lock()
-            .iter()
-            .map(|e| (e.timestamp, e.info.clone()))
-            .collect()
+    pub fn undo_stack(&self) -> UndoStackInfo {
+        UndoStackInfo::undo(&UNDO_SCOPE_CTX.get(), UNDO_INTERVAL_VAR.get())
     }
 
     /// Clones the timestamp and info of all entries in the current redo stack.
@@ -365,14 +359,34 @@ impl UNDO {
     /// The latest undone action is the last entry in the list. Note that the
     /// timestamp is marks the moment the original undo registered the action, so the
     /// newest timestamp is in the first entry.
-    pub fn redo_stack(&self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
-        UNDO_SCOPE_CTX
-            .get()
-            .redo
-            .lock()
-            .iter()
-            .map(|e| (e.timestamp, e.info.clone()))
-            .collect()
+    pub fn redo_stack(&self) -> UndoStackInfo {
+        UndoStackInfo::redo(&UNDO_SCOPE_CTX.get(), UNDO_INTERVAL_VAR.get())
+    }
+}
+
+/// Snapshot of the undo or redo stacks in an [`UNDO`] scope.
+#[derive(Clone)]
+pub struct UndoStackInfo {
+    /// Clones the timestamp and info of all entries in the current undo stack.
+    ///
+    /// The latest undo action is the last entry in the list.
+    pub stack: Vec<(Instant, Arc<dyn UndoInfo>)>,
+
+    /// Grouping interval.
+    pub undo_interval: Duration,
+}
+impl UndoStackInfo {
+    fn undo(ctx: &UndoScope, undo_interval: Duration) -> Self {
+        Self {
+            stack: ctx.undo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect(),
+            undo_interval,
+        }
+    }
+    fn redo(ctx: &UndoScope, undo_interval: Duration) -> Self {
+        Self {
+            stack: ctx.redo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect(),
+            undo_interval,
+        }
     }
 }
 
@@ -589,9 +603,12 @@ impl WidgetUndoScope {
 
         let scope = Arc::new(scope);
         let wk_scope = Arc::downgrade(&scope);
+        let interval = UNDO_INTERVAL_VAR.actual_var();
 
-        UNDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, wk_scope.clone()));
-        REDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, wk_scope));
+        UNDO_CMD
+            .scoped(id)
+            .with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, (wk_scope.clone(), interval.clone())));
+        REDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, (wk_scope, interval)));
 
         self.0 = Some(scope);
     }
@@ -847,9 +864,9 @@ pub trait CommandUndoExt {
     fn undo_scoped(self) -> BoxedVar<Command>;
 
     /// Latest undo stack for the given scope, same as calling [`UNDO::undo_stack`] inside the scope.
-    fn undo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)>;
+    fn undo_stack(self) -> UndoStackInfo;
     /// Latest undo stack for the given scope, same as calling [`UNDO::redo_stack`] inside the scope.
-    fn redo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)>;
+    fn redo_stack(self) -> UndoStackInfo;
 }
 impl CommandUndoExt for Command {
     fn undo_scoped(self) -> BoxedVar<Command> {
@@ -867,38 +884,48 @@ impl CommandUndoExt for Command {
         })
     }
 
-    fn undo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+    fn undo_stack(self) -> UndoStackInfo {
         let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
         if let Some(scope) = scope {
-            if let Some(scope) = scope.upgrade() {
-                return scope.undo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect();
+            if let Some(s) = scope.0.upgrade() {
+                return UndoStackInfo::undo(&s, scope.1.get());
             }
         }
 
         if let CommandScope::App = self.scope() {
-            return UNDO_SCOPE_CTX.with_default(|| UNDO.undo_stack());
+            let mut r = UNDO_SCOPE_CTX.with_default(|| UNDO.undo_stack());
+            r.undo_interval = UNDO.undo_interval().get();
+            return r;
         }
 
-        vec![]
+        UndoStackInfo {
+            stack: vec![],
+            undo_interval: Duration::ZERO,
+        }
     }
 
-    fn redo_stack(self) -> Vec<(Instant, Arc<dyn UndoInfo>)> {
+    fn redo_stack(self) -> UndoStackInfo {
         let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
         if let Some(scope) = scope {
-            if let Some(scope) = scope.upgrade() {
-                return scope.redo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect();
+            if let Some(s) = scope.0.upgrade() {
+                return UndoStackInfo::redo(&s, scope.1.get());
             }
         }
 
         if let CommandScope::App = self.scope() {
-            return UNDO_SCOPE_CTX.with_default(|| UNDO.redo_stack());
+            let mut r = UNDO_SCOPE_CTX.with_default(|| UNDO.redo_stack());
+            r.undo_interval = UNDO.undo_interval().get();
+            return r;
         }
 
-        vec![]
+        UndoStackInfo {
+            stack: vec![],
+            undo_interval: Duration::ZERO,
+        }
     }
 }
 
-static WEAK_UNDO_SCOPE_ID: StaticStateId<std::sync::Weak<UndoScope>> = StaticStateId::new_unique();
+static WEAK_UNDO_SCOPE_ID: StaticStateId<(std::sync::Weak<UndoScope>, crate::var::BoxedVar<Duration>)> = StaticStateId::new_unique();
 
 /// Represents a type that can select actions for undo or redo once.
 ///
