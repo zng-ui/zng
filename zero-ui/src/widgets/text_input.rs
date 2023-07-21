@@ -26,6 +26,7 @@ impl TextInput {
             txt_align = Align::TOP_START;
             focusable = true;
             undo_scope = true;
+            undo_limit = 100;
             style_fn = STYLE_VAR;
         }
     }

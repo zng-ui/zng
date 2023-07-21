@@ -107,14 +107,14 @@ impl UNDO {
     /// This value applies to all scopes and defines the max interval between actions
     /// that are undone in a single call.
     ///
-    /// Is the [keyboard repeat interval] times 4 by default.
+    /// Is the [keyboard repeat start delay + interval] by default.
     ///
     /// Note that undo scopes get the interval from [`UNDO_INTERVAL_VAR`] in context, the context var is
     /// set to this var by default.
     ///
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
-    /// [keyboard repeat interval]: crate::keyboard::KEYBOARD::repeat_config
+    /// [keyboard repeat start delay + interval]: crate::keyboard::KEYBOARD::repeat_config
     pub fn undo_interval(&self) -> BoxedVar<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
@@ -896,7 +896,7 @@ impl Default for UndoService {
     fn default() -> Self {
         Self {
             undo_limit: var(u32::MAX).boxed(),
-            undo_interval: KEYBOARD.repeat_config().map(|c| c.interval * 4).cow().boxed(),
+            undo_interval: KEYBOARD.repeat_config().map(|c| c.start_delay + c.interval).cow().boxed(),
         }
     }
 }

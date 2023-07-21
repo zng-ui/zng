@@ -55,11 +55,14 @@
 # Undo Service
 
 * Clicking the split undo button to open and close the popup causes focus to not return to text.
-* Press-repeat key input not merged into single undo.
 * Review performance of undo in text.
-    - We are allocating for each key press, maybe set a limit at least.
-    - Visual Studio shows merged entries.
-        - Or at least it does not show an entry for each key press.
+    - Noticeable lag when undoing a long press-repeat sequence.
+        - Also reaches the limit very quickly.
+    - Actually merge actions.
+        - When registered try merge with previous.
+        - This can be implemented in the `UndoInfo`?
+            - Share the `UndoInfo` with the undo/redo action?
+        - How to implement this with the closure actions?
 
 # View-Process
 

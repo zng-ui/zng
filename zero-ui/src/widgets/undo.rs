@@ -118,11 +118,13 @@ pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanel
     with_context_var(child, UNDO_PANEL_FN_VAR, wgt_fn)
 }
 
-/// If undo entries are grouped by the [`UNDO::undo_interval`].
+/// If undo entries are grouped by the [`UNDO.undo_interval`].
 ///
 /// Enabled by default.
 ///
 /// Sets the [`GROUP_BY_UNDO_INTERVAL_VAR`].
+///
+/// [`UNDO.undo_interval`]: crate::core::undo::UNDO::undo_interval
 #[property(CONTEXT+1, default(GROUP_BY_UNDO_INTERVAL_VAR), widget_impl(UndoHistory))]
 pub fn group_by_undo_interval(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, GROUP_BY_UNDO_INTERVAL_VAR, enabled)
@@ -159,7 +161,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
             }
 
             let _ = write!(&mut txt, "{sep}{}", info.description());
-            sep = " + ";
+            sep = "₊";
         }
         txt.end_mut();
         txt

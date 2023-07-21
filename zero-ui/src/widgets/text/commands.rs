@@ -498,7 +498,6 @@ impl TextSelectOp {
 
             let mut caret = resolved.caret.lock();
             let caret = &mut *caret;
-            let caret_index = &mut caret.index;
 
             caret.used_retained_x = false;
 
@@ -521,11 +520,11 @@ impl TextSelectOp {
                     None => CaretIndex::ZERO,
                 };
                 i.index = resolved.text.snap_grapheme_boundary(i.index);
-                *caret_index = Some(i);
+                caret.set_index(i);
             }
 
-            if caret_index.is_none() {
-                *caret_index = Some(CaretIndex::ZERO);
+            if caret.index.is_none() {
+                caret.set_index(CaretIndex::ZERO);
             }
         })
     }
