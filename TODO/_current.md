@@ -55,10 +55,6 @@
 # Undo Service
 
 * Popup does not dismiss with scroll.
-* Popup `max_height` expression not working.
-    - Not min(80%) when smaller than 200dip.
-    - No re-layout on window resize.
-        - Popup re-layouts, scroll does not.
 * Clicking the split undo button to open and close the popup causes focus to not return to text.
 * Review performance of undo in text.
     - Noticeable lag when undoing a long press-repeat sequence.

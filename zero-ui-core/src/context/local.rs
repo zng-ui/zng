@@ -263,7 +263,9 @@ impl LocalContext {
                 mem::replace(&mut *parent, base)
             });
             let _restore = RunOnDrop::new(|| {
-                self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
+                LOCAL.with(|c| {
+                    *c.borrow_mut() = prev;
+                });
             });
             f()
         }

@@ -77,6 +77,8 @@ context_var! {
 ///
 /// If `true` the popup will remove it self from [`LAYERS`], is `true` by default.
 ///
+/// This property must be set on the widget that opens the popup or a parent, not the popup widget itself.
+///
 /// Sets the [`CLOSE_ON_FOCUS_LEAVE_VAR`].
 #[property(CONTEXT, default(CLOSE_ON_FOCUS_LEAVE_VAR))]
 pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> impl UiNode {
@@ -84,6 +86,8 @@ pub fn close_on_focus_leave(child: impl UiNode, close: impl IntoVar<bool>) -> im
 }
 
 /// Defines the popup placement and size for popups open by the widget or descendants.
+///
+/// This property must be set on the widget that opens the popup or a parent, not the popup widget itself.
 ///
 /// This property sets the [`ANCHOR_MODE_VAR`].
 #[property(CONTEXT, default(ANCHOR_MODE_VAR))]
@@ -98,7 +102,8 @@ pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl U
 /// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
 /// There are potential issues with this, see [`ContextCapture`] for more details.
 ///
-/// Note that updates to this property do not affect popups already open, just subsequent popups.
+/// Note that updates to this property do not affect popups already open, just subsequent popups. This
+/// property must be set on the widget that opens the popup or a parent, not the popup widget itself.
 ///
 /// This property sets the [`CONTEXT_CAPTURE_VAR`].
 #[property(CONTEXT, default(CONTEXT_CAPTURE_VAR))]
