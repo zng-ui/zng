@@ -83,6 +83,11 @@ context_var! {
     ///
     /// [`UndoHistory!`]: struct@UndoHistory
     pub static UNDO_PANEL_FN_VAR: WidgetFn<UndoPanelArgs> = WidgetFn::new(default_undo_panel_fn);
+
+    /// If undo entries are grouped by the [`UNDO::undo_interval`].
+    ///
+    /// Enabled by default.
+    pub static GROUP_BY_UNDO_INTERVAL_VAR: bool = true;
 }
 
 /// Widget function that converts [`UndoEntryArgs`] to widgets.
@@ -113,6 +118,16 @@ pub fn undo_panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoPanel
     with_context_var(child, UNDO_PANEL_FN_VAR, wgt_fn)
 }
 
+/// If undo entries are grouped by the [`UNDO::undo_interval`].
+///
+/// Enabled by default.
+///
+/// Sets the [`GROUP_BY_UNDO_INTERVAL_VAR`].
+#[property(CONTEXT+1, default(GROUP_BY_UNDO_INTERVAL_VAR), widget_impl(UndoHistory))]
+pub fn group_by_undo_interval(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, GROUP_BY_UNDO_INTERVAL_VAR, enabled)
+}
+
 /// Identifies what stack history is shown by the widget.
 #[property(CONTEXT, capture, default(UndoOp::Undo), widget_impl(UndoHistory))]
 pub fn op(op: impl IntoValue<UndoOp>) {}
@@ -125,10 +140,33 @@ pub fn op(op: impl IntoValue<UndoOp>) {}
 ///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
-    let ts = args.timestamp;
+    let ts = args.timestamp();
     let cmd = args.cmd;
+
+    let label = if args.info.len() == 1 {
+        args.info[0].1.description()
+    } else {
+        let mut txt = Txt::from_static("");
+        let mut sep = "";
+        let mut info_iter = args.info.iter();
+        for (_, info) in &mut info_iter {
+            use std::fmt::Write;
+
+            if txt.chars().take(10).count() == 10 {
+                let count = 1 + info_iter.count();
+                let _ = write!(&mut txt, "{sep}{count}");
+                break;
+            }
+
+            let _ = write!(&mut txt, "{sep}{}", info.description());
+            sep = " + ";
+        }
+        txt.end_mut();
+        txt
+    };
+
     Button! {
-        child = Text!(args.info.description());
+        child = Text!(label);
         undo_entry = args;
         style_fn = UNDO_BUTTON_STYLE_VAR;
         on_click = hn!(|args: &ClickArgs| {
@@ -145,20 +183,33 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
 pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
-    let children = args
-        .stack
-        .stack
-        .into_iter()
-        .rev()
-        .map(|(ts, info)| {
-            entry(UndoEntryArgs {
-                timestamp: ts,
-                info,
-                op: args.op,
-                cmd: args.cmd,
+
+    let children: UiNodeVec = if GROUP_BY_UNDO_INTERVAL_VAR.get() {
+        args.stack
+            .iter_groups()
+            .rev()
+            .map(|g| {
+                entry(UndoEntryArgs {
+                    info: g.to_vec(),
+                    op: args.op,
+                    cmd: args.cmd,
+                })
             })
-        })
-        .collect::<UiNodeVec>();
+            .collect()
+    } else {
+        args.stack
+            .stack
+            .into_iter()
+            .rev()
+            .map(|info| {
+                entry(UndoEntryArgs {
+                    info: vec![info],
+                    op: args.op,
+                    cmd: args.cmd,
+                })
+            })
+            .collect()
+    };
 
     Stack! {
         undo_stack = args.op;
@@ -193,12 +244,12 @@ pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
 /// Represents an action in the undo or redo stack.
 #[derive(Clone)]
 pub struct UndoEntryArgs {
-    /// Moment the undo action was first registered.
-    ///
-    /// This does not change after redo and undo, it is always the register time.
-    pub timestamp: Instant,
     /// Info about the action.
-    pub info: Arc<dyn UndoInfo>,
+    ///
+    /// Is at least one item, can be more if [`GROUP_BY_UNDO_INTERVAL_VAR`] is enabled.
+    ///
+    /// The latest undo action is the last entry in the list.
+    pub info: Vec<(Instant, Arc<dyn UndoInfo>)>,
 
     /// What stack this entry is at.
     pub op: UndoOp,
@@ -206,19 +257,34 @@ pub struct UndoEntryArgs {
     /// The undo or redo command in the correct scope.
     pub cmd: Command,
 }
+impl UndoEntryArgs {
+    /// Moment the undo action was first registered.
+    ///
+    /// This does not change after redo and undo, it is always the register time.
+    ///
+    /// This is the first timestamp in `info`.
+    pub fn timestamp(&self) -> Instant {
+        self.info[0].0
+    }
+}
 // this is just in case the args gets placed in a var
 // false positives (ne when is eq) does not matter.
 #[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for UndoEntryArgs {
     fn eq(&self, other: &Self) -> bool {
-        self.timestamp == other.timestamp && Arc::ptr_eq(&self.info, &other.info) && self.op == other.op
+        self.op == other.op
+            && self.info.len() == other.info.len()
+            && self
+                .info
+                .iter()
+                .zip(&other.info)
+                .all(|(a, b)| a.0 == b.0 && Arc::ptr_eq(&a.1, &b.1))
     }
 }
 impl fmt::Debug for UndoEntryArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("UndoEntryArgs")
-            .field("timestamp", &self.timestamp)
-            .field("info", &self.info.description())
+            .field("info[0]", &self.info[0].1.description())
             .field("op", &self.op)
             .finish()
     }
@@ -336,7 +402,7 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
     let entry = entry.into();
 
     // set the hovered timestamp
-    let timestamp = entry.timestamp;
+    let timestamp = entry.timestamp();
     let is_hovered = var(false);
     let child = is_cap_hovered(child, is_hovered.clone());
     let child = match_node(child, move |_, op| {
@@ -382,8 +448,8 @@ pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -
         merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
             match (ts, entry) {
                 (Some(ts), Some(entry)) => match op {
-                    Some(UndoOp::Undo) => entry.timestamp >= ts,
-                    Some(UndoOp::Redo) => entry.timestamp <= ts,
+                    Some(UndoOp::Undo) => entry.timestamp() >= ts,
+                    Some(UndoOp::Redo) => entry.timestamp() <= ts,
                     None => false,
                 },
                 _ => false,

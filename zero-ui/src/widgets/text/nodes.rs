@@ -462,7 +462,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                 if !skip {
                                     ResolvedText::call_edit_op(&mut resolved, || {
-                                        TextEditOp::insert(formatx!("type \"{c}\""), Txt::from_char(c)).call(&text)
+                                        let label = if c.is_control() || c.is_whitespace() {
+                                            formatx!("{c:?}")
+                                        } else {
+                                            Txt::from_char(c)
+                                        };
+                                        TextEditOp::insert(label, Txt::from_char(c)).call(&text)
                                     });
                                 }
                             }

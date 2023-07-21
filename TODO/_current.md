@@ -54,8 +54,8 @@
 
 # Undo Service
 
-* Implement undo grouping in view.
-    - Implement scroll.
+* Clicking the split undo button to open and close the popup causes focus to not return to text.
+* Press-repeat key input not merged into single undo.
 * Review performance of undo in text.
     - We are allocating for each key press, maybe set a limit at least.
     - Visual Studio shows merged entries.

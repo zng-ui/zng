@@ -357,7 +357,7 @@ impl UNDO {
     /// Clones the timestamp and info of all entries in the current redo stack.
     ///
     /// The latest undone action is the last entry in the list. Note that the
-    /// timestamp is marks the moment the original undo registered the action, so the
+    /// timestamp marks the moment the original undo registered the action, so the
     /// newest timestamp is in the first entry.
     pub fn redo_stack(&self) -> UndoStackInfo {
         UndoStackInfo::redo(&UNDO_SCOPE_CTX.get(), UNDO_INTERVAL_VAR.get())
@@ -369,7 +369,11 @@ impl UNDO {
 pub struct UndoStackInfo {
     /// Clones the timestamp and info of all entries in the current undo stack.
     ///
-    /// The latest undo action is the last entry in the list.
+    /// In an undo list the latest undo action (first to undo) is the last entry in the list and has the latest timestamp.
+    ///
+    /// In an redo list the latest undone action is the last entry (first to redo). Note that the
+    /// timestamp marks the moment the original undo registered the action, so the
+    /// newest timestamp is in the first entry for redo lists.
     pub stack: Vec<(Instant, Arc<dyn UndoInfo>)>,
 
     /// Grouping interval.
@@ -386,6 +390,73 @@ impl UndoStackInfo {
         Self {
             stack: ctx.redo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect(),
             undo_interval,
+        }
+    }
+
+    /// Iterate over the `stack`, grouped by `undo_interval`.
+    pub fn iter_groups(&self) -> impl DoubleEndedIterator<Item = &[(Instant, Arc<dyn UndoInfo>)]> {
+        struct Iter<'a> {
+            stack: &'a [(Instant, Arc<dyn UndoInfo>)],
+            interval: Duration,
+            ts_inverted: bool,
+        }
+        impl<'a> Iterator for Iter<'a> {
+            type Item = &'a [(Instant, Arc<dyn UndoInfo>)];
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.stack.is_empty() {
+                    None
+                } else {
+                    let mut older = self.stack[0].0;
+
+                    let mut r = self.stack;
+
+                    if let Some(i) = self.stack.iter().position(|(newer, _)| {
+                        let (a, b) = if self.ts_inverted { (older, *newer) } else { (*newer, older) };
+                        let break_ = a.saturating_duration_since(b) > self.interval;
+                        older = *newer;
+                        break_
+                    }) {
+                        r = &self.stack[..i];
+                        self.stack = &self.stack[i..];
+                    } else {
+                        self.stack = &[];
+                    }
+
+                    Some(r)
+                }
+            }
+        }
+        impl<'a> DoubleEndedIterator for Iter<'a> {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                if self.stack.is_empty() {
+                    None
+                } else {
+                    let mut newer = self.stack[self.stack.len() - 1].0;
+
+                    let mut r = self.stack;
+
+                    if let Some(i) = self.stack.iter().rposition(|(older, _)| {
+                        let (a, b) = if self.ts_inverted { (*older, newer) } else { (newer, *older) };
+                        let break_ = a.saturating_duration_since(b) > self.interval;
+                        newer = *older;
+                        break_
+                    }) {
+                        let i = i + 1;
+                        r = &self.stack[i..];
+                        self.stack = &self.stack[..i];
+                    } else {
+                        self.stack = &[];
+                    }
+
+                    Some(r)
+                }
+            }
+        }
+        Iter {
+            stack: &self.stack,
+            interval: self.undo_interval,
+            ts_inverted: self.stack.len() > 1 && self.stack[0].0 > self.stack[self.stack.len() - 1].0,
         }
     }
 }
