@@ -345,7 +345,7 @@ impl Layout2d for LinearGradientAxis {
 
     fn affect_mask(&self) -> LayoutMask {
         match self {
-            LinearGradientAxis::Angle(_) => LayoutMask::CONSTRAINS,
+            LinearGradientAxis::Angle(_) => LayoutMask::CONSTRAINTS,
             LinearGradientAxis::Line(line) => line.affect_mask(),
         }
     }

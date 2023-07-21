@@ -2745,7 +2745,7 @@ pub struct LayoutMetricsSnapshot {
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
-        (!mask.contains(LayoutMask::CONSTRAINS)
+        (!mask.contains(LayoutMask::CONSTRAINTS)
             || (self.constraints == other.constraints && self.inline_constraints == other.inline_constraints))
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
@@ -2809,7 +2809,7 @@ impl LayoutMetrics {
 
     /// Current size constraints.
     pub fn constraints(&self) -> PxConstraints2d {
-        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
+        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
         self.s.constraints
     }
 
@@ -2817,7 +2817,7 @@ impl LayoutMetrics {
     ///
     /// Only present if the parent widget supports inline.
     pub fn inline_constraints(&self) -> Option<InlineConstraints> {
-        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
+        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
         self.s.inline_constraints.clone()
     }
 

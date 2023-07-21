@@ -223,7 +223,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
 /// Default [`UNDO_PANEL_FN_VAR`].
 pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
     let stack = UNDO_STACK_FN_VAR.get();
-    match args.op {
+    let stack = match args.op {
         UndoOp::Undo => {
             let cmd = UNDO_CMD.undo_scoped().get();
             stack(UndoStackArgs {
@@ -240,6 +240,13 @@ pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
                 cmd,
             })
         }
+    };
+
+    crate::widgets::Scroll! {
+        child = stack;
+        child_align = Align::FILL_TOP;
+        mode = crate::widgets::scroll::ScrollMode::VERTICAL;
+        max_height = 200.dip().min(80.pct());
     }
 }
 
@@ -347,11 +354,9 @@ impl UndoRedoButtonStyle {
             padding = 4;
             child_align = Align::START;
 
-            #[easing(150.ms())]
             background_color = color_scheme_pair(button::BASE_COLORS_VAR);
 
             when *#is_cap_hovered_timestamp {
-                #[easing(0.ms())]
                 background_color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
             }
 

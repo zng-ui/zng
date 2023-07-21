@@ -644,7 +644,7 @@ impl super::Layout1d for Length {
             Dip(_) => LayoutMask::SCALE_FACTOR,
             Px(_) => LayoutMask::empty(),
             Pt(_) => LayoutMask::SCALE_FACTOR,
-            Relative(_) => LayoutMask::CONSTRAINS,
+            Relative(_) => LayoutMask::CONSTRAINTS,
             Leftover(_) => LayoutMask::LEFTOVER,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
@@ -666,7 +666,7 @@ bitflags! {
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
         /// The [`LayoutMetrics::constraints`] and [`LayoutMetrics::inline_constraints`].
-        const CONSTRAINS = 1 << 30;
+        const CONSTRAINTS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].
         const FONT_SIZE = 1;
