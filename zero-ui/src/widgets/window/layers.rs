@@ -219,7 +219,7 @@ impl LAYERS {
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         let mut constraints = match mode.min_size {
                             AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                            AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
+                            AnchorSize::Window => LAYOUT.constraints(),
                             AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
                             AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
                             AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
@@ -236,6 +236,7 @@ impl LAYERS {
                                 AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
                             };
                         }
+                        constraints = constraints.with_fill(false, false);
 
                         *desired_size = LAYOUT.with_constraints(constraints, || widget.measure(wm));
                     }
@@ -252,7 +253,7 @@ impl LAYERS {
 
                         let mut constraints = match mode.min_size {
                             AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                            AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
+                            AnchorSize::Window => LAYOUT.constraints(),
                             AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
                             AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
                             AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
@@ -269,6 +270,7 @@ impl LAYERS {
                                 AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
                             };
                         }
+                        constraints = constraints.with_fill(false, false);
 
                         let layer_size = LAYOUT.with_constraints(constraints, || {
                             if mode.corner_radius {
@@ -1038,7 +1040,7 @@ impl AnchorMode {
         AnchorMode {
             transform: place.into(),
             min_size: AnchorSize::InnerSize,
-            max_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Window,
             visibility: true,
             viewport_bound: true,
             interactivity: true,
@@ -1051,7 +1053,7 @@ impl AnchorMode {
         AnchorMode {
             transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
             min_size: AnchorSize::Unbounded,
-            max_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Window,
             viewport_bound: true,
             corner_radius: false,
             visibility: true,
