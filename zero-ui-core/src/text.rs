@@ -1259,7 +1259,7 @@ impl Txt {
         match &mut self.0 {
             TxtData::String(s) => s.push(c),
             TxtData::Inline(inlined) => {
-                if let Some(len) = inlined.iter().position(|&c| c != b'\0') {
+                if let Some(len) = inlined.iter().position(|&c| c == b'\0') {
                     if len + 4 <= INLINE_MAX && c != '\0' {
                         let mut buf = [0u8; 4];
                         let s = c.encode_utf8(&mut buf);
@@ -1297,7 +1297,7 @@ impl Txt {
         match &mut self.0 {
             TxtData::String(str) => str.push_str(s),
             TxtData::Inline(inlined) => {
-                if let Some(len) = inlined.iter().position(|&c| c != b'\0') {
+                if let Some(len) = inlined.iter().position(|&c| c == b'\0') {
                     if len + s.len() <= INLINE_MAX && !s.contains('\0') {
                         inlined[len..len + s.len()].copy_from_slice(s.as_bytes());
                         return;
