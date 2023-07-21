@@ -54,7 +54,6 @@
 
 # Undo Service
 
-* Popup does not dismiss with scroll.
 * Clicking the split undo button to open and close the popup causes focus to not return to text.
 * Review performance of undo in text.
     - Noticeable lag when undoing a long press-repeat sequence.

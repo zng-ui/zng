@@ -939,8 +939,7 @@ impl FocusService {
                             FocusTarget::Prev => w.prev_tab(false),
                             FocusTarget::Enter => w.first_tab_descendant(),
                             FocusTarget::Exit => {
-                                if self.alt_return.is_some() && (w.is_alt_scope() || w.parent().map(|w| w.is_alt_scope()).unwrap_or(false))
-                                {
+                                if self.alt_return.is_some() && (w.is_alt_scope() || w.ancestors().any(|w| w.is_alt_scope())) {
                                     self.new_focus_for_alt_exit(w, is_info_retry, request.highlight)
                                 } else {
                                     w.ancestors().next()
