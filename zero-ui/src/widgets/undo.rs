@@ -13,7 +13,7 @@ use crate::core::undo::{UndoInfo, UndoOp, UndoStackInfo, REDO_CMD, UNDO_CMD};
 use crate::widgets::button;
 use crate::widgets::{
     layouts::{stack::StackDirection, Stack},
-    view, Button, Text,
+    view, Button, Scroll, Text,
 };
 
 /// Undo scope widget mixin.
@@ -186,20 +186,32 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
 pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
 
-    let children: UiNodeVec = if GROUP_BY_UNDO_INTERVAL_VAR.get() {
-        args.stack
+    let timestamps;
+    let children: UiNodeVec;
+
+    if GROUP_BY_UNDO_INTERVAL_VAR.get() {
+        let mut ts = vec![];
+
+        children = args
+            .stack
             .iter_groups()
             .rev()
             .map(|g| {
-                entry(UndoEntryArgs {
+                let e = UndoEntryArgs {
                     info: g.to_vec(),
                     op: args.op,
                     cmd: args.cmd,
-                })
+                };
+                ts.push(e.timestamp());
+                entry(e)
             })
-            .collect()
+            .collect();
+
+        timestamps = ts;
     } else {
-        args.stack
+        timestamps = args.stack.stack.iter().rev().map(|(i, _)| *i).collect();
+        children = args
+            .stack
             .stack
             .into_iter()
             .rev()
@@ -210,20 +222,47 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
                     cmd: args.cmd,
                 })
             })
-            .collect()
+            .collect();
     };
 
-    Stack! {
+    let op = args.op;
+    let count = HOVERED_TIMESTAMP_VAR.map(move |t| {
+        let c = match t {
+            Some(t) => match op {
+                UndoOp::Undo => timestamps.iter().take_while(|ts| *ts >= t).count(),
+                UndoOp::Redo => timestamps.iter().take_while(|ts| *ts <= t).count(),
+            },
+            None => 0,
+        };
+        L10nArgument::from(c)
+    });
+    let count = l10n!("UndoHistory.count_actions", "{$n} actions", n = count);
+
+    crate::widgets::Container! {
         undo_stack = args.op;
-        direction = StackDirection::top_to_bottom();
-        children;
+
+        child = Scroll! {
+            child = Stack! {
+                direction = StackDirection::top_to_bottom();
+                children;
+            };
+            child_align = Align::FILL_TOP;
+            mode = crate::widgets::scroll::ScrollMode::VERTICAL;
+            max_height = 200.dip().min(80.pct());
+        };
+
+        child_insert_below = Text! {
+            margin = 2;
+            txt = count;
+            txt_align = Align::CENTER;
+        }, 0;
     }
 }
 
 /// Default [`UNDO_PANEL_FN_VAR`].
 pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
     let stack = UNDO_STACK_FN_VAR.get();
-    let stack = match args.op {
+    match args.op {
         UndoOp::Undo => {
             let cmd = UNDO_CMD.undo_scoped().get();
             stack(UndoStackArgs {
@@ -240,13 +279,6 @@ pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
                 cmd,
             })
         }
-    };
-
-    crate::widgets::Scroll! {
-        child = stack;
-        child_align = Align::FILL_TOP;
-        mode = crate::widgets::scroll::ScrollMode::VERTICAL;
-        max_height = 200.dip().min(80.pct());
     }
 }
 
