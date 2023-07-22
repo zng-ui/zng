@@ -55,6 +55,7 @@
 # Undo Service
 
 * Implement undo merge for text edit ops.
+* Backspace loses track of the caret.
 
 # View-Process
 

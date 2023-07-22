@@ -593,7 +593,7 @@ impl SegmentedText {
         }
     }
 
-    /// Find the range that must be removed to delete starting by `from`.
+    /// Find the range that must be removed to delete starting by `from` a `count` number of times.
     ///
     /// Delete **Del** action removes the next grapheme cluster, this is different from
     /// [`backspace_range`] that usually only removes one character.
@@ -603,8 +603,17 @@ impl SegmentedText {
     /// Panics if `from` is larger than the text length, or is not a grapheme boundary.
     ///
     /// [`backspace_range`]: Self::backspace_range
-    pub fn delete_range(&self, from: usize) -> std::ops::Range<usize> {
-        from..self.next_insert_index(from)
+    pub fn delete_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
+        let mut end = from;
+        for _ in 0..count {
+            let e = self.next_insert_index(end);
+            if e == end {
+                break;
+            }
+            end = e;
+        }
+
+        from..end
     }
 
     /// Find the range that must be removed to backspace before `from`.

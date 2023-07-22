@@ -455,7 +455,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             } else if args.is_delete() {
                                 let r = resolved.as_mut().unwrap();
                                 let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
-                                if !r.text.delete_range(caret_idx.index).is_empty() {
+                                if !r.text.delete_range(caret_idx.index, 1).is_empty() {
                                     ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                                 }
                             } else if let Some(c) = args.insert_char() {
