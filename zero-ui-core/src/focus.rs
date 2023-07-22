@@ -1256,13 +1256,30 @@ impl FocusService {
     fn update_returns(&mut self, prev_focus: Option<InteractionPath>) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
-        if let Some((scope, _)) = &self.alt_return {
-            // if we have an `alt_return` check if is still inside the ALT.
+        if let Some((scope, _)) = &mut self.alt_return {
+            // if we have an `alt_return` check if is still inside an ALT.
 
             let mut retain_alt = false;
             if let Some(new_focus) = &self.focused {
-                if new_focus.path.contains(scope.widget_id()) {
+                if let Some(s) = new_focus.path.ancestor_path(scope.widget_id()) {
                     retain_alt = true; // just a focus move inside the ALT.
+                    *scope = s.into_owned();
+                } else if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
+                    if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
+                        .get(new_focus.path.widget_id())
+                    {
+                        let alt_scope = if widget.is_alt_scope() {
+                            Some(widget)
+                        } else {
+                            widget.scopes().find(|s| s.is_alt_scope())
+                        };
+
+                        if let Some(alt_scope) = alt_scope {
+                            // entered another ALT
+                            retain_alt = true;
+                            *scope = alt_scope.info().interaction_path();
+                        }
+                    }
                 }
             }
 

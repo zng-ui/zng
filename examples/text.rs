@@ -413,6 +413,10 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     });
                 },
                 // status
+                // Text! {
+                //     grid::cell::at = (1, 2);
+                //     txt = FOCUS.focused().map_debug();
+                // },
                 Text! {
                     grid::cell::at = (1, 2);
                     margin = (0, 4);
@@ -430,6 +434,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let gt_600 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(600)));
     let gt_500 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(500)));
     Stack! {
+        id = "menu";
         alt_focus_scope = true;
         focus_click_behavior = FocusClickBehavior::Exit;
         grid::cell::at = (1, 0);
@@ -531,6 +536,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = UNDO_CMD.undo_scoped();
                 Toggle! {
+                    id = "undo-Toggle";
                     style_fn = toggle::ComboStyle!();
 
                     enabled = cmd.flat_map(|c| c.is_enabled());

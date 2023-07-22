@@ -829,12 +829,17 @@ impl MouseManager {
         let prev_pressed = if entry.pressed { Some(entry.path.clone()) } else { None };
 
         if entry.path != wgt_path {
+            let actual_change = entry.path.as_path() != wgt_path.as_path();
+            // else only interactivity change mid-click
+
             entry.path = wgt_path.clone();
-            entry.press_stop_handle = stop_handle.clone();
-            entry.pressed = false;
-            entry.click_count = 0;
-            entry.repeat_timer = None;
-            entry.repeat_count = 0;
+            if actual_change {
+                entry.press_stop_handle = stop_handle.clone();
+                entry.pressed = false;
+                entry.click_count = 0;
+                entry.repeat_timer = None;
+                entry.repeat_count = 0;
+            }
         }
 
         let multi_click_cfg = mouse.multi_click_config.get();

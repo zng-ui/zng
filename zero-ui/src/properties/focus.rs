@@ -185,15 +185,16 @@ impl std::fmt::Debug for FocusClickBehavior {
 
 /// Behavior of an widget when a click event is send to it or a descendant.
 ///
-/// When a [`CLICK_EVENT`] targets the widget or descendant the `behavior` is applied.
+/// When a click event targets the widget or descendant the `behavior` is applied.
 ///
-/// Note that this property does not subscribe to the event, it only observes events flowing trough.
+/// Note that this property does not subscribe to any event, it only observes events flowing trough.
 #[property(CONTEXT, default(FocusClickBehavior::Ignore))]
 pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClickBehavior>) -> impl UiNode {
     let behavior = behavior.into_var();
     match_node(child, move |c, op| {
         if let UiNodeOp::Event { update } = op {
             c.event(update);
+
             if let Some(args) = CLICK_EVENT.on(update) {
                 let exit = match behavior.get() {
                     FocusClickBehavior::Ignore => false,
@@ -203,6 +204,20 @@ pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClic
                 };
                 if exit {
                     FOCUS.focus_exit();
+                }
+            } else if let Some(args) = crate::core::mouse::MOUSE_INPUT_EVENT.on(update) {
+                if args.propagation().is_stopped() {
+                    // CLICK_EVENT not send if source mouse-input is already handled.
+
+                    let exit = match behavior.get() {
+                        FocusClickBehavior::Ignore => false,
+                        FocusClickBehavior::Exit => true,
+                        FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
+                        FocusClickBehavior::ExitHandled => true,
+                    };
+                    if exit {
+                        FOCUS.focus_exit();
+                    }
                 }
             }
         }
