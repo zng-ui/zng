@@ -355,7 +355,7 @@ impl InteractionPath {
                 Cow::Owned(InteractionPath {
                     path: WidgetPath {
                         window_id: self.window_id,
-                        path: self.path.path[..i].to_vec().into(),
+                        path: self.path.path[..=i].to_vec().into(),
                     },
                     blocked: self.blocked,
                     disabled: self.disabled,
