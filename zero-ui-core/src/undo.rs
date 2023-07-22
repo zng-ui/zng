@@ -630,7 +630,7 @@ pub enum UndoFullOp<'r> {
         /// If not set the info will be some generic "action" text.
         info: &'r mut Option<Arc<dyn UndoInfo>>,
     },
-    /// Try merge the `next_data` onto self data.
+    /// Try merge the `next_data` onto self data (at the undone state).
     Merge {
         /// Closure data for the next undo action.
         ///

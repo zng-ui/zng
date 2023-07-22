@@ -615,7 +615,7 @@ impl TextEditor {
     }
 
     pub fn title(&self) -> impl Var<Txt> {
-        merge_var!(self.txt_touched.clone(), self.file.clone(), |u, f| {
+        merge_var!(self.unsaved(), self.file.clone(), |u, f| {
             let mut t = "Text Example - Editor".to_owned();
             if *u {
                 t.push('*');

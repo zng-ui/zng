@@ -616,7 +616,7 @@ impl SegmentedText {
         from..end
     }
 
-    /// Find the range that must be removed to backspace before `from`.
+    /// Find the range that must be removed to backspace before `from` a `count` number of times.
     ///
     /// The character at `from` is not included, only the previous char is selected, with some exceptions,
     /// the selection includes any char before zero-width-joiner (ZWJ), it also includes `\r` before `\n`
@@ -625,7 +625,18 @@ impl SegmentedText {
     /// # Panics
     ///
     /// Panics if `from` is larger than the text length, or is not a char boundary.
-    pub fn backspace_range(&self, from: usize) -> std::ops::Range<usize> {
+    pub fn backspace_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
+        let mut start = from;
+        for _ in 0..count {
+            let s = self.backspace_start(start);
+            if s == start {
+                break;
+            }
+            start = s;
+        }
+        start..from
+    }
+    fn backspace_start(&self, from: usize) -> usize {
         let text = &self.text[..from];
         let mut start = from;
         for (i, c) in text.char_indices().rev() {
@@ -649,7 +660,7 @@ impl SegmentedText {
             }
             break;
         }
-        start..from
+        start
     }
 }
 
