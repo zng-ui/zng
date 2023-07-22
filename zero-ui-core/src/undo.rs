@@ -3,7 +3,7 @@
 
 use std::{
     any::Any,
-    mem,
+    fmt, mem,
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
@@ -167,25 +167,59 @@ impl UNDO {
     }
 
     /// Register an already executed action for undo in the current scope.
-    pub fn register(&self, info: impl UndoInfo, action: impl UndoAction) {
-        UNDO_SCOPE_CTX.get().register(info.into_dyn(), Box::new(action))
+    pub fn register(&self, action: impl UndoAction) {
+        UNDO_SCOPE_CTX.get().register(Box::new(action))
     }
 
     /// Register an already executed action for undo in the current scope.
     ///
     /// The action is defined as a closure `op` that matches over [`UndoOp`] to implement undo and redo.
     pub fn register_op(&self, info: impl UndoInfo, op: impl FnMut(UndoOp) + Send + 'static) {
-        self.register(info, UndoRedoOp { op: Box::new(op) })
+        self.register(UndoRedoOp {
+            info: info.into_dyn(),
+            op: Box::new(op),
+        })
+    }
+
+    /// Register an already executed action for undo in the current scope.
+    ///
+    /// The action is defined as a closure `op` that matches over [`UndoFullOp`] referencing `data` to implement undo and redo.
+    pub fn register_full_op<D>(&self, data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static)
+    where
+        D: Any + Send + 'static,
+    {
+        self.register(UndoRedoFullOp {
+            data: Box::new(data),
+            op: Box::new(move |d, o| {
+                op(d.downcast_mut::<D>().unwrap(), o);
+            }),
+        })
     }
 
     /// Run the `action` and register the undo in the current scope.
-    pub fn run(&self, info: impl UndoInfo, action: impl RedoAction) {
-        UNDO_SCOPE_CTX.get().register(info.into_dyn(), Box::new(action).redo())
+    pub fn run(&self, action: impl RedoAction) {
+        UNDO_SCOPE_CTX.get().register(Box::new(action).redo())
     }
 
     /// Run the `op` once with [`UndoOp::Redo`] and register it for undo in the current scope.
     pub fn run_op(&self, info: impl UndoInfo, op: impl FnMut(UndoOp) + Send + 'static) {
-        self.run(info, UndoRedoOp { op: Box::new(op) })
+        self.run(UndoRedoOp {
+            info: info.into_dyn(),
+            op: Box::new(op),
+        })
+    }
+
+    /// Run the `op` once with `UndoFullOp::Op(UndoOp::Redo)` and register it for undo in the current scope.
+    pub fn run_full_op<D>(&self, data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static)
+    where
+        D: Any + Send + 'static,
+    {
+        self.run(UndoRedoFullOp {
+            data: Box::new(data),
+            op: Box::new(move |d, o| {
+                op(d.downcast_mut::<D>().unwrap(), o);
+            }),
+        })
     }
 
     /// Run `actions` as a [`transaction`] and commits as a group if any undo action is captured.
@@ -382,13 +416,13 @@ pub struct UndoStackInfo {
 impl UndoStackInfo {
     fn undo(ctx: &UndoScope, undo_interval: Duration) -> Self {
         Self {
-            stack: ctx.undo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect(),
+            stack: ctx.undo.lock().iter_mut().map(|e| (e.timestamp, e.action.info())).collect(),
             undo_interval,
         }
     }
     fn redo(ctx: &UndoScope, undo_interval: Duration) -> Self {
         Self {
-            stack: ctx.redo.lock().iter().map(|e| (e.timestamp, e.info.clone())).collect(),
+            stack: ctx.redo.lock().iter_mut().map(|e| (e.timestamp, e.action.info())).collect(),
             undo_interval,
         }
     }
@@ -523,12 +557,49 @@ impl UndoInfo for Arc<dyn UndoInfo> {
 }
 /// Represents a single undo action.
 pub trait UndoAction: Send + Any {
+    /// Gets display info about the action that registered this undo.
+    fn info(&mut self) -> Arc<dyn UndoInfo>;
+
     /// Undo action and returns a [`RedoAction`] that redoes it.
     fn undo(self: Box<Self>) -> Box<dyn RedoAction>;
+
+    /// Access `dyn Any` methods.
+    fn as_any(&mut self) -> &mut dyn Any;
+
+    /// Try merge the `next` action with the previous `self`.
+    ///
+    /// This is called when `self` is the latest registered action and `next` is registered.
+    ///
+    /// This can be used to optimize high-volume actions, but note that [`UNDO.undo`] will undo all actions
+    /// within the [`UNDO.undo_interval`] of the previous, even if not merged, and merged actions always show as one action
+    /// for [`UNDO.undo_select`].
+    ///
+    /// [`UNDO.undo_interval`]: UNDO::undo_interval
+    /// [`UNDO.undo_select`]: UNDO::undo_select
+    /// [`UNDO.undo`]: UNDO::undo
+    fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)>;
+}
+
+/// Arguments for [`UndoAction::merge`].
+pub struct UndoActionMergeArgs {
+    /// The action that was registered after the one receiving this arguments.
+    pub next: Box<dyn UndoAction>,
+
+    /// Timestamp of the previous action registered.
+    pub prev_timestamp: Instant,
+
+    /// If the `prev_timestamp` is within the [`UNDO.undo_interval`]. Undo actions
+    /// can choose to ignore this and merge anyway.
+    ///
+    /// [`UNDO.undo_interval`]: UNDO::undo_interval
+    pub within_undo_interval: bool,
 }
 
 /// Represents a single redo action.
 pub trait RedoAction: Send + Any {
+    /// Gets display info about the action that will be redone.
+    fn info(&mut self) -> Arc<dyn UndoInfo>;
+
     /// Redo action and returns a [`UndoAction`] that undoes it.
     fn redo(self: Box<Self>) -> Box<dyn UndoAction>;
 }
@@ -546,6 +617,49 @@ pub enum UndoOp {
     Undo,
     /// Redo the action.
     Redo,
+}
+
+/// Represents a full closure implementation of undo/redo action.
+pub enum UndoFullOp<'r> {
+    /// Normal undo/redo.
+    Op(UndoOp),
+    /// Collect display info.
+    Info {
+        /// Set this to respond.
+        ///
+        /// If not set the info will be some generic "action" text.
+        info: &'r mut Option<Arc<dyn UndoInfo>>,
+    },
+    /// Try merge the `next_data` onto self data.
+    Merge {
+        /// Closure data for the next undo action.
+        ///
+        /// The data can be from any full undo closure action, only merge if the data
+        /// indicates that is comes from actions that can be covered by the `self` closure.
+        next_data: &'r mut dyn Any,
+
+        /// Timestamp of the previous action registered.
+        prev_timestamp: Instant,
+
+        /// If the `prev_timestamp` is within the [`UNDO.undo_interval`]. Undo actions
+        /// can choose to ignore this and merge anyway.
+        ///
+        /// [`UNDO.undo_interval`]: UNDO::undo_interval
+        within_undo_interval: bool,
+
+        /// Set this to `true` if the next action can be dropped because the `self` closure
+        /// now also implements it.
+        merged: &'r mut bool,
+    },
+}
+impl<'r> fmt::Debug for UndoFullOp<'r> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Op(arg0) => f.debug_tuple("Op").field(arg0).finish(),
+            Self::Info { .. } => f.debug_struct("Info").finish_non_exhaustive(),
+            Self::Merge { .. } => f.debug_struct("Merge").finish_non_exhaustive(),
+        }
+    }
 }
 
 /// Represents captured undo actions in an [`UNDO.transaction`] operation.
@@ -582,12 +696,10 @@ impl UndoTransaction {
     ///
     /// Note that this will register a group item even if the transaction is empty.
     pub fn commit_group(mut self, info: impl UndoInfo) {
-        UNDO.register(
-            info,
-            UndoGroup {
-                undo: mem::take(&mut self.undo),
-            },
-        )
+        UNDO.register(UndoGroup {
+            info: info.into_dyn(),
+            undo: mem::take(&mut self.undo),
+        })
     }
 
     /// Cancel the transaction, undoes all captured actions.
@@ -762,13 +874,30 @@ impl UndoScope {
         }
     }
 
-    fn register(&self, info: Arc<dyn UndoInfo>, action: Box<dyn UndoAction>) {
+    fn register(&self, action: Box<dyn UndoAction>) {
         self.with_enabled_undo_redo(|undo, redo| {
-            undo.push(UndoEntry {
-                timestamp: Instant::now(),
-                info,
-                action,
-            });
+            let now = Instant::now();
+            if let Some(prev) = undo.pop() {
+                match prev.action.merge(UndoActionMergeArgs {
+                    next: action,
+                    prev_timestamp: prev.timestamp,
+                    within_undo_interval: now.duration_since(prev.timestamp) <= UNDO_SV.read().undo_interval.get(),
+                }) {
+                    Ok(merged) => undo.push(UndoEntry {
+                        timestamp: now,
+                        action: merged,
+                    }),
+                    Err((p, action)) => {
+                        undo.push(UndoEntry {
+                            timestamp: prev.timestamp,
+                            action: p,
+                        });
+                        undo.push(UndoEntry { timestamp: now, action });
+                    }
+                }
+            } else {
+                undo.push(UndoEntry { timestamp: now, action });
+            }
             redo.clear();
         });
     }
@@ -791,7 +920,6 @@ impl UndoScope {
             let redo = undo.action.undo();
             self.redo.lock().push(RedoEntry {
                 timestamp: undo.timestamp,
-                info: undo.info,
                 action: redo,
             });
         }
@@ -815,7 +943,6 @@ impl UndoScope {
             let undo = redo.action.redo();
             self.undo.lock().push(UndoEntry {
                 timestamp: redo.timestamp,
-                info: redo.info,
                 action: undo,
             });
         }
@@ -828,17 +955,16 @@ impl UndoScope {
 
 struct UndoEntry {
     timestamp: Instant,
-    info: Arc<dyn UndoInfo>,
     action: Box<dyn UndoAction>,
 }
 
 struct RedoEntry {
     pub timestamp: Instant,
-    info: Arc<dyn UndoInfo>,
     pub action: Box<dyn RedoAction>,
 }
 
 struct UndoGroup {
+    info: Arc<dyn UndoInfo>,
     undo: Vec<UndoEntry>,
 }
 impl UndoAction for UndoGroup {
@@ -847,14 +973,26 @@ impl UndoAction for UndoGroup {
         for undo in self.undo.into_iter().rev() {
             redo.push(RedoEntry {
                 timestamp: undo.timestamp,
-                info: undo.info,
                 action: undo.action.undo(),
             });
         }
-        Box::new(RedoGroup { redo })
+        Box::new(RedoGroup { info: self.info, redo })
+    }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.info.clone()
+    }
+
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+        Err((self, args.next))
     }
 }
 struct RedoGroup {
+    info: Arc<dyn UndoInfo>,
     redo: Vec<RedoEntry>,
 }
 impl RedoAction for RedoGroup {
@@ -863,15 +1001,19 @@ impl RedoAction for RedoGroup {
         for redo in self.redo.into_iter().rev() {
             undo.push(UndoEntry {
                 timestamp: redo.timestamp,
-                info: redo.info,
                 action: redo.action.redo(),
             });
         }
-        Box::new(UndoGroup { undo })
+        Box::new(UndoGroup { info: self.info, undo })
+    }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.info.clone()
     }
 }
 
 struct UndoRedoOp {
+    info: Arc<dyn UndoInfo>,
     op: Box<dyn FnMut(UndoOp) + Send>,
 }
 impl UndoAction for UndoRedoOp {
@@ -879,10 +1021,84 @@ impl UndoAction for UndoRedoOp {
         (self.op)(UndoOp::Undo);
         self
     }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.info.clone()
+    }
+
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+        Err((self, args.next))
+    }
 }
 impl RedoAction for UndoRedoOp {
     fn redo(mut self: Box<Self>) -> Box<dyn UndoAction> {
         (self.op)(UndoOp::Redo);
+        self
+    }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.info.clone()
+    }
+}
+
+struct UndoRedoFullOp {
+    data: Box<dyn Any + Send>,
+    op: Box<dyn FnMut(&mut dyn Any, UndoFullOp) + Send>,
+}
+impl UndoAction for UndoRedoFullOp {
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        let mut info = None;
+        (self.op)(&mut self.data, UndoFullOp::Info { info: &mut info });
+        info.unwrap_or_else(|| Arc::new("action"))
+    }
+
+    fn undo(mut self: Box<Self>) -> Box<dyn RedoAction> {
+        (self.op)(&mut self.data, UndoFullOp::Op(UndoOp::Undo));
+        self
+    }
+
+    fn merge(mut self: Box<Self>, mut args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)>
+    where
+        Self: Sized,
+    {
+        if let Some(urfo) = args.next.as_any().downcast_mut::<Self>() {
+            let mut merged = false;
+            (self.op)(
+                &mut self.data,
+                UndoFullOp::Merge {
+                    next_data: &mut urfo.data,
+                    prev_timestamp: args.prev_timestamp,
+                    within_undo_interval: args.within_undo_interval,
+                    merged: &mut merged,
+                },
+            );
+            if merged {
+                Ok(self)
+            } else {
+                Err((self, args.next))
+            }
+        } else {
+            Err((self, args.next))
+        }
+    }
+
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+impl RedoAction for UndoRedoFullOp {
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        let mut info = None;
+        (self.op)(&mut self.data, UndoFullOp::Info { info: &mut info });
+        info.unwrap_or_else(|| Arc::new("action"))
+    }
+
+    fn redo(mut self: Box<Self>) -> Box<dyn UndoAction> {
+        (self.op)(&mut self.data, UndoFullOp::Op(UndoOp::Redo));
         self
     }
 }
@@ -1108,20 +1324,14 @@ mod tests {
         let _a = App::minimal();
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
-        UNDO.register(
-            "push",
-            PushAction {
-                data: data.clone(),
-                item: 1,
-            },
-        );
-        UNDO.register(
-            "push",
-            PushAction {
-                data: data.clone(),
-                item: 2,
-            },
-        );
+        UNDO.register(PushAction {
+            data: data.clone(),
+            item: 1,
+        });
+        UNDO.register(PushAction {
+            data: data.clone(),
+            item: 2,
+        });
         assert_eq!(&[1, 2], &data.lock()[..]);
 
         UNDO.undo_select(1);
@@ -1338,11 +1548,27 @@ mod tests {
             assert_eq!(self.data.lock().pop(), Some(self.item));
             self
         }
+
+        fn info(&mut self) -> Arc<dyn UndoInfo> {
+            Arc::new("push")
+        }
+
+        fn as_any(&mut self) -> &mut dyn Any {
+            self
+        }
+
+        fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+            Err((self, args.next))
+        }
     }
     impl RedoAction for PushAction {
         fn redo(self: Box<Self>) -> Box<dyn UndoAction> {
             self.data.lock().push(self.item);
             self
+        }
+
+        fn info(&mut self) -> Arc<dyn UndoInfo> {
+            Arc::new("push")
         }
     }
 }

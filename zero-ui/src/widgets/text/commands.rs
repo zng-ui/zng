@@ -274,7 +274,7 @@ impl TextEditOp {
 
     pub(super) fn call(self, text: &BoxedVar<Txt>) {
         (self.op.lock())(text, UndoOp::Redo);
-        UNDO.register(self.info.clone(), UndoTextEditOp::new(self))
+        UNDO.register(UndoTextEditOp::new(self))
     }
 }
 
@@ -307,6 +307,18 @@ impl UndoAction for UndoTextEditOp {
         });
         self
     }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.edit_op.info.clone()
+    }
+
+    fn as_any(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+        Err((self, args.next))
+    }
 }
 impl RedoAction for UndoTextEditOp {
     fn redo(self: Box<Self>) -> Box<dyn UndoAction> {
@@ -316,6 +328,10 @@ impl RedoAction for UndoTextEditOp {
             exec_op: UndoOp::Redo,
         });
         self
+    }
+
+    fn info(&mut self) -> Arc<dyn UndoInfo> {
+        self.edit_op.info.clone()
     }
 }
 

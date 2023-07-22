@@ -54,14 +54,8 @@
 
 # Undo Service
 
-* Review performance of undo in text.
-    - Noticeable lag when undoing a long press-repeat sequence.
-        - Also reaches the limit very quickly.
-    - Actually merge actions.
-        - When registered try merge with previous.
-        - This can be implemented in the `UndoInfo`?
-            - Share the `UndoInfo` with the undo/redo action?
-        - How to implement this with the closure actions?
+* Implement undo merge for text edit ops.
+    - Info collection does not run in context?
 
 # View-Process
 
