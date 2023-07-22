@@ -55,7 +55,6 @@
 # Undo Service
 
 * Implement undo merge for text edit ops.
-    - Info collection does not run in context?
 
 # View-Process
 

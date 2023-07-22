@@ -5,7 +5,7 @@
 //!
 //! The [`nodes::resolve_text`] node implements [`EDIT_CMD`] when the text is editable.
 
-use std::{fmt, ops, sync::Arc};
+use std::{any::Any, fmt, ops, sync::Arc};
 
 use crate::core::{task::parking_lot::Mutex, undo::*};
 
@@ -26,22 +26,17 @@ command! {
     pub static SELECT_CMD;
 }
 
+struct SharedTextEditOp {
+    data: Box<dyn Any + Send>,
+    op: Box<dyn FnMut(&BoxedVar<Txt>, &mut dyn Any, UndoFullOp) + Send>,
+}
+
 /// Represents a text edit operation that can be send to an editable text using [`EDIT_CMD`].
 #[derive(Clone)]
-pub struct TextEditOp {
-    info: Arc<dyn UndoInfo>,
-    op: Arc<Mutex<dyn FnMut(&BoxedVar<Txt>, UndoOp) + Send>>,
-}
+pub struct TextEditOp(Arc<Mutex<SharedTextEditOp>>);
 impl fmt::Debug for TextEditOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TextEditOp")
-            .field("info", &self.info.description())
-            .finish_non_exhaustive()
-    }
-}
-impl fmt::Display for TextEditOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.info.description())
+        f.debug_struct("TextEditOp").finish_non_exhaustive()
     }
 }
 impl TextEditOp {
@@ -52,29 +47,32 @@ impl TextEditOp {
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
     ///
-    /// The `op` arguments are the text variable and what [`UndoOp`] operation must be applied to it, all
+    /// The `op` arguments are the text variable, a custom data `D` and what [`UndoFullOp`] query, all
     /// text edit operations must be undoable, first [`UndoOp::Redo`] is called to "do", then undo and redo again
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
-    pub fn new(undo_info: impl UndoInfo, op: impl FnMut(&BoxedVar<Txt>, UndoOp) + Send + 'static) -> Self {
-        Self {
-            info: undo_info.into_dyn(),
-            op: Arc::new(Mutex::new(op)),
-        }
+    pub fn new<D>(data: D, mut op: impl FnMut(&BoxedVar<Txt>, &mut D, UndoFullOp) + Send + 'static) -> Self
+    where
+        D: Send + Any + 'static,
+    {
+        Self(Arc::new(Mutex::new(SharedTextEditOp {
+            data: Box::new(data),
+            op: Box::new(move |var, data, o| op(var, data.downcast_mut().unwrap(), o)),
+        })))
     }
 
     /// Insert operation.
     ///
     /// The `insert` text is inserted at the current caret index or at `0`, or replaces the current selection,
     /// after insert the caret is positioned after the inserted text.
-    pub fn insert(undo_info: impl UndoInfo, insert: impl Into<Txt>) -> Self {
+    pub fn insert(insert: impl Into<Txt>) -> Self {
         let insert = insert.into();
         let mut insert_idx = CaretIndex {
             index: usize::MAX,
             line: 0,
         };
-        Self::new(undo_info, move |txt, op| match op {
-            UndoOp::Redo => {
+        Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
                 if insert_idx.index == usize::MAX {
@@ -91,7 +89,7 @@ impl TextEditOp {
                 i.index += insert.len();
                 caret.set_index(i);
             }
-            UndoOp::Undo => {
+            UndoFullOp::Op(UndoOp::Undo) => {
                 let len = insert.len();
                 let i = insert_idx.index;
                 txt.modify(move |args| {
@@ -103,21 +101,30 @@ impl TextEditOp {
                 let mut caret = ctx.caret.lock();
                 caret.set_index(insert_idx);
             }
+            UndoFullOp::Info { info } => {
+                let label = if insert.chars().any(|c| c.is_control() || c.is_whitespace()) {
+                    formatx!("{insert:?}")
+                } else {
+                    insert.clone()
+                };
+                *info = Some(Arc::new(label));
+            }
+            UndoFullOp::Merge { .. } => {}
         })
     }
 
     /// Remove one *backspace range* ending at the caret index, or removes the selection.
     ///
     /// See [`zero_ui::core::text::SegmentedText::backspace_range`] for more details about what is removed.
-    pub fn backspace(undo_info: impl UndoInfo) -> Self {
+    pub fn backspace() -> Self {
         let mut removed = Txt::from_static("");
         let mut undo_idx = CaretIndex {
             index: usize::MAX,
             line: 0,
         };
 
-        Self::new(undo_info, move |txt, op| match op {
-            UndoOp::Redo => {
+        Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
@@ -144,7 +151,7 @@ impl TextEditOp {
 
                 caret.set_index(undo_idx);
             }
-            UndoOp::Undo => {
+            UndoFullOp::Op(UndoOp::Undo) => {
                 if removed.is_empty() {
                     return;
                 }
@@ -161,17 +168,19 @@ impl TextEditOp {
                 i.index += removed.len();
                 caret.set_index(i);
             }
+            UndoFullOp::Info { info } => *info = Some(Arc::new("⌫")),
+            UndoFullOp::Merge { .. } => {}
         })
     }
 
     /// Remove one *delete range* starting at the caret index, or removes the selection.
     ///
     /// See [`zero_ui::core::text::SegmentedText::delete_range`] for more details about what is removed.
-    pub fn delete(undo_info: impl UndoInfo) -> Self {
+    pub fn delete() -> Self {
         let mut removed = Txt::from_static("");
 
-        Self::new(undo_info, move |txt, op| match op {
-            UndoOp::Redo => {
+        Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
@@ -197,7 +206,7 @@ impl TextEditOp {
 
                 caret.set_index(caret_idx); // (re)start caret animation
             }
-            UndoOp::Undo => {
+            UndoFullOp::Op(UndoOp::Undo) => {
                 if removed.is_empty() {
                     return;
                 }
@@ -217,6 +226,8 @@ impl TextEditOp {
                 i.index += removed.len();
                 caret.set_index(i);
             }
+            UndoFullOp::Info { info } => *info = Some(Arc::new("⌦")),
+            UndoFullOp::Merge { .. } => {}
         })
     }
 
@@ -226,17 +237,12 @@ impl TextEditOp {
     /// the `select_after` is applied, you can use an empty insert to just remove.
     ///
     /// All indexes are snapped to the nearest grapheme, you can use empty ranges to just position the caret.
-    pub fn replace(
-        undo_info: impl UndoInfo,
-        mut select_before: ops::Range<usize>,
-        insert: impl Into<Txt>,
-        mut select_after: ops::Range<usize>,
-    ) -> Self {
+    pub fn replace(mut select_before: ops::Range<usize>, insert: impl Into<Txt>, mut select_after: ops::Range<usize>) -> Self {
         let insert = insert.into();
         let mut removed = Txt::from_static("");
 
-        Self::new(undo_info, move |txt, op| match op {
-            UndoOp::Redo => {
+        Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
 
                 select_before.start = ctx.text.snap_grapheme_boundary(select_before.start);
@@ -256,7 +262,7 @@ impl TextEditOp {
 
                 ctx.caret.lock().set_char_index(select_after.start); // TODO, selection
             }
-            UndoOp::Undo => {
+            UndoFullOp::Op(UndoOp::Undo) => {
                 let ctx = ResolvedText::get();
 
                 select_after.start = ctx.text.snap_grapheme_boundary(select_after.start);
@@ -269,12 +275,18 @@ impl TextEditOp {
 
                 ctx.caret.lock().set_char_index(select_before.start); // TODO, selection
             }
+            UndoFullOp::Info { info } => *info = Some(Arc::new("↹")),
+            UndoFullOp::Merge { .. } => {}
         })
     }
 
     pub(super) fn call(self, text: &BoxedVar<Txt>) {
-        (self.op.lock())(text, UndoOp::Redo);
-        UNDO.register(UndoTextEditOp::new(self))
+        {
+            let mut op = self.0.lock();
+            let op = &mut *op;
+            (op.op)(text, &mut *op.data, UndoFullOp::Op(UndoOp::Redo));
+        }
+        UNDO.register(UndoTextEditOp::new(self));
     }
 }
 
@@ -295,7 +307,9 @@ impl UndoTextEditOp {
     }
 
     pub(super) fn call(&self, text: &BoxedVar<Txt>) {
-        (self.edit_op.op.lock())(text, self.exec_op)
+        let mut op = self.edit_op.0.lock();
+        let op = &mut *op;
+        (op.op)(text, &mut *op.data, UndoFullOp::Op(self.exec_op))
     }
 }
 impl UndoAction for UndoTextEditOp {
@@ -309,14 +323,47 @@ impl UndoAction for UndoTextEditOp {
     }
 
     fn info(&mut self) -> Arc<dyn UndoInfo> {
-        self.edit_op.info.clone()
+        let mut op = self.edit_op.0.lock();
+        let op = &mut *op;
+        let mut info = None;
+        let none_var = LocalVar(Txt::from_static("")).boxed();
+        (op.op)(&none_var, &mut *op.data, UndoFullOp::Info { info: &mut info });
+
+        info.unwrap_or_else(|| Arc::new("text edit"))
     }
 
     fn as_any(&mut self) -> &mut dyn std::any::Any {
         self
     }
 
-    fn merge(self: Box<Self>, args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+    fn merge(self: Box<Self>, mut args: UndoActionMergeArgs) -> Result<Box<dyn UndoAction>, (Box<dyn UndoAction>, Box<dyn UndoAction>)> {
+        if let Some(next) = args.next.as_any().downcast_mut::<Self>() {
+            let mut merged = false;
+
+            {
+                let mut op = self.edit_op.0.lock();
+                let op = &mut *op;
+                let none_var = LocalVar(Txt::from_static("")).boxed();
+
+                let mut next_op = next.edit_op.0.lock();
+
+                (op.op)(
+                    &none_var,
+                    &mut *op.data,
+                    UndoFullOp::Merge {
+                        next_data: &mut *next_op.data,
+                        prev_timestamp: args.prev_timestamp,
+                        within_undo_interval: args.within_undo_interval,
+                        merged: &mut merged,
+                    },
+                );
+            }
+
+            if merged {
+                return Ok(self);
+            }
+        }
+
         Err((self, args.next))
     }
 }
@@ -331,7 +378,13 @@ impl RedoAction for UndoTextEditOp {
     }
 
     fn info(&mut self) -> Arc<dyn UndoInfo> {
-        self.edit_op.info.clone()
+        let mut op = self.edit_op.0.lock();
+        let op = &mut *op;
+        let mut info = None;
+        let none_var = LocalVar(Txt::from_static("")).boxed();
+        (op.op)(&none_var, &mut *op.data, UndoFullOp::Info { info: &mut info });
+
+        info.unwrap_or_else(|| Arc::new("text edit"))
     }
 }
 

@@ -450,25 +450,18 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                             if args.is_backspace() {
                                 if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace("⌫").call(&text));
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
                                 }
                             } else if args.is_delete() {
                                 let r = resolved.as_mut().unwrap();
                                 let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
                                 if !r.text.delete_range(caret_idx.index).is_empty() {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete("⌦").call(&text));
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                                 }
                             } else if let Some(c) = args.insert_char() {
                                 let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                 if !skip {
-                                    ResolvedText::call_edit_op(&mut resolved, || {
-                                        let label = if c.is_control() || c.is_whitespace() {
-                                            formatx!("{c:?}")
-                                        } else {
-                                            Txt::from_char(c)
-                                        };
-                                        TextEditOp::insert(label, Txt::from_char(c)).call(&text)
-                                    });
+                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(Txt::from_char(c)).call(&text));
                                 }
                             }
                         }
@@ -500,12 +493,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 args.propagation().stop();
 
                                 ResolvedText::call_edit_op(&mut resolved, || {
-                                    let name = if paste.len() < 5 {
-                                        formatx!("paste \"{}\"", paste)
-                                    } else {
-                                        formatx!("paste \"{}…\"", &paste[..5])
-                                    };
-                                    TextEditOp::insert(name, paste).call(&text);
+                                    TextEditOp::insert(paste).call(&text);
                                 });
                             }
                         }
