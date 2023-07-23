@@ -1260,10 +1260,11 @@ impl Txt {
             TxtData::String(s) => s.push(c),
             TxtData::Inline(inlined) => {
                 if let Some(len) = inlined.iter().position(|&c| c == b'\0') {
-                    if len + 4 <= INLINE_MAX && c != '\0' {
+                    let c_len = c.len_utf8();
+                    if len + c_len <= INLINE_MAX && c != '\0' {
                         let mut buf = [0u8; 4];
                         let s = c.encode_utf8(&mut buf);
-                        inlined[len..len + 4].copy_from_slice(s.as_bytes());
+                        inlined[len..len + c_len].copy_from_slice(s.as_bytes());
                         return;
                     }
                 }
@@ -1271,11 +1272,12 @@ impl Txt {
             }
             _ => {
                 let len = self.len();
-                if len + 4 <= INLINE_MAX && c != '\0' {
+                let c_len = c.len_utf8();
+                if len + c_len <= INLINE_MAX && c != '\0' {
                     let mut inlined = str_to_inline(self.as_str());
                     let mut buf = [0u8; 4];
                     let s = c.encode_utf8(&mut buf);
-                    inlined[len..len + 4].copy_from_slice(s.as_bytes());
+                    inlined[len..len + c_len].copy_from_slice(s.as_bytes());
 
                     self.0 = TxtData::Inline(inlined);
                 } else {
