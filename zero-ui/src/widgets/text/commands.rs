@@ -66,18 +66,21 @@ impl TextEditOp {
     /// The `insert` text is inserted at the current caret index or at `0`, or replaces the current selection,
     /// after insert the caret is positioned after the inserted text.
     pub fn insert(insert: impl Into<Txt>) -> Self {
-        let insert = insert.into();
-        let mut insert_idx = CaretIndex {
-            index: usize::MAX,
-            line: 0,
+        struct InsertData {
+            insert: Txt,
+            caret: Option<CaretIndex>,
+        }
+        let data = InsertData {
+            insert: insert.into(),
+            caret: None,
         };
-        Self::new((), move |txt, _, op| match op {
+        Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                if insert_idx.index == usize::MAX {
-                    insert_idx = caret.index.unwrap_or(CaretIndex::ZERO);
-                }
+
+                let insert_idx = *data.caret.get_or_insert_with(|| caret.index.unwrap_or(CaretIndex::ZERO));
+                let insert = &data.insert;
 
                 let i = insert_idx.index;
                 txt.modify(clmv!(insert, |args| {
@@ -90,7 +93,8 @@ impl TextEditOp {
                 caret.set_index(i);
             }
             UndoFullOp::Op(UndoOp::Undo) => {
-                let len = insert.len();
+                let len = data.insert.len();
+                let insert_idx = data.caret.unwrap();
                 let i = insert_idx.index;
                 txt.modify(move |args| {
                     args.to_mut().to_mut().replace_range(i..i + len, "");
@@ -102,14 +106,40 @@ impl TextEditOp {
                 caret.set_index(insert_idx);
             }
             UndoFullOp::Info { info } => {
-                let label = if insert.chars().any(|c| c.is_control() || c.is_whitespace()) {
-                    formatx!("{insert:?}")
-                } else {
-                    insert.clone()
-                };
+                let mut label = Txt::from_static("\"");
+                for (i, mut c) in data.insert.chars().take(21).enumerate() {
+                    if i == 20 {
+                        c = '…';
+                    } else if c == '\n' {
+                        c = '↵';
+                    } else if c == '\t' {
+                        c = '→';
+                    } else if c == '\r' {
+                        continue;
+                    }
+                    label.push(c);
+                }
+                label.push('"');
                 *info = Some(Arc::new(label));
             }
-            UndoFullOp::Merge { .. } => {}
+            UndoFullOp::Merge {
+                next_data,
+                within_undo_interval,
+                merged,
+                ..
+            } => {
+                if within_undo_interval {
+                    if let Some(next_data) = next_data.downcast_mut::<InsertData>() {
+                        let mut after_idx = data.caret.unwrap();
+                        after_idx.index += data.insert.len();
+
+                        if after_idx.index == next_data.caret.unwrap().index {
+                            data.insert.push_str(&next_data.insert);
+                            *merged = true;
+                        }
+                    }
+                }
+            }
         })
     }
 

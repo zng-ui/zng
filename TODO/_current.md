@@ -52,10 +52,6 @@
 * Implement `toggle::ListItemStyle!`.
     - Use it in the combo-box example.
 
-# Undo Service
-
-* Implement undo merge for text insert.
-
 # View-Process
 
 * Update to winit-29 when released.
