@@ -662,6 +662,18 @@ impl SegmentedText {
         }
         start
     }
+
+    pub fn backspace_word_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
+        let mut start = from;
+        for _ in 0..count {
+            let s = self.prev_word_index(start);
+            if s == start {
+                break;
+            }
+            start = s;
+        }
+        start..from
+    }
 }
 
 /// Compute initial bidirectional levels of each segment of a `line`.

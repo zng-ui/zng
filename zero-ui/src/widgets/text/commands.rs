@@ -147,6 +147,12 @@ impl TextEditOp {
     ///
     /// See [`zero_ui::core::text::SegmentedText::backspace_range`] for more details about what is removed.
     pub fn backspace() -> Self {
+        Self::backspace_impl(SegmentedText::backspace_range)
+    }
+    pub fn backspace_word() -> Self {
+        Self::backspace_impl(SegmentedText::backspace_word_range)
+    }
+    fn backspace_impl(backspace_range: fn(&SegmentedText, usize, u32) -> std::ops::Range<usize>) -> Self {
         struct BackspaceData {
             caret: Option<CaretIndex>,
             count: u32,
@@ -164,7 +170,7 @@ impl TextEditOp {
                 let mut caret = ctx.caret.lock();
 
                 let caret_idx = *data.caret.get_or_insert_with(|| caret.index.unwrap_or(CaretIndex::ZERO));
-                let rmv = ctx.text.backspace_range(caret_idx.index, data.count);
+                let rmv = backspace_range(&ctx.text, caret_idx.index, data.count);
                 if rmv.is_empty() {
                     data.removed = Txt::from_static("");
                     return;
@@ -323,6 +329,9 @@ impl TextEditOp {
                 }
             }
         })
+    }
+    pub fn delete_word() -> Self {
+        todo!()
     }
 
     /// Replace operation.
@@ -508,7 +517,7 @@ impl TextSelectOp {
     /// Clear selection and move the caret on the next insert index.
     ///
     /// This is the `Right` key operation.
-    pub fn grapheme_next() -> Self {
+    pub fn next() -> Self {
         Self::new(|| {
             let ctx = ResolvedText::get();
             let mut c = ctx.caret.lock();
@@ -522,7 +531,7 @@ impl TextSelectOp {
     /// Clear selection and move the caret to the previous insert index.
     ///
     /// This is the `Left` key operation.
-    pub fn grapheme_prev() -> Self {
+    pub fn prev() -> Self {
         Self::new(|| {
             let ctx = ResolvedText::get();
             let mut c = ctx.caret.lock();
@@ -536,7 +545,7 @@ impl TextSelectOp {
     /// Clear selection and move the caret to the next word insert index.
     ///
     /// This is the `CTRL+Right` shortcut operation.
-    pub fn word_next() -> Self {
+    pub fn next_word() -> Self {
         Self::new(|| {
             let ctx = ResolvedText::get();
             let mut c = ctx.caret.lock();
@@ -550,7 +559,7 @@ impl TextSelectOp {
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
-    pub fn word_prev() -> Self {
+    pub fn prev_word() -> Self {
         Self::new(|| {
             let ctx = ResolvedText::get();
             let mut c = ctx.caret.lock();

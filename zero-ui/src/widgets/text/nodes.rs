@@ -450,13 +450,21 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                             if args.is_backspace() {
                                 if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
+                                    if args.modifiers.is_only_ctrl() {
+                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace_word().call(&text));
+                                    } else {
+                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
+                                    }
                                 }
                             } else if args.is_delete() {
                                 let r = resolved.as_mut().unwrap();
                                 let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
-                                if !r.text.delete_range(caret_idx.index, 1).is_empty() {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
+                                if caret_idx.index < r.text.text().len() {
+                                    if args.modifiers.is_only_ctrl() {
+                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
+                                    } else {
+                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
+                                    }
                                 }
                             } else if let Some(c) = args.insert_char() {
                                 let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
@@ -1068,13 +1076,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::word_next().call();
+                                        TextSelectOp::next_word().call();
                                     });
                                 } else if args.modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::grapheme_next().call();
+                                        TextSelectOp::next().call();
                                     });
                                 }
                             }
@@ -1083,13 +1091,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::word_prev().call();
+                                        TextSelectOp::prev_word().call();
                                     });
                                 } else if args.modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::grapheme_prev().call();
+                                        TextSelectOp::prev().call();
                                     });
                                 }
                             }

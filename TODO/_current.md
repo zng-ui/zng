@@ -1,6 +1,7 @@
 # TextInput
 
 * Implement `CTRL+Backspace/Delete`.
+    - `CTRL+Backspace` causes a char input event for delete `\u{7F}`, not backspace.
 * Support replace (Insert mode in command line).
 * Implement scroll integration:
     - scroll to caret

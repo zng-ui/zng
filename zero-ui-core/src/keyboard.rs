@@ -67,6 +67,9 @@ event_args! {
         /// The focused element at the time of the key input.
         pub target: InteractionPath,
 
+        /// Current modifiers state.
+        pub modifiers: ModifiersState,
+
         ..
 
         /// The [`target`](Self::target).
@@ -227,7 +230,12 @@ impl AppExtension for KeyboardManager {
             let focused = FOCUS.focused().get();
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
-                    CHAR_INPUT_EVENT.notify(CharInputArgs::now(args.window_id, args.character, target));
+                    CHAR_INPUT_EVENT.notify(CharInputArgs::now(
+                        args.window_id,
+                        args.character,
+                        target,
+                        KEYBOARD_SV.read().current_modifiers(),
+                    ));
                 }
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
