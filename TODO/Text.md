@@ -1,31 +1,30 @@
 # Text TODO
 
-* Text Editable
-    - Caret.
-    - Selection.
-* IME.
-* `LineBreakVar`.
+* `LINE_END_SEQUENCE_VAR`.
     - When char is `\n` or `\r` read this var and insert it instead. 
     - Review https://en.wikipedia.org/wiki/Newline
 
-* Implement text align demo in text example.
- - Need to make space, implement tabbed content?
+* Support replace (Insert mode in command line).
+
+* Getter property `get_transformed_txt`, to get the text after whitespace & transforms?
+    - Transformed should be in the SegmentedText already.
+    - Whitespace needs processing.
+
 * Implement text clip.
-* Implement split/join segments.
-* Implement wrapping and justify.
-* Implement font-features and ligatures.
-    - Create another icon crate with the new Material Icons to demonstrate this.
+    - Ellipses, fade-out.
+
+* Implement justify.
+
 * Padding affects the baseline incorrectly.
     - Baseline in general is not tracked correctly?
-* Copy Chromium font fallback selection https://github.com/chromium/chromium/blob/0e41e52f5a91bb812f1f35a94a379ee3655129b0/third_party/blink/renderer/platform/fonts/win/font_fallback_win.cc#L104
 
-* Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
-
-* Hyphenation, use https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/?
+* Spellchecker.
+    - Use https://docs.rs/hunspell-rs
+    - Used by Firefox and Chrome.
 
 # Emoji Rendering
 
-* Implement COLR v1.
+* Implement COLR v1 (gradients).
 * Implement SVG.
 * Implement bitmap.
 
@@ -65,10 +64,8 @@
 * Line numbers.
 * Virtualization, only parse/generate visible pages.
 
-# Hyphenation & Word Break
+# Hyphenation
 
-* Word break must be only applied when the entire word does fit the line, 
-    this does not happen when it is the last word in the `ShapedText` in an inline context.
 * Hyphenation does not backtrack, the word hyphenation end-up split as "hy-phe-nation" when it could be "hyphe-nation".
     - This is because the split segments are never rejoined?
 

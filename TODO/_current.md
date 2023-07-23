@@ -2,7 +2,7 @@
 
 * Implement `CTRL+Backspace/Delete`.
     - `CTRL+Backspace` causes a char input event for delete `\u{7F}`, not backspace.
-* Support replace (Insert mode in command line).
+
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.
@@ -22,9 +22,8 @@
         - Maybe when editable transform the text by grapheme?
             - User may have a find/replace transform.
         - Custom needs to be a trait that maps caret points back to the source text.
-* Getter property `get_transformed_txt`, to get the text after whitespace & transforms?
-    - Transformed should be in the SegmentedText already.
-    - Whitespace needs processing.
+    - Maybe don't allow `WhiteSpace` and `TextTransformFn` when the text is editable.
+        - Apply it when the text is changed to not editable.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
@@ -34,14 +33,6 @@
     - Char event is not linked with key press event stop propagation does nothing.
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
-
-* Spellchecker.
-    - Use https://docs.rs/hunspell-rs
-    - Used by Firefox and Chrome.
-
-# Gradient
-
-* Add cool examples of radial and conic gradients.
 
 # Menu
 
@@ -84,3 +75,4 @@
 # Bugs
 
 * Test scroll inside grid, not sized right.
+    - Text editor example with scroll will demonstrate this?
