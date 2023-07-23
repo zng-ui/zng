@@ -59,7 +59,7 @@ impl SelectOp {
     ///
     /// The [`selector`] property handles [`SELECT_CMD`] by calling `op` during event handling.
     /// You can use [`SELECTOR`] to get and set the selection.
-    /// 
+    ///
     /// [`selector`]: fn@super::selector
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {
         Self {

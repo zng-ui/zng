@@ -1,4 +1,4 @@
-//! Toggle widget and properties.
+//! Toggle widget, properties and commands.
 
 use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 

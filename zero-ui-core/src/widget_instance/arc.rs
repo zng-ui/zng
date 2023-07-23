@@ -101,7 +101,7 @@ impl<U: UiNode> ArcNode<U> {
         }
     }
 
-    /// Create a *slot* node that takes ownership of this node when `var` updates to `true`.
+    /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
     ///
@@ -117,7 +117,7 @@ impl<U: UiNode> ArcNode<U> {
         }
     }
 
-    /// Create a *slot* node that takes ownership of this node when `event` updates and `filter` returns `true`.
+    /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
     ///
@@ -142,7 +142,7 @@ impl<U: UiNode> ArcNode<U> {
         }
     }
 
-    /// Create a *slot* node that takes ownership of this node as soon as the node is inited.
+    /// Create a slot node that takes ownership of this node as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`
     pub fn take_on_init(&self) -> TakeSlot<U, impl TakeOn> {
@@ -227,7 +227,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
         }
     }
 
-    /// Create a *slot* node that takes ownership of this node when `var` updates to `true`.
+    /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
     ///
@@ -243,7 +243,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
         }
     }
 
-    /// Create a *slot* node that takes ownership of this node when `event` updates and `filter` returns `true`.
+    /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
     ///
@@ -268,7 +268,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
         }
     }
 
-    /// Create a *slot* node list that takes ownership of this list as soon as the node is inited.
+    /// Create a slot node list that takes ownership of this list as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`
     pub fn take_on_init(&self) -> TakeSlot<L, impl TakeOn> {
