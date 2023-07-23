@@ -737,7 +737,7 @@ mod private {
     pub trait Sealed {}
 }
 
-/// Sets properties and when condition on a building widget.
+/// Sets properties and when condition on a widget builder.
 ///
 /// # Examples
 ///

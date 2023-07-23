@@ -30,15 +30,6 @@ impl Toggle {
             self;
             style_fn = STYLE_VAR;
         }
-
-        self.widget_builder().push_build_action(|wgt| {
-            if let Some(p) = wgt.property_mut(property_id!(Self::checked_opt)) {
-                p.position.index = u16::MAX; // force property to be inside tristate.
-            }
-            if let Some(p) = wgt.property_mut(property_id!(Self::value)) {
-                p.position.index = u16::MAX; // force property to be inside select_on_init and others.
-            }
-        });
     }
 }
 
@@ -99,7 +90,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 
                         let _ = checked.set(!checked.get());
                     }
-                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on(update) {
+                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
                         let _ = checked.set(*b);
@@ -108,7 +99,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                             args.propagation().stop();
                             let _ = checked.set(*b);
                         }
-                    } else {
+                    } else if args.param.is_none() {
                         args.propagation().stop();
                         let _ = checked.set(!checked.get());
                     }
@@ -140,7 +131,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// }
 /// # ;
 /// ```
-#[property(CONTEXT, default(None), widget_impl(Toggle))]
+#[property(CONTEXT + 1, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
     let checked = checked.into_var();
     let mut _toggle_handle = CommandHandle::dummy();
@@ -151,6 +142,9 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
             UiNodeOp::Init => {
                 WIDGET.sub_event(&CLICK_EVENT);
                 _toggle_handle = commands::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+            }
+            UiNodeOp::Deinit => {
+                _toggle_handle = CommandHandle::dummy();
             }
             UiNodeOp::Event { update } => {
                 child.event(update);
@@ -167,7 +161,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                         cycle = true;
                     }
-                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on(update) {
+                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
                         let _ = checked.set(Some(*b));
@@ -179,7 +173,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
                             args.propagation().stop();
                             let _ = checked.set(Some(*b));
                         }
-                    } else {
+                    } else if args.param.is_none() {
                         args.propagation().stop();
 
                         cycle = true;
@@ -297,7 +291,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// the contextual [`Selector`] is used to implement the behavior.
 ///
 /// [`selector`]: fn@selector
-#[property(CONTEXT, widget_impl(Toggle))]
+#[property(CONTEXT+2, widget_impl(Toggle))]
 pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
     // Returns `true` if selected.
     let select = |value: &T| {
@@ -317,6 +311,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             }
         }
     };
+    // Returns `true` if deselected.
     let deselect = |value: &T| {
         let selector = SELECTOR.get();
         match selector.deselect(value) {
@@ -340,10 +335,14 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
     let checked = var(Some(false));
     let child = with_context_var(child, IS_CHECKED_VAR, checked.clone());
     let mut prev_value = None;
+
     let mut _click_handle = None;
+    let mut _toggle_handle = CommandHandle::dummy();
+    let mut _select_handle = CommandHandle::dummy();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
+            let id = WIDGET.id();
             WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR);
             SELECTOR.get().subscribe();
 
@@ -360,7 +359,9 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                 }
             });
 
-            _click_handle = Some(CLICK_EVENT.subscribe(WIDGET.id()));
+            _click_handle = Some(CLICK_EVENT.subscribe(id));
+            _toggle_handle = commands::TOGGLE_CMD.scoped(id).subscribe(true);
+            _select_handle = commands::SELECT_CMD.scoped(id).subscribe(true);
         }
         UiNodeOp::Deinit => {
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
@@ -373,6 +374,8 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
 
             prev_value = None;
             _click_handle = None;
+            _toggle_handle = CommandHandle::dummy();
+            _select_handle = CommandHandle::dummy();
         }
         UiNodeOp::Event { update } => {
             child.event(update);
@@ -390,6 +393,42 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                         }
                     });
                     checked.set(Some(selected))
+                }
+            } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                if args.param.is_none() {
+                    args.propagation().stop();
+
+                    let selected = value.with(|value| {
+                        let selected = checked.get() == Some(true);
+                        if selected {
+                            !deselect(value)
+                        } else {
+                            select(value)
+                        }
+                    });
+                    checked.set(Some(selected))
+                } else {
+                    let s = if let Some(s) = args.param::<Option<bool>>() {
+                        Some(s.unwrap_or(false))
+                    } else {
+                        args.param::<bool>().copied()
+                    };
+                    if let Some(s) = s {
+                        args.propagation().stop();
+
+                        let selected = value.with(|value| if s { select(value) } else { !deselect(value) });
+                        checked.set(Some(selected))
+                    }
+                }
+            } else if let Some(args) = commands::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                if args.param.is_none() {
+                    args.propagation().stop();
+                    value.with(|value| {
+                        let selected = checked.get() == Some(true);
+                        if !selected && select(value) {
+                            checked.set(Some(true));
+                        }
+                    });
                 }
             }
         }
@@ -439,9 +478,32 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
 /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default
 /// selector so the [`value`] property only works if a contextual selector is present.
 ///
+/// This property sets the [`SELECTOR`] context and handles [`commands::SelectOp`] requests.
+///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Toggle))]
 pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+    let mut _select_handle = CommandHandle::dummy();
+    let child = match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            _select_handle = commands::SELECT_CMD.scoped(WIDGET.id()).subscribe(true);
+        }
+        UiNodeOp::Deinit => {
+            _select_handle = CommandHandle::dummy();
+        }
+        UiNodeOp::Event { update } => {
+            c.event(update);
+
+            if let Some(args) = commands::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                if let Some(p) = args.param::<commands::SelectOp>() {
+                    args.propagation().stop();
+
+                    p.call();
+                }
+            }
+        }
+        _ => {}
+    });
     with_context_local(child, &SELECTOR, selector)
 }
 
@@ -478,7 +540,8 @@ pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl 
 }
 
 context_local! {
-    static SELECTOR: Selector = Selector::nil();
+    /// Contextual [`Selector`].
+    pub static SELECTOR: Selector = Selector::nil();
 }
 
 context_var! {
@@ -702,17 +765,17 @@ impl Selector {
     }
 
     /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
-    fn select(&self, value: Box<dyn Any>) -> Result<(), SelectorError> {
+    pub fn select(&self, value: Box<dyn Any>) -> Result<(), SelectorError> {
         self.0.lock().select(value)
     }
 
     /// Remove the `value` from the selection, returns `Ok(())` if the value was removed or was not selected.
-    fn deselect(&self, value: &dyn Any) -> Result<(), SelectorError> {
+    pub fn deselect(&self, value: &dyn Any) -> Result<(), SelectorError> {
         self.0.lock().deselect(value)
     }
 
     /// Returns `true` if the `value` is selected.
-    fn is_selected(&self, value: &dyn Any) -> bool {
+    pub fn is_selected(&self, value: &dyn Any) -> bool {
         self.0.lock().is_selected(value)
     }
 }
