@@ -663,6 +663,9 @@ impl SegmentedText {
         start
     }
 
+    /// Find the range that must be removed to backspace words before `from` a `count` number of times.
+    ///
+    /// The character at `from` is not included, only the previous word is selected.
     pub fn backspace_word_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
         let mut start = from;
         for _ in 0..count {
@@ -673,6 +676,12 @@ impl SegmentedText {
             start = s;
         }
         start..from
+    }
+
+    /// Find the range that must be removed to delete words starting by `from` a `count` number of times.
+    pub fn delete_word_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
+        let _ = (from, count);
+        todo!()
     }
 }
 

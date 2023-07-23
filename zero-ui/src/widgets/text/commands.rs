@@ -149,6 +149,9 @@ impl TextEditOp {
     pub fn backspace() -> Self {
         Self::backspace_impl(SegmentedText::backspace_range)
     }
+    // Remove one *backspace word range* ending at the caret index, or removes the selection.
+    ///
+    /// See [`zero_ui::core::text::SegmentedText::backspace_word_range`] for more details about what is removed.
     pub fn backspace_word() -> Self {
         Self::backspace_impl(SegmentedText::backspace_word_range)
     }
@@ -330,6 +333,9 @@ impl TextEditOp {
             }
         })
     }
+    /// Remove one *delete word range* starting at the caret index, or removes the selection.
+    ///
+    /// See [`zero_ui::core::text::SegmentedText::delete_word_range`] for more details about what is removed.
     pub fn delete_word() -> Self {
         todo!()
     }
