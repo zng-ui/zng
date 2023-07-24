@@ -324,5 +324,21 @@ pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     })
 }
 
+/// If the layout direction is right-to-left.
+///
+/// The `state` is bound to [`DIRECTION_VAR`].
+#[property(LAYOUT)]
+pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    bind_is_state(child, DIRECTION_VAR.map(|s| s.is_rtl()), state)
+}
+
+/// If the layout direction is left-to-right.
+///
+/// The `state` is bound to [`DIRECTION_VAR`].
+#[property(LAYOUT)]
+pub fn is_ltr(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    bind_is_state(child, DIRECTION_VAR.map(|s| s.is_ltr()), state)
+}
+
 #[doc(no_inline)]
 pub use crate::core::widget_base::{is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_visible};
