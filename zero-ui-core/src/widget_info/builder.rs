@@ -1080,8 +1080,6 @@ impl WidgetLayout {
     ///
     /// Returns the output of `layout` and `Some(translate)` if any translations inside `layout` where not handled
     /// by child widgets.
-    ///
-    /// This is similar to [`with_child`], just the widget's child offset is not affected.
     pub fn with_branch_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, PxVector) {
         let parent_child_count = self.child_count;
         let parent_translate = self.bounds.child_offset();

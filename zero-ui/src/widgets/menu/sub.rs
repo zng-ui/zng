@@ -21,6 +21,7 @@ impl SubMenu {
         widget_set! {
             self;
             style_fn = STYLE_VAR;
+            focusable = true;
         }
 
         self.widget_builder().push_build_action(|wgt| {
@@ -156,6 +157,16 @@ pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
     padding(child, spacing)
 }
 
+/// Widget function that generates the sub-menu layout.
+///
+/// This property can be set in any widget to affect all sub-menu popup children descendants.
+///
+/// This property sets [`PANEL_FN_VAR`].
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SubMenu))]
+pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<panel::PanelArgs>>) -> impl UiNode {
+    with_context_var(child, PANEL_FN_VAR, panel)
+}
+
 context_var! {
     /// Sub-menu style in a context.
     ///
@@ -169,6 +180,22 @@ context_var! {
 
     /// Width of the sub-menu expand symbol column.
     pub static END_COLUMN_WIDTH_VAR: Length = 32;
+
+    /// Defines the layout widget for used to present the sub-menu items.
+    ///
+    /// Is a [`Scroll!`] wrapping a [`Stack!`] panel by default.
+    ///
+    /// [`Scroll!`]: struct@crate::widgets::Scroll
+    /// [`Stack!`]: struct@crate::widgets::layouts::Stack
+    pub static PANEL_FN_VAR: WidgetFn<panel::PanelArgs> = wgt_fn!(|a: panel::PanelArgs| {
+        crate::widgets::Scroll! {
+            child = crate::widgets::layouts::Stack! {
+                children = a.children;
+                direction = crate::widgets::layouts::stack::StackDirection::top_to_bottom();
+            };
+            mode = crate::widgets::scroll::ScrollMode::VERTICAL;
+        }
+    });
 }
 
 /// Style applied to all [`SubMenu!`] not inside any other sub-menu.
@@ -182,7 +209,7 @@ impl DefaultStyle {
         widget_set! {
             self;
 
-            padding = (4, 8);
+            padding = (4, 10);
             opacity = 90.pct();
             foreground_highlight = unset!;
 
