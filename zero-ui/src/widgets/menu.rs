@@ -44,6 +44,22 @@ impl ButtonStyle {
             self;
             column_width_padding = true;
             padding = (4, 0);
+            child_align = Align::START;
+
+            background_color = color_scheme_pair(button::BASE_COLORS_VAR);
+            opacity = 90.pct();
+            foreground_highlight = unset!;
+
+            when *#is_hovered || *#is_focused {
+                background_color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
+                opacity = 100.pct();
+            }
+
+            when *#is_disabled {
+                saturate = false;
+                opacity = 50.pct();
+                cursor = CursorIcon::NotAllowed;
+            }
         }
     }
 }
@@ -87,6 +103,23 @@ impl ToggleStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            icon = crate::widgets::Text! {
+                // size = 1.2.em();
+                font_family = FontNames::system_ui(&lang!(und));
+                txt_align = Align::CENTER;
+                align = Align::CENTER;
+
+                txt = "✓";
+                when #{toggle::IS_CHECKED_VAR}.is_none() {
+                    txt = "━";
+                }
+
+                font_color = text::FONT_COLOR_VAR.map(|c| c.transparent());
+                when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                    font_color = text::FONT_COLOR_VAR;
+                }
+            }
         }
     }
 }

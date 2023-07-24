@@ -6,7 +6,6 @@ pub mod focusable_mix;
 pub mod undo;
 
 pub mod ansi_text;
-pub mod menu;
 pub mod popup;
 pub use ansi_text::AnsiText;
 
@@ -21,6 +20,9 @@ pub use container::Container;
 
 mod flood;
 pub use flood::flood;
+
+pub mod menu;
+pub use menu::Menu;
 
 pub mod gradient;
 pub use gradient::{conic_gradient, gradient, linear_gradient, radial_gradient};
