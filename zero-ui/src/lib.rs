@@ -358,7 +358,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::widgets::{
             focusable_mix::FocusableMix,
-            layouts::{stack_nodes, stack_nodes_layout_by},
+            layouts::{stack_nodes, stack_nodes_layout_by, panel},
             presenter, presenter_opt, style,
             style::{style_fn, Style, StyleFn, StyleMix},
             undo::UndoMix,

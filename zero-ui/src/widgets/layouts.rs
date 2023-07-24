@@ -10,3 +10,5 @@ pub mod wrap;
 pub use wrap::Wrap;
 
 pub mod panel_nodes;
+
+pub mod panel;

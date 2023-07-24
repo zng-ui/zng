@@ -36,13 +36,14 @@
 
 # Menu
 
-* Implement styleable stack `Menu!`.
+* See `widgets/menu.rs`.
+* Implement styleable `Menu!`.
     - Background, drop-shadow, automatic set `Toggle!` style inside to a menu loop.
-    - Nested menus, auto-close on click.
-    - Arrow key open close.
-* Implement `toggle::MenuStyle!`.
-* Implement `toggle::ListItemStyle!`.
-    - Use it in the combo-box example.
+* Auto-close on click.
+* Arrow key open close.
+* Hover open.
+    - With delay in sub-menus.
+    - Without delay in main menu already open.
 
 # View-Process
 
