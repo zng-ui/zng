@@ -1,5 +1,3 @@
-* `background = align(NilUiNode, Align::START);` breaks layout.
-
 # TextInput
 
 * Implement `CTRL+Backspace/Delete`.

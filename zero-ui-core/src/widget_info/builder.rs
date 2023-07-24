@@ -1040,7 +1040,7 @@ impl WidgetLayout {
         }
     }
 
-    /// Defines a widget inner scope, translations inside `layout` target the widget's child offset.
+    /// Defines the widget's inner scope, translations inside `layout` target the widget's child offset.
     ///
     /// This method also updates the border info.
     ///
@@ -1055,7 +1055,7 @@ impl WidgetLayout {
         size
     }
 
-    /// Defines a widget child scope, translations inside `layout` still target the widget's child offset.
+    /// Defines the widget's child scope, translations inside `layout` target the widget's child offset.
     ///
     /// Returns the child size and if a reference frame is required to offset the child.
     ///
@@ -1063,6 +1063,7 @@ impl WidgetLayout {
     ///
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
+    /// [`with_branch_child`]: Self::with_branch_child
     pub fn with_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, bool) {
         let parent_child_count = mem::replace(&mut self.child_count, Some(0));
 
@@ -1073,6 +1074,31 @@ impl WidgetLayout {
         let need_ref_frame = self.child_count != Some(1);
         self.child_count = parent_child_count;
         (child_size, need_ref_frame)
+    }
+
+    /// Defines a custom scope that does not affect the widget's offsets, only any widget inside `layout`.
+    ///
+    /// Returns the output of `layout` and `Some(translate)` if any translations inside `layout` where not handled
+    /// by child widgets.
+    ///
+    /// This is similar to [`with_child`], just the widget's child offset is not affected.
+    pub fn with_branch_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, PxVector) {
+        let parent_child_count = self.child_count;
+        let parent_translate = self.bounds.child_offset();
+        let parent_inner_offset_baseline = self.bounds.inner_offset_baseline();
+        self.bounds.set_child_offset(PxVector::zero());
+        let parent_group = self.nest_group;
+
+        self.nest_group = LayoutNestGroup::Child;
+        let child_size = layout(self);
+
+        let translate = self.bounds.child_offset();
+        self.bounds.set_child_offset(parent_translate);
+        self.bounds.set_inner_offset_baseline(parent_inner_offset_baseline);
+        self.nest_group = parent_group;
+        self.child_count = parent_child_count;
+
+        (child_size, translate)
     }
 
     /// Adds the `offset` to the closest *inner* bounds offset.

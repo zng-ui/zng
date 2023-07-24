@@ -6,7 +6,7 @@ use crate::{
     color::*,
     context::{LAYOUT, WIDGET},
     context_local, property,
-    render::{webrender_api as w_api, FrameBuilder, FrameValueKey},
+    render::{webrender_api as w_api, FrameValueKey},
     ui_vec,
     units::*,
     var::{impl_from_and_into_var, *},
@@ -739,7 +739,6 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
     let mut offset = PxVector::zero();
     let offset_key = FrameValueKey::new_unique();
-    let mut define_ref_frame = false;
 
     match_node(content, move |child, op| match op {
         UiNodeOp::Init => {
@@ -765,11 +764,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let align = BORDER_ALIGN_VAR.get();
 
             let our_offsets = offsets * align;
-            let new_offset = PxVector::new(our_offsets.left, our_offsets.top);
-            if offset != new_offset {
-                offset = new_offset;
-                WIDGET.render_update();
-            }
+            let mut new_offset = PxVector::new(our_offsets.left, our_offsets.top);
 
             let size_offset = offsets - our_offsets;
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
@@ -782,18 +777,20 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 WIDGET.render();
             }
 
-            let (_, def_frame) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
-                wl.with_child(|wl| child.layout(wl))
+            let (_, branch_offset) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
+                wl.with_branch_child(|wl| child.layout(wl))
             });
-            if define_ref_frame != def_frame {
-                define_ref_frame = def_frame;
-                WIDGET.render();
+            new_offset += branch_offset;
+
+            if offset != new_offset {
+                offset = new_offset;
+                WIDGET.render_update();
             }
 
             *final_size = fill_bounds;
         }
         UiNodeOp::Render { frame } => {
-            let mut render_clipped = |frame: &mut FrameBuilder| {
+            frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
                 let bounds = PxRect::from_size(clip_bounds);
                 frame.push_clips(
                     |c| {
@@ -811,26 +808,12 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                     },
                     |f| child.render(f),
                 );
-            };
-
-            if define_ref_frame {
-                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
-                    render_clipped(frame);
-                });
-            } else {
-                frame.push_child(offset, |frame| render_clipped(frame))
-            }
+            });
         }
         UiNodeOp::RenderUpdate { update } => {
-            if define_ref_frame {
-                update.with_transform(offset_key.update(offset.into(), false), false, |update| {
-                    child.render_update(update);
-                })
-            } else {
-                update.with_child(offset, |update| {
-                    child.render_update(update);
-                })
-            }
+            update.with_transform(offset_key.update(offset.into(), false), false, |update| {
+                child.render_update(update);
+            });
         }
         _ => {}
     })
