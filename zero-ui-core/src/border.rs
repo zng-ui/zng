@@ -739,10 +739,13 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
     let mut offset = PxVector::zero();
     let offset_key = FrameValueKey::new_unique();
+    let mut define_frame = false;
 
     match_node(content, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&BORDER_ALIGN_VAR);
+            define_frame = false;
+            offset = PxVector::zero();
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let offsets = BORDER.inner_offsets();
@@ -784,13 +787,19 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             if offset != new_offset {
                 offset = new_offset;
-                WIDGET.render_update();
+
+                if define_frame {
+                    WIDGET.render_update();
+                } else {
+                    define_frame = true;
+                    WIDGET.render();
+                }
             }
 
             *final_size = fill_bounds;
         }
         UiNodeOp::Render { frame } => {
-            frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
+            let mut render = |frame: &mut crate::render::FrameBuilder| {
                 let bounds = PxRect::from_size(clip_bounds);
                 frame.push_clips(
                     |c| {
@@ -808,12 +817,24 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                     },
                     |f| child.render(f),
                 );
-            });
+            };
+
+            if define_frame {
+                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
+                    render(frame);
+                });
+            } else {
+                render(frame);
+            }
         }
         UiNodeOp::RenderUpdate { update } => {
-            update.with_transform(offset_key.update(offset.into(), false), false, |update| {
+            if define_frame {
+                update.with_transform(offset_key.update(offset.into(), false), false, |update| {
+                    child.render_update(update);
+                });
+            } else {
                 child.render_update(update);
-            });
+            }
         }
         _ => {}
     })
