@@ -196,7 +196,7 @@ pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
 ///
 /// This property can be set in any widget to affect all sub-menu popup children descendants.
 ///
-/// This property sets [`PANEL_FN_VAR`].
+/// This property sets [`POPUP_FN_VAR`].
 #[property(CONTEXT, default(POPUP_FN_VAR), widget_impl(SubMenu))]
 pub fn popup_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<panel::PanelArgs>>) -> impl UiNode {
     with_context_var(child, POPUP_FN_VAR, panel)

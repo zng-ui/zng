@@ -1,8 +1,5 @@
 # TextInput
 
-* Implement `CTRL+Backspace/Delete`.
-    - `CTRL+Backspace` causes a char input event for delete `\u{7F}`, not backspace.
-
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.

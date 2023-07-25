@@ -533,6 +533,24 @@ impl SegmentedText {
         self.text.len()
     }
 
+    /// Find the next word segment end, after `from`.
+    ///
+    /// This operation is saturating.
+    pub fn next_word_end_index(&self, from: usize) -> usize {
+        let mut segs = self.segs().iter();
+        for seg in &mut segs {
+            if from < seg.end {
+                for seg in segs {
+                    if seg.kind.is_word() {
+                        return seg.end;
+                    }
+                }
+                break;
+            }
+        }
+        self.text.len()
+    }
+
     /// Find the previous word segment, before `from`.
     ///
     /// This operation is saturating.
@@ -680,8 +698,16 @@ impl SegmentedText {
 
     /// Find the range that must be removed to delete words starting by `from` a `count` number of times.
     pub fn delete_word_range(&self, from: usize, count: u32) -> std::ops::Range<usize> {
-        let _ = (from, count);
-        todo!()
+        let mut end = from;
+        for _ in 0..count {
+            let e = self.next_word_end_index(end);
+            if e == end {
+                break;
+            }
+            end = e;
+        }
+
+        from..end
     }
 }
 

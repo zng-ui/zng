@@ -250,6 +250,15 @@ impl TextEditOp {
     ///
     /// See [`zero_ui::core::text::SegmentedText::delete_range`] for more details about what is removed.
     pub fn delete() -> Self {
+        Self::delete_impl(SegmentedText::delete_range)
+    }
+    /// Remove one *delete word range* starting at the caret index, or removes the selection.
+    ///
+    /// See [`zero_ui::core::text::SegmentedText::delete_word_range`] for more details about what is removed.
+    pub fn delete_word() -> Self {
+        Self::delete_impl(SegmentedText::delete_word_range)
+    }
+    fn delete_impl(delete_range: fn(&SegmentedText, usize, u32) -> std::ops::Range<usize>) -> Self {
         struct DeleteData {
             caret: Option<CaretIndex>,
             count: u32,
@@ -268,7 +277,7 @@ impl TextEditOp {
 
                 let caret_idx = *data.caret.get_or_insert_with(|| caret.index.unwrap_or(CaretIndex::ZERO));
 
-                let rmv = ctx.text.delete_range(caret_idx.index, data.count);
+                let rmv = delete_range(&ctx.text, caret_idx.index, data.count);
 
                 if rmv.is_empty() {
                     data.removed = Txt::from_static("");
@@ -332,12 +341,6 @@ impl TextEditOp {
                 }
             }
         })
-    }
-    /// Remove one *delete word range* starting at the caret index, or removes the selection.
-    ///
-    /// See [`zero_ui::core::text::SegmentedText::delete_word_range`] for more details about what is removed.
-    pub fn delete_word() -> Self {
-        todo!()
     }
 
     /// Replace operation.

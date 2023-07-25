@@ -294,7 +294,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 3],
+        events: [EventHandle; 4],
         caret_animation: VarHandle,
         cut: CommandHandle,
         copy: CommandHandle,
@@ -381,6 +381,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
                 d.events[1] = FOCUS_CHANGED_EVENT.subscribe(id);
                 d.events[2] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
+                d.events[3] = KEY_INPUT_EVENT.subscribe(id);
 
                 d.cut = CUT_CMD.scoped(id).subscribe(true);
                 d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -446,31 +447,42 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 {
                     if let Some(args) = CHAR_INPUT_EVENT.on_unhandled(update) {
                         if text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id()) {
-                            args.propagation().stop();
-
-                            if args.is_backspace() {
-                                if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
-                                    if args.modifiers.is_only_ctrl() {
-                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace_word().call(&text));
-                                    } else {
-                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
-                                    }
-                                }
-                            } else if args.is_delete() {
-                                let r = resolved.as_mut().unwrap();
-                                let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
-                                if caret_idx.index < r.text.text().len() {
-                                    if args.modifiers.is_only_ctrl() {
-                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
-                                    } else {
-                                        ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
-                                    }
-                                }
-                            } else if let Some(c) = args.insert_char() {
+                            if let Some(c) = args.insert_char() {
+                                args.propagation().stop();
                                 let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                 if !skip {
                                     ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(Txt::from_char(c)).call(&text));
                                 }
+                            }
+                        }
+                    } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+                        if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                            match key {
+                                Key::Backspace => {
+                                    if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
+                                        if args.modifiers.is_only_ctrl() {
+                                            args.propagation().stop();
+                                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace_word().call(&text));
+                                        } else if args.modifiers.is_empty() {
+                                            args.propagation().stop();
+                                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
+                                        }
+                                    }
+                                }
+                                Key::Delete => {
+                                    let r = resolved.as_mut().unwrap();
+                                    let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
+                                    if caret_idx.index < r.text.text().len() {
+                                        if args.modifiers.is_only_ctrl() {
+                                            args.propagation().stop();
+                                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
+                                        } else {
+                                            args.propagation().stop();
+                                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -609,6 +621,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
                     d.events[1] = KEY_INPUT_EVENT.subscribe(id);
                     d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
+                    d.events[3] = KEY_INPUT_EVENT.subscribe(id);
 
                     d.cut = CUT_CMD.scoped(id).subscribe(true);
                     d.copy = COPY_CMD.scoped(id).subscribe(true);
