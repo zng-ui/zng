@@ -1,9 +1,14 @@
 //! Sub-menu widget and properties.
 
+use crate::prelude::popup::POPUP;
 use crate::prelude::{button, new_widget::*};
 
 use crate::core::{
-    focus::FOCUS_CHANGED_EVENT, gesture::CLICK_EVENT, keyboard::KEY_INPUT_EVENT, mouse::MOUSE_HOVERED_EVENT, widget_instance::ArcNodeList,
+    focus::{FOCUS, FOCUS_CHANGED_EVENT},
+    gesture::CLICK_EVENT,
+    keyboard::KEY_INPUT_EVENT,
+    mouse::MOUSE_HOVERED_EVENT,
+    widget_instance::ArcNodeList,
 };
 
 use super::ButtonStyle;
@@ -42,7 +47,8 @@ impl SubMenu {
 }
 
 /// Sub-menu implementation.
-pub fn sub_menu_node(child: impl UiNode, _children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
+pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
+    let mut open = None;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -64,10 +70,19 @@ pub fn sub_menu_node(child: impl UiNode, _children: ArcNodeList<BoxedUiNodeList>
                 // TODO
                 // - On focus, Open if sibling was open.
                 // - On blur, close if descendant is not focused.
-            } else if let Some(_args) = CLICK_EVENT.on(update) {
-                // TODO
-                // - Toggle root sub-menus.
-                // - Actually exits the menu.
+            } else if let Some(args) = CLICK_EVENT.on(update) {
+                args.propagation().stop();
+
+                if let Some(open) = open.take() {
+                    POPUP.force_close_var(open);
+                    FOCUS.focus_exit();
+                } else {
+                    let pop_fn = POPUP_FN_VAR.get();
+                    let pop = pop_fn(panel::PanelArgs {
+                        children: children.take_on_init().boxed(),
+                    });
+                    open = Some(POPUP.open(pop));
+                }
             }
         }
         _ => {}
@@ -157,14 +172,14 @@ pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
     padding(child, spacing)
 }
 
-/// Widget function that generates the sub-menu layout.
+/// Widget function that generates the sub-menu popup and layout panel.
 ///
 /// This property can be set in any widget to affect all sub-menu popup children descendants.
 ///
 /// This property sets [`PANEL_FN_VAR`].
-#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SubMenu))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<panel::PanelArgs>>) -> impl UiNode {
-    with_context_var(child, PANEL_FN_VAR, panel)
+#[property(CONTEXT, default(POPUP_FN_VAR), widget_impl(SubMenu))]
+pub fn popup_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<panel::PanelArgs>>) -> impl UiNode {
+    with_context_var(child, POPUP_FN_VAR, panel)
 }
 
 context_var! {
@@ -181,19 +196,24 @@ context_var! {
     /// Width of the sub-menu expand symbol column.
     pub static END_COLUMN_WIDTH_VAR: Length = 32;
 
-    /// Defines the layout widget for used to present the sub-menu items.
+    /// Defines the popup and layout widget for used to present the sub-menu items.
     ///
-    /// Is a [`Scroll!`] wrapping a [`Stack!`] panel by default.
+    /// Is a [`Popup!`] wrapping a [`Scroll!`] wrapping a [`Stack!`] panel by default.
     ///
+    /// [`Popup!`]: struct@crate::widgets::popup::Popup
     /// [`Scroll!`]: struct@crate::widgets::Scroll
     /// [`Stack!`]: struct@crate::widgets::layouts::Stack
-    pub static PANEL_FN_VAR: WidgetFn<panel::PanelArgs> = wgt_fn!(|a: panel::PanelArgs| {
-        crate::widgets::Scroll! {
-            child = crate::widgets::layouts::Stack! {
-                children = a.children;
-                direction = crate::widgets::layouts::stack::StackDirection::top_to_bottom();
+    pub static POPUP_FN_VAR: WidgetFn<panel::PanelArgs> = wgt_fn!(|a: panel::PanelArgs| {
+        crate::widgets::popup::Popup! {
+            replace_style = SubMenuStyle!();
+
+            child = crate::widgets::Scroll! {
+                child = crate::widgets::layouts::Stack! {
+                    children = a.children;
+                    direction = crate::widgets::layouts::stack::StackDirection::top_to_bottom();
+                };
+                mode = crate::widgets::scroll::ScrollMode::VERTICAL;
             };
-            mode = crate::widgets::scroll::ScrollMode::VERTICAL;
         }
     });
 }

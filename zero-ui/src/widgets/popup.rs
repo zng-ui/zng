@@ -207,6 +207,38 @@ impl POPUP {
     pub fn force_close(&self, widget_id: WidgetId) {
         POPUP_CLOSE_CMD.scoped(widget_id).notify_param(PopupCloseMode::Force);
     }
+
+    /// Close the popup widget when `state` is not already closed.
+    pub fn close_var(&self, state: ReadOnlyArcVar<PopupState>) {
+        match state.get() {
+            PopupState::Opening => state
+                .hook(Box::new(|a| {
+                    if let PopupState::Open(id) = a.downcast_value::<PopupState>().unwrap() {
+                        POPUP_CLOSE_CMD.scoped(*id).notify_param(PopupCloseMode::Request);
+                    }
+                    false
+                }))
+                .perm(),
+            PopupState::Open(id) => self.close(id),
+            PopupState::Closed => {}
+        }
+    }
+
+    /// Close the popup widget when `state` is not already closed.
+    pub fn force_close_var(&self, state: ReadOnlyArcVar<PopupState>) {
+        match state.get() {
+            PopupState::Opening => state
+                .hook(Box::new(|a| {
+                    if let PopupState::Open(id) = a.downcast_value::<PopupState>().unwrap() {
+                        POPUP_CLOSE_CMD.scoped(*id).notify_param(PopupCloseMode::Force);
+                    }
+                    false
+                }))
+                .perm(),
+            PopupState::Open(id) => self.force_close(id),
+            PopupState::Closed => {}
+        }
+    }
 }
 
 /// Identifies the lifetime state of a popup managed by [`POPUP`].
