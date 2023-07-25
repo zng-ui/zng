@@ -1,13 +1,13 @@
 //! Sub-menu widget and properties.
 
-use crate::prelude::popup::POPUP;
+use crate::prelude::popup::{PopupState, POPUP};
 use crate::prelude::{button, new_widget::*};
 
 use crate::core::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT},
     gesture::CLICK_EVENT,
     keyboard::KEY_INPUT_EVENT,
-    mouse::MOUSE_HOVERED_EVENT,
+    mouse::{ClickMode, MOUSE_HOVERED_EVENT},
     widget_instance::ArcNodeList,
 };
 
@@ -27,6 +27,7 @@ impl SubMenu {
             self;
             style_fn = STYLE_VAR;
             focusable = true;
+            click_mode = ClickMode::press();
         }
 
         self.widget_builder().push_build_action(|wgt| {
@@ -48,7 +49,7 @@ impl SubMenu {
 
 /// Sub-menu implementation.
 pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
-    let mut open = None;
+    let mut open = None::<ReadOnlyArcVar<PopupState>>;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -56,6 +57,12 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                 .sub_event(&KEY_INPUT_EVENT)
                 .sub_event(&FOCUS_CHANGED_EVENT)
                 .sub_event(&MOUSE_HOVERED_EVENT);
+        }
+        UiNodeOp::Deinit => {
+            let _ = IS_OPEN_VAR.set(false);
+            if let Some(v) = open.take() {
+                POPUP.force_close_var(v);
+            }
         }
         UiNodeOp::Event { update } => {
             if let Some(_args) = MOUSE_HOVERED_EVENT.on(update) {
@@ -73,15 +80,28 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             } else if let Some(args) = CLICK_EVENT.on(update) {
                 args.propagation().stop();
 
-                if let Some(open) = open.take() {
-                    POPUP.force_close_var(open);
-                    FOCUS.focus_exit();
+                let o = if let Some(v) = open.take() {
+                    let closed = matches!(v.get(), PopupState::Closed);
+                    if !closed {
+                        POPUP.force_close_var(v);
+                        FOCUS.focus_exit();
+                    }
+                    closed
                 } else {
+                    true
+                };
+                if o {
                     let pop_fn = POPUP_FN_VAR.get();
                     let pop = pop_fn(panel::PanelArgs {
                         children: children.take_on_init().boxed(),
                     });
-                    open = Some(POPUP.open(pop));
+                    let state = POPUP.open(pop);
+                    let is_open = IS_OPEN_VAR.actual_var();
+                    let _ = is_open.set_from_map(&state, |s| !matches!(s, PopupState::Closed));
+                    state.bind_map(&is_open, |s| !matches!(s, PopupState::Closed)).perm();
+                    open = Some(state);
+                } else if open.is_none() {
+                    let _ = IS_OPEN_VAR.set(false);
                 }
             }
         }
@@ -205,7 +225,12 @@ context_var! {
     /// [`Stack!`]: struct@crate::widgets::layouts::Stack
     pub static POPUP_FN_VAR: WidgetFn<panel::PanelArgs> = wgt_fn!(|a: panel::PanelArgs| {
         crate::widgets::popup::Popup! {
-            replace_style = SubMenuStyle!();
+            self::replace_style = SubMenuStyle!();
+
+            border = {
+                widths: 1,
+                sides: button::color_scheme_hovered(button::BASE_COLORS_VAR).map_into(),
+            };
 
             child = crate::widgets::Scroll! {
                 child = crate::widgets::layouts::Stack! {
@@ -216,6 +241,15 @@ context_var! {
             };
         }
     });
+
+    static IS_OPEN_VAR: bool = false;
+}
+
+/// If the sub-menu popup is open or opening.
+#[property(CONTEXT, widget_impl(SubMenu))]
+pub fn is_open(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    // reverse context var, is set by `sub_menu_node`.
+    with_context_var(child, IS_OPEN_VAR, state)
 }
 
 /// Style applied to all [`SubMenu!`] not inside any other sub-menu.
@@ -233,7 +267,7 @@ impl DefaultStyle {
             opacity = 90.pct();
             foreground_highlight = unset!;
 
-            when *#is_hovered || *#is_focused {
+            when *#is_hovered || *#is_focused || *#is_open {
                 background_color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
                 opacity = 100.pct();
             }
