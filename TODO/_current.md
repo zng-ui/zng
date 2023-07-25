@@ -1,5 +1,8 @@
 # TextInput
 
+* Word navigation should stop once at the end of each line.
+    - Word and VSCode does this.
+    - We skip to the next line.
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.
