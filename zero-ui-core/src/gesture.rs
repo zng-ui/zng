@@ -497,8 +497,8 @@ impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
 pub struct Shortcuts(pub Vec<Shortcut>);
 impl Shortcuts {
     /// New default (empty).
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self(vec![])
     }
 
     /// Try to generate shortcuts that produce the `character`.

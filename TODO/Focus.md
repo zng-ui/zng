@@ -6,3 +6,7 @@
 * Support more than one ALT scopes.
     - Like the main-menu vs. a docked panel main tool-bar in Visual Studio.
 * Mnemonics.
+
+* Directional nav shortcuts are easily suppressed by other commands.
+    - Just by having a `Scroll!` as parent for example.
+    - Maybe we can have a property that boosts the priority of focus nav commands in a context?

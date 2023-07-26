@@ -1,7 +1,8 @@
 //! Menu widgets and properties.
 //!
 
-use crate::prelude::{button, new_widget::*, toggle};
+use crate::core::focus::FOCUS;
+use crate::prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, toggle};
 
 pub mod sub;
 
@@ -98,7 +99,11 @@ impl ButtonStyle {
             opacity = 90.pct();
             foreground_highlight = unset!;
 
-            when *#is_hovered || *#is_focused {
+            on_pre_mouse_enter = hn!(|_| {
+                FOCUS.focus_widget(WIDGET.id(), false);
+            });
+
+            when *#is_focused {
                 background_color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
                 opacity = 100.pct();
             }
