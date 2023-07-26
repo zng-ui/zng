@@ -513,7 +513,7 @@ impl SegmentedText {
         }
     }
 
-    /// Find the next word segment, after `from`.
+    /// Find the start of the next word or line-break segment, after `from`.
     ///
     /// This operation is saturating.
     pub fn next_word_index(&self, from: usize) -> usize {
@@ -522,7 +522,7 @@ impl SegmentedText {
             if from < seg.end {
                 let mut start = seg.end;
                 for seg in segs {
-                    if seg.kind.is_word() {
+                    if seg.kind.is_word() || seg.kind.is_line_break() {
                         return start;
                     }
                     start = seg.end;
@@ -551,7 +551,7 @@ impl SegmentedText {
         self.text.len()
     }
 
-    /// Find the previous word segment, before `from`.
+    /// Find the start of the previous word segment or end of the previous line-break segment, before `from`.
     ///
     /// This operation is saturating.
     pub fn prev_word_index(&self, from: usize) -> usize {
@@ -559,12 +559,12 @@ impl SegmentedText {
         let mut seg_kind = TextSegmentKind::Space;
         for seg in &mut segs {
             if seg.end < from {
-                if seg_kind.is_word() {
+                if seg_kind.is_word() || seg.kind.is_line_break() {
                     return seg.end;
                 }
                 seg_kind = seg.kind;
                 for seg in segs {
-                    if seg_kind.is_word() {
+                    if seg_kind.is_word() || seg.kind.is_line_break() {
                         return seg.end;
                     }
                     seg_kind = seg.kind;

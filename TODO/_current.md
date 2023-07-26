@@ -1,8 +1,8 @@
 # TextInput
 
-* Word navigation should stop once at the end of each line.
-    - Word and VSCode does this.
-    - We skip to the next line.
+* Word navigation should stop on both start and end of line breaks.
+    - Word does this.
+* `CTRL+Delete` should stop at end of line if `caret.index` isn't already the end of the line.
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.
