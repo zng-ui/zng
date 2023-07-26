@@ -82,22 +82,29 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if args.is_mouse_enter() {
                     let info = WIDGET.info();
-                    if info.parent_submenu().is_none()
-                        && (IS_OPEN_VAR.get()
-                            || FOCUS
-                                .focused()
-                                .get()
-                                .map(|focused| {
-                                    if let Some(menu) = info.into_focus_info(true, true).alt_scope() {
-                                        focused.contains(menu.info().id())
-                                    } else {
-                                        false
+
+                    let is_root = info.parent_submenu().is_none();
+                    let is_open = IS_OPEN_VAR.get();
+
+                    // root sub-menus focus on hover only if the menu is focused or a sibling is open.
+                    if is_root & !is_open {
+                        if let (Some(menu), Some(focused)) = (info.menu(), FOCUS.focused().get()) {
+                            let is_menu_focused = focused.contains(menu.id());
+
+                            let mut focus_on_hover = is_menu_focused;
+                            if !focus_on_hover {
+                                if let Some(focused) = info.tree().get(focused.widget_id()) {
+                                    if let Some(f_menu) = focused.menu() {
+                                        // focused in menu-item, spawned from the same menu.
+                                        focus_on_hover = f_menu.id() == menu.id();
                                     }
-                                })
-                                .unwrap_or(false))
-                    {
-                        // root sub-menus focus on hover only if the menu is focused or they are open.
-                        FOCUS.focus_widget(WIDGET.id(), false);
+                                }
+                            }
+
+                            if focus_on_hover {
+                                FOCUS.focus_widget(WIDGET.id(), false);
+                            }
+                        }
                     }
                 }
                 // TODO, auto-open.
@@ -115,7 +122,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                             }
                             Key::Left | Key::Right => {
                                 if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                                    open_pop = dbg!(info.focusable_left().is_none()) && dbg!(info.focusable_right().is_none());
+                                    open_pop = info.focusable_left().is_none() && info.focusable_right().is_none();
                                 }
                             }
                             _ => {}
@@ -426,7 +433,8 @@ pub trait SubMenuWidgetInfoExt {
     /// [`SubMenu!`]: struct@SubMenu
     fn is_submenu(&self) -> bool;
 
-    /// Gets the sub-menu that spawned `self` if [`is_submenu`], otherwise returns `None`.
+    /// Gets the sub-menu that spawned `self` if [`is_submenu`], otherwise returns the first ancestor
+    /// that is sub-menu.
     ///
     /// Note that the returned widget may not be an actual parent in the info-tree as
     /// sub-menus use popups to present their sub-menus.
@@ -436,6 +444,9 @@ pub trait SubMenuWidgetInfoExt {
 
     /// Gets the parent submenu recursively, returns the parent that does not have a parent.
     fn root_submenu(&self) -> Option<WidgetInfo>;
+
+    /// Gets the alt-scope parent of the `root_submenu`.
+    fn menu(&self) -> Option<WidgetInfo>;
 }
 impl SubMenuWidgetInfoExt for WidgetInfo {
     fn is_submenu(&self) -> bool {
@@ -443,11 +454,25 @@ impl SubMenuWidgetInfoExt for WidgetInfo {
     }
 
     fn parent_submenu(&self) -> Option<WidgetInfo> {
-        self.tree().get(self.meta().get(&SUB_MENU_INFO_ID)?.parent?)
+        if let Some(p) = self.meta().get(&SUB_MENU_INFO_ID) {
+            self.tree().get(p.parent?)
+        } else {
+            self.ancestors().find(|a| a.is_submenu())
+        }
     }
 
     fn root_submenu(&self) -> Option<WidgetInfo> {
         find_root_submenu(self.clone())
+    }
+
+    fn menu(&self) -> Option<WidgetInfo> {
+        let scope = self.root_submenu()?.into_focus_info(true, true).scope()?;
+
+        if !scope.is_alt_scope() {
+            return None;
+        }
+
+        Some(scope.info().clone())
     }
 }
 
