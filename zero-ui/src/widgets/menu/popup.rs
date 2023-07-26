@@ -1,12 +1,15 @@
 //! Sub-menu popup widget and properties.
 
 use zero_ui_core::{
+    focus::FOCUS,
     gesture::{CommandShortcutExt, Shortcuts},
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
     widget_instance::ArcNodeList,
 };
 
-use crate::prelude::{button, new_widget::*, scroll};
+use crate::prelude::{button, new_widget::*, popup::POPUP_CLOSE_REQUESTED_EVENT, scroll};
+
+use super::sub::SubMenuWidgetInfoExt;
 
 /// Sub-menu popup.
 #[widget($crate::widgets::menu::popup::SubMenuPopup)]
@@ -122,39 +125,35 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
     let child = crate::widgets::layouts::panel::node(children, PANEL_FN_VAR);
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&KEY_INPUT_EVENT);
+            WIDGET.sub_event(&KEY_INPUT_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
         }
         UiNodeOp::Info { info } => {
             super::sub::SUB_MENU_PARENT_CTX.with_context_value(Some(parent), || c.info(info));
-            info.set_meta(&super::sub::SUB_MENU_INFO_ID, super::sub::SubMenuInfo { parent: Some(parent) });
+            info.set_meta(
+                &super::sub::SUB_MENU_POPUP_ID,
+                super::sub::SubMenuPopupInfo { parent: Some(parent) },
+            );
         }
         UiNodeOp::Event { update } => {
-            c.event(update);
-            let args = c
-                .with_context(WidgetUpdateMode::Bubble, || KEY_INPUT_EVENT.on_unhandled(update))
-                .flatten();
-
-            if let Some(args) = args {
+            if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                 if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
-                    if let Key::Left | Key::Right = key {
-                        // TODO, return to parent or open root parent next menu.
-
-                        // if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                        //     if info.focusable_left().is_none() && info.focusable_right().is_none() {
-                        //         if let Some(parent) = info.info().parent_submenu() {
-                        //             if let Some(orientation) = parent.orientation_from(info.info().center()) {
-                        //                 match key {
-                        //                     _ => {}
-                        //                 }
-                        //                 match orientation {
-                        //                     Orientation2D::Left => todo!(),
-                        //                     Orientation2D::Right => todo!(),
-                        //                     _ => {}
-                        //                 }
-                        //             }
-                        //         }
-                        //     }
-                        // }
+                    // TODO
+                    //
+                    // Exit to parent sub-menu.
+                }
+            } else if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
+                if let Some(focused) = FOCUS.focused().get() {
+                    let info = WIDGET.info();
+                    if let Some(sub) = info.submenu_root() {
+                        if let Some(focused) = info.tree().get(focused.widget_id()) {
+                            if let Some(other_sub) = focused.submenu_root() {
+                                if other_sub.id() == sub.id() {
+                                    // focused child sub-menu.
+                                    // TODO need to close after if canceled.
+                                    args.propagation().stop();
+                                }
+                            }
+                        }
                     }
                 }
             }

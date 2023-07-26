@@ -37,9 +37,7 @@
 # Menu
 
 * See `widgets/menu.rs`.
-* Hover open.
-    - With delay in sub-menus.
-    - Without delay in main menu already open.
+* Test drag to option release.
 
 # View-Process
 
