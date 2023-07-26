@@ -1,10 +1,9 @@
 //! Sub-menu widget and properties.
 
 use zero_ui_core::focus::WidgetInfoFocusExt;
-use zero_ui_core::gesture::{CommandShortcutExt, Shortcuts};
 
 use crate::prelude::popup::{PopupState, POPUP};
-use crate::prelude::{button, new_widget::*, scroll};
+use crate::prelude::{button, new_widget::*};
 
 use crate::core::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT},
@@ -17,7 +16,7 @@ use crate::core::{
 
 use super::ButtonStyle;
 
-/// Submenu parent.
+/// Submenu header and items.
 #[widget($crate::widgets::menu::sub::SubMenu)]
 pub struct SubMenu(StyleMix<WidgetBase>);
 impl SubMenu {
@@ -133,10 +132,25 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         }
                     }
                 }
-            } else if let Some(_args) = FOCUS_CHANGED_EVENT.on(update) {
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 // TODO
                 // - On focus, Open if sibling was open.
                 // - On blur, close if descendant is not focused.
+                if !IS_OPEN_VAR.get() && args.is_focus_enter(WIDGET.id()) {
+                    let info = WIDGET.info();
+                    if info.parent_submenu().is_none() {
+                        if let Some(prev_menu) = args
+                            .prev_focus
+                            .as_ref()
+                            .and_then(|p| info.tree().get(p.widget_id()))
+                            .and_then(|w| w.menu())
+                        {
+                            if let Some(our_menu) = info.menu() {
+                                open_pop = our_menu.id() == prev_menu.id();
+                            }
+                        }
+                    }
+                }
             } else if let Some(args) = CLICK_EVENT.on(update) {
                 args.propagation().stop();
 
@@ -156,62 +170,15 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             }
 
             if open_pop {
-                let pop_fn = POPUP_FN_VAR.get();
-                let pop = pop_fn(panel::PanelArgs {
-                    children: children.take_on_init().boxed(),
-                });
-                let pop = sub_menu_popup_node(pop, WIDGET.id());
+                let pop = super::popup::SubMenuPopup! {
+                    parent_id = WIDGET.id();
+                    children = children.take_on_init().boxed();
+                };
                 let state = POPUP.open(pop);
                 let is_open = IS_OPEN_VAR.actual_var();
                 let _ = is_open.set_from_map(&state, |s| !matches!(s, PopupState::Closed));
                 state.bind_map(&is_open, |s| !matches!(s, PopupState::Closed)).perm();
                 open = Some(state);
-            }
-        }
-        _ => {}
-    })
-}
-
-fn sub_menu_popup_node(child: impl UiNode, parent: WidgetId) -> impl UiNode {
-    match_widget(child, move |c, op| match op {
-        UiNodeOp::Init => {
-            c.init();
-            c.with_context(WidgetUpdateMode::Bubble, || {
-                WIDGET.sub_event(&KEY_INPUT_EVENT);
-            });
-        }
-        UiNodeOp::Info { info } => {
-            SUB_MENU_PARENT_CTX.with_context_value(Some(parent), || c.info(info));
-        }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            let args = c
-                .with_context(WidgetUpdateMode::Bubble, || KEY_INPUT_EVENT.on_unhandled(update))
-                .flatten();
-
-            if let Some(args) = args {
-                if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
-                    if let Key::Left | Key::Right = key {
-                        // TODO, return to parent or open root parent next menu.
-
-                        // if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                        //     if info.focusable_left().is_none() && info.focusable_right().is_none() {
-                        //         if let Some(parent) = info.info().parent_submenu() {
-                        //             if let Some(orientation) = parent.orientation_from(info.info().center()) {
-                        //                 match key {
-                        //                     _ => {}
-                        //                 }
-                        //                 match orientation {
-                        //                     Orientation2D::Left => todo!(),
-                        //                     Orientation2D::Right => todo!(),
-                        //                     _ => {}
-                        //                 }
-                        //             }
-                        //         }
-                        //     }
-                        // }
-                    }
-                }
             }
         }
         _ => {}
@@ -301,16 +268,6 @@ pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
     padding(child, spacing)
 }
 
-/// Widget function that generates the sub-menu popup and layout panel.
-///
-/// This property can be set in any widget to affect all sub-menu popup children descendants.
-///
-/// This property sets [`POPUP_FN_VAR`].
-#[property(CONTEXT, default(POPUP_FN_VAR), widget_impl(SubMenu))]
-pub fn popup_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<panel::PanelArgs>>) -> impl UiNode {
-    with_context_var(child, POPUP_FN_VAR, panel)
-}
-
 context_var! {
     /// Sub-menu style in a context.
     ///
@@ -325,45 +282,7 @@ context_var! {
     /// Width of the sub-menu expand symbol column.
     pub static END_COLUMN_WIDTH_VAR: Length = 24;
 
-    /// Defines the popup and layout widget for used to present the sub-menu items.
-    ///
-    /// Is a [`Popup!`] wrapping a [`Scroll!`] wrapping a [`Stack!`] panel by default.
-    ///
-    /// [`Popup!`]: struct@crate::widgets::popup::Popup
-    /// [`Scroll!`]: struct@crate::widgets::Scroll
-    /// [`Stack!`]: struct@crate::widgets::layouts::Stack
-    pub static POPUP_FN_VAR: WidgetFn<panel::PanelArgs> = WidgetFn::new(default_popup_fn);
-
     static IS_OPEN_VAR: bool = false;
-}
-
-/// Default sub-menu popup view.
-///
-/// See [`POPUP_FN_VAR`] for more details.
-pub fn default_popup_fn(args: panel::PanelArgs) -> impl UiNode {
-    // remove arrow key shortcuts, they are used to nav. focus.
-    let scroll_id = WidgetId::new_unique();
-    let _ = scroll::commands::SCROLL_UP_CMD.scoped(scroll_id).shortcut().set(Shortcuts::new());
-    let _ = scroll::commands::SCROLL_DOWN_CMD.scoped(scroll_id).shortcut().set(Shortcuts::new());
-
-    crate::widgets::popup::Popup! {
-        self::replace_style = SubMenuStyle!();
-
-        border = {
-            widths: 1,
-            sides: button::color_scheme_hovered(button::BASE_COLORS_VAR).map_into(),
-        };
-
-        child = crate::widgets::Scroll! {
-            id = scroll_id;
-            focusable = false;
-            child = crate::widgets::layouts::Stack! {
-                children = args.children;
-                direction = crate::widgets::layouts::stack::StackDirection::top_to_bottom();
-            };
-            mode = crate::widgets::scroll::ScrollMode::VERTICAL;
-        };
-    }
 }
 
 /// If the sub-menu popup is open or opening.
@@ -423,8 +342,6 @@ impl SubMenuStyle {
         }
     }
 }
-
-static SUB_MENU_INFO_ID: StaticStateId<SubMenuInfo> = StaticStateId::new_unique();
 
 /// Extension methods for [`WidgetInfo`].
 pub trait SubMenuWidgetInfoExt {
@@ -486,11 +403,13 @@ fn find_root_submenu(wgt: WidgetInfo) -> Option<WidgetInfo> {
     }
 }
 
-struct SubMenuInfo {
-    parent: Option<WidgetId>,
+pub(super) struct SubMenuInfo {
+    pub parent: Option<WidgetId>,
 }
 
 context_local! {
     // only set during info
-    static SUB_MENU_PARENT_CTX: Option<WidgetId> = None;
+    pub(super) static SUB_MENU_PARENT_CTX: Option<WidgetId> = None;
 }
+
+pub(super) static SUB_MENU_INFO_ID: StaticStateId<SubMenuInfo> = StaticStateId::new_unique();

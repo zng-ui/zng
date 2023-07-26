@@ -4,6 +4,7 @@
 use crate::core::focus::FOCUS;
 use crate::prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, toggle};
 
+pub mod popup;
 pub mod sub;
 
 /// Menu root panel.

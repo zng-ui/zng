@@ -20,9 +20,9 @@ impl Panel {
         self.widget_builder().push_build_action(|wgt| {
             if let Some(p) = wgt.capture_property(property_id!(Self::children)) {
                 let list = p.args.ui_node_list(0).clone();
-                wgt.set_child(node(list));
+                wgt.set_child(node(list, PANEL_FN_VAR));
             } else {
-                wgt.set_child(node(ArcNodeList::new(ui_vec![].boxed())));
+                wgt.set_child(node(ArcNodeList::new(ui_vec![].boxed()), PANEL_FN_VAR));
             }
         });
     }
@@ -65,12 +65,13 @@ pub struct PanelArgs {
 }
 
 /// Panel widget child node.
-pub fn node(children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
+pub fn node(children: ArcNodeList<BoxedUiNodeList>, panel_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
     let mut child = NilUiNode.boxed();
+    let panel_fn = panel_fn.into_var();
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&PANEL_FN_VAR);
-            child = PANEL_FN_VAR.get().call(PanelArgs {
+            WIDGET.sub_var(&panel_fn);
+            child = panel_fn.get().call(PanelArgs {
                 children: children.take_on_init().boxed(),
             });
             child.init();
@@ -80,7 +81,7 @@ pub fn node(children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
             child = NilUiNode.boxed();
         }
         UiNodeOp::Update { updates } => {
-            if let Some(f) = PANEL_FN_VAR.get_new() {
+            if let Some(f) = panel_fn.get_new() {
                 child.deinit();
                 child = f(PanelArgs {
                     children: children.take_on_init().boxed(),
