@@ -3,7 +3,7 @@
 use zero_ui_core::focus::WidgetInfoFocusExt;
 
 use crate::prelude::popup::{PopupState, POPUP};
-use crate::prelude::{button, new_widget::*};
+use crate::prelude::{button, new_widget::*, AnchorMode, AnchorOffset};
 
 use crate::core::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT},
@@ -306,6 +306,11 @@ impl DefaultStyle {
             padding = (4, 10);
             opacity = 90.pct();
             foreground_highlight = unset!;
+
+            crate::widgets::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
+                LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::bottom_left(), origin: Point::top_left() }),
+                LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::bottom_right(), origin: Point::top_right() }),
+            });
 
             when *#is_hovered || *#is_focused || *#is_open {
                 background_color = button::color_scheme_hovered(button::BASE_COLORS_VAR);

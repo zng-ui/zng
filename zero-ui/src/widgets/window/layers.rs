@@ -39,7 +39,7 @@ impl LAYERS {
     /// If the `widget` is not a full widget after init it is immediately deinited and removed. Only full
     /// widgets are allowed, and ideally widgets with known IDs, so that they can be removed.
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
-        let layer = layer.into_var();
+        let layer = layer.into_var().actual_var();
         let widget = match_widget(widget.boxed(), move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
@@ -99,9 +99,9 @@ impl LAYERS {
 
         widget: impl UiNode,
     ) {
-        let layer = layer.into_var();
-        let anchor = anchor.into_var();
-        let mode = mode.into_var();
+        let layer = layer.into_var().actual_var();
+        let anchor = anchor.into_var().actual_var();
+        let mode = mode.into_var().actual_var();
 
         let mut _info_changed_handle = None;
         let mut mouse_pos_handle = None;
