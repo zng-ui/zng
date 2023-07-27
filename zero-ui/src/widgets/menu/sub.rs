@@ -38,6 +38,7 @@ impl SubMenu {
             style_fn = STYLE_VAR;
             focusable = true;
             click_mode = ClickMode::press();
+            focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
         }
 
         self.widget_builder().push_build_action(|wgt| {
@@ -183,14 +184,23 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                 } else if let Some(args) = CLICK_EVENT.on(update) {
                     args.propagation().stop();
 
-                    // open if is closed, close and return focus if is open or opening.
+                    // open if is closed
                     open_pop = if let Some(s) = open.take() {
                         let closed = matches!(s.get(), PopupState::Closed);
                         if !closed {
-                            POPUP.force_close_var(s);
-                            FOCUS.focus_exit();
-                            is_open.set(false);
-                            close_cmd.set_enabled(false);
+                            if WIDGET.info().submenu_parent().is_none() {
+                                // root sub-menu, close and return focus
+                                POPUP.force_close_var(s);
+                                FOCUS.focus_exit();
+                                is_open.set(false);
+                                close_cmd.set_enabled(false);
+                            } else {
+                                // nested sub-menu, focus already open menu again.
+                                if let PopupState::Open(id) = s.get() {
+                                    FOCUS.focus_widget_or_enter(id, false);
+                                }
+                                open = Some(s);
+                            }
                         }
                         closed
                     } else {

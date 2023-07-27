@@ -1,6 +1,11 @@
 //! Keyboard focus properties, [`tab_index`](fn@tab_index), [`focusable`](fn@focusable),
 //! [`on_focus`](fn@on_focus), [`is_focused`](fn@is_focused) and more.
 
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
+use atomic::Ordering;
+
 use crate::core::focus::*;
 use crate::prelude::new_property::*;
 
@@ -185,7 +190,10 @@ impl std::fmt::Debug for FocusClickBehavior {
 
 /// Behavior of an widget when a click event is send to it or a descendant.
 ///
-/// When a click event targets the widget or descendant the `behavior` is applied.
+/// When a click event targets the widget or descendant the `behavior` closest to the target is applied,
+/// that is if `Exit` is set in a parent, but `Ignore` is set on the target than the click is ignored.
+/// This can be used to create a effects like a menu that closes on click for command items, but not for clicks
+/// in sub-menu items.
 ///
 /// Note that this property does not subscribe to any event, it only observes events flowing trough.
 #[property(CONTEXT, default(FocusClickBehavior::Ignore))]
@@ -193,20 +201,32 @@ pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClic
     let behavior = behavior.into_var();
     match_node(child, move |c, op| {
         if let UiNodeOp::Event { update } = op {
-            c.event(update);
+            let mut delegate = || {
+                if let Some(ctx) = &*FOCUS_CLICK_HANDLED_CTX.get() {
+                    c.event(update);
+                    ctx.swap(true, Ordering::Relaxed)
+                } else {
+                    let mut ctx = Some(Arc::new(Some(AtomicBool::new(false))));
+                    FOCUS_CLICK_HANDLED_CTX.with_context(&mut ctx, || c.event(update));
+                    let ctx = ctx.unwrap();
+                    (*ctx).as_ref().unwrap().load(Ordering::Relaxed)
+                }
+            };
 
             if let Some(args) = CLICK_EVENT.on(update) {
-                let exit = match behavior.get() {
-                    FocusClickBehavior::Ignore => false,
-                    FocusClickBehavior::Exit => true,
-                    FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
-                    FocusClickBehavior::ExitHandled => args.propagation().is_stopped(),
-                };
-                if exit {
-                    FOCUS.focus_exit();
+                if !delegate() {
+                    let exit = match behavior.get() {
+                        FocusClickBehavior::Ignore => false,
+                        FocusClickBehavior::Exit => true,
+                        FocusClickBehavior::ExitEnabled => args.target.interactivity().is_enabled(),
+                        FocusClickBehavior::ExitHandled => args.propagation().is_stopped(),
+                    };
+                    if exit {
+                        FOCUS.focus_exit();
+                    }
                 }
-            } else if let Some(args) = crate::core::mouse::MOUSE_INPUT_EVENT.on(update) {
-                if args.propagation().is_stopped() {
+            } else if let Some(args) = crate::core::mouse::MOUSE_INPUT_EVENT.on_unhandled(update) {
+                if args.propagation().is_stopped() && !delegate() {
                     // CLICK_EVENT not send if source mouse-input is already handled.
 
                     let exit = match behavior.get() {
@@ -222,6 +242,9 @@ pub fn focus_click_behavior(child: impl UiNode, behavior: impl IntoVar<FocusClic
             }
         }
     })
+}
+context_local! {
+    static FOCUS_CLICK_HANDLED_CTX: Option<AtomicBool> = None;
 }
 
 event_property! {
