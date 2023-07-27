@@ -143,7 +143,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 
             move |hovered, is_down, is_captured| {
                 // cache mode
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 if info_gen != tree.stats().generation {
                     mode = tree.get(WIDGET.id()).unwrap().click_mode();
                     info_gen = tree.stats().generation;

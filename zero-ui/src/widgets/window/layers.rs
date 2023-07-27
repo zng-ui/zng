@@ -127,7 +127,7 @@ impl LAYERS {
                 widget.with_context(WidgetUpdateMode::Bubble, || {
                     WIDGET.sub_var(&anchor).sub_var(&mode);
 
-                    let tree = WINDOW.widget_tree();
+                    let tree = WINDOW.info();
                     if let Some(w) = tree.get(anchor.get()) {
                         anchor_info = Some((w.bounds_info(), w.border_info()));
                     }
@@ -177,14 +177,14 @@ impl LAYERS {
             UiNodeOp::Event { update } => {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == WINDOW.id() {
-                        anchor_info = WINDOW.widget_tree().get(anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
+                        anchor_info = WINDOW.info().get(anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
             }
             UiNodeOp::Update { .. } => {
                 widget.with_context(WidgetUpdateMode::Bubble, || {
                     if let Some(anchor) = anchor.get_new() {
-                        anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
+                        anchor_info = WINDOW.info().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                         if mode.with(|m| m.interactivity) {
                             WIDGET.update_info();
                         }

@@ -131,7 +131,7 @@ fn show_widget_tree(
             child.render(frame);
 
             let mut r = |render: &mut dyn FnMut(WidgetInfo, &mut FrameBuilder)| {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 if let Some(wgt) = tree.get(WIDGET.id()) {
                     if WIDGET.parent_id().is_none() {
                         render(wgt, frame);
@@ -207,7 +207,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     let new_fails = Rc::new(RefCell::new(vec![]));
                     let new_hits = Rc::new(RefCell::new(vec![]));
 
-                    let tree = WINDOW.widget_tree();
+                    let tree = WINDOW.info();
                     let _ = tree
                         .root()
                         .spatial_iter(clmv!(new_fails, new_hits, |w| {
@@ -310,7 +310,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 if let Some(orientation) = orientation.get() {
                     let mut none = true;
                     if let Some(target) = &args.target {
-                        let tree = WINDOW.widget_tree();
+                        let tree = WINDOW.info();
                         for w_id in target.widgets_path().iter().rev() {
                             if let Some(w) = tree.get(*w_id) {
                                 if let Some(w) = w.into_focusable(true, true) {

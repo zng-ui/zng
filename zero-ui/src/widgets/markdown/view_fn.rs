@@ -467,7 +467,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
             on_click = hn!(|args: &ClickArgs| {
                 args.propagation().stop();
 
-                let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
+                let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
                 LINK_EVENT.notify(LinkArgs::now(url.clone(), link));
             });
         }
@@ -832,7 +832,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
         on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
 
-            let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
+            let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
             markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
         });
     }
@@ -869,7 +869,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
                 on_click = hn!(|args: &ClickArgs| {
                     args.propagation().stop();
 
-                    let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
+                    let link = WINDOW.info().get(WIDGET.id()).unwrap().interaction_path();
                     LINK_EVENT.notify(LinkArgs::now(url_back.clone(), link));
                 });
             },

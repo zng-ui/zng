@@ -62,7 +62,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_mode) = mode.get_new() {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
                     if let Some((current, _)) = MOUSE.current_capture().get() {
@@ -119,7 +119,7 @@ pub fn capture_mouse_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_mode) = mode.get_new() {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
                     if let Some((current, _)) = MOUSE.current_capture().get() {

@@ -412,7 +412,7 @@ impl FrameBuilder {
         }
 
         let bounds = WIDGET.bounds();
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
 
         if bounds.is_collapsed() {
             // collapse
@@ -813,7 +813,7 @@ impl FrameBuilder {
 
             let id = WIDGET.id();
             let bounds = WIDGET.bounds();
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
 
             let inner_offset = bounds.inner_offset();
             let inner_transform = data.inner_transform.then_translate((data.outer_offset + inner_offset).cast());
@@ -1989,7 +1989,7 @@ impl FrameUpdate {
             return;
         }
 
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
 
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
 
@@ -2075,7 +2075,7 @@ impl FrameUpdate {
         let id = WIDGET.id();
         if let Some(inner_transform) = self.inner_transform.take() {
             let bounds = WIDGET.bounds();
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
 
             let inner_offset = bounds.inner_offset();
             let inner_transform = inner_transform.then_translate((self.outer_offset + inner_offset).cast());

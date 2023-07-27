@@ -123,7 +123,7 @@ impl WidgetInfoBuilder {
         let id = WIDGET.id();
         if !WIDGET.take_update(UpdateFlags::INFO) && !self.info_widgets.delivery_list().enter_widget(id) {
             // reuse
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
             if let Some(wgt) = tree.get(id) {
                 self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |old_data| {
                     let r = old_data.clone();
@@ -1148,7 +1148,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self) {
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             for w in w.self_and_descendants() {
@@ -1179,7 +1179,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_descendants(&mut self) {
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             for w in w.descendants() {
@@ -1209,7 +1209,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_child(&mut self, index: usize) {
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             if let Some(w) = w.children().nth(index) {

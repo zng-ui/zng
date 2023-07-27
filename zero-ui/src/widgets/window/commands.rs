@@ -46,7 +46,7 @@ pub(super) fn inspect_node(
                 // can't inspect inspector window, redirect command to inspected
                 INSPECT_CMD.scoped(inspected).notify();
             } else {
-                let txt = inspector_state.ansi_string_update(&WINDOW.widget_tree());
+                let txt = inspector_state.ansi_string_update(&WINDOW.info());
                 inspector_text.set(txt);
                 let inspected = WINDOW.id();
 
@@ -108,7 +108,7 @@ mod inspector_window {
 
     /// Gets the window that is inspected by the current inspector window.
     pub fn inspected() -> Option<WindowId> {
-        WINDOW.widget_tree().root().meta().get(&INSPECTED_ID).copied()
+        WINDOW.info().root().meta().get(&INSPECTED_ID).copied()
     }
 
     pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();

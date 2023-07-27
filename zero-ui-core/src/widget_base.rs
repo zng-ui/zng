@@ -1047,7 +1047,7 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
         expected == Visibility::Visible,
         crate::window::FRAME_IMAGE_READY_EVENT,
         move |_| {
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
             let vis = tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
 
             Some(vis == expected)

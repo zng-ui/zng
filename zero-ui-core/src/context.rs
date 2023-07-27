@@ -312,7 +312,7 @@ impl WINDOW {
     /// Gets the window info tree.
     ///
     /// Returns `None` if the window is not inited, panics if called outside of a window or window init closure.
-    pub fn widget_tree(&self) -> WidgetInfoTree {
+    pub fn info(&self) -> WidgetInfoTree {
         WINDOW_CTX.get().widget_tree.read().clone().expect("window not init")
     }
 
@@ -459,7 +459,7 @@ impl WINDOW {
             1.fct(),
         );
         content.info(&mut info);
-        let tree = info.finalize(Some(self.widget_tree()));
+        let tree = info.finalize(Some(self.info()));
         *WINDOW_CTX.get().widget_tree.write() = Some(tree);
         WIDGET.test_root_updates();
         UPDATES.apply()
@@ -469,7 +469,7 @@ impl WINDOW {
     ///
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
-        update.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
+        update.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
         content.event(update);
         WIDGET.test_root_updates();
         UPDATES.apply()
@@ -482,7 +482,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_update(&self, content: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
         if let Some(updates) = updates {
-            updates.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
+            updates.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
             content.update(updates)
         } else {
             let target = if let Some(content_id) = content.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
@@ -754,7 +754,7 @@ impl WIDGET {
     pub fn trace_path(&self) -> Txt {
         if let Some(w_id) = WINDOW.try_id() {
             if let Some(id) = self.try_id() {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 if let Some(wgt) = tree.get(id) {
                     wgt.trace_path()
                 } else {
@@ -779,7 +779,7 @@ impl WIDGET {
     pub fn trace_id(&self) -> Txt {
         if let Some(id) = self.try_id() {
             if WINDOW.try_id().is_some() {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 if let Some(wgt) = tree.get(id) {
                     wgt.trace_id()
                 } else {
@@ -804,7 +804,7 @@ impl WIDGET {
     ///
     /// If called before the widget info is inited in the parent window.
     pub fn info(&self) -> WidgetInfo {
-        WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
+        WINDOW.info().get(WIDGET.id()).expect("widget info not init")
     }
 
     /// Schedule an [`UpdateOp`] for the current widget.

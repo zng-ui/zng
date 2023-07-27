@@ -232,7 +232,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     }
     // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
     if let Some(anchor) = args.url.strip_prefix('#') {
-        let tree = WINDOW.widget_tree();
+        let tree = WINDOW.info();
         if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to

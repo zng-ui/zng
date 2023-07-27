@@ -1574,7 +1574,7 @@ impl ContentCtrl {
                 self.root.info(&mut info);
             });
 
-            let info = info.finalize(Some(WINDOW.widget_tree()));
+            let info = info.finalize(Some(WINDOW.info()));
 
             WINDOWS.set_widget_tree(info.clone());
 
@@ -1709,7 +1709,7 @@ impl ContentCtrl {
                 self.frame_id,
                 self.root_ctx.id(),
                 &self.root_ctx.bounds(),
-                &WINDOW.widget_tree(),
+                &WINDOW.info(),
                 renderer.clone(),
                 scale_factor,
                 default_text_aa,
@@ -1717,7 +1717,7 @@ impl ContentCtrl {
 
             let frame = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.render(&mut frame);
-                frame.finalize(&WINDOW.widget_tree())
+                frame.finalize(&WINDOW.info())
             });
 
             self.notify_transform_changes();
@@ -1756,7 +1756,7 @@ impl ContentCtrl {
 
             let update = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.render_update(&mut update);
-                update.finalize(&WINDOW.widget_tree())
+                update.finalize(&WINDOW.info())
             });
 
             self.notify_transform_changes();
@@ -1799,7 +1799,7 @@ impl ContentCtrl {
         let mut changes_count = 0;
 
         TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
             if let Some(wgt) = tree.get(wid) {
                 let transform = wgt.bounds_info().inner_transform();
 

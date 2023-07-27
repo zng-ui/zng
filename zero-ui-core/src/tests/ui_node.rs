@@ -168,7 +168,7 @@ pub fn default_no_child() {
         WINDOW.test_info(&mut wgt);
 
         wgt.with_context(WidgetUpdateMode::Ignore, || {
-            let tree = WINDOW.widget_tree();
+            let tree = WINDOW.info();
             let wgt_info = tree.get(WIDGET.id()).unwrap();
             assert!(wgt_info.descendants().next().is_none());
         })

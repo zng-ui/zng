@@ -507,7 +507,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 if let Some(path) = &args.new_focus {
                     if path.contains(self_id) && path.widget_id() != self_id {
                         // probable focus move inside.
-                        let tree = WINDOW.widget_tree();
+                        let tree = WINDOW.info();
                         if let Some(target) = tree.get(path.widget_id()) {
                             // target exits
                             if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
@@ -529,7 +529,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
-                    let tree = WINDOW.widget_tree();
+                    let tree = WINDOW.info();
                     if let Some(target) = tree.get(request.widget_id) {
                         // target exists
                         if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
@@ -555,7 +555,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             *final_size = child.layout(wl);
 
             if let Some((bounds, mode)) = scroll_to.take() {
-                let tree = WINDOW.widget_tree();
+                let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
                     let target_bounds = bounds.inner_bounds();
