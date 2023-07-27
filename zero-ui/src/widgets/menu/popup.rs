@@ -158,7 +158,13 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
                                     args.propagation().stop();
                                     close_ancestors = None;
                                 } else if sub_self.submenu_ancestors().any(|a| a.id() == sub_focused.id()) {
-                                    close_ancestors = Some(Some(sub_focused.id()));
+                                    if Some(sub_focused.id()) == sub_self.submenu_parent().map(|s| s.id()) {
+                                        // keep open, focused parent.
+                                        args.propagation().stop();
+                                        close_ancestors = None;
+                                    } else {
+                                        close_ancestors = Some(Some(sub_focused.id()));
+                                    }
                                 }
                             }
                         }

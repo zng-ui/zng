@@ -37,6 +37,7 @@
 # Menu
 
 * See `widgets/menu.rs`.
+* Sub-menu should close after delay hovering parent popup.
 * Test drag to option release.
 
 # View-Process
