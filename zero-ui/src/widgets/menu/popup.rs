@@ -1,10 +1,15 @@
 //! Sub-menu popup widget and properties.
 
-use zero_ui_core::{
-    focus::FOCUS,
-    gesture::{CommandShortcutExt, Shortcuts},
-    keyboard::{KeyState, KEY_INPUT_EVENT},
-    widget_instance::ArcNodeList,
+use zero_ui_core::timer::TIMERS;
+
+use crate::{
+    core::{
+        focus::{FOCUS, FOCUS_CHANGED_EVENT},
+        gesture::{CommandShortcutExt, Shortcuts},
+        keyboard::{KeyState, KEY_INPUT_EVENT},
+        widget_instance::ArcNodeList,
+    },
+    prelude::popup::POPUP,
 };
 
 use crate::prelude::{
@@ -14,7 +19,7 @@ use crate::prelude::{
     scroll,
 };
 
-use super::sub::SubMenuWidgetInfoExt;
+use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 
 /// Sub-menu popup.
 #[widget($crate::widgets::menu::popup::SubMenuPopup)]
@@ -128,9 +133,16 @@ pub fn default_panel_fn(args: panel::PanelArgs) -> impl UiNode {
 /// Sub-menu popup implementation.
 pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: WidgetId) -> impl UiNode {
     let child = crate::widgets::layouts::panel::node(children, PANEL_FN_VAR);
+    let mut close_timer = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&KEY_INPUT_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+            WIDGET
+                .sub_event(&KEY_INPUT_EVENT)
+                .sub_event(&POPUP_CLOSE_REQUESTED_EVENT)
+                .sub_event(&FOCUS_CHANGED_EVENT);
+        }
+        UiNodeOp::Deinit => {
+            close_timer = None;
         }
         UiNodeOp::Info { info } => {
             super::sub::SUB_MENU_PARENT_CTX.with_context_value(Some(parent), || c.info(info));
@@ -183,6 +195,33 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
                             }
                         }
                     }
+                }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                if args.is_focus_leave(WIDGET.id()) {
+                    if let Some(f) = &args.new_focus {
+                        let info = WIDGET.info();
+                        if let (Some(sub_menu), Some(f)) = (info.submenu_parent(), info.tree().get(f.widget_id())) {
+                            if !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id()) {
+                                // Focus did not move to child sub-menu nor parent,
+                                // close after delay.
+                                //
+                                // This covers the case of focus moving to an widget that is not
+                                // a child sub-menu and is not the parent sub-menu,
+                                // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
+                                let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                                t.subscribe(UpdateOp::Update, info.id()).perm();
+                                close_timer = Some(t);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(t) = &close_timer {
+                if t.get().has_elapsed() {
+                    close_timer = None;
+                    POPUP.force_close(WIDGET.id());
                 }
             }
         }

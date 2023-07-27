@@ -63,6 +63,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
     let mut open = None::<ReadOnlyArcVar<PopupState>>;
     let is_open = var(false);
     let mut open_timer = None;
+    let mut close_timer = None;
     let child = with_context_var(child, IS_OPEN_VAR, is_open.clone());
     let mut close_cmd = CommandHandle::dummy();
 
@@ -85,6 +86,8 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     is_open.set(false);
                 }
                 close_cmd = CommandHandle::dummy();
+                open_timer = None;
+                close_timer = None;
             }
             UiNodeOp::Info { info } => {
                 info.set_meta(
@@ -160,23 +163,42 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         }
                     }
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if !is_open.get() && args.is_focus_enter(WIDGET.id()) {
-                        // focused when not open
-                        let info = WIDGET.info();
-                        if info.submenu_parent().is_none() {
-                            // is root sub-menu
-                            if let Some(prev_root) = args
-                                .prev_focus
-                                .as_ref()
-                                .and_then(|p| info.tree().get(p.widget_id()))
-                                .and_then(|w| w.submenu_root())
-                            {
-                                // prev focus was open
-                                if prev_root.is_submenu_open().map(|v| v.get()).unwrap_or(false) {
-                                    if let (Some(prev_menu), Some(our_menu)) = (prev_root.menu(), info.menu()) {
-                                        // same menu and sibling was open, open
-                                        open_pop = our_menu.id() == prev_menu.id();
+                    if args.is_focus_enter(WIDGET.id()) {
+                        close_timer = None;
+                        if !is_open.get() {
+                            // focused when not open
+                            let info = WIDGET.info();
+                            if info.submenu_parent().is_none() {
+                                // is root sub-menu
+                                if let Some(prev_root) = args
+                                    .prev_focus
+                                    .as_ref()
+                                    .and_then(|p| info.tree().get(p.widget_id()))
+                                    .and_then(|w| w.submenu_root())
+                                {
+                                    // prev focus was open
+                                    if prev_root.is_submenu_open().map(|v| v.get()).unwrap_or(false) {
+                                        if let (Some(prev_menu), Some(our_menu)) = (prev_root.menu(), info.menu()) {
+                                            // same menu and sibling was open, open
+                                            open_pop = our_menu.id() == prev_menu.id();
+                                        }
                                     }
+                                }
+                            }
+                        }
+                    } else if args.is_focus_leave(WIDGET.id()) && is_open.get() {
+                        if let Some(f) = &args.new_focus {
+                            if let Some(f) = WINDOW.info().get(f.widget_id()) {
+                                let id = WIDGET.id();
+                                if !f.submenu_ancestors().any(|s| s.id() == id) {
+                                    // Focus did not move to child sub-menu,
+                                    // close after delay.
+                                    //
+                                    // This covers the case of focus moving back to the sub-menu and then away,
+                                    // `sub_menu_popup_node` covers the case of focus moving to a different sub-menu directly.
+                                    let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                                    t.subscribe(UpdateOp::Update, id).perm();
+                                    close_timer = Some(t);
                                 }
                             }
                         }
@@ -195,10 +217,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                                 is_open.set(false);
                                 close_cmd.set_enabled(false);
                             } else {
-                                // nested sub-menu, focus already open menu again.
-                                if let PopupState::Open(id) = s.get() {
-                                    FOCUS.focus_widget_or_enter(id, false);
-                                }
+                                // nested sub-menu.
                                 open = Some(s);
                             }
                         }
@@ -221,9 +240,23 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             }
             UiNodeOp::Update { .. } => {
                 if let Some(s) = &open {
-                    let isop = !matches!(s.get(), PopupState::Closed);
-                    is_open.set(isop);
-                    close_cmd.set_enabled(isop);
+                    if matches!(s.get(), PopupState::Closed) {
+                        is_open.set(false);
+                        close_cmd.set_enabled(false);
+                        close_timer = None;
+                        open = None;
+                    } else if let Some(t) = &close_timer {
+                        if t.get().has_elapsed() {
+                            if let Some(s) = open.take() {
+                                if !matches!(s.get(), PopupState::Closed) {
+                                    POPUP.force_close_var(s);
+                                    is_open.set(false);
+                                    close_cmd.set_enabled(false);
+                                }
+                            }
+                            close_timer = None;
+                        }
+                    }
                 } else if let Some(t) = &open_timer {
                     if t.get().has_elapsed() {
                         open_pop = true;
@@ -458,6 +491,8 @@ pub trait SubMenuWidgetInfoExt {
 
     /// Gets an iterator over sub-menu parents until root.
     fn submenu_ancestors(&self) -> SubMenuAncestors;
+    /// Gets an iterator over the widget, if it is a sub-menu, and sub-menu parents until root.
+    fn submenu_self_and_ancestors(&self) -> SubMenuAncestors;
 
     /// Gets the last submenu ancestor.
     fn submenu_root(&self) -> Option<WidgetInfo>;
@@ -494,6 +529,14 @@ impl SubMenuWidgetInfoExt for WidgetInfo {
     fn submenu_ancestors(&self) -> SubMenuAncestors {
         SubMenuAncestors {
             node: self.submenu_parent(),
+        }
+    }
+
+    fn submenu_self_and_ancestors(&self) -> SubMenuAncestors {
+        if self.is_submenu() {
+            SubMenuAncestors { node: Some(self.clone()) }
+        } else {
+            self.submenu_ancestors()
         }
     }
 
