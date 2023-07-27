@@ -3,11 +3,16 @@
 use zero_ui_core::{
     focus::FOCUS,
     gesture::{CommandShortcutExt, Shortcuts},
-    keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+    keyboard::{KeyState, KEY_INPUT_EVENT},
     widget_instance::ArcNodeList,
 };
 
-use crate::prelude::{button, new_widget::*, popup::POPUP_CLOSE_REQUESTED_EVENT, scroll};
+use crate::prelude::{
+    button,
+    new_widget::*,
+    popup::{POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT},
+    scroll,
+};
 
 use super::sub::SubMenuWidgetInfoExt;
 
@@ -136,22 +141,39 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                if let (Some(_key), KeyState::Pressed) = (args.key, args.state) {
                     // TODO
                     //
                     // Exit to parent sub-menu.
                 }
             } else if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
-                if let Some(focused) = FOCUS.focused().get() {
-                    let info = WIDGET.info();
-                    if let Some(sub) = info.submenu_root() {
-                        if let Some(focused) = info.tree().get(focused.widget_id()) {
-                            if let Some(other_sub) = focused.submenu_root() {
-                                if other_sub.id() == sub.id() {
-                                    // focused child sub-menu.
-                                    // TODO need to close after if canceled.
+                if let Some(sub_self) = WIDGET.info().submenu_parent() {
+                    let mut close_ancestors = Some(None);
+
+                    if let Some(focused) = FOCUS.focused().get() {
+                        if let Some(focused) = sub_self.tree().get(focused.widget_id()) {
+                            if let Some(sub_focused) = focused.submenu_parent() {
+                                if sub_focused.submenu_ancestors().any(|a| a.id() == sub_self.id()) {
+                                    // keep open, focused child.
                                     args.propagation().stop();
+                                    close_ancestors = None;
+                                } else if sub_self.submenu_ancestors().any(|a| a.id() == sub_focused.id()) {
+                                    close_ancestors = Some(Some(sub_focused.id()));
                                 }
+                            }
+                        }
+                    }
+
+                    if let Some(sub_parent_focused) = close_ancestors {
+                        // close any parent sub-menu that is not focused.
+                        for a in sub_self.submenu_ancestors() {
+                            if Some(a.id()) == sub_parent_focused {
+                                break;
+                            }
+
+                            if a.is_submenu_open().map(|s| s.get()).unwrap_or(false) {
+                                // request ancestor close the popup.
+                                POPUP_CLOSE_CMD.scoped(a.id()).notify();
                             }
                         }
                     }

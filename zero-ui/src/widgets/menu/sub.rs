@@ -16,7 +16,7 @@ use crate::{
         button,
         layers::AnchorSize,
         new_widget::*,
-        popup::{PopupState, POPUP},
+        popup::{PopupState, POPUP, POPUP_CLOSE_CMD},
         AnchorMode, AnchorOffset,
     },
 };
@@ -61,9 +61,10 @@ impl SubMenu {
 pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
     let mut open = None::<ReadOnlyArcVar<PopupState>>;
     let is_open = var(false);
-    let mut _is_open_binding = VarHandle::dummy();
     let mut open_timer = None;
     let child = with_context_var(child, IS_OPEN_VAR, is_open.clone());
+    let mut close_cmd = CommandHandle::dummy();
+
     match_node(child, move |_, op| {
         let mut open_pop = false;
 
@@ -74,12 +75,15 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     .sub_event(&KEY_INPUT_EVENT)
                     .sub_event(&FOCUS_CHANGED_EVENT)
                     .sub_event(&MOUSE_HOVERED_EVENT);
+
+                close_cmd = POPUP_CLOSE_CMD.scoped(WIDGET.id()).subscribe(false);
             }
             UiNodeOp::Deinit => {
                 if let Some(v) = open.take() {
                     POPUP.force_close_var(v);
-                    _is_open_binding = VarHandle::dummy();
+                    is_open.set(false);
                 }
+                close_cmd = CommandHandle::dummy();
             }
             UiNodeOp::Info { info } => {
                 info.set_meta(
@@ -131,10 +135,6 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     } else if args.is_mouse_leave() {
                         open_timer = None;
                     }
-                    // TODO, auto-open.
-                    // - Context var that sets a timer.
-                    // - Is a delay by default in nested sub-menus.
-                    // - Is forever or zero
                 } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                     // open for arrow keys that do not cause focus move
                     if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
@@ -164,16 +164,18 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         let info = WIDGET.info();
                         if info.submenu_parent().is_none() {
                             // is root sub-menu
-                            if let Some(prev_menu) = args
+                            if let Some(prev_root) = args
                                 .prev_focus
                                 .as_ref()
                                 .and_then(|p| info.tree().get(p.widget_id()))
-                                .and_then(|w| w.menu())
+                                .and_then(|w| w.submenu_root())
                             {
-                                // prev focus was inside a menu
-                                if let Some(our_menu) = info.menu() {
-                                    // same menu, open (TODO only if sibling is open)
-                                    open_pop = our_menu.id() == prev_menu.id();
+                                // prev focus was open
+                                if prev_root.is_submenu_open().map(|v| v.get()).unwrap_or(false) {
+                                    if let (Some(prev_menu), Some(our_menu)) = (prev_root.menu(), info.menu()) {
+                                        // same menu and sibling was open, open
+                                        open_pop = our_menu.id() == prev_menu.id();
+                                    }
                                 }
                             }
                         }
@@ -182,11 +184,13 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     args.propagation().stop();
 
                     // open if is closed, close and return focus if is open or opening.
-                    open_pop = if let Some(v) = open.take() {
-                        let closed = matches!(v.get(), PopupState::Closed);
+                    open_pop = if let Some(s) = open.take() {
+                        let closed = matches!(s.get(), PopupState::Closed);
                         if !closed {
-                            POPUP.force_close_var(v);
+                            POPUP.force_close_var(s);
                             FOCUS.focus_exit();
+                            is_open.set(false);
+                            close_cmd.set_enabled(false);
                         }
                         closed
                     } else {
@@ -195,10 +199,22 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     if !open_pop && open.is_none() {
                         is_open.set(false);
                     }
+                } else if let Some(_args) = POPUP_CLOSE_CMD.scoped(WIDGET.id()).on(update) {
+                    if let Some(s) = open.take() {
+                        if !matches!(s.get(), PopupState::Closed) {
+                            POPUP.force_close_var(s);
+                            is_open.set(false);
+                            close_cmd.set_enabled(false);
+                        }
+                    }
                 }
             }
             UiNodeOp::Update { .. } => {
-                if let Some(t) = &open_timer {
+                if let Some(s) = &open {
+                    let isop = !matches!(s.get(), PopupState::Closed);
+                    is_open.set(isop);
+                    close_cmd.set_enabled(isop);
+                } else if let Some(t) = &open_timer {
                     if t.get().has_elapsed() {
                         open_pop = true;
                     }
@@ -212,8 +228,11 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                 children = children.take_on_init().boxed();
             };
             let state = POPUP.open(pop);
-            is_open.set_from_map(&state, |s| !matches!(s, PopupState::Closed));
-            _is_open_binding = state.bind_map(&is_open, |s| !matches!(s, PopupState::Closed));
+            state.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+            if !matches!(state.get(), PopupState::Closed) {
+                is_open.set(true);
+                close_cmd.set_enabled(true);
+            }
             open = Some(state);
             open_timer = None;
         }
@@ -510,7 +529,7 @@ impl Iterator for SubMenuAncestors {
 
 pub(super) struct SubMenuInfo {
     pub parent: Option<WidgetId>,
-    pub is_open: ArcVar<bool>, // is none for popup.
+    pub is_open: ArcVar<bool>,
 }
 
 pub(super) struct SubMenuPopupInfo {
