@@ -1,12 +1,13 @@
 //! Sub-menu popup widget and properties.
 
-use zero_ui_core::timer::TIMERS;
+use zero_ui_core::focus::WidgetInfoFocusExt;
 
 use crate::{
     core::{
         focus::{FOCUS, FOCUS_CHANGED_EVENT},
         gesture::{CommandShortcutExt, Shortcuts},
-        keyboard::{KeyState, KEY_INPUT_EVENT},
+        keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+        timer::TIMERS,
         widget_instance::ArcNodeList,
     },
     prelude::popup::POPUP,
@@ -152,11 +153,61 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
             );
         }
         UiNodeOp::Event { update } => {
+            c.event(update);
+
             if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let (Some(_key), KeyState::Pressed) = (args.key, args.state) {
-                    // TODO
-                    //
-                    // Exit to parent sub-menu.
+                if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                    match key {
+                        Key::Escape => {
+                            let info = WIDGET.info();
+                            if let Some(m) = info.submenu_parent() {
+                                args.propagation().stop();
+
+                                FOCUS.focus_widget(m.id(), true);
+                                POPUP.force_close(info.id());
+                            }
+                        }
+                        Key::Left | Key::Right => {
+                            if let Some(info) = WINDOW.info().get(args.target.widget_id()) {
+                                let info = info.into_focus_info(true, true);
+                                if info.focusable_left().is_none() && info.focusable_right().is_none() {
+                                    // escape to parent or change root.
+                                    if let Some(m) = info.info().submenu_parent() {
+                                        let mut escape = false;
+                                        if let Some(o) = m.orientation_from(info.info().center()) {
+                                            escape = match o {
+                                                Orientation2D::Left => key == Key::Left,
+                                                Orientation2D::Right => key == Key::Right,
+                                                Orientation2D::Below | Orientation2D::Above => false,
+                                            };
+                                        }
+
+                                        if escape {
+                                            args.propagation().stop();
+                                            // escape
+
+                                            FOCUS.focus_widget(m.id(), true);
+                                            POPUP.force_close(WIDGET.id());
+                                        } else if let Some(m) = info.info().submenu_root() {
+                                            args.propagation().stop();
+                                            // change root
+
+                                            let m = m.into_focus_info(true, true);
+                                            let next_root = match key {
+                                                Key::Left => m.next_left(),
+                                                Key::Right => m.next_right(),
+                                                _ => unreachable!(),
+                                            };
+                                            if let Some(n) = next_root {
+                                                FOCUS.focus_widget(n.info().id(), true);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             } else if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
                 if let Some(sub_self) = WIDGET.info().submenu_parent() {

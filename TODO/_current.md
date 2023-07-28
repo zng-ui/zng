@@ -38,6 +38,7 @@
 
 * See `widgets/menu.rs`.
 * Test drag to option release.
+* Test 3+ deep sub-menus.
 
 # View-Process
 
