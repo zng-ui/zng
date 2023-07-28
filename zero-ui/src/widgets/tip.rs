@@ -129,15 +129,23 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             }
                         }
                         PopupState::Open(id) => {
-                            if ((disabled_only && args.is_mouse_leave_disabled()) || args.is_mouse_leave_enabled())
-                                && !args.target.as_ref().map(|t| t.contains(id)).unwrap_or(true)
-                            {
+                            let is_leave = if disabled_only {
+                                args.is_mouse_leave_disabled()
+                            } else {
+                                args.is_mouse_leave_enabled()
+                            };
+                            if is_leave && !args.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) {
                                 // mouse not over self and tooltip
                                 POPUP.close(id);
                             }
                         }
                         PopupState::Closed => {
-                            if (disabled_only && args.is_mouse_enter_disabled()) || args.is_mouse_enter_enabled() {
+                            let is_enter = if disabled_only {
+                                args.is_mouse_enter_disabled()
+                            } else {
+                                args.is_mouse_enter_enabled()
+                            };
+                            if is_enter {
                                 // open
 
                                 let mut delay = if TOOLTIP_LAST_CLOSED
@@ -407,7 +415,7 @@ impl Tip {
             self;
             hit_test_mode = false;
 
-            alt_focus_scope = unset!;
+            focusable = false;
             focus_on_init = unset!;
 
             style_fn = STYLE_VAR;

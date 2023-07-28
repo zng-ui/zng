@@ -13,7 +13,7 @@ use crate::{
     var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
-    window::{WindowId, WINDOWS},
+    window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS},
 };
 use std::{fmt, mem, num::NonZeroU32, time::*};
 
@@ -1178,6 +1178,32 @@ impl MouseManager {
         }
     }
 
+    /// Call after a frame or info rebuild.
+    fn continue_hovered(&mut self, window_id: WindowId) {
+        if self.pos_window == Some(window_id) {
+            // update hovered if widgets moved under the cursor position.
+            let frame_info = WINDOWS.widget_tree(window_id).unwrap();
+            let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
+            self.pos_hits = Some(pos_hits.clone());
+            let target = if let Some(t) = pos_hits.target() {
+                frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
+                    tracing::error!("hits target `{}` not found", t.widget_id);
+                    frame_info.root().interaction_path()
+                })
+            } else {
+                frame_info.root().interaction_path()
+            }
+            .unblocked();
+
+            if self.hovered != target {
+                let capture = self.capture_info();
+                let prev = mem::replace(&mut self.hovered, target.clone());
+                let args = MouseHoverArgs::now(window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
+                MOUSE_HOVERED_EVENT.notify(args);
+            }
+        }
+    }
+
     /// Call when the mouse stops pressing on the window, or the window loses focus or is closed.
     fn end_window_capture(&mut self, mouse: &mut MouseService) {
         mouse.release_requested = false;
@@ -1263,28 +1289,7 @@ impl MouseManager {
 impl AppExtension for MouseManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
-            // update hovered
-            if self.pos_window == Some(args.window_id) {
-                let frame_info = WINDOWS.widget_tree(args.window_id).unwrap();
-                let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
-                self.pos_hits = Some(pos_hits.clone());
-                let target = if let Some(t) = pos_hits.target() {
-                    frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
-                        tracing::error!("hits target `{}` not found", t.widget_id);
-                        frame_info.root().interaction_path()
-                    })
-                } else {
-                    frame_info.root().interaction_path()
-                }
-                .unblocked();
-
-                if self.hovered != target {
-                    let capture = self.capture_info();
-                    let prev = mem::replace(&mut self.hovered, target.clone());
-                    let args = MouseHoverArgs::now(args.window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
-                    MOUSE_HOVERED_EVENT.notify(args);
-                }
-            }
+            self.continue_hovered(args.window_id);
             // update capture
             if self.capture_count > 0 {
                 let mut mouse = MOUSE_SV.write();
@@ -1306,6 +1311,8 @@ impl AppExtension for MouseManager {
             if let Some(window_id) = args.prev_focus {
                 self.on_window_blur(window_id, args.new_focus);
             }
+        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+            self.continue_hovered(args.window_id);
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
