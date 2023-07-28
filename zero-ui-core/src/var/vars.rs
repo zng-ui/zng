@@ -248,6 +248,7 @@ impl VARS {
     }
 
     pub(crate) fn apply_updates(&self) {
+        let _s = tracing::trace_span!("VARS").entered();
         Self::apply_updates_and_after(0)
     }
     fn apply_updates_and_after(depth: u8) {

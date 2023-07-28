@@ -238,7 +238,7 @@ impl TimersService {
 
     /// does on_* notifications.
     pub(crate) fn notify() {
-        let _s = tracing::trace_span!("Timers").entered();
+        let _s = tracing::trace_span!("TIMERS").entered();
 
         // we need to detach the handlers, so we can pass the context for then
         // so we `mem::take` for the duration of the call. But new timers can be registered inside

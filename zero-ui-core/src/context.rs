@@ -1995,6 +1995,7 @@ impl UPDATES {
     }
 
     pub(crate) fn on_pre_updates(&self) {
+        let _s = tracing::trace_span!("UPDATES.on_pre_updates");
         let mut handlers = mem::take(UPDATES_SV.write().pre_handlers.get_mut());
         Self::retain_updates(&mut handlers);
 
@@ -2004,6 +2005,7 @@ impl UPDATES {
     }
 
     pub(crate) fn on_updates(&self) {
+        let _s = tracing::trace_span!("UPDATES.on_updates");
         let mut handlers = mem::take(UPDATES_SV.write().pos_handlers.get_mut());
         Self::retain_updates(&mut handlers);
 

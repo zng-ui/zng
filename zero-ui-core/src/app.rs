@@ -1647,8 +1647,14 @@ impl<E: AppExtension> RunningApp<E> {
                     let _s = tracing::debug_span!("info").entered();
 
                     let mut info_widgets = mem::take(&mut self.pending.info_widgets);
-                    self.extensions.info(&mut info_widgets);
-                    observer.info(&mut info_widgets);
+                    {
+                        let _s = tracing::debug_span!("ext.info").entered();
+                        self.extensions.info(&mut info_widgets);
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.info").entered();
+                        observer.info(&mut info_widgets);
+                    }
                 }
 
                 self.pending |= UPDATES.apply_updates();
@@ -1659,15 +1665,33 @@ impl<E: AppExtension> RunningApp<E> {
 
                     let mut update_widgets = mem::take(&mut self.pending.update_widgets);
 
-                    self.extensions.update_preview();
-                    observer.update_preview();
+                    {
+                        let _s = tracing::debug_span!("ext.update_preview").entered();
+                        self.extensions.update_preview();
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.update_preview").entered();
+                        observer.update_preview();
+                    }
                     UPDATES.on_pre_updates();
 
-                    self.extensions.update_ui(&mut update_widgets);
-                    observer.update_ui(&mut update_widgets);
+                    {
+                        let _s = tracing::debug_span!("ext.update_ui").entered();
+                        self.extensions.update_ui(&mut update_widgets);
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.update_ui").entered();
+                        observer.update_ui(&mut update_widgets);
+                    }
 
-                    self.extensions.update();
-                    observer.update();
+                    {
+                        let _s = tracing::debug_span!("ext.update").entered();
+                        self.extensions.update();
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.update").entered();
+                        observer.update();
+                    }
                     UPDATES.on_updates();
                 }
 
@@ -1689,15 +1713,32 @@ impl<E: AppExtension> RunningApp<E> {
                 let _s = tracing::debug_span!("update_event", ?update).entered();
 
                 self.loop_monitor.maybe_trace(|| {
-                    self.extensions.event_preview(&mut update);
-                    observer.event_preview(&mut update);
+                    {
+                        let _s = tracing::debug_span!("ext.event_preview").entered();
+                        self.extensions.event_preview(&mut update);
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.event_preview").entered();
+                        observer.event_preview(&mut update);
+                    }
                     update.call_pre_actions();
 
-                    self.extensions.event_ui(&mut update);
-                    observer.event_ui(&mut update);
-
-                    self.extensions.event(&mut update);
-                    observer.event(&mut update);
+                    {
+                        let _s = tracing::debug_span!("ext.event_ui").entered();
+                        self.extensions.event_ui(&mut update);
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.event_ui").entered();
+                        observer.event_ui(&mut update);
+                    }
+                    {
+                        let _s = tracing::debug_span!("ext.event").entered();
+                        self.extensions.event(&mut update);
+                    }
+                    {
+                        let _s = tracing::debug_span!("obs.event").entered();
+                        observer.event(&mut update);
+                    }
                     update.call_pos_actions();
                 });
 
@@ -1722,8 +1763,14 @@ impl<E: AppExtension> RunningApp<E> {
             let mut layout_widgets = mem::take(&mut self.pending.layout_widgets);
 
             self.loop_monitor.maybe_trace(|| {
-                self.extensions.layout(&mut layout_widgets);
-                observer.layout(&mut layout_widgets);
+                {
+                    let _s = tracing::debug_span!("ext.layout").entered();
+                    self.extensions.layout(&mut layout_widgets);
+                }
+                {
+                    let _s = tracing::debug_span!("obs.layout").entered();
+                    observer.layout(&mut layout_widgets);
+                }
             });
 
             self.apply_updates(observer);
@@ -1736,8 +1783,14 @@ impl<E: AppExtension> RunningApp<E> {
             let mut render_widgets = mem::take(&mut self.pending.render_widgets);
             let mut render_update_widgets = mem::take(&mut self.pending.render_update_widgets);
 
-            self.extensions.render(&mut render_widgets, &mut render_update_widgets);
-            observer.render(&mut render_widgets, &mut render_update_widgets);
+            {
+                let _s = tracing::debug_span!("ext.render").entered();
+                self.extensions.render(&mut render_widgets, &mut render_update_widgets);
+            }
+            {
+                let _s = tracing::debug_span!("obs.render").entered();
+                observer.render(&mut render_widgets, &mut render_update_widgets);
+            }
         }
 
         self.loop_monitor.finish_frame();
@@ -1745,7 +1798,7 @@ impl<E: AppExtension> RunningApp<E> {
 }
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
-        let _s = tracing::debug_span!("extensions.deinit").entered();
+        let _s = tracing::debug_span!("ext.deinit").entered();
         self.extensions.deinit();
         VIEW_PROCESS.exit();
     }

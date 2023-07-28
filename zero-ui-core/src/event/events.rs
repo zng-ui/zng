@@ -61,7 +61,7 @@ impl EVENTS {
 
     #[must_use]
     pub(crate) fn apply_updates(&self) -> Vec<EventUpdate> {
-        let _s = tracing::trace_span!("Events").entered();
+        let _s = tracing::trace_span!("EVENTS").entered();
 
         let mut ev = EVENTS_SV.write();
         for command in &ev.commands {

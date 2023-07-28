@@ -536,6 +536,7 @@ impl EventUpdate {
     }
 
     pub(crate) fn call_pre_actions(&mut self) {
+        let _s = tracing::trace_span!("call_pre_actions");
         let actions = mem::take(self.pre_actions.get_mut());
         for action in actions {
             action(self)
@@ -543,6 +544,7 @@ impl EventUpdate {
     }
 
     pub(crate) fn call_pos_actions(&mut self) {
+        let _s = tracing::trace_span!("call_pos_actions");
         let actions = mem::take(self.pos_actions.get_mut());
         for action in actions {
             action(self)
