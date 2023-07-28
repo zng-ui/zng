@@ -1,8 +1,10 @@
 //! Menu widgets and properties.
 //!
 
-use crate::core::focus::FOCUS;
-use crate::prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, toggle};
+use crate::{
+    core::{focus::FOCUS, mouse::ClickMode},
+    prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, toggle},
+};
 
 pub mod popup;
 pub mod sub;
@@ -100,6 +102,8 @@ impl ButtonStyle {
             opacity = 90.pct();
             foreground_highlight = unset!;
 
+            click_mode = ClickMode::release();// part of press-and-drag to click (see SubMenuPopup)
+
             on_pre_mouse_enter = hn!(|_| {
                 FOCUS.focus_widget(WIDGET.id(), false);
             });
@@ -127,6 +131,8 @@ impl ToggleStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            click_mode = ClickMode::release();
 
             sub::start_column_fn = wgt_fn!(|_ |crate::widgets::Text! {
                 size = 1.2.em();

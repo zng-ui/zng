@@ -43,8 +43,6 @@ pub fn seg_from_index(&self, from: usize) {
 # Menu
 
 * Separator.
-* Test drag to option release.
-* Test 3+ deep sub-menus.
 * Command and icon.
 * Dynamic menus.
 * Test RTL.
