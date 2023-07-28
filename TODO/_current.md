@@ -1,6 +1,14 @@
 # TextInput
 
 * Use binary search in SegmentedText to find segment from index.
+```rust
+pub fn seg_from_index(&self, from: usize) {
+    match self.segments.binary_search_by_key(&from, |s| s.end) {
+        Ok(e) => e + 1,
+        Err(s) => s,
+    }
+}
+```
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.
