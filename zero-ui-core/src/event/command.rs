@@ -276,6 +276,13 @@ impl Command {
     }
 
     /// Visit the command custom metadata of the current scope.
+    ///
+    /// Metadata for [`CommandScope::App`] is retained for the duration of the app, metadata scoped
+    /// on window or widgets is dropped if after an update cycle the scope is no handler and there
+    /// are no strong references to [`has_handlers`] and [`is_enabled`].
+    ///
+    /// [`has_handlers`]: Self::has_handlers
+    /// [`is_enabled`]: Self::is_enabled
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
         {
             let mut write = self.local.write();
@@ -391,16 +398,39 @@ impl Command {
         ))
     }
 
-    pub(crate) fn update_state(&self) {
-        let read = self.local.read();
+    /// Update state vars, returns if the command must be retained.
+    #[must_use]
+    pub(crate) fn update_state(&self) -> bool {
+        let mut write = self.local.write();
         if let CommandScope::App = self.scope {
-            let has_handlers = read.handle_count > 0;
-            read.has_handlers.set(has_handlers);
-            read.is_enabled.set(has_handlers && read.enabled_count > 0);
-        } else if let Some(scope) = read.scopes.get(&self.scope) {
-            let has_handlers = !scope.handle_count > 0;
-            scope.has_handlers.set(has_handlers);
-            scope.is_enabled.set(has_handlers && scope.enabled_count > 0);
+            let has_handlers = write.handle_count > 0;
+            if has_handlers != write.has_handlers.get() {
+                write.has_handlers.set(has_handlers);
+            }
+            let is_enabled = has_handlers && write.enabled_count > 0;
+            if is_enabled != write.is_enabled.get() {
+                write.is_enabled.set(is_enabled);
+            }
+            true
+        } else if let hashbrown::hash_map::Entry::Occupied(entry) = write.scopes.entry(self.scope) {
+            let scope = entry.get();
+
+            if scope.handle_count == 0 && scope.has_handlers.strong_count() == 1 && scope.is_enabled.strong_count() == 1 {
+                entry.remove();
+                return false;
+            }
+
+            let has_handlers = scope.handle_count > 0;
+            if has_handlers != scope.has_handlers.get() {
+                scope.has_handlers.set(has_handlers);
+            }
+            let is_enabled = has_handlers && scope.enabled_count > 0;
+            if is_enabled != scope.is_enabled.get() {
+                scope.is_enabled.set(is_enabled);
+            }
+            true
+        } else {
+            false
         }
     }
 }

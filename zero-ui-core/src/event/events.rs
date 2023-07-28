@@ -52,7 +52,7 @@ impl EVENTS {
 
     /// Commands that had handles generated in this app.
     ///
-    /// When [`Command::subscribe`] is called for the first time in an app, the command gets registered here.
+    /// When [`Command::subscribe`] is called for the first time in an app, the command gets added to this list.
     ///
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> Vec<Command> {
@@ -64,9 +64,9 @@ impl EVENTS {
         let _s = tracing::trace_span!("EVENTS").entered();
 
         let mut ev = EVENTS_SV.write();
-        for command in &ev.commands {
-            command.update_state();
-        }
+
+        ev.commands.retain(|c| c.update_state());
+
         let mut updates: Vec<_> = ev.updates.get_mut().drain(..).collect();
         drop(ev);
         for u in &mut updates {
