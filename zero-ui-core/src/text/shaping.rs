@@ -1250,10 +1250,12 @@ impl ShapedText {
                 // at start that can be by wrap
                 if line.started_by_wrap() {
                     if caret.line >= line.index {
-                        caret.line = line.index
+                        caret.line = line.index;
                     } else {
                         caret.line = line.index.saturating_sub(1);
                     }
+                } else {
+                    caret.line = line.index;
                 }
                 return caret;
             } else if range.contains(&caret.index) {

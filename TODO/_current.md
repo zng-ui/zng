@@ -1,6 +1,5 @@
 # TextInput
 
-* Inserting line breaks and arrow up jumps the caret to line that started breaking.
 * Use binary search in SegmentedText to find segment from index.
 * Implement scroll integration:
     - scroll to caret
