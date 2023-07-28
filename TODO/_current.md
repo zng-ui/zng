@@ -1,8 +1,7 @@
 # TextInput
 
-* Word navigation should stop on both start and end of line breaks.
-    - Word does this.
-* `CTRL+Delete` should stop at end of line if `caret.index` isn't already the end of the line.
+* Inserting line breaks and arrow up jumps the caret to line that started breaking.
+* Use binary search in SegmentedText to find segment from index.
 * Implement scroll integration:
     - scroll to caret
 * Implement selection.

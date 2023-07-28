@@ -513,13 +513,16 @@ impl SegmentedText {
         }
     }
 
-    /// Find the start of the next word or line-break segment, after `from`.
+    /// Find the start of the next word or the next line-break segment, after `from`.
     ///
     /// This operation is saturating.
     pub fn next_word_index(&self, from: usize) -> usize {
         let mut segs = self.segs().iter();
         for seg in &mut segs {
             if from < seg.end {
+                if seg.kind.is_line_break() {
+                    return seg.end;
+                }
                 let mut start = seg.end;
                 for seg in segs {
                     if seg.kind.is_word() || seg.kind.is_line_break() {
@@ -533,15 +536,18 @@ impl SegmentedText {
         self.text.len()
     }
 
-    /// Find the next word segment end, after `from`.
+    /// Find the next word segment end or the next line-break segment end, after `from`.
     ///
     /// This operation is saturating.
     pub fn next_word_end_index(&self, from: usize) -> usize {
         let mut segs = self.segs().iter();
         for seg in &mut segs {
             if from < seg.end {
+                if seg.kind.is_word() || seg.kind.is_line_break() {
+                    return seg.end;
+                }
                 for seg in segs {
-                    if seg.kind.is_word() {
+                    if seg.kind.is_word() || seg.kind.is_line_break() {
                         return seg.end;
                     }
                 }
@@ -551,7 +557,7 @@ impl SegmentedText {
         self.text.len()
     }
 
-    /// Find the start of the previous word segment or end of the previous line-break segment, before `from`.
+    /// Find the start of the previous word segment or the previous line-break segment, before `from`.
     ///
     /// This operation is saturating.
     pub fn prev_word_index(&self, from: usize) -> usize {
@@ -570,6 +576,9 @@ impl SegmentedText {
                     seg_kind = seg.kind;
                 }
                 break;
+            } else if seg.end == from && seg.kind.is_line_break() {
+                // line-break start
+                return segs.next().map(|p| p.end).unwrap_or(0);
             }
             seg_kind = seg.kind;
         }
