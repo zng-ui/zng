@@ -47,6 +47,7 @@ pub fn seg_from_index(&self, from: usize) {
 * Test 3+ deep sub-menus.
 * Command and icon.
 * Dynamic menus.
+* Test RTL.
 
 # View-Process
 

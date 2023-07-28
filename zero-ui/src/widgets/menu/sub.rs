@@ -140,21 +140,23 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         open_timer = None;
                     }
                 } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                    // open for arrow keys that do not cause focus move
                     if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
                         if !is_open.get() {
-                            match key {
-                                Key::Up | Key::Down => {
-                                    if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                            if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                                if info.info().submenu_parent().is_none() {
+                                    // root, open for arrow keys that do not cause focus move
+                                    if matches!(key, Key::Up | Key::Down) {
                                         open_pop = info.focusable_down().is_none() && info.focusable_up().is_none();
-                                    }
-                                }
-                                Key::Left | Key::Right => {
-                                    if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                                    } else if matches!(key, Key::Left | Key::Right) {
                                         open_pop = info.focusable_left().is_none() && info.focusable_right().is_none();
                                     }
+                                } else {
+                                    // sub, open in direction.
+                                    match DIRECTION_VAR.get() {
+                                        LayoutDirection::LTR => open_pop = matches!(key, Key::Right),
+                                        LayoutDirection::RTL => open_pop = matches!(key, Key::Left),
+                                    }
                                 }
-                                _ => {}
                             }
 
                             if open_pop {

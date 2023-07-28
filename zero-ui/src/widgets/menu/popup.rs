@@ -174,12 +174,14 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
                                     // escape to parent or change root.
                                     if let Some(m) = info.info().submenu_parent() {
                                         let mut escape = false;
-                                        if let Some(o) = m.orientation_from(info.info().center()) {
-                                            escape = match o {
-                                                Orientation2D::Left => key == Key::Left,
-                                                Orientation2D::Right => key == Key::Right,
-                                                Orientation2D::Below | Orientation2D::Above => false,
-                                            };
+                                        if m.submenu_parent().is_some() {
+                                            if let Some(o) = m.orientation_from(info.info().center()) {
+                                                escape = match o {
+                                                    Orientation2D::Left => key == Key::Left,
+                                                    Orientation2D::Right => key == Key::Right,
+                                                    Orientation2D::Below | Orientation2D::Above => false,
+                                                };
+                                            }
                                         }
 
                                         if escape {
