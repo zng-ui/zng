@@ -13,6 +13,8 @@ use super::hit_test_mode;
 /// Backgrounds are not interactive, but are hit-testable, they don't influence the layout being measured and
 /// arranged with the widget size, and they are always clipped to the widget bounds.
 ///
+/// See also [`background_fn`] for use in styles.
+///
 /// # Examples
 ///
 /// ```
@@ -34,6 +36,8 @@ use super::hit_test_mode;
 /// ```
 ///
 /// The example renders a custom text background.
+///
+/// [`background_fn`]: fn@background_fn
 #[property(FILL)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     let background = interactive_node(background, false);
@@ -57,7 +61,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Custom background generated using a [`WidgetFn<()>`].
 ///
-/// This is the equivalent of setting [`background`] to the [`presenter`] node.
+/// This is the equivalent of setting [`background`] to the [`presenter`] node, but if the property is cloned
+/// in styles the `wgt_fn` will be called multiple times to create duplicates of the background nodes instead
+/// of moving the node to the latest widget.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`background`]: fn@background

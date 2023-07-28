@@ -36,9 +36,11 @@
 
 # Menu
 
-* See `widgets/menu.rs`.
+* Separator.
 * Test drag to option release.
 * Test 3+ deep sub-menus.
+* Command and icon.
+* Dynamic menus.
 
 # View-Process
 

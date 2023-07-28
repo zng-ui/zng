@@ -128,7 +128,7 @@ impl ToggleStyle {
         widget_set! {
             self;
 
-            sub::start_column = crate::widgets::Text! {
+            sub::start_column_fn = wgt_fn!(|_ |crate::widgets::Text! {
                 size = 1.2.em();
                 font_family = FontNames::system_ui(&lang!(und));
                 align = Align::CENTER;
@@ -142,7 +142,7 @@ impl ToggleStyle {
                 when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
                     font_color = text::FONT_COLOR_VAR;
                 }
-            }
+            })
         }
     }
 }

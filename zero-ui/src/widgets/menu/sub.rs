@@ -320,6 +320,10 @@ pub fn end_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl
 /// The `cell` is an non-interactive background that fills the [`START_COLUMN_WIDTH_VAR`] and button height.
 ///
 /// This is usually an icon, or a checkmark.
+///
+/// See also [`start_column_fn`] for use in styles.
+///
+/// [`start_column_fn`]: fn@start_column_fn
 #[property(FILL)]
 pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     let cell = width(cell, START_COLUMN_WIDTH_VAR);
@@ -327,12 +331,42 @@ pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     background(child, cell)
 }
 
-/// Sets the icon of a button inside the menu.
+/// Sets the content to the [`Align::END`] side of the button menu item.
+///
+/// The `cell` is an non-interactive background that fills the [`END_COLUMN_WIDTH_VAR`] and button height.
+///
+/// This is usually a little arrow for sub-menus.
+///
+/// See also [`end_column_fn`] for use in styles.
+///
+/// [`end_column_fn`]: fn@end_column_fn
 #[property(FILL)]
 pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     let cell = width(cell, END_COLUMN_WIDTH_VAR);
     let cell = align(cell, Align::FILL_END);
     background(child, cell)
+}
+
+/// Sets the content to the [`Align::START`] side of the button menu item generated using a [`WidgetFn<()>`].
+///
+/// This property presents the same visual as [`start_column`], but when used in styles `cell_fn` is called
+/// multiple times to generate duplicates of the start cell.
+///
+/// [`start_column`]: fn@start_column
+#[property(FILL)]
+pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    start_column(child, presenter((), cell_fn))
+}
+
+/// Sets the content to the [`Align::END`] side of the button menu item generated using a [`WidgetFn<()>`].
+///
+/// This property presents the same visual as [`end_column`], but when used in styles `cell_fn` is called
+/// multiple times to generate duplicates of the start cell.
+///
+/// [`end_column`]: fn@end_column
+#[property(FILL)]
+pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    end_column(child, presenter((), cell_fn))
 }
 
 /// If the start and end column width is applied as padding.
@@ -456,7 +490,7 @@ impl SubMenuStyle {
             }
 
 
-            end_column = crate::widgets::Text! {
+            end_column_fn = wgt_fn!(|_|crate::widgets::Text! {
                 size = 1.2.em();
                 font_family = FontNames::system_ui(&lang!(und));
                 align = Align::CENTER;
@@ -465,7 +499,7 @@ impl SubMenuStyle {
                 when *#is_rtl {
                     txt = "⏴";
                 }
-            }
+            })
         }
     }
 }
