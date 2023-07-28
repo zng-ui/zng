@@ -48,6 +48,10 @@ pub fn seg_from_index(&self, from: usize) {
 * Command and icon.
 * Dynamic menus.
 * Test RTL.
+* Use menu in examples.
+    - scroll.
+    - localize.
+    - focus too?
 
 # View-Process
 
@@ -81,3 +85,6 @@ pub fn seg_from_index(&self, from: usize) {
 
 * Test scroll inside grid, not sized right.
     - Text editor example with scroll will demonstrate this?
+* Image example, Focus move from "Repeat Image.." to "Paste Image" misses.
+    - Arrow key down searches for center down, does not find because of button size difference.
+    - Same issue in layers example, "Layer 9" up to "TOP_MOST" misses.

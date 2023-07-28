@@ -359,8 +359,8 @@ impl Command {
         }
     }
 
-    #[cfg(test)]
-    fn has_handlers_value(&self) -> bool {
+    /// Gets if the command has handlers without creating a tracking variable for the state.
+    pub fn has_handlers_value(&self) -> bool {
         let read = self.local.read();
         match self.scope {
             CommandScope::App => read.handle_count > 0,
@@ -368,7 +368,8 @@ impl Command {
         }
     }
 
-    fn is_enabled_value(&self) -> bool {
+    /// Gets if the command is enabled without creating a tracking variable for the state.
+    pub fn is_enabled_value(&self) -> bool {
         let read = self.local.read();
         match self.scope {
             CommandScope::App => read.enabled_count > 0,

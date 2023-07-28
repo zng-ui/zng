@@ -21,7 +21,7 @@ command! {
         name: "Scroll Up",
         info: "Scroll Up by one scroll unit.",
         shortcut: shortcut!(Up),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll down** by one [`v_line_unit`] action.
@@ -36,7 +36,7 @@ command! {
         name: "Scroll Down",
         info: "Scroll Down by one scroll unit.",
         shortcut: shortcut!(Down),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll left** by one [`h_line_unit`] action.
@@ -51,7 +51,7 @@ command! {
         name: "Scroll Left",
         info: "Scroll Left by one scroll unit.",
         shortcut: shortcut!(Left),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll right** by one [`h_line_unit`] action.
@@ -66,7 +66,7 @@ command! {
         name: "Scroll Right",
         info: "Scroll Right by one scroll unit.",
         shortcut: shortcut!(Right),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
 
@@ -85,7 +85,7 @@ command! {
         name: "Page Up",
         info: "Scroll Up by one page unit.",
         shortcut: shortcut!(PageUp),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **page down** by one [`v_page_unit`] action.
@@ -100,7 +100,7 @@ command! {
         name: "Page Down",
         info: "Scroll down by one page unit.",
         shortcut: shortcut!(PageDown),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **page left** by one [`h_page_unit`] action.
@@ -115,7 +115,7 @@ command! {
         name: "Page Left",
         info: "Scroll Left by one page unit.",
         shortcut: shortcut!(SHIFT+PageUp),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **page right** by one [`h_page_unit`] action.
@@ -130,7 +130,7 @@ command! {
         name: "Page Right",
         info: "Scroll Right by one page unit.",
         shortcut: shortcut!(SHIFT+PageDown),
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll to top** action.
@@ -138,7 +138,7 @@ command! {
         name: "Scroll to Top",
         info: "Scroll up to the content top.",
         shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll to bottom** action.
@@ -146,7 +146,7 @@ command! {
         name: "Scroll to Bottom",
         info: "Scroll down to the content bottom.",
         shortcut: [shortcut!(End), shortcut!(CTRL+End)],
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll to leftmost** action.
@@ -154,7 +154,7 @@ command! {
         name: "Scroll to Leftmost",
         info: "Scroll left to the content left edge.",
         shortcut: [shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)],
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the **scroll to rightmost** action.
@@ -162,7 +162,7 @@ command! {
         name: "Scroll to Righmost",
         info: "Scroll right to the content right edge.",
         shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
-        shortcut_filter: ShortcutFilter::FOCUSED,
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the action of scrolling until a child widget is fully visible.

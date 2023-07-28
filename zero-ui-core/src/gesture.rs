@@ -1804,9 +1804,12 @@ impl CommandShortcutExt for Command {
                 if filter.is_empty() {
                     return true;
                 }
+                if filter.contains(ShortcutFilter::CMD_ENABLED) && !self.is_enabled_value() {
+                    return false;
+                }
 
                 match self.scope() {
-                    CommandScope::App => false,
+                    CommandScope::App => filter == ShortcutFilter::CMD_ENABLED,
                     CommandScope::Window(id) => {
                         if filter.contains(ShortcutFilter::FOCUSED) {
                             FOCUS.focused().with(|p| {
@@ -1820,15 +1823,15 @@ impl CommandShortcutExt for Command {
                                 !filter.contains(ShortcutFilter::ENABLED)
                                     || p.interaction_path().next().map(|i| i.is_enabled()).unwrap_or(false)
                             })
-                        } else {
-                            debug_assert_eq!(filter, ShortcutFilter::ENABLED);
-
+                        } else if filter.contains(ShortcutFilter::ENABLED) {
                             let tree = match WINDOWS.widget_tree(id) {
                                 Ok(t) => t,
                                 Err(_) => return false,
                             };
 
                             tree.root().interactivity().is_enabled()
+                        } else {
+                            true
                         }
                     }
                     CommandScope::Widget(id) => {
@@ -1843,9 +1846,7 @@ impl CommandShortcutExt for Command {
                                 }
                                 !filter.contains(ShortcutFilter::ENABLED) || p.interactivity_of(id).map(|i| i.is_enabled()).unwrap_or(false)
                             })
-                        } else {
-                            debug_assert_eq!(filter, ShortcutFilter::ENABLED);
-
+                        } else if filter.contains(ShortcutFilter::ENABLED) {
                             for tree in WINDOWS.widget_trees() {
                                 if let Some(w) = tree.get(id) {
                                     return w.interactivity().is_enabled();
@@ -1853,6 +1854,8 @@ impl CommandShortcutExt for Command {
                             }
 
                             false
+                        } else {
+                            true
                         }
                     }
                 }
@@ -1873,6 +1876,8 @@ bitflags! {
         ///
         /// [`FOCUS.focused`]: FOCUS::focused
         const FOCUSED = 0b010;
+        /// Shortcut only applies if the command is enabled.
+        const CMD_ENABLED = 0b100;
     }
 }
 
