@@ -13,11 +13,8 @@ Widget that need to be implemented.
 * CheckInput.
 * ToggleInput.
 * Slider.
-* ContextMenu.
 * ToolTip.
 * Resize parent.
-* MainMenu.
-  * Auto-merge separators depending on the visibility of items in between.
 * Basic markdown view.
 * Charts.
 * Media (audio & video).

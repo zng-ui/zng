@@ -2966,7 +2966,7 @@ impl LayoutMetrics {
 
 context_var! {
     /// Wrap direction of text in a widget context.
-    pub static DIRECTION_VAR: LayoutDirection = LayoutDirection::default();
+    pub static DIRECTION_VAR: LayoutDirection = crate::l10n::LANG_VAR.map(|l| l.best().character_direction().into());
 }
 
 /// Defines the layout flow direction.

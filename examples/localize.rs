@@ -140,8 +140,8 @@ fn locale_menu() -> impl UiNode {
 
                 let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
                 Stack! {
-                    align = Align::TOP_LEFT;
-                    direction = StackDirection::left_to_right();
+                    align = Align::TOP_START;
+                    direction = StackDirection::start_to_end();
                     spacing = 5;
                     margin = 10;
                     toggle::selector = toggle::Selector::single_opt(selected);

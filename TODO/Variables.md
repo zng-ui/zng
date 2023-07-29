@@ -15,6 +15,8 @@
         - This causes it to be actualized once on init by `with_context_var`.
         - This reduces the init calls to **1**.
         - Despite the large change we could not observe any performance impact.
+    - The `DIRECTION_VAR` is mapped from `LANG_VAR` same issue.
+    - Maybe we can have an special map for the context-var defaults at least?
 
 * Try to use sleep for `Var::steps`, right now it runs hot trying to match the step.
 * Implement more oscillate animations.

@@ -110,7 +110,7 @@ impl StackDirection {
         Self {
             place: (100.pct(), 0).into(),
             origin: (0, 0).into(),
-            is_rtl_aware: false,
+            is_rtl_aware: true,
         }
     }
 
@@ -123,7 +123,7 @@ impl StackDirection {
         Self {
             place: (0, 0).into(),
             origin: (100.pct(), 0).into(),
-            is_rtl_aware: false,
+            is_rtl_aware: true,
         }
     }
 
@@ -166,7 +166,7 @@ impl StackDirection {
 
     /// Compute offset of the next item in the current [`LAYOUT`] context.
     pub fn layout(&self, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        if self.is_rtl_aware && LAYOUT.direction().is_ltr() {
+        if self.is_rtl_aware && LAYOUT.direction().is_rtl() {
             let mut d = self.clone();
             mem::swap(&mut d.place.x, &mut d.origin.x);
             d.is_rtl_aware = false;

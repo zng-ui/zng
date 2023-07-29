@@ -33,13 +33,9 @@
 
 # Menu
 
-* Change localize example to use menu:
-    - Nested sub-menus for pseudo.
-    - Toggle values (and across sub-menus).
-    - Dynamic menus.
-    - Test RTL (add Arabic).
-* Review combo toggle.
+* Review combo toggle style.
 * Mnemonics.
+* ContextMenu.
 
 # View-Process
 
@@ -71,6 +67,7 @@
 
 # Bugs
 
+* See `Variables.md` ContextualizedVar issue.
 * Test scroll inside grid, not sized right.
     - Text editor example with scroll will demonstrate this?
 * Image example, Focus move from "Repeat Image.." to "Paste Image" misses.

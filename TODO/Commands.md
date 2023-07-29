@@ -24,5 +24,3 @@ Commands core API is implemented, TODO implement extensions and test all use cas
   - When you press alt the command buttons inside the alt scope change the
     text to highlight the first unique char that can be pressed to receive
     a click from the command.
-
-* Implement *check-box* commands, probably an extension, need to test in menus when that is implemented.
