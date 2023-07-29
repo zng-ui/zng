@@ -10,7 +10,11 @@ pub mod popup;
 pub mod sub;
 
 /// Menu root panel.
-#[widget($crate::widgets::menu::Menu)]
+#[widget($crate::widgets::menu::Menu {
+    ($children:expr) => {
+        children = $children;
+    }
+})]
 pub struct Menu(StyleMix<panel::Panel>);
 impl Menu {
     fn widget_intrinsic(&mut self) {

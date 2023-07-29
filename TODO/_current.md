@@ -42,12 +42,14 @@ pub fn seg_from_index(&self, from: usize) {
 
 # Menu
 
-* Dynamic menus.
-* Test RTL.
-* Use menu in examples.
-    - scroll.
-    - localize.
-    - focus too?
+* Shortcut text.
+    - Is a right insert?
+* Move `CommandIconExt` to main crate, use `WidgetFn<()>` as type.
+* Change localize example to use menu:
+    - Nested sub-menus for pseudo.
+    - Toggle values (and across sub-menus).
+    - Dynamic menus.
+    - Test RTL (add Arabic).
 
 # View-Process
 

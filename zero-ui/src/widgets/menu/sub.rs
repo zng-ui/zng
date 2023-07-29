@@ -24,7 +24,12 @@ use crate::{
 use super::ButtonStyle;
 
 /// Submenu header and items.
-#[widget($crate::widgets::menu::sub::SubMenu)]
+#[widget($crate::widgets::menu::sub::SubMenu {
+    ($header_txt:expr, $children:expr $(,)?) => {
+        header = $crate::widgets::Text!($header_txt);
+        children = $children;
+    }
+})]
 pub struct SubMenu(StyleMix<WidgetBase>);
 impl SubMenu {
     widget_impl! {
