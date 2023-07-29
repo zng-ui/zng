@@ -82,6 +82,7 @@ impl DefaultStyle {
             button::replace_style = style_fn!(|_| ButtonStyle!());
             toggle::replace_style = style_fn!(|_| ToggleStyle!());
             hr::color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
+            crate::widgets::icon::ico_size = 18;
         }
     }
 }
@@ -152,4 +153,18 @@ impl ToggleStyle {
             })
         }
     }
+}
+
+/// Menu item icon.
+///
+/// Set on a [`Button!`] inside a sub-menu to define the menu [`Icon!`] for that button.
+///
+/// This property is an alias for [`sub::start_column`].
+///
+/// [`Button!`]: struct@crate::widgets::Button
+/// [`Icon!`]: struct@crate::widgets::Icon
+/// [`sub::start_column`]: fn@sub::start_column
+#[property(FILL)]
+pub fn icon(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
+    sub::start_column(child, cell)
 }
