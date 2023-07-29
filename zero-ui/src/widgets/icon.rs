@@ -141,3 +141,27 @@ pub fn ico_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
 pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
+
+/// Adds the [`icon`](CommandIconExt) metadata.
+/// 
+/// The value is an [`WidgetFn<()>`] that can generate any icon widget, recommended widget is [`Icon!`].
+/// 
+/// [`Icon!`]: struct@Icon
+pub trait CommandIconExt {
+    /// Gets a read-write variable that is the icon for the command.
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>>;
+
+    /// Sets the initial icon if it is not set.
+    fn init_icon(self, icon: WidgetFn<()>) -> Self;
+}
+static COMMAND_ICON_ID: StaticCommandMetaVarId<WidgetFn<()>> = StaticCommandMetaVarId::new_unique();
+impl CommandIconExt for Command {
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>> {
+        self.with_meta(|m| m.get_var_or_default(&COMMAND_ICON_ID))
+    }
+
+    fn init_icon(self, icon: WidgetFn<()>) -> Self {
+        self.with_meta(|m| m.init_var(&COMMAND_ICON_ID, icon));
+        self
+    }
+}

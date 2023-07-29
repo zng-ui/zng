@@ -15,7 +15,6 @@ use std::{fmt, mem};
 use zero_ui::{
     core::{
         app::AppExtension,
-        event::{Command, CommandMetaVar, StaticCommandMetaVarId},
         impl_from_and_into_var,
         text::{CustomFont, FontDataRef, FontName, FONTS},
     },
@@ -218,24 +217,4 @@ pub mod two_tone {
     }
 
     include!(concat!(env!("OUT_DIR"), "/generated.two_tone.rs"));
-}
-
-/// Adds the [`icon`](CommandIconExt) metadata.
-pub trait CommandIconExt {
-    /// Gets a read-write variable that is the icon for the command.
-    fn icon(self) -> CommandMetaVar<Option<MaterialIcon>>;
-
-    /// Sets the initial icon if it is not set.
-    fn init_icon(self, icon: impl Into<MaterialIcon>) -> Self;
-}
-static COMMAND_ICON_ID: StaticCommandMetaVarId<Option<MaterialIcon>> = StaticCommandMetaVarId::new_unique();
-impl CommandIconExt for Command {
-    fn icon(self) -> CommandMetaVar<Option<MaterialIcon>> {
-        self.with_meta(|m| m.get_var_or_default(&COMMAND_ICON_ID))
-    }
-
-    fn init_icon(self, icon: impl Into<MaterialIcon>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_ICON_ID, icon.into()));
-        self
-    }
 }

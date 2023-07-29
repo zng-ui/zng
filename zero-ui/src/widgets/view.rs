@@ -55,6 +55,12 @@ impl<D> PartialEq for WidgetFn<D> {
         }
     }
 }
+impl<D> Default for WidgetFn<D> {
+    /// `nil`.
+    fn default() -> Self {
+        Self::nil()
+    }
+}
 impl<D> WidgetFn<D> {
     /// New from a closure that generates a node from data.
     pub fn new<U: UiNode>(func: impl Fn(D) -> U + Send + Sync + 'static) -> Self {

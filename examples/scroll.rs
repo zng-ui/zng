@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 use zero_ui::widgets::scroll::commands::ScrollToMode;
+use zero_ui::widgets::icon::CommandIconExt;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -18,7 +19,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
         Window! {
             title = "Scroll Example";
             child_insert_above = commands(), 0;
@@ -55,6 +56,10 @@ fn app_main() {
 
 fn commands() -> impl UiNode {
     use zero_ui::widgets::scroll::commands::*;
+
+    SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_TOP)));
+    SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_BOTTOM)));
+
     Menu!(ui_vec![
         SubMenu!(
             "Scroll",
@@ -93,6 +98,7 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
     Button! {
         child = Text!(cmd.name());
         menu::shortcut_txt = Text!(cmd.shortcut_txt());
+        menu::icon_fn = cmd.icon();
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|_| {

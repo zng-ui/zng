@@ -33,12 +33,15 @@
 
 # Menu
 
-* Move `CommandIconExt` to main crate, use `WidgetFn<()>` as type.
+* `menu::CmdButton!(CMD)`.
+    - Automatically sets text, shortcut and icon.
 * Change localize example to use menu:
     - Nested sub-menus for pseudo.
     - Toggle values (and across sub-menus).
     - Dynamic menus.
     - Test RTL (add Arabic).
+* Review combo toggle.
+* Mnemonics.
 
 # View-Process
 

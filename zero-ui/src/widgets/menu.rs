@@ -179,8 +179,22 @@ impl ToggleStyle {
 /// [`Icon!`]: struct@crate::widgets::Icon
 /// [`sub::start_column`]: fn@sub::start_column
 #[property(FILL)]
-pub fn icon(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
-    sub::start_column(child, cell)
+pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
+    sub::start_column(child, icon)
+}
+
+/// Menu item icon from widget function.
+///
+/// Set on a [`Button!`] inside a sub-menu to define the menu [`Icon!`] for that button.
+///
+/// This property is an alias for [`sub::start_column_fn`].
+///
+/// [`Button!`]: struct@crate::widgets::Button
+/// [`Icon!`]: struct@crate::widgets::Icon
+/// [`sub::start_column_fn`]: fn@sub::start_column_fn
+#[property(FILL)]
+pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    sub::start_column_fn(child, icon)
 }
 
 /// Menu item shortcut text.
