@@ -33,8 +33,6 @@
 
 # Menu
 
-* Review combo toggle style.
-* Mnemonics.
 * ContextMenu.
 
 # View-Process

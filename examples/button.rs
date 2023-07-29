@@ -203,7 +203,7 @@ fn toggle_buttons() -> impl UiNode {
 
 fn combo_box() -> impl UiNode {
     let txt = var(Txt::from_static("Combo"));
-    let options = ["Combo", "Congo"];
+    let options = ["Combo", "Congo", "Pombo"];
     Toggle! {
 
         id = "combo";
@@ -216,20 +216,13 @@ fn combo_box() -> impl UiNode {
         checked_popup = wgt_fn!(|_| popup::Popup! {
             id = "popup";
             child = Stack! {
+                toggle::selector = toggle::Selector::single(txt.clone());
                 direction = StackDirection::top_to_bottom();
-                children = options.into_iter().map(|o| Button! {
+                children = options.into_iter().map(|o| Toggle! {
                     child = Text!(o);
-                    on_click = hn!(txt, |_| {
-                        txt.set(o);
-                    });
+                    value::<Txt> = o.clone();
                 })
                 .collect::<UiNodeVec>();
-
-                opacity = 0.fct();
-                when true {
-                    #[easing(1200.ms())]
-                    opacity = 1.fct();
-                }
             };
         })
     }

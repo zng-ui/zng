@@ -989,6 +989,13 @@ impl ComboStyle {
                     padding = 2;
                     border = unset!;
                 };
+                crate::widgets::toggle::extend_style = Style! {
+                    click_mode = ClickMode::release();
+
+                    corner_radius = 0;
+                    padding = 2;
+                    border = unset!;
+                };
 
                 // supports gesture of press-and-drag to select.
                 //
