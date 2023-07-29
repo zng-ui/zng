@@ -286,9 +286,17 @@ impl SegmentedText {
         &self.text
     }
 
-    /// The raw segment data.
+    /// The text segments.
     pub fn segs(&self) -> &[TextSegment] {
         &self.segments
+    }
+
+    /// Get segment index from a char index.
+    pub fn seg_from_char(&self, from: usize) -> usize {
+        match self.segments.binary_search_by_key(&from, |s| s.end) {
+            Ok(e) => e + 1,
+            Err(s) => s,
+        }
     }
 
     /// Contextual direction.
@@ -517,20 +525,18 @@ impl SegmentedText {
     ///
     /// This operation is saturating.
     pub fn next_word_index(&self, from: usize) -> usize {
-        let mut segs = self.segs().iter();
-        for seg in &mut segs {
-            if from < seg.end {
-                if seg.kind.is_line_break() {
-                    return seg.end;
+        let mut segs = self.segments[self.seg_from_char(from)..].iter();
+
+        if let Some(seg) = segs.next() {
+            if seg.kind.is_line_break() {
+                return seg.end;
+            }
+            let mut start = seg.end;
+            for seg in segs {
+                if seg.kind.is_word() || seg.kind.is_line_break() {
+                    return start;
                 }
-                let mut start = seg.end;
-                for seg in segs {
-                    if seg.kind.is_word() || seg.kind.is_line_break() {
-                        return start;
-                    }
-                    start = seg.end;
-                }
-                break;
+                start = seg.end;
             }
         }
         self.text.len()
@@ -540,18 +546,15 @@ impl SegmentedText {
     ///
     /// This operation is saturating.
     pub fn next_word_end_index(&self, from: usize) -> usize {
-        let mut segs = self.segs().iter();
-        for seg in &mut segs {
-            if from < seg.end {
+        let mut segs = self.segments[self.seg_from_char(from)..].iter();
+        if let Some(seg) = segs.next() {
+            if seg.kind.is_word() || seg.kind.is_line_break() {
+                return seg.end;
+            }
+            for seg in segs {
                 if seg.kind.is_word() || seg.kind.is_line_break() {
                     return seg.end;
                 }
-                for seg in segs {
-                    if seg.kind.is_word() || seg.kind.is_line_break() {
-                        return seg.end;
-                    }
-                }
-                break;
             }
         }
         self.text.len()
@@ -561,16 +564,23 @@ impl SegmentedText {
     ///
     /// This operation is saturating.
     pub fn prev_word_index(&self, from: usize) -> usize {
-        let mut segs = self.segs().iter().rev();
+        let seg_i = self.seg_from_char(from);
+        let mut segs = if seg_i < self.segments.len() {
+            self.segments[..=seg_i].iter().rev()
+        } else {
+            self.segs().iter().rev()
+        };
         let mut seg_kind = TextSegmentKind::Space;
         for seg in &mut segs {
             if seg.end < from {
                 if seg_kind.is_word() || seg.kind.is_line_break() {
+                    // last segment start or line-break end
                     return seg.end;
                 }
                 seg_kind = seg.kind;
                 for seg in segs {
                     if seg_kind.is_word() || seg.kind.is_line_break() {
+                        // last segment start or line-break end
                         return seg.end;
                     }
                     seg_kind = seg.kind;
