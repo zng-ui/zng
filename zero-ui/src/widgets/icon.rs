@@ -143,9 +143,9 @@ pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 }
 
 /// Adds the [`icon`](CommandIconExt) metadata.
-/// 
+///
 /// The value is an [`WidgetFn<()>`] that can generate any icon widget, recommended widget is [`Icon!`].
-/// 
+///
 /// [`Icon!`]: struct@Icon
 pub trait CommandIconExt {
     /// Gets a read-write variable that is the icon for the command.

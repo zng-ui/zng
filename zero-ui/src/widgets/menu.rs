@@ -202,6 +202,8 @@ pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiN
 /// Set on a [`Button!`] inside a sub-menu to define the shortcut text.
 ///
 /// Note that this does not define the click shortcut, just the display of it.
+///
+/// [`Button!`]: struct@crate::widgets::Button
 #[property(CHILD_CONTEXT)]
 pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
@@ -220,3 +222,50 @@ pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
 pub fn shortcut_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, SHORTCUT_SPACING_VAR, spacing)
 }
+
+/// Command button.
+///
+/// This a menu button that has a `cmd` property, if the property is set the button `child`, `icon_fn` and `shortcut_txt`
+/// are set with values from the command metadata, the `on_click` handle is set to call the command and the `enable` and
+/// `visibility` are set from the command handle status.
+#[widget($crate::widgets::menu::CmdButton {
+    ($cmd:expr) => {
+        cmd = $cmd;
+    }
+})]
+pub struct CmdButton(crate::widgets::Button);
+impl CmdButton {
+    /// Build the button from the `cmd` value.
+    pub fn widget_build(&mut self) -> impl UiNode {
+        use crate::prelude::*;
+        use crate::widgets::icon::CommandIconExt;
+
+        if let Some(cmd) = self.widget_builder().capture_value::<Command>(property_id!(Self::cmd)) {
+            widget_set! {
+                self;
+
+                enabled = cmd.is_enabled();
+                visibility = cmd.has_handlers().map_into();
+
+                child = Text!(cmd.name());
+
+                shortcut_txt = Text!(cmd.shortcut_txt());
+                icon_fn = cmd.icon();
+
+                on_click = hn!(|args: &ClickArgs| {
+                    if cmd.is_enabled_value() {
+                        args.propagation().stop();
+                        cmd.notify();
+                    }
+                });
+            }
+        }
+
+        let base: &mut WidgetBase = self;
+        base.widget_build()
+    }
+}
+
+/// The button command.
+#[property(CONTEXT, capture, widget_impl(CmdButton))]
+pub fn cmd(cmd: impl IntoValue<Command>) {}

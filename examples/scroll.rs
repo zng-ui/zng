@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::widgets::scroll::commands::ScrollToMode;
 use zero_ui::widgets::icon::CommandIconExt;
+use zero_ui::widgets::scroll::commands::ScrollToMode;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -60,51 +60,41 @@ fn commands() -> impl UiNode {
     SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_TOP)));
     SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_BOTTOM)));
 
+    let scope = WidgetId::named("scroll");
+    use menu::CmdButton;
+
     Menu!(ui_vec![
         SubMenu!(
             "Scroll",
             ui_vec![
-                cmd_btn(SCROLL_UP_CMD),
-                cmd_btn(SCROLL_DOWN_CMD),
-                cmd_btn(SCROLL_LEFT_CMD),
-                cmd_btn(SCROLL_RIGHT_CMD),
+                CmdButton!(SCROLL_UP_CMD.scoped(scope)),
+                CmdButton!(SCROLL_DOWN_CMD.scoped(scope)),
+                CmdButton!(SCROLL_LEFT_CMD.scoped(scope)),
+                CmdButton!(SCROLL_RIGHT_CMD.scoped(scope)),
             ]
         ),
         SubMenu!(
             "Page",
             ui_vec![
-                cmd_btn(PAGE_UP_CMD),
-                cmd_btn(PAGE_DOWN_CMD),
-                cmd_btn(PAGE_LEFT_CMD),
-                cmd_btn(PAGE_RIGHT_CMD),
+                CmdButton!(PAGE_UP_CMD.scoped(scope)),
+                CmdButton!(PAGE_DOWN_CMD.scoped(scope)),
+                CmdButton!(PAGE_LEFT_CMD.scoped(scope)),
+                CmdButton!(PAGE_RIGHT_CMD.scoped(scope)),
             ]
         ),
         SubMenu!(
             "Scroll to",
             ui_vec![
-                cmd_btn(SCROLL_TO_TOP_CMD),
-                cmd_btn(SCROLL_TO_BOTTOM_CMD),
-                cmd_btn(SCROLL_TO_LEFTMOST_CMD),
-                cmd_btn(SCROLL_TO_RIGHTMOST_CMD),
+                CmdButton!(SCROLL_TO_TOP_CMD.scoped(scope)),
+                CmdButton!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
+                CmdButton!(SCROLL_TO_LEFTMOST_CMD.scoped(scope)),
+                CmdButton!(SCROLL_TO_RIGHTMOST_CMD.scoped(scope)),
                 Hr!(),
                 scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                 scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
             ]
         )
     ])
-}
-fn cmd_btn(cmd: Command) -> impl UiNode {
-    let cmd = cmd.scoped(WidgetId::named("scroll"));
-    Button! {
-        child = Text!(cmd.name());
-        menu::shortcut_txt = Text!(cmd.shortcut_txt());
-        menu::icon_fn = cmd.icon();
-        enabled = cmd.is_enabled();
-        // visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|_| {
-            cmd.notify();
-        });
-    }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     use zero_ui::widgets::scroll::commands;
