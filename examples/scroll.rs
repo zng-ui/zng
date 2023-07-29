@@ -63,7 +63,11 @@ fn commands() -> impl UiNode {
                 cmd_btn(SCROLL_DOWN_CMD),
                 cmd_btn(SCROLL_LEFT_CMD),
                 cmd_btn(SCROLL_RIGHT_CMD),
-                Hr!(),
+            ]
+        ),
+        SubMenu!(
+            "Page",
+            ui_vec![
                 cmd_btn(PAGE_UP_CMD),
                 cmd_btn(PAGE_DOWN_CMD),
                 cmd_btn(PAGE_LEFT_CMD),
@@ -87,7 +91,8 @@ fn commands() -> impl UiNode {
 fn cmd_btn(cmd: Command) -> impl UiNode {
     let cmd = cmd.scoped(WidgetId::named("scroll"));
     Button! {
-        child = Text!(cmd.name_with_shortcut());
+        child = Text!(cmd.name());
+        menu::shortcut_txt = Text!(cmd.shortcut_txt());
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|_| {

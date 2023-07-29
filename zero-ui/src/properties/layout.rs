@@ -11,6 +11,9 @@ use zero_ui::prelude::new_property::*;
 ///
 /// This property disables inline layout for the widget.
 ///
+/// Note that the margin is collapsed in a dimension if it is zero, that is margin top-bottom is zero if the widget
+/// height is zero and margin left-right is zero if the widget width is zero.
+///
 /// # Examples
 ///
 /// ```
@@ -52,14 +55,31 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         UiNodeOp::Measure { wm, desired_size } => {
             let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
-            *desired_size = LAYOUT.with_sub_size(size_increment, || LAYOUT.disable_inline(wm, child));
+            *desired_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || {
+                LAYOUT.disable_inline(wm, child)
+            });
+            if desired_size.width > Px(0) {
+                desired_size.width += size_increment.width;
+            }
+            if desired_size.height > Px(0) {
+                desired_size.height += size_increment.height;
+            }
         }
         UiNodeOp::Layout { wl, final_size } => {
             let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
-            wl.translate(PxVector::new(margin.left, margin.top));
-            *final_size = LAYOUT.with_sub_size(size_increment, || child.layout(wl));
+            *final_size = LAYOUT.with_constraints(LAYOUT.constraints().with_less_size(size_increment), || child.layout(wl));
+            let mut translate = PxVector::zero();
+            if final_size.width > Px(0) {
+                final_size.width += size_increment.width;
+                translate.x = margin.left;
+            }
+            if final_size.height > Px(0) {
+                final_size.height += size_increment.height;
+                translate.y = margin.top;
+            }
+            wl.translate(translate);
         }
         _ => {}
     })

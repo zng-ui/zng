@@ -11,8 +11,9 @@ use crate::{
     focus::{FocusRequest, FocusTarget, FOCUS},
     keyboard::*,
     mouse::*,
+    text::{ToText, Txt},
     units::DipPoint,
-    var::{impl_from_and_into_var, var, ArcVar, Var},
+    var::{impl_from_and_into_var, var, ArcVar, BoxedVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WINDOWS},
@@ -1747,6 +1748,16 @@ impl HeadlessAppGestureExt for HeadlessApp {
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
     fn shortcut(self) -> CommandMetaVar<Shortcuts>;
+
+    /// Gets a read-only variable that is the display text for the first shortcut.
+    fn shortcut_txt(self) -> BoxedVar<Txt>
+    where
+        Self: Sized,
+    {
+        self.shortcut()
+            .map(|c| if c.is_empty() { Txt::from("") } else { c[0].to_text() })
+            .boxed()
+    }
 
     /// Gets a read-write variable that sets a filter for when the [`shortcut`] is valid.
     ///

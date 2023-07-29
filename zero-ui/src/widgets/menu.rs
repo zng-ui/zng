@@ -46,6 +46,16 @@ context_var! {
     ///
     /// [`DefaultStyle!`]: struct@DefaultStyle
     pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
+
+    /// Minimum space between a menu item child and the [`shortcut_txt`] child.
+    ///
+    /// The spacing is applied only if the shortcut child is set to a non-zero sized widget and
+    /// there is no other wider menu item.
+    ///
+    /// Is `20` by default.
+    ///
+    /// [`shortcut_txt`]: fn@shortcut_txt
+    pub static SHORTCUT_SPACING_VAR: Length = 20;
 }
 
 /// Widget function that generates the menu layout.
@@ -171,4 +181,28 @@ impl ToggleStyle {
 #[property(FILL)]
 pub fn icon(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     sub::start_column(child, cell)
+}
+
+/// Menu item shortcut text.
+///
+/// Set on a [`Button!`] inside a sub-menu to define the shortcut text.
+///
+/// Note that this does not define the click shortcut, just the display of it.
+#[property(CHILD_CONTEXT)]
+pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
+    let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
+    child_insert_end(child, shortcut, SHORTCUT_SPACING_VAR)
+}
+
+/// Minimum space between a menu item child and the [`shortcut_txt`] child.
+///
+/// The spacing is applied only if the shortcut child is set to a non-zero sized widget and
+/// there is no other wider menu item.
+///
+/// This property sets the [`SHORTCUT_SPACING_VAR`].
+///
+/// [`shortcut_txt`]: fn@shortcut_txt
+#[property(CONTEXT, default(SHORTCUT_SPACING_VAR))]
+pub fn shortcut_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, SHORTCUT_SPACING_VAR, spacing)
 }

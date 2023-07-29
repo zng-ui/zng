@@ -33,8 +33,6 @@
 
 # Menu
 
-* Shortcut text.
-    - Is a right insert?
 * Move `CommandIconExt` to main crate, use `WidgetFn<()>` as type.
 * Change localize example to use menu:
     - Nested sub-menus for pseudo.
