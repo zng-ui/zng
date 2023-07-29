@@ -9,6 +9,11 @@ impl RuleLine {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(on_build);
     }
+
+    widget_impl! {
+        /// Margin around the line.
+        pub margin(margin: impl IntoVar<SideOffsets>);
+    }
 }
 
 /// Line orientation.
@@ -130,6 +135,7 @@ pub mod hr {
                 color = COLOR_VAR;
                 stroke_thickness  = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
+                margin = MARGIN_VAR;
             }
         }
     }
@@ -143,6 +149,11 @@ pub mod hr {
 
         /// Line style, default is `Solid`.
         pub static LINE_STYLE_VAR: LineStyle = LineStyle::Solid;
+
+        /// Margin around line.
+        ///
+        /// Is `(5, 0)` by default, 5 top-bottom, 0 left-right.
+        pub static MARGIN_VAR: SideOffsets = (5, 0);
     }
 
     /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
@@ -162,6 +173,12 @@ pub mod hr {
     pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
+
+    /// Sets the [`MARGIN_VAR`] that affects all horizontal rules inside the widget.
+    #[property(CONTEXT, default(MARGIN_VAR))]
+    pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+        with_context_var(child, MARGIN_VAR, margin)
+    }
 }
 
 /// Vertical rule line.
@@ -179,6 +196,7 @@ pub mod vr {
                 color = COLOR_VAR;
                 stroke_thickness  = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
+                margin = MARGIN_VAR;
             }
         }
     }
@@ -192,6 +210,11 @@ pub mod vr {
 
         /// Line style, default is `Solid`.
         pub static LINE_STYLE_VAR: LineStyle = LineStyle::Solid;
+
+                /// Margin around line.
+        ///
+        /// Is `(0, 5)` by default, 0 top-bottom, 5 left-right.
+        pub static MARGIN_VAR: SideOffsets = (0, 5);
     }
 
     /// Sets the [`COLOR_VAR`] that affects all vertical rules inside the widget.
@@ -210,5 +233,11 @@ pub mod vr {
     #[property(CONTEXT, default(LINE_STYLE_VAR))]
     pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
+    }
+
+    /// Sets the [`MARGIN_VAR`] that affects all vertical rules inside the widget.
+    #[property(CONTEXT, default(MARGIN_VAR))]
+    pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+        with_context_var(child, MARGIN_VAR, margin)
     }
 }

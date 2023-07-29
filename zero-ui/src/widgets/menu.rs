@@ -3,7 +3,7 @@
 
 use crate::{
     core::{focus::FOCUS, mouse::ClickMode},
-    prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, toggle},
+    prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, rule_line::hr, toggle},
 };
 
 pub mod popup;
@@ -81,6 +81,7 @@ impl DefaultStyle {
 
             button::replace_style = style_fn!(|_| ButtonStyle!());
             toggle::replace_style = style_fn!(|_| ToggleStyle!());
+            hr::color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
         }
     }
 }

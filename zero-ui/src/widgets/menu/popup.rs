@@ -111,6 +111,7 @@ impl DefaultStyle {
 
             super::sub::replace_style = super::sub::SubMenuStyle!();
 
+            background_color = color_scheme_pair(button::BASE_COLORS_VAR);
             border = {
                 widths: 1,
                 sides: button::color_scheme_hovered(button::BASE_COLORS_VAR).map_into(),

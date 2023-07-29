@@ -42,7 +42,6 @@ pub fn seg_from_index(&self, from: usize) {
 
 # Menu
 
-* Separator.
 * Command and icon.
 * Dynamic menus.
 * Test RTL.

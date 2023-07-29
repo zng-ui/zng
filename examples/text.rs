@@ -447,6 +447,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             corner_radius = 2;
             icon::ico_size = 16;
         };
+        rule_line::vr::margin = 0;
         children = ui_vec![
             Button! {
                 child = Icon!(zero_ui_material_icons::sharp::INSERT_DRIVE_FILE);
