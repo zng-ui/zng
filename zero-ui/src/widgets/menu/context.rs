@@ -69,7 +69,12 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
                     };
                     if apply {
                         let menu = menu.get()(ContextMenuArgs { disabled: disabled_only });
-                        pop_state = POPUP.open_config(menu, CONTEXT_MENU_ANCHOR_VAR, crate::widgets::popup::CONTEXT_CAPTURE_VAR.get());
+                        let is_shortcut = args.is_from_keyboard();
+                        pop_state = POPUP.open_config(
+                            menu,
+                            CONTEXT_MENU_ANCHOR_VAR.map_ref(move |(c, s)| if is_shortcut { s } else { c }),
+                            crate::widgets::popup::CONTEXT_CAPTURE_VAR.get(),
+                        );
                     }
                 }
             }
@@ -80,15 +85,15 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
 
 /// Set the position of the context-menu widgets opened for the widget or its descendants.
 ///
-/// Context-menus are inserted as [`POPUP`] when shown, this property defines how the tip layer
-/// is aligned with the *anchor* widget, or the cursor.
+/// This property defines two positions, `(click, shortcut)`, the first is used for context clicks
+/// from a pointer device, the second is used for context clicks from keyboard shortcut.
 ///
-/// By default tips are aligned below the cursor position at the time they are opened.
+/// By default tips are aligned to cursor position at the time they are opened or the top for shortcut.
 ///
 /// This property sets the [`CONTEXT_MENU_ANCHOR_VAR`].
 #[property(CONTEXT, default(CONTEXT_MENU_ANCHOR_VAR))]
-pub fn context_menu_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
-    with_context_var(child, CONTEXT_MENU_ANCHOR_VAR, mode)
+pub fn context_menu_anchor(child: impl UiNode, click_shortcut: impl IntoVar<(AnchorMode, AnchorMode)>) -> impl UiNode {
+    with_context_var(child, CONTEXT_MENU_ANCHOR_VAR, click_shortcut)
 }
 
 /// Context menu popup.
@@ -126,7 +131,7 @@ context_var! {
     /// Position of the context widget in relation to the anchor widget.
     ///
     /// By default the context widget is shown at the cursor.
-    pub static CONTEXT_MENU_ANCHOR_VAR: AnchorMode = AnchorMode::context_menu();
+    pub static CONTEXT_MENU_ANCHOR_VAR: (AnchorMode, AnchorMode) = (AnchorMode::context_menu(), AnchorMode::context_menu_shortcut());
 
     /// Defines the layout widget for [`ContextMenu!`].
     ///

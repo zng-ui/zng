@@ -33,8 +33,8 @@
 
 # Menu
 
-* `context_menu` anchor for keyboard open.
-    - Text editors open on the caret position too.
+* Test vertical row of buttons inside menu.
+    - Similar to Firefox context menu.
 
 # View-Process
 
