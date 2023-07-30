@@ -33,7 +33,7 @@
 
 # Menu
 
-* ContextMenu.
+* `context_menu`.
 
 # View-Process
 

@@ -2,7 +2,7 @@
 //!
 
 use crate::{
-    core::{focus::FOCUS, mouse::ClickMode},
+    core::{focus::FOCUS, gesture::CLICK_EVENT, mouse::ClickMode},
     prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, rule_line::hr, toggle},
 };
 
@@ -269,3 +269,25 @@ impl CmdButton {
 /// The button command.
 #[property(CONTEXT, capture, widget_impl(CmdButton))]
 pub fn cmd(cmd: impl IntoValue<Command>) {}
+
+/// Defines the menu items that popup when a context click happens on the widget.
+///
+/// The `menu` can any list of widgets that are valid in the `SubMenu!` children property.
+#[property(EVENT)]
+pub fn context_menu(child: impl UiNode, menu: impl UiNodeList) -> impl UiNode {
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&CLICK_EVENT);
+        }
+        UiNodeOp::Event { update } => {
+            c.event(update);
+            if let Some(args) = CLICK_EVENT.on_unhandled(update) {
+                if args.is_context() {
+                    // TODO, adapt SubMenu node
+                    let _ = menu;
+                }
+            }
+        }
+        _ => {}
+    })
+}
