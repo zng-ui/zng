@@ -33,7 +33,8 @@
 
 # Menu
 
-* `context_menu`.
+* `context_menu` anchor for keyboard open.
+    - Text editors open on the caret position too.
 
 # View-Process
 

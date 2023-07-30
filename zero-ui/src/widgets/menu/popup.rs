@@ -10,7 +10,7 @@ use crate::{
         timer::TIMERS,
         widget_instance::ArcNodeList,
     },
-    prelude::popup::POPUP,
+    prelude::popup::{PopupCloseMode, POPUP},
 };
 
 use crate::prelude::{
@@ -139,11 +139,9 @@ pub fn default_panel_fn(args: panel::PanelArgs) -> impl UiNode {
 
 /// Sub-menu popup implementation.
 pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> impl UiNode {
-    let is_context_menu = parent.is_none();
-
     let child = crate::widgets::layouts::panel::node(
         children,
-        if is_context_menu {
+        if parent.is_none() {
             super::context::PANEL_FN_VAR
         } else {
             PANEL_FN_VAR
@@ -225,7 +223,13 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                     }
                 }
             } else if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
-                if let Some(sub_self) = WIDGET.info().submenu_parent() {
+                let sub_self = if parent.is_some() {
+                    WIDGET.info().submenu_parent()
+                } else {
+                    // is context menu
+                    Some(WIDGET.info())
+                };
+                if let Some(sub_self) = sub_self {
                     let mut close_ancestors = Some(None);
 
                     if let Some(focused) = FOCUS.focused().get() {
@@ -255,9 +259,14 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                 break;
                             }
 
-                            if a.is_submenu_open().map(|s| s.get()).unwrap_or(false) {
-                                // request ancestor close the popup.
-                                POPUP_CLOSE_CMD.scoped(a.id()).notify();
+                            if let Some(v) = a.is_submenu_open() {
+                                if v.get() {
+                                    // request ancestor close the popup.
+                                    POPUP_CLOSE_CMD.scoped(a.id()).notify();
+                                }
+                            } else if a.menu().is_none() {
+                                // request context menu popup close
+                                POPUP_CLOSE_CMD.scoped(a.id()).notify_param(PopupCloseMode::Force);
                             }
                         }
                     }
