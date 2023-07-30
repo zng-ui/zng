@@ -2,12 +2,11 @@
 //!
 
 use crate::{
-    core::{focus::FOCUS, gesture::CLICK_EVENT, mouse::ClickMode},
-    prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, rule_line::hr, toggle, AnchorMode},
+    core::{focus::FOCUS, mouse::ClickMode},
+    prelude::{button, events::mouse::on_pre_mouse_enter, new_widget::*, rule_line::hr, toggle},
 };
 
-use super::popup::{PopupState, POPUP};
-
+pub mod context;
 pub mod popup;
 pub mod sub;
 
@@ -271,123 +270,3 @@ impl CmdButton {
 /// The button command.
 #[property(CONTEXT, capture, widget_impl(CmdButton))]
 pub fn cmd(cmd: impl IntoValue<Command>) {}
-
-/// Defines the context menu shown when the widget is enabled and receives a context click.
-///
-/// The `menu` can be any widget, the [`ContextMenu!`] is recommended. The menu widget is open
-/// using [`POPUP`] and is expected to close itself when the context action is finished or it
-/// loses focus.
-///
-/// [`ContextMenu!`]: struct@ContextMenu
-#[property(EVENT)]
-pub fn context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
-    context_menu_fn(child, WidgetFn::singleton(menu))
-}
-
-/// Defines the context menu function shown when the widget is enabled and receives a context click.
-///
-/// The `menu` can return any widget, the [`ContextMenu!`] is recommended.
-///
-/// [`ContextMenu!`]: struct@ContextMenu
-#[property(EVENT, default(WidgetFn::nil()))]
-pub fn context_menu_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
-    context_menu_node(child, menu, false)
-}
-
-/// Defines the context menu shown when the widget is disabled and receives a context click.
-///
-/// The `menu` can be any widget, the [`ContextMenu!`] is recommended.
-///
-/// [`ContextMenu!`]: struct@ContextMenu
-#[property(EVENT)]
-pub fn disabled_context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
-    disabled_context_menu_fn(child, WidgetFn::singleton(menu))
-}
-
-/// Defines the context menu function shown when the widget is disabled and receives a context click.
-///
-/// The `menu` can return any widget, the [`ContextMenu!`] is recommended.
-///
-/// [`ContextMenu!`]: struct@ContextMenu
-#[property(EVENT, default(WidgetFn::nil()))]
-pub fn disabled_context_menu_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
-    context_menu_node(child, menu, true)
-}
-
-fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>, disabled_only: bool) -> impl UiNode {
-    let menu = menu.into_var();
-    let mut pop_state = var(PopupState::Closed).read_only();
-
-    match_node(child, move |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&menu).sub_event(&CLICK_EVENT);
-        }
-        UiNodeOp::Deinit => {
-            POPUP.close_var(pop_state.clone());
-        }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if let Some(args) = CLICK_EVENT.on_unhandled(update) {
-                if args.is_context() {
-                    let apply = if disabled_only {
-                        args.target.interactivity().is_disabled()
-                    } else {
-                        args.target.interactivity().is_enabled()
-                    };
-                    if apply {
-                        let menu = menu.get()(ContextMenuArgs { disabled: disabled_only });
-                        pop_state = POPUP.open_config(menu, CONTEXT_MENU_ANCHOR_VAR, crate::widgets::popup::CONTEXT_CAPTURE_VAR.get());
-                    }
-                }
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Set the position of the context-menu widgets opened for the widget or its descendants.
-///
-/// Context-menus are inserted as [`POPUP`] when shown, this property defines how the tip layer
-/// is aligned with the *anchor* widget, or the cursor.
-///
-/// By default tips are aligned below the cursor position at the time they are opened.
-///
-/// This property sets the [`CONTEXT_MENU_ANCHOR_VAR`].
-#[property(CONTEXT, default(CONTEXT_MENU_ANCHOR_VAR))]
-pub fn context_menu_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
-    with_context_var(child, CONTEXT_MENU_ANCHOR_VAR, mode)
-}
-
-/// Context menu popup.
-///
-/// This widget can be set in [`context_menu`] to define a popup menu that shows when the widget receives
-/// a context click.
-///
-/// [`context_menu`]: fn@context_menu
-#[widget($crate::widgets::menu::ContextMenu {
-    ($children:expr) => {
-        children = $children;
-    }
-})]
-pub struct ContextMenu(popup::SubMenuPopup);
-impl ContextMenu {
-    fn widget_intrinsic(&mut self) {
-        // TODO parent SubMenuPopup requires a `parent_id`, we don't have this here.
-    }
-}
-
-/// Arguments for context menu widget functions.
-pub struct ContextMenuArgs {
-    /// Is `true` if the tooltip is for [`disabled_context_menu_fn`], is `false` for [`context_menu_fn`].
-    ///
-    /// [`context_menu_fn`]: fn@context_menu_fn
-    /// [`disabled_context_menu_fn`]: fn@disabled_context_menu_fn
-    pub disabled: bool,
-}
-
-context_var! {
-    /// Position of the context widget in relation to the anchor widget.
-    ///
-    /// By default the context widget is shown at the cursor.
-    pub static CONTEXT_MENU_ANCHOR_VAR: AnchorMode = AnchorMode::context_menu();
-}

@@ -540,6 +540,8 @@ pub trait SubMenuWidgetInfoExt {
     fn submenu_root(&self) -> Option<WidgetInfo>;
 
     /// Gets the alt-scope parent of the `root_submenu`.
+    ///
+    /// This is `None` if the widget is inside a context menu or not inside any menu.
     fn menu(&self) -> Option<WidgetInfo>;
 }
 impl SubMenuWidgetInfoExt for WidgetInfo {

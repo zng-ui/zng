@@ -35,7 +35,7 @@ mod lazy_;
 pub use lazy_::*;
 
 pub use crate::widgets::{
-    menu::{context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn},
+    menu::context::{context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn},
     tip::{
         disabled_tooltip, disabled_tooltip_fn, tooltip, tooltip_anchor, tooltip_context_capture, tooltip_delay, tooltip_duration,
         tooltip_fn, tooltip_interval,

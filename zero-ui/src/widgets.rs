@@ -22,7 +22,7 @@ mod flood;
 pub use flood::flood;
 
 pub mod menu;
-pub use menu::{sub::SubMenu, Menu};
+pub use menu::{context::ContextMenu, sub::SubMenu, Menu};
 
 pub mod gradient;
 pub use gradient::{conic_gradient, gradient, linear_gradient, radial_gradient};

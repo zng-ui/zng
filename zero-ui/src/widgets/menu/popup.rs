@@ -41,16 +41,13 @@ impl SubMenuPopup {
         }
 
         self.widget_builder().push_build_action(|wgt| {
-            if let Some(id) = wgt.capture_value::<WidgetId>(property_id!(Self::parent_id)) {
-                let children = wgt
-                    .capture_property(property_id!(Self::children))
-                    .map(|p| p.args.ui_node_list(0).clone())
-                    .unwrap_or_else(|| ArcNodeList::new(ui_vec![].boxed()));
+            let id = wgt.capture_value::<WidgetId>(property_id!(Self::parent_id));
+            let children = wgt
+                .capture_property(property_id!(Self::children))
+                .map(|p| p.args.ui_node_list(0).clone())
+                .unwrap_or_else(|| ArcNodeList::new(ui_vec![].boxed()));
 
-                wgt.set_child(sub_menu_popup_node(children, id))
-            } else {
-                tracing::error!("`parent_id` is required");
-            }
+            wgt.set_child(sub_menu_popup_node(children, id));
         });
     }
 
@@ -80,7 +77,7 @@ context_var! {
     pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 }
 
-/// Widget function that generates the menu layout.
+/// Widget function that generates the sub-menu popup layout.
 ///
 /// This property sets [`PANEL_FN_VAR`].
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SubMenuPopup))]
@@ -141,8 +138,17 @@ pub fn default_panel_fn(args: panel::PanelArgs) -> impl UiNode {
 }
 
 /// Sub-menu popup implementation.
-pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: WidgetId) -> impl UiNode {
-    let child = crate::widgets::layouts::panel::node(children, PANEL_FN_VAR);
+pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> impl UiNode {
+    let is_context_menu = parent.is_none();
+
+    let child = crate::widgets::layouts::panel::node(
+        children,
+        if is_context_menu {
+            super::context::PANEL_FN_VAR
+        } else {
+            PANEL_FN_VAR
+        },
+    );
     let mut close_timer = None;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -155,11 +161,9 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Widge
             close_timer = None;
         }
         UiNodeOp::Info { info } => {
-            super::sub::SUB_MENU_PARENT_CTX.with_context_value(Some(parent), || c.info(info));
-            info.set_meta(
-                &super::sub::SUB_MENU_POPUP_ID,
-                super::sub::SubMenuPopupInfo { parent: Some(parent) },
-            );
+            // sub-menus set the popup as parent in context menu.
+            super::sub::SUB_MENU_PARENT_CTX.with_context_value(Some(parent.unwrap_or_else(|| WIDGET.id())), || c.info(info));
+            info.set_meta(&super::sub::SUB_MENU_POPUP_ID, super::sub::SubMenuPopupInfo { parent });
         }
         UiNodeOp::Event { update } => {
             c.event(update);
