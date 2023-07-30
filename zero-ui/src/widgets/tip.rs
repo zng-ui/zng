@@ -299,9 +299,8 @@ pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> imp
 /// Defines if the tooltip captures the build/instantiate context and sets it
 /// in the node context.
 ///
-/// This is enabled by default and lets the tooltip use context values from the widget
-/// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
-/// There are potential issues with this, see [`ContextCapture`] for more details.
+/// This is disabled by default, it can be enabled to have the tooltip be affected by context properties
+/// in the anchor widget.
 ///
 /// Note that updates to this property do not affect tooltips already open, just subsequent tooltips.
 ///
@@ -349,9 +348,6 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 }
 
 /// Arguments for tooltip widget functions.
-///
-/// [`tooltip_fn`]: fn@tooltip_fn
-/// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
 pub struct TooltipArgs {
     /// Is `true` if the tooltip is for [`disabled_tooltip_fn`], is `false` for [`tooltip_fn`].
     ///

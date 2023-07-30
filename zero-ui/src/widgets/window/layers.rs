@@ -1061,6 +1061,19 @@ impl AnchorMode {
         }
     }
 
+    /// Mode where the widget behaves like a context-menu anchored to the cursor.
+    pub fn context_menu() -> Self {
+        AnchorMode {
+            transform: AnchorTransform::CursorOnce(AnchorOffset::in_top_left()),
+            min_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Window,
+            viewport_bound: true,
+            corner_radius: false,
+            visibility: true,
+            interactivity: false,
+        }
+    }
+
     /// Returns the mode with `transform` set.
     pub fn with_transform(mut self, transform: impl Into<AnchorTransform>) -> Self {
         self.transform = transform.into();
