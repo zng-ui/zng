@@ -212,29 +212,31 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         }
                     }
                 } else if let Some(args) = CLICK_EVENT.on(update) {
-                    args.propagation().stop();
+                    if args.is_primary() {
+                        args.propagation().stop();
 
-                    // open if is closed
-                    open_pop = if let Some(s) = open.take() {
-                        let closed = matches!(s.get(), PopupState::Closed);
-                        if !closed {
-                            if WIDGET.info().submenu_parent().is_none() {
-                                // root sub-menu, close and return focus
-                                POPUP.force_close_var(s);
-                                FOCUS.focus_exit();
-                                is_open.set(false);
-                                close_cmd.set_enabled(false);
-                            } else {
-                                // nested sub-menu.
-                                open = Some(s);
+                        // open if is closed
+                        open_pop = if let Some(s) = open.take() {
+                            let closed = matches!(s.get(), PopupState::Closed);
+                            if !closed {
+                                if WIDGET.info().submenu_parent().is_none() {
+                                    // root sub-menu, close and return focus
+                                    POPUP.force_close_var(s);
+                                    FOCUS.focus_exit();
+                                    is_open.set(false);
+                                    close_cmd.set_enabled(false);
+                                } else {
+                                    // nested sub-menu.
+                                    open = Some(s);
+                                }
                             }
+                            closed
+                        } else {
+                            true
+                        };
+                        if !open_pop && open.is_none() {
+                            is_open.set(false);
                         }
-                        closed
-                    } else {
-                        true
-                    };
-                    if !open_pop && open.is_none() {
-                        is_open.set(false);
                     }
                 } else if let Some(_args) = POPUP_CLOSE_CMD.scoped(WIDGET.id()).on(update) {
                     if let Some(s) = open.take() {
@@ -541,7 +543,7 @@ pub trait SubMenuWidgetInfoExt {
 
     /// Gets the alt-scope parent of the `root_submenu`.
     ///
-    /// This is `None` if the widget is inside a context menu or not inside any menu.
+    /// This is `None` if the widget is inside a context menu or not inside.
     fn menu(&self) -> Option<WidgetInfo>;
 }
 impl SubMenuWidgetInfoExt for WidgetInfo {
@@ -563,7 +565,12 @@ impl SubMenuWidgetInfoExt for WidgetInfo {
         } else {
             for anc in self.ancestors() {
                 if let Some(pop) = anc.meta().get(&SUB_MENU_POPUP_ID) {
-                    return self.tree().get(pop.parent?);
+                    if let Some(p) = pop.parent {
+                        return self.tree().get(p);
+                    } else {
+                        // context-menu
+                        return Some(anc);
+                    }
                 }
             }
             None

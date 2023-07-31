@@ -94,6 +94,8 @@ impl DefaultStyle {
         widget_set! {
             self;
 
+            // also see context::DefaultStyle
+
             button::replace_style = style_fn!(|_| ButtonStyle!());
             toggle::replace_style = style_fn!(|_| ToggleStyle!());
             hr::color = button::color_scheme_hovered(button::BASE_COLORS_VAR);

@@ -31,11 +31,6 @@
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
 
-# Menu
-
-* Test vertical row of buttons inside menu.
-    - Similar to Firefox context menu.
-
 # View-Process
 
 * Update to winit-29 when released.
@@ -72,3 +67,4 @@
 * Image example, Focus move from "Repeat Image.." to "Paste Image" misses.
     - Arrow key down searches for center down, does not find because of button size difference.
     - Same issue in layers example, "Layer 9" up to "TOP_MOST" misses.
+    - Found this issue in a context menu with some vertical stacked buttons.

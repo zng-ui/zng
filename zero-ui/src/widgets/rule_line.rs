@@ -152,8 +152,8 @@ pub mod hr {
 
         /// Margin around line.
         ///
-        /// Is `(5, 0)` by default, 5 top-bottom, 0 left-right.
-        pub static MARGIN_VAR: SideOffsets = (5, 0);
+        /// Is `(4, 0)` by default, 4 top-bottom, 0 left-right.
+        pub static MARGIN_VAR: SideOffsets = (4, 0);
     }
 
     /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
@@ -213,8 +213,8 @@ pub mod vr {
 
                 /// Margin around line.
         ///
-        /// Is `(0, 5)` by default, 0 top-bottom, 5 left-right.
-        pub static MARGIN_VAR: SideOffsets = (0, 5);
+        /// Is `(0, 4)` by default, 0 top-bottom, 4 left-right.
+        pub static MARGIN_VAR: SideOffsets = (0, 4);
     }
 
     /// Sets the [`COLOR_VAR`] that affects all vertical rules inside the widget.

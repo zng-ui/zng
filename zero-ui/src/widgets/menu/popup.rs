@@ -275,7 +275,13 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                 if args.is_focus_leave(WIDGET.id()) {
                     if let Some(f) = &args.new_focus {
                         let info = WIDGET.info();
-                        if let (Some(sub_menu), Some(f)) = (info.submenu_parent(), info.tree().get(f.widget_id())) {
+                        let sub_self = if parent.is_some() {
+                            info.submenu_parent()
+                        } else {
+                            // is context menu
+                            Some(info.clone())
+                        };
+                        if let (Some(sub_menu), Some(f)) = (sub_self, info.tree().get(f.widget_id())) {
                             if !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id()) {
                                 // Focus did not move to child sub-menu nor parent,
                                 // close after delay.
