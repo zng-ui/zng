@@ -226,13 +226,15 @@ pub enum Orientation2D {
     Left,
 }
 impl Orientation2D {
-    /// Check if `center` is orientation from `origin`.
-    pub fn is(self, origin: PxPoint, center: PxPoint) -> bool {
+    /// Check if `point` is orientation from `origin`.
+    ///
+    /// Returns `true` if  the point is hit by a 45º frustum cast from origin in the direction defined by the orientation.
+    pub fn point_is(self, origin: PxPoint, point: PxPoint) -> bool {
         let (a, b, c, d) = match self {
-            Orientation2D::Above => (center.y, origin.y, center.x, origin.x),
-            Orientation2D::Right => (origin.x, center.x, center.y, origin.y),
-            Orientation2D::Below => (origin.y, center.y, center.x, origin.x),
-            Orientation2D::Left => (center.x, origin.x, center.y, origin.y),
+            Orientation2D::Above => (point.y, origin.y, point.x, origin.x),
+            Orientation2D::Right => (origin.x, point.x, point.y, origin.y),
+            Orientation2D::Below => (origin.y, point.y, point.x, origin.x),
+            Orientation2D::Left => (point.x, origin.x, point.y, origin.y),
         };
 
         let mut is = false;
@@ -256,8 +258,24 @@ impl Orientation2D {
         is
     }
 
+    /// Check if `b` is orientation from `origin`.
+    ///
+    /// Returns `true` if the box `b` collides with the box `origin` in the direction defined by orientation. Also
+    /// returns `true` if the boxes already overlap.
+    pub fn box_is(self, origin: PxBox, b: PxBox) -> bool {
+        fn d_intersects(a_min: Px, a_max: Px, b_min: Px, b_max: Px) -> bool {
+            a_min < b_max && a_max > b_min
+        }
+        match self {
+            Orientation2D::Above => b.min.y <= origin.min.y && d_intersects(b.min.x, b.max.x, origin.min.x, origin.max.x),
+            Orientation2D::Left => b.min.x <= origin.min.x && d_intersects(b.min.y, b.max.y, origin.min.y, origin.max.y),
+            Orientation2D::Below => b.max.y >= origin.max.y && d_intersects(b.min.x, b.max.x, origin.min.x, origin.max.x),
+            Orientation2D::Right => b.max.x >= origin.max.x && d_intersects(b.min.y, b.max.y, origin.min.y, origin.max.y),
+        }
+    }
+
     /// Iterator that yields quadrants for efficient search in a quad-tree, if a point is inside a quadrant and
-    /// passes the [`Orientation2D::is`] check it is in the orientation, them if it is within the `max_distance` it is valid.
+    /// passes the [`Orientation2D::point_is`] check it is in the orientation, them if it is within the `max_distance` it is valid.
     pub fn search_bounds(self, origin: PxPoint, max_distance: Px, spatial_bounds: PxBox) -> impl Iterator<Item = PxBox> {
         let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
         match self {
@@ -328,6 +346,14 @@ impl Orientation2D {
         })
     }
 }
+impl crate::var::IntoVar<Option<Orientation2D>> for Orientation2D {
+    type Var = crate::var::LocalVar<Option<Orientation2D>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(Some(self))
+    }
+}
+impl crate::var::IntoValue<Option<Orientation2D>> for Orientation2D {}
 
 /// Represents a two-dimensional value that can be converted to a pixel value in a [`LAYOUT`] context.
 ///
@@ -568,5 +594,61 @@ mod tests {
     fn distance_bounds() {
         assert_eq!(DistanceKey::MAX.distance(), Some(Px::MAX));
         assert_eq!(DistanceKey::MIN.distance(), Some(Px(0)));
+    }
+
+    #[test]
+    fn orientation_box_above() {
+        let a = PxRect::from_size(PxSize::splat(Px(40)));
+        let mut b = a;
+        b.origin.y = -Px(82);
+        let a = a.to_box2d();
+        let b = b.to_box2d();
+
+        assert!(Orientation2D::Above.box_is(a, b));
+        assert!(!Orientation2D::Below.box_is(a, b));
+        assert!(!Orientation2D::Left.box_is(a, b));
+        assert!(!Orientation2D::Right.box_is(a, b));
+    }
+
+    #[test]
+    fn orientation_box_below() {
+        let a = PxRect::from_size(PxSize::splat(Px(40)));
+        let mut b = a;
+        b.origin.y = Px(42);
+        let a = a.to_box2d();
+        let b = b.to_box2d();
+
+        assert!(!Orientation2D::Above.box_is(a, b));
+        assert!(Orientation2D::Below.box_is(a, b));
+        assert!(!Orientation2D::Left.box_is(a, b));
+        assert!(!Orientation2D::Right.box_is(a, b));
+    }
+
+    #[test]
+    fn orientation_box_left() {
+        let a = PxRect::from_size(PxSize::splat(Px(40)));
+        let mut b = a;
+        b.origin.x = -Px(82);
+        let a = a.to_box2d();
+        let b = b.to_box2d();
+
+        assert!(!Orientation2D::Above.box_is(a, b));
+        assert!(!Orientation2D::Below.box_is(a, b));
+        assert!(Orientation2D::Left.box_is(a, b));
+        assert!(!Orientation2D::Right.box_is(a, b));
+    }
+
+    #[test]
+    fn orientation_box_right() {
+        let a = PxRect::from_size(PxSize::splat(Px(40)));
+        let mut b = a;
+        b.origin.x = Px(42);
+        let a = a.to_box2d();
+        let b = b.to_box2d();
+
+        assert!(!Orientation2D::Above.box_is(a, b));
+        assert!(!Orientation2D::Below.box_is(a, b));
+        assert!(!Orientation2D::Left.box_is(a, b));
+        assert!(Orientation2D::Right.box_is(a, b));
     }
 }

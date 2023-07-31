@@ -1146,7 +1146,7 @@ impl WidgetFocusInfo {
     fn directional_from(
         &self,
         scope: &WidgetFocusInfo,
-        origin: PxPoint,
+        origin: PxBox,
         orientation: Orientation2D,
         skip_self: bool,
         any: bool,
@@ -1163,9 +1163,18 @@ impl WidgetFocusInfo {
             }
         };
 
+        let origin_center = origin.center();
+
         let mut oriented = scope
             .info
-            .oriented(origin, Px::MAX, orientation)
+            .oriented(origin_center, Px::MAX, orientation)
+            .chain(
+                // nearby boxes (not overlapped)
+                scope
+                    .info
+                    .oriented_box(origin, origin.width().max(origin.height()) * Px(2), orientation)
+                    .filter(|w| !w.inner_bounds().to_box2d().intersects(&origin)),
+            )
             .focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets())
             .filter(|w| w.info.id() != scope_id);
 
@@ -1184,7 +1193,7 @@ impl WidgetFocusInfo {
 
         for w in oriented {
             if filter(&w) {
-                let dist = w.info.distance_key(origin);
+                let dist = w.info.distance_key(origin_center);
 
                 let mut is_ancestor = None;
                 let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| w.info.is_ancestor(&self.info));
@@ -1214,7 +1223,7 @@ impl WidgetFocusInfo {
 
     fn directional_next(&self, direction_vals: Orientation2D) -> Option<WidgetFocusInfo> {
         self.scope()
-            .and_then(|s| self.directional_from(&s, self.info.center(), direction_vals, false, false))
+            .and_then(|s| self.directional_from(&s, self.info.inner_bounds().to_box2d(), direction_vals, false, false))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1240,21 +1249,27 @@ impl WidgetFocusInfo {
     /// Widget to focus when pressing the arrow up key from this widget.
     pub fn next_up(&self) -> Option<WidgetFocusInfo> {
         let _span = tracing::trace_span!("next_up").entered();
-        self.next_up_from(self.info.center())
+        self.next_up_from(self.info.inner_bounds().to_box2d())
     }
-    fn next_up_from(&self, point: PxPoint) -> Option<WidgetFocusInfo> {
+    fn next_up_from(&self, origin: PxBox) -> Option<WidgetFocusInfo> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up_from(point)),
+                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up_from(origin)),
                 DirectionalNav::Contained => self.focusable_up(),
                 DirectionalNav::Cycle => {
                     self.focusable_up().or_else(|| {
                         // next up from the same X but from the bottom segment of scope.
-                        let mut from_pt = point;
+                        let mut from_pt = origin.center();
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from(&scope, from_pt, Orientation2D::Above, false, false)
+                        self.directional_from(
+                            &scope,
+                            PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                            Orientation2D::Above,
+                            false,
+                            false,
+                        )
                     })
                 }
             }
@@ -1266,20 +1281,26 @@ impl WidgetFocusInfo {
     /// Widget to focus when pressing the arrow right key from this widget.
     pub fn next_right(&self) -> Option<WidgetFocusInfo> {
         let _span = tracing::trace_span!("next_right").entered();
-        self.next_right_from(self.info.center())
+        self.next_right_from(self.info.inner_bounds().to_box2d())
     }
-    fn next_right_from(&self, point: PxPoint) -> Option<WidgetFocusInfo> {
+    fn next_right_from(&self, origin: PxBox) -> Option<WidgetFocusInfo> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right_from(point)),
+                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right_from(origin)),
                 DirectionalNav::Contained => self.focusable_right(),
                 DirectionalNav::Cycle => self.focusable_right().or_else(|| {
                     // next right from the same Y but from the left segment of scope.
-                    let mut from_pt = point;
+                    let mut from_pt = origin.center();
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from(&scope, from_pt, Orientation2D::Right, false, false)
+                    self.directional_from(
+                        &scope,
+                        PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                        Orientation2D::Right,
+                        false,
+                        false,
+                    )
                 }),
             }
         } else {
@@ -1290,20 +1311,26 @@ impl WidgetFocusInfo {
     /// Widget to focus when pressing the arrow down key from this widget.
     pub fn next_down(&self) -> Option<WidgetFocusInfo> {
         let _span = tracing::trace_span!("next_down").entered();
-        self.next_down_from(self.info.center())
+        self.next_down_from(self.info.inner_bounds().to_box2d())
     }
-    fn next_down_from(&self, point: PxPoint) -> Option<WidgetFocusInfo> {
+    fn next_down_from(&self, origin: PxBox) -> Option<WidgetFocusInfo> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down_from(point)),
+                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down_from(origin)),
                 DirectionalNav::Contained => self.focusable_down(),
                 DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
-                    let mut from_pt = point;
+                    let mut from_pt = origin.center();
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from(&scope, from_pt, Orientation2D::Below, false, false)
+                    self.directional_from(
+                        &scope,
+                        PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                        Orientation2D::Below,
+                        false,
+                        false,
+                    )
                 }),
             }
         } else {
@@ -1314,20 +1341,26 @@ impl WidgetFocusInfo {
     /// Widget to focus when pressing the arrow left key from this widget.
     pub fn next_left(&self) -> Option<WidgetFocusInfo> {
         let _span = tracing::trace_span!("next_left").entered();
-        self.next_left_from(self.info.center())
+        self.next_left_from(self.info.inner_bounds().to_box2d())
     }
-    fn next_left_from(&self, point: PxPoint) -> Option<WidgetFocusInfo> {
+    fn next_left_from(&self, origin: PxBox) -> Option<WidgetFocusInfo> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left_from(point)),
+                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left_from(origin)),
                 DirectionalNav::Contained => self.focusable_left(),
                 DirectionalNav::Cycle => self.focusable_left().or_else(|| {
                     // next left from the same Y but from the right segment of scope.
-                    let mut from_pt = point;
+                    let mut from_pt = origin.center();
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from(&scope, from_pt, Orientation2D::Left, false, false)
+                    self.directional_from(
+                        &scope,
+                        PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                        Orientation2D::Left,
+                        false,
+                        false,
+                    )
                 }),
             }
         } else {
@@ -1392,7 +1425,7 @@ impl WidgetFocusInfo {
         }
 
         let mut nav = already_found;
-        let from_pt = self.info.center();
+        let from_pt = self.info.inner_bounds().to_box2d();
 
         if !nav.contains(FocusNavAction::UP)
             && self
@@ -1433,30 +1466,66 @@ impl WidgetFocusInfo {
                 DirectionalNav::Cycle => {
                     let scope_bounds = scope.info.inner_bounds();
                     if !nav.contains(FocusNavAction::UP) {
-                        let mut from_pt = from_pt;
+                        let mut from_pt = from_pt.center();
                         from_pt.y = scope_bounds.max().y;
-                        if self.directional_from(scope, from_pt, Orientation2D::Above, true, true).is_some() {
+                        if self
+                            .directional_from(
+                                scope,
+                                PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                                Orientation2D::Above,
+                                true,
+                                true,
+                            )
+                            .is_some()
+                        {
                             nav |= FocusNavAction::UP;
                         }
                     }
                     if !nav.contains(FocusNavAction::RIGHT) {
-                        let mut from_pt = from_pt;
+                        let mut from_pt = from_pt.center();
                         from_pt.x = scope_bounds.min().x;
-                        if self.directional_from(scope, from_pt, Orientation2D::Right, true, true).is_some() {
+                        if self
+                            .directional_from(
+                                scope,
+                                PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                                Orientation2D::Right,
+                                true,
+                                true,
+                            )
+                            .is_some()
+                        {
                             nav |= FocusNavAction::RIGHT;
                         }
                     }
                     if !nav.contains(FocusNavAction::DOWN) {
-                        let mut from_pt = from_pt;
+                        let mut from_pt = from_pt.center();
                         from_pt.y = scope_bounds.min().y;
-                        if self.directional_from(scope, from_pt, Orientation2D::Below, true, true).is_some() {
+                        if self
+                            .directional_from(
+                                scope,
+                                PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                                Orientation2D::Below,
+                                true,
+                                true,
+                            )
+                            .is_some()
+                        {
                             nav |= FocusNavAction::DOWN;
                         }
                     }
                     if !nav.contains(FocusNavAction::LEFT) {
-                        let mut from_pt = from_pt;
+                        let mut from_pt = from_pt.center();
                         from_pt.x = scope_bounds.max().x;
-                        if self.directional_from(scope, from_pt, Orientation2D::Left, true, true).is_some() {
+                        if self
+                            .directional_from(
+                                scope,
+                                PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
+                                Orientation2D::Left,
+                                true,
+                                true,
+                            )
+                            .is_some()
+                        {
                             nav |= FocusNavAction::LEFT;
                         }
                     }

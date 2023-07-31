@@ -1,13 +1,3 @@
-* Image example, Focus move from "Repeat Image.." to "Paste Image" misses.
-    - Arrow key down searches for center down, does not find because of button size difference.
-    - Same issue in layers example, "Layer 9" up to "TOP_MOST" misses.
-    - Found this issue in a context menu with some vertical stacked buttons.
-    - Lets improve direction nav:
-    - See `WidgetInfo::oriented` and `Orientation2D::is`.
-        - Maybe oriented can intersect boxes with the frustum.
-        - Or maybe the source can be collision checked in the direction.
-        - Or maybe both, then the closest found is used.
-
 # TextInput
 
 * Implement scroll integration:
