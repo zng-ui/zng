@@ -476,7 +476,7 @@ impl AppExtension for FocusManager {
                     }
                 }
             }
-            if request.is_some() {
+            if request.is_none() {
                 if let Some(args) = focus.continue_focus() {
                     self.notify(&mut focus, Some(args));
                 }

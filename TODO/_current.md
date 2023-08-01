@@ -1,5 +1,4 @@
-* Scroll inside other scroll adds padding?
-* Scroll should focus first child if possible.
+* Focus scope continue nav inside scope cycle does not cycle.
 
 # TextInput
 

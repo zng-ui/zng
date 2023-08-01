@@ -33,6 +33,8 @@ impl Scroll {
             child_align = Align::CENTER;
             clip_to_bounds = true;
             focusable = true;
+            focus_scope = true;
+            focus_scope_behavior = crate::core::focus::FocusScopeOnFocus::FirstDescendant;
         }
         self.widget_builder().push_build_action(on_build);
     }

@@ -405,7 +405,6 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                 get_caret_status = editor.caret_status.clone();
                 get_lines_wrap_count = editor.lines.clone();
                 border = unset!;
-                focus_on_init = true;
             };
         };
 
