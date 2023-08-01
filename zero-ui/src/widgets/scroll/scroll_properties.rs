@@ -68,7 +68,7 @@ context_var! {
     /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
     ///
     /// Default is minimal 0dip on all sides.
-    pub static SCROLL_TO_FOCUSED_MODE_VAR: ScrollToMode = ScrollToMode::Minimal {
+    pub static SCROLL_TO_FOCUSED_MODE_VAR: Option<ScrollToMode> = ScrollToMode::Minimal {
         margin: SideOffsets::new_all(0.dip())
     };
 
@@ -206,8 +206,10 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 }
 
 /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
+///
+/// Default is minimal 0dip on all sides, set to `None` to disable.
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR), widget_impl(Scroll))]
-pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
+pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<ScrollToMode>>) -> impl UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
 }
 

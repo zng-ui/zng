@@ -514,12 +514,10 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 // confirmed, target is descendant
                                 if us.is_scroll() {
                                     // we are a scroll.
-
-                                    let bounds = target.bounds_info();
-                                    let mode = SCROLL_TO_FOCUSED_MODE_VAR.get();
-
-                                    scroll_to = Some((bounds, mode));
-                                    WIDGET.layout();
+                                    scroll_to = SCROLL_TO_FOCUSED_MODE_VAR.get().map(|m| (target.bounds_info(), m));
+                                    if scroll_to.is_some() {
+                                        WIDGET.layout();
+                                    }
                                 }
                             }
                         }

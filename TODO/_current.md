@@ -1,7 +1,15 @@
+* Scroll in grid not working.
+    - Scrollbar thumb wrong size.
+* Resizing text editor example causes infinite loop.
+* Scroll inside other scroll adds padding?
+* Scroll should focus first child if possible.
+* `focus_on_init` did not work in text.
+
 # TextInput
 
 * Implement scroll integration:
-    - scroll to caret
+    - Scroll to caret.
+
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME

@@ -341,6 +341,14 @@ impl Default for ScrollToMode {
         Self::minimal(10)
     }
 }
+impl IntoVar<Option<ScrollToMode>> for ScrollToMode {
+    type Var = crate::core::var::LocalVar<Option<ScrollToMode>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::core::var::LocalVar(Some(self))
+    }
+}
+impl IntoValue<Option<ScrollToMode>> for ScrollToMode {}
 
 /// Scroll the scroll widget so that the child widget is fully visible.
 ///

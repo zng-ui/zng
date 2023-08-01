@@ -16,7 +16,7 @@ use crate::{
         text::*,
         window::WindowLoadingHandle,
     },
-    prelude::new_widget::*,
+    prelude::{new_widget::*, scroll::SCROLL},
 };
 use zero_ui::core::{
     clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
@@ -733,10 +733,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending.insert(PendingLayout::RESHAPE);
             }
 
-            let r = self.txt.as_mut().unwrap();
+            let txt = self.txt.as_mut().unwrap();
 
-            if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
-                r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
+            if font_size != txt.fonts.requested_size() || !txt.fonts.is_sized_from(&t.faces) {
+                txt.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
                 self.pending.insert(PendingLayout::RESHAPE);
             }
 
@@ -745,18 +745,18 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if self.shaping_args.max_width != max_width {
                     self.shaping_args.max_width = max_width;
 
-                    if !self.pending.contains(PendingLayout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
+                    if !self.pending.contains(PendingLayout::RESHAPE) && txt.shaped_text.can_rewrap(max_width) {
                         self.pending.insert(PendingLayout::RESHAPE);
                     }
                 }
             } else if self.shaping_args.max_width != Px::MAX {
                 self.shaping_args.max_width = Px::MAX;
-                if !self.pending.contains(PendingLayout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
+                if !self.pending.contains(PendingLayout::RESHAPE) && txt.shaped_text.can_rewrap(Px::MAX) {
                     self.pending.insert(PendingLayout::RESHAPE);
                 }
             }
 
-            if r.caret_origin.is_none() {
+            if txt.caret_origin.is_none() {
                 self.pending.insert(PendingLayout::CARET);
             }
 
@@ -770,19 +770,24 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                     InlineConstraints::Layout(l) => {
                         if !self.pending.contains(PendingLayout::RESHAPE)
-                            && (Some(l.first_segs.len()) != r.shaped_text.line(0).map(|l| l.segs_len())
+                            && (Some(l.first_segs.len()) != txt.shaped_text.line(0).map(|l| l.segs_len())
                                 || Some(l.last_segs.len())
-                                    != r.shaped_text
-                                        .line(r.shaped_text.lines_len().saturating_sub(1))
+                                    != txt
+                                        .shaped_text
+                                        .line(txt.shaped_text.lines_len().saturating_sub(1))
                                         .map(|l| l.segs_len()))
                         {
                             self.pending.insert(PendingLayout::RESHAPE);
                         }
 
                         if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-                            && (r.shaped_text.mid_clear() != l.mid_clear
-                                || r.shaped_text.line(0).map(|l| l.rect()) != Some(l.first)
-                                || r.shaped_text.line(r.shaped_text.lines_len().saturating_sub(1)).map(|l| l.rect()) != Some(l.last))
+                            && (txt.shaped_text.mid_clear() != l.mid_clear
+                                || txt.shaped_text.line(0).map(|l| l.rect()) != Some(l.first)
+                                || txt
+                                    .shaped_text
+                                    .line(txt.shaped_text.lines_len().saturating_sub(1))
+                                    .map(|l| l.rect())
+                                    != Some(l.last))
                         {
                             self.pending.insert(PendingLayout::RESHAPE_LINES);
                         }
@@ -794,13 +799,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if !self.pending.contains(PendingLayout::RESHAPE_LINES) {
-                let size = r.shaped_text.size();
-                if metrics.constraints().fill_size_or(size) != r.shaped_text.align_size() {
+                let size = txt.shaped_text.size();
+                if metrics.constraints().fill_size_or(size) != txt.shaped_text.align_size() {
                     self.pending.insert(PendingLayout::RESHAPE_LINES);
                 }
             }
 
-            let font = r.fonts.best();
+            let font = txt.fonts.best();
 
             let space_len = font.space_x_advance();
             let dft_tab_len = space_len * 3;
@@ -854,21 +859,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 })
             };
 
-            if !self.pending.contains(PendingLayout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
+            if !self.pending.contains(PendingLayout::OVERLINE) && (txt.overline_thickness == Px(0) && overline > Px(0)) {
                 self.pending.insert(PendingLayout::OVERLINE);
             }
-            if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+            if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (txt.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
                 self.pending.insert(PendingLayout::STRIKETHROUGH);
             }
-            if !self.pending.contains(PendingLayout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
+            if !self.pending.contains(PendingLayout::UNDERLINE) && (txt.underline_thickness == Px(0) && underline > Px(0)) {
                 self.pending.insert(PendingLayout::UNDERLINE);
             }
-            r.overline_thickness = overline;
-            r.strikethrough_thickness = strikethrough;
-            r.underline_thickness = underline;
+            txt.overline_thickness = overline;
+            txt.strikethrough_thickness = strikethrough;
+            txt.underline_thickness = underline;
 
             let align = TEXT_ALIGN_VAR.get();
-            if !self.pending.contains(PendingLayout::RESHAPE_LINES) && align != r.shaped_text.align() {
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES) && align != txt.shaped_text.align() {
                 self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
@@ -877,12 +882,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             */
 
             if self.pending.contains(PendingLayout::RESHAPE) {
-                r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
+                txt.shaped_text = txt.fonts.shape_text(&t.text, &self.shaping_args);
                 self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
             }
 
             if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-                && r.shaped_text.align_size() != metrics.constraints().fill_size_or(r.shaped_text.block_size())
+                && txt.shaped_text.align_size() != metrics.constraints().fill_size_or(txt.shaped_text.block_size())
             {
                 self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
@@ -891,7 +896,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.last_layout = (metrics.clone(), self.shaping_args.inline_constraints);
 
                 if self.pending.contains(PendingLayout::RESHAPE_LINES) {
-                    r.shaped_text.reshape_lines(
+                    txt.shaped_text.reshape_lines(
                         metrics.constraints(),
                         metrics.inline_constraints().map(|c| c.layout()),
                         align,
@@ -899,58 +904,58 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         line_spacing,
                         metrics.direction(),
                     );
-                    r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
-                    t.baseline.store(r.shaped_text.baseline(), Ordering::Relaxed);
-                    r.caret_origin = None;
+                    txt.shaped_text_version = txt.shaped_text_version.wrapping_add(1);
+                    t.baseline.store(txt.shaped_text.baseline(), Ordering::Relaxed);
+                    txt.caret_origin = None;
                 }
                 if self.pending.contains(PendingLayout::OVERLINE) {
-                    if r.overline_thickness > Px(0) {
-                        r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
+                    if txt.overline_thickness > Px(0) {
+                        txt.overlines = txt.shaped_text.lines().map(|l| l.overline()).collect();
                     } else {
-                        r.overlines = vec![];
+                        txt.overlines = vec![];
                     }
                 }
                 if self.pending.contains(PendingLayout::STRIKETHROUGH) {
-                    if r.strikethrough_thickness > Px(0) {
-                        r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
+                    if txt.strikethrough_thickness > Px(0) {
+                        txt.strikethroughs = txt.shaped_text.lines().map(|l| l.strikethrough()).collect();
                     } else {
-                        r.strikethroughs = vec![];
+                        txt.strikethroughs = vec![];
                     }
                 }
                 if self.pending.contains(PendingLayout::UNDERLINE) {
-                    if r.underline_thickness > Px(0) {
+                    if txt.underline_thickness > Px(0) {
                         let skip = UNDERLINE_SKIP_VAR.get();
                         match UNDERLINE_POSITION_VAR.get() {
                             UnderlinePosition::Font => {
                                 if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                    r.underlines = r
+                                    txt.underlines = txt
                                         .shaped_text
                                         .lines()
-                                        .flat_map(|l| l.underline_skip_glyphs_and_spaces(r.underline_thickness))
+                                        .flat_map(|l| l.underline_skip_glyphs_and_spaces(txt.underline_thickness))
                                         .collect();
                                 } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                    r.underlines = r
+                                    txt.underlines = txt
                                         .shaped_text
                                         .lines()
-                                        .flat_map(|l| l.underline_skip_glyphs(r.underline_thickness))
+                                        .flat_map(|l| l.underline_skip_glyphs(txt.underline_thickness))
                                         .collect();
                                 } else if skip.contains(UnderlineSkip::SPACES) {
-                                    r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                    txt.underlines = txt.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
                                 } else {
-                                    r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
+                                    txt.underlines = txt.shaped_text.lines().map(|l| l.underline()).collect();
                                 }
                             }
                             UnderlinePosition::Descent => {
                                 // descent clears all glyphs, so we only need to care about spaces
                                 if skip.contains(UnderlineSkip::SPACES) {
-                                    r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
+                                    txt.underlines = txt.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
                                 } else {
-                                    r.underlines = r.shaped_text.lines().map(|l| l.underline_descent()).collect();
+                                    txt.underlines = txt.shaped_text.lines().map(|l| l.underline_descent()).collect();
                                 }
                             }
                         }
                     } else {
-                        r.underlines = vec![];
+                        txt.underlines = vec![];
                     }
                 }
 
@@ -958,12 +963,23 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let resolved_text = ResolvedText::get();
                     let mut caret = resolved_text.caret.lock();
                     if let Some(index) = &mut caret.index {
-                        *index = r.shaped_text.snap_caret_line(*index);
-                        let p = r.shaped_text.caret_origin(*index, resolved_text.text.text());
+                        *index = txt.shaped_text.snap_caret_line(*index);
+                        let p = txt.shaped_text.caret_origin(*index, resolved_text.text.text());
                         if !caret.used_retained_x {
-                            r.caret_retained_x = p.x;
+                            txt.caret_retained_x = p.x;
                         }
-                        r.caret_origin = Some(p);
+                        txt.caret_origin = Some(p);
+
+                        if let Some(scroll) = SCROLL.try_id() {
+                            if let Some(scroll) = WINDOW.info().get(scroll) {
+                                let scroll_origin = scroll.inner_bounds().origin;
+                                let point_in_window = txt.render_info.get_mut().transform.transform_point(p);
+                                SCROLL.chase_vertical(move |relative_scroll| {
+                                    println!("!!: {:?}", (relative_scroll, scroll_origin, point_in_window));
+                                    relative_scroll
+                                });
+                            }
+                        }
                     }
                 }
 
@@ -971,7 +987,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
             self.txt_is_measured = is_measure;
 
-            metrics.constraints().fill_size_or(r.shaped_text.size())
+            metrics.constraints().fill_size_or(txt.shaped_text.size())
         }
 
         fn ensure_layout_for_render(&mut self) {

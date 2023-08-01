@@ -362,69 +362,58 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             editor.on_close_requested(args).await;
         });
         min_width = 450;
-        child = Grid! {
-            columns = ui_vec![
-                grid::Column!(),
-                grid::Column!(1.lft()),
-            ];
-            rows = ui_vec![
-                grid::Row!(),
-                grid::Row!(1.lft()),
-                grid::Row!(),
-            ];
-            cells = ui_vec![
-                // menu
-                text_editor_menu(editor.clone()),
-                // editor
-                TextInput! {
-                    id = editor.input_wgt_id();
-                    grid::cell::at = (1, 1);
-                    txt = editor.txt.clone();
-                    get_caret_status = editor.caret_status.clone();
-                    get_lines_wrap_count = editor.lines.clone();
-                },
-                // line numbers
-                Text! {
-                    grid::cell::at = (0, 1);
-                    border = 1, BorderStyle::Hidden; // 1dip + 7dip to px
-                    padding = (7, 4);
-                    txt_align = Align::TOP_RIGHT;
-                    opacity = 80.pct();
-                    min_width = 24;
-                    txt = editor.lines.map(|s| {
-                        use std::fmt::Write;
-                        let mut txt = String::new();
-                        match s {
-                            text::LinesWrapCount::NoWrap(len) => {
-                                for i in 1..=(*len).max(1) {
-                                    let _ = writeln!(&mut txt, "{i}");
-                                }
-                            },
-                            text::LinesWrapCount::Wrap(counts) => {
-                                for (i, &c) in counts.iter().enumerate() {
-                                    let _ = write!(&mut txt, "{}", i + 1);
-                                    for _ in 0..c {
-                                        txt.push('\n');
-                                    }
+
+        child_insert_above = text_editor_menu(editor.clone()), 0;
+
+        child = Scroll! {
+            mode = ScrollMode::VERTICAL;
+            child_align = Align::FILL;
+            scroll_to_focused_mode = None;
+
+            // line numbers
+            child_insert_start = Text! {
+                padding = (7, 4);
+                txt_align = Align::TOP_RIGHT;
+                opacity = 80.pct();
+                min_width = 24;
+                txt = editor.lines.map(|s| {
+                    use std::fmt::Write;
+                    let mut txt = String::new();
+                    match s {
+                        text::LinesWrapCount::NoWrap(len) => {
+                            for i in 1..=(*len).max(1) {
+                                let _ = writeln!(&mut txt, "{i}");
+                            }
+                        },
+                        text::LinesWrapCount::Wrap(counts) => {
+                            for (i, &c) in counts.iter().enumerate() {
+                                let _ = write!(&mut txt, "{}", i + 1);
+                                for _ in 0..c {
+                                    txt.push('\n');
                                 }
                             }
                         }
-                        Txt::from_str(&txt)
-                    });
-                },
-                // status
-                // Text! {
-                //     grid::cell::at = (1, 2);
-                //     txt = FOCUS.focused().map_debug();
-                // },
-                Text! {
-                    grid::cell::at = (1, 2);
-                    margin = (0, 4);
-                    align = Align::RIGHT;
-                    txt = editor.caret_status.map_to_text();
-                },
-            ];
-        }
+                    }
+                    Txt::from_str(&txt)
+                });
+            }, 0;
+
+            // editor
+            child = TextInput! {
+                id = editor.input_wgt_id();
+                txt = editor.txt.clone();
+                get_caret_status = editor.caret_status.clone();
+                get_lines_wrap_count = editor.lines.clone();
+                border = unset!;
+                focus_on_init = true;
+            };
+        };
+
+        child_insert_below = Text! {
+            margin = (0, 4);
+            align = Align::RIGHT;
+            txt = editor.caret_status.map_to_text();
+        }, 0;
     }
 }
 
@@ -435,9 +424,9 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let gt_500 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(500)));
     Stack! {
         id = "menu";
+        align = Align::FILL_TOP;
         alt_focus_scope = true;
         focus_click_behavior = FocusClickBehavior::Exit;
-        grid::cell::at = (1, 0);
         spacing = 4;
         direction = StackDirection::left_to_right();
         padding = 4;
