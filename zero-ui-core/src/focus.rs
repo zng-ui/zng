@@ -469,12 +469,17 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_SV.write();
-            if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
-                if args.is_focus(window_id) {
-                    request = Some(FocusRequest::direct(widget_id, highlight));
+            if args.new_focus.is_some() {
+                if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
+                    if args.is_focus(window_id) {
+                        request = Some(FocusRequest::direct(widget_id, highlight));
+                    }
                 }
-            } else if let Some(args) = focus.continue_focus() {
-                self.notify(&mut focus, Some(args));
+            }
+            if request.is_some() {
+                if let Some(args) = focus.continue_focus() {
+                    self.notify(&mut focus, Some(args));
+                }
             }
 
             if let Some(window_id) = args.closed() {

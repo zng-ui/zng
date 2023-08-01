@@ -975,7 +975,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 let scroll_origin = scroll.inner_bounds().origin;
                                 let point_in_window = txt.render_info.get_mut().transform.transform_point(p);
                                 SCROLL.chase_vertical(move |relative_scroll| {
-                                    println!("!!: {:?}", (relative_scroll, scroll_origin, point_in_window));
+                                    // TODO
                                     relative_scroll
                                 });
                             }

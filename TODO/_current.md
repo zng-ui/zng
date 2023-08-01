@@ -1,7 +1,7 @@
 * Resizing text editor example causes infinite loop.
 * Scroll inside other scroll adds padding?
 * Scroll should focus first child if possible.
-* `focus_on_init` did not work in text.
+* Clicking the top of the scrollbar in text editor does not scroll to top.
 
 # TextInput
 
