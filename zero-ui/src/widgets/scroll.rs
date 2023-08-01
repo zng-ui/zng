@@ -136,19 +136,19 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
         }
         UiNodeOp::Layout { wl, final_size } => {
             // scrollbars
-            let c = LAYOUT.constraints();
+            let c = LAYOUT.constraints().with_new_min(Px(0), Px(0));
             {
-                joiner.width = LAYOUT.with_constraints(c.with_new_min_y(Px(0)).with_fill(false, true), || {
+                joiner.width = LAYOUT.with_constraints(c.with_fill(false, true), || {
                     children.with_node(1, |n| n.measure(&mut wl.to_measure(None))).width
                 });
-                joiner.height = LAYOUT.with_constraints(c.with_new_min_y(Px(0)).with_fill(true, false), || {
+                joiner.height = LAYOUT.with_constraints(c.with_fill(true, false), || {
                     children.with_node(2, |n| n.measure(&mut wl.to_measure(None))).height
                 });
             }
-            joiner.width = LAYOUT.with_constraints(c.with_new_min_x(Px(0)).with_fill(false, true).with_less_y(joiner.height), || {
+            joiner.width = LAYOUT.with_constraints(c.with_fill(false, true).with_less_y(joiner.height), || {
                 children.with_node(1, |n| n.layout(wl)).width
             });
-            joiner.height = LAYOUT.with_constraints(c.with_new_min_y(Px(0)).with_fill(true, false).with_less_x(joiner.width), || {
+            joiner.height = LAYOUT.with_constraints(c.with_fill(true, false).with_less_x(joiner.width), || {
                 children.with_node(2, |n| n.layout(wl)).height
             });
 
