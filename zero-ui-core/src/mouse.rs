@@ -1362,9 +1362,7 @@ impl AppExtension for MouseManager {
                     // time to repeat
                     info.repeat_count = info.repeat_count.saturating_add(1);
 
-                    let cancel = info.repeat_count == 1 && info.press_stop_handle.is_stopped();
-
-                    if let (false, Some(dv), Ok(tree)) = (cancel, self.pos_device, WINDOWS.widget_tree(info.path.window_id())) {
+                    if let (Some(dv), Ok(tree)) = (self.pos_device, WINDOWS.widget_tree(info.path.window_id())) {
                         // probably still valid
 
                         let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor().0));
