@@ -1,7 +1,5 @@
-* Resizing text editor example causes infinite loop.
 * Scroll inside other scroll adds padding?
 * Scroll should focus first child if possible.
-* Clicking the top of the scrollbar in text editor does not scroll to top.
 
 # TextInput
 
