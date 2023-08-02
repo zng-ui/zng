@@ -331,11 +331,6 @@ impl SegmentedText {
         })
     }
 
-    /// Returns the number of segments.
-    pub fn len(&self) -> usize {
-        self.segments.len()
-    }
-
     /// Returns `true` if text and segments are empty.
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()

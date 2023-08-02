@@ -662,7 +662,7 @@ impl TextSelectOp {
         Self::new(|| {
             let resolved = ResolvedText::get();
             let mut c = CaretIndex::ZERO;
-            c.index = resolved.text.len();
+            c.index = resolved.text.text().len();
             let mut caret = resolved.caret.lock();
             caret.set_index(c);
             caret.used_retained_x = false;

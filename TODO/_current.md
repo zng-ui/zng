@@ -5,7 +5,6 @@
 # TextInput
 
 * Scroll to caret not fully scrolling 2 lines when scrolling downwards?
-* `CTRL+END` is not moving to the end of the file.
 
 * Implement selection.
     - Input replaces selection.
