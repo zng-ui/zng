@@ -1221,9 +1221,13 @@ impl WidgetFocusInfo {
         }
     }
 
-    fn directional_next(&self, direction_vals: Orientation2D) -> Option<WidgetFocusInfo> {
+    fn directional_next(&self, orientation: Orientation2D) -> Option<WidgetFocusInfo> {
+        self.directional_next_from(orientation, self.info.inner_bounds().to_box2d())
+    }
+
+    fn directional_next_from(&self, orientation: Orientation2D, from: PxBox) -> Option<WidgetFocusInfo> {
         self.scope()
-            .and_then(|s| self.directional_from(&s, self.info.inner_bounds().to_box2d(), direction_vals, false, false))
+            .and_then(|s| self.directional_from(&s, from, orientation, false, false))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1256,10 +1260,15 @@ impl WidgetFocusInfo {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up_from(origin)),
-                DirectionalNav::Contained => self.focusable_up(),
+                DirectionalNav::Continue => self.directional_next_from(Orientation2D::Above, origin).or_else(|| {
+                    let mut from = scope.info.inner_bounds();
+                    from.origin.y -= Px(1);
+                    from.size.height = Px(1);
+                    scope.next_up_from(from.to_box2d())
+                }),
+                DirectionalNav::Contained => self.directional_next_from(Orientation2D::Above, origin),
                 DirectionalNav::Cycle => {
-                    self.focusable_up().or_else(|| {
+                    self.directional_next_from(Orientation2D::Above, origin).or_else(|| {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = origin.center();
                         from_pt.y = scope.info.inner_bounds().max().y;
@@ -1288,9 +1297,14 @@ impl WidgetFocusInfo {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right_from(origin)),
-                DirectionalNav::Contained => self.focusable_right(),
-                DirectionalNav::Cycle => self.focusable_right().or_else(|| {
+                DirectionalNav::Continue => self.directional_next_from(Orientation2D::Right, origin).or_else(|| {
+                    let mut from = scope.info.inner_bounds();
+                    from.origin.x += from.size.width + Px(1);
+                    from.size.width = Px(1);
+                    scope.next_right_from(from.to_box2d())
+                }),
+                DirectionalNav::Contained => self.directional_next_from(Orientation2D::Right, origin),
+                DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Right, origin).or_else(|| {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = origin.center();
                     from_pt.x = scope.info.inner_bounds().min().x;
@@ -1318,9 +1332,14 @@ impl WidgetFocusInfo {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down_from(origin)),
-                DirectionalNav::Contained => self.focusable_down(),
-                DirectionalNav::Cycle => self.focusable_down().or_else(|| {
+                DirectionalNav::Continue => self.directional_next_from(Orientation2D::Below, origin).or_else(|| {
+                    let mut from = scope.info.inner_bounds();
+                    from.origin.y += from.size.height + Px(1);
+                    from.size.height = Px(1);
+                    scope.next_down_from(from.to_box2d())
+                }),
+                DirectionalNav::Contained => self.directional_next_from(Orientation2D::Below, origin),
+                DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Below, origin).or_else(|| {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = origin.center();
                     from_pt.y = scope.info.inner_bounds().min().y;
@@ -1348,9 +1367,14 @@ impl WidgetFocusInfo {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left_from(origin)),
-                DirectionalNav::Contained => self.focusable_left(),
-                DirectionalNav::Cycle => self.focusable_left().or_else(|| {
+                DirectionalNav::Continue => self.directional_next_from(Orientation2D::Left, origin).or_else(|| {
+                    let mut from = scope.info.inner_bounds();
+                    from.origin.x -= Px(1);
+                    from.size.width = Px(1);
+                    scope.next_left_from(from.to_box2d())
+                }),
+                DirectionalNav::Contained => self.directional_next_from(Orientation2D::Left, origin),
+                DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Left, origin).or_else(|| {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = origin.center();
                     from_pt.x = scope.info.inner_bounds().max().x;
@@ -1527,6 +1551,20 @@ impl WidgetFocusInfo {
                             .is_some()
                         {
                             nav |= FocusNavAction::LEFT;
+                        }
+                    }
+
+                    if !nav.contains(FocusNavAction::DIRECTIONAL) {
+                        let info = self.focus_info();
+
+                        if info.is_scope() && matches!(info.directional_nav(), DirectionalNav::Continue) {
+                            // continue scope as single child of cycle scope.
+                            if nav.contains(FocusNavAction::UP) || nav.contains(FocusNavAction::DOWN) {
+                                nav |= FocusNavAction::UP | FocusNavAction::DOWN;
+                            }
+                            if nav.contains(FocusNavAction::LEFT) || nav.contains(FocusNavAction::RIGHT) {
+                                nav |= FocusNavAction::LEFT | FocusNavAction::RIGHT;
+                            }
                         }
                     }
                 }
