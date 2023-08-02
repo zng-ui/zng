@@ -33,6 +33,11 @@ use super::*;
 /// context variable, when the context fallback to default the other context var is used, it can have a value or fallback to
 /// it's default too.
 ///
+/// The default value can also be a [`Var::map`] to another context var, but note that mapping vars are contextualized,
+/// meaning that they evaluate the mapping in each different context read, so a context var with mapping value
+/// read in a thousand widgets will generate a thousand different mapping vars, but if the same var mapping is set
+/// in the root widget, the thousand widgets will all use the same mapping var.
+///
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.

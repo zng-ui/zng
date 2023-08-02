@@ -12,8 +12,8 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{
-        InfoUpdates, LayoutMetrics, LayoutPassId, LayoutUpdates, RenderUpdates, WidgetCtx, WidgetUpdateMode, WidgetUpdates, LAYOUT,
-        UPDATES, WIDGET, WINDOW,
+        InfoUpdates, LayoutMetrics, LayoutPassId, LayoutUpdates, RenderUpdates, WidgetCtx, WidgetUpdateMode, WidgetUpdates, DIRECTION_VAR,
+        LAYOUT, UPDATES, WIDGET, WINDOW,
     },
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
@@ -856,7 +856,9 @@ impl HeadedCtrl {
 
             let auto_size_origin = self.vars.auto_size_origin().get();
             let auto_size_origin = |size| {
-                let metrics = LayoutMetrics::new(scale_factor, size, root_font_size).with_screen_ppi(screen_ppi);
+                let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
+                    .with_screen_ppi(screen_ppi)
+                    .with_direction(DIRECTION_VAR.get());
                 LAYOUT.with_context(metrics, || auto_size_origin.layout().to_dip(scale_factor.0))
             };
             let prev_origin = auto_size_origin(current_size);
@@ -1620,7 +1622,9 @@ impl ContentCtrl {
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
     pub fn outer_layout<R>(&mut self, scale_factor: Factor, screen_ppi: Ppi, screen_size: PxSize, action: impl FnOnce() -> R) -> R {
-        let metrics = LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(11.0, scale_factor)).with_screen_ppi(screen_ppi);
+        let metrics = LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(11.0, scale_factor))
+            .with_screen_ppi(screen_ppi)
+            .with_direction(DIRECTION_VAR.get());
         LAYOUT.with_context(metrics, action)
     }
 
@@ -1656,7 +1660,9 @@ impl ContentCtrl {
         self.layout_pass = self.layout_pass.next();
 
         WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
-            let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
+            let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
+                .with_screen_ppi(screen_ppi)
+                .with_direction(DIRECTION_VAR.get());
             LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
                 if !skip_auto_size {

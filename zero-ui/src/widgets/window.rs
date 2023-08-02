@@ -59,9 +59,9 @@ impl Window {
             // Use the `FONT_SIZE_VAR` default as the root font size.
             font_size = crate::widgets::text::FONT_SIZE_VAR;
 
-            // optimization, actualize `FONT_PALETTE_VAR`, `LANG_VAR` and `DIRECTION_VAR` early, see `Variables.md`.
+            // optimization, actualize mapping context-vars early, see `context_var!` docs.
             crate::widgets::text::font_palette = crate::widgets::text::FONT_PALETTE_VAR;
-            text::lang = LANG_VAR;
+            text::lang = LANG_VAR; // DIRECTION_VAR is set by `lang` too.
         }
 
         self.widget_builder().push_build_action(|wgt| {

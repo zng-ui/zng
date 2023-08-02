@@ -59,8 +59,8 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         let i = act.len();
 
         #[cfg(debug_assertions)]
-        if i > 50 {
-            tracing::warn!("variable actualized >50 times, see Variables.md");
+        if i == 200 {
+            tracing::debug!("variable of type `{:?}` actualized >200 times", std::any::type_name::<T>());
         }
 
         if !act.iter().any(|(c, _)| c == &current_ctx) {
