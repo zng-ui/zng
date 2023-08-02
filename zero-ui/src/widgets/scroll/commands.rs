@@ -318,13 +318,20 @@ impl ScrollToMode {
         ScrollToMode::Minimal { margin: margin.into() }
     }
 
-    /// New [`Center`] mode.
+    /// New [`Minimal`] mode.
     ///
-    /// [`Center`]: Self::Center
-    pub fn center_points(widget_point: impl Into<Point>, scroll_point: impl Into<Point>) -> Self {
-        ScrollToMode::Center {
-            widget_point: widget_point.into(),
-            scroll_point: scroll_point.into(),
+    /// The minimal scroll needed so that `rect` in the content widget is fully visible.
+    ///
+    /// [`Minimal`]: Self::Minimal
+    pub fn minimal_rect(rect: impl Into<Rect>) -> Self {
+        let rect = rect.into();
+        ScrollToMode::Minimal {
+            margin: SideOffsets::new(
+                -rect.origin.y.clone(),
+                rect.origin.x.clone() + rect.size.width - 100.pct(),
+                rect.origin.y + rect.size.height - 100.pct(),
+                -rect.origin.x,
+            ),
         }
     }
 
@@ -333,6 +340,16 @@ impl ScrollToMode {
     /// [`Center`]: Self::Center
     pub fn center() -> Self {
         Self::center_points(Point::center(), Point::center())
+    }
+
+    /// New [`Center`] mode.
+    ///
+    /// [`Center`]: Self::Center
+    pub fn center_points(widget_point: impl Into<Point>, scroll_point: impl Into<Point>) -> Self {
+        ScrollToMode::Center {
+            widget_point: widget_point.into(),
+            scroll_point: scroll_point.into(),
+        }
     }
 }
 impl Default for ScrollToMode {

@@ -16,7 +16,13 @@ use crate::{
         text::*,
         window::WindowLoadingHandle,
     },
-    prelude::{new_widget::*, scroll::SCROLL},
+    prelude::{
+        new_widget::*,
+        scroll::{
+            commands::{ScrollToMode, ScrollToRequest, SCROLL_TO_CMD},
+            SCROLL,
+        },
+    },
 };
 use zero_ui::core::{
     clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
@@ -962,6 +968,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if self.pending.contains(PendingLayout::CARET) {
                     let resolved_text = ResolvedText::get();
                     let mut caret = resolved_text.caret.lock();
+                    let caret = &mut *caret;
                     if let Some(index) = &mut caret.index {
                         *index = txt.shaped_text.snap_caret_line(*index);
                         let p = txt.shaped_text.caret_origin(*index, resolved_text.text.text());
@@ -971,14 +978,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         txt.caret_origin = Some(p);
 
                         if let Some(scroll) = SCROLL.try_id() {
-                            if let Some(scroll) = WINDOW.info().get(scroll) {
-                                let scroll_origin = scroll.inner_bounds().origin;
-                                let point_in_window = txt.render_info.get_mut().transform.transform_point(p);
-                                SCROLL.chase_vertical(move |relative_scroll| {
-                                    // TODO
-                                    relative_scroll
-                                });
-                            }
+                            let line_height = txt
+                                .shaped_text
+                                .line(index.line)
+                                .map(|l| l.rect().height())
+                                .unwrap_or_else(|| txt.shaped_text.line_height());
+
+                            SCROLL_TO_CMD.scoped(scroll).notify_param(ScrollToRequest {
+                                widget_id: WIDGET.id(),
+                                mode: ScrollToMode::minimal_rect(Rect::new(
+                                    p,
+                                    Size::new(Px(1), line_height * 2 + txt.shaped_text.line_spacing()),
+                                )),
+                            })
                         }
                     }
                 }

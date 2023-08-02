@@ -1,9 +1,11 @@
-* Focus scope continue nav inside scope cycle does not cycle.
+* Test `scroll_to` with nested scrolls.
+* Sending multiple `scroll_to` commands causes weird behavior?
+    - Holding `CTRL+LEFT/RIGHT` in a `TextInput!` with many lines will sometimes cause it to scroll multiple lines at once.
 
 # TextInput
 
-* Implement scroll integration:
-    - Scroll to caret.
+* Scroll to caret not fully scrolling 2 lines when scrolling downwards?
+* `CTRL+END` is not moving to the end of the file.
 
 * Implement selection.
     - Input replaces selection.
