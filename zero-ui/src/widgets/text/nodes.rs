@@ -1143,7 +1143,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::Up => {
-                                if args.modifiers.is_empty() {
+                                if args.modifiers.is_empty()
+                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
+                                {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
@@ -1152,7 +1154,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::Down => {
-                                if args.modifiers.is_empty() {
+                                if args.modifiers.is_empty()
+                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
+                                {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
@@ -1161,7 +1165,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::PageUp => {
-                                if args.modifiers.is_empty() {
+                                if args.modifiers.is_empty()
+                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
+                                {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
@@ -1170,7 +1176,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::PageDown => {
-                                if args.modifiers.is_empty() {
+                                if args.modifiers.is_empty()
+                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
+                                {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {

@@ -1304,7 +1304,9 @@ impl ShortcutActions {
             return Some(FocusTarget::Direct(p.widget_id()));
         } else if let Some(c) = self.commands.first() {
             if let CommandScope::Widget(w) = c.scope() {
-                return Some(FocusTarget::Direct(w));
+                if FOCUS.focused().with(|f| f.as_ref().map(|p| !p.contains(w)).unwrap_or(true)) {
+                    return Some(FocusTarget::Direct(w));
+                }
             }
         }
         self.focus.map(FocusTarget::DirectOrRelated)
