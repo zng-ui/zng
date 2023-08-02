@@ -41,14 +41,11 @@
     - Lots of breaking changes.
 * Implement OpenGL example.
     - Overlay and texture image.
+* Implement automation/screen reader APIs.
 
 ## WR Items
 
 * Finish items implemented by webrender.
-    - Nine-patch border.
-        - Can accept gradients as "image".
-        - CSS does not support corner radius for this.
-            - We could clip the border for the user.
     - Backdrop filter.
     - iFrame.
     - 3D transforms.
@@ -62,3 +59,6 @@
         - Backface vis.
     - Touch events.
         - Use `Spacedesk` to generate touch events.
+* Review `RasterSpace::Screen` usage.
+    - Firefox controls this (only Screen if stacking-context is not animating).
+    - https://searchfox.org/mozilla-central/source/layout/painting/nsDisplayList.cpp#6675

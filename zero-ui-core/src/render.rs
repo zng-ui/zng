@@ -22,7 +22,7 @@ use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
-    ApiExtensionPayload, DisplayList, ReuseStart,
+    ApiExtensionPayload, DisplayList, NinePatchSource, ReuseStart,
 };
 
 /// A text font.
@@ -119,6 +119,36 @@ impl From<ImageRendering> for webrender_api::ImageRendering {
             ImageRendering::Auto => Auto,
             ImageRendering::CrispEdges => CrispEdges,
             ImageRendering::Pixelated => Pixelated,
+        }
+    }
+}
+
+/// Nine-patch border repeat mode.
+///
+/// Defines how the edges and middle region of a nine-patch border is filled.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum RepeatMode {
+    /// The source image's edge regions are stretched to fill the gap between each border.
+    Stretch,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Tiles may be clipped to achieve the proper fit.
+    Repeat,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Tiles may be stretched to achieve the proper fit.
+    Round,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Extra space will be distributed in between tiles to achieve the proper fit.
+    Space,
+}
+impl From<RepeatMode> for webrender_api::RepeatMode {
+    fn from(value: RepeatMode) -> Self {
+        use webrender_api::RepeatMode::*;
+        match value {
+            RepeatMode::Stretch => Stretch,
+            RepeatMode::Repeat => Repeat,
+            RepeatMode::Round => Round,
+            RepeatMode::Space => Space,
         }
     }
 }
@@ -1045,6 +1075,164 @@ impl FrameBuilder {
 
         if self.auto_hit_test {
             self.hit_test().push_border(bounds, widths, radius);
+        }
+    }
+
+    /// Push a nine-patch border with image source.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_border_image(
+        &mut self,
+        bounds: PxRect,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
+        image: &impl Img,
+        rendering: ImageRendering,
+    ) {
+        expect_inner!(self.push_border_image);
+
+        if let (true, Some(r)) = (self.visible, &self.renderer) {
+            let key = image.image_key(r);
+            self.display_list.push_nine_patch_border(
+                bounds,
+                NinePatchSource::Image {
+                    key,
+                    rendering: rendering.into(),
+                },
+                widths,
+                fill,
+                repeat_horizontal.into(),
+                repeat_vertical.into(),
+            )
+        }
+    }
+
+    /// Push a nine-patch border with linear gradient source.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_border_linear_gradient(
+        &mut self,
+        bounds: PxRect,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
+        line: PxLine,
+        stops: &[RenderGradientStop],
+        extend_mode: RenderExtendMode,
+    ) {
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
+        expect_inner!(self.push_border_linear_gradient);
+
+        if self.visible && !stops.is_empty() {
+            self.display_list.push_nine_patch_border(
+                bounds,
+                NinePatchSource::LinearGradient {
+                    gradient: webrender_api::Gradient {
+                        start_point: line.start.to_wr(),
+                        end_point: line.end.to_wr(),
+                        extend_mode,
+                    },
+                    stops: stops.to_vec().into_boxed_slice(),
+                },
+                widths,
+                fill,
+                repeat_horizontal.into(),
+                repeat_vertical.into(),
+            );
+        }
+    }
+
+    /// Push a nine-patch border with radial gradient source.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_border_radial_gradient(
+        &mut self,
+        bounds: PxRect,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
+        center: PxPoint,
+        radius: PxSize,
+        stops: &[RenderGradientStop],
+        extend_mode: RenderExtendMode,
+    ) {
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
+
+        expect_inner!(self.push_border_radial_gradient);
+
+        if self.visible && !stops.is_empty() {
+            self.display_list.push_nine_patch_border(
+                bounds,
+                NinePatchSource::RadialGradient {
+                    gradient: webrender_api::RadialGradient {
+                        center: center.to_wr(),
+                        radius: radius.to_wr(),
+                        start_offset: 0.0,
+                        end_offset: 1.0,
+                        extend_mode,
+                    },
+                    stops: stops.to_vec().into_boxed_slice(),
+                },
+                widths,
+                fill,
+                repeat_horizontal.into(),
+                repeat_vertical.into(),
+            );
+        }
+    }
+
+    /// Push a nine-patch border with conic gradient source.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_border_conic_gradient(
+        &mut self,
+        bounds: PxRect,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
+        center: PxPoint,
+        angle: AngleRadian,
+        stops: &[RenderGradientStop],
+        extend_mode: RenderExtendMode,
+    ) {
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
+
+        expect_inner!(self.push_border_conic_gradient);
+
+        if self.visible && !stops.is_empty() {
+            self.display_list.push_nine_patch_border(
+                bounds,
+                NinePatchSource::ConicGradient {
+                    gradient: webrender_api::ConicGradient {
+                        center: center.to_wr(),
+                        angle: angle.0,
+                        start_offset: 0.0,
+                        end_offset: 1.0,
+                        extend_mode,
+                    },
+                    stops: stops.to_vec().into_boxed_slice(),
+                },
+                widths,
+                fill,
+                repeat_horizontal.into(),
+                repeat_vertical.into(),
+            );
         }
     }
 

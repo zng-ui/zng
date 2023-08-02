@@ -228,6 +228,27 @@ impl DisplayListBuilder {
         })
     }
 
+    /// Push a nine-patch border.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_nine_patch_border(
+        &mut self,
+        bounds: PxRect,
+        source: NinePatchSource,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: wr::RepeatMode,
+        repeat_vertical: wr::RepeatMode,
+    ) {
+        self.list.push(DisplayItem::NinePatchBorder {
+            bounds,
+            source,
+            widths,
+            fill,
+            repeat_horizontal,
+            repeat_vertical,
+        })
+    }
+
     /// Push a text run.
     pub fn push_text(
         &mut self,
@@ -966,6 +987,14 @@ enum DisplayItem {
         sides: [wr::BorderSide; 4],
         radius: PxCornerRadius,
     },
+    NinePatchBorder {
+        bounds: PxRect,
+        source: NinePatchSource,
+        widths: PxSideOffsets,
+        fill: bool,
+        repeat_horizontal: wr::RepeatMode,
+        repeat_vertical: wr::RepeatMode,
+    },
 
     Text {
         clip_rect: PxRect,
@@ -1184,6 +1213,53 @@ impl DisplayItem {
                         bottom: *bottom,
                         radius: radius.to_wr(),
                         do_aa: true,
+                    }),
+                );
+            }
+            DisplayItem::NinePatchBorder {
+                source,
+                bounds,
+                widths,
+                fill,
+                repeat_horizontal,
+                repeat_vertical,
+            } => {
+                let wr_bounds = bounds.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
+
+                let source = match source {
+                    NinePatchSource::Image { key, rendering } => wr::NinePatchBorderSource::Image(*key, *rendering),
+                    NinePatchSource::LinearGradient { gradient, stops } => {
+                        wr_list.push_stops(stops);
+                        wr::NinePatchBorderSource::Gradient(*gradient)
+                    }
+                    NinePatchSource::RadialGradient { gradient, stops } => {
+                        wr_list.push_stops(stops);
+                        wr::NinePatchBorderSource::RadialGradient(*gradient)
+                    }
+                    NinePatchSource::ConicGradient { gradient, stops } => {
+                        wr_list.push_stops(stops);
+                        wr::NinePatchBorderSource::ConicGradient(*gradient)
+                    }
+                };
+
+                wr_list.push_border(
+                    &wr::CommonItemProperties {
+                        clip_rect: wr_bounds,
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    wr_bounds,
+                    widths.to_wr(),
+                    wr::BorderDetails::NinePatch(wr::NinePatchBorder {
+                        source,
+                        width: bounds.width().0,
+                        height: bounds.height().0,
+                        slice: widths.to_wr_device(),
+                        fill: *fill,
+                        repeat_horizontal: *repeat_horizontal,
+                        repeat_vertical: *repeat_vertical,
                     }),
                 );
             }
@@ -1425,6 +1501,40 @@ impl DisplayItem {
             _ => false,
         }
     }
+}
+
+/// Nine-patch image source.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NinePatchSource {
+    ///
+    Image {
+        ///
+        key: wr::ImageKey,
+        ///
+        rendering: wr::ImageRendering,
+        // !!: extend_mode
+    },
+    ///
+    LinearGradient {
+        ///
+        gradient: wr::Gradient,
+        ///
+        stops: Box<[wr::GradientStop]>,
+    },
+    ///
+    RadialGradient {
+        ///
+        gradient: wr::RadialGradient,
+        ///
+        stops: Box<[wr::GradientStop]>,
+    },
+    ///
+    ConicGradient {
+        ///
+        gradient: wr::ConicGradient,
+        ///
+        stops: Box<[wr::GradientStop]>,
+    },
 }
 
 /// Tracks the current space and clip chain.
