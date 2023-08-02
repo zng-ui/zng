@@ -43,10 +43,10 @@
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
 
+
 ## WR Items
 
 * Finish items implemented by webrender.
-    - Backdrop filter.
     - iFrame.
     - 3D transforms.
         - "transform-style".
@@ -62,3 +62,7 @@
 * Review `RasterSpace::Screen` usage.
     - Firefox controls this (only Screen if stacking-context is not animating).
     - https://searchfox.org/mozilla-central/source/layout/painting/nsDisplayList.cpp#6675
+
+# Backdrop Filter
+
+* Implement `backdrop_filters`, `backdrop_blur`, etc.

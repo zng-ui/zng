@@ -295,6 +295,22 @@ impl DisplayListBuilder {
         self.list.push(DisplayItem::Color { clip_rect, color })
     }
 
+    /// Push a filter that applies to all rendered pixels behind `clip_rect`.
+    pub fn push_backdrop_filter(
+        &mut self,
+        clip_rect: PxRect,
+        filters: &[FilterOp],
+        filter_datas: &[wr::FilterData],
+        filter_primitives: &[wr::FilterPrimitive],
+    ) {
+        self.list.push(DisplayItem::BackdropFilter {
+            clip_rect,
+            filters: filters.to_vec().into_boxed_slice(),
+            filter_datas: filter_datas.to_vec().into_boxed_slice(),
+            filter_primitives: filter_primitives.to_vec().into_boxed_slice(),
+        })
+    }
+
     /// Push a linear gradient rectangle.
     pub fn push_linear_gradient(
         &mut self,
@@ -1018,6 +1034,12 @@ enum DisplayItem {
         clip_rect: PxRect,
         color: FrameValue<wr::ColorF>,
     },
+    BackdropFilter {
+        clip_rect: PxRect,
+        filters: Box<[FilterOp]>,
+        filter_datas: Box<[wr::FilterData]>,
+        filter_primitives: Box<[wr::FilterPrimitive]>,
+    },
 
     LinearGradient {
         clip_rect: PxRect,
@@ -1186,6 +1208,26 @@ impl DisplayItem {
                     },
                     bounds,
                     color.into_wr(),
+                )
+            }
+            DisplayItem::BackdropFilter {
+                clip_rect,
+                filters,
+                filter_datas,
+                filter_primitives,
+            } => {
+                let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
+                wr_list.push_backdrop_filter(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_chain_id: clip,
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
+                    filter_datas,
+                    filter_primitives,
                 )
             }
 

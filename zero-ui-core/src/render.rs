@@ -166,6 +166,7 @@ struct WidgetData {
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
     filter: RenderFilter,
+    backdrop_filter: RenderFilter,
 }
 
 /// A full frame builder.
@@ -260,6 +261,7 @@ impl FrameBuilder {
             hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
                 filter: vec![],
+                backdrop_filter: vec![],
                 outer_offset: PxVector::zero(),
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
@@ -530,6 +532,7 @@ impl FrameBuilder {
 
             frame.widget_data = Some(WidgetData {
                 filter: vec![],
+                backdrop_filter: vec![],
                 outer_offset: child_offset,
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
@@ -750,7 +753,7 @@ impl FrameBuilder {
     pub fn push_inner_filter(&mut self, filter: RenderFilter, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
             let mut filter = filter;
-            filter.reverse(); // see `Self::open_widget_display` for why it is reversed.
+            filter.reverse();
             data.filter.extend(filter.iter().copied());
 
             render(self);
@@ -775,6 +778,27 @@ impl FrameBuilder {
             render(self);
         } else {
             tracing::error!("called `push_inner_opacity` inside inner context of `{}`", self.widget_id);
+            render(self);
+        }
+    }
+
+    /// Include a widget backdrop filter and continue the render build.
+    ///
+    /// This is valid only when [`is_outer`].
+    ///
+    /// When [`push_inner`] is called the widget are is first filled with the backdrop filters.
+    ///
+    /// [`is_outer`]: Self::is_outer
+    /// [`push_inner`]: Self::push_inner
+    pub fn push_inner_backdrop_filter(&mut self, filter: RenderFilter, render: impl FnOnce(&mut Self)) {
+        if let Some(data) = self.widget_data.as_mut() {
+            let mut filter = filter;
+            filter.reverse();
+            data.backdrop_filter.extend(filter.iter().copied());
+
+            render(self);
+        } else {
+            tracing::error!("called `push_inner_filter` inside inner context of `{}`", self.widget_id);
             render(self);
         }
     }
@@ -858,6 +882,11 @@ impl FrameBuilder {
                     layout_translation_key.bind(inner_transform, layout_translation_animating),
                     !data.inner_is_set,
                 );
+
+                if !data.backdrop_filter.is_empty() {
+                    self.display_list
+                        .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
+                }
 
                 let has_stacking_ctx = !data.filter.is_empty();
                 if has_stacking_ctx {
@@ -1042,6 +1071,11 @@ impl FrameBuilder {
     }
 
     /// Calls `render` with added opacity stacking context.
+    ///
+    /// Note that this introduces a new stacking context, you can use the [`push_inner_opacity`] method to
+    /// add to the widget stacking context.
+    ///
+    /// [`push_inner_opacity`]: Self::push_inner_opacity
     pub fn push_opacity(&mut self, bind: FrameValue<f32>, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_opacity);
 
@@ -1054,6 +1088,25 @@ impl FrameBuilder {
             self.display_list.pop_stacking_context();
         } else {
             render(self);
+        }
+    }
+
+    /// Push a standalone backdrop filter.
+    ///
+    /// The `filter` will apply to all pixels already rendered in `clip_rect`.
+    ///
+    /// Note that you can add backdrop filters to the widget using the [`push_inner_backdrop_filter`] method.
+    ///
+    /// [`push_inner_backdrop_filter`]: Self::push_inner_backdrop_filter
+    pub fn push_backdrop_filter(&mut self, clip_rect: PxRect, filter: &RenderFilter) {
+        expect_inner!(self.push_backdrop_filter);
+
+        if self.visible {
+            self.display_list.push_backdrop_filter(clip_rect, filter, &[], &[]);
+        }
+
+        if self.auto_hit_test {
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
