@@ -1,3 +1,10 @@
+* `ContextualizedVar` can get very large.
+    - `FONT_PALETTE_VAR` for example, is mapped from `COLOR_SCHEME_VAR` but otherwise not set.
+       In inspector screen with many text widgets it can grow to thousands of "actual" values, all for
+       the same mapped var.
+    - The `DIRECTION_VAR` is mapped from `LANG_VAR` same issue.
+    - Figure-out a way to have the `ContextualizedVar` only invalidate if the source variables actually change context.
+
 * Test `scroll_to` with nested scrolls.
 * Sending multiple `scroll_to` commands causes weird behavior?
     - Holding `CTRL+LEFT/RIGHT` in a `TextInput!` with many lines will sometimes cause it to scroll multiple lines at once.
@@ -62,9 +69,3 @@
         - Backface vis.
     - Touch events.
         - Use `Spacedesk` to generate touch events.
-
-# Bugs
-
-* See `Variables.md` ContextualizedVar issue.
-* Test scroll inside grid, not sized right.
-    - Text editor example with scroll will demonstrate this?
