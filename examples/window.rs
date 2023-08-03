@@ -593,6 +593,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
 
         id = "close-dialog";
         modal = true;
+        backdrop_blur = 2;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
         child = Container! {
