@@ -105,7 +105,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
         child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            commands::scroll_to(scroll, target, mode.clone());
+            cmd.notify_param(commands::ScrollToRequest { widget_id: target, mode: mode.clone() });
         });
     }
 }

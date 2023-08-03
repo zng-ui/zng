@@ -18,10 +18,7 @@ use crate::{
     },
     prelude::{
         new_widget::*,
-        scroll::{
-            commands::{ScrollToMode, ScrollToRequest, SCROLL_TO_CMD},
-            SCROLL,
-        },
+        scroll::{commands::ScrollToMode, SCROLL},
     },
 };
 use zero_ui::core::{
@@ -977,20 +974,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                         txt.caret_origin = Some(p);
 
-                        if let Some(scroll) = SCROLL.try_id() {
+                        if SCROLL.try_id().is_some() {
                             let line_height = txt
                                 .shaped_text
                                 .line(index.line)
                                 .map(|l| l.rect().height())
                                 .unwrap_or_else(|| txt.shaped_text.line_height());
 
-                            SCROLL_TO_CMD.scoped(scroll).notify_param(ScrollToRequest {
-                                widget_id: WIDGET.id(),
-                                mode: ScrollToMode::minimal_rect(Rect::new(
-                                    p,
-                                    Size::new(Px(1), line_height * 2 + txt.shaped_text.line_spacing()),
-                                )),
-                            })
+                            let min_rect = Rect::new(p, Size::new(Px(1), line_height * 2 + txt.shaped_text.line_spacing()));
+
+                            SCROLL.scroll_to(ScrollToMode::minimal_rect(min_rect));
                         }
                     }
                 }

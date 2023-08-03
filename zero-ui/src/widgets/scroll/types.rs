@@ -14,7 +14,7 @@ use crate::core::{
 use atomic::{Atomic, Ordering};
 use bitflags::bitflags;
 
-use super::SMOOTH_SCROLLING_VAR;
+use super::{commands, SMOOTH_SCROLLING_VAR};
 
 bitflags! {
     /// What dimensions are scrollable in a widget.
@@ -392,6 +392,13 @@ impl SCROLL {
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
         content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
+    }
+
+    /// Scroll the [`WIDGET`] into view.
+    ///
+    /// This requests [`commands::scroll_to`] for the contextual widget.
+    pub fn scroll_to(&self, mode: impl Into<super::commands::ScrollToMode>) {
+        commands::scroll_to_info(&WIDGET.info(), mode.into())
     }
 }
 

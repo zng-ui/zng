@@ -12,7 +12,6 @@ use zero_ui_core::window::TransformChangedArgs;
 use crate::core::{focus::WidgetInfoFocusExt as _, image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::commands::ScrollToMode;
-use crate::widgets::scroll::WidgetInfoExt as _;
 
 use super::Markdown;
 
@@ -236,9 +235,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
         if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
-                for scroll in target.ancestors().filter(|a| a.is_scroll()) {
-                    crate::widgets::scroll::commands::scroll_to(scroll.id(), target.id(), LINK_SCROLL_MODE_VAR.get());
-                }
+                crate::widgets::scroll::commands::scroll_to_info(&target, LINK_SCROLL_MODE_VAR.get());
 
                 // focus
                 if let Some(focus) = target

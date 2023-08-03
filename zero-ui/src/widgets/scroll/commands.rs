@@ -176,7 +176,7 @@ command! {
     /// This command requires a parameter to work, it can be the [`WidgetId`] of a child widget or
     /// a [`ScrollToRequest`] instance.
     ///
-    /// You can use the [`scroll_to`] function to invoke this command.
+    /// You can use the [`scroll_to`] function to invoke this command in all parent scrolls automatically.
     pub static SCROLL_TO_CMD;
 }
 
@@ -293,7 +293,7 @@ impl_from_and_into_var! {
 }
 
 /// Defines how much the [`SCROLL_TO_CMD`] will scroll to showcase the target widget.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ScrollToMode {
     /// Scroll will change only just enough so that the widget inner rect is fully visible with the optional
     /// extra margin offsets.
@@ -367,12 +367,37 @@ impl IntoVar<Option<ScrollToMode>> for ScrollToMode {
 }
 impl IntoValue<Option<ScrollToMode>> for ScrollToMode {}
 
-/// Scroll the scroll widget so that the child widget is fully visible.
+/// Scroll all parent [`is_scroll`] widgets of `target` so that it becomes visible.
 ///
-/// This function is a helper for firing a [`SCROLL_TO_CMD`].
-pub fn scroll_to(scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
-    SCROLL_TO_CMD.scoped(scroll_id).notify_param(ScrollToRequest {
-        widget_id: child_id,
-        mode: mode.into(),
-    });
+/// This function is a helper for searching for the `target` in all windows and sending [`SCROLL_TO_CMD`] for all required scroll widgets.
+/// Does nothing if the `target` is not found.
+///
+/// [`is_scroll`]: WidgetInfoExt::is_scroll
+pub fn scroll_to(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>) {
+    let target = target.into();
+    for w in crate::core::window::WINDOWS.widget_trees() {
+        if let Some(target) = w.get(target) {
+            scroll_to_info(&target, mode.into());
+            break;
+        }
+    }
+}
+
+/// Scroll all parent [`is_scroll`] widgets of `target` so that it becomes visible.
+///
+/// This function is a helper for sending [`SCROLL_TO_CMD`] for all required scroll widgets.
+///
+/// [`is_scroll`]: WidgetInfoExt::is_scroll
+pub fn scroll_to_info(target: &crate::core::widget_info::WidgetInfo, mode: impl Into<ScrollToMode>) {
+    let mut t = target.id();
+    let mode = mode.into();
+    for a in target.ancestors() {
+        if a.is_scroll() {
+            SCROLL_TO_CMD.scoped(a.id()).notify_param(ScrollToRequest {
+                widget_id: t,
+                mode: mode.clone(),
+            });
+            t = a.id();
+        }
+    }
 }

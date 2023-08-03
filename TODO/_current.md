@@ -1,4 +1,4 @@
-* Test `scroll_to` with nested scrolls.
+* Test scroll-to-focus with nested scrolls.
 
 # TextInput
 
