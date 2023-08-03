@@ -218,8 +218,8 @@ impl SCROLL {
                 if smooth.is_disabled() {
                     let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
                 } else {
-                    let ease = smooth.easing.clone();
-                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase(t, smooth.duration, move |t| ease(t));
+                    let easing = smooth.easing.clone();
+                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase(t, smooth.duration, move |t| easing(t));
                     *vertical = Some(anim);
                 }
             }
@@ -253,8 +253,8 @@ impl SCROLL {
                 if smooth.is_disabled() {
                     let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
                 } else {
-                    let ease = smooth.easing.clone();
-                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase(t, smooth.duration, move |t| ease(t));
+                    let easing = smooth.easing.clone();
+                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase(t, smooth.duration, move |t| easing(t));
                     *horizontal = Some(anim);
                 }
             }

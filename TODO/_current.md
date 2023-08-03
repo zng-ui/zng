@@ -1,6 +1,9 @@
 * Test `scroll_to` with nested scrolls.
 * Sending multiple `scroll_to` commands causes weird behavior?
-    - Holding `CTRL+LEFT/RIGHT` in a `TextInput!` with many lines will sometimes cause it to scroll multiple lines at once.
+    - Holding `Up/Down` in a `TextInput!` with many lines will sometimes cause it to scroll multiple lines at once.
+    - Also fails with scroll-to-focus.
+        - Icon example hold `Alt+Down`.
+    - `smooth_scrolling = false` always work.
 
 # TextInput
 

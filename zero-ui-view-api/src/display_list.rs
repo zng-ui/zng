@@ -1546,35 +1546,23 @@ impl DisplayItem {
 }
 
 /// Nine-patch image source.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NinePatchSource {
-    ///
     Image {
-        ///
         key: wr::ImageKey,
-        ///
         rendering: wr::ImageRendering,
-        // !!: extend_mode
     },
-    ///
     LinearGradient {
-        ///
         gradient: wr::Gradient,
-        ///
         stops: Box<[wr::GradientStop]>,
     },
-    ///
     RadialGradient {
-        ///
         gradient: wr::RadialGradient,
-        ///
         stops: Box<[wr::GradientStop]>,
     },
-    ///
     ConicGradient {
-        ///
         gradient: wr::ConicGradient,
-        ///
         stops: Box<[wr::GradientStop]>,
     },
 }
