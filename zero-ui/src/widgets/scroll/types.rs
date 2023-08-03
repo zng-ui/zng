@@ -1,15 +1,18 @@
 use std::{fmt, sync::Arc, time::Duration};
 
 use crate::core::{
-    context::{context_local, with_context_local_init, StaticStateId},
+    context::{context_local, with_context_local_init, StaticStateId, WIDGET},
     task::parking_lot::Mutex,
     units::*,
-    var::{animation::*, *},
+    var::{
+        animation::{ChaseAnimation, *},
+        *,
+    },
     widget_info::WidgetInfo,
-    widget_instance::{UiNode, WidgetId},
+    widget_instance::{match_node, UiNode, UiNodeOp, WidgetId},
 };
+use atomic::{Atomic, Ordering};
 use bitflags::bitflags;
-use zero_ui_core::{context::WIDGET, var::animation::ChaseAnimation};
 
 use super::SMOOTH_SCROLLING_VAR;
 
@@ -85,11 +88,54 @@ context_local! {
     static SCROLL_CONFIG: ScrollConfig = ScrollConfig::default();
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ScrollConfig {
     id: Option<WidgetId>,
     horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
     vertical: Mutex<Option<ChaseAnimation<Factor>>>,
+
+    // last rendered horizontal, vertical offsets.
+    rendered: Atomic<(Factor, Factor)>,
+}
+impl Default for ScrollConfig {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            horizontal: Default::default(),
+            vertical: Default::default(),
+            rendered: Atomic::new((0.fct(), 0.fct())),
+        }
+    }
+}
+
+/// Defines a scroll diff and to what value source it is applied.
+///
+/// Scrolling can get out of sync depending on what moment and source the current scroll is read,
+/// the offset vars can be multiple frames ahead as update cycles have higher priority than render,
+/// some scrolling operations also target the value the smooth scrolling animation is animating too,
+/// this enum lets you specify from what scroll offset a diff must be computed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum ScrollFrom {
+    /// Scroll amount added to the offset var current value, if smooth scrolling is enabled this
+    /// can be a partial value different from `VarTarget`.
+    ///
+    /// Operations that compute a scroll diff from the offset var must use this variant otherwise they
+    /// will overshoot.
+    Var(Px),
+    /// Scroll amount added to the value the offset var is animating too.
+    ///
+    /// Operations that accumulate a diff (line-up/down) must use this variant otherwise they will
+    /// undershoot.
+    ///
+    /// This is the same as `Var` if smooth scrolling is disabled.
+    VarTarget(Px),
+
+    /// Scroll amount added to the offset already rendered, this can be different from the offset var as multiple
+    /// events and updates can happen before a pending render is applied.
+    ///
+    /// Operations that compute a scroll offset from widget bounds info must use this variant otherwise they
+    /// will overshoot.
+    Rendered(Px),
 }
 
 /// Controls the parent scroll.
@@ -114,6 +160,13 @@ impl SCROLL {
     ///
     /// Scroll implementers must add this node to their context.
     pub fn config_node(&self, child: impl UiNode) -> impl UiNode {
+        let child = match_node(child, move |_, op| {
+            if let UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } = op {
+                let h = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+                let v = SCROLL_VERTICAL_OFFSET_VAR.get();
+                SCROLL_CONFIG.get().rendered.store((h, v), Ordering::Relaxed);
+            }
+        });
         with_context_local_init(child, &SCROLL_CONFIG, || ScrollConfig {
             id: WIDGET.try_id(),
             ..Default::default()
@@ -154,11 +207,11 @@ impl SCROLL {
     }
 
     /// Offset the vertical position by the given pixel `amount`.
-    pub fn scroll_vertical(&self, amount: Px) {
+    pub fn scroll_vertical(&self, amount: ScrollFrom) {
         self.scroll_vertical_clamp(amount, f32::MIN, f32::MAX);
     }
     /// Offset the vertical position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
-    pub fn scroll_vertical_clamp(&self, amount: Px, min: f32, max: f32) {
+    pub fn scroll_vertical_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -168,16 +221,30 @@ impl SCROLL {
             return;
         }
 
-        let amount = amount.0 as f32 / max_scroll.0 as f32;
-        SCROLL.chase_vertical(|f| (f.0 + amount).clamp(min, max).fct());
+        match amount {
+            ScrollFrom::Var(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                let f = SCROLL_VERTICAL_OFFSET_VAR.get();
+                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+            }
+            ScrollFrom::VarTarget(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                SCROLL.chase_vertical(|f| (f.0 + amount).clamp(min, max).fct());
+            }
+            ScrollFrom::Rendered(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).1;
+                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+            }
+        }
     }
 
     /// Offset the horizontal position by the given pixel `amount`.
-    pub fn scroll_horizontal(&self, amount: Px) {
+    pub fn scroll_horizontal(&self, amount: ScrollFrom) {
         self.scroll_horizontal_clamp(amount, f32::MIN, f32::MAX)
     }
     /// Offset the horizontal position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
-    pub fn scroll_horizontal_clamp(&self, amount: Px, min: f32, max: f32) {
+    pub fn scroll_horizontal_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -187,8 +254,22 @@ impl SCROLL {
             return;
         }
 
-        let amount = amount.0 as f32 / max_scroll.0 as f32;
-        SCROLL.chase_horizontal(|f| (f.0 + amount).clamp(min, max).fct());
+        match amount {
+            ScrollFrom::Var(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                let f = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+            }
+            ScrollFrom::VarTarget(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                SCROLL.chase_horizontal(|f| (f.0 + amount).clamp(min, max).fct());
+            }
+            ScrollFrom::Rendered(a) => {
+                let amount = a.0 as f32 / max_scroll.0 as f32;
+                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).0;
+                SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());
+            }
+        }
     }
 
     /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to a new offset derived from the last set offset, blending into the active smooth

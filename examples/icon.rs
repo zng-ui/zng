@@ -30,7 +30,9 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 child_align = Align::FILL;
                 child = icons();
+                // smooth_scrolling = false;
             };
+            directional_nav = DirectionalNav::Contained;
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })

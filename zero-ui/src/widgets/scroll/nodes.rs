@@ -286,7 +286,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&down, |_| {
@@ -295,7 +295,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&left, |_| {
@@ -304,7 +304,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&right, |_| {
@@ -313,7 +313,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             }
         }
@@ -380,7 +380,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&down, |_| {
@@ -389,7 +389,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_vertical_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&left, |_| {
@@ -398,7 +398,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&right, |_| {
@@ -407,7 +407,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
+                    SCROLL.scroll_horizontal_clamp(ScrollFrom::VarTarget(offset), args.clamp.0, args.clamp.1);
                 });
             }
         }
@@ -569,32 +569,32 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             if target_bounds.size.width < viewport_bounds.size.width {
                                 if target_bounds.origin.x < viewport_bounds.origin.x {
                                     let diff = target_bounds.origin.x - viewport_bounds.origin.x;
-                                    SCROLL.scroll_horizontal(diff);
+                                    SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
                                 } else if target_bounds.max_x() > viewport_bounds.max_x() {
                                     let diff = target_bounds.max_x() - viewport_bounds.max_x();
-                                    SCROLL.scroll_horizontal(diff);
+                                    SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
                                 }
                             } else {
                                 let target_center_x = (target_bounds.size.width / Px(2)) + target_bounds.origin.x;
                                 let viewport_center_x = (target_bounds.size.width / Px(2)) + viewport_bounds.origin.x;
 
                                 let diff = target_center_x - viewport_center_x;
-                                SCROLL.scroll_horizontal(diff);
+                                SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
                             }
                             if target_bounds.size.height < viewport_bounds.size.height {
                                 if target_bounds.origin.y < viewport_bounds.origin.y {
                                     let diff = target_bounds.origin.y - viewport_bounds.origin.y;
-                                    SCROLL.scroll_vertical(diff);
+                                    SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
                                 } else if target_bounds.max_y() > viewport_bounds.max_y() {
                                     let diff = target_bounds.max_y() - viewport_bounds.max_y();
-                                    SCROLL.scroll_vertical(diff);
+                                    SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
                                 }
                             } else {
                                 let target_center_y = (target_bounds.size.height / Px(2)) + target_bounds.origin.y;
                                 let viewport_center_y = (target_bounds.size.height / Px(2)) + viewport_bounds.origin.y;
 
                                 let diff = target_center_y - viewport_center_y;
-                                SCROLL.scroll_vertical(diff);
+                                SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
                             }
                         }
                         ScrollToMode::Center {
@@ -616,8 +616,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                             let diff = widget_point - scroll_point;
 
-                            SCROLL.scroll_vertical(diff.y);
-                            SCROLL.scroll_horizontal(diff.x);
+                            SCROLL.scroll_vertical(ScrollFrom::Var(diff.y));
+                            SCROLL.scroll_horizontal(ScrollFrom::Var(diff.x));
                         }
                     }
                 }
@@ -664,10 +664,10 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                 offset = Vector::zero();
 
                 if o.y != Px(0) {
-                    SCROLL.scroll_vertical(o.y);
+                    SCROLL.scroll_vertical(ScrollFrom::VarTarget(o.y));
                 }
                 if o.x != Px(0) {
-                    SCROLL.scroll_horizontal(o.x);
+                    SCROLL.scroll_horizontal(ScrollFrom::VarTarget(o.x));
                 }
             });
         }
