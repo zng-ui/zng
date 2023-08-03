@@ -635,22 +635,68 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_event(&MOUSE_WHEEL_EVENT);
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
+            child.event(update);
+
+            if let Some(args) = MOUSE_WHEEL_EVENT.on_unhandled(update) {
                 if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.get()) {
-                    args.handle(|_| {
-                        match delta {
-                            MouseScrollDelta::LineDelta(x, y) => {
-                                offset.x -= HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct();
-                                offset.y -= VERTICAL_WHEEL_UNIT_VAR.get() * y.fct();
-                            }
-                            MouseScrollDelta::PixelDelta(x, y) => {
-                                offset.x -= x.px();
-                                offset.y -= y.px();
+                    match delta {
+                        MouseScrollDelta::LineDelta(x, y) => {
+                            let scroll_x = if x > 0.0 {
+                                SCROLL.can_scroll_left()
+                            } else if x < 0.0 {
+                                SCROLL.can_scroll_right()
+                            } else {
+                                false
+                            };
+                            let scroll_y = if y > 0.0 {
+                                SCROLL.can_scroll_up()
+                            } else if y < 0.0 {
+                                SCROLL.can_scroll_down()
+                            } else {
+                                false
+                            };
+
+                            if scroll_x || scroll_y {
+                                args.propagation().stop();
+
+                                if scroll_x {
+                                    offset.x -= HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct();
+                                }
+                                if scroll_y {
+                                    offset.y -= VERTICAL_WHEEL_UNIT_VAR.get() * y.fct();
+                                }
                             }
                         }
+                        MouseScrollDelta::PixelDelta(x, y) => {
+                            let scroll_x = if x > 0.0 {
+                                SCROLL.can_scroll_left()
+                            } else if x < 0.0 {
+                                SCROLL.can_scroll_right()
+                            } else {
+                                false
+                            };
+                            let scroll_y = if y > 0.0 {
+                                SCROLL.can_scroll_up()
+                            } else if y < 0.0 {
+                                SCROLL.can_scroll_down()
+                            } else {
+                                false
+                            };
 
-                        WIDGET.layout();
-                    });
+                            if scroll_x || scroll_y {
+                                args.propagation().stop();
+
+                                if scroll_x {
+                                    offset.x -= x.px();
+                                }
+                                if scroll_y {
+                                    offset.y -= y.px();
+                                }
+                            }
+                        }
+                    }
+
+                    WIDGET.layout();
                 }
             }
         }
