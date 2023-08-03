@@ -258,7 +258,7 @@ impl SCROLL {
             ScrollFrom::Var(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 let f = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+                SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());
             }
             ScrollFrom::VarTarget(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;

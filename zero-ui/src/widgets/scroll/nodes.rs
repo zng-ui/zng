@@ -616,8 +616,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                             let diff = widget_point - scroll_point;
 
-                            SCROLL.scroll_vertical(ScrollFrom::Var(diff.y));
-                            SCROLL.scroll_horizontal(ScrollFrom::Var(diff.x));
+                            SCROLL.scroll_vertical(ScrollFrom::Rendered(diff.y));
+                            SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff.x));
                         }
                     }
                 }
