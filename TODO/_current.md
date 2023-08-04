@@ -1,5 +1,3 @@
-* Test scroll-to-focus with nested scrolls.
-
 # TextInput
 
 * Scroll to caret not fully scrolling 2 lines when scrolling downwards?

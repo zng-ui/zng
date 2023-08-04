@@ -714,8 +714,8 @@ impl FOCUS {
     /// The [`FocusRequest`] type has other more advanced window focus configurations.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct`].
-    pub fn focus_widget(&self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct(widget_id, highlight));
+    pub fn focus_widget(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
+        self.focus(FocusRequest::direct(widget_id.into(), highlight));
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable parent, also changes the highlight.
@@ -724,8 +724,8 @@ impl FOCUS {
     /// for the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_exit`].
-    pub fn focus_widget_or_exit(&self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct_or_exit(widget_id, highlight));
+    pub fn focus_widget_or_exit(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
+        self.focus(FocusRequest::direct_or_exit(widget_id.into(), highlight));
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable descendant, also changes the highlight.
@@ -734,8 +734,8 @@ impl FOCUS {
     /// the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_enter`].
-    pub fn focus_widget_or_enter(&self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct_or_enter(widget_id, highlight));
+    pub fn focus_widget_or_enter(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
+        self.focus(FocusRequest::direct_or_enter(widget_id.into(), highlight));
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable descendant, else focus the first
@@ -745,8 +745,8 @@ impl FOCUS {
     /// for the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_related`].
-    pub fn focus_widget_or_related(&self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::direct_or_related(widget_id, highlight));
+    pub fn focus_widget_or_related(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
+        self.focus(FocusRequest::direct_or_related(widget_id.into(), highlight));
     }
 
     /// Focus the first logical descendant that is focusable from the current focus.

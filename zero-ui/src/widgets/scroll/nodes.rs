@@ -506,19 +506,25 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
                     if path.contains(self_id) && path.widget_id() != self_id {
-                        // probable focus move inside.
-                        let tree = WINDOW.info();
-                        if let Some(target) = tree.get(path.widget_id()) {
-                            // target exits
-                            if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
-                                // confirmed, target is descendant
-                                if us.is_scroll() {
-                                    // we are a scroll.
-                                    scroll_to = SCROLL_TO_FOCUSED_MODE_VAR.get().map(|m| (target.bounds_info(), m));
-                                    if scroll_to.is_some() {
-                                        WIDGET.layout();
+                        // focus move inside.
+                        if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
+                            let tree = WINDOW.info();
+                            if let Some(mut target) = tree.get(path.widget_id()) {
+                                for a in target.ancestors() {
+                                    if a.is_scroll() {
+                                        if a.id() == self_id {
+                                            break;
+                                        } else {
+                                            // actually focus move inside an inner scroll,
+                                            // the inner-most scroll scrolls to the target,
+                                            // the outer scrolls scroll to the child scroll.
+                                            target = a;
+                                        }
                                     }
                                 }
+
+                                scroll_to = Some((target.bounds_info(), mode));
+                                WIDGET.layout();
                             }
                         }
                     }
