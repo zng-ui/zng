@@ -160,7 +160,7 @@ fn test_view_api_types() {
         max_possible_force: 10.0,
         altitude_angle: None
     });
-    test_config!(Key::C);
+    test_config!(Key::Char('G'));
     test_config!(CursorIcon::Alias);
     test_config!(WindowState::Normal);
 

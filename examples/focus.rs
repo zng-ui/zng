@@ -72,7 +72,7 @@ fn tab_index() -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        focus_shortcut = shortcut!(T);
+        focus_shortcut = shortcut!('T');
         children = ui_vec![
             title("TabIndex (T)"),
             button("Button A5", 5),
@@ -88,7 +88,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        focus_shortcut = shortcut!(F);
+        focus_shortcut = shortcut!('F');
         children = ui_vec![
             title("Functions (F)"),
             // New Window
@@ -99,7 +99,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                         let _ = WINDOW.id().set_name("other");
                         Window! {
                             title = "Other Window";
-                            focus_shortcut = shortcut!(W);
+                            focus_shortcut = shortcut!('W');
                             child = Stack! {
                                 direction = StackDirection::top_to_bottom();
                                 align = Align::CENTER;
@@ -205,7 +205,7 @@ fn delayed_focus() -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        focus_shortcut = shortcut!(D);
+        focus_shortcut = shortcut!('D');
         children = ui_vec![
             title("Delayed 4s (D)"),
 

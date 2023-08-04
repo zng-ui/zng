@@ -1178,11 +1178,11 @@ impl<E: AppExtension> RunningApp<E> {
             Event::KeyboardInput {
                 window: w_id,
                 device: d_id,
-                scan_code,
+                key_code,
                 state,
                 key,
             } => {
-                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
+                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), key_code, state, key);
                 self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
             }
 
@@ -1383,11 +1383,11 @@ impl<E: AppExtension> RunningApp<E> {
             }
             Event::DeviceKey {
                 device: d_id,
-                scan_code,
+                key_code,
                 state,
                 key,
             } => {
-                let args = KeyArgs::now(self.device_id(d_id), scan_code, state, key);
+                let args = KeyArgs::now(self.device_id(d_id), key_code, state, key);
                 self.notify_event(KEY_EVENT.new_update(args), observer);
             }
             Event::DeviceText(d_id, c) => {

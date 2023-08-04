@@ -13,7 +13,7 @@ command! {
     /// must be used.
     pub static NEW_CMD = {
         name: "New",
-        shortcut: [shortcut!(CTRL+N)],
+        shortcut: [shortcut!(CTRL+'N')],
     };
 
     /// Represents the **open** action.
@@ -22,7 +22,7 @@ command! {
     /// command implementer must identify the item, either by context or by prompting the user.
     pub static OPEN_CMD = {
         name: "Open…",
-        shortcut: [shortcut!(CTRL+O)],
+        shortcut: [shortcut!(CTRL+'O')],
     };
 
     /// Represents the **save** action.
@@ -31,7 +31,7 @@ command! {
     /// otherwise the user is prompted like [`SAVE_AS_CMD`].
     pub static SAVE_CMD = {
         name: "Save",
-        shortcut: [shortcut!(CTRL+S)],
+        shortcut: [shortcut!(CTRL+'S')],
     };
 
     /// Represents the **save-as** action.
@@ -39,12 +39,12 @@ command! {
     /// Usually this prompts the user for a save path, even if a previous path is already known.
     pub static SAVE_AS_CMD = {
         name: "Save As…",
-        shortcut: [shortcut!(CTRL|SHIFT+S)],
+        shortcut: [shortcut!(CTRL|SHIFT+'S')],
     };
 
     /// Represents the **context menu open** action.
     pub static CONTEXT_MENU_CMD = {
-        shortcut: [shortcut!(SHIFT+F10), shortcut!(Apps)],
+        shortcut: [shortcut!(SHIFT+F10), shortcut!(ContextMenu)],
     };
 }
 

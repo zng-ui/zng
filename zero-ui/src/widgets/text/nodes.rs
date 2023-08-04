@@ -459,7 +459,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             }
                         }
                     } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                        if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                        if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
                             match key {
                                 Key::Backspace => {
                                     if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
@@ -1095,7 +1095,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 };
 
                 if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                    if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                    if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
                         match key {
                             Key::Tab => {
                                 if args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
@@ -1107,7 +1107,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     args.propagation().stop();
                                 }
                             }
-                            Key::Right => {
+                            Key::ArrowRight => {
                                 if args.modifiers.is_only_ctrl() {
                                     args.propagation().stop();
 
@@ -1122,7 +1122,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     });
                                 }
                             }
-                            Key::Left => {
+                            Key::ArrowLeft => {
                                 if args.modifiers.is_only_ctrl() {
                                     args.propagation().stop();
 
@@ -1137,7 +1137,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     });
                                 }
                             }
-                            Key::Up => {
+                            Key::ArrowUp => {
                                 if args.modifiers.is_empty()
                                     && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
                                 {
@@ -1148,7 +1148,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     });
                                 }
                             }
-                            Key::Down => {
+                            Key::ArrowDown => {
                                 if args.modifiers.is_empty()
                                     && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
                                 {

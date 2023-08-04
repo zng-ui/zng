@@ -734,7 +734,7 @@ command! {
     /// focused undo scope.
     pub static UNDO_CMD = {
         name: "Undo",
-        shortcut: [shortcut!(CTRL+Z)],
+        shortcut: [shortcut!(CTRL+'Z')],
     };
 
     /// Represents the **redo** action.
@@ -748,7 +748,7 @@ command! {
     /// [`redo`]: UNDO::redo
     pub static REDO_CMD = {
         name: "Redo",
-        shortcut: [shortcut!(CTRL+Y)],
+        shortcut: [shortcut!(CTRL+'Y')],
     };
 
     /// Represents the **clear history** action.

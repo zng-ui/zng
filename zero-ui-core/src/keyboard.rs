@@ -28,13 +28,13 @@ event_args! {
         /// Device that generated the event.
         pub device_id: DeviceId,
 
-        /// Raw code of key.
-        pub scan_code: KeyCode,
+        /// Physical key.
+        pub key_code: KeyCode,
 
         /// If the key was pressed or released.
         pub state: KeyState,
 
-        /// Symbolic name of [`scan_code`](KeyInputArgs::scan_code).
+        /// Semantic key.
         pub key: Option<Key>,
 
         /// What modifier keys where pressed when this event happened.
@@ -363,42 +363,42 @@ impl KeyboardService {
             KeyState::Pressed => {
                 if let Some((d_id, code, time, count)) = &mut self.last_key_down {
                     let max_t = self.repeat_config.get().start_delay * 2;
-                    if args.scan_code == *code && args.device_id == *d_id && (args.timestamp - *time) < max_t {
+                    if args.key_code == *code && args.device_id == *d_id && (args.timestamp - *time) < max_t {
                         *count = (*count).saturating_add(1);
                         repeat = *count;
                     } else {
                         *d_id = args.device_id;
-                        *code = args.scan_code;
+                        *code = args.key_code;
                         *count = 0;
                     }
                     *time = args.timestamp;
                 } else {
-                    self.last_key_down = Some((args.device_id, args.scan_code, args.timestamp, 0));
+                    self.last_key_down = Some((args.device_id, args.key_code, args.timestamp, 0));
                 }
 
-                let scan_code = args.scan_code;
-                if !self.codes.with(|c| c.contains(&scan_code)) {
+                let key_code = args.key_code;
+                if !self.codes.with(|c| c.contains(&key_code)) {
                     self.codes.modify(move |cs| {
-                        cs.to_mut().push(scan_code);
+                        cs.to_mut().push(key_code);
                     });
                 }
 
-                if let Some(key) = args.key {
-                    if !self.keys.with(|c| c.contains(&key)) {
-                        self.keys.modify(move |ks| {
+                if let Some(key) = &args.key {
+                    if !self.keys.with(|c| c.contains(key)) {
+                        self.keys.modify(clmv!(key, |ks| {
                             ks.to_mut().push(key);
-                        });
+                        }));
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(key, true);
+                        self.set_modifiers(key.clone(), true);
                     }
                 }
             }
             KeyState::Released => {
                 self.last_key_down = None;
 
-                let key = args.scan_code;
+                let key = args.key_code;
                 if self.codes.with(|c| c.contains(&key)) {
                     self.codes.modify(move |cs| {
                         if let Some(i) = cs.as_ref().iter().position(|c| *c == key) {
@@ -407,17 +407,17 @@ impl KeyboardService {
                     });
                 }
 
-                if let Some(key) = args.key {
-                    if self.keys.with(|c| c.contains(&key)) {
-                        self.keys.modify(move |ks| {
-                            if let Some(i) = ks.as_ref().iter().position(|k| *k == key) {
+                if let Some(key) = &args.key {
+                    if self.keys.with(|c| c.contains(key)) {
+                        self.keys.modify(clmv!(key, |ks| {
+                            if let Some(i) = ks.as_ref().iter().position(|k| k == &key) {
                                 ks.to_mut().swap_remove(i);
                             }
-                        });
+                        }));
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(key, false);
+                        self.set_modifiers(key.clone(), false);
                     }
                 }
             }
@@ -429,9 +429,9 @@ impl KeyboardService {
                 let args = KeyInputArgs::now(
                     args.window_id,
                     args.device_id,
-                    args.scan_code,
+                    args.key_code,
                     args.state,
-                    args.key,
+                    args.key.clone(),
                     self.current_modifiers(),
                     repeat,
                     target,
@@ -471,7 +471,7 @@ impl KeyboardService {
     fn current_modifiers(&self) -> ModifiersState {
         let mut state = ModifiersState::empty();
         for key in &self.current_modifiers {
-            state |= ModifiersState::from_key(*key);
+            state |= ModifiersState::from_key(key.clone());
         }
         state
     }
@@ -510,54 +510,48 @@ pub trait HeadlessAppKeyboardExt {
     /// Notifies keyboard input event.
     ///
     /// Note that the app is not updated so the event is pending after this call.
-    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState);
+    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState);
 
     /// Does a key-down, key-up and updates.
-    fn press_key(&mut self, window_id: WindowId, key: Key);
+    fn press_key(&mut self, window_id: WindowId, code: KeyCode, key: Key);
 
     /// Does a modifiers changed, key-down, key-up, reset modifiers and updates.
-    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key);
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, key: Key);
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
-    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState) {
+    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState) {
         use crate::app::raw_events::*;
 
-        let args = RawKeyInputArgs::now(
-            window_id,
-            DeviceId::virtual_keyboard(),
-            KeyCode::Unidentified(NativeKeyCode::Unidentified),
-            state,
-            Some(key),
-        );
+        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, state, Some(key));
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 
-    fn press_key(&mut self, window_id: WindowId, key: Key) {
-        self.on_keyboard_input(window_id, key, KeyState::Pressed);
-        self.on_keyboard_input(window_id, key, KeyState::Released);
+    fn press_key(&mut self, window_id: WindowId, code: KeyCode, key: Key) {
+        self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
+        self.on_keyboard_input(window_id, code, key, KeyState::Released);
         let _ = self.update(false);
     }
 
-    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key) {
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, key: Key) {
         if modifiers.is_empty() {
-            self.press_key(window_id, key);
+            self.press_key(window_id, code, key);
         } else {
             let modifiers = modifiers.keys();
-            for &key in &modifiers {
-                self.on_keyboard_input(window_id, key, KeyState::Pressed);
+            for key in &modifiers {
+                self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
             }
 
             // pressed the modifiers.
             let _ = self.update(false);
 
-            self.on_keyboard_input(window_id, key, KeyState::Pressed);
-            self.on_keyboard_input(window_id, key, KeyState::Released);
+            self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
+            self.on_keyboard_input(window_id, code, key.clone(), KeyState::Released);
 
             // pressed the key.
             let _ = self.update(false);
 
             for key in modifiers {
-                self.on_keyboard_input(window_id, key, KeyState::Released);
+                self.on_keyboard_input(window_id, code, key, KeyState::Released);
             }
 
             // released the modifiers.
@@ -618,7 +612,7 @@ impl ModifiersState {
         self.intersects(Self::ALT)
     }
     /// Returns `true` if any logo key is pressed.
-    pub fn has_logo(self) -> bool {
+    pub fn has_super(self) -> bool {
         self.intersects(Self::LOGO)
     }
 
@@ -685,7 +679,7 @@ impl ModifiersState {
         if self.has_shift() {
             r |= Self::SHIFT;
         }
-        if self.has_logo() {
+        if self.has_super() {
             r |= Self::LOGO;
         }
         r
@@ -716,8 +710,8 @@ impl ModifiersState {
         match code {
             KeyCode::AltLeft => Self::L_ALT,
             KeyCode::AltRight => Self::R_ALT,
-            KeyCode::ControlLeft => Self::L_CTRL,
-            KeyCode::ControlRight => Self::R_CTRL,
+            KeyCode::CtrlLeft => Self::L_CTRL,
+            KeyCode::CtrlRight => Self::R_CTRL,
             KeyCode::ShiftLeft => Self::L_SHIFT,
             KeyCode::ShiftRight => Self::R_SHIFT,
             KeyCode::SuperLeft => Self::L_LOGO,
@@ -732,7 +726,7 @@ impl ModifiersState {
             Key::Alt => Self::L_ALT,
             Key::AltGraph => Self::R_ALT,
             Key::Shift => Self::SHIFT,
-            Key::Control => Self::CTRL,
+            Key::Ctrl => Self::CTRL,
             Key::Super => Self::LOGO,
             _ => Self::empty(),
         }
@@ -753,9 +747,9 @@ impl ModifiersState {
         }
 
         if self.contains(Self::L_CTRL) {
-            r.push(KeyCode::ControlLeft);
+            r.push(KeyCode::CtrlLeft);
         } else if self.contains(Self::R_CTRL) {
-            r.push(KeyCode::ControlRight);
+            r.push(KeyCode::CtrlRight);
         }
 
         if self.contains(Self::L_SHIFT) {
@@ -784,7 +778,7 @@ impl ModifiersState {
         }
 
         if self.intersects(Self::CTRL) {
-            r.push(Key::Control);
+            r.push(Key::Ctrl);
         }
 
         if self.intersects(Self::SHIFT) {

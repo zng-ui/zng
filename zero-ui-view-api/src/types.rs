@@ -4,6 +4,7 @@ use crate::FrameValueUpdate;
 use crate::IpcBytes;
 use serde::{Deserialize, Serialize};
 use std::ops;
+use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender_api::*;
@@ -511,12 +512,12 @@ pub enum KeyCode {
     /// <kbd>CapsLock</kbd> or <kbd>⇪</kbd>
     CapsLock,
     /// The application context menu key, which is typically found between the right
-    /// <kbd>Super</kbd> key and the right <kbd>Control</kbd> key.
+    /// <kbd>Super</kbd> key and the right <kbd>Ctrl</kbd> key.
     ContextMenu,
-    /// <kbd>Control</kbd> or <kbd>⌃</kbd>
-    ControlLeft,
-    /// <kbd>Control</kbd> or <kbd>⌃</kbd>
-    ControlRight,
+    /// <kbd>Ctrl</kbd> or <kbd>⌃</kbd>
+    CtrlLeft,
+    /// <kbd>Ctrl</kbd> or <kbd>⌃</kbd>
+    CtrlRight,
     /// <kbd>Enter</kbd> or <kbd>↵</kbd>. Labeled <kbd>Return</kbd> on Apple keyboards.
     Enter,
     /// The Windows, <kbd>⌘</kbd>, <kbd>Command</kbd>, or other OS symbol key.
@@ -847,6 +848,23 @@ pub enum KeyCode {
     /// General-purpose function key.
     F35,
 }
+impl KeyCode {
+    /// If the keycode represents a known and identified modifier.
+    pub fn is_modifier(&self) -> bool {
+        matches!(
+            self,
+            Self::AltLeft
+                | Self::AltRight
+                | Self::CtrlLeft
+                | Self::CtrlRight
+                | Self::ShiftLeft
+                | Self::ShiftRight
+                | Self::SuperLeft
+                | Self::SuperRight
+        )
+    }
+}
+
 /// Key represents the meaning of a keypress.
 ///
 /// This mostly conforms to the UI Events Specification's [`KeyboardEvent.key`] with a few
@@ -863,10 +881,15 @@ pub enum KeyCode {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Key {
+    /// A key that corresponds to the character typed by the user, taking into account the
+    /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
+    /// effect.
+    Char(char),
+
     /// A key string that corresponds to the character typed by the user, taking into account the
     /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
     /// effect.
-    Character(smol_str::SmolStr),
+    Str(Arc<str>),
 
     /// This variant is used when the key cannot be translated to any other variant.
     ///
@@ -897,7 +920,7 @@ pub enum Key {
     ///
     /// Used to enable control modifier function for interpreting concurrent or subsequent keyboard
     /// input.
-    Control,
+    Ctrl,
     /// The Function switch `Fn` key. Activating this key simultaneously with another key changes
     /// that key’s value to an alternate character or function. This key is often handled directly
     /// in the keyboard hardware and does not usually generate key events.
@@ -991,7 +1014,7 @@ pub enum Key {
     ///
     Cancel,
     /// Show the application’s context menu.
-    /// This key is commonly found between the right `Super` key and the right `Control` key.
+    /// This key is commonly found between the right `Super` key and the right `Ctrl` key.
     ContextMenu,
     /// The `Esc` key. This key was originally used to initiate an escape sequence, but is
     /// now more generally used to exit or "escape" the current context, such as closing a dialog
@@ -1605,7 +1628,26 @@ pub enum Key {
 impl Key {
     /// If the key is ctrl, alt, shift or super.
     pub fn is_modifier(&self) -> bool {
-        matches!(self, Key::Control | Key::Alt | Key::AltGraph | Key::Shift | Key::Super)
+        matches!(self, Key::Ctrl | Key::Alt | Key::AltGraph | Key::Shift | Key::Super)
+    }
+
+    /// Character string.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Self {
+        let mut n = s.chars();
+        if let Some(c) = n.next() {
+            if n.next().is_none() {
+                return Self::Char(c);
+            }
+        }
+        Self::Str(s.to_owned().into())
+    }
+}
+impl std::str::FromStr for Key {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str(s))
     }
 }
 
@@ -2002,11 +2044,11 @@ pub enum Event {
         window: WindowId,
         /// Device that generated the key event.
         device: DeviceId,
-        /// Device-dependent raw key code.
-        scan_code: KeyCode,
+        /// Physical key.
+        key_code: KeyCode,
         /// If the key was pressed or released.
         state: KeyState,
-        /// Device independent key code, if the code was identified.
+        /// Semantic key.
         key: Option<Key>,
     },
     /// The cursor has moved on the window.
@@ -2222,11 +2264,11 @@ pub enum Event {
     DeviceKey {
         /// Device that generated the key event.
         device: DeviceId,
-        /// Device-dependent raw key code.
-        scan_code: KeyCode,
+        /// Physical key.
+        key_code: KeyCode,
         /// If the key was pressed or released.
         state: KeyState,
-        /// Device independent key code, if the code was identified.
+        /// Semantic key.
         key: Option<Key>,
     },
     /// Device Unicode character input.

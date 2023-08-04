@@ -2,7 +2,7 @@ use zero_ui::{
     core::{
         context::app_local,
         event::command,
-        keyboard::HeadlessAppKeyboardExt,
+        keyboard::{HeadlessAppKeyboardExt, KeyCode},
         widget_instance::{match_node_leaf, UiNodeOp},
     },
     prelude::*,
@@ -41,9 +41,9 @@ fn shortcut() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(listener_window(false));
 
-    FOO_CMD.shortcut().set(shortcut!(F)).unwrap();
+    FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
 
-    app.press_key(window_id, Key::F);
+    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
 
     let widget_id = WidgetId::named("test-widget");
     // because we target the scoped first.
@@ -55,9 +55,9 @@ fn shortcut_with_focused_scope() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(listener_window(true));
 
-    FOO_CMD.shortcut().set(shortcut!(F)).unwrap();
+    FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
 
-    app.press_key(window_id, Key::F);
+    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
 
     let trace = TEST_TRACE.read();
     let widget_id = WidgetId::named("other-widget");
@@ -70,10 +70,10 @@ fn shortcut_scoped() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(listener_window(false));
 
-    FOO_CMD.shortcut().set(shortcut!(F)).unwrap();
-    FOO_CMD.scoped(window_id).shortcut().set(shortcut!(G)).unwrap();
+    FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
+    FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G')).unwrap();
 
-    app.press_key(window_id, Key::G);
+    app.press_key(window_id, KeyCode::KeyG, Key::Char('G'));
 
     {
         let mut trace = TEST_TRACE.write();
@@ -81,7 +81,7 @@ fn shortcut_scoped() {
         trace.clear();
     }
 
-    app.press_key(window_id, Key::F);
+    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
 
     let widget_id = WidgetId::named("test-widget");
     assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);

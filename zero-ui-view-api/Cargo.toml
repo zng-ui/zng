@@ -28,7 +28,6 @@ num-traits = "0.2"
 rustc-hash = "1"
 
 bitflags = { version = "2", features = ["serde"] }
-smol_str = { version = "0.2", features = ["serde"] }
 
 ipc-channel = { version = "0.16", optional = true }
 bincode = "1"

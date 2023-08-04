@@ -9,7 +9,7 @@ command! {
     pub static CLOSE_CMD = {
         name: "Close",
         info: "Close the current window.",
-        shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+W)],
+        shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
     };
 
     /// Represents the window **minimize** action.
@@ -35,7 +35,7 @@ command! {
         info: "Toggle full-screen mode on the current window.",
         shortcut: {
             if cfg!(target_os = "macos") {
-                shortcut!(CTRL|SHIFT+F)
+                shortcut!(CTRL|SHIFT+'F')
             } else {
                 shortcut!(F11)
             }

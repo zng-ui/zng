@@ -908,7 +908,7 @@ impl App {
                         self.notify(Event::KeyboardInput {
                             window: id,
                             device: d_id,
-                            scan_code: util::scan_code_to_key(input.scancode),
+                            key_code: util::scan_code_to_key(input.scancode),
                             state,
                             key,
                         });
@@ -1105,7 +1105,7 @@ impl App {
                         notify.push(Event::KeyboardInput {
                             window: id,
                             device: *d_id,
-                            scan_code: *s_code,
+                            key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
                         });
@@ -1115,7 +1115,7 @@ impl App {
                         notify.push(Event::KeyboardInput {
                             window: id,
                             device: *d_id,
-                            scan_code: *s_code,
+                            key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
                         });
@@ -1125,17 +1125,17 @@ impl App {
                         notify.push(Event::KeyboardInput {
                             window: id,
                             device: *d_id,
-                            scan_code: *s_code,
+                            key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
                         });
                     }
-                    if matches!(key, Key::Control) && !m.ctrl() {
+                    if matches!(key, Key::Ctrl) && !m.ctrl() {
                         retain = false;
                         notify.push(Event::KeyboardInput {
                             window: id,
                             device: *d_id,
-                            scan_code: *s_code,
+                            key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
                         });
@@ -1287,7 +1287,7 @@ impl App {
                 }),
                 DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
                     device: d_id,
-                    scan_code: util::scan_code_to_key(k.scancode),
+                    key_code: util::scan_code_to_key(k.scancode),
                     state: util::element_state_to_key_state(k.state),
                     key: k.virtual_keycode.map(util::v_key_to_key),
                 }),
