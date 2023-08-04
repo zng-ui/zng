@@ -3,6 +3,7 @@ use crate::DisplayList;
 use crate::FrameValueUpdate;
 use crate::IpcBytes;
 use serde::{Deserialize, Serialize};
+use std::mem;
 use std::ops;
 use std::sync::Arc;
 use std::time::Duration;
@@ -322,6 +323,7 @@ impl MouseScrollDelta {
 /// - Correctly match key press and release events.
 /// - On non-web platforms, support assigning key binds to virtually any key through a UI.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[repr(u8)]
 pub enum NativeKeyCode {
     /// Implementer did not identify system or scancode.
     Unidentified,
@@ -334,9 +336,18 @@ pub enum NativeKeyCode {
     /// An XKB "keycode".
     Xkb(u32),
 }
-
+impl NativeKeyCode {
+    /// Gets the variant name.
+    pub fn name(self) -> &'static str {
+        serde_variant::to_variant_name(&self).unwrap_or("")
+    }
+}
 impl std::fmt::Debug for NativeKeyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "NativeKeyCode::")?;
+        }
+
         use NativeKeyCode::{Android, MacOS, Unidentified, Windows, Xkb};
         let mut debug_tuple;
         match self {
@@ -375,7 +386,8 @@ impl std::fmt::Debug for NativeKeyCode {
 ///
 /// [`KeyboardEvent.code`]: https://w3c.github.io/uievents-code/#code-value-tables
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[repr(u16)]
 pub enum KeyCode {
     // source: https://docs.rs/winit/0.29.0-beta.0/src/winit/keyboard.rs.html#201-649
     //
@@ -389,7 +401,7 @@ pub enum KeyCode {
     /// <kbd>`</kbd> on a US keyboard. This is also called a backtick or grave.
     /// This is the <kbd>半角</kbd>/<kbd>全角</kbd>/<kbd>漢字</kbd>
     /// (hankaku/zenkaku/kanji) key on Japanese keyboards
-    Backquote,
+    Backquote = 1,
     /// Used for both the US <kbd>\\</kbd> (on the 101-key layout) and also for the key
     /// located between the <kbd>"</kbd> and <kbd>Enter</kbd> keys on row C of the 102-,
     /// 104- and 106-key layouts.
@@ -863,9 +875,50 @@ impl KeyCode {
                 | Self::SuperRight
         )
     }
+
+    /// Iterate over all identified values.
+    ///
+    /// The first value is `Backquote` the last is `F35`.
+    pub fn all_identified() -> impl ExactSizeIterator<Item = KeyCode> + DoubleEndedIterator {
+        unsafe {
+            // SAFETY: this is safe because the variants are without associated data.
+            let e: (u16, [u8; 9]) = mem::transmute(KeyCode::F35);
+            (1..=e.0).map(|n| mem::transmute((n, [0u8; 9])))
+        }
+    }
+
+    /// Gets the key a a static str.
+    pub fn name(self) -> &'static str {
+        serde_variant::to_variant_name(&self).unwrap_or("")
+    }
+}
+/// Gets the identified key name or `Unidentified`
+impl std::str::FromStr for KeyCode {
+    type Err = KeyCode;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        for v in Self::all_identified() {
+            if v.name() == s {
+                return Ok(v);
+            }
+        }
+        Err(KeyCode::Unidentified(NativeKeyCode::Unidentified))
+    }
+}
+impl fmt::Debug for KeyCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "KeyCode::")?;
+        }
+        let name = self.name();
+        match self {
+            Self::Unidentified(u) => write!(f, "{name}({u:?})"),
+            _ => write!(f, "{name}"),
+        }
+    }
 }
 
-/// Key represents the meaning of a keypress.
+/// Key represents the meaning of a key press.
 ///
 /// This mostly conforms to the UI Events Specification's [`KeyboardEvent.key`] with a few
 /// exceptions:
@@ -873,13 +926,13 @@ impl KeyCode {
 ///   another key which the specification calls `Super`. That does not exist here.)
 /// - The `Space` variant here, can be identified by the character it generates in the
 ///   specification.
-/// - The `Unidentified` variant here, can still identify a key through it's `NativeKeyCode`.
 /// - The `Dead` variant here, can specify the character which is inserted when pressing the
 ///   dead-key twice.
 ///
 /// [`KeyboardEvent.key`]: https://w3c.github.io/uievents-key/
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[repr(u16)]
 pub enum Key {
     /// A key that corresponds to the character typed by the user, taking into account the
     /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
@@ -906,7 +959,7 @@ pub enum Key {
     ///
     /// This key enables the alternate modifier function for interpreting concurrent or subsequent
     /// keyboard input. This key value is also used for the Apple <kbd>Option</kbd> key.
-    Alt,
+    Alt = 4,
     /// The Alternate Graphics (<kbd>AltGr</kbd> or <kbd>AltGraph</kbd>) key.
     ///
     /// This key is used enable the ISO Level 3 shift modifier (the standard `Shift` key is the
@@ -1631,7 +1684,12 @@ impl Key {
         matches!(self, Key::Ctrl | Key::Alt | Key::AltGraph | Key::Shift | Key::Super)
     }
 
-    /// Character string.
+    /// Gets the variant name.
+    pub fn name(&self) -> &'static str {
+        serde_variant::to_variant_name(self).unwrap_or("")
+    }
+
+    /// Gets the named key, or `Char` or `Str`.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         let mut n = s.chars();
@@ -1640,7 +1698,24 @@ impl Key {
                 return Self::Char(c);
             }
         }
+
+        for v in Self::all_named() {
+            if v.name() == s {
+                return v;
+            }
+        }
+
         Self::Str(s.to_owned().into())
+    }
+
+    /// Iterate over all values from `Alt` to `F35`.
+    pub fn all_named() -> impl ExactSizeIterator<Item = Key> + DoubleEndedIterator {
+        unsafe {
+            // SAFETY: this is safe because all variants from `Alt` are without associated data.
+            let s: (u16, [u8; 22]) = mem::transmute(Key::Alt);
+            let e: (u16, [u8; 22]) = mem::transmute(Key::F35);
+            (s.0..=e.0).map(|n| mem::transmute((n, [0u8; 22])))
+        }
     }
 }
 impl std::str::FromStr for Key {
@@ -1648,6 +1723,20 @@ impl std::str::FromStr for Key {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::from_str(s))
+    }
+}
+impl fmt::Debug for Key {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "Key::")?;
+        }
+        let name = self.name();
+        match self {
+            Self::Char(c) => write!(f, "{name}({c:?})"),
+            Self::Str(s) => write!(f, "{name}({:?})", s.as_ref()),
+            Self::Dead(c) => write!(f, "{name}({c:?})"),
+            _ => write!(f, "{name}"),
+        }
     }
 }
 
@@ -3935,5 +4024,16 @@ mod tests {
         let expected = vec![("Display Name (*.abc, *.bca)", vec!["abc", "bca"]), ("All Files (*.*)", vec!["*"])];
         let parsed: Vec<(&str, Vec<&str>)> = dlg.iter_filters().map(|(n, p)| (n, p.collect())).collect();
         assert_eq!(expected, parsed);
+    }
+
+    #[test]
+    fn key_code_iter() {
+        let mut iter = KeyCode::all_identified();
+        let first = iter.next().unwrap();
+        assert_eq!(first, KeyCode::Backquote);
+
+        for k in iter {
+            assert_eq!(k.name(), &format!("{:?}", k));
+        }
     }
 }

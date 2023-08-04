@@ -32,3 +32,4 @@ bitflags = { version = "2", features = ["serde"] }
 ipc-channel = { version = "0.16", optional = true }
 bincode = "1"
 parking_lot = "0.12"
+serde_variant = "0.1"

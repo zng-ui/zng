@@ -251,7 +251,11 @@ pub enum GestureKey {
 impl fmt::Display for GestureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GestureKey::Key(k) => write!(f, "{:?}", k),
+            GestureKey::Key(k) => match k {
+                Key::Char(c) => write!(f, "{:?}", c),
+                Key::Str(s) => write!(f, "{:?}", s.as_ref()),
+                k => write!(f, "{k:?}"),
+            },
             GestureKey::Code(c) => write!(f, "{:?}", c),
         }
     }
@@ -282,7 +286,25 @@ impl std::str::FromStr for GestureKey {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
+        match Key::from_str(s) {
+            Key::Str(s) => match KeyCode::from_str(&s) {
+                Ok(k) => {
+                    let key = k
+                        .try_into()
+                        .map_err(|e| ParseError::new(format!("key `{e:?}` cannot be used in gestures")))?;
+
+                    Ok(key)
+                }
+                Err(_) => Ok(Self::Key(Key::Str(s))),
+            },
+            k => {
+                let key = k
+                    .try_into()
+                    .map_err(|e| ParseError::new(format!("key `{e:?}` cannot be used in gestures")))?;
+
+                Ok(key)
+            }
+        }
     }
 }
 
