@@ -981,9 +981,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 .map(|l| l.rect().height())
                                 .unwrap_or_else(|| txt.shaped_text.line_height());
 
-                            let min_rect = Rect::new(p, Size::new(Px(1), line_height * 2 + txt.shaped_text.line_spacing()));
-
-                            SCROLL.scroll_to(ScrollToMode::minimal_rect(min_rect));
+                            if let Some(p) = txt.render_info.get_mut().transform.transform_point(p) {
+                                let p = p - WIDGET.info().inner_bounds().origin;
+                                let min_rect = Rect::new(p.to_point(), Size::new(Px(1), line_height * 2 + txt.shaped_text.line_spacing()));
+                                SCROLL.scroll_to(ScrollToMode::minimal_rect(min_rect));
+                            }
                         }
                     }
                 }

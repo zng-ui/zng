@@ -1,7 +1,5 @@
 # TextInput
 
-* Scroll to caret not fully scrolling 2 lines when scrolling downwards?
-
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
