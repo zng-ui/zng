@@ -9,7 +9,7 @@
 use super::DeviceId;
 use crate::{
     event::*,
-    keyboard::{Key, KeyState, ScanCode},
+    keyboard::{Key, KeyState, KeyCode},
     mouse::{ButtonState, MouseScrollDelta},
 };
 
@@ -106,7 +106,7 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Raw code of key.
-        pub scan_code: ScanCode,
+        pub scan_code: KeyCode,
 
         /// If the key was pressed or released.
         pub state: KeyState,

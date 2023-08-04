@@ -30,7 +30,7 @@ use zero_ui_view_api::{
 };
 
 #[cfg(windows)]
-use zero_ui_view_api::{Key, KeyState, ScanCode};
+use zero_ui_view_api::{Key, KeyState, KeyCode};
 
 use crate::{
     extensions::{
@@ -204,7 +204,7 @@ impl Window {
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                         window: id,
                         device: DeviceId::INVALID, // same as winit
-                        scan_code: ScanCode(wparam as _),
+                        scan_code: KeyCode::F4,
                         state: KeyState::Pressed,
                         key: Some(Key::F4),
                     }));

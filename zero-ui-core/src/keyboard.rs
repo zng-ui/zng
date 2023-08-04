@@ -17,7 +17,7 @@ use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
 
-pub use zero_ui_view_api::{Key, KeyRepeatConfig, KeyState, ScanCode};
+pub use zero_ui_view_api::{Key, KeyCode, KeyRepeatConfig, KeyState, NativeKeyCode};
 
 event_args! {
     /// Arguments for [`KEY_INPUT_EVENT`].
@@ -29,7 +29,7 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Raw code of key.
-        pub scan_code: ScanCode,
+        pub scan_code: KeyCode,
 
         /// If the key was pressed or released.
         pub state: KeyState,
@@ -286,8 +286,8 @@ impl KEYBOARD {
         KEYBOARD_SV.read().modifiers.read_only()
     }
 
-    /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
-    pub fn codes(&self) -> ReadOnlyArcVar<Vec<ScanCode>> {
+    /// Returns a read-only variable that tracks the [`KeyCode`] of the keys currently pressed.
+    pub fn codes(&self) -> ReadOnlyArcVar<Vec<KeyCode>> {
         KEYBOARD_SV.read().codes.read_only()
     }
 
@@ -347,12 +347,12 @@ struct KeyboardService {
     current_modifiers: FxHashSet<Key>,
 
     modifiers: ArcVar<ModifiersState>,
-    codes: ArcVar<Vec<ScanCode>>,
+    codes: ArcVar<Vec<KeyCode>>,
     keys: ArcVar<Vec<Key>>,
     repeat_config: ArcVar<KeyRepeatConfig>,
     caret_animation_config: ArcVar<(Duration, Duration)>,
 
-    last_key_down: Option<(DeviceId, ScanCode, Instant, u32)>,
+    last_key_down: Option<(DeviceId, KeyCode, Instant, u32)>,
 }
 impl KeyboardService {
     fn key_input(&mut self, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
@@ -522,7 +522,13 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState) {
         use crate::app::raw_events::*;
 
-        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), ScanCode(key as _), state, Some(key));
+        let args = RawKeyInputArgs::now(
+            window_id,
+            DeviceId::virtual_keyboard(),
+            KeyCode::Unidentified(NativeKeyCode::Unidentified),
+            state,
+            Some(key),
+        );
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 
@@ -705,51 +711,90 @@ impl ModifiersState {
         self & Self::LOGO
     }
 
+    /// Modifier from `code`, returns empty if the key is not a modifier.
+    pub fn from_code(code: KeyCode) -> ModifiersState {
+        match code {
+            KeyCode::AltLeft => Self::L_ALT,
+            KeyCode::AltRight => Self::R_ALT,
+            KeyCode::ControlLeft => Self::L_CTRL,
+            KeyCode::ControlRight => Self::R_CTRL,
+            KeyCode::ShiftLeft => Self::L_SHIFT,
+            KeyCode::ShiftRight => Self::R_SHIFT,
+            KeyCode::SuperLeft => Self::L_LOGO,
+            KeyCode::SuperRight => Self::R_LOGO,
+            _ => Self::empty(),
+        }
+    }
+
     /// Modifier from `key`, returns empty if the key is not a modifier.
     pub fn from_key(key: Key) -> ModifiersState {
         match key {
-            Key::LAlt => Self::L_ALT,
-            Key::RAlt => Self::R_ALT,
-            Key::LCtrl => Self::L_CTRL,
-            Key::RCtrl => Self::R_CTRL,
-            Key::LShift => Self::L_SHIFT,
-            Key::RShift => Self::R_SHIFT,
-            Key::LLogo => Self::L_LOGO,
-            Key::RLogo => Self::R_LOGO,
+            Key::Alt => Self::L_ALT,
+            Key::AltGraph => Self::R_ALT,
+            Key::Shift => Self::SHIFT,
+            Key::Control => Self::CTRL,
+            Key::Super => Self::LOGO,
             _ => Self::empty(),
         }
+    }
+
+    /// All key codes that when pressed form the modifiers state.
+    ///
+    /// In case of multiple keys the order is `LOGO`, `CTRL`, `SHIFT`, `ALT`.
+    ///
+    /// In case both left and right keys are flagged for a modifier, the left key is used.
+    pub fn codes(self) -> Vec<KeyCode> {
+        let mut r = vec![];
+
+        if self.contains(Self::L_LOGO) {
+            r.push(KeyCode::SuperLeft);
+        } else if self.contains(Self::R_LOGO) {
+            r.push(KeyCode::SuperRight);
+        }
+
+        if self.contains(Self::L_CTRL) {
+            r.push(KeyCode::ControlLeft);
+        } else if self.contains(Self::R_CTRL) {
+            r.push(KeyCode::ControlRight);
+        }
+
+        if self.contains(Self::L_SHIFT) {
+            r.push(KeyCode::ShiftLeft);
+        } else if self.contains(Self::R_SHIFT) {
+            r.push(KeyCode::ShiftRight);
+        }
+
+        if self.contains(Self::L_ALT) {
+            r.push(KeyCode::AltLeft);
+        } else if self.contains(Self::R_ALT) {
+            r.push(KeyCode::AltRight);
+        }
+
+        r
     }
 
     /// All keys that when pressed form the modifiers state.
     ///
     /// In case of multiple keys the order is `LOGO`, `CTRL`, `SHIFT`, `ALT`.
-    ///
-    /// In case both left and right keys are flagged for a modifier, the left key is used.
     pub fn keys(self) -> Vec<Key> {
         let mut r = vec![];
 
-        if self.contains(Self::L_LOGO) {
-            r.push(Key::LLogo);
-        } else if self.contains(Self::R_LOGO) {
-            r.push(Key::RLogo);
+        if self.intersects(Self::LOGO) {
+            r.push(Key::Super);
         }
 
-        if self.contains(Self::L_CTRL) {
-            r.push(Key::LCtrl);
-        } else if self.contains(Self::R_CTRL) {
-            r.push(Key::RCtrl);
+        if self.intersects(Self::CTRL) {
+            r.push(Key::Control);
         }
 
-        if self.contains(Self::L_SHIFT) {
-            r.push(Key::LShift);
-        } else if self.contains(Self::R_SHIFT) {
-            r.push(Key::RShift);
+        if self.intersects(Self::SHIFT) {
+            r.push(Key::Shift);
         }
 
-        if self.contains(Self::L_ALT) {
-            r.push(Key::LAlt);
+        if self.contains(Self::R_ALT) {
+            r.push(Key::AltGraph);
         } else if self.contains(Self::R_ALT) {
-            r.push(Key::RAlt);
+            r.push(Key::Alt);
         }
 
         r

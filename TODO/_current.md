@@ -1,3 +1,13 @@
+# Keyboard 2.0
+
+* Rename all references to scan code.
+* Rename logo to super.
+* Review gestures.
+    - We are constraining too much, users with unusual keyboards cannot setup shortcuts with any special keys.
+    - At the same time we can't allow some keys in shortcuts, need to figure out a filter.
+* Test all.
+* Merge.
+
 # TextInput
 
 * Implement selection.

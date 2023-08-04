@@ -27,7 +27,7 @@ use super::{
 use crate::{
     color::ColorScheme,
     event::*,
-    keyboard::{Key, KeyRepeatConfig, KeyState, ScanCode},
+    keyboard::{Key, KeyRepeatConfig, KeyState, KeyCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
@@ -45,7 +45,7 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Raw code of key.
-        pub scan_code: ScanCode,
+        pub scan_code: KeyCode,
 
         /// If the key was pressed or released.
         pub state: KeyState,
