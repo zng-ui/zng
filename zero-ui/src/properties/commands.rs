@@ -13,7 +13,7 @@ command! {
     /// must be used.
     pub static NEW_CMD = {
         name: "New",
-        shortcut: [shortcut!(CTRL+'N')],
+        shortcut: [shortcut!(CTRL+'N'), shortcut!(New)],
     };
 
     /// Represents the **open** action.
@@ -22,7 +22,7 @@ command! {
     /// command implementer must identify the item, either by context or by prompting the user.
     pub static OPEN_CMD = {
         name: "Open…",
-        shortcut: [shortcut!(CTRL+'O')],
+        shortcut: [shortcut!(CTRL+'O'), shortcut!(Open)],
     };
 
     /// Represents the **save** action.
@@ -31,7 +31,7 @@ command! {
     /// otherwise the user is prompted like [`SAVE_AS_CMD`].
     pub static SAVE_CMD = {
         name: "Save",
-        shortcut: [shortcut!(CTRL+'S')],
+        shortcut: [shortcut!(CTRL+'S'), shortcut!(Save)],
     };
 
     /// Represents the **save-as** action.

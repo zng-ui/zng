@@ -34,11 +34,12 @@ command! {
         name: "Full-Screen",
         info: "Toggle full-screen mode on the current window.",
         shortcut: {
-            if cfg!(target_os = "macos") {
+            let a = if cfg!(target_os = "macos") {
                 shortcut!(CTRL|SHIFT+'F')
             } else {
                 shortcut!(F11)
-            }
+            };
+            [a, shortcut!(ZoomToggle)]
         }
     };
 

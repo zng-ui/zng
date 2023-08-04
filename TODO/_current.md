@@ -3,12 +3,9 @@
 * Review gestures.
     - Need to filter more invalid keys.
     - Need `shortcut!` to fallback to `KeyCode` automatically.
+
 * Make shortcuts case insensitive.
-* Review more shortcuts possible now that extended keys are available.
-    - Like `Copy` key where we just had `CTRL+'C'`.
-* Improve `GestureKey` display.
-* Implement `GestureKey` parse.
-    - Can we use serde?
+
 * Test all.
 * Merge.
 

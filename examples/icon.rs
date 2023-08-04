@@ -89,7 +89,7 @@ fn icons() -> impl UiNode {
                 margin = (15, 0, 0, 0);
                 padding = (7, 15, 7, 26);
                 min_width = 40.vh_pct();
-                focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F']];
+                focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
                 accepts_tab = false;
                 accepts_enter = false;
                 foreground = Icon! {
