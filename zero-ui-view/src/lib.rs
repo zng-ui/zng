@@ -479,6 +479,7 @@ impl App {
                     AppEvent::ImageLoaded(data) => {
                         app.image_cache.loaded(data);
                     }
+                    AppEvent::MonitorPowerChanged => {} // headless
                     AppEvent::DisableDeviceEvents => {
                         app.disable_device_events(None);
                     }
@@ -566,6 +567,12 @@ impl App {
                         }
                         AppEvent::ImageLoaded(data) => {
                             app.image_cache.loaded(data);
+                        }
+                        AppEvent::MonitorPowerChanged => {
+                            // if a window opens in power-off it is blank until redraw.
+                            for w in &mut app.windows {
+                                w.redraw();
+                            }
                         }
                         AppEvent::DisableDeviceEvents => {
                             app.disable_device_events(Some(target));
@@ -1889,6 +1896,9 @@ pub(crate) enum AppEvent {
 
     /// Send after init if `device_events` are not requested.
     DisableDeviceEvents,
+
+    /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
+    MonitorPowerChanged,
 }
 
 /// Message inserted in the request loop from the view-process.

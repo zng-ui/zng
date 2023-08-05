@@ -18,8 +18,17 @@ fn config_listener(event_loop: crate::AppEventSender) {
     let _span = tracing::trace_span!("config_listener").entered();
 
     use crate::AppEvent;
-    use windows_sys::core::*;
-    use windows_sys::Win32::{Foundation::GetLastError, UI::WindowsAndMessaging::*};
+    use windows_sys::{
+        core::*,
+        Win32::{
+            Foundation::GetLastError,
+            System::{
+                Power::{RegisterPowerSettingNotification, UnregisterPowerSettingNotification},
+                SystemServices::GUID_SESSION_DISPLAY_STATUS,
+            },
+            UI::WindowsAndMessaging::*,
+        },
+    };
     use zero_ui_view_api::Event;
 
     use crate::util;
@@ -69,6 +78,11 @@ fn config_listener(event_loop: crate::AppEventSender) {
         r
     };
 
+    let mut power_listener_handle = unsafe {
+        //
+        RegisterPowerSettingNotification(window, &GUID_SESSION_DISPLAY_STATUS, 0)
+    };
+
     let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, lparam| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
@@ -99,6 +113,21 @@ fn config_listener(event_loop: crate::AppEventSender) {
             WM_DISPLAYCHANGE => {
                 let _ = event_loop.send(AppEvent::RefreshMonitors);
                 Some(0)
+            }
+            WM_POWERBROADCAST => {
+                if wparam == PBT_POWERSETTINGCHANGE as usize {
+                    let _ = event_loop.send(AppEvent::MonitorPowerChanged);
+                }
+                Some(0)
+            }
+            WM_DESTROY => {
+                let h = std::mem::take(&mut power_listener_handle);
+                if h != 0 {
+                    unsafe {
+                        UnregisterPowerSettingNotification(h);
+                    };
+                }
+                None
             }
             _ => None,
         }

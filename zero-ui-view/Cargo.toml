@@ -98,6 +98,7 @@ features = [
     "Win32_System_LibraryLoader",
     "Win32_Globalization",
     "Win32_System_SystemServices",
+    "Win32_System_Power",
 ]
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.48.0"

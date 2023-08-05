@@ -6,7 +6,7 @@ use std::{
 
 use super::{
     font_features::RFontFeatures, lang, CaretIndex, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak,
-    SegmentedText, TextSegment, TextSegmentKind, Txt, WordBreak, WhiteSpace,
+    SegmentedText, TextSegment, TextSegmentKind, Txt, WhiteSpace, WordBreak,
 };
 use crate::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
