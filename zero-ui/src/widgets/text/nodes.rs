@@ -12,7 +12,7 @@ use super::{
 use crate::{
     core::{
         focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
-        keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
+        keyboard::{KeyState, KEYBOARD, KEY_INPUT_EVENT},
         text::*,
         window::WindowLoadingHandle,
     },
@@ -297,7 +297,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 4],
+        events: [EventHandle; 3],
         caret_animation: VarHandle,
         cut: CommandHandle,
         copy: CommandHandle,
@@ -381,10 +381,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 let id = WIDGET.id();
 
                 let d = EditData::get(&mut edit_data);
-                d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
-                d.events[1] = FOCUS_CHANGED_EVENT.subscribe(id);
-                d.events[2] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
-                d.events[3] = KEY_INPUT_EVENT.subscribe(id);
+                d.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
+                d.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
+                d.events[2] = KEY_INPUT_EVENT.subscribe(id);
 
                 d.cut = CUT_CMD.scoped(id).subscribe(true);
                 d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -448,17 +447,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     && text.capabilities().can_modify()
                     && WIDGET.info().interactivity().is_enabled()
                 {
-                    if let Some(args) = CHAR_INPUT_EVENT.on_unhandled(update) {
-                        if text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id()) {
-                            if let Some(c) = args.insert_char() {
-                                args.propagation().stop();
-                                let skip = (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
-                                if !skip {
-                                    ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(Txt::from_char(c)).call(&text));
-                                }
-                            }
-                        }
-                    } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+                    if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                         if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
                             match key {
                                 Key::Backspace => {
@@ -485,7 +474,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         }
                                     }
                                 }
-                                _ => {}
+                                _ => {
+                                    let insert = args.insert_str();
+                                    if !insert.is_empty() {
+                                        args.propagation().stop();
+                                        let skip =
+                                            (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
+                                        if !skip {
+                                            ResolvedText::call_edit_op(&mut resolved, || {
+                                                TextEditOp::insert(Txt::from_str(insert)).call(&text)
+                                            });
+                                        }
+                                    }
+                                }
                             }
                         }
                     } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -621,10 +622,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     let d = EditData::get(&mut edit_data);
 
                     let id = WIDGET.id();
-                    d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
-                    d.events[1] = KEY_INPUT_EVENT.subscribe(id);
-                    d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
-                    d.events[3] = KEY_INPUT_EVENT.subscribe(id);
+                    d.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
+                    d.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
+                    d.events[2] = KEY_INPUT_EVENT.subscribe(id);
 
                     d.cut = CUT_CMD.scoped(id).subscribe(true);
                     d.copy = COPY_CMD.scoped(id).subscribe(true);
@@ -1028,7 +1028,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 2],
+        events: [EventHandle; 1],
         caret_animation: VarHandle,
         select: CommandHandle,
     }
@@ -1079,8 +1079,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let id = WIDGET.id();
                 let d = EditData::get(&mut edit_data);
 
-                d.events[0] = KEY_INPUT_EVENT.subscribe(id);
-                d.events[1] = MOUSE_INPUT_EVENT.subscribe(id);
+                d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
+                // KEY_INPUT_EVENT subscribed by `resolve_text`.
 
                 d.select = SELECT_CMD.scoped(id).subscribe(true);
             }
@@ -1315,8 +1315,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let id = WIDGET.id();
                     let d = EditData::get(&mut edit_data);
 
-                    d.events[0] = KEY_INPUT_EVENT.subscribe(id);
-                    d.events[1] = MOUSE_INPUT_EVENT.subscribe(id);
+                    d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 } else {
                     edit_data = None;
                 }

@@ -1,11 +1,10 @@
 # Keyboard 2.0
 
-* Refactor key and text input events into a single event.
-    - Must be compatible with winit beta.
-    - We could replace the `Key::Char` with the next `ReceivedCharacter`.
-    - Need to record pressed chars to change in the key-up too.
-    - Maybe its time to update to winit beta?
-        - No there are panics.
+* Merge key-press with text input.
+    - Is all the same event now.
+* Test dead key text in windows (2 char inputs?)
+* Test all.
+* Merge.
 
 ```
 // key-down event (can merge)

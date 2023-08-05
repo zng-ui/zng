@@ -51,23 +51,22 @@ event_args! {
         pub state: KeyState,
 
         /// Semantic key.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
         pub key: Option<Key>,
+        /// Semantic key modified by the current active modifiers.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
+        pub key_modified: Option<Key>,
 
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
-        }
-    }
-
-    /// Arguments for the [`RAW_CHAR_INPUT_EVENT`].
-    pub struct RawCharInputArgs {
-        /// Window that received the event.
-        pub window_id: WindowId,
-
-        /// Unicode character.
-        pub character: char,
+        /// Text typed.
+        ///
+        /// This is only set during [`KeyState::Pressed`] of a key that generates text.
+        ///
+        /// This is usually the `key_modified` char, but is also `'\r'` for `Key::Enter`. On Windows when a dead key was
+        /// pressed earlier but cannot be combined with the character from this key press, the produced text
+        /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
+        pub text: crate::text::Txt,
 
         ..
 
@@ -626,9 +625,6 @@ event! {
     /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
     /// [`KEY_INPUT_EVENT`]: crate::keyboard::KEY_INPUT_EVENT
     pub static RAW_KEY_INPUT_EVENT: RawKeyInputArgs;
-
-    /// A window received an Unicode character.
-    pub static RAW_CHAR_INPUT_EVENT: RawCharInputArgs;
 
     /// A window received or lost focus.
     pub static RAW_WINDOW_FOCUS_EVENT: RawWindowFocusArgs;

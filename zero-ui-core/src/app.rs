@@ -1167,10 +1167,6 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
                 self.notify_event(RAW_HOVERED_FILE_CANCELLED_EVENT.new_update(args), observer);
             }
-            Event::ReceivedCharacter(w_id, c) => {
-                let args = RawCharInputArgs::now(window_id(w_id), c);
-                self.notify_event(RAW_CHAR_INPUT_EVENT.new_update(args), observer);
-            }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
                 self.notify_event(RAW_WINDOW_FOCUS_EVENT.new_update(args), observer);
@@ -1181,8 +1177,10 @@ impl<E: AppExtension> RunningApp<E> {
                 key_code,
                 state,
                 key,
+                key_modified,
+                text,
             } => {
-                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), key_code, state, key);
+                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), key_code, state, key, key_modified, text);
                 self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
             }
 
@@ -1385,14 +1383,9 @@ impl<E: AppExtension> RunningApp<E> {
                 device: d_id,
                 key_code,
                 state,
-                key,
             } => {
-                let args = KeyArgs::now(self.device_id(d_id), key_code, state, key);
+                let args = KeyArgs::now(self.device_id(d_id), key_code, state);
                 self.notify_event(KEY_EVENT.new_update(args), observer);
-            }
-            Event::DeviceText(d_id, c) => {
-                let args = TextArgs::now(self.device_id(d_id), c);
-                self.notify_event(TEXT_EVENT.new_update(args), observer);
             }
 
             // Others

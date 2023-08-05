@@ -127,7 +127,7 @@ pub mod prelude {
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,
         image::ImageSource,
-        keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
+        keyboard::{Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         l10n::{l10n, lang},
         mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
         render::RenderMode,

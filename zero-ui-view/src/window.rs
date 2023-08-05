@@ -207,6 +207,8 @@ impl Window {
                         key_code: KeyCode::F4,
                         state: KeyState::Pressed,
                         key: Some(Key::F4),
+                        key_modified: Some(Key::F4),
+                        text: String::new(),
                     }));
                     return Some(0);
                 }

@@ -35,7 +35,22 @@ event_args! {
         pub state: KeyState,
 
         /// Semantic key.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
         pub key: Option<Key>,
+        /// Semantic key modified by the current active modifiers.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
+        pub key_modified: Option<Key>,
+
+        /// Text typed.
+        ///
+        /// This is only set during [`KeyState::Pressed`] of a key that generates text.
+        ///
+        /// This is usually the `key_modified` char, but is also `'\r'` for `Key::Enter`. On Windows when a dead key was
+        /// pressed earlier but cannot be combined with the character from this key press, the produced text
+        /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
+        pub text: crate::text::Txt,
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -47,28 +62,6 @@ event_args! {
 
         /// The focused element at the time of the key input.
         pub target: InteractionPath,
-
-        ..
-
-        /// The [`target`](Self::target).
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_path(&self.target)
-        }
-    }
-
-    /// Arguments for [`CHAR_INPUT_EVENT`].
-    pub struct CharInputArgs {
-        /// Window that received the event.
-        pub window_id: WindowId,
-
-        /// Unicode character.
-        pub character: char,
-
-        /// The focused element at the time of the key input.
-        pub target: InteractionPath,
-
-        /// Current modifiers state.
-        pub modifiers: ModifiersState,
 
         ..
 
@@ -109,57 +102,45 @@ impl KeyInputArgs {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 }
-impl CharInputArgs {
-    /// Returns `true` if the widget is enabled in [`target`].
-    ///
-    /// [`target`]: Self::target
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
-    }
 
-    /// Returns `true` if the widget is disabled in [`target`].
-    ///
-    /// [`target`]: Self::target
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
-    }
-
+/// Text.
+impl KeyInputArgs {
     /// Returns `true` if the character is the backspace.
     pub fn is_backspace(&self) -> bool {
-        self.character == '\u{8}'
+        self.text.contains('\u{8}')
     }
 
     /// Returns `true` if the character is delete.
     pub fn is_delete(&self) -> bool {
-        self.character == '\u{7F}'
+        self.text.contains('\u{7F}')
     }
 
     /// Returns `true` if the character is the tab space.
     pub fn is_tab(&self) -> bool {
-        "\t\u{B}\u{1F}".contains(self.character)
+        self.text.chars().any(|c| "\t\u{B}\u{1F}".contains(c))
     }
 
     /// Returns `true` if the character is a line-break.
     pub fn is_line_break(&self) -> bool {
-        "\r\n\u{85}".contains(self.character)
+        self.text.chars().any(|c| "\r\n\u{85}".contains(c))
     }
 
-    /// Gets the character to insert in a text string.
+    /// Gets the characters to insert in a typed text.
     ///
     /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
     /// Returns `None` if the character must not be inserted.
     ///
     /// [`is_tab`]: Self::is_tab
     /// [`is_line_break`]: Self::is_line_break
-    pub fn insert_char(&self) -> Option<char> {
+    pub fn insert_str(&self) -> &str {
         if self.is_tab() {
-            Some('\t')
+            "\t"
         } else if self.is_line_break() {
-            Some('\n')
-        } else if self.character.is_ascii_control() {
-            None
+            "\n"
+        } else if self.text.chars().any(|c| c.is_ascii_control()) {
+            ""
         } else {
-            Some(self.character)
+            &self.text
         }
     }
 }
@@ -178,13 +159,6 @@ event! {
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
     pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs;
-
-    /// Character received event.
-    ///
-    /// # Provider
-    ///
-    /// This event is provided by the [`KeyboardManager`] extension.
-    pub static CHAR_INPUT_EVENT: CharInputArgs;
 }
 
 /// Application extension that provides keyboard events targeting the focused widget.
@@ -197,7 +171,6 @@ event! {
 ///
 /// * [`KEY_INPUT_EVENT`]
 /// * [`MODIFIERS_CHANGED_EVENT`]
-/// * [`CHAR_INPUT_EVENT`]
 ///
 /// # Services
 ///
@@ -226,18 +199,6 @@ impl AppExtension for KeyboardManager {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
             KEYBOARD_SV.write().key_input(args, focused);
-        } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
-            let focused = FOCUS.focused().get();
-            if let Some(target) = focused {
-                if target.window_id() == args.window_id {
-                    CHAR_INPUT_EVENT.notify(CharInputArgs::now(
-                        args.window_id,
-                        args.character,
-                        target,
-                        KEYBOARD_SV.read().current_modifiers(),
-                    ));
-                }
-            }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
             kb.repeat_config.set(args.config);
@@ -432,6 +393,8 @@ impl KeyboardService {
                     args.key_code,
                     args.state,
                     args.key.clone(),
+                    args.key_modified.clone(),
+                    args.text.clone(),
                     self.current_modifiers(),
                     repeat,
                     target,
@@ -522,7 +485,15 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState) {
         use crate::app::raw_events::*;
 
-        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, state, Some(key));
+        let args = RawKeyInputArgs::now(
+            window_id,
+            DeviceId::virtual_keyboard(),
+            code,
+            state,
+            Some(key.clone()),
+            Some(key),
+            "",
+        );
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 

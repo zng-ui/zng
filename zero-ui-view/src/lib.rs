@@ -863,7 +863,16 @@ impl App {
             }
             WindowEvent::ReceivedCharacter(c) => {
                 linux_modal_dialog_bail!();
-                self.notify(Event::ReceivedCharacter(id, c))
+                // merged with previous key press.
+                self.notify(Event::KeyboardInput {
+                    window: id,
+                    device: DeviceId::INVALID,
+                    key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
+                    state: KeyState::Pressed,
+                    key: None,
+                    key_modified: None,
+                    text: c.to_string(),
+                })
             }
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {
@@ -917,7 +926,9 @@ impl App {
                             device: d_id,
                             key_code: util::scan_code_to_key(input.scancode),
                             state,
-                            key,
+                            key: key.clone(),
+                            key_modified: key.clone(),
+                            text: String::new(),
                         });
                     }
                 }
@@ -1115,6 +1126,8 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
+                            key_modified: Some(key.clone()),
+                            text: String::new(),
                         });
                     }
                     if matches!(key, Key::Shift) && !m.shift() {
@@ -1125,6 +1138,8 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
+                            key_modified: Some(key.clone()),
+                            text: String::new(),
                         });
                     }
                     if matches!(key, Key::Alt | Key::AltGraph) && !m.alt() {
@@ -1135,6 +1150,8 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
+                            key_modified: Some(key.clone()),
+                            text: String::new(),
                         });
                     }
                     if matches!(key, Key::Ctrl) && !m.ctrl() {
@@ -1145,6 +1162,8 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: Some(key.clone()),
+                            key_modified: Some(key.clone()),
+                            text: String::new(),
                         });
                     }
                     retain
@@ -1296,9 +1315,8 @@ impl App {
                     device: d_id,
                     key_code: util::scan_code_to_key(k.scancode),
                     state: util::element_state_to_key_state(k.state),
-                    key: k.virtual_keycode.map(util::v_key_to_key),
                 }),
-                DeviceEvent::Text { codepoint } => self.notify(Event::DeviceText(d_id, codepoint)),
+                DeviceEvent::Text { .. } => {}
             }
         }
     }

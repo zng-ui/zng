@@ -861,6 +861,11 @@ pub enum KeyCode {
     F35,
 }
 impl KeyCode {
+    /// If key-code is fully unidentified ([`NativeKeyCode::Unidentified`]).
+    pub fn is_unidentified(&self) -> bool {
+        matches!(self, KeyCode::Unidentified(NativeKeyCode::Unidentified))
+    }
+
     /// If the keycode represents a known and identified modifier.
     pub fn is_modifier(&self) -> bool {
         matches!(
@@ -2651,8 +2656,7 @@ pub enum Event {
     ///
     /// There will be a single event triggered even if multiple files were hovered.
     HoveredFileCancelled(WindowId),
-    /// The window received a Unicode character.
-    ReceivedCharacter(WindowId, char),
+
     /// App window(s) focus changed.
     FocusChanged {
         /// Window that lost focus.
@@ -2677,8 +2681,23 @@ pub enum Event {
         key_code: KeyCode,
         /// If the key was pressed or released.
         state: KeyState,
+
         /// Semantic key.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
         key: Option<Key>,
+        /// Semantic key modified by the current active modifiers.
+        ///
+        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
+        key_modified: Option<Key>,
+        /// Text typed.
+        ///
+        /// This is only set during [`KeyState::Pressed`] of a key that generates text.
+        ///
+        /// This is usually the `key_modified` char, but is also `'\r'` for `Key::Enter`. On Windows when a dead key was
+        /// pressed earlier but cannot be combined with the character from this key press, the produced text
+        /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
+        text: String,
     },
     /// The cursor has moved on the window.
     ///
@@ -2897,11 +2916,7 @@ pub enum Event {
         key_code: KeyCode,
         /// If the key was pressed or released.
         state: KeyState,
-        /// Semantic key.
-        key: Option<Key>,
     },
-    /// Device Unicode character input.
-    DeviceText(DeviceId, char),
     /// User responded to a native message dialog.
     MsgDialogResponse(DialogId, MsgDialogResponse),
     /// User responded to a native file dialog.

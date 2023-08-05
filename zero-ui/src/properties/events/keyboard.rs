@@ -1,4 +1,4 @@
-//! Keyboard events, [`on_key_down`](fn@on_key_down), [`on_key_up`](fn@on_key_up), [`on_char_input`](fn@on_char_input) and more.
+//! Keyboard events, [`on_key_down`](fn@on_key_down), [`on_key_up`](fn@on_key_up) and more.
 //!
 //! These events are low level and directly tied to a keyboard device.
 //! Before using them review the [`gesture`](super::gesture) properties, in particular
@@ -106,43 +106,5 @@ event_property! {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
         filter: |args| args.state == KeyState::Released && args.is_enabled(WIDGET.id()),
-    }
-
-    /// Event fired when a text character is typed and the widget is enabled.
-    ///
-    /// # Route
-    ///
-    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
-    /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
-    ///
-    /// This route is also called *bubbling*.
-    ///
-    /// # Underlying Event
-    ///
-    /// This event property uses the [`CharInputEvent`] that is included in the default app.
-    pub fn char_input {
-        event: CHAR_INPUT_EVENT,
-        args: CharInputArgs,
-        filter: |args| args.is_enabled(WIDGET.id())
-    }
-
-    /// Event fired when a text character is typed and the widget is disabled.
-    ///
-    /// # Route
-    ///
-    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
-    /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
-    ///
-    /// This route is also called *bubbling*.
-    ///
-    /// # Underlying Event
-    ///
-    /// This event property uses the [`CharInputEvent`] that is included in the default app.
-    pub fn disabled_char_input {
-        event: CHAR_INPUT_EVENT,
-        args: CharInputArgs,
-        filter: |args| args.is_disabled(WIDGET.id())
     }
 }

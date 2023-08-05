@@ -315,7 +315,7 @@ impl TryFrom<Key> for GestureKey {
     type Error = Key;
 
     fn try_from(key: Key) -> Result<Self, Self::Error> {
-        if key.is_modifier() || key.is_composition() {
+        if key.is_modifier() || key.is_composition() || key == Key::Unidentified {
             Err(key)
         } else {
             Ok(Self::Key(key))
@@ -330,7 +330,7 @@ impl TryFrom<KeyCode> for GestureKey {
     type Error = KeyCode;
 
     fn try_from(key: KeyCode) -> Result<Self, Self::Error> {
-        if key.is_modifier() || key.is_composition() {
+        if key.is_modifier() || key.is_composition() || key.is_unidentified() {
             Err(key)
         } else {
             Ok(Self::Code(key))
