@@ -1,8 +1,5 @@
 # Keyboard 2.0
 
-* Merge key-press with text input.
-    - Is all the same event now.
-* Test dead key text in windows (2 char inputs?)
 * Test all.
 * Merge.
 
@@ -60,7 +57,9 @@ MainEventsCleared
     - We are receiving a TAB for some reason, but we are stopping propagation.
     - Char event is not linked with key press event stop propagation does nothing.
         - Is a different event from Winit.
-        - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753
+        - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753´
+* Pressing dead-key twice does not receive the key twice in Windows.
+    - Pressing `^` + `x` in pt-BR generates two chars `^x`, but pressing `^^` does not generate the chars.
 
 # View-Process
 

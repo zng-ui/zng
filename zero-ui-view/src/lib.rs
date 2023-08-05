@@ -861,19 +861,6 @@ impl App {
                 linux_modal_dialog_bail!();
                 self.notify(Event::HoveredFileCancelled(id))
             }
-            WindowEvent::ReceivedCharacter(c) => {
-                linux_modal_dialog_bail!();
-                // merged with previous key press.
-                self.notify(Event::KeyboardInput {
-                    window: id,
-                    device: DeviceId::INVALID,
-                    key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-                    state: KeyState::Pressed,
-                    key: None,
-                    key_modified: None,
-                    text: c.to_string(),
-                })
-            }
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {
                     if focused {
@@ -932,6 +919,19 @@ impl App {
                         });
                     }
                 }
+            }
+            WindowEvent::ReceivedCharacter(c) => {
+                linux_modal_dialog_bail!();
+                // merged with previous key press.
+                self.notify(Event::KeyboardInput {
+                    window: id,
+                    device: DeviceId::INVALID,
+                    key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
+                    state: KeyState::Pressed,
+                    key: None,
+                    key_modified: None,
+                    text: c.to_string(),
+                })
             }
             WindowEvent::ModifiersChanged(m) => {
                 linux_modal_dialog_bail!();
@@ -1240,14 +1240,39 @@ impl App {
         if let Some(mut coal) = self.coalescing_event.take() {
             match coal.coalesce(event) {
                 Ok(()) => self.coalescing_event = Some(coal),
-                Err(event) => {
-                    let mut error = self.event_sender.send(coal).is_err();
-                    error |= self.event_sender.send(event).is_err();
-
-                    if error {
-                        let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+                Err(event) => match (&mut coal, event) {
+                    (
+                        Event::KeyboardInput {
+                            window,
+                            device,
+                            state,
+                            text,
+                            ..
+                        },
+                        Event::KeyboardInput {
+                            window: n_window,
+                            device: n_device,
+                            text: n_text,
+                            ..
+                        },
+                    ) if !n_text.is_empty() && *window == n_window && *device == n_device && *state == KeyState::Pressed => {
+                        // text after key-press
+                        if text.is_empty() {
+                            *text = n_text;
+                        } else {
+                            text.push_str(&n_text);
+                        };
+                        self.coalescing_event = Some(coal);
                     }
-                }
+                    (_, event) => {
+                        let mut error = self.event_sender.send(coal).is_err();
+                        error |= self.event_sender.send(event).is_err();
+
+                        if error {
+                            let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+                        }
+                    }
+                },
             }
         } else {
             self.coalescing_event = Some(event);
