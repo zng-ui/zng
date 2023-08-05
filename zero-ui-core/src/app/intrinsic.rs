@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::app::*;
 use crate::event::*;
+use crate::gesture::CommandShortcutExt;
 use crate::shortcut;
 use crate::var::*;
 

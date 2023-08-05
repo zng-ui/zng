@@ -873,6 +873,13 @@ impl KeyCode {
                 | Self::ShiftRight
                 | Self::SuperLeft
                 | Self::SuperRight
+                | Self::CapsLock
+                | Self::Fn
+                | Self::FnLock
+                | Self::Meta
+                | Self::NumLock
+                | Self::ScrollLock
+                | Self::Hyper
         )
     }
 
@@ -1679,9 +1686,420 @@ pub enum Key {
     F35,
 }
 impl Key {
-    /// If the key is ctrl, alt, shift or super.
+    /// If the key is a modifier as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-modifier
     pub fn is_modifier(&self) -> bool {
-        matches!(self, Key::Ctrl | Key::Alt | Key::AltGraph | Key::Shift | Key::Super)
+        matches!(
+            self,
+            Key::Ctrl
+                | Key::Alt
+                | Key::AltGraph
+                | Key::CapsLock
+                | Key::Fn
+                | Key::FnLock
+                | Key::Meta
+                | Key::NumLock
+                | Key::ScrollLock
+                | Key::Shift
+                | Key::Symbol
+                | Key::SymbolLock
+                | Key::Super
+                | Key::Hyper
+        )
+    }
+
+    /// If the key is a white space as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-whitespace
+    pub fn is_white_space(&self) -> bool {
+        matches!(self, Key::Tab | Key::Space)
+    }
+
+    /// If the key is for an edit action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-editing
+    pub fn is_editing(&self) -> bool {
+        matches!(
+            self,
+            Key::Backspace
+                | Key::Clear
+                | Key::CrSel
+                | Key::Cut
+                | Key::Delete
+                | Key::EraseEof
+                | Key::ExSel
+                | Key::Insert
+                | Key::Paste
+                | Key::Redo
+                | Key::Undo
+        )
+    }
+
+    /// If the key is for an general UI action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-ui
+    pub fn is_ui(&self) -> bool {
+        matches!(
+            self,
+            Key::Accept
+                | Key::Again
+                | Key::Attn
+                | Key::Cancel
+                | Key::ContextMenu
+                | Key::Escape
+                | Key::Execute
+                | Key::Find
+                | Key::Help
+                | Key::Pause
+                | Key::Play
+                | Key::Props
+                | Key::Select
+                | Key::ZoomIn
+                | Key::ZoomOut
+        )
+    }
+
+    /// If the key is for an general device action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-device
+    pub fn is_device(&self) -> bool {
+        matches!(
+            self,
+            Key::BrightnessDown
+                | Key::BrightnessUp
+                | Key::Eject
+                | Key::LogOff
+                | Key::Power
+                | Key::PowerOff
+                | Key::PrintScreen
+                | Key::Hibernate
+                | Key::Standby
+                | Key::WakeUp
+        )
+    }
+
+    /// If the key if for IME composition actions as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-composition
+    pub fn is_composition(&self) -> bool {
+        matches!(
+            self,
+            Key::AllCandidates
+                | Key::Alphanumeric
+                | Key::CodeInput
+                | Key::Compose
+                | Key::Convert
+                | Key::Dead(_)
+                | Key::FinalMode
+                | Key::GroupFirst
+                | Key::GroupLast
+                | Key::GroupNext
+                | Key::GroupPrevious
+                | Key::ModeChange
+                | Key::NextCandidate
+                | Key::NonConvert
+                | Key::PreviousCandidate
+                | Key::Process
+                | Key::SingleCandidate
+                | Key::HangulMode
+                | Key::HanjaMode
+                | Key::JunjaMode
+                | Key::Eisu
+                | Key::Hankaku
+                | Key::Hiragana
+                | Key::HiraganaKatakana
+                | Key::KanaMode
+                | Key::KanjiMode
+                | Key::Katakana
+                | Key::Romaji
+                | Key::Zenkaku
+                | Key::ZenkakuHankaku
+        )
+    }
+
+    /// If the key is one of the general purpose function keys.
+    pub fn is_function(&self) -> bool {
+        matches!(
+            self,
+            Key::F1
+                | Key::F2
+                | Key::F3
+                | Key::F4
+                | Key::F5
+                | Key::F6
+                | Key::F7
+                | Key::F8
+                | Key::F9
+                | Key::F10
+                | Key::F11
+                | Key::F12
+                | Key::F13
+                | Key::F14
+                | Key::F15
+                | Key::F16
+                | Key::F17
+                | Key::F18
+                | Key::F19
+                | Key::F20
+                | Key::F21
+                | Key::F22
+                | Key::F23
+                | Key::F24
+                | Key::F25
+                | Key::F26
+                | Key::F27
+                | Key::F28
+                | Key::F29
+                | Key::F30
+                | Key::F31
+                | Key::F32
+                | Key::F33
+                | Key::F34
+                | Key::F35
+                | Key::Soft1
+                | Key::Soft2
+                | Key::Soft3
+                | Key::Soft4
+        )
+    }
+
+    /// If the key is for an multimedia control as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-multimedia
+    pub fn is_multimedia(&self) -> bool {
+        matches!(
+            self,
+            Key::ChannelDown
+                | Key::ChannelUp
+                | Key::Close
+                | Key::MailForward
+                | Key::MailReply
+                | Key::MailSend
+                | Key::MediaClose
+                | Key::MediaFastForward
+                | Key::MediaPause
+                | Key::MediaPlay
+                | Key::MediaPlayPause
+                | Key::MediaRecord
+                | Key::MediaRewind
+                | Key::MediaStop
+                | Key::MediaTrackNext
+                | Key::MediaTrackPrevious
+                | Key::New
+                | Key::Open
+                | Key::Print
+                | Key::Save
+                | Key::SpellCheck
+        )
+    }
+
+    /// If the key is for an audio control as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-audio
+    pub fn is_audio(&self) -> bool {
+        matches!(
+            self,
+            Key::AudioBalanceLeft
+                | Key::AudioBalanceRight
+                | Key::AudioBassBoostDown
+                | Key::AudioBassBoostToggle
+                | Key::AudioBassBoostUp
+                | Key::AudioFaderFront
+                | Key::AudioFaderRear
+                | Key::AudioSurroundModeNext
+                | Key::AudioTrebleDown
+                | Key::AudioTrebleUp
+                | Key::AudioVolumeDown
+                | Key::AudioVolumeUp
+                | Key::AudioVolumeMute
+                | Key::MicrophoneToggle
+                | Key::MicrophoneVolumeDown
+                | Key::MicrophoneVolumeUp
+                | Key::MicrophoneVolumeMute
+        )
+    }
+
+    /// If the key is for a speech correction control as defined by [w3].
+    ///
+    /// [w3]:https://www.w3.org/TR/uievents-key/#keys-speech
+    pub fn is_speech(&self) -> bool {
+        matches!(self, Key::SpeechCorrectionList | Key::SpeechInputToggle)
+    }
+
+    /// If the key is for launching an application.
+    pub fn is_launch(&self) -> bool {
+        matches!(
+            self,
+            Key::LaunchApplication1
+                | Key::LaunchApplication2
+                | Key::LaunchCalendar
+                | Key::LaunchContacts
+                | Key::LaunchMail
+                | Key::LaunchMediaPlayer
+                | Key::LaunchMusicPlayer
+                | Key::LaunchPhone
+                | Key::LaunchScreenSaver
+                | Key::LaunchSpreadsheet
+                | Key::LaunchWebBrowser
+                | Key::LaunchWebCam
+                | Key::LaunchWordProcessor
+        )
+    }
+
+    /// If the key is for a browser control.
+    pub fn is_browser(&self) -> bool {
+        matches!(
+            self,
+            Key::BrowserBack
+                | Key::BrowserFavorites
+                | Key::BrowserForward
+                | Key::BrowserHome
+                | Key::BrowserRefresh
+                | Key::BrowserSearch
+                | Key::BrowserStop
+        )
+    }
+
+    /// If the key is from a mobile phone as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-mobile
+    pub fn is_mobile(&self) -> bool {
+        matches!(
+            self,
+            Key::AppSwitch
+                | Key::Call
+                | Key::Camera
+                | Key::CameraFocus
+                | Key::EndCall
+                | Key::GoBack
+                | Key::GoHome
+                | Key::HeadsetHook
+                | Key::LastNumberRedial
+                | Key::Notification
+                | Key::MannerMode
+                | Key::VoiceDial
+        )
+    }
+
+    /// If the key is from a TV control as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-tv
+    pub fn is_tv(&self) -> bool {
+        matches!(
+            self,
+            Key::TV
+                | Key::TV3DMode
+                | Key::TVAntennaCable
+                | Key::TVAudioDescription
+                | Key::TVAudioDescriptionMixDown
+                | Key::TVAudioDescriptionMixUp
+                | Key::TVContentsMenu
+                | Key::TVDataService
+                | Key::TVInput
+                | Key::TVInputComponent1
+                | Key::TVInputComponent2
+                | Key::TVInputComposite1
+                | Key::TVInputComposite2
+                | Key::TVInputHDMI1
+                | Key::TVInputHDMI2
+                | Key::TVInputHDMI3
+                | Key::TVInputHDMI4
+                | Key::TVInputVGA1
+                | Key::TVMediaContext
+                | Key::TVNetwork
+                | Key::TVNumberEntry
+                | Key::TVPower
+                | Key::TVRadioService
+                | Key::TVSatellite
+                | Key::TVSatelliteBS
+                | Key::TVSatelliteCS
+                | Key::TVSatelliteToggle
+                | Key::TVTerrestrialAnalog
+                | Key::TVTerrestrialDigital
+                | Key::TVTimer
+        )
+    }
+
+    /// If the key is for a media controller as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-media-controller
+    pub fn is_media_controller(&self) -> bool {
+        matches!(
+            self,
+            Key::AVRInput
+                | Key::AVRPower
+                | Key::ColorF0Red
+                | Key::ColorF1Green
+                | Key::ColorF2Yellow
+                | Key::ColorF3Blue
+                | Key::ColorF4Grey
+                | Key::ColorF5Brown
+                | Key::ClosedCaptionToggle
+                | Key::Dimmer
+                | Key::DisplaySwap
+                | Key::DVR
+                | Key::Exit
+                | Key::FavoriteClear0
+                | Key::FavoriteClear1
+                | Key::FavoriteClear2
+                | Key::FavoriteClear3
+                | Key::FavoriteRecall0
+                | Key::FavoriteRecall1
+                | Key::FavoriteRecall2
+                | Key::FavoriteRecall3
+                | Key::FavoriteStore0
+                | Key::FavoriteStore1
+                | Key::FavoriteStore2
+                | Key::FavoriteStore3
+                | Key::Guide
+                | Key::GuideNextDay
+                | Key::GuidePreviousDay
+                | Key::Info
+                | Key::InstantReplay
+                | Key::Link
+                | Key::ListProgram
+                | Key::LiveContent
+                | Key::Lock
+                | Key::MediaApps
+                | Key::MediaAudioTrack
+                | Key::MediaLast
+                | Key::MediaSkipBackward
+                | Key::MediaSkipForward
+                | Key::MediaStepBackward
+                | Key::MediaStepForward
+                | Key::MediaTopMenu
+                | Key::NavigateIn
+                | Key::NavigateNext
+                | Key::NavigateOut
+                | Key::NavigatePrevious
+                | Key::NextFavoriteChannel
+                | Key::NextUserProfile
+                | Key::OnDemand
+                | Key::Pairing
+                | Key::PinPDown
+                | Key::PinPMove
+                | Key::PinPToggle
+                | Key::PinPUp
+                | Key::PlaySpeedDown
+                | Key::PlaySpeedReset
+                | Key::PlaySpeedUp
+                | Key::RandomToggle
+                | Key::RcLowBattery
+                | Key::RecordSpeedNext
+                | Key::RfBypass
+                | Key::ScanChannelsToggle
+                | Key::ScreenModeNext
+                | Key::Settings
+                | Key::SplitScreenToggle
+                | Key::STBInput
+                | Key::STBPower
+                | Key::Subtitle
+                | Key::Teletext
+                | Key::VideoModeNext
+                | Key::Wink
+                | Key::ZoomToggle
+        )
     }
 
     /// Gets the variant name.
