@@ -103,37 +103,45 @@ impl KeyInputArgs {
     }
 }
 
-/// Text.
+/// Text input methods.
+/// 
+/// The [`text`] field contains the raw text associated with the key-press by the operating system,
+/// these methods normalize and filter this text.
+/// 
+/// [`text`]: KeyInputArgs::text
 impl KeyInputArgs {
-    /// Returns `true` if the character is the backspace.
+    /// Returns `true` if the character is the backspace and `CTRL` is not pressed.
     pub fn is_backspace(&self) -> bool {
-        self.text.contains('\u{8}')
+        !self.modifiers.contains(ModifiersState::CTRL) && self.text.contains('\u{8}')
     }
 
-    /// Returns `true` if the character is delete.
+    /// Returns `true` if the character is delete and `CTRL` is not pressed.
     pub fn is_delete(&self) -> bool {
-        self.text.contains('\u{7F}')
+        !self.modifiers.contains(ModifiersState::CTRL) && self.text.contains('\u{7F}')
     }
 
-    /// Returns `true` if the character is the tab space.
+    /// Returns `true` if the character is a tab space and `CTRL` is not pressed.
     pub fn is_tab(&self) -> bool {
-        self.text.chars().any(|c| "\t\u{B}\u{1F}".contains(c))
+        !self.modifiers.contains(ModifiersState::CTRL) && self.text.chars().any(|c| "\t\u{B}\u{1F}".contains(c))
     }
 
-    /// Returns `true` if the character is a line-break.
+    /// Returns `true` if the character is a line-break and `CTRL` is not pressed.
     pub fn is_line_break(&self) -> bool {
-        self.text.chars().any(|c| "\r\n\u{85}".contains(c))
+        !self.modifiers.contains(ModifiersState::CTRL) && self.text.chars().any(|c| "\r\n\u{85}".contains(c))
     }
 
     /// Gets the characters to insert in a typed text.
     ///
     /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
-    /// Returns `None` if the character must not be inserted.
-    ///
+    /// Returns `""` if there is no text or it contains ASCII control characters or `CTRL` is pressed.
+    /// 
     /// [`is_tab`]: Self::is_tab
     /// [`is_line_break`]: Self::is_line_break
     pub fn insert_str(&self) -> &str {
-        if self.is_tab() {
+        if self.modifiers.contains(ModifiersState::CTRL) {
+            // ignore legacy ASCII control combinators like `ctrl+i` generated `\t`.
+            ""
+        } else if self.is_tab() {
             "\t"
         } else if self.is_line_break() {
             "\n"
