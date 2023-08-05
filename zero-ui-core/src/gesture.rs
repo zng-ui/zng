@@ -240,13 +240,60 @@ impl ClickArgs {
 
 /// A keyboard key used in a gesture.
 ///
-/// Note that not all keys work well as gesture keys, you can use `try_into` to validate a gesture key conversion.
-#[derive(Clone, PartialEq, Eq, Debug, Hash, serde::Serialize, serde::Deserialize)]
+/// Gesture keys are case-insensitive, [`Key::Char`] and  is matched as case-insensitive.
+///
+/// Note that not all keys work well as gesture keys, you can use `try_into` to filter [`Key`] or [`KeyCode`] values
+/// that do not work.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum GestureKey {
     /// Gesture key identified by the semantic key.
     Key(Key),
     /// Gesture key identified by the physical key.
     Code(KeyCode),
+}
+impl std::hash::Hash for GestureKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            GestureKey::Key(k) => match k {
+                Key::Char(c) => {
+                    for c in c.to_uppercase() {
+                        c.hash(state);
+                    }
+                }
+                Key::Str(s) => {
+                    unicase::UniCase::new(s).hash(state);
+                }
+                k => k.hash(state),
+            },
+            GestureKey::Code(c) => c.hash(state),
+        }
+    }
+}
+impl Eq for GestureKey {}
+impl PartialEq for GestureKey {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Key(l0), Self::Key(r0)) => match (l0, r0) {
+                (Key::Char(l), Key::Char(r)) => {
+                    let mut l = l.to_uppercase();
+                    let mut r = r.to_uppercase();
+
+                    while let (Some(l), Some(r)) = (l.next(), r.next()) {
+                        if l != r {
+                            return false;
+                        }
+                    }
+
+                    l.next().is_none() && r.next().is_none()
+                }
+                (Key::Str(l), Key::Str(r)) => unicase::eq(l, r),
+                (l0, r0) => l0 == r0,
+            },
+            (Self::Code(l0), Self::Code(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 impl fmt::Display for GestureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -737,19 +784,19 @@ macro_rules! __shortcut {
 ///<span data-del-macro-root></span> Creates a [`Shortcut`].
 ///
 /// This macro input can be:
-/// 
+///
 /// * A single [`ModifierGesture`] variant defines a [`Shortcut::Modifier`].
 /// * A single [`Key`] variant defines a [`Shortcut::Gesture`] without modifiers.
 /// * A single [`char`] literal that translates to a [`Key::Char`].
 /// * [`ModifiersState`] followed by `+` followed by a `Key` or `char` defines a gesture with modifiers. Modifier
 ///   combinations must be joined by `|`.
 /// * A gesture followed by `, Key` defines a [`Shortcut::Chord`].
-/// 
+///
 /// Note that not all shortcuts can be declared with this macro, in particular there is no support for [`Key::Str`]
 /// and [`KeyCode`], these shortcuts must be declared manually. Also note that some keys are not recommended in shortcuts,
 /// in particular [`Key::is_modifier`] and [`Key::is_composition`] keys will not work right.
-/// 
-/// 
+///
+///
 /// # Examples
 ///
 /// ```

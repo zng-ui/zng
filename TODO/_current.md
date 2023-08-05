@@ -1,9 +1,9 @@
 # Keyboard 2.0
 
-* Make shortcut matching case insensitive.
-    - Implement this in `GestureKey`?
 * Test all.
 * Merge.
+* Refactor key and text input events into a single event.
+    - Must be compatible with winit beta.
 
 # TextInput
 
