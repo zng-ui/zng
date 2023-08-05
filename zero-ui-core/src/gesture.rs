@@ -240,7 +240,7 @@ impl ClickArgs {
 
 /// A keyboard key used in a gesture.
 ///
-/// Note that not all keys are valid gesture keys, you can use `try_into` to validate a gesture key conversion.
+/// Note that not all keys work well as gesture keys, you can use `try_into` to validate a gesture key conversion.
 #[derive(Clone, PartialEq, Eq, Debug, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GestureKey {
     /// Gesture key identified by the semantic key.
@@ -260,22 +260,30 @@ impl fmt::Display for GestureKey {
         }
     }
 }
+/// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
+///
+/// [`is_modifier`]: Key::is_modifier
+/// [`is_composition`]: Key::is_composition
 impl TryFrom<Key> for GestureKey {
     type Error = Key;
 
     fn try_from(key: Key) -> Result<Self, Self::Error> {
-        if key.is_modifier() {
+        if key.is_modifier() || key.is_composition() {
             Err(key)
         } else {
             Ok(Self::Key(key))
         }
     }
 }
+/// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
+///
+/// [`is_modifier`]: KeyCode::is_modifier
+/// [`is_composition`]: KeyCode::is_composition
 impl TryFrom<KeyCode> for GestureKey {
     type Error = KeyCode;
 
     fn try_from(key: KeyCode) -> Result<Self, Self::Error> {
-        if key.is_modifier() {
+        if key.is_modifier() || key.is_composition() {
             Err(key)
         } else {
             Ok(Self::Code(key))
@@ -726,8 +734,22 @@ macro_rules! __shortcut {
 
 }
 
-///<span data-del-macro-root></span> Creates a [`Shortcut`](crate::gesture::Shortcut).
+///<span data-del-macro-root></span> Creates a [`Shortcut`].
 ///
+/// This macro input can be:
+/// 
+/// * A single [`ModifierGesture`] variant defines a [`Shortcut::Modifier`].
+/// * A single [`Key`] variant defines a [`Shortcut::Gesture`] without modifiers.
+/// * A single [`char`] literal that translates to a [`Key::Char`].
+/// * [`ModifiersState`] followed by `+` followed by a `Key` or `char` defines a gesture with modifiers. Modifier
+///   combinations must be joined by `|`.
+/// * A gesture followed by `, Key` defines a [`Shortcut::Chord`].
+/// 
+/// Note that not all shortcuts can be declared with this macro, in particular there is no support for [`Key::Str`]
+/// and [`KeyCode`], these shortcuts must be declared manually. Also note that some keys are not recommended in shortcuts,
+/// in particular [`Key::is_modifier`] and [`Key::is_composition`] keys will not work right.
+/// 
+/// 
 /// # Examples
 ///
 /// ```

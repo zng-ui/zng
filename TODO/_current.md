@@ -1,11 +1,7 @@
 # Keyboard 2.0
 
-* Review gestures.
-    - Need to filter more invalid keys.
-    - Need `shortcut!` to fallback to `KeyCode` automatically.
-
-* Make shortcuts case insensitive.
-
+* Make shortcut matching case insensitive.
+    - Implement this in `GestureKey`?
 * Test all.
 * Merge.
 

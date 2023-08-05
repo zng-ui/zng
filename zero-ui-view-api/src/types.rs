@@ -865,21 +865,143 @@ impl KeyCode {
     pub fn is_modifier(&self) -> bool {
         matches!(
             self,
-            Self::AltLeft
-                | Self::AltRight
-                | Self::CtrlLeft
-                | Self::CtrlRight
-                | Self::ShiftLeft
-                | Self::ShiftRight
-                | Self::SuperLeft
-                | Self::SuperRight
-                | Self::CapsLock
-                | Self::Fn
-                | Self::FnLock
-                | Self::Meta
-                | Self::NumLock
-                | Self::ScrollLock
-                | Self::Hyper
+            KeyCode::AltLeft
+                | KeyCode::AltRight
+                | KeyCode::CtrlLeft
+                | KeyCode::CtrlRight
+                | KeyCode::ShiftLeft
+                | KeyCode::ShiftRight
+                | KeyCode::SuperLeft
+                | KeyCode::SuperRight
+                | KeyCode::CapsLock
+                | KeyCode::Fn
+                | KeyCode::FnLock
+                | KeyCode::Meta
+                | KeyCode::NumLock
+                | KeyCode::ScrollLock
+                | KeyCode::Hyper
+        )
+    }
+
+    /// If the key if for IME composition actions as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-composition
+    pub fn is_composition(&self) -> bool {
+        matches!(self, |KeyCode::Convert| KeyCode::NonConvert
+            | KeyCode::Hiragana
+            | KeyCode::KanaMode
+            | KeyCode::Katakana)
+    }
+
+    /// If the key is for an edit action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-editing
+    pub fn is_editing(&self) -> bool {
+        matches!(
+            self,
+            KeyCode::Backspace | KeyCode::Cut | KeyCode::Delete | KeyCode::Insert | KeyCode::Paste | KeyCode::Undo
+        )
+    }
+
+    /// If the key is for an general UI action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-ui
+    pub fn is_ui(&self) -> bool {
+        matches!(
+            self,
+            KeyCode::Again
+                | KeyCode::ContextMenu
+                | KeyCode::Escape
+                | KeyCode::Find
+                | KeyCode::Help
+                | KeyCode::Pause
+                | KeyCode::Props
+                | KeyCode::Select
+        )
+    }
+
+    /// If the key is for an general device action as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-device
+    pub fn is_device(&self) -> bool {
+        matches!(self, |KeyCode::Eject| KeyCode::Power | KeyCode::PrintScreen | KeyCode::WakeUp)
+    }
+
+    /// If the key is one of the general purpose function keys.
+    pub fn is_function(&self) -> bool {
+        matches!(
+            self,
+            KeyCode::F1
+                | KeyCode::F2
+                | KeyCode::F3
+                | KeyCode::F4
+                | KeyCode::F5
+                | KeyCode::F6
+                | KeyCode::F7
+                | KeyCode::F8
+                | KeyCode::F9
+                | KeyCode::F10
+                | KeyCode::F11
+                | KeyCode::F12
+                | KeyCode::F13
+                | KeyCode::F14
+                | KeyCode::F15
+                | KeyCode::F16
+                | KeyCode::F17
+                | KeyCode::F18
+                | KeyCode::F19
+                | KeyCode::F20
+                | KeyCode::F21
+                | KeyCode::F22
+                | KeyCode::F23
+                | KeyCode::F24
+                | KeyCode::F25
+                | KeyCode::F26
+                | KeyCode::F27
+                | KeyCode::F28
+                | KeyCode::F29
+                | KeyCode::F30
+                | KeyCode::F31
+                | KeyCode::F32
+                | KeyCode::F33
+                | KeyCode::F34
+                | KeyCode::F35
+        )
+    }
+
+    /// If the key is for an multimedia control as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-multimedia
+    pub fn is_multimedia(&self) -> bool {
+        matches!(
+            self,
+            KeyCode::MediaPlayPause | KeyCode::MediaStop | KeyCode::MediaTrackNext | KeyCode::MediaTrackPrevious | KeyCode::Open
+        )
+    }
+
+    /// If the key is for an audio control as defined by [w3].
+    ///
+    /// [w3]: https://www.w3.org/TR/uievents-key/#keys-audio
+    pub fn is_audio(&self) -> bool {
+        matches!(self, KeyCode::AudioVolumeDown | KeyCode::AudioVolumeUp | KeyCode::AudioVolumeMute)
+    }
+
+    /// If the key is for launching an application.
+    pub fn is_launch(&self) -> bool {
+        matches!(self, KeyCode::LaunchMail)
+    }
+
+    /// If the key is for a browser control.
+    pub fn is_browser(&self) -> bool {
+        matches!(
+            self,
+            KeyCode::BrowserBack
+                | KeyCode::BrowserFavorites
+                | KeyCode::BrowserForward
+                | KeyCode::BrowserHome
+                | KeyCode::BrowserRefresh
+                | KeyCode::BrowserSearch
+                | KeyCode::BrowserStop
         )
     }
 
