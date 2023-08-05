@@ -746,39 +746,29 @@ impl KeyInputArgs {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __shortcut {
-    (-> + $Key:ident) => {
+    (-> + $Key:tt) => {
         $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::Key($crate::keyboard::Key::$Key),
-            modifiers: $crate::keyboard::ModifiersState::empty(),
-        }
-    };
-    (-> + $key_char:literal) => {
-        $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::Key($crate::keyboard::Key::Char($key_char)),
+            key: $crate::__shortcut!(@key $Key),
             modifiers: $crate::keyboard::ModifiersState::empty(),
         }
     };
 
-    (-> $($MODIFIER:ident)|+ + $Key:ident) => {
+    (-> $($MODIFIER:ident)|+ + $Key:tt) => {
         $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::Key($crate::keyboard::Key::$Key),
-            modifiers: $($crate::keyboard::ModifiersState::$MODIFIER)|+,
-        }
-    };
-    (-> $($MODIFIER:ident)|+ + $key_char:literal) => {
-        $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::Key($crate::keyboard::Key::Char($key_char)),
+            key: $crate::__shortcut!(@key $Key),
             modifiers: $($crate::keyboard::ModifiersState::$MODIFIER)|+,
         }
     };
 
-    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:ident) => {
+    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:tt) => {
         $crate::gesture::KeyChord {
             starter: $crate::__shortcut!(-> $($STARTER_MODIFIER)|* + $StarterKey),
             complement: $crate::__shortcut!(-> $($COMPLEMENT_MODIFIER)|* + $ComplementKey)
         }
     };
 
+    (@key $Key:ident) => { $crate::gesture::GestureKey::Key($crate::keyboard::Key::$Key) };
+    (@key $key_char:literal) => { $crate::gesture::GestureKey::Key($crate::keyboard::Key::Char($key_char)) };
 }
 
 ///<span data-del-macro-root></span> Creates a [`Shortcut`].
@@ -790,7 +780,7 @@ macro_rules! __shortcut {
 /// * A single [`char`] literal that translates to a [`Key::Char`].
 /// * [`ModifiersState`] followed by `+` followed by a `Key` or `char` defines a gesture with modifiers. Modifier
 ///   combinations must be joined by `|`.
-/// * A gesture followed by `, Key` defines a [`Shortcut::Chord`].
+/// * A gesture followed by `,` followed by another gesture defines a [`Shortcut::Chord`].
 ///
 /// Note that not all shortcuts can be declared with this macro, in particular there is no support for [`Key::Str`]
 /// and [`KeyCode`], these shortcuts must be declared manually. Also note that some keys are not recommended in shortcuts,
@@ -837,41 +827,35 @@ macro_rules! shortcut {
         $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Alt)
     };
 
-    ($Key:ident) => {
+    ($Key:tt) => {
         $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $Key))
     };
-    ($key_char:literal) => {
-        $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $key_char))
-    };
-    ($($MODIFIER:ident)|+ + $Key:ident) => {
+    ($($MODIFIER:ident)|+ + $Key:tt) => {
         $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
     };
-    ($($MODIFIER:ident)|+ + $key_char:literal) => {
-        $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $key_char))
-    };
 
-    ($StarterKey:ident, $ComplementKey:ident) => {
+    ($StarterKey:tt, $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             + $ComplementKey
         ))
     };
 
-    ($StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+    ($StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             $(COMPLEMENT_MODIFIER)|* + $ComplementKey
         ))
     };
 
-    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $ComplementKey:ident) => {
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:tt, $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             + $ComplementKey
         ))
     };
 
-    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             $($COMPLEMENT_MODIFIER)|* + $ComplementKey

@@ -54,7 +54,7 @@ use super::*;
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
 ///         info: "Does the foo thing.",
-///         shortcut: shortcut![CTRL+F],
+///         shortcut: shortcut![CTRL+'F'],
 ///     };
 /// }
 /// ```
@@ -71,7 +71,7 @@ use super::*;
 ///     pub static FOO_CMD => |cmd| {
 ///         cmd.init_name("Foo!");
 ///         cmd.init_info("Does the foo thing.");
-///         cmd.init_shortcut(shortcut![CTRL+F]);
+///         cmd.init_shortcut(shortcut![CTRL+'F']);
 ///     };
 /// }
 /// ```
