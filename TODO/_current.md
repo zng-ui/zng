@@ -1,31 +1,3 @@
-# Keyboard 2.0
-
-* Test all.
-* Merge.
-
-```
-// key-down event (can merge)
-
-NewEvents(WaitCancelled { start: Instant { t: 399241.6823113s }, requested_resume: None })
-UserEvent(Request)
-MainEventsCleared
-RedrawEventsCleared
-NewEvents(WaitCancelled { start: Instant { t: 399242.2013902s }, requested_resume: None })
-WindowEvent { window_id: WindowId(WindowId(460090)), event: KeyboardInput { device_id: DeviceId(DeviceId(0)), input: KeyboardInput { scancode: 32, state: Pressed, virtual_keycode: Some(D), modifiers: (empty) }, is_synthetic: false } }
-WindowEvent { window_id: WindowId(WindowId(460090)), event: ReceivedCharacter('d') }
-UserEvent(Request)
-MainEventsCleared
-RedrawRequested(WindowId(WindowId(460090)))
-RedrawEventsCleared
-
-// key-up event (no char info)
-
-NewEvents(WaitCancelled { start: Instant { t: 399242.2530682s }, requested_resume: None })
-WindowEvent { window_id: WindowId(WindowId(460090)), event: KeyboardInput { device_id: DeviceId(DeviceId(0)), input: KeyboardInput { scancode: 32, state: Released, virtual_keycode: Some(D), modifiers: (empty) }, is_synthetic: false } }
-MainEventsCleared
-
-```
-
 # TextInput
 
 * Implement selection.
