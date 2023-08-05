@@ -822,6 +822,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     )
                 })
             };
+            let white_space = WHITE_SPACE_VAR.get();
 
             let dft_line_height = font.metrics().line_height();
             let line_height = {
@@ -835,6 +836,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if !self.pending.contains(PendingLayout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
                     || word_spacing != self.shaping_args.word_spacing
+                    || white_space != self.shaping_args.white_space
                     || tab_length != self.shaping_args.tab_x_advance)
             {
                 self.pending.insert(PendingLayout::RESHAPE);
@@ -847,6 +849,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             self.shaping_args.letter_spacing = letter_spacing;
             self.shaping_args.word_spacing = word_spacing;
+            self.shaping_args.white_space = white_space;
             self.shaping_args.tab_x_advance = tab_length;
             self.shaping_args.line_height = line_height;
             self.shaping_args.line_spacing = line_spacing;

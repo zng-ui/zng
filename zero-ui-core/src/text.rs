@@ -367,7 +367,7 @@ pub enum WhiteSpace {
     /// Replace sequences of white space with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
     Merge,
     /// Replace sequences of white space and line breaks with `U+0020 SPACE` and trim the text.
-    MergeNoBreak,
+    MergeAll,
 }
 impl Default for WhiteSpace {
     /// [`WhiteSpace::Preserve`].
@@ -381,7 +381,7 @@ impl WhiteSpace {
         match self {
             WhiteSpace::Preserve => text,
             WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
-            WhiteSpace::MergeNoBreak => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
+            WhiteSpace::MergeAll => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
         }
     }
 }
@@ -393,7 +393,7 @@ impl fmt::Debug for WhiteSpace {
         match self {
             WhiteSpace::Preserve => write!(f, "Preserve"),
             WhiteSpace::Merge => write!(f, "Merge"),
-            WhiteSpace::MergeNoBreak => write!(f, "MergeNoBreak"),
+            WhiteSpace::MergeAll => write!(f, "MergeNoBreak"),
         }
     }
 }

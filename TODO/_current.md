@@ -9,6 +9,8 @@
 
 * Review `WhiteSpace::Merge`.
     - HTML `textarea` with `white-space: normal` does not show extra spaces, but it does add the spaces if typed.
+    - Implement `WhiteSpace` in `ShapedText`.
+    - Can collapsed white spaces be handled like ligatures?
 * Review `TextTransformFn::Uppercase`.
     - Same behavior as whitespace, only a visual change.
     - See https://drafts.csswg.org/css-text/#text-transform
