@@ -1,7 +1,5 @@
 # Keyboard 2.0
 
-* Test all.
-* Merge.
 * Refactor key and text input events into a single event.
     - Must be compatible with winit beta.
 
@@ -40,7 +38,7 @@
 
 # View-Process
 
-* If a window opens when Windows turned off the screen (Setttings->System->Power & Sleep) then the first frame isn't rendered at all, not even the clear color.
+* If a window opens when Windows turned off the screen (Settings->System->Power & Sleep) then the first frame isn't rendered at all, not even the clear color.
 * Update to winit-29 when released.
     - Lots of breaking changes.
 * Implement OpenGL example.
@@ -77,3 +75,7 @@
 * Review `RasterSpace::Screen` usage.
     - Firefox controls this (only Screen if stacking-context is not animating).
     - https://searchfox.org/mozilla-central/source/layout/painting/nsDisplayList.cpp#6675
+
+# Issue
+
+* Markdown example does not scroll to title or footnote.
