@@ -25,11 +25,11 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
-* Ctrl+Shift+I when focusing TextInput inserts a tab and still opens the Inspector.
-    - We are receiving a TAB for some reason, but we are stopping propagation.
-    - Char event is not linked with key press event stop propagation does nothing.
-        - Is a different event from Winit.
-        - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753´
+* Ctrl+Shift+I with TextInput focused inserts a tab and blocks the INSPECT_CMD.
+    - Ctrl+I generates tab text for some reason (in most Windows app tested).
+    - So text is stopping propagation.
+    - In Firefox `Ctrl+I` and `Ctrl+Shift+I` are handled as commands.
+    - In Chrome `Ctrl+I` is ignored?
 
 # View-Process
 
