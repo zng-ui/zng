@@ -448,9 +448,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     && WIDGET.info().interactivity().is_enabled()
                 {
                     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                        if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
-                            match key {
-                                Key::Backspace => {
+                        if let KeyState::Pressed = args.state {
+                            match &args.key {
+                                Some(Key::Backspace) => {
                                     if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
@@ -461,7 +461,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         }
                                     }
                                 }
-                                Key::Delete => {
+                                Some(Key::Delete) => {
                                     let r = resolved.as_mut().unwrap();
                                     let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
                                     if caret_idx.index < r.text.text().len() {

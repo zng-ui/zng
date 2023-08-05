@@ -30,8 +30,6 @@
     - Char event is not linked with key press event stop propagation does nothing.
         - Is a different event from Winit.
         - The next version of Winit will fix this: https://github.com/rust-windowing/winit/issues/753´
-* Pressing dead-key twice does not receive the key twice in Windows.
-    - Pressing `^` + `x` in pt-BR generates two chars `^x`, but pressing `^^` does not generate the chars.
 
 # View-Process
 
