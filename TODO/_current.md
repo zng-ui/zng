@@ -33,6 +33,7 @@
 
 # View-Process
 
+* If a window opens when Windows turned off the screen (Setttings->System->Power & Sleep) then the first frame isn't rendered at all, not even the clear color.
 * Update to winit-29 when released.
     - Lots of breaking changes.
 * Implement OpenGL example.
