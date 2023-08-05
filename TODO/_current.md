@@ -1,3 +1,10 @@
+# Keyboard 2.0
+
+* Test all.
+* Merge.
+* Refactor key and text input events into a single event.
+    - Must be compatible with winit beta.
+
 # TextInput
 
 * Implement selection.

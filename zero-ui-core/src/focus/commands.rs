@@ -44,28 +44,28 @@ command! {
     pub static FOCUS_UP_CMD = {
         name: "Focus Up",
         info: "Focus closest focusable up.",
-        shortcut: [shortcut!(Up), shortcut!(ALT+Up)],
+        shortcut: [shortcut!(ArrowUp), shortcut!(ALT+ArrowUp)],
     };
 
     /// Represents the **focus down** action.
     pub static FOCUS_DOWN_CMD = {
         name: "Focus Down",
         info: "Focus closest focusable down.",
-        shortcut: [shortcut!(Down), shortcut!(ALT+Down)],
+        shortcut: [shortcut!(ArrowDown), shortcut!(ALT+ArrowDown)],
     };
 
     /// Represents the **focus left** action.
     pub static FOCUS_LEFT_CMD = {
         name: "Focus Left",
         info: "Focus closest focusable left.",
-        shortcut: [shortcut!(Left), shortcut!(ALT+Left)],
+        shortcut: [shortcut!(ArrowLeft), shortcut!(ALT+ArrowLeft)],
     };
 
     /// Represents the **focus right** action.
     pub static FOCUS_RIGHT_CMD = {
         name: "Focus Right",
         info: "Focus closest focusable right.",
-        shortcut: [shortcut!(Right), shortcut!(ALT+Right)],
+        shortcut: [shortcut!(ArrowRight), shortcut!(ALT+ArrowRight)],
     };
 
     /// Represents a [`FocusRequest`] action.

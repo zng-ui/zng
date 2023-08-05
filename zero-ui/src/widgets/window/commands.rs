@@ -9,7 +9,7 @@ command! {
     pub static INSPECT_CMD = {
         name: "Debug Inspector",
         info: "Inspect the current window.",
-        shortcut: [shortcut!(CTRL|SHIFT+I), shortcut!(F12)],
+        shortcut: [shortcut!(CTRL|SHIFT+'I'), shortcut!(F12)],
     };
 }
 

@@ -95,7 +95,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 child = Text!("-");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
-                click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
+                click_shortcut = [shortcut!('-')];
                 on_click = hn!(font_size, |_| {
                     change_size(&font_size, -1.0)
                 });
@@ -107,7 +107,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 child = Text!("+");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
-                click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
+                click_shortcut = [shortcut!('+')];
                 on_click = hn!(font_size, |_| {
                     change_size(&font_size, 1.0)
                 });

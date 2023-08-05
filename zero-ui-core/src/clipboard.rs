@@ -175,20 +175,20 @@ command! {
     pub static CUT_CMD = {
         name: "Cut",
         info: "Remove the selection and place it in the clipboard.",
-        shortcut: [shortcut!(CTRL+X), shortcut!(SHIFT+Delete)],
+        shortcut: [shortcut!(CTRL+'X'), shortcut!(SHIFT+Delete), shortcut!(Cut)],
     };
 
     /// Represents the clipboard **copy** action.
     pub static COPY_CMD = {
         name: "Copy",
         info: "Place a copy of the selection in the clipboard.",
-        shortcut: [shortcut!(CTRL+C), shortcut!(CTRL+Insert)],
+        shortcut: [shortcut!(CTRL+'C'), shortcut!(CTRL+Insert), shortcut!(Copy)],
     };
 
     /// Represents the clipboard **paste** action.
     pub static PASTE_CMD = {
         name: "Paste",
         info: "Insert content from the clipboard.",
-        shortcut: [shortcut!(CTRL+V), shortcut!(SHIFT+Insert)],
+        shortcut: [shortcut!(CTRL+'V'), shortcut!(SHIFT+Insert), shortcut!(Paste)],
     };
 }

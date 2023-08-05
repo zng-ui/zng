@@ -19,7 +19,7 @@ use crate::{
     window::{WindowId, WINDOWS},
 };
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     fmt::{self, Display},
     num::NonZeroU32,
     sync::Arc,
@@ -197,7 +197,7 @@ impl ClickArgs {
     /// The shortcut the generated this event.
     pub fn shortcut(&self) -> Option<Shortcut> {
         match &self.source {
-            ClickArgsSource::Shortcut { shortcut, .. } => Some(*shortcut),
+            ClickArgsSource::Shortcut { shortcut, .. } => Some(shortcut.clone()),
             ClickArgsSource::Mouse { .. } => None,
         }
     }
@@ -238,8 +238,133 @@ impl ClickArgs {
     }
 }
 
+/// A keyboard key used in a gesture.
+///
+/// Gesture keys are case-insensitive, [`Key::Char`] and  is matched as case-insensitive.
+///
+/// Note that not all keys work well as gesture keys, you can use `try_into` to filter [`Key`] or [`KeyCode`] values
+/// that do not work.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum GestureKey {
+    /// Gesture key identified by the semantic key.
+    Key(Key),
+    /// Gesture key identified by the physical key.
+    Code(KeyCode),
+}
+impl std::hash::Hash for GestureKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            GestureKey::Key(k) => match k {
+                Key::Char(c) => {
+                    for c in c.to_uppercase() {
+                        c.hash(state);
+                    }
+                }
+                Key::Str(s) => {
+                    unicase::UniCase::new(s).hash(state);
+                }
+                k => k.hash(state),
+            },
+            GestureKey::Code(c) => c.hash(state),
+        }
+    }
+}
+impl Eq for GestureKey {}
+impl PartialEq for GestureKey {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Key(l0), Self::Key(r0)) => match (l0, r0) {
+                (Key::Char(l), Key::Char(r)) => {
+                    let mut l = l.to_uppercase();
+                    let mut r = r.to_uppercase();
+
+                    while let (Some(l), Some(r)) = (l.next(), r.next()) {
+                        if l != r {
+                            return false;
+                        }
+                    }
+
+                    l.next().is_none() && r.next().is_none()
+                }
+                (Key::Str(l), Key::Str(r)) => unicase::eq(l, r),
+                (l0, r0) => l0 == r0,
+            },
+            (Self::Code(l0), Self::Code(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+impl fmt::Display for GestureKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GestureKey::Key(k) => match k {
+                Key::Char(c) => write!(f, "{:?}", c),
+                Key::Str(s) => write!(f, "{:?}", s.as_ref()),
+                k => write!(f, "{k:?}"),
+            },
+            GestureKey::Code(c) => write!(f, "{:?}", c),
+        }
+    }
+}
+/// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
+///
+/// [`is_modifier`]: Key::is_modifier
+/// [`is_composition`]: Key::is_composition
+impl TryFrom<Key> for GestureKey {
+    type Error = Key;
+
+    fn try_from(key: Key) -> Result<Self, Self::Error> {
+        if key.is_modifier() || key.is_composition() {
+            Err(key)
+        } else {
+            Ok(Self::Key(key))
+        }
+    }
+}
+/// Accepts only keys that are not [`is_modifier`] and not [`is_composition`].
+///
+/// [`is_modifier`]: KeyCode::is_modifier
+/// [`is_composition`]: KeyCode::is_composition
+impl TryFrom<KeyCode> for GestureKey {
+    type Error = KeyCode;
+
+    fn try_from(key: KeyCode) -> Result<Self, Self::Error> {
+        if key.is_modifier() || key.is_composition() {
+            Err(key)
+        } else {
+            Ok(Self::Code(key))
+        }
+    }
+}
+impl std::str::FromStr for GestureKey {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match Key::from_str(s) {
+            Key::Str(s) => match KeyCode::from_str(&s) {
+                Ok(k) => {
+                    let key = k
+                        .try_into()
+                        .map_err(|e| ParseError::new(format!("key `{e:?}` cannot be used in gestures")))?;
+
+                    Ok(key)
+                }
+                Err(_) => Ok(Self::Key(Key::Str(s))),
+            },
+            k => {
+                let key = k
+                    .try_into()
+                    .map_err(|e| ParseError::new(format!("key `{e:?}` cannot be used in gestures")))?;
+
+                Ok(key)
+            }
+        }
+    }
+}
+
 /// A keyboard combination.
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct KeyGesture {
     /// The key modifiers.
     ///
@@ -291,8 +416,8 @@ impl fmt::Debug for KeyGesture {
 }
 impl Display for KeyGesture {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.modifiers.has_logo() {
-            write!(f, "Logo+")?
+        if self.modifiers.has_super() {
+            write!(f, "Super+")?
         }
         if self.modifiers.has_ctrl() {
             write!(f, "Ctrl+")?
@@ -312,7 +437,7 @@ impl Display for KeyGesture {
 #[derive(Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ModifierGesture {
     /// Any of the Windows/Apple keys.
-    Logo,
+    Super,
     /// Any of the CTRL keys.
     Ctrl,
     /// Any of the SHIFT keys.
@@ -331,37 +456,49 @@ impl fmt::Debug for ModifierGesture {
 impl Display for ModifierGesture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ModifierGesture::Logo => write!(f, "Logo"),
+            ModifierGesture::Super => write!(f, "Super"),
             ModifierGesture::Ctrl => write!(f, "Ctrl"),
             ModifierGesture::Shift => write!(f, "Shift"),
             ModifierGesture::Alt => write!(f, "Alt"),
         }
     }
 }
-impl TryFrom<Key> for ModifierGesture {
-    type Error = Key;
-    fn try_from(value: Key) -> Result<Self, Self::Error> {
+impl<'a> TryFrom<&'a Key> for ModifierGesture {
+    type Error = &'a Key;
+    fn try_from(value: &'a Key) -> Result<Self, Self::Error> {
         match value {
-            Key::LAlt | Key::RAlt => Ok(ModifierGesture::Alt),
-            Key::LCtrl | Key::RCtrl => Ok(ModifierGesture::Ctrl),
-            Key::LShift | Key::RShift => Ok(ModifierGesture::Shift),
-            Key::LLogo | Key::RLogo => Ok(ModifierGesture::Logo),
+            Key::Alt | Key::AltGraph => Ok(ModifierGesture::Alt),
+            Key::Ctrl => Ok(ModifierGesture::Ctrl),
+            Key::Shift => Ok(ModifierGesture::Shift),
+            Key::Super => Ok(ModifierGesture::Super),
+            key => Err(key),
+        }
+    }
+}
+impl TryFrom<KeyCode> for ModifierGesture {
+    type Error = KeyCode;
+    fn try_from(value: KeyCode) -> Result<Self, Self::Error> {
+        match value {
+            KeyCode::AltLeft | KeyCode::AltRight => Ok(ModifierGesture::Alt),
+            KeyCode::CtrlLeft | KeyCode::CtrlRight => Ok(ModifierGesture::Ctrl),
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => Ok(ModifierGesture::Shift),
+            KeyCode::SuperLeft | KeyCode::SuperRight => Ok(ModifierGesture::Super),
             key => Err(key),
         }
     }
 }
 impl ModifierGesture {
-    fn left_key(&self) -> Key {
+    fn left_key(&self) -> (KeyCode, Key) {
         match self {
-            ModifierGesture::Logo => Key::LLogo,
-            ModifierGesture::Ctrl => Key::LCtrl,
-            ModifierGesture::Shift => Key::LShift,
-            ModifierGesture::Alt => Key::LAlt,
+            ModifierGesture::Super => (KeyCode::SuperLeft, Key::Super),
+            ModifierGesture::Ctrl => (KeyCode::CtrlLeft, Key::Ctrl),
+            ModifierGesture::Shift => (KeyCode::ShiftLeft, Key::Shift),
+            ModifierGesture::Alt => (KeyCode::AltLeft, Key::Alt),
         }
     }
     fn modifiers_state(&self) -> ModifiersState {
         match self {
-            ModifierGesture::Logo => ModifiersState::LOGO,
+            ModifierGesture::Super => ModifiersState::LOGO,
             ModifierGesture::Ctrl => ModifiersState::CTRL,
             ModifierGesture::Shift => ModifiersState::SHIFT,
             ModifierGesture::Alt => ModifiersState::ALT,
@@ -370,7 +507,7 @@ impl ModifierGesture {
 }
 
 /// A sequence of two keyboard combinations.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct KeyChord {
     /// The first key gesture.
     pub starter: KeyGesture,
@@ -399,7 +536,7 @@ impl Display for KeyChord {
 /// Keyboard gesture or chord associated with a command.
 ///
 /// See the [`shortcut!`] macro for declaring a shortcut.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Shortcut {
     /// Key-press plus modifiers.
     Gesture(KeyGesture),
@@ -509,37 +646,19 @@ impl Shortcuts {
     ///
     /// Note chords are not generated. Caps lock is assumed to be off.
     pub fn from_char(character: char) -> Result<Self, char> {
-        let char_range_to_key =
-            |char0: char, key0: GestureKey| GestureKey::try_from(key0 as u32 + (character as u8 - char0 as u8) as u32).unwrap();
-
-        match character {
-            'a'..='z' => {
-                let key = char_range_to_key('a', GestureKey::A);
-                Ok(key.into())
-            }
-            'A'..='Z' => {
-                let key = char_range_to_key('A', GestureKey::A);
-                let gesture = KeyGesture::new(ModifiersState::SHIFT, key);
-                Ok(gesture.into())
-            }
-            '1'..='9' => {
-                let key = char_range_to_key('1', GestureKey::Key1);
-                let num_key = char_range_to_key('1', GestureKey::Numpad1);
-                Ok(Shortcuts(vec![key.into(), num_key.into()]))
-            }
-            '0' => Ok(Shortcuts(vec![GestureKey::Key0.into(), GestureKey::Numpad0.into()])),
-            '+' => Ok(Shortcuts(vec![GestureKey::Plus.into(), GestureKey::NumpadAdd.into()])),
-            '-' => Ok(Shortcuts(vec![GestureKey::Minus.into(), GestureKey::NumpadSubtract.into()])),
-            '*' => Ok(Shortcuts(vec![GestureKey::Asterisk.into(), GestureKey::NumpadMultiply.into()])),
-            '/' => Ok(Shortcuts(vec![GestureKey::Slash.into(), GestureKey::NumpadDivide.into()])),
-            '.' => Ok(GestureKey::Period.into()),
-            _ => Err(character),
+        if character.is_control() {
+            Err(character)
+        } else {
+            Ok(Self(vec![Shortcut::Gesture(KeyGesture {
+                modifiers: ModifiersState::empty(),
+                key: GestureKey::Key(Key::Char(character)),
+            })]))
         }
     }
 
     /// If the `shortcut` is present in the shortcuts.
-    pub fn contains(&self, shortcut: Shortcut) -> bool {
-        self.0.contains(&shortcut)
+    pub fn contains(&self, shortcut: &Shortcut) -> bool {
+        self.0.contains(shortcut)
     }
 }
 impl TryFrom<char> for Shortcuts {
@@ -557,7 +676,7 @@ impl fmt::Debug for Shortcuts {
         } else {
             write!(f, "[")?;
             if !self.0.is_empty() {
-                if let Shortcut::Chord(c) = self.0[0] {
+                if let Shortcut::Chord(c) = &self.0[0] {
                     write!(f, "({c:?})")?;
                 } else {
                     write!(f, "{:?}", self.0[0])?;
@@ -607,10 +726,13 @@ impl KeyInputArgs {
             return None;
         }
 
-        self.key.and_then(|k| k.try_into().ok()).map(|key| KeyGesture {
-            key,
-            modifiers: self.modifiers,
-        })
+        self.key
+            .as_ref()
+            .and_then(|k| GestureKey::try_from(k.clone()).ok())
+            .map(|key| KeyGesture {
+                key,
+                modifiers: self.modifiers,
+            })
     }
 
     /// Gets [`gesture`](Self::gesture) as a shortcut.
@@ -624,29 +746,46 @@ impl KeyInputArgs {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __shortcut {
-    (-> + $Key:ident) => {
+    (-> + $Key:tt) => {
         $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::$Key,
+            key: $crate::__shortcut!(@key $Key),
             modifiers: $crate::keyboard::ModifiersState::empty(),
         }
     };
 
-    (-> $($MODIFIER:ident)|+ + $Key:ident) => {
+    (-> $($MODIFIER:ident)|+ + $Key:tt) => {
         $crate::gesture::KeyGesture {
-            key: $crate::gesture::GestureKey::$Key,
+            key: $crate::__shortcut!(@key $Key),
             modifiers: $($crate::keyboard::ModifiersState::$MODIFIER)|+,
         }
     };
 
-    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:ident) => {
+    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:tt) => {
         $crate::gesture::KeyChord {
             starter: $crate::__shortcut!(-> $($STARTER_MODIFIER)|* + $StarterKey),
             complement: $crate::__shortcut!(-> $($COMPLEMENT_MODIFIER)|* + $ComplementKey)
         }
     };
+
+    (@key $Key:ident) => { $crate::gesture::GestureKey::Key($crate::keyboard::Key::$Key) };
+    (@key $key_char:literal) => { $crate::gesture::GestureKey::Key($crate::keyboard::Key::Char($key_char)) };
 }
 
-///<span data-del-macro-root></span> Creates a [`Shortcut`](crate::gesture::Shortcut).
+///<span data-del-macro-root></span> Creates a [`Shortcut`].
+///
+/// This macro input can be:
+///
+/// * A single [`ModifierGesture`] variant defines a [`Shortcut::Modifier`].
+/// * A single [`Key`] variant defines a [`Shortcut::Gesture`] without modifiers.
+/// * A single [`char`] literal that translates to a [`Key::Char`].
+/// * [`ModifiersState`] followed by `+` followed by a `Key` or `char` defines a gesture with modifiers. Modifier
+///   combinations must be joined by `|`.
+/// * A gesture followed by `,` followed by another gesture defines a [`Shortcut::Chord`].
+///
+/// Note that not all shortcuts can be declared with this macro, in particular there is no support for [`Key::Str`]
+/// and [`KeyCode`], these shortcuts must be declared manually. Also note that some keys are not recommended in shortcuts,
+/// in particular [`Key::is_modifier`] and [`Key::is_composition`] keys will not work right.
+///
 ///
 /// # Examples
 ///
@@ -658,15 +797,15 @@ macro_rules! __shortcut {
 /// }
 ///
 /// fn modified_key() -> Shortcut {
-///     shortcut!(CTRL+C)
+///     shortcut!(CTRL+'C')
 /// }
 ///
 /// fn multi_modified_key() -> Shortcut {
-///     shortcut!(CTRL|SHIFT+C)
+///     shortcut!(CTRL|SHIFT+'C')
 /// }
 ///
 /// fn chord() -> Shortcut {
-///     shortcut!(CTRL+E, A)
+///     shortcut!(CTRL+'E', 'A')
 /// }
 ///
 /// fn modifier_release() -> Shortcut {
@@ -675,8 +814,8 @@ macro_rules! __shortcut {
 /// ```
 #[macro_export]
 macro_rules! shortcut {
-    (Logo) => {
-        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Logo)
+    (Super) => {
+        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Super)
     };
     (Shift) => {
         $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Shift)
@@ -688,35 +827,35 @@ macro_rules! shortcut {
         $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Alt)
     };
 
-    ($Key:ident) => {
+    ($Key:tt) => {
         $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $Key))
     };
-    ($($MODIFIER:ident)|+ + $Key:ident) => {
+    ($($MODIFIER:ident)|+ + $Key:tt) => {
         $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
     };
 
-    ($StarterKey:ident, $ComplementKey:ident) => {
+    ($StarterKey:tt, $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             + $ComplementKey
         ))
     };
 
-    ($StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+    ($StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             $(COMPLEMENT_MODIFIER)|* + $ComplementKey
         ))
     };
 
-    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $ComplementKey:ident) => {
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:tt, $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             + $ComplementKey
         ))
     };
 
-    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:tt, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:tt) => {
         $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             $($COMPLEMENT_MODIFIER)|* + $ComplementKey
@@ -796,7 +935,7 @@ impl GesturesService {
     fn new() -> Self {
         Self {
             click_focused: var([shortcut!(Enter), shortcut!(Space)].into()),
-            context_click_focused: var([shortcut!(Apps)].into()),
+            context_click_focused: var([shortcut!(ContextMenu)].into()),
             shortcut_pressed_duration: var(Duration::from_millis(50)),
 
             pressed_modifier: None,
@@ -833,7 +972,10 @@ impl GesturesService {
 
         for s in shortcuts.0 {
             if let Shortcut::Chord(c) = &s {
-                self.chords.entry(c.starter).or_insert_with(FxHashSet::default).insert(c.complement);
+                self.chords
+                    .entry(c.starter.clone())
+                    .or_insert_with(FxHashSet::default)
+                    .insert(c.complement.clone());
             }
 
             collection.push((s, target.clone()));
@@ -843,10 +985,10 @@ impl GesturesService {
     }
 
     fn on_key_input(&mut self, args: &KeyInputArgs) {
-        if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
+        if let (false, Some(key)) = (args.propagation().is_stopped(), &args.key) {
             match args.state {
                 KeyState::Pressed => {
-                    if let Ok(gesture_key) = GestureKey::try_from(key) {
+                    if let Ok(gesture_key) = GestureKey::try_from(key.clone()) {
                         self.on_shortcut_pressed(Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)), args);
                         self.pressed_modifier = None;
                     } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
@@ -879,13 +1021,16 @@ impl GesturesService {
             if let Shortcut::Gesture(g) = &shortcut {
                 if let Some(complements) = self.chords.get(&starter) {
                     if complements.contains(g) {
-                        shortcut = Shortcut::Chord(KeyChord { starter, complement: *g });
+                        shortcut = Shortcut::Chord(KeyChord {
+                            starter,
+                            complement: g.clone(),
+                        });
                     }
                 }
             }
         }
 
-        let actions = ShortcutActions::new(self, shortcut);
+        let actions = ShortcutActions::new(self, shortcut.clone());
 
         SHORTCUT_EVENT.notify(ShortcutArgs::new(
             key_args.timestamp,
@@ -902,9 +1047,9 @@ impl GesturesService {
         if args.actions.has_actions() {
             args.actions
                 .run(args.timestamp, args.propagation(), args.device_id, args.repeat_count);
-        } else if let Shortcut::Gesture(k) = args.shortcut {
-            if self.chords.contains_key(&k) {
-                self.primed_starter = Some(k);
+        } else if let Shortcut::Gesture(k) = &args.shortcut {
+            if self.chords.contains_key(k) {
+                self.primed_starter = Some(k.clone());
             }
         }
     }
@@ -1028,7 +1173,7 @@ impl GESTURES {
     ///
     /// Clicks generated by this shortcut count as [context](ClickArgs::is_context).
     ///
-    /// Initial shortcut is [`Apps`](Key::Apps).
+    /// Initial shortcut is [`ContextMenu`](Key::ContextMenu).
     pub fn context_click_focused(&self) -> ArcVar<Shortcuts> {
         GESTURES_SV.read().context_click_focused.clone()
     }
@@ -1199,7 +1344,7 @@ impl ShortcutActions {
         let mut cmd_window = vec![];
         let mut cmd_app = vec![];
         let cmd_matches = EVENTS.commands().into_iter().filter_map(|cmd| {
-            if !cmd.shortcut_matches(shortcut) {
+            if !cmd.shortcut_matches(&shortcut) {
                 return None;
             }
 
@@ -1264,9 +1409,9 @@ impl ShortcutActions {
             },
             None => {
                 if let Some(p) = focused {
-                    click = if gestures.click_focused.with(|c| c.contains(shortcut)) {
+                    click = if gestures.click_focused.with(|c| c.contains(&shortcut)) {
                         Some((p, ShortcutClick::Primary))
-                    } else if gestures.context_click_focused.with(|c| c.contains(shortcut)) {
+                    } else if gestures.context_click_focused.with(|c| c.contains(&shortcut)) {
                         Some((p, ShortcutClick::Context))
                     } else {
                         None
@@ -1291,8 +1436,8 @@ impl ShortcutActions {
     }
 
     /// The shortcut.
-    pub fn shortcut(&self) -> Shortcut {
-        self.shortcut
+    pub fn shortcut(&self) -> &Shortcut {
+        &self.shortcut
     }
 
     /// Focus target.
@@ -1342,7 +1487,7 @@ impl ShortcutActions {
                 target.window_id(),
                 device_id,
                 ClickArgsSource::Shortcut {
-                    shortcut: self.shortcut,
+                    shortcut: self.shortcut.clone(),
                     kind: *kind,
                 },
                 NonZeroU32::new(repeat_count.saturating_add(1)).unwrap(),
@@ -1441,7 +1586,7 @@ impl std::str::FromStr for ModifierGesture {
             "Ctrl" => Ok(ModifierGesture::Ctrl),
             "Shift" => Ok(ModifierGesture::Shift),
             "Alt" => Ok(ModifierGesture::Alt),
-            "Logo" => Ok(ModifierGesture::Logo),
+            "Super" => Ok(ModifierGesture::Super),
             s => Err(ParseError::new(format!("`{s}` is not a modifier"))),
         }
     }
@@ -1456,7 +1601,7 @@ impl std::str::FromStr for KeyGesture {
         while let Some(part) = parts.next() {
             if let Ok(mod_) = part.parse::<ModifierGesture>() {
                 match mod_ {
-                    ModifierGesture::Logo => modifiers |= ModifiersState::LOGO,
+                    ModifierGesture::Super => modifiers |= ModifiersState::LOGO,
                     ModifierGesture::Ctrl => modifiers |= ModifiersState::CTRL,
                     ModifierGesture::Shift => modifiers |= ModifiersState::SHIFT,
                     ModifierGesture::Alt => modifiers |= ModifiersState::ALT,
@@ -1516,190 +1661,6 @@ impl std::str::FromStr for Shortcut {
     }
 }
 
-macro_rules! gesture_key_name {
-    ($key:ident = $name:expr) => {
-        $name
-    };
-    ($key:ident) => {
-        stringify!($key)
-    };
-}
-
-macro_rules! gesture_keys {
-    ($($(#[$docs:meta])* $key:ident $(= $name:expr)?),+ $(,)?) => {
-        /// The set of keys that can be used in a [`KeyGesture`].
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive, serde::Serialize, serde::Deserialize)]
-        #[repr(u32)]
-        #[allow(missing_docs)] // they are mostly self-explanatory.
-        pub enum GestureKey {
-            $(
-                $(#[$docs])*
-                $key
-            ),+
-        }
-        impl fmt::Debug for GestureKey {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                if f.alternate() {
-                    write!(f, "GestureKey::")?;
-                }
-                match self {
-                    $(
-                        GestureKey::$key => write!(f, "{}", stringify!($key)),
-                    )+
-                }
-            }
-        }
-        impl TryFrom<Key> for GestureKey {
-            type Error = Key;
-
-            fn try_from(key: Key) -> Result<Self, Key> {
-                match key {
-                    $(Key::$key => Ok(GestureKey::$key),)+
-                    _ => Err(key)
-                }
-            }
-        }
-        impl From<GestureKey> for Key {
-            fn from(key: GestureKey) -> Key {
-                match key {
-                    $(GestureKey::$key => Key::$key,)+
-                }
-            }
-        }
-        impl Display for GestureKey {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                match self {
-                    $(GestureKey::$key => gesture_key_name!($key $(=$name)?).fmt(f),)+
-                }
-            }
-        }
-        impl std::str::FromStr for GestureKey {
-            type Err = ParseError;
-
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                match s.trim() {
-                    $(stringify!($key) $(| $name)? => Ok(Self::$key),)+
-                    s => Err(ParseError::new(format!("`{s}` is not a gesture key")))
-                }
-            }
-        }
-    };
-}
-
-gesture_keys! {
-    /// The '1' key over the letters.
-    Key1 = "1",
-    /// The '2' key over the letters.
-    Key2 = "2",
-    /// The '3' key over the letters.
-    Key3 = "3",
-    /// The '4' key over the letters.
-    Key4 = "4",
-    /// The '5' key over the letters.
-    Key5 = "5",
-    /// The '6' key over the letters.
-    Key6 = "6",
-    /// The '7' key over the letters.
-    Key7 = "7",
-    /// The '8' key over the letters.
-    Key8 = "8",
-    /// The '9' key over the letters.
-    Key9 = "9",
-    /// The '0' key over the 'O' and 'P' keys.
-    Key0 = "0",
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-    /// The Escape key, next to F1.
-    Escape = "Esc",
-    F1,
-    F2,
-    F3,
-    F4,
-    F5,
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    F13,
-    F14,
-    F15,
-    F16,
-    F17,
-    F18,
-    F19,
-    Pause,
-    Insert,
-    Home,
-    Delete,
-    End,
-    PageDown = "Page Down",
-    PageUp = "Page Up",
-    Left,
-    Up,
-    Right,
-    Down,
-    /// The Backspace key, right over Enter.
-    Backspace,
-    /// The Return key.
-    Enter,
-    /// The space bar.
-    Space,
-    Plus = "+",
-    Asterisk = "*",
-    Apostrophe = "'",
-    Backslash = "\\",
-    Comma = ",",
-    Slash = "/",
-    Equals = "=",
-    Minus = "-",
-    Period = ".",
-    Numpad1 = "Numpad 1",
-    Numpad2 = "Numpad 2",
-    Numpad3 = "Numpad 3",
-    Numpad4 = "Numpad 4",
-    Numpad5 = "Numpad 5",
-    Numpad6 = "Numpad 6",
-    Numpad7 = "Numpad 7",
-    Numpad8 = "Numpad 8",
-    Numpad9 = "Numpad 9",
-    Numpad0 = "Numpad 0",
-    NumpadComma = "Numpad ,",
-    NumpadAdd = "Numpad +",
-    NumpadSubtract = "Numpad -",
-    NumpadMultiply = "Numpad *",
-    NumpadDivide = "Numpad /",
-    NumpadEnter = "Numpad Enter",
-    Tab,
-    Apps,
-}
-
 /// Shortcut, gesture parsing error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -1729,11 +1690,15 @@ impl HeadlessAppGestureExt for HeadlessApp {
         let shortcut = shortcut.into();
         match shortcut {
             Shortcut::Modifier(m) => {
-                self.press_key(window_id, m.left_key());
+                let (code, key) = m.left_key();
+                self.press_key(window_id, code, key);
             }
-            Shortcut::Gesture(g) => {
-                self.press_modified_key(window_id, g.modifiers, g.key.into());
-            }
+            Shortcut::Gesture(g) => match g.key {
+                GestureKey::Key(k) => {
+                    self.press_modified_key(window_id, g.modifiers, KeyCode::Unidentified(NativeKeyCode::Unidentified), k)
+                }
+                GestureKey::Code(c) => self.press_modified_key(window_id, g.modifiers, c, Key::Unidentified),
+            },
             Shortcut::Chord(c) => {
                 self.press_shortcut(window_id, c.starter);
                 self.press_shortcut(window_id, c.complement);
@@ -1776,7 +1741,7 @@ pub trait CommandShortcutExt {
     ///
     /// [`App`]: crate::event::CommandScope::App
     /// [`Custom`]: crate::event::CommandScope::Custom
-    fn shortcut_matches(self, shortcut: Shortcut) -> bool;
+    fn shortcut_matches(self, shortcut: &Shortcut) -> bool;
 }
 impl CommandShortcutExt for Command {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
@@ -1797,7 +1762,7 @@ impl CommandShortcutExt for Command {
         self
     }
 
-    fn shortcut_matches(self, shortcut: Shortcut) -> bool {
+    fn shortcut_matches(self, shortcut: &Shortcut) -> bool {
         if !self.has_handlers().get() {
             return false;
         }

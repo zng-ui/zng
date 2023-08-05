@@ -123,7 +123,7 @@ fn btn_eval() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| DATA.req::<Calculator>().modify(|c|c.to_mut().eval()).unwrap());
-        click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
+        click_shortcut = vec![shortcut!(Enter), shortcut!('=')];
         child = Text!("=");
     }
 }

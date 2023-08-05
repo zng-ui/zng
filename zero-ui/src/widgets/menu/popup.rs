@@ -167,7 +167,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
             c.event(update);
 
             if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let (Some(key), KeyState::Pressed) = (args.key, args.state) {
+                if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
                     match key {
                         Key::Escape => {
                             let info = WIDGET.info();
@@ -178,7 +178,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                 POPUP.force_close(info.id());
                             }
                         }
-                        Key::Left | Key::Right => {
+                        Key::ArrowLeft | Key::ArrowRight => {
                             if let Some(info) = WINDOW.info().get(args.target.widget_id()) {
                                 let info = info.into_focus_info(true, true);
                                 if info.focusable_left().is_none() && info.focusable_right().is_none() {
@@ -188,8 +188,8 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                         if m.submenu_parent().is_some() {
                                             if let Some(o) = m.orientation_from(info.info().center()) {
                                                 escape = match o {
-                                                    Orientation2D::Left => key == Key::Left,
-                                                    Orientation2D::Right => key == Key::Right,
+                                                    Orientation2D::Left => key == &Key::ArrowLeft,
+                                                    Orientation2D::Right => key == &Key::ArrowRight,
                                                     Orientation2D::Below | Orientation2D::Above => false,
                                                 };
                                             }
@@ -207,8 +207,8 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
 
                                             let m = m.into_focus_info(true, true);
                                             let next_root = match key {
-                                                Key::Left => m.next_left(),
-                                                Key::Right => m.next_right(),
+                                                Key::ArrowLeft => m.next_left(),
+                                                Key::ArrowRight => m.next_right(),
                                                 _ => unreachable!(),
                                             };
                                             if let Some(n) = next_root {

@@ -4,7 +4,7 @@ use zero_ui::{
         event::EventReceiver,
         focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT},
         gesture::HeadlessAppGestureExt,
-        keyboard::HeadlessAppKeyboardExt,
+        keyboard::{HeadlessAppKeyboardExt, KeyCode},
         window::{HeadlessAppWindowExt, WindowId},
     },
     prelude::{new_widget::WidgetUpdateMode, *},
@@ -1713,34 +1713,35 @@ impl TestApp {
     }
 
     pub fn press_tab(&mut self) {
-        self.app.press_key(self.window_id, Key::Tab)
+        self.app.press_key(self.window_id, KeyCode::Tab, Key::Tab)
     }
     pub fn press_shift_tab(&mut self) {
         self.app.press_shortcut(self.window_id, shortcut!(SHIFT + Tab));
     }
 
     pub fn press_alt(&mut self) {
-        self.app.press_key(self.window_id, Key::LAlt);
+        self.app.press_key(self.window_id, KeyCode::AltLeft, Key::Alt);
     }
     pub fn press_esc(&mut self) {
-        self.app.press_key(self.window_id, Key::Escape);
+        self.app.press_key(self.window_id, KeyCode::Escape, Key::Escape);
     }
 
     pub fn press_up(&mut self) {
-        self.app.press_key(self.window_id, Key::Up);
+        self.app.press_key(self.window_id, KeyCode::ArrowUp, Key::ArrowUp);
     }
     pub fn press_down(&mut self) {
-        self.app.press_key(self.window_id, Key::Down);
+        self.app.press_key(self.window_id, KeyCode::ArrowDown, Key::ArrowDown);
     }
     pub fn press_left(&mut self) {
-        self.app.press_key(self.window_id, Key::Left);
+        self.app.press_key(self.window_id, KeyCode::ArrowLeft, Key::ArrowLeft);
     }
     pub fn press_right(&mut self) {
-        self.app.press_key(self.window_id, Key::Right);
+        self.app.press_key(self.window_id, KeyCode::ArrowRight, Key::ArrowRight);
     }
 
     pub fn just_release_alt(&mut self) {
-        self.app.on_keyboard_input(self.window_id, Key::LAlt, KeyState::Released);
+        self.app
+            .on_keyboard_input(self.window_id, KeyCode::AltLeft, Key::Alt, KeyState::Released);
         let _ = self.app.update(false);
     }
 

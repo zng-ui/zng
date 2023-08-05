@@ -20,7 +20,7 @@ command! {
     pub static SCROLL_UP_CMD = {
         name: "Scroll Up",
         info: "Scroll Up by one scroll unit.",
-        shortcut: shortcut!(Up),
+        shortcut: shortcut!(ArrowUp),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -35,7 +35,7 @@ command! {
     pub static SCROLL_DOWN_CMD = {
         name: "Scroll Down",
         info: "Scroll Down by one scroll unit.",
-        shortcut: shortcut!(Down),
+        shortcut: shortcut!(ArrowDown),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -50,7 +50,7 @@ command! {
     pub static SCROLL_LEFT_CMD = {
         name: "Scroll Left",
         info: "Scroll Left by one scroll unit.",
-        shortcut: shortcut!(Left),
+        shortcut: shortcut!(ArrowLeft),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
@@ -65,7 +65,7 @@ command! {
     pub static SCROLL_RIGHT_CMD = {
         name: "Scroll Right",
         info: "Scroll Right by one scroll unit.",
-        shortcut: shortcut!(Right),
+        shortcut: shortcut!(ArrowRight),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 

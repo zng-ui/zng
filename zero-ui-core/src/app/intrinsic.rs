@@ -2,6 +2,8 @@ use std::fmt;
 
 use crate::app::*;
 use crate::event::*;
+use crate::gesture::CommandShortcutExt;
+use crate::shortcut;
 use crate::var::*;
 
 pub(super) struct AppIntrinsic {
@@ -124,7 +126,8 @@ command! {
     /// [`exit`]: APP_PROCESS::exit
     pub static EXIT_CMD = {
         name: "Exit",
-        info: "Close all windows and exit."
+        info: "Close all windows and exit.",
+        shortcut: shortcut!(Exit),
     };
 }
 
