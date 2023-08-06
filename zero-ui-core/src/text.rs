@@ -314,21 +314,35 @@ pub enum TextTransformFn {
     /// to lowercase.
     Lowercase,
     /// Custom transform function.
-    Custom(Arc<dyn Fn(Txt) -> Txt + Send + Sync>),
+    Custom(Arc<dyn Fn(&Txt) -> Cow<Txt> + Send + Sync>),
 }
 impl TextTransformFn {
     /// Apply the text transform.
-    pub fn transform(&self, text: Txt) -> Txt {
+    ///
+    /// Returns [`Cow::Owned`] if the text was changed.
+    pub fn transform<'t>(&self, text: &'t Txt) -> Cow<'t, Txt> {
         match self {
-            TextTransformFn::None => text,
-            TextTransformFn::Uppercase => Txt::from_string(text.to_uppercase()),
-            TextTransformFn::Lowercase => Txt::from_string(text.to_lowercase()),
+            TextTransformFn::None => Cow::Borrowed(text),
+            TextTransformFn::Uppercase => {
+                if text.chars().any(|c| !c.is_uppercase()) {
+                    Cow::Owned(text.to_uppercase().into())
+                } else {
+                    Cow::Borrowed(text)
+                }
+            }
+            TextTransformFn::Lowercase => {
+                if text.chars().any(|c| !c.is_lowercase()) {
+                    Cow::Owned(text.to_lowercase().into())
+                } else {
+                    Cow::Borrowed(text)
+                }
+            }
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
 
     /// New [`Custom`](Self::Custom).
-    pub fn custom(fn_: impl Fn(Txt) -> Txt + Send + Sync + 'static) -> Self {
+    pub fn custom(fn_: impl Fn(&Txt) -> Cow<Txt> + Send + Sync + 'static) -> Self {
         TextTransformFn::Custom(Arc::new(fn_))
     }
 }
@@ -377,9 +391,11 @@ impl Default for WhiteSpace {
 }
 impl WhiteSpace {
     /// Transform the white space of the text.
-    pub fn transform(self, text: Txt) -> Txt {
+    ///
+    /// Returns [`Cow::Owned`] if the text was changed.
+    pub fn transform(self, text: &Txt) -> Cow<Txt> {
         match self {
-            WhiteSpace::Preserve => text,
+            WhiteSpace::Preserve => Cow::Borrowed(text),
             WhiteSpace::Merge => {
                 let is_white_space = |c: char| c.is_whitespace() && !"\n\r\u{85}".contains(c);
                 let t = text.trim_matches(&is_white_space);
@@ -397,7 +413,7 @@ impl WhiteSpace {
                                 r.push_str(part);
                                 sep = "\u{20}";
                             }
-                            return Txt::from_str(&r);
+                            return Cow::Owned(Txt::from_str(&r));
                         } else {
                             prev_space = true;
                         }
@@ -407,9 +423,9 @@ impl WhiteSpace {
                 }
 
                 if t.len() != text.len() {
-                    Txt::from_str(t)
+                    Cow::Owned(Txt::from_str(t))
                 } else {
-                    text
+                    Cow::Borrowed(text)
                 }
             }
             WhiteSpace::MergeAll => {
@@ -428,7 +444,7 @@ impl WhiteSpace {
                                 r.push_str(part);
                                 sep = "\u{20}";
                             }
-                            return Txt::from_str(&r);
+                            return Cow::Owned(Txt::from_str(&r));
                         } else {
                             prev_space = true;
                         }
@@ -438,9 +454,9 @@ impl WhiteSpace {
                 }
 
                 if t.len() != text.len() {
-                    Txt::from_str(t)
+                    Cow::Owned(Txt::from_str(t))
                 } else {
-                    text
+                    Cow::Borrowed(text)
                 }
             }
         }

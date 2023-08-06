@@ -1,6 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{fmt, sync::Arc};
+use std::{borrow::Cow, fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
@@ -349,9 +349,17 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 FontFaceList::empty()
             };
 
-            let txt = text.get();
-            let txt = TEXT_TRANSFORM_VAR.with(|t| t.transform(txt));
-            let txt = WHITE_SPACE_VAR.with(|t| t.transform(txt));
+            let mut txt = text.get();
+            TEXT_TRANSFORM_VAR.with(|t| {
+                if let Cow::Owned(t) = t.transform(&txt) {
+                    txt = t;
+                }
+            });
+            WHITE_SPACE_VAR.with(|t| {
+                if let Cow::Owned(t) = t.transform(&txt) {
+                    txt = t;
+                }
+            });
 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.is_focused(WIDGET.id()).get() {
@@ -564,9 +572,17 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     }
                     r.pending_edit = false;
                 }
-                let text = text.get();
-                let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
-                let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
+                let mut text = text.get();
+                TEXT_TRANSFORM_VAR.with(|t| {
+                    if let Cow::Owned(t) = t.transform(&text) {
+                        text = t;
+                    }
+                });
+                WHITE_SPACE_VAR.with(|t| {
+                    if let Cow::Owned(t) = t.transform(&text) {
+                        text = t;
+                    }
+                });
                 let direction = DIRECTION_VAR.get();
                 if r.text.text() != text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
