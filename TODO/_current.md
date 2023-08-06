@@ -1,18 +1,11 @@
 # TextInput
 
+* Implement WhiteSpace in Markdown.
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
         - VsCode copies the current line if there is no selection, how common is this?
-
-* Review `WhiteSpace::Merge`.
-    - Don't trim?
-        - Multiple texts in wrap trim both ends and end-up visually joined.
-    - Enable in `markdown!`.
-    - Replace editable text or ignore property?
-* Review `TextTransformFn`.
-    - Implement same behavior as `WhiteSpace`.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
@@ -24,7 +17,6 @@
 * Implement OpenGL example.
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
-
 
 ## WR Items
 

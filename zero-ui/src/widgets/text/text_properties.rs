@@ -518,11 +518,6 @@ context_var! {
 
     /// Length of the `TAB` space.
     pub static TAB_LENGTH_VAR: TabLength = 400.pct();
-
-    /// Text white space transform of [`Text!`] spans.
-    ///
-    /// [`Text!`]: struct@crate::widgets::Text
-    pub static WHITE_SPACE_VAR: WhiteSpace = WhiteSpace::Preserve;
 }
 
 /// Height of each text line. If not set inherits the `line_height` from the parent widget.
@@ -606,17 +601,6 @@ pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl U
     with_context_var(child, TAB_LENGTH_VAR, length)
 }
 
-/// Text white space transform.
-///
-/// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
-/// Is [`WhiteSpace::Preserve`] by default.
-///
-/// Sets the [`WHITE_SPACE_VAR`].
-#[property(CONTEXT, default(WHITE_SPACE_VAR), widget_impl(TextSpacingMix<P>))]
-pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
-    with_context_var(child, WHITE_SPACE_VAR, transform)
-}
-
 /// Text transform properties.
 ///
 /// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
@@ -626,15 +610,39 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 pub struct TextTransformMix<P>(P);
 
 context_var! {
+    /// Text white space transform of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
+    pub static WHITE_SPACE_VAR: WhiteSpace = WhiteSpace::Preserve;
+
     /// Text transformation function applied to [`Text!`] spans.
     ///
     /// [`Text!`]: struct@crate::widgets::Text
     pub static TEXT_TRANSFORM_VAR: TextTransformFn = TextTransformFn::None;
 }
 
+/// Text white space transform.
+///
+/// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
+/// Is [`WhiteSpace::Preserve`] by default.
+///
+/// This property is not applied when the text is [`editable`].
+///
+/// Sets the [`WHITE_SPACE_VAR`].
+///
+/// [`editable`]: fn@editable
+#[property(CONTEXT, default(WHITE_SPACE_VAR), widget_impl(TextTransformMix<P>))]
+pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
+    with_context_var(child, WHITE_SPACE_VAR, transform)
+}
+
 /// Text transform, character replacement applied to the text before it is processed by the text widget.
 ///
+/// This property is not applied when the text is [`editable`].
+///
 /// Sets the [`TEXT_TRANSFORM_VAR`].
+///  
+/// [`editable`]: fn@editable
 #[property(CONTEXT, default(TEXT_TRANSFORM_VAR), widget_impl(TextTransformMix<P>))]
 pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)

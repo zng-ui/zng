@@ -350,18 +350,22 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             };
 
             let mut txt = text.get();
-            TEXT_TRANSFORM_VAR.with(|t| {
-                if let Cow::Owned(t) = t.transform(&txt) {
-                    txt = t;
-                }
-            });
-            WHITE_SPACE_VAR.with(|t| {
-                if let Cow::Owned(t) = t.transform(&txt) {
-                    txt = t;
-                }
-            });
 
             let editable = TEXT_EDITABLE_VAR.get();
+
+            if !editable {
+                TEXT_TRANSFORM_VAR.with(|t| {
+                    if let Cow::Owned(t) = t.transform(&txt) {
+                        txt = t;
+                    }
+                });
+                WHITE_SPACE_VAR.with(|t| {
+                    if let Cow::Owned(t) = t.transform(&txt) {
+                        txt = t;
+                    }
+                });
+            }
+
             let caret_opacity = if editable && FOCUS.is_focused(WIDGET.id()).get() {
                 let v = KEYBOARD.caret_animation();
                 EditData::get(&mut edit_data).caret_animation = v.subscribe(UpdateOp::Update, WIDGET.id());
@@ -573,16 +577,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     r.pending_edit = false;
                 }
                 let mut text = text.get();
-                TEXT_TRANSFORM_VAR.with(|t| {
-                    if let Cow::Owned(t) = t.transform(&text) {
-                        text = t;
-                    }
-                });
-                WHITE_SPACE_VAR.with(|t| {
-                    if let Cow::Owned(t) = t.transform(&text) {
-                        text = t;
-                    }
-                });
+
+                if !TEXT_EDITABLE_VAR.get() {
+                    TEXT_TRANSFORM_VAR.with(|t| {
+                        if let Cow::Owned(t) = t.transform(&text) {
+                            text = t;
+                        }
+                    });
+                    WHITE_SPACE_VAR.with(|t| {
+                        if let Cow::Owned(t) = t.transform(&text) {
+                            text = t;
+                        }
+                    });
+                }
+
                 let direction = DIRECTION_VAR.get();
                 if r.text.text() != text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
@@ -655,6 +663,31 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     edit_data = None;
                     r.caret.get_mut().opacity = var(0.fct()).read_only();
+                }
+
+                let mut text = text.get();
+                if !enabled {
+                    // toggle text transforms
+                    TEXT_TRANSFORM_VAR.with(|t| {
+                        if let Cow::Owned(t) = t.transform(&text) {
+                            text = t;
+                        }
+                    });
+                    WHITE_SPACE_VAR.with(|t| {
+                        if let Cow::Owned(t) = t.transform(&text) {
+                            text = t;
+                        }
+                    });
+                }
+
+                if r.text.text() != text {
+                    r.text = SegmentedText::new(text, DIRECTION_VAR.get());
+                    if let Some(i) = &mut r.caret.get_mut().index {
+                        i.index = r.text.snap_grapheme_boundary(i.index);
+                    }
+
+                    r.pending_layout = PendingLayout::RESHAPE;
+                    WIDGET.layout();
                 }
             }
 

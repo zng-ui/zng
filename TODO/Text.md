@@ -6,6 +6,9 @@
 
 * Support replace (Insert mode in command line).
 
+* Support `white_space` and `txt_transform` in edit mode.
+* Support `white_space` and `txt_transform` in between text runs in the same wrap.
+
 * Getter property `get_transformed_txt`, to get the text after whitespace & transforms?
     - Transformed should be in the SegmentedText already.
     - Whitespace needs processing.
