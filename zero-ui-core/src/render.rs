@@ -19,7 +19,10 @@ use std::{marker::PhantomData, mem, sync::Arc};
 
 use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
+pub use zero_ui_view_api::{
+    webrender_api::{self, FillRule},
+    DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange,
+};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
     ApiExtensionPayload, DisplayList, NinePatchSource, ReuseStart,
@@ -955,7 +958,7 @@ impl FrameBuilder {
         self.push_clips(move |c| c.push_clip_rect(clip_rect, clip_out, hit_test), render)
     }
 
-    /// Calls `render` with a new clip context that adds  the `clip_rect` with rounded `corners`.
+    /// Calls `render` with a new clip context that adds the `clip_rect` with rounded `corners`.
     ///
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible. If `hit_test` is `true` the hit-test shapes
     /// rendered inside `render` are also clipped.
@@ -972,6 +975,20 @@ impl FrameBuilder {
         render: impl FnOnce(&mut FrameBuilder),
     ) {
         self.push_clips(move |c| c.push_clip_rounded_rect(clip_rect, corners, clip_out, hit_test), render)
+    }
+
+    /// Calls `render` with a new clip context that adds the image mask.
+    ///
+    /// Note that clip masks do not affect hit-test.
+    pub fn push_clip_mask(
+        &mut self,
+        image: &impl Img,
+        rect: PxRect,
+        points: &[PxPoint],
+        fill_rule: FillRule,
+        render: impl FnOnce(&mut FrameBuilder),
+    ) {
+        self.push_clips(move |c| c.push_clip_mask(image, rect, points, fill_rule), render)
     }
 
     /// Calls `clips` to push multiple clips that define a new clip context, then calls `render` in the clip context.
@@ -1763,6 +1780,20 @@ impl<'a> ClipBuilder<'a> {
                 .hit_clips
                 .push_clip_rounded_rect(clip_rect.to_box2d(), corners, clip_out);
             self.hit_test_count += 1;
+        }
+    }
+
+    /// Push the image as a clip mask.
+    ///
+    /// Note that this clip does not affect hit-test.
+    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect, points: &[PxPoint], fill_rule: FillRule) {
+        if self.builder.visible {
+            if let Some(r) = &self.builder.renderer {
+                self.builder
+                    .display_list
+                    .push_clip_mask(dbg!(image.image_key(r)), rect, points.to_vec().into_boxed_slice(), fill_rule);
+                self.render_count += 1;
+            }
         }
     }
 }

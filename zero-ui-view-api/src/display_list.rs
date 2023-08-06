@@ -198,6 +198,19 @@ impl DisplayListBuilder {
         });
     }
 
+    /// Push an image mask clip that will affect all pushed items until a paired call to [`pop_clip`].
+    ///
+    /// [`pop_clip`]: Self::pop_clip
+    pub fn push_clip_mask(&mut self, image_key: wr::ImageKey, rect: PxRect, points: Box<[PxPoint]>, fill_rule: wr::FillRule) {
+        self.clip_len += 1;
+        self.list.push(DisplayItem::PushClipMask {
+            image_key,
+            rect,
+            points,
+            fill_rule,
+        })
+    }
+
     /// Pop a clip previously pushed by a call to [`push_clip_rect`]. Items pushed after this call are not
     /// clipped by the removed clip.
     ///
@@ -995,6 +1008,12 @@ enum DisplayItem {
         corners: PxCornerRadius,
         clip_out: bool,
     },
+    PushClipMask {
+        image_key: wr::ImageKey,
+        rect: PxRect,
+        points: Box<[PxPoint]>,
+        fill_rule: wr::FillRule,
+    },
     PopClip,
 
     Border {
@@ -1153,6 +1172,23 @@ impl DisplayItem {
                     wr_list.define_clip_rect(sc.spatial_id(), clip_rect.to_wr())
                 };
 
+                sc.push_clip(clip_id);
+            }
+            DisplayItem::PushClipMask {
+                image_key,
+                rect,
+                points,
+                fill_rule,
+            } => {
+                let clip_id = wr_list.define_clip_image_mask(
+                    sc.spatial_id(),
+                    wr::ImageMask {
+                        image: *image_key,
+                        rect: rect.to_wr(),
+                    },
+                    &points.iter().map(|p| p.to_wr()).collect::<Vec<_>>(),
+                    *fill_rule,
+                );
                 sc.push_clip(clip_id);
             }
             DisplayItem::PushClipRoundedRect {

@@ -23,10 +23,22 @@
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
 
-## WR Items
+# Image Mask
+
+* Mask not working, cannot be BGRA8?
+    - Test A8 format.
+    - Probably need to support this anyway, for memory perf.
+* Implement more image mask properties.
+    - `mask_mode`, luminance or alpha.
+    - `mask_origin`, `mask_position`, `mask_repeat`, `mask_size`.
+    - `mask_clip`, different mask properties?
+* Implement gradient mask (need to render).
+    - Implement `ImageSource::Gradient`?
+        - Different than image render?
+
+# WR Items
 
 * Finish items implemented by webrender.
-    - Image mask.
     - iFrame.
         - Host headless window?
             - Not exactly, similar but needs to be spawned by the window.

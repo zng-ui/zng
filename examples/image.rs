@@ -94,11 +94,18 @@ fn app_main() {
                                     child = Text!("Rendered!");
                                 })
                             },
-                            // sub_title("AVIF"),
-                            // Image! {
-                            //     source = "https://raw.githubusercontent.com/link-u/avif-sample-images/master/fox.profile0.8bpc.yuv420.avif";
-                            //     size = (200, 150);
-                            // },
+                            sub_title("Render Mask"),
+                            Image! {
+                                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                size = (200, 100);
+                                image_mask = ImageSource::render_node(RenderMode::Software, |_| Text! {
+                                    txt = "Mask";
+                                    txt_align = Align::CENTER;
+                                    font_size = 78;
+                                    font_weight = FontWeight::BOLD;
+                                    size = (200, 100);
+                                });
+                            }
                         ]
                     ),
 
