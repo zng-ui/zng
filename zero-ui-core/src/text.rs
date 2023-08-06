@@ -364,9 +364,9 @@ impl PartialEq for TextTransformFn {
 pub enum WhiteSpace {
     /// Text is not changed, all white spaces and line breaks are preserved.
     Preserve,
-    /// Replace sequences of white space with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
+    /// Replace white spaces with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
     Merge,
-    /// Replace sequences of white space and line breaks with `U+0020 SPACE` and trim the text.
+    /// Replace white spaces and line breaks with `U+0020 SPACE` and trim the text.
     MergeAll,
 }
 impl Default for WhiteSpace {
@@ -380,8 +380,69 @@ impl WhiteSpace {
     pub fn transform(self, text: Txt) -> Txt {
         match self {
             WhiteSpace::Preserve => text,
-            WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
-            WhiteSpace::MergeAll => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
+            WhiteSpace::Merge => {
+                let is_white_space = |c: char| c.is_whitespace() && !"\n\r\u{85}".contains(c);
+                let t = text.trim_matches(&is_white_space);
+
+                let mut prev_space = false;
+                for c in t.chars() {
+                    if is_white_space(c) {
+                        if prev_space || c != '\u{20}' {
+                            // collapse spaces or replace non ' ' white space with ' '.
+
+                            let mut r = String::new();
+                            let mut sep = "";
+                            for part in t.split(is_white_space).filter(|s| !s.is_empty()) {
+                                r.push_str(sep);
+                                r.push_str(part);
+                                sep = "\u{20}";
+                            }
+                            return Txt::from_str(&r);
+                        } else {
+                            prev_space = true;
+                        }
+                    } else {
+                        prev_space = false;
+                    }
+                }
+
+                if t.len() != text.len() {
+                    Txt::from_str(t)
+                } else {
+                    text
+                }
+            }
+            WhiteSpace::MergeAll => {
+                let t = text.trim();
+
+                let mut prev_space = false;
+                for c in t.chars() {
+                    if c.is_whitespace() {
+                        if prev_space || c != '\u{20}' {
+                            // collapse spaces or replace non ' ' white space with ' '.
+
+                            let mut r = String::new();
+                            let mut sep = "";
+                            for part in t.split_whitespace() {
+                                r.push_str(sep);
+                                r.push_str(part);
+                                sep = "\u{20}";
+                            }
+                            return Txt::from_str(&r);
+                        } else {
+                            prev_space = true;
+                        }
+                    } else {
+                        prev_space = false;
+                    }
+                }
+
+                if t.len() != text.len() {
+                    Txt::from_str(t)
+                } else {
+                    text
+                }
+            }
         }
     }
 }
@@ -393,7 +454,7 @@ impl fmt::Debug for WhiteSpace {
         match self {
             WhiteSpace::Preserve => write!(f, "Preserve"),
             WhiteSpace::Merge => write!(f, "Merge"),
-            WhiteSpace::MergeAll => write!(f, "MergeNoBreak"),
+            WhiteSpace::MergeAll => write!(f, "MergeAll"),
         }
     }
 }

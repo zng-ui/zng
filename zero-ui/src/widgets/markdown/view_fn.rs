@@ -394,6 +394,7 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
     widget_set! {
         &mut builder;
         txt;
+        // white_space = WhiteSpace::Merge;
     }
 
     if style.strong {

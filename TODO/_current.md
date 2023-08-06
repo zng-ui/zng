@@ -8,19 +8,12 @@
 * Research text editors.
 
 * Review `WhiteSpace::Merge`.
-    - HTML `textarea` with `white-space: normal` does not show extra spaces, but it does add the spaces if typed.
-    - Implement `WhiteSpace` in `ShapedText`.
-    - Can collapsed white spaces be handled like ligatures?
-* Review `TextTransformFn::Uppercase`.
-    - Same behavior as whitespace, only a visual change.
-    - See https://drafts.csswg.org/css-text/#text-transform
-    - How does `TextTransformFn::Custom` event works?
-        - CSS is always the same char length?
-        - Maybe when editable transform the text by grapheme?
-            - User may have a find/replace transform.
-        - Custom needs to be a trait that maps caret points back to the source text.
-    - Maybe don't allow `WhiteSpace` and `TextTransformFn` when the text is editable.
-        - Apply it when the text is changed to not editable.
+    - Don't trim?
+        - Multiple texts in wrap trim both ends and end-up visually joined.
+    - Enable in `markdown!`.
+    - Replace editable text or ignore property?
+* Review `TextTransformFn`.
+    - Implement same behavior as `WhiteSpace`.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

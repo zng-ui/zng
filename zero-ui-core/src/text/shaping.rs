@@ -6,7 +6,7 @@ use std::{
 
 use super::{
     font_features::RFontFeatures, lang, CaretIndex, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak,
-    SegmentedText, TextSegment, TextSegmentKind, Txt, WhiteSpace, WordBreak,
+    SegmentedText, TextSegment, TextSegmentKind, Txt, WordBreak,
 };
 use crate::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
@@ -27,9 +27,6 @@ pub struct TextShapingArgs {
 
     /// Extra spacing to add after each space (U+0020 SPACE).
     pub word_spacing: Px,
-
-    /// White space merging config.
-    pub white_space: WhiteSpace,
 
     /// Height of each line.
     ///
@@ -86,7 +83,6 @@ impl Default for TextShapingArgs {
         TextShapingArgs {
             letter_spacing: Px(0),
             word_spacing: Px(0),
-            white_space: WhiteSpace::Preserve,
             line_height: Px(0),
             line_spacing: Px(0),
             lang: lang!(und),
@@ -1315,7 +1311,6 @@ struct ShapedTextBuilder {
     line_height: f32,
     line_spacing: f32,
     word_spacing: f32,
-    white_space: WhiteSpace,
     letter_spacing: f32,
     max_width: f32,
     break_words: bool,
@@ -1377,7 +1372,6 @@ impl ShapedTextBuilder {
             line_height: 0.0,
             line_spacing: 0.0,
             word_spacing: 0.0,
-            white_space: WhiteSpace::Preserve,
             letter_spacing: 0.0,
             max_width: 0.0,
             break_words: false,
@@ -1432,7 +1426,6 @@ impl ShapedTextBuilder {
 
         t.letter_spacing = config.letter_spacing.0 as f32;
         t.word_spacing = config.word_spacing.0 as f32;
-        t.white_space = config.white_space;
         t.tab_x_advance = config.tab_x_advance.0 as f32;
         t.tab_index = fonts[0].space_index();
 
