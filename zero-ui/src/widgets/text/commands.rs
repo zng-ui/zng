@@ -5,7 +5,7 @@
 //!
 //! The [`nodes::resolve_text`] node implements [`EDIT_CMD`] when the text is editable.
 
-use std::{any::Any, fmt, ops, sync::Arc};
+use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use crate::core::{task::parking_lot::Mutex, undo::*};
 
@@ -388,6 +388,43 @@ impl TextEditOp {
                 ctx.caret.lock().set_char_index(select_before.start); // TODO, selection
             }
             UndoFullOp::Info { info } => *info = Some(Arc::new("replace")),
+            UndoFullOp::Merge { .. } => {}
+        })
+    }
+
+    /// Applies [`TEXT_TRANSFORM_VAR`] and [`WHITE_SPACE_VAR`] to the text.
+    pub fn apply_transforms() -> Self {
+        let mut prev = Txt::from_static("");
+        let mut transform = None::<(TextTransformFn, WhiteSpace)>;
+        Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Op(UndoOp::Redo) => {
+                let (t, w) = transform.get_or_insert_with(|| (TEXT_TRANSFORM_VAR.get(), WHITE_SPACE_VAR.get()));
+
+                let new_txt = txt.with(|txt| {
+                    let transformed = t.transform(txt);
+                    let white_spaced = w.transform(transformed.as_ref());
+                    if let Cow::Owned(w) = white_spaced {
+                        Some(w)
+                    } else if let Cow::Owned(t) = transformed {
+                        Some(t)
+                    } else {
+                        None
+                    }
+                });
+
+                if let Some(t) = new_txt {
+                    if txt.with(|t| t != prev.as_str()) {
+                        prev = txt.get();
+                    }
+                    let _ = txt.set(t);
+                }
+            }
+            UndoFullOp::Op(UndoOp::Undo) => {
+                if txt.with(|t| t != prev.as_str()) {
+                    let _ = txt.set(prev.clone());
+                }
+            }
+            UndoFullOp::Info { info } => *info = Some(Arc::new("transform")),
             UndoFullOp::Merge { .. } => {}
         })
     }
