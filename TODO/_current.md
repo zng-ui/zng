@@ -5,7 +5,6 @@
         - Char input, paste, IME
     - Impl cut & copy.
         - VsCode copies the current line if there is no selection, how common is this?
-* Research text editors.
 
 * Review `WhiteSpace::Merge`.
     - Don't trim?
