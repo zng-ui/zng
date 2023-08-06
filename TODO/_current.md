@@ -1,6 +1,5 @@
 # TextInput
 
-* Implement WhiteSpace in Markdown.
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
