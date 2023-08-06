@@ -63,7 +63,3 @@
 * Review `RasterSpace::Screen` usage.
     - Firefox controls this (only Screen if stacking-context is not animating).
     - https://searchfox.org/mozilla-central/source/layout/painting/nsDisplayList.cpp#6675
-
-# Issue
-
-* Markdown example does not scroll to title or footnote.

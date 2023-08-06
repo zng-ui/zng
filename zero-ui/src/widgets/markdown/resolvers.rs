@@ -237,13 +237,8 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
                 // scroll-to
                 crate::widgets::scroll::commands::scroll_to_info(&target, LINK_SCROLL_MODE_VAR.get());
 
-                // focus
-                if let Some(focus) = target
-                    .into_focus_info(false, false)
-                    .self_and_descendants()
-                    .find(|w| w.is_focusable())
-                    .or_else(|| md.into_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
-                {
+                // focus if target if focusable
+                if let Some(focus) = target.into_focus_info(true, true).self_and_descendants().find(|w| w.is_focusable()) {
                     FOCUS.focus_widget(focus.info().id(), false);
                 }
             }

@@ -493,6 +493,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     let mut _handle = CommandHandle::dummy();
     let mut scroll_to = None;
+    let mut scroll_to_from_cmd = false;
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -505,7 +506,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             let self_id = WIDGET.id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
-                    if path.contains(self_id) && path.widget_id() != self_id {
+                    if (scroll_to.is_none() || !scroll_to_from_cmd) && path.contains(self_id) && path.widget_id() != self_id {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
                             let tree = WINDOW.info();
@@ -546,6 +547,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                                 // will scroll on the next arrange.
                                 scroll_to = Some((bounds, mode));
+                                scroll_to_from_cmd = true;
                                 WIDGET.layout();
 
                                 args.propagation().stop();
@@ -559,6 +561,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             *final_size = child.layout(wl);
 
             if let Some((bounds, mode)) = scroll_to.take() {
+                scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {

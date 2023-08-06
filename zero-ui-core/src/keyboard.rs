@@ -104,10 +104,10 @@ impl KeyInputArgs {
 }
 
 /// Text input methods.
-/// 
+///
 /// The [`text`] field contains the raw text associated with the key-press by the operating system,
 /// these methods normalize and filter this text.
-/// 
+///
 /// [`text`]: KeyInputArgs::text
 impl KeyInputArgs {
     /// Returns `true` if the character is the backspace and `CTRL` is not pressed.
@@ -134,7 +134,7 @@ impl KeyInputArgs {
     ///
     /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
     /// Returns `""` if there is no text or it contains ASCII control characters or `CTRL` is pressed.
-    /// 
+    ///
     /// [`is_tab`]: Self::is_tab
     /// [`is_line_break`]: Self::is_line_break
     pub fn insert_str(&self) -> &str {
