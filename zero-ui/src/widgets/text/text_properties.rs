@@ -626,11 +626,11 @@ context_var! {
 /// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
 /// Is [`WhiteSpace::Preserve`] by default.
 ///
-/// This property is not applied when the text is [`editable`].
+/// This property is not applied when the text is [`txt_editable`].
 ///
 /// Sets the [`WHITE_SPACE_VAR`].
 ///
-/// [`editable`]: fn@editable
+/// [`txt_editable`]: fn@txt_editable
 #[property(CONTEXT, default(WHITE_SPACE_VAR), widget_impl(TextTransformMix<P>))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
     with_context_var(child, WHITE_SPACE_VAR, transform)
@@ -638,11 +638,11 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 
 /// Text transform, character replacement applied to the text before it is processed by the text widget.
 ///
-/// This property is not applied when the text is [`editable`].
+/// This property is not applied when the text is [`txt_editable`].
 ///
 /// Sets the [`TEXT_TRANSFORM_VAR`].
 ///  
-/// [`editable`]: fn@editable
+/// [`txt_editable`]: fn@txt_editable
 #[property(CONTEXT, default(TEXT_TRANSFORM_VAR), widget_impl(TextTransformMix<P>))]
 pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)

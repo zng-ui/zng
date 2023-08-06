@@ -9,6 +9,12 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
+# Text
+
+* Implement text clip.
+    - Ellipses, fade-out.
+    - Very visible in icon example.
+
 # View-Process
 
 * Update to winit-29 when released.
@@ -20,6 +26,7 @@
 ## WR Items
 
 * Finish items implemented by webrender.
+    - Image mask.
     - iFrame.
         - Host headless window?
             - Not exactly, similar but needs to be spawned by the window.
