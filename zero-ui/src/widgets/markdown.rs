@@ -171,28 +171,28 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
     let mut table_col = 0;
     let mut table_head = false;
 
-    let mut txt_carry = '\0';
+    let mut last_txt_end = '\0';
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                 }
                 Tag::Heading(_, _, _) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     heading_text = Some(String::new());
                 }
                 Tag::BlockQuote => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     block_quote_start.push(blocks.len());
                 }
                 Tag::CodeBlock(_) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     code_block_text = Some(String::new());
                 }
                 Tag::List(n) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     list_info.push(ListInfo {
                         block_start: blocks.len(),
                         inline_start: inlines.len(),
@@ -201,14 +201,14 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     });
                 }
                 Tag::Item => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                 }
                 Tag::FootnoteDefinition(_) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     footnote_def_start = Some(blocks.len());
                 }
                 Tag::Table(columns) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     table_cols = columns
                         .into_iter()
                         .map(|c| match c {
@@ -220,16 +220,16 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         .collect()
                 }
                 Tag::TableHead => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     table_head = true;
                     table_col = 0;
                 }
                 Tag::TableRow => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                     table_col = 0;
                 }
                 Tag::TableCell => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                 }
                 Tag::Emphasis => {
                     emphasis += 1;
@@ -244,7 +244,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     link_start = Some(inlines.len());
                 }
                 Tag::Image(_, _, _) => {
-                    txt_carry = '\0';
+                    last_txt_end = '\0';
                 }
             },
             Event::End(tag) => match tag {
@@ -421,24 +421,25 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     let mut txt = Txt::from_string(txt.into_owned());
 
                     // apply `WhiteSpace::MergeAll` across texts.
-                    let carry = txt.chars().next_back().unwrap();
+                    let txt_end = txt.chars().next_back().unwrap();
+
                     let starts_with_space = txt.chars().next().unwrap().is_whitespace();
                     match WhiteSpace::MergeAll.transform(&txt) {
                         std::borrow::Cow::Borrowed(_) => {
-                            if starts_with_space && txt_carry != '\0' || !txt.is_empty() && txt_carry.is_whitespace() {
+                            if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
                                 txt.to_mut().insert(0, '\u{20}');
                             }
                             txt.end_mut();
-                            txt_carry = carry;
+                            last_txt_end = txt_end;
                         }
                         std::borrow::Cow::Owned(t) => {
                             txt = t;
                             if !txt.is_empty() {
-                                txt_carry = carry;
-                                if starts_with_space && txt_carry != '\0' || !txt.is_empty() && txt_carry.is_whitespace() {
+                                if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
                                     txt.to_mut().insert(0, '\u{20}');
                                     txt.end_mut();
                                 }
+                                last_txt_end = txt_end;
                             }
                         }
                     }
