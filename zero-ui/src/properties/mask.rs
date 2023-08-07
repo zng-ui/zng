@@ -65,6 +65,11 @@ context_var! {
     /// Defines how the mask image is repeated in the widget bounds.
     pub static MASK_REPEAT_VAR: ImageRepeat = ImageRepeat::None;
 
+    /// Defines the spacing between repeated mask image copies.
+    ///
+    /// is [`Size::zero()`] by default.
+    pub static MASK_REPEAT_SPACING_VAR: Size = Size::zero();
+
     /// Simple clip applied to the mask before layout.
     ///
     /// No cropping is done by default.
@@ -121,6 +126,17 @@ pub fn mask_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode 
 #[property(CONTEXT, default(MASK_REPEAT_VAR))]
 pub fn mask_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
     with_context_var(child, MASK_REPEAT_VAR, repeat)
+}
+
+/// Defines the spacing between repeated mask image copies in all [`mask_image`] inside
+/// the widget in descendants.
+///
+/// This property sets the [`MASK_REPEAT_VAR`].
+///
+/// [`mask_image`]: fn@mask_image
+#[property(CONTEXT, default(MASK_REPEAT_SPACING_VAR))]
+pub fn mask_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
+    with_context_var(child, MASK_REPEAT_SPACING_VAR, spacing)
 }
 
 /// Defines a simple clip applied to the mask image before layout in all [`mask_image`] inside
