@@ -25,7 +25,6 @@
 
 # Image Mask
 
-* Merge.
 * Implement gradient mask (need to render).
     - Implement `ImageSource::Gradient`?
         - Different than image render?
