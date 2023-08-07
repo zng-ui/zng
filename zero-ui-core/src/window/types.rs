@@ -12,7 +12,7 @@ use crate::{
     context::WINDOW,
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
-    image::{ImageDataFormat, ImageSource, ImageVar, Img},
+    image::{ImageDataFormat, ImageMaskSource, ImageSource, ImageVar, Img},
     render::{FrameId, RenderMode},
     text::Txt,
     units::*,
@@ -607,12 +607,22 @@ pub enum FrameCaptureMode {
     ///
     /// [`WINDOWS.frame_image`]: crate::window::WINDOWS.frame_image
     Sporadic,
-    /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`].
+    /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`]
+    /// as a full BGRA8 image.
     ///
     /// After the frame is captured the mode changes to `Sporadic`.
     Next,
-    /// All subsequent frames rendered will be captured and available in [`FrameImageReadyArgs::frame_image`].
+    /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`]
+    /// as an A8 mask image.
+    ///
+    /// After the frame is captured the mode changes to `Sporadic`.
+    NextMask(ImageMaskSource),
+    /// All subsequent frames rendered will be captured and available in [`FrameImageReadyArgs::frame_image`]
+    /// as full BGRA8 images.
     All,
+    /// All subsequent frames rendered will be captured and available in [`FrameImageReadyArgs::frame_image`]
+    /// as A8 mask images.
+    AllMask(ImageMaskSource),
 }
 impl Default for FrameCaptureMode {
     /// [`Sporadic`]: FrameCaptureMode::Sporadic

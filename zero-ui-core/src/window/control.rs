@@ -1730,7 +1730,7 @@ impl ContentCtrl {
 
             self.clear_color = frame.clear_color;
 
-            let capture_image = self.take_capture_image();
+            let capture = self.take_frame_capture();
 
             if let Some(renderer) = renderer {
                 let _: Ignore = renderer.render(FrameRequest {
@@ -1738,8 +1738,7 @@ impl ContentCtrl {
                     pipeline_id: frame.display_list.pipeline_id(),
                     clear_color: self.clear_color,
                     display_list: frame.display_list,
-                    capture_image,
-                    capture_mask: None,
+                    capture,
                     wait_id,
                 });
             } else {
@@ -1772,7 +1771,7 @@ impl ContentCtrl {
                 self.clear_color = c;
             }
 
-            let capture_image = self.take_capture_image();
+            let capture = self.take_frame_capture();
 
             if let Some(renderer) = renderer {
                 let _: Ignore = renderer.render_update(FrameUpdateRequest {
@@ -1782,8 +1781,7 @@ impl ContentCtrl {
                     colors: update.colors,
                     clear_color: update.clear_color,
                     extensions: update.extensions,
-                    capture_image,
-                    capture_mask: None,
+                    capture,
                     wait_id,
                 });
             } else {
@@ -1792,14 +1790,19 @@ impl ContentCtrl {
             }
         }
     }
-    fn take_capture_image(&self) -> bool {
+    fn take_frame_capture(&self) -> FrameCapture {
         match self.vars.frame_capture_mode().get() {
-            FrameCaptureMode::Sporadic => false,
+            FrameCaptureMode::Sporadic => FrameCapture::None,
             FrameCaptureMode::Next => {
                 self.vars.frame_capture_mode().set(FrameCaptureMode::Sporadic);
-                true
+                FrameCapture::Full
             }
-            FrameCaptureMode::All => true,
+            FrameCaptureMode::All => FrameCapture::Full,
+            FrameCaptureMode::NextMask(m) => {
+                self.vars.frame_capture_mode().set(FrameCaptureMode::Sporadic);
+                FrameCapture::Mask(m)
+            }
+            FrameCaptureMode::AllMask(m) => FrameCapture::Mask(m),
         }
     }
 

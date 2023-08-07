@@ -144,7 +144,11 @@ impl ImageManager {
 
                         let w = (req.render)();
 
-                        vars.frame_capture_mode().set(FrameCaptureMode::All);
+                        if let Some(mask) = req.mask {
+                            vars.frame_capture_mode().set(FrameCaptureMode::AllMask(mask));
+                        } else {
+                            vars.frame_capture_mode().set(FrameCaptureMode::All);
+                        }
 
                         let a = ActiveRenderer {
                             window_id: WINDOW.id(),

@@ -3207,6 +3207,18 @@ impl std::error::Error for ViewProcessOffline {}
 /// View Process IPC result.
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
+/// Frame image capture request.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FrameCapture {
+    /// Don't capture the frame.
+    #[default]
+    None,
+    /// Captures a full BGRA8 image.
+    Full,
+    /// Captures an A8 mask image.
+    Mask(ImageMaskSource),
+}
+
 /// Data for rendering a new frame.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameRequest {
@@ -3221,12 +3233,10 @@ pub struct FrameRequest {
     /// Display list.
     pub display_list: DisplayList,
 
-    /// Automatically create an image from this rendered frame.
+    /// Create an image or mask from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.
-    pub capture_image: bool,
-    /// Optionally capture an A8 mask instead of a full BGRA8 if `capture_image` is set.
-    pub capture_mask: Option<ImageMaskSource>,
+    pub capture: FrameCapture,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
@@ -3236,7 +3246,7 @@ impl FrameRequest {
     pub fn render_reasons(&self) -> RenderReasons {
         let mut reasons = RenderReasons::SCENE;
 
-        if self.capture_image {
+        if self.capture != FrameCapture::None {
             reasons |= RenderReasons::SNAPSHOT;
         }
 
@@ -3263,12 +3273,10 @@ pub struct FrameUpdateRequest {
     /// New clear color.
     pub clear_color: Option<ColorF>,
 
-    /// Automatically create an image from this rendered frame.
+    /// Create an image or mask from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is send with the image.
-    pub capture_image: bool,
-    /// Optionally capture an A8 mask instead of a full BGRA8 if `capture_image` is set.
-    pub capture_mask: Option<ImageMaskSource>,
+    pub capture: FrameCapture,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
@@ -3283,8 +3291,7 @@ impl FrameUpdateRequest {
             colors: vec![],
             extensions: vec![],
             clear_color: None,
-            capture_image: false,
-            capture_mask: None,
+            capture: FrameCapture::None,
             wait_id: None,
         }
     }
@@ -3297,7 +3304,7 @@ impl FrameUpdateRequest {
     /// If this request does not do anything, apart from notifying
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
-        !self.has_bounds() && self.extensions.is_empty() && self.clear_color.is_none() && !self.capture_image
+        !self.has_bounds() && self.extensions.is_empty() && self.clear_color.is_none() && self.capture != FrameCapture::None
     }
 
     /// Compute webrender analysis info.
@@ -3308,7 +3315,7 @@ impl FrameUpdateRequest {
             reasons |= RenderReasons::ANIMATED_PROPERTY;
         }
 
-        if self.capture_image {
+        if self.capture != FrameCapture::None {
             reasons |= RenderReasons::SNAPSHOT;
         }
 
@@ -3327,7 +3334,7 @@ impl fmt::Debug for FrameUpdateRequest {
             .field("floats", &self.floats)
             .field("colors", &self.colors)
             .field("clear_color", &self.clear_color)
-            .field("capture_image", &self.capture_image)
+            .field("capture", &self.capture)
             .finish()
     }
 }

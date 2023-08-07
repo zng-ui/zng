@@ -11,8 +11,8 @@ use webrender::{
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, ApiExtensionId, ApiExtensionPayload, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId,
-    ImageLoadedData, ImageMaskSource, RenderMode, ViewProcessGen, WindowId,
+    units::*, ApiExtensionId, ApiExtensionPayload, DisplayListCache, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest,
+    HeadlessRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -43,7 +43,7 @@ pub(crate) struct Surface {
     display_list_cache: DisplayListCache,
     clear_color: Option<ColorF>,
 
-    pending_frames: VecDeque<(FrameId, Option<Option<ImageMaskSource>>, Option<EnteredSpan>)>,
+    pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
     resized: bool,
 }
@@ -281,13 +281,8 @@ impl Surface {
         txn.generate_frame(frame.id.get(), render_reasons);
 
         let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = false, thread = "<webrender>")
-                .entered();
-        self.pending_frames.push_back((
-            frame.id,
-            if frame.capture_image { Some(frame.capture_mask) } else { None },
-            Some(frame_scope),
-        ));
+            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
+        self.pending_frames.push_back((frame.id, frame.capture, Some(frame_scope)));
 
         self.api.send_transaction(self.document_id, txn);
     }
@@ -328,7 +323,7 @@ impl Surface {
                     txn.append_dynamic_properties(p);
                 }
 
-                tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
+                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = "<webrender>")
             }
             Err(d) => {
                 txn.reset_dynamic_properties();
@@ -340,35 +335,35 @@ impl Surface {
 
                 txn.set_display_list(frame.id.epoch(), (self.pipeline_id, d));
 
-                tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = true, thread = "<webrender>")
+                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
             }
         };
 
-        self.pending_frames.push_back((
-            frame.id,
-            if frame.capture_image { Some(frame.capture_mask) } else { None },
-            Some(frame_scope.entered()),
-        ));
+        self.pending_frames
+            .push_back((frame.id, frame.capture, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
-        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, None, None));
+        let (frame_id, capture, _) = self
+            .pending_frames
+            .pop_front()
+            .unwrap_or((self.rendered_frame_id, FrameCapture::None, None));
         self.rendered_frame_id = frame_id;
 
         let mut captured_data = None;
 
         let mut ext_args = FrameReadyArgs {
             frame_id,
-            redraw: msg.composite_needed || capture.is_some(),
+            redraw: msg.composite_needed || capture != FrameCapture::None,
         };
         for (_, ext) in &mut self.renderer_exts {
             ext.frame_ready(&mut ext_args);
-            ext_args.redraw |= msg.composite_needed || capture.is_some();
+            ext_args.redraw |= msg.composite_needed || capture != FrameCapture::None;
         }
 
-        if ext_args.redraw || msg.composite_needed || capture.is_some() {
+        if ext_args.redraw || msg.composite_needed || capture != FrameCapture::None {
             self.context.make_current();
             let renderer = self.renderer.as_mut().unwrap();
 
@@ -388,6 +383,11 @@ impl Surface {
                 });
             }
 
+            let capture = match capture {
+                FrameCapture::None => None,
+                FrameCapture::Full => Some(None),
+                FrameCapture::Mask(m) => Some(Some(m)),
+            };
             if let Some(mask) = capture {
                 captured_data = Some(images.frame_image_data(
                     renderer,

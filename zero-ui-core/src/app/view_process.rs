@@ -9,10 +9,10 @@ use std::{
 pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FileDialog, FileDialogKind, FileDialogResponse,
-    FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale,
-    ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog,
-    MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId,
-    WindowRequest, WindowState, WindowStateAll,
+    FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
+    ImageDownscale, ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
+    MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline,
+    WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{

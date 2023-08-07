@@ -106,7 +106,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), image);
+    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), None, image);
 
     app.run_task(async move {
         while img.with(Img::is_loading) {

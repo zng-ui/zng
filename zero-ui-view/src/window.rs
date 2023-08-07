@@ -24,9 +24,9 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator, FrameId,
-    FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, VideoMode, ViewProcessGen, WindowId,
-    WindowRequest, WindowState, WindowStateAll,
+    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator,
+    FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, VideoMode,
+    ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -61,7 +61,7 @@ pub(crate) struct Window {
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     capture_mode: bool,
 
-    pending_frames: VecDeque<(FrameId, Option<Option<ImageMaskSource>>, Option<EnteredSpan>)>,
+    pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
     kiosk: bool,
 
@@ -1101,14 +1101,9 @@ impl Window {
         txn.set_display_list(frame.id.epoch(), (frame.pipeline_id, display_list));
 
         let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = false, thread = "<webrender>")
-                .entered();
+            tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
 
-        self.pending_frames.push_back((
-            frame.id,
-            if frame.capture_image { Some(frame.capture_mask) } else { None },
-            Some(frame_scope),
-        ));
+        self.pending_frames.push_back((frame.id, frame.capture, Some(frame_scope)));
 
         self.api.send_transaction(self.document_id, txn);
     }
@@ -1150,7 +1145,7 @@ impl Window {
                     txn.append_dynamic_properties(p);
                 }
 
-                tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
+                tracing::trace_span!("<frame-update>", ?frame.id, capture = ?frame.capture, thread = "<webrender>")
             }
             Err(d) => {
                 txn.reset_dynamic_properties();
@@ -1162,11 +1157,12 @@ impl Window {
 
                 txn.set_display_list(frame.id.epoch(), (self.pipeline_id, d));
 
-                tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = true, thread = "<webrender>")
+                tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
             }
         };
 
-        self.pending_frames.push_back((frame.id, None, Some(frame_scope.entered())));
+        self.pending_frames
+            .push_back((frame.id, FrameCapture::None, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id, txn);
     }
@@ -1174,7 +1170,10 @@ impl Window {
     /// Returns info for `FrameRendered` and if this is the first frame.
     #[must_use = "events must be generated from the result"]
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> FrameReadyResult {
-        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, None, None));
+        let (frame_id, capture, _) = self
+            .pending_frames
+            .pop_front()
+            .unwrap_or((self.rendered_frame_id, FrameCapture::None, None));
         self.rendered_frame_id = frame_id;
 
         let first_frame = self.waiting_first_frame;
@@ -1215,6 +1214,11 @@ impl Window {
 
         let scale_factor = self.scale_factor();
 
+        let capture = match capture {
+            FrameCapture::None => None,
+            FrameCapture::Full => Some(None),
+            FrameCapture::Mask(m) => Some(Some(m)),
+        };
         let image = if let Some(mask) = capture {
             let _s = tracing::trace_span!("capture_image").entered();
             if ext_args.redraw || msg.composite_needed {
