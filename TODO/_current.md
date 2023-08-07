@@ -1,5 +1,3 @@
-* Implement image render directly to mask (in the frame capture request).
-
 # TextInput
 
 * Implement selection.
@@ -27,7 +25,7 @@
 
 # Image Mask
 
-* Implement all image mask properties.
+* Merge.
 * Implement gradient mask (need to render).
     - Implement `ImageSource::Gradient`?
         - Different than image render?
