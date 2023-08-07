@@ -2,10 +2,7 @@
 
 use std::fmt;
 
-use crate::core::{
-    gradient::{GradientRadius, GradientStops, LinearGradientAxis},
-    image::{ImageCacheMode, ImageMaskSource, ImageSource, IMAGES},
-};
+use crate::core::gradient::{GradientRadius, GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{conic_gradient, flood, linear_gradient, radial_gradient};
 
@@ -591,46 +588,6 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                     }
                 }
             };
-        }
-        _ => {}
-    })
-}
-
-/// Sets an image mask.
-///
-/// The image alpha channel is used as a mask for the widget and descendants.
-#[property(FILL-1)]
-pub fn image_mask(child: impl UiNode, mask: impl IntoVar<ImageSource>) -> impl UiNode {
-    let mask = mask.into_var();
-    let mut img = None;
-    let mut size = PxSize::zero();
-    match_node(child, move |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&mask);
-            let i = IMAGES.image(mask.get(), ImageCacheMode::Cache, None, None, Some(ImageMaskSource::A));
-            let s = i.subscribe(UpdateOp::Render, WIDGET.id());
-            img = Some((i, s));
-        }
-        UiNodeOp::Update { .. } => {
-            if let Some(s) = mask.get_new() {
-                let i = IMAGES.image(s, ImageCacheMode::Cache, None, None, Some(ImageMaskSource::A));
-                let s = i.subscribe(UpdateOp::Render, WIDGET.id());
-                img = Some((i, s));
-                WIDGET.render();
-            }
-        }
-        UiNodeOp::Layout { wl, final_size } => {
-            *final_size = c.layout(wl);
-            size = *final_size;
-        }
-        UiNodeOp::Render { frame } => {
-            if let Some((img, _)) = &img {
-                img.with(|img| {
-                    frame.push_clip_mask(img, PxRect::from_size(size), &[], crate::core::render::FillRule::Nonzero, |frame| {
-                        c.render(frame);
-                    })
-                });
-            }
         }
         _ => {}
     })

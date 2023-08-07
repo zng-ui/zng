@@ -11,6 +11,9 @@ pub use visual::*;
 mod border_;
 pub use border_::*;
 
+pub mod mask;
+pub use mask::{mask_image, mask_mode};
+
 pub mod commands;
 
 mod data_;

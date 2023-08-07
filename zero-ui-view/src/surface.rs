@@ -12,7 +12,7 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::*, ApiExtensionId, ApiExtensionPayload, DisplayListCache, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest,
-    HeadlessRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, ViewProcessGen, WindowId,
+    HeadlessRequest, ImageId, ImageLoadedData, ImageMaskMode, RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -401,7 +401,7 @@ impl Surface {
         (frame_id, captured_data)
     }
 
-    pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskSource>) -> ImageId {
+    pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskMode>) -> ImageId {
         images.frame_image(
             self.renderer.as_mut().unwrap(),
             PxRect::from_size(self.size.to_px(self.scale_factor)),
@@ -413,7 +413,7 @@ impl Surface {
         )
     }
 
-    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId {
+    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId {
         let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).intersection(&rect).unwrap();
         images.frame_image(
             self.renderer.as_mut().unwrap(),

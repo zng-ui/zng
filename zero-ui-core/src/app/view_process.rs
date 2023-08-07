@@ -10,7 +10,7 @@ pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FileDialog, FileDialogKind, FileDialogResponse,
     FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
-    ImageDownscale, ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
+    ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
     MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline,
     WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
 };
@@ -915,7 +915,7 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from the current rendered frame.
-    pub fn frame_image(&self, mask: Option<ImageMaskSource>) -> Result<ViewImage> {
+    pub fn frame_image(&self, mask: Option<ImageMaskMode>) -> Result<ViewImage> {
         if let Some(c) = self.0.upgrade() {
             let id = c.call(|id, p| p.frame_image(id, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
@@ -925,7 +925,7 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from a selection of the current rendered frame.
-    pub fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskSource>) -> Result<ViewImage> {
+    pub fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskMode>) -> Result<ViewImage> {
         if let Some(c) = self.0.upgrade() {
             let id = c.call(|id, p| p.frame_image_rect(id, rect, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))

@@ -20,7 +20,7 @@ use crate::context::{RenderUpdates, UpdateOp, WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
-use crate::image::ImageMaskSource;
+use crate::image::ImageMaskMode;
 use crate::image::{ImageVar, Img};
 use crate::render::RenderMode;
 use crate::task::ui::UiTask;
@@ -438,7 +438,7 @@ impl WINDOWS {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskSource>) -> ImageVar {
+    pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
             .frame_image_impl(window_id.into(), move |vr| vr.frame_image(mask))
@@ -449,7 +449,7 @@ impl WINDOWS {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageVar {
+    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
             .frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect, mask))
@@ -1463,7 +1463,7 @@ pub trait WINDOW_Ext {
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
-    fn frame_image(&self, mask: Option<ImageMaskSource>) -> ImageVar {
+    fn frame_image(&self, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS.frame_image(WINDOW.id(), mask)
     }
 
@@ -1472,7 +1472,7 @@ pub trait WINDOW_Ext {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageVar {
+    fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS.frame_image_rect(WINDOW.id(), rect, mask)
     }
 

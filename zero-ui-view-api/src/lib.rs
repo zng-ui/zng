@@ -435,7 +435,7 @@ declare_api! {
     ///
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
     /// Returns `0` if the window is not found.
-    pub fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskSource>) -> ImageId;
+    pub fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Create a new image from a selection of the current rendered frame.
     ///
@@ -443,7 +443,7 @@ declare_api! {
     ///
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
     /// Returns `0` if the window is not found.
-    pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId;
+    pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Set the video mode used when the window is in exclusive fullscreen.
     pub fn set_video_mode(&mut self, id: WindowId, mode: VideoMode);

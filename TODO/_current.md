@@ -27,10 +27,7 @@
 
 # Image Mask
 
-* Implement more image mask properties.
-    - `mask_mode`, luminance or alpha.
-    - `mask_origin`, `mask_position`, `mask_repeat`, `mask_size`.
-    - `mask_clip`, different mask properties?
+* Implement all image mask properties.
 * Implement gradient mask (need to render).
     - Implement `ImageSource::Gradient`?
         - Different than image render?

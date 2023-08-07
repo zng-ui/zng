@@ -1740,11 +1740,11 @@ impl Api for App {
         self.with_window(id, |w| w.set_capture_mode(enabled), || ())
     }
 
-    fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskSource>) -> ImageId {
+    fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskMode>) -> ImageId {
         with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache, mask), || ImageId::INVALID)
     }
 
-    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId {
+    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId {
         with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect, mask), || {
             ImageId::INVALID
         })

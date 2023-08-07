@@ -21,7 +21,7 @@ use crate::{
     window::{FrameCaptureMode, WINDOW_Ext, WindowId, WindowRoot},
 };
 
-pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImageMaskSource, ImagePpi};
+pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -36,7 +36,7 @@ pub trait ImageCacheProxy: Send + Sync {
         source: &ImageSource,
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ProxyGetResult {
         let _ = (key, source, mode, downscale, mask);
         ProxyGetResult::None
@@ -59,7 +59,7 @@ pub enum ProxyGetResult {
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
     /// Load and cache using the replacement source.
-    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>, Option<ImageMaskSource>),
+    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>, Option<ImageMaskMode>),
     /// Return the image instead of hitting the cache.
     Image(ImageVar),
 }
@@ -626,7 +626,7 @@ impl ImageSource {
     }
 
     /// Returns the image hash, unless the source is [`Img`].
-    pub fn hash128(&self, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> Option<ImageHash> {
+    pub fn hash128(&self, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask)),
             #[cfg(http)]
@@ -642,7 +642,7 @@ impl ImageSource {
     ///
     /// [`Static`]: Self::Static
     /// [`Data`]: Self::Data
-    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> ImageHash {
+    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
         if downscale.is_some() || mask.is_some() {
             use std::hash::Hash;
             let mut h = ImageHash::hasher();
@@ -658,7 +658,7 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> ImageHash {
+    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
@@ -676,7 +676,7 @@ impl ImageSource {
         uri: &crate::task::http::Uri,
         accept: &Option<Txt>,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
@@ -697,7 +697,7 @@ impl ImageSource {
         rfn: &RenderFn,
         args: &Option<ImageRenderArgs>,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();

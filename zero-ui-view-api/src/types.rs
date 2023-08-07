@@ -3216,7 +3216,7 @@ pub enum FrameCapture {
     /// Captures a full BGRA8 image.
     Full,
     /// Captures an A8 mask image.
-    Mask(ImageMaskSource),
+    Mask(ImageMaskMode),
 }
 
 /// Data for rendering a new frame.
@@ -3710,9 +3710,9 @@ pub struct LocaleConfig {
     pub langs: Vec<String>,
 }
 
-/// Defines how the R8 image mask pixels are to be derived from a full image.
+/// Defines how the A8 image mask pixels are to be derived from a source mask image.
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Hash, Deserialize, Default)]
-pub enum ImageMaskSource {
+pub enum ImageMaskMode {
     /// Alpha channel.
     ///
     /// If the image has no alpha channel masks by `Luminance`.
@@ -3756,7 +3756,7 @@ pub struct ImageRequest<D> {
     /// the constraints, the image aspect ratio is preserved.
     pub downscale: Option<ImageDownscale>,
     /// Convert or decode the image into a single channel mask (R8).
-    pub mask: Option<ImageMaskSource>,
+    pub mask: Option<ImageMaskMode>,
 }
 
 /// Defines how an image is downscaled after decoding.

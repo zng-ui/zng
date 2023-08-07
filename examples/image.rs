@@ -98,7 +98,7 @@ fn app_main() {
                             Image! {
                                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                                 size = (200, 120);
-                                image_mask = ImageSource::render_node(RenderMode::Software, |_| Text! {
+                                mask_image = ImageSource::render_node(RenderMode::Software, |_| Text! {
                                     txt = "Mask";
                                     txt_align = Align::CENTER;
                                     font_size = 78;

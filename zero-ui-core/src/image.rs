@@ -292,7 +292,7 @@ struct ImageLoadingTask {
     image: ArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
-    mask: Option<ImageMaskSource>,
+    mask: Option<ImageMaskMode>,
 }
 
 struct ImageDecodingTask {
@@ -306,14 +306,14 @@ struct CacheEntry {
     error: AtomicBool,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
-    mask: Option<ImageMaskSource>,
+    mask: Option<ImageMaskMode>,
 }
 
 struct NotCachedEntry {
     image: WeakArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
-    mask: Option<ImageMaskSource>,
+    mask: Option<ImageMaskMode>,
 }
 
 struct ImagesService {
@@ -388,7 +388,7 @@ impl ImagesService {
                     image: img_var,
                     max_decoded_len: limits.max_decoded_len,
                     downscale,
-                    mask: if is_mask { Some(ImageMaskSource::A) } else { None },
+                    mask: if is_mask { Some(ImageMaskMode::A) } else { None },
                 })
                 .image
                 .read_only())
@@ -456,7 +456,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         limits: ImageLimits,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ImageVar {
         let source = match source {
             ImageSource::Read(path) => {
@@ -501,7 +501,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         limits: ImageLimits,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ImageVar {
         match mode {
             ImageCacheMode::Cache => {
@@ -693,7 +693,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ArcVar<Img> {
         self.cleanup_not_cached(false);
 
@@ -741,7 +741,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
         fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_len, downscale, mask);
@@ -860,7 +860,7 @@ impl IMAGES {
         cache_mode: impl Into<ImageCacheMode>,
         limits: Option<ImageLimits>,
         downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
     ) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
         IMAGES_SV

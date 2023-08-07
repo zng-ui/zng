@@ -25,7 +25,7 @@ use winit::{
 };
 use zero_ui_view_api::{
     units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator,
-    FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, VideoMode,
+    FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskMode, RenderMode, VideoMode,
     ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
@@ -1286,7 +1286,7 @@ impl Window {
         }
     }
 
-    pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskSource>) -> ImageId {
+    pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskMode>) -> ImageId {
         let scale_factor = self.scale_factor();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
@@ -1299,7 +1299,7 @@ impl Window {
         )
     }
 
-    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId {
+    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId {
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)

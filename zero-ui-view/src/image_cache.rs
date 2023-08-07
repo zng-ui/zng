@@ -4,7 +4,7 @@ use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
 use zero_ui_view_api::{
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
+    Event, ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -367,7 +367,7 @@ impl ImageCache {
         Ok(image)
     }
 
-    fn convert_decoded(image: image::DynamicImage, mask: Option<ImageMaskSource>) -> RawLoadedImg {
+    fn convert_decoded(image: image::DynamicImage, mask: Option<ImageMaskMode>) -> RawLoadedImg {
         use image::DynamicImage::*;
 
         let mut is_opaque = true;
@@ -387,7 +387,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::A => img
+                        ImageMaskMode::A => img
                             .into_raw()
                             .chunks(2)
                             .map(|la| {
@@ -397,7 +397,7 @@ impl ImageCache {
                                 la[1]
                             })
                             .collect(),
-                        ImageMaskSource::B | ImageMaskSource::G | ImageMaskSource::R | ImageMaskSource::Luminance => img
+                        ImageMaskMode::B | ImageMaskMode::G | ImageMaskMode::R | ImageMaskMode::Luminance => img
                             .into_raw()
                             .chunks(2)
                             .map(|la| {
@@ -429,7 +429,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance | ImageMaskSource::A => img
+                        ImageMaskMode::Luminance | ImageMaskMode::A => img
                             .into_raw()
                             .chunks(3)
                             .map(|c| {
@@ -442,9 +442,9 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -467,7 +467,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance => img
+                        ImageMaskMode::Luminance => img
                             .into_raw()
                             .chunks(4)
                             .map(|c| {
@@ -480,10 +480,10 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::A => 3,
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::A => 3,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -538,7 +538,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::A => img
+                        ImageMaskMode::A => img
                             .into_raw()
                             .chunks(2)
                             .map(|la| {
@@ -550,7 +550,7 @@ impl ImageCache {
                                 l as u8
                             })
                             .collect(),
-                        ImageMaskSource::B | ImageMaskSource::G | ImageMaskSource::R | ImageMaskSource::Luminance => img
+                        ImageMaskMode::B | ImageMaskMode::G | ImageMaskMode::R | ImageMaskMode::Luminance => img
                             .into_raw()
                             .chunks(2)
                             .map(|la| {
@@ -587,7 +587,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance | ImageMaskSource::A => img
+                        ImageMaskMode::Luminance | ImageMaskMode::A => img
                             .into_raw()
                             .chunks(3)
                             .map(|c| {
@@ -600,9 +600,9 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -637,7 +637,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance => img
+                        ImageMaskMode::Luminance => img
                             .into_raw()
                             .chunks(4)
                             .map(|c| {
@@ -650,10 +650,10 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::A => 3,
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::A => 3,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -699,7 +699,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance | ImageMaskSource::A => img
+                        ImageMaskMode::Luminance | ImageMaskMode::A => img
                             .into_raw()
                             .chunks(3)
                             .map(|c| {
@@ -712,9 +712,9 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -740,7 +740,7 @@ impl ImageCache {
                 img.dimensions(),
                 if let Some(mask) = mask {
                     match mask {
-                        ImageMaskSource::Luminance => img
+                        ImageMaskMode::Luminance => img
                             .into_raw()
                             .chunks(4)
                             .map(|c| {
@@ -753,10 +753,10 @@ impl ImageCache {
                             .collect(),
                         mask => {
                             let channel = match mask {
-                                ImageMaskSource::A => 3,
-                                ImageMaskSource::B => 2,
-                                ImageMaskSource::G => 1,
-                                ImageMaskSource::R => 0,
+                                ImageMaskMode::A => 3,
+                                ImageMaskMode::B => 2,
+                                ImageMaskMode::G => 1,
+                                ImageMaskMode::R => 0,
                                 _ => unreachable!(),
                             };
                             img.into_raw()
@@ -1135,7 +1135,7 @@ mod capture {
     };
     use zero_ui_view_api::{
         units::{PxRect, PxToWr, WrToPx},
-        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, WindowId,
+        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, WindowId,
     };
 
     use crate::{
@@ -1156,7 +1156,7 @@ mod capture {
             window_id: WindowId,
             frame_id: FrameId,
             scale_factor: f32,
-            mask: Option<ImageMaskSource>,
+            mask: Option<ImageMaskMode>,
         ) -> ImageId {
             if frame_id == FrameId::INVALID {
                 let id = self.image_id_gen.incr();
@@ -1195,7 +1195,7 @@ mod capture {
             rect: PxRect,
             capture_mode: bool,
             scale_factor: f32,
-            mask: Option<ImageMaskSource>,
+            mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
             let data = self.frame_image_data_impl(renderer, rect, capture_mode, scale_factor, mask);
 
@@ -1229,7 +1229,7 @@ mod capture {
             rect: PxRect,
             capture_mode: bool,
             scale_factor: f32,
-            mask: Option<ImageMaskSource>,
+            mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
             // Firefox uses this API here:
             // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87

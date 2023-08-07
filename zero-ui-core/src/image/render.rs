@@ -9,10 +9,10 @@ use crate::{
     window::*,
 };
 
-use super::{ImageManager, ImageMaskSource, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
+use super::{ImageManager, ImageMaskMode, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
 
 impl ImagesService {
-    fn render<N>(&mut self, mask: Option<ImageMaskSource>, render: N) -> ImageVar
+    fn render<N>(&mut self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
@@ -33,7 +33,7 @@ impl ImagesService {
         &mut self,
         render_mode: RenderMode,
         scale_factor: impl Into<Factor>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
         render: N,
     ) -> ImageVar
     where
@@ -56,7 +56,7 @@ impl ImagesService {
         })
     }
 
-    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskSource>, render: N, result: &ArcVar<Img>)
+    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskMode>, render: N, result: &ArcVar<Img>)
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
@@ -80,7 +80,7 @@ impl IMAGES {
     /// Requires the [`WINDOWS`] service.
     ///
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
-    pub fn render<N>(&self, mask: Option<ImageMaskSource>, render: N) -> ImageVar
+    pub fn render<N>(&self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
@@ -97,7 +97,7 @@ impl IMAGES {
         &self,
         render_mode: RenderMode,
         scale_factor: impl Into<Factor>,
-        mask: Option<ImageMaskSource>,
+        mask: Option<ImageMaskMode>,
         render: N,
     ) -> ImageVar
     where
@@ -197,7 +197,7 @@ struct ActiveRenderer {
 struct RenderRequest {
     render: Box<dyn FnOnce() -> WindowRoot + Send + Sync>,
     image: WeakArcVar<Img>,
-    mask: Option<ImageMaskSource>,
+    mask: Option<ImageMaskMode>,
 }
 
 #[derive(Clone)]

@@ -19,10 +19,7 @@ use std::{marker::PhantomData, mem, sync::Arc};
 
 use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{
-    webrender_api::{self, FillRule},
-    DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange,
-};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
     ApiExtensionPayload, DisplayList, NinePatchSource, ReuseStart,
@@ -810,7 +807,7 @@ impl FrameBuilder {
     }
 
     /// Sets the widget blend mode and continue the render build.
-    /// 
+    ///
     /// This is valid only when [`is_outer`].
     ///
     /// When [`push_inner`] is called the `mode` is used to blend with the parent content.
@@ -923,8 +920,7 @@ impl FrameBuilder {
                     // so they get reversed again here and everything ends up in order.
                     data.filter.reverse();
 
-                    self.display_list
-                        .push_stacking_context(data.blend, &data.filter, &[], &[]);
+                    self.display_list.push_stacking_context(data.blend, &data.filter, &[], &[]);
                 }
 
                 render(self);
@@ -1002,15 +998,8 @@ impl FrameBuilder {
     /// Calls `render` with a new clip context that adds the image mask.
     ///
     /// Note that clip masks do not affect hit-test.
-    pub fn push_clip_mask(
-        &mut self,
-        image: &impl Img,
-        rect: PxRect,
-        points: &[PxPoint],
-        fill_rule: FillRule,
-        render: impl FnOnce(&mut FrameBuilder),
-    ) {
-        self.push_clips(move |c| c.push_clip_mask(image, rect, points, fill_rule), render)
+    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
+        self.push_clips(move |c| c.push_clip_mask(image, rect), render)
     }
 
     /// Calls `clips` to push multiple clips that define a new clip context, then calls `render` in the clip context.
@@ -1809,12 +1798,10 @@ impl<'a> ClipBuilder<'a> {
     /// Push the image as a clip mask.
     ///
     /// Note that this clip does not affect hit-test.
-    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect, points: &[PxPoint], fill_rule: FillRule) {
+    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect) {
         if self.builder.visible {
             if let Some(r) = &self.builder.renderer {
-                self.builder
-                    .display_list
-                    .push_clip_mask(image.image_key(r), rect, points.to_vec().into_boxed_slice(), fill_rule);
+                self.builder.display_list.push_clip_mask(image.image_key(r), rect);
                 self.render_count += 1;
             }
         }
