@@ -143,7 +143,7 @@ fn screenshot() -> impl UiNode {
                 println!("taking `screenshot.png`..");
 
                 let t = Instant::now();
-                let img = WINDOW.frame_image().get();
+                let img = WINDOW.frame_image(None).get();
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
 

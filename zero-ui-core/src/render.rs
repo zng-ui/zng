@@ -1791,7 +1791,7 @@ impl<'a> ClipBuilder<'a> {
             if let Some(r) = &self.builder.renderer {
                 self.builder
                     .display_list
-                    .push_clip_mask(dbg!(image.image_key(r)), rect, points.to_vec().into_boxed_slice(), fill_rule);
+                    .push_clip_mask(image.image_key(r), rect, points.to_vec().into_boxed_slice(), fill_rule);
                 self.render_count += 1;
             }
         }

@@ -1740,12 +1740,14 @@ impl Api for App {
         self.with_window(id, |w| w.set_capture_mode(enabled), || ())
     }
 
-    fn frame_image(&mut self, id: WindowId) -> ImageId {
-        with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache), || ImageId::INVALID)
+    fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskSource>) -> ImageId {
+        with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache, mask), || ImageId::INVALID)
     }
 
-    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId {
-        with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || ImageId::INVALID)
+    fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId {
+        with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect, mask), || {
+            ImageId::INVALID
+        })
     }
 
     fn render(&mut self, id: WindowId, frame: FrameRequest) {
@@ -1798,6 +1800,7 @@ impl Api for App {
                     data: IpcBytes::from_vec(bitmap),
                     max_decoded_len: u64::MAX,
                     downscale: None,
+                    mask: None,
                 });
                 Ok(ClipboardData::Image(id))
             }
@@ -1880,7 +1883,7 @@ impl Api for App {
                 self.arboard()?;
                 if let Some(img) = self.image_cache.get(id) {
                     let size = img.size();
-                    let mut data = img.bgra8().clone().to_vec();
+                    let mut data = img.pixels().clone().to_vec();
                     for rgba in data.chunks_exact_mut(4) {
                         rgba.swap(0, 2); // to rgba
                     }

@@ -9,15 +9,16 @@ use crate::{
     window::*,
 };
 
-use super::{ImageManager, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
+use super::{ImageManager, ImageMaskSource, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
 
 impl ImagesService {
-    fn render<N>(&mut self, render: N) -> ImageVar
+    fn render<N>(&mut self, mask: Option<ImageMaskSource>, render: N) -> ImageVar
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
         let result = var(Img::new_none(None));
         self.render_img(
+            mask,
             move || {
                 let r = render();
                 WINDOW.vars().frame_capture_mode().set(FrameCaptureMode::All);
@@ -28,13 +29,19 @@ impl ImagesService {
         result.read_only()
     }
 
-    fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
+    fn render_node<U, N>(
+        &mut self,
+        render_mode: RenderMode,
+        scale_factor: impl Into<Factor>,
+        mask: Option<ImageMaskSource>,
+        render: N,
+    ) -> ImageVar
     where
         U: UiNode,
         N: FnOnce() -> U + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
-        self.render(move || {
+        self.render(mask, move || {
             let node = render();
             WindowRoot::new_container(
                 WidgetId::new_unique(),
@@ -49,13 +56,14 @@ impl ImagesService {
         })
     }
 
-    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Img>)
+    pub(super) fn render_img<N>(&mut self, mask: Option<ImageMaskSource>, render: N, result: &ArcVar<Img>)
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
         self.render.requests.push(RenderRequest {
             render: Box::new(render),
             image: result.downgrade(),
+            mask,
         });
         UPDATES.update(None);
     }
@@ -72,11 +80,11 @@ impl IMAGES {
     /// Requires the [`WINDOWS`] service.
     ///
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
-    pub fn render<N>(&self, render: N) -> ImageVar
+    pub fn render<N>(&self, mask: Option<ImageMaskSource>, render: N) -> ImageVar
     where
         N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
-        IMAGES_SV.write().render(render)
+        IMAGES_SV.write().render(mask, render)
     }
 
     /// Render an [`UiNode`] to an image.
@@ -85,12 +93,18 @@ impl IMAGES {
     /// a headless window is still used, the node does not have the same context as the calling widget.
     ///
     /// [`render`]: Self::render
-    pub fn render_node<U, N>(&self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
+    pub fn render_node<U, N>(
+        &self,
+        render_mode: RenderMode,
+        scale_factor: impl Into<Factor>,
+        mask: Option<ImageMaskSource>,
+        render: N,
+    ) -> ImageVar
     where
         U: UiNode,
         N: FnOnce() -> U + Send + Sync + 'static,
     {
-        IMAGES_SV.write().render_node(render_mode, scale_factor, render)
+        IMAGES_SV.write().render_node(render_mode, scale_factor, mask, render)
     }
 }
 
@@ -179,6 +193,7 @@ struct ActiveRenderer {
 struct RenderRequest {
     render: Box<dyn FnOnce() -> WindowRoot + Send + Sync>,
     image: WeakArcVar<Img>,
+    mask: Option<ImageMaskSource>,
 }
 
 #[derive(Clone)]

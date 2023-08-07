@@ -21,7 +21,7 @@ use crate::{
     window::{FrameCaptureMode, WINDOW_Ext, WindowId, WindowRoot},
 };
 
-pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
+pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImageMaskSource, ImagePpi};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -30,8 +30,15 @@ pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
 /// [`IMAGES`]: super::IMAGES
 pub trait ImageCacheProxy: Send + Sync {
     /// Intercept a get request.
-    fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode, downscale: Option<ImageDownscale>) -> ProxyGetResult {
-        let _ = (key, source, mode, downscale);
+    fn get(
+        &mut self,
+        key: &ImageHash,
+        source: &ImageSource,
+        mode: ImageCacheMode,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
+    ) -> ProxyGetResult {
+        let _ = (key, source, mode, downscale, mask);
         ProxyGetResult::None
     }
 
@@ -52,7 +59,7 @@ pub enum ProxyGetResult {
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
     /// Load and cache using the replacement source.
-    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>),
+    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>, Option<ImageMaskSource>),
     /// Return the image instead of hitting the cache.
     Image(ImageVar),
 }
@@ -174,6 +181,11 @@ impl Img {
         self.view.get().map(|v| v.is_opaque()).unwrap_or(true)
     }
 
+    /// Returns `true` if the image pixels are a single channel (A8).
+    pub fn is_mask(&self) -> bool {
+        self.view.get().map(|v| v.is_mask()).unwrap_or(false)
+    }
+
     /// Connection to the image resource, if it is loaded.
     pub fn view(&self) -> Option<&ViewImage> {
         self.view.get().filter(|&v| v.is_loaded())
@@ -216,20 +228,22 @@ impl Img {
         size
     }
 
-    /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
-    pub fn bgra8(&self) -> Option<zero_ui_view_api::IpcBytes> {
-        self.view.get().and_then(|v| v.bgra8())
+    /// Reference the decoded pre-multiplied BGRA8 pixel buffer or A8 if [`is_mask`].
+    ///
+    /// [`is_mask`]: Self::is_mask
+    pub fn pixels(&self) -> Option<zero_ui_view_api::IpcBytes> {
+        self.view.get().and_then(|v| v.pixels())
     }
 
-    /// Copy the `rect` selection from `bgra8`.
+    /// Copy the `rect` selection from `pixels`.
     ///
     /// The `rect` is in pixels, with the origin (0, 0) at the top-left of the image.
     ///
-    /// Returns the copied selection and the BGRA8 pre-multiplied pixel buffer.
+    /// Returns the copied selection and the pixel buffer.
     ///
     /// Note that the selection can change if `rect` is not fully contained by the image area.
     pub fn copy_pixels(&self, rect: PxRect) -> Option<(PxRect, Vec<u8>)> {
-        self.bgra8().map(|bgra8| {
+        self.pixels().map(|pixels| {
             let area = PxRect::from_size(self.size()).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
                 (area, vec![])
@@ -238,11 +252,12 @@ impl Img {
                 let y = area.origin.y.0 as usize;
                 let width = area.size.width.0 as usize;
                 let height = area.size.height.0 as usize;
-                let mut bytes = Vec::with_capacity(width * height * 4);
+                let pixel = if self.is_mask() { 1 } else { 4 };
+                let mut bytes = Vec::with_capacity(width * height * pixel);
                 for l in y..y + height {
-                    let line_start = (l + x) * 4;
-                    let line_end = (l + x + width) * 4;
-                    let line = &bgra8[line_start..line_end];
+                    let line_start = (l + x) * pixel;
+                    let line_end = (l + x + width) * pixel;
+                    let line = &pixels[line_start..line_end];
                     bytes.extend(line);
                 }
                 (area, bytes)
@@ -611,14 +626,14 @@ impl ImageSource {
     }
 
     /// Returns the image hash, unless the source is [`Img`].
-    pub fn hash128(&self, downscale: Option<ImageDownscale>) -> Option<ImageHash> {
+    pub fn hash128(&self, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> Option<ImageHash> {
         match self {
-            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale)),
+            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale, mask)),
             #[cfg(http)]
-            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale)),
-            ImageSource::Static(h, _, _) => Some(Self::hash128_data(*h, downscale)),
-            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale)),
-            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale)),
+            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale, mask)),
+            ImageSource::Static(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
+            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale, mask)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale, mask)),
             ImageSource::Image(_) => None,
         }
     }
@@ -627,28 +642,29 @@ impl ImageSource {
     ///
     /// [`Static`]: Self::Static
     /// [`Data`]: Self::Data
-    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>) -> ImageHash {
-        match downscale {
-            Some(s) => {
-                use std::hash::Hash;
-                let mut h = ImageHash::hasher();
-                data_hash.0.hash(&mut h);
-                s.hash(&mut h);
-                h.finish()
-            }
-            None => data_hash,
+    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> ImageHash {
+        if downscale.is_some() || mask.is_some() {
+            use std::hash::Hash;
+            let mut h = ImageHash::hasher();
+            data_hash.0.hash(&mut h);
+            downscale.hash(&mut h);
+            mask.hash(&mut h);
+            h.finish()
+        } else {
+            data_hash
         }
     }
 
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>) -> ImageHash {
+    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>, mask: Option<ImageMaskSource>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
         downscale.hash(&mut h);
+        mask.hash(&mut h);
         h.finish()
     }
 
@@ -656,13 +672,19 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(http)]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, downscale: Option<ImageDownscale>) -> ImageHash {
+    pub fn hash128_download(
+        uri: &crate::task::http::Uri,
+        accept: &Option<Txt>,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
+    ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
         downscale.hash(&mut h);
+        mask.hash(&mut h);
         h.finish()
     }
 
@@ -671,13 +693,19 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>, downscale: Option<ImageDownscale>) -> ImageHash {
+    pub fn hash128_render(
+        rfn: &RenderFn,
+        args: &Option<ImageRenderArgs>,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
+    ) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Arc::as_ptr(rfn) as usize).hash(&mut h);
         args.hash(&mut h);
         downscale.hash(&mut h);
+        mask.hash(&mut h);
         h.finish()
     }
 }

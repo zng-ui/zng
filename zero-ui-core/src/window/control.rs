@@ -1739,6 +1739,7 @@ impl ContentCtrl {
                     clear_color: self.clear_color,
                     display_list: frame.display_list,
                     capture_image,
+                    capture_mask: None,
                     wait_id,
                 });
             } else {
@@ -1782,6 +1783,7 @@ impl ContentCtrl {
                     clear_color: update.clear_color,
                     extensions: update.extensions,
                     capture_image,
+                    capture_mask: None,
                     wait_id,
                 });
             } else {

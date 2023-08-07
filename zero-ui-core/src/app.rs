@@ -1263,8 +1263,13 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_EVENT.new_update(args), observer);
             }
-            Event::ImageMetadataLoaded { image: id, size, ppi } => {
-                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, ppi) {
+            Event::ImageMetadataLoaded {
+                image: id,
+                size,
+                ppi,
+                is_mask,
+            } => {
+                if let Some(img) = VIEW_PROCESS.on_image_metadata_loaded(id, size, ppi, is_mask) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_METADATA_LOADED_EVENT.new_update(args), observer);
                 }
@@ -1273,10 +1278,11 @@ impl<E: AppExtension> RunningApp<E> {
                 image: id,
                 partial_size,
                 ppi,
-                opaque,
-                partial_bgra8,
+                is_opaque,
+                is_mask,
+                partial_pixels: partial_bgra8,
             } => {
-                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, ppi, opaque, partial_bgra8) {
+                if let Some(img) = VIEW_PROCESS.on_image_partially_loaded(id, partial_size, ppi, is_opaque, is_mask, partial_bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RAW_IMAGE_PARTIALLY_LOADED_EVENT.new_update(args), observer);
                 }

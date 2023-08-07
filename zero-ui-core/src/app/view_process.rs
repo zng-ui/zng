@@ -10,9 +10,9 @@ pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
     ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FileDialog, FileDialogKind, FileDialogResponse,
     FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale,
-    ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog, MsgDialogButtons,
-    MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId, WindowRequest,
-    WindowState, WindowStateAll,
+    ImageMaskSource, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo, MsgDialog,
+    MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId,
+    WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -157,9 +157,10 @@ impl VIEW_PROCESS {
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,
-            opaque: false,
-            partial_bgra8: None,
-            bgra8: None,
+            is_opaque: false,
+            partial_pixels: None,
+            pixels: None,
+            is_mask: false,
             done_signal: SignalOnce::new(),
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
@@ -181,9 +182,10 @@ impl VIEW_PROCESS {
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,
-            opaque: false,
-            partial_bgra8: None,
-            bgra8: None,
+            is_opaque: false,
+            partial_pixels: None,
+            pixels: None,
+            is_mask: false,
             done_signal: SignalOnce::new(),
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
@@ -345,13 +347,14 @@ impl VIEW_PROCESS {
         app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
-    pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>) -> Option<ViewImage> {
+    pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>, is_mask: bool) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.write();
                 img.size = size;
                 img.ppi = ppi;
+                img.is_mask = is_mask;
             }
             Some(ViewImage(img))
         } else {
@@ -364,8 +367,9 @@ impl VIEW_PROCESS {
         id: ImageId,
         partial_size: PxSize,
         ppi: Option<ImagePpi>,
-        opaque: bool,
-        partial_bgra8: IpcBytes,
+        is_opaque: bool,
+        is_mask: bool,
+        partial_pixels: IpcBytes,
     ) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
@@ -373,8 +377,9 @@ impl VIEW_PROCESS {
                 let mut img = img.write();
                 img.partial_size = partial_size;
                 img.ppi = ppi;
-                img.opaque = opaque;
-                img.partial_bgra8 = Some(partial_bgra8);
+                img.is_opaque = is_opaque;
+                img.partial_pixels = Some(partial_pixels);
+                img.is_mask = is_mask;
             }
             Some(ViewImage(img))
         } else {
@@ -390,9 +395,10 @@ impl VIEW_PROCESS {
                 img.size = data.size;
                 img.partial_size = data.size;
                 img.ppi = data.ppi;
-                img.opaque = data.opaque;
-                img.bgra8 = Some(Ok(data.bgra8));
-                img.partial_bgra8 = None;
+                img.is_opaque = data.is_opaque;
+                img.pixels = Some(Ok(data.pixels));
+                img.partial_pixels = None;
+                img.is_mask = data.is_mask;
                 img.done_signal.set();
             }
             Some(ViewImage(img))
@@ -406,7 +412,7 @@ impl VIEW_PROCESS {
             let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.write();
-                img.bgra8 = Some(Err(error));
+                img.pixels = Some(Err(error));
                 img.done_signal.set();
             }
             Some(ViewImage(img))
@@ -428,9 +434,10 @@ impl VIEW_PROCESS {
             size: data.size,
             partial_size: data.size,
             ppi: data.ppi,
-            opaque: data.opaque,
-            partial_bgra8: None,
-            bgra8: Some(Ok(data.bgra8)),
+            is_opaque: data.is_opaque,
+            partial_pixels: None,
+            pixels: Some(Ok(data.pixels)),
+            is_mask: data.is_mask,
             done_signal: SignalOnce::new_set(),
         })))
     }
@@ -908,9 +915,9 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from the current rendered frame.
-    pub fn frame_image(&self) -> Result<ViewImage> {
+    pub fn frame_image(&self, mask: Option<ImageMaskSource>) -> Result<ViewImage> {
         if let Some(c) = self.0.upgrade() {
-            let id = c.call(|id, p| p.frame_image(id))?;
+            let id = c.call(|id, p| p.frame_image(id, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
             Err(ViewProcessOffline)
@@ -918,9 +925,9 @@ impl ViewRenderer {
     }
 
     /// Create a new image resource from a selection of the current rendered frame.
-    pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
+    pub fn frame_image_rect(&self, rect: PxRect, mask: Option<ImageMaskSource>) -> Result<ViewImage> {
         if let Some(c) = self.0.upgrade() {
-            let id = c.call(|id, p| p.frame_image_rect(id, rect))?;
+            let id = c.call(|id, p| p.frame_image_rect(id, rect, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
             Err(ViewProcessOffline)
@@ -939,9 +946,10 @@ impl ViewRenderer {
                 size: PxSize::zero(),
                 partial_size: PxSize::zero(),
                 ppi: None,
-                opaque: false,
-                partial_bgra8: None,
-                bgra8: None,
+                is_opaque: false,
+                partial_pixels: None,
+                pixels: None,
+                is_mask: false,
                 done_signal: SignalOnce::new(),
             })));
 
@@ -1023,7 +1031,8 @@ impl fmt::Debug for ViewImage {
             .field("error", &self.error())
             .field("size", &self.size())
             .field("dpi", &self.ppi())
-            .field("opaque", &self.is_opaque())
+            .field("is_opaque", &self.is_opaque())
+            .field("is_mask", &self.is_mask())
             .field("generation", &self.generation())
             .finish_non_exhaustive()
     }
@@ -1037,10 +1046,11 @@ struct ViewImageData {
     size: PxSize,
     partial_size: PxSize,
     ppi: Option<ImagePpi>,
-    opaque: bool,
+    is_opaque: bool,
 
-    partial_bgra8: Option<IpcBytes>,
-    bgra8: Option<std::result::Result<IpcBytes, String>>,
+    partial_pixels: Option<IpcBytes>,
+    pixels: Option<std::result::Result<IpcBytes, String>>,
+    is_mask: bool,
 
     done_signal: SignalOnce,
 }
@@ -1074,24 +1084,24 @@ impl ViewImage {
 
     /// Returns `true` if the image has successfully decoded.
     pub fn is_loaded(&self) -> bool {
-        self.0.read().bgra8.as_ref().map(|r| r.is_ok()).unwrap_or(false)
+        self.0.read().pixels.as_ref().map(|r| r.is_ok()).unwrap_or(false)
     }
 
     /// Returns `true` if the image is progressively decoding and has partially decoded.
     pub fn is_partially_loaded(&self) -> bool {
-        self.0.read().partial_bgra8.is_some()
+        self.0.read().partial_pixels.is_some()
     }
 
     /// if [`error`] is `Some`.
     ///
     /// [`error`]: Self::error
     pub fn is_error(&self) -> bool {
-        self.0.read().bgra8.as_ref().map(|r| r.is_err()).unwrap_or(false)
+        self.0.read().pixels.as_ref().map(|r| r.is_err()).unwrap_or(false)
     }
 
     /// Returns the load error if one happened.
     pub fn error(&self) -> Option<String> {
-        self.0.read().bgra8.as_ref().and_then(|s| s.as_ref().err().cloned())
+        self.0.read().pixels.as_ref().and_then(|s| s.as_ref().err().cloned())
     }
 
     /// Returns the pixel size, or zero if is not loaded or error.
@@ -1116,23 +1126,36 @@ impl ViewImage {
 
     /// Returns if the image is fully opaque.
     pub fn is_opaque(&self) -> bool {
-        self.0.read().opaque
+        self.0.read().is_opaque
+    }
+
+    /// Returns if the image is a single channel mask (A8).
+    pub fn is_mask(&self) -> bool {
+        self.0.read().is_mask
     }
 
     /// Copy the partially decoded pixels if the image is progressively decoding
     /// and has not finished decoding.
-    pub fn partial_bgra8(&self) -> Option<Vec<u8>> {
-        self.0.read().partial_bgra8.as_ref().map(|r| r[..].to_vec())
+    ///
+    /// Format is BGRA8 for normal images or A8 if [`is_mask`].
+    ///
+    /// [`is_mask`]: Self::is_mask
+    pub fn partial_pixels(&self) -> Option<Vec<u8>> {
+        self.0.read().partial_pixels.as_ref().map(|r| r[..].to_vec())
     }
 
-    /// Reference the decoded and pre-multiplied BGRA8 bytes of the image.
+    /// Reference the decoded pixels of image.
     ///
-    /// Returns `None` until the image is fully loaded. Use [`partial_bgra8`] to copy
+    /// Returns `None` until the image is fully loaded. Use [`partial_pixels`] to copy
     /// partially decoded bytes.
     ///
-    /// [`partial_bgra8`]: Self::partial_bgra8
-    pub fn bgra8(&self) -> Option<IpcBytes> {
-        self.0.read().bgra8.as_ref().and_then(|r| r.as_ref().ok()).cloned()
+    /// Format is pre-multiplied BGRA8 for normal images or A8 if [`is_mask`].
+    ///
+    /// [`is_mask`]: Self::is_mask
+    ///
+    /// [`partial_pixels`]: Self::partial_pixels
+    pub fn pixels(&self) -> Option<IpcBytes> {
+        self.0.read().pixels.as_ref().and_then(|r| r.as_ref().ok()).cloned()
     }
 
     /// Returns the app that owns the view-process that is handling this image.
@@ -1159,13 +1182,14 @@ impl ViewImage {
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,
-            opaque: true,
-            partial_bgra8: None,
-            bgra8: if let Some(e) = error {
+            is_opaque: true,
+            partial_pixels: None,
+            pixels: if let Some(e) = error {
                 Some(Err(e))
             } else {
                 Some(Ok(IpcBytes::from_slice(&[])))
             },
+            is_mask: false,
             done_signal: SignalOnce::new_set(),
         })))
     }
@@ -1313,9 +1337,10 @@ impl ViewClipboard {
                         size: PxSize::zero(),
                         partial_size: PxSize::zero(),
                         ppi: None,
-                        opaque: false,
-                        partial_bgra8: None,
-                        bgra8: None,
+                        is_opaque: false,
+                        partial_pixels: None,
+                        pixels: None,
+                        is_mask: false,
                         done_signal: SignalOnce::new(),
                     })));
                     app.loading_images.push(Arc::downgrade(&img.0));

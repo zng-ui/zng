@@ -2797,6 +2797,8 @@ pub enum Event {
         size: PxSize,
         /// The image pixels-per-inch metadata.
         ppi: Option<ImagePpi>,
+        /// The image is a single channel R8.
+        is_mask: bool,
     },
     /// An image resource finished decoding.
     ImageLoaded(ImageLoadedData),
@@ -2810,10 +2812,12 @@ pub enum Event {
         /// The image pixels-per-inch metadata.
         ppi: Option<ImagePpi>,
         /// If the decoded pixels so-far are all opaque (255 alpha).
-        opaque: bool,
-        /// Updated BGRA8 pre-multiplied pixel buffer. This includes all the pixels
+        is_opaque: bool,
+        /// If the decoded pixels so-far are a single channel.
+        is_mask: bool,
+        /// Updated BGRA8 pre-multiplied pixel buffer or R8 if `is_mask`. This includes all the pixels
         /// decoded so-far.
-        partial_bgra8: IpcBytes,
+        partial_pixels: IpcBytes,
     },
     /// An image resource failed to decode, the image ID is not valid.
     ImageLoadError {
@@ -3221,6 +3225,8 @@ pub struct FrameRequest {
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.
     pub capture_image: bool,
+    /// Optionally capture an A8 mask instead of a full BGRA8 if `capture_image` is set.
+    pub capture_mask: Option<ImageMaskSource>,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
@@ -3261,6 +3267,8 @@ pub struct FrameUpdateRequest {
     ///
     /// The [`Event::FrameImageReady`] is send with the image.
     pub capture_image: bool,
+    /// Optionally capture an A8 mask instead of a full BGRA8 if `capture_image` is set.
+    pub capture_mask: Option<ImageMaskSource>,
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
@@ -3276,6 +3284,7 @@ impl FrameUpdateRequest {
             extensions: vec![],
             clear_color: None,
             capture_image: false,
+            capture_mask: None,
             wait_id: None,
         }
     }
@@ -3694,6 +3703,32 @@ pub struct LocaleConfig {
     pub langs: Vec<String>,
 }
 
+/// Defines how the R8 image mask pixels are to be derived from a full image.
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Hash, Deserialize, Default)]
+pub enum ImageMaskSource {
+    /// Alpha channel.
+    ///
+    /// If the image has no alpha channel masks by `Luminance`.
+    #[default]
+    A,
+    /// Blue channel.
+    ///
+    /// If the image has no color channel fallback to monochrome channel, or `A`.
+    B,
+    /// Green channel.
+    ///
+    /// If the image has no color channel fallback to monochrome channel, or `A`.
+    G,
+    /// Red channel.
+    ///
+    /// If the image has no color channel fallback to monochrome channel, or `A`.
+    R,
+    /// Relative luminance.
+    ///
+    /// If the image has no color channel fallback to monochrome channel, or `A`.
+    Luminance,
+}
+
 /// Represent a image load/decode request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageRequest<D> {
@@ -3713,6 +3748,8 @@ pub struct ImageRequest<D> {
     /// A size constraints to apply after the image is decoded. The image is resized so both dimensions fit inside
     /// the constraints, the image aspect ratio is preserved.
     pub downscale: Option<ImageDownscale>,
+    /// Convert or decode the image into a single channel mask (R8).
+    pub mask: Option<ImageMaskSource>,
 }
 
 /// Defines how an image is downscaled after decoding.
@@ -3751,6 +3788,15 @@ pub enum ImageDataFormat {
         size: PxSize,
         /// Pixels-per-inch of the image.
         ppi: Option<ImagePpi>,
+    },
+
+    /// Decoded A8.
+    ///
+    /// This is the internal mask format it indicates the mask data
+    /// is already decoded and must only be entered into the cache.
+    A8 {
+        /// Size in pixels.
+        size: PxSize,
     },
 
     /// The image is encoded, a file extension that maybe identifies
@@ -3806,6 +3852,9 @@ impl std::hash::Hash for ImageDataFormat {
                 size.hash(state);
                 ppi_key(*ppi).hash(state);
             }
+            ImageDataFormat::A8 { size } => {
+                size.hash(state);
+            }
             ImageDataFormat::FileExtension(ext) => ext.hash(state),
             ImageDataFormat::MimeType(mt) => mt.hash(state),
             ImageDataFormat::Unknown => {}
@@ -3829,9 +3878,11 @@ pub struct ImageLoadedData {
     /// Pixel-per-inch metadata.
     pub ppi: Option<ImagePpi>,
     /// If all pixels have an alpha value of 255.
-    pub opaque: bool,
-    /// Reference to the BGRA8 pre-multiplied image pixels.
-    pub bgra8: IpcBytes,
+    pub is_opaque: bool,
+    /// If the `pixels` are in a single channel (A8).
+    pub is_mask: bool,
+    /// Reference to the BGRA8 pre-multiplied image pixels or the A8 pixels if `is_mask`.
+    pub pixels: IpcBytes,
 }
 impl fmt::Debug for ImageLoadedData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -3839,8 +3890,9 @@ impl fmt::Debug for ImageLoadedData {
             .field("id", &self.id)
             .field("size", &self.size)
             .field("ppi", &self.ppi)
-            .field("opaque", &self.opaque)
-            .field("bgra8", &format_args!("<{} bytes shared memory>", self.bgra8.len()))
+            .field("is_opaque", &self.is_opaque)
+            .field("is_mask", &self.is_mask)
+            .field("pixels", &format_args!("<{} bytes shared memory>", self.pixels.len()))
             .finish()
     }
 }

@@ -1,3 +1,5 @@
+* Implement image render directly to mask (in the frame capture request).
+
 # TextInput
 
 * Implement selection.
@@ -25,9 +27,6 @@
 
 # Image Mask
 
-* Mask not working, cannot be BGRA8?
-    - Test A8 format.
-    - Probably need to support this anyway, for memory perf.
 * Implement more image mask properties.
     - `mask_mode`, luminance or alpha.
     - `mask_origin`, `mask_position`, `mask_repeat`, `mask_size`.

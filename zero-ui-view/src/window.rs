@@ -25,8 +25,8 @@ use winit::{
 };
 use zero_ui_view_api::{
     units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator, FrameId,
-    FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest,
-    WindowState, WindowStateAll,
+    FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskSource, RenderMode, VideoMode, ViewProcessGen, WindowId,
+    WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -61,7 +61,7 @@ pub(crate) struct Window {
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     capture_mode: bool,
 
-    pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
+    pending_frames: VecDeque<(FrameId, Option<Option<ImageMaskSource>>, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
     kiosk: bool,
 
@@ -1104,7 +1104,11 @@ impl Window {
             tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = false, thread = "<webrender>")
                 .entered();
 
-        self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
+        self.pending_frames.push_back((
+            frame.id,
+            if frame.capture_image { Some(frame.capture_mask) } else { None },
+            Some(frame_scope),
+        ));
 
         self.api.send_transaction(self.document_id, txn);
     }
@@ -1162,7 +1166,7 @@ impl Window {
             }
         };
 
-        self.pending_frames.push_back((frame.id, false, Some(frame_scope.entered())));
+        self.pending_frames.push_back((frame.id, None, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id, txn);
     }
@@ -1170,7 +1174,7 @@ impl Window {
     /// Returns info for `FrameRendered` and if this is the first frame.
     #[must_use = "events must be generated from the result"]
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> FrameReadyResult {
-        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
+        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, None, None));
         self.rendered_frame_id = frame_id;
 
         let first_frame = self.waiting_first_frame;
@@ -1211,13 +1215,19 @@ impl Window {
 
         let scale_factor = self.scale_factor();
 
-        let image = if capture {
+        let image = if let Some(mask) = capture {
             let _s = tracing::trace_span!("capture_image").entered();
             if ext_args.redraw || msg.composite_needed {
                 self.redraw();
             }
             let renderer = self.renderer.as_mut().unwrap();
-            Some(images.frame_image_data(renderer, PxRect::from_size(self.window.inner_size().to_px()), true, scale_factor))
+            Some(images.frame_image_data(
+                renderer,
+                PxRect::from_size(self.window.inner_size().to_px()),
+                true,
+                scale_factor,
+                mask,
+            ))
         } else {
             None
         };
@@ -1272,7 +1282,7 @@ impl Window {
         }
     }
 
-    pub fn frame_image(&mut self, images: &mut ImageCache) -> ImageId {
+    pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskSource>) -> ImageId {
         let scale_factor = self.scale_factor();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
@@ -1281,10 +1291,11 @@ impl Window {
             self.id,
             self.rendered_frame_id,
             scale_factor,
+            mask,
         )
     }
 
-    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect) -> ImageId {
+    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskSource>) -> ImageId {
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)
@@ -1296,6 +1307,7 @@ impl Window {
             self.id,
             self.rendered_frame_id,
             scale_factor,
+            mask,
         )
     }
 

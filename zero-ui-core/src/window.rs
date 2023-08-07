@@ -14,6 +14,7 @@ pub use vars::*;
 
 mod service;
 pub use service::*;
+use zero_ui_view_api::ImageMaskSource;
 
 use std::future::Future;
 
@@ -178,7 +179,7 @@ pub trait HeadlessAppWindowExt {
     /// Copy the current frame pixels of the window.
     ///
     /// The var will update until it is loaded or error.
-    fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar;
+    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<ImageMaskSource>) -> ImageVar;
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
@@ -221,8 +222,8 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let _ = self.update(false);
     }
 
-    fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
-        WINDOWS.frame_image(window_id)
+    fn window_frame_image(&mut self, window_id: WindowId, mask: Option<ImageMaskSource>) -> ImageVar {
+        WINDOWS.frame_image(window_id, mask)
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {

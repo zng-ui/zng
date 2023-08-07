@@ -116,15 +116,15 @@ impl AppExtension for ImageManager {
             images.download_accept.clear();
 
             let decoding_interrupted = mem::take(&mut images.decoding);
-            for (img_var, max_decoded_len, downscale) in images
+            for (img_var, max_decoded_len, downscale, mask) in images
                 .cache
                 .values()
-                .map(|e| (e.image.clone(), e.max_decoded_len, e.downscale))
+                .map(|e| (e.image.clone(), e.max_decoded_len, e.downscale, e.mask))
                 .chain(
                     images
                         .not_cached
                         .iter()
-                        .filter_map(|e| e.image.upgrade().map(|v| (v, e.max_decoded_len, e.downscale))),
+                        .filter_map(|e| e.image.upgrade().map(|v| (v, e.max_decoded_len, e.downscale, e.mask))),
                 )
             {
                 let img = img_var.get();
@@ -144,6 +144,7 @@ impl AppExtension for ImageManager {
                             data: task.data.clone(),
                             max_decoded_len: max_decoded_len.0 as u64,
                             downscale,
+                            mask,
                         }) {
                             Ok(img) => {
                                 img_var.set(Img::new(img));
@@ -158,17 +159,22 @@ impl AppExtension for ImageManager {
                     } else {
                         // respawned and image was loaded.
 
-                        let img_format = ImageDataFormat::Bgra8 {
-                            size: view.size(),
-                            ppi: view.ppi(),
+                        let img_format = if view.is_mask() {
+                            ImageDataFormat::A8 { size: view.size() }
+                        } else {
+                            ImageDataFormat::Bgra8 {
+                                size: view.size(),
+                                ppi: view.ppi(),
+                            }
                         };
 
-                        let data = view.bgra8().unwrap();
+                        let data = view.pixels().unwrap();
                         let img = match VIEW_PROCESS.add_image(ImageRequest {
                             format: img_format.clone(),
                             data: data.clone(),
                             max_decoded_len: max_decoded_len.0 as u64,
                             downscale,
+                            mask,
                         }) {
                             Ok(img) => img,
                             Err(ViewProcessOffline) => return, // we will receive another event.
@@ -210,6 +216,7 @@ impl AppExtension for ImageManager {
                                     data: data.clone(),
                                     max_decoded_len: t.max_decoded_len.0 as u64,
                                     downscale: t.downscale,
+                                    mask: t.mask,
                                 }) {
                                     Ok(img) => {
                                         // request sent, add to `decoding` will receive
@@ -263,6 +270,7 @@ impl AppExtension for ImageManager {
                         image: t.image,
                         max_decoded_len: t.max_decoded_len,
                         downscale: t.downscale,
+                        mask: t.mask,
                     });
                 }
             }
@@ -284,6 +292,7 @@ struct ImageLoadingTask {
     image: ArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
+    mask: Option<ImageMaskSource>,
 }
 
 struct ImageDecodingTask {
@@ -297,12 +306,14 @@ struct CacheEntry {
     error: AtomicBool,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
+    mask: Option<ImageMaskSource>,
 }
 
 struct NotCachedEntry {
     image: WeakArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
+    mask: Option<ImageMaskSource>,
 }
 
 struct ImagesService {
@@ -343,7 +354,7 @@ impl ImagesService {
         let limits = self.limits.get();
         let limits = ImageLimits {
             max_encoded_len: limits.max_encoded_len,
-            max_decoded_len: limits.max_decoded_len.max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
+            max_decoded_len: limits.max_decoded_len.max(image.pixels().map(|b| b.len()).unwrap_or(0).bytes()),
             allow_path: PathFilter::BlockAll,
             #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
@@ -354,9 +365,14 @@ impl ImagesService {
             hashbrown::hash_map::Entry::Vacant(e) => {
                 let is_error = image.is_error();
                 let is_loading = !is_error && !image.is_loaded();
-                let format = ImageDataFormat::Bgra8 {
-                    size: image.size(),
-                    ppi: image.ppi(),
+                let is_mask = image.is_mask();
+                let format = if is_mask {
+                    ImageDataFormat::A8 { size: image.size() }
+                } else {
+                    ImageDataFormat::Bgra8 {
+                        size: image.size(),
+                        ppi: image.ppi(),
+                    }
                 };
                 let img_var = var(Img::new(image));
                 if is_loading {
@@ -372,6 +388,7 @@ impl ImagesService {
                     image: img_var,
                     max_decoded_len: limits.max_decoded_len,
                     downscale,
+                    mask: if is_mask { Some(ImageMaskSource::A) } else { None },
                 })
                 .image
                 .read_only())
@@ -381,13 +398,15 @@ impl ImagesService {
 
     fn detach(&mut self, image: ImageVar) -> ImageVar {
         if let Some(key) = &image.with(|i| i.cache_key) {
-            let decoded_size = image.with(|img| img.bgra8().map(|b| b.len()).unwrap_or(0).bytes());
+            let decoded_size = image.with(|img| img.pixels().map(|b| b.len()).unwrap_or(0).bytes());
             let mut max_decoded_len = self.limits.with(|l| l.max_decoded_len.max(decoded_size));
             let mut downscale = None;
+            let mut mask = None;
 
             if let Some(e) = self.cache.get(key) {
                 max_decoded_len = e.max_decoded_len;
                 downscale = e.downscale;
+                mask = e.mask;
 
                 // is cached, `clean` if is only external reference.
                 if image.strong_count() == 2 {
@@ -403,6 +422,7 @@ impl ImagesService {
                 image: img.downgrade(),
                 max_decoded_len,
                 downscale,
+                mask,
             });
             img.read_only()
         } else {
@@ -436,6 +456,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         limits: ImageLimits,
         downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
     ) -> ImageVar {
         let source = match source {
             ImageSource::Read(path) => {
@@ -460,18 +481,18 @@ impl ImagesService {
             source => source,
         };
 
-        let key = source.hash128(downscale).unwrap();
+        let key = source.hash128(downscale, mask).unwrap();
         for proxy in &mut self.proxies {
-            let r = proxy.get(&key, &source, mode, downscale);
+            let r = proxy.get(&key, &source, mode, downscale, mask);
             match r {
                 ProxyGetResult::None => continue,
-                ProxyGetResult::Cache(source, mode, downscale) => {
-                    return self.proxied_get(source.hash128(downscale).unwrap(), source, mode, limits, downscale)
+                ProxyGetResult::Cache(source, mode, downscale, mask) => {
+                    return self.proxied_get(source.hash128(downscale, mask).unwrap(), source, mode, limits, downscale, mask)
                 }
                 ProxyGetResult::Image(img) => return img,
             }
         }
-        self.proxied_get(key, source, mode, limits, downscale)
+        self.proxied_get(key, source, mode, limits, downscale, mask)
     }
     fn proxied_get(
         &mut self,
@@ -480,6 +501,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         limits: ImageLimits,
         downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
     ) -> ImageVar {
         match mode {
             ImageCacheMode::Cache => {
@@ -508,6 +530,7 @@ impl ImagesService {
                     error: AtomicBool::new(false),
                     max_decoded_len: limits.max_decoded_len,
                     downscale,
+                    mask,
                 },
             );
             return dummy.read_only();
@@ -521,6 +544,7 @@ impl ImagesService {
                 mode,
                 limits.max_decoded_len,
                 downscale,
+                mask,
                 task::run(async move {
                     let mut r = ImageData {
                         format: path
@@ -570,6 +594,7 @@ impl ImagesService {
                     mode,
                     limits.max_decoded_len,
                     downscale,
+                    mask,
                     task::run(async move {
                         let mut r = ImageData {
                             format: ImageDataFormat::Unknown,
@@ -615,18 +640,18 @@ impl ImagesService {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(&bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
             }
             ImageSource::Render(rfn, args) => {
-                let img = self.new_cache_image(key, mode, limits.max_decoded_len, downscale);
-                self.render_img(clmv!(rfn, || rfn(&args.unwrap_or_default())), &img);
+                let img = self.new_cache_image(key, mode, limits.max_decoded_len, downscale, mask);
+                self.render_img(mask, clmv!(rfn, || rfn(&args.unwrap_or_default())), &img);
                 img.read_only()
             }
             ImageSource::Image(_) => unreachable!(),
@@ -668,6 +693,7 @@ impl ImagesService {
         mode: ImageCacheMode,
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
     ) -> ArcVar<Img> {
         self.cleanup_not_cached(false);
 
@@ -679,6 +705,7 @@ impl ImagesService {
                     error: AtomicBool::new(false),
                     max_decoded_len,
                     downscale,
+                    mask,
                 })
                 .image
                 .clone()
@@ -688,6 +715,7 @@ impl ImagesService {
                 image: img.downgrade(),
                 max_decoded_len,
                 downscale,
+                mask,
             });
             img
         } else {
@@ -699,6 +727,7 @@ impl ImagesService {
                     error: AtomicBool::new(false),
                     max_decoded_len,
                     downscale,
+                    mask,
                 },
             );
             img
@@ -712,9 +741,10 @@ impl ImagesService {
         mode: ImageCacheMode,
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
         fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
-        let img = self.new_cache_image(key, mode, max_decoded_len, downscale);
+        let img = self.new_cache_image(key, mode, max_decoded_len, downscale, mask);
         let r = img.read_only();
 
         self.loading.push(ImageLoadingTask {
@@ -722,6 +752,7 @@ impl ImagesService {
             image: img,
             max_decoded_len,
             downscale,
+            mask,
         });
 
         r
@@ -807,17 +838,17 @@ impl IMAGES {
 
     /// Get a cached image or add it to the cache.
     pub fn cache(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Cache, None, None)
+        self.image(source, ImageCacheMode::Cache, None, None, None)
     }
 
     /// Get a cached image or add it to the cache or retry if the cached image is an error.
     pub fn retry(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Retry, None, None)
+        self.image(source, ImageCacheMode::Retry, None, None, None)
     }
 
     /// Load an image, if it was already cached update the cached image with the reloaded data.
     pub fn reload(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Reload, None, None)
+        self.image(source, ImageCacheMode::Reload, None, None, None)
     }
 
     /// Get or load an image.
@@ -829,11 +860,12 @@ impl IMAGES {
         cache_mode: impl Into<ImageCacheMode>,
         limits: Option<ImageLimits>,
         downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskSource>,
     ) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
         IMAGES_SV
             .write()
-            .proxy_then_get(source.into(), cache_mode.into(), limits, downscale)
+            .proxy_then_get(source.into(), cache_mode.into(), limits, downscale, mask)
     }
 
     /// Associate the `image` with the `key` in the cache.

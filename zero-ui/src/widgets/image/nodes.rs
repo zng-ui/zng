@@ -54,7 +54,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
             }
-            img = IMAGES.image(source, mode, limits, downscale);
+            img = IMAGES.image(source, mode, limits, downscale, None);
 
             ctx_img.set_from(&img);
             _ctx_binding = Some(img.bind(&ctx_img));
@@ -84,7 +84,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 let limits = IMAGE_LIMITS_VAR.get();
                 let downscale = IMAGE_DOWNSCALE_VAR.get();
 
-                img = IMAGES.image(source, mode, limits, downscale);
+                img = IMAGES.image(source, mode, limits, downscale, None);
 
                 ctx_img.set_from(&img);
                 _ctx_binding = Some(img.bind(&ctx_img));
@@ -103,7 +103,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         let source = source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
                         let downscale = IMAGE_DOWNSCALE_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale)
+                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale, None)
                     };
 
                     ctx_img.set_from(&img);

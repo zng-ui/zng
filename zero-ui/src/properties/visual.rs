@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::core::{
     gradient::{GradientRadius, GradientStops, LinearGradientAxis},
-    image::{ImageSource, IMAGES},
+    image::{ImageCacheMode, ImageMaskSource, ImageSource, IMAGES},
 };
 use crate::prelude::new_property::*;
 use crate::widgets::{conic_gradient, flood, linear_gradient, radial_gradient};
@@ -607,13 +607,13 @@ pub fn image_mask(child: impl UiNode, mask: impl IntoVar<ImageSource>) -> impl U
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&mask);
-            let i = IMAGES.cache(mask.get());
+            let i = IMAGES.image(mask.get(), ImageCacheMode::Cache, None, None, Some(ImageMaskSource::A));
             let s = i.subscribe(UpdateOp::Render, WIDGET.id());
             img = Some((i, s));
         }
         UiNodeOp::Update { .. } => {
             if let Some(s) = mask.get_new() {
-                let i = IMAGES.cache(s);
+                let i = IMAGES.image(s, ImageCacheMode::Cache, None, None, Some(ImageMaskSource::A));
                 let s = i.subscribe(UpdateOp::Render, WIDGET.id());
                 img = Some((i, s));
                 WIDGET.render();
