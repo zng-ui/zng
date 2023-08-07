@@ -109,16 +109,39 @@ fn app_main() {
                         ]
                     ),
 
-                    section(
-                        "Fit",
-                        ui_vec![
-                            img_fit(ImageFit::None),
-                            img_fit(ImageFit::Fill),
-                            img_fit(ImageFit::Contain),
-                            img_fit(ImageFit::Cover),
-                            img_fit(ImageFit::ScaleDown),
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 30;
+                        children = ui_vec![
+                            section(
+                                "Fit",
+                                ui_vec![
+                                    img_fit(ImageFit::None),
+                                    img_fit(ImageFit::Fill),
+                                    img_fit(ImageFit::Contain),
+                                    img_fit(ImageFit::Cover),
+                                    img_fit(ImageFit::ScaleDown),
+                                ]
+                            ),
+                            section(
+                                "Mix-Blend",
+                                ui_vec![
+                                    Image! {
+                                        source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                        size = (200, 100);
+                                        foreground = Text! {
+                                            mix_blend = MixBlendMode::ColorDodge;
+                                            font_color = colors::RED;
+                                            txt = "Blend";
+                                            txt_align = Align::CENTER;
+                                            font_size = 58;
+                                            font_weight = FontWeight::BOLD;
+                                        };
+                                    }
+                                ]
+                            )
                         ]
-                    ),
+                    },
 
                     section(
                         "Filter",

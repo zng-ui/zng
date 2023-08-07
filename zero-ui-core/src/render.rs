@@ -3,7 +3,7 @@
 use crate::{
     app::view_process::{ApiExtensionId, ViewRenderer},
     border::BorderSides,
-    color::{self, filters::RenderFilter, RenderColor},
+    color::{self, filters::RenderFilter, RenderColor, RenderMixBlendMode},
     context::{RenderUpdates, UpdateFlags, WIDGET, WINDOW},
     crate_util::ParallelSegmentOffsets,
     gradient::{RenderExtendMode, RenderGradientStop},
@@ -24,7 +24,7 @@ pub use zero_ui_view_api::{
     DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange,
 };
 use zero_ui_view_api::{
-    webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
+    webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
     ApiExtensionPayload, DisplayList, NinePatchSource, ReuseStart,
 };
 
@@ -169,6 +169,7 @@ struct WidgetData {
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
     filter: RenderFilter,
+    blend: RenderMixBlendMode,
     backdrop_filter: RenderFilter,
 }
 
@@ -264,6 +265,7 @@ impl FrameBuilder {
             hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
                 filter: vec![],
+                blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
                 outer_offset: PxVector::zero(),
                 inner_is_set: false,
@@ -535,6 +537,7 @@ impl FrameBuilder {
 
             frame.widget_data = Some(WidgetData {
                 filter: vec![],
+                blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
                 outer_offset: child_offset,
                 inner_is_set: false,
@@ -801,7 +804,26 @@ impl FrameBuilder {
 
             render(self);
         } else {
-            tracing::error!("called `push_inner_filter` inside inner context of `{}`", self.widget_id);
+            tracing::error!("called `push_inner_backdrop_filter` inside inner context of `{}`", self.widget_id);
+            render(self);
+        }
+    }
+
+    /// Sets the widget blend mode and continue the render build.
+    /// 
+    /// This is valid only when [`is_outer`].
+    ///
+    /// When [`push_inner`] is called the `mode` is used to blend with the parent content.
+    ///
+    /// [`is_outer`]: Self::is_outer
+    /// [`push_inner`]: Self::push_inner
+    pub fn push_inner_blend(&mut self, mode: RenderMixBlendMode, render: impl FnOnce(&mut Self)) {
+        if let Some(data) = self.widget_data.as_mut() {
+            data.blend = mode;
+
+            render(self);
+        } else {
+            tracing::error!("called `push_inner_blend` inside inner context of `{}`", self.widget_id);
             render(self);
         }
     }
@@ -891,7 +913,7 @@ impl FrameBuilder {
                         .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
                 }
 
-                let has_stacking_ctx = !data.filter.is_empty();
+                let has_stacking_ctx = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
                 if has_stacking_ctx {
                     // we want to apply filters in the top-to-bottom, left-to-right order they appear in
                     // the widget declaration, but the widget declaration expands to have the top property
@@ -902,7 +924,7 @@ impl FrameBuilder {
                     data.filter.reverse();
 
                     self.display_list
-                        .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
+                        .push_stacking_context(data.blend, &data.filter, &[], &[]);
                 }
 
                 render(self);
@@ -1067,17 +1089,18 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `render` with added `filter` stacking context.
+    /// Calls `render` with added `blend` and `filter` stacking context.
     ///
-    /// Note that this introduces a new stacking context, you can use the [`push_inner_filter`] method to
+    /// Note that this introduces a new stacking context, you can use the [`push_inner_blend`] and [`push_inner_filter`] methods to
     /// add to the widget stacking context.
     ///
+    /// [`push_inner_blend`]: Self::push_inner_blend
     /// [`push_inner_filter`]: Self::push_inner_filter
-    pub fn push_filter(&mut self, blend_mode: MixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
+    pub fn push_filter(&mut self, blend: RenderMixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 
         if self.visible {
-            self.display_list.push_stacking_context(blend_mode, filter, &[], &[]);
+            self.display_list.push_stacking_context(blend, filter, &[], &[]);
 
             render(self);
 
@@ -1098,7 +1121,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_stacking_context(MixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
+                .push_stacking_context(RenderMixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
 
             render(self);
 

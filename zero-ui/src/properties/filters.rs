@@ -503,3 +503,33 @@ fn opacity_impl(child: impl UiNode, alpha: impl IntoVar<Factor>, target_child: b
         _ => {}
     })
 }
+
+/// Sets how the widget blends with the parent widget.
+#[property(CONTEXT, default(MixBlendMode::default()))]
+pub fn mix_blend(child: impl UiNode, mode: impl IntoVar<MixBlendMode>) -> impl UiNode {
+    let mode = mode.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&mode);
+        }
+        UiNodeOp::Render { frame } => {
+            frame.push_inner_blend(mode.get().into(), |frame| c.render(frame));
+        }
+        _ => {}
+    })
+}
+
+/// Sets how the widget's child content blends with the widget.
+#[property(CHILD_CONTEXT, default(MixBlendMode::default()))]
+pub fn child_mix_blend(child: impl UiNode, mode: impl IntoVar<MixBlendMode>) -> impl UiNode {
+    let mode = mode.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&mode);
+        }
+        UiNodeOp::Render { frame } => {
+            frame.push_filter(mode.get().into(), &vec![], |frame| c.render(frame));
+        }
+        _ => {}
+    })
+}
