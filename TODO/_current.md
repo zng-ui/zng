@@ -1,3 +1,9 @@
+* Prebuild installed DLLs are never removed.
+    - Why do we install?
+    - Place in temp?
+        - Antivirus issue?
+    - Can we load DLL from memory?
+
 # TextInput
 
 * Implement selection.
