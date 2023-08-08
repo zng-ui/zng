@@ -29,17 +29,21 @@
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
 
+# Transform 3D
+
+* "transform-style".
+    - Is flat by default?
+    - If yes, we may not want to implement the other.
+    - The user should use sibling widgets to "preserve-3d".
+* rotate_x.
+* perspective ("distance from z-plane to the user").
+* perspective_origin ("vanishing point").
+
+
 # WR Items
 
 * Finish items implemented by webrender.
-    - 3D transforms.
-        - "transform-style".
-            - Is flat by default?
-            - If yes, we may not want to implement the other.
-            - The user should use sibling widgets to preserve-3d.
-        - rotate_x.
-        - Perspective.
-            - These are just matrix API and testing.
+    - 3D transforms stuff.
         - Backface vis.
 
     - iFrame.
