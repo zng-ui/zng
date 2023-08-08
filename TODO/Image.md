@@ -18,7 +18,7 @@
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
 
-## images
+## IMAGES
 * Cache cleanup after memory limit.
 * Download/file blocking.
 * Per-request limits.
@@ -48,6 +48,8 @@ so we can wait for now and focus in other features.
 * Image widget need to allow defining min/max scale and offset.
     Different widget?
 
-# Repeat
+## Masks
 
-* Offset not applied if repeat is enabled, is it possible "mod shift" the image?
+* Render gradient masks.
+* Optimized "fade-out" effect.
+    - Webrender clips outside of mask images so we can't have a shared small mask that is just the fade-out gradient.
