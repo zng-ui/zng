@@ -12,7 +12,7 @@ mod border_;
 pub use border_::*;
 
 pub mod mask;
-pub use mask::{mask_image, mask_mode};
+pub use mask::{mask_image, mask_mode, mask_fit, mask_align};
 
 pub mod commands;
 

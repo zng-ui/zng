@@ -1867,6 +1867,7 @@ impl Api for App {
                     data: IpcBytes::from_vec(data),
                     max_decoded_len: u64::MAX,
                     downscale: None,
+                    mask: None,
                 });
                 Ok(ClipboardData::Image(id))
             }
