@@ -1945,6 +1945,7 @@ pub(crate) enum AppEvent {
     DisableDeviceEvents,
 
     /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
+    #[allow(unused)]
     MonitorPowerChanged,
 }
 
