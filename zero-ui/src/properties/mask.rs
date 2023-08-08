@@ -4,7 +4,6 @@
 //! [`mask_mode`]: fn@mask_mode
 
 use crate::core::image::{ImageCacheMode, ImageDownscale, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource, IMAGES};
-use crate::prelude::image::ImageRepeat;
 use crate::prelude::{new_property::*, ImageFit};
 
 /// Sets an image mask.
@@ -52,9 +51,7 @@ pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl
             WIDGET
                 .sub_var_layout(&MASK_FIT_VAR)
                 .sub_var_layout(&MASK_ALIGN_VAR)
-                .sub_var_layout(&MASK_OFFSET_VAR)
-                .sub_var_layout(&MASK_REPEAT_VAR)
-                .sub_var_layout(&MASK_REPEAT_SPACING_VAR);
+                .sub_var_layout(&MASK_OFFSET_VAR);
         }
         UiNodeOp::Deinit => {
             c.deinit();
@@ -220,14 +217,6 @@ context_var! {
     /// Defines how the mask image fits the widget bounds.
     pub static MASK_FIT_VAR: ImageFit = ImageFit::Fill;
 
-    /// Defines how the mask image is repeated in the widget bounds.
-    pub static MASK_REPEAT_VAR: ImageRepeat = ImageRepeat::None;
-
-    /// Defines the spacing between repeated mask image copies.
-    ///
-    /// is [`Size::zero()`] by default.
-    pub static MASK_REPEAT_SPACING_VAR: Size = Size::zero();
-
     /// Align of the mask image in relation to the image widget final size.
     ///
     /// Is [`Align::CENTER`] by default.
@@ -297,28 +286,6 @@ pub fn mask_image_downscale(child: impl UiNode, downscale: impl IntoVar<Option<I
 #[property(CONTEXT, default(MASK_FIT_VAR))]
 pub fn mask_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
     with_context_var(child, MASK_FIT_VAR, fit)
-}
-
-/// Defines how the mask image is repeated in the widget bounds in all [`mask_image`] inside
-/// the widget in descendants.
-///
-/// This property sets the [`MASK_REPEAT_VAR`].
-///
-/// [`mask_image`]: fn@mask_image
-#[property(CONTEXT, default(MASK_REPEAT_VAR))]
-pub fn mask_repeat(child: impl UiNode, repeat: impl IntoVar<ImageRepeat>) -> impl UiNode {
-    with_context_var(child, MASK_REPEAT_VAR, repeat)
-}
-
-/// Defines the spacing between repeated mask image copies in all [`mask_image`] inside
-/// the widget in descendants.
-///
-/// This property sets the [`MASK_REPEAT_VAR`].
-///
-/// [`mask_image`]: fn@mask_image
-#[property(CONTEXT, default(MASK_REPEAT_SPACING_VAR))]
-pub fn mask_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> impl UiNode {
-    with_context_var(child, MASK_REPEAT_SPACING_VAR, spacing)
 }
 
 /// Defines the align of the mask image in relation to the widget bounds in all [`mask_image`] inside

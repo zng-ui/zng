@@ -31,7 +31,6 @@
 
 # Image Mask
 
-* Implement `mask_repeat`.
 * Implement gradient mask (need to render).
     - Implement `ImageSource::Gradient`?
         - Different than image render?

@@ -48,7 +48,7 @@ impl fmt::Debug for ImageFit {
 
 /// Image repeat mode.
 ///
-/// After the image if fit, aligned, offset and clipped the final image can be repeated
+/// After the image is fit, aligned, offset and clipped the final image can be repeated
 /// to fill any blank space by enabling [`img_repeat`] with one of these options.
 ///
 /// [`img_repeat`]: fn@img_repeat
