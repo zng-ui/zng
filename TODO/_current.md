@@ -29,12 +29,6 @@
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
 
-# Image Mask
-
-* Implement gradient mask (need to render).
-    - Implement `ImageSource::Gradient`?
-        - Different than image render?
-
 # WR Items
 
 * Finish items implemented by webrender.
