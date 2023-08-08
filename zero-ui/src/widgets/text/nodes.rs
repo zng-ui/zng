@@ -1676,7 +1676,7 @@ pub fn render_text() -> impl UiNode {
             rendered = None;
         }
         UiNodeOp::Update { .. } => {
-            if (FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new()) && dbg!(LayoutText::in_context()) {
+            if (FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new()) && LayoutText::in_context() {
                 let t = LayoutText::get();
                 if t.shaped_text.has_colored_glyphs() {
                     WIDGET.render();
