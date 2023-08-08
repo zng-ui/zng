@@ -54,10 +54,15 @@ fn app_main() {
 fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
     Container! {
         child = Container! {
+            #[easing(300.ms())]
             transform;
             child = Text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
+
+            when *#is_hovered {
+                transform = Transform::identity();
+            }
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
@@ -65,11 +70,17 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
 fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
     Container! {
         child = Container! {
+            #[easing(300.ms())]
             transform;
             transform_origin = origin.into();
+
             child = Text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
+
+            when *#is_hovered {
+                transform = Transform::identity();
+            }
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }

@@ -32,6 +32,16 @@
 # WR Items
 
 * Finish items implemented by webrender.
+    - 3D transforms.
+        - "transform-style".
+            - Is flat by default?
+            - If yes, we may not want to implement the other.
+            - The user should use sibling widgets to preserve-3d.
+        - rotate_x.
+        - Perspective.
+            - These are just matrix API and testing.
+        - Backface vis.
+
     - iFrame.
         - Host headless window?
             - Not exactly, similar but needs to be spawned by the window.
@@ -44,15 +54,6 @@
             - iFrame display item.
         - Integration:
             - Focus nav goes through iFrames in browsers.
-    - 3D transforms.
-        - "transform-style".
-            - Is flat by default?
-            - If yes, we may not want to implement the other.
-            - The user should use sibling widgets to preserve-3d.
-        - rotate_x.
-        - Perspective.
-            - These are just matrix API and testing.
-        - Backface vis.
     - Touch events.
         - Use `Spacedesk` to generate touch events.
 * Review `RasterSpace::Screen` usage.
