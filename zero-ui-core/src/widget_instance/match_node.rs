@@ -433,6 +433,11 @@ impl<C: UiNode> MatchNodeChild<C> {
         self.delegated = true;
     }
 
+    /// If the current operation was already delegated to the child.
+    pub fn has_delegated(&self) -> bool {
+        self.delegated
+    }
+
     /// Borrow the actual child.
     ///
     /// Note that if you delegate using this reference you must call [`delegated`].

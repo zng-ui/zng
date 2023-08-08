@@ -254,8 +254,7 @@ impl LayoutText {
     ///
     /// # Panics
     ///
-    /// Panics if not available in context. Is only available during layout and render of nodes
-    /// inside [`layout_text`].
+    /// Panics if not available in context. Is only available inside [`layout_text`] after the first layout.
     pub fn get() -> Arc<LayoutText> {
         LAYOUT_TEXT.get()
     }
@@ -276,8 +275,6 @@ context_local! {
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `Text!` widget includes this node in the [`NestGroup::EVENT`] group,
 /// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::get`] function.
-///
-/// This node also subscribes to all the text context vars so other `Text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
     struct LoadingFontFaceList {
         _var_handle: VarHandle,
@@ -739,9 +736,10 @@ bitflags::bitflags! {
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
-/// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `Text!` widget includes this
-/// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`] can affect the layout normally and
-/// custom properties can be created to be inside this group and have access to the [`LayoutText::get`] function.
+/// This node setups the [`LayoutText`] for all inner nodes, the `Text!` widget includes this
+/// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`]
+/// can affect the layout normally and custom properties can be created to be inside this group and have access
+///  to the [`LayoutText::get`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct FinalText {
         txt: Option<LayoutText>,
@@ -1059,7 +1057,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn with(&mut self, f: impl FnOnce()) {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt, f)
+            if self.txt.is_some() {
+                LAYOUT_TEXT.with_context_opt(&mut self.txt, f)
+            }
         }
     }
 
@@ -1130,13 +1130,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 d.select = SELECT_CMD.scoped(id).subscribe(true);
             }
+
+            // txt.txt not available yet.
+            // txt.with(|| child.init());
         }
         UiNodeOp::Deinit => {
+            txt.with(|| child.deinit());
             txt.txt = None;
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
-            if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() {
+            if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() && txt.txt.is_some() {
                 let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = {
                     let caret = resolved.caret.lock();
@@ -1290,8 +1294,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     WIDGET.layout(); // update caret_origin
                 }
             }
+
+            txt.with(|| child.event(update));
         }
-        UiNodeOp::Update { .. } => {
+        UiNodeOp::Update { updates } => {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
@@ -1366,6 +1372,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     edit_data = None;
                 }
             }
+
+            txt.with(|| child.update(updates));
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
@@ -1485,7 +1493,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.ensure_layout_for_render();
             txt.with(|| child.render_update(update))
         }
-        _ => {}
+        op => txt.with(|| child.op(op)),
     })
 }
 
@@ -1668,7 +1676,7 @@ pub fn render_text() -> impl UiNode {
             rendered = None;
         }
         UiNodeOp::Update { .. } => {
-            if FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new() {
+            if (FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new()) && dbg!(LayoutText::in_context()) {
                 let t = LayoutText::get();
                 if t.shaped_text.has_colored_glyphs() {
                     WIDGET.render();
