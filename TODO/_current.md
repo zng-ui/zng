@@ -31,14 +31,18 @@
 
 # Transform 3D
 
-* "transform-style".
-    - Is flat by default?
-    - If yes, we may not want to implement the other.
-    - The user should use sibling widgets to "preserve-3d".
-
-* perspective_origin ("vanishing point").
+* transform_style, sets webrender `TransformStyle`.
+    - Can set in reference-frames and stacking-contexts.
+    - If any filter is set in the stacking context it forces Flat.
+    - Lets try using only the reference frame.
+        - Filter on the "parent" stacking context applies to the 3D stuff right?
+        - Yes, it applies (weird that stacking-context disables this).
+* backface_visible, sets webrender `PrimitiveFlags::IS_BACKFACE_VISIBLE`.
+    - Flag can be set in any primitive, figure out why?
+    - Can we just have a context push?
 
 * translate_z shows no visual change (need perspective?)
+
 * Contextual depth?
     - Right now we compute relative Z translate on the available-width.
 * Contextual perspective?
@@ -53,6 +57,7 @@
 * Finish items implemented by webrender.
     - 3D transforms stuff.
         - Backface vis.
+        - `TransformStyle::Preserve3D`.
 
     - iFrame.
         - Host headless window?
