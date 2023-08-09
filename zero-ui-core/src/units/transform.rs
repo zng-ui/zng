@@ -31,6 +31,7 @@ pub struct Transform {
 enum TransformPart {
     Computed(PxTransform),
     Translate(Length, Length),
+    Translate3d(Length, Length, Length),
 }
 impl Transform {
     /// No transform.
@@ -80,6 +81,30 @@ impl Transform {
         self
     }
 
+    /// Change `self` to apply a 3d rotation around the ***x*** axis.
+    ///
+    /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
+    pub fn rotate_x<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
+        self.then_transform(PxTransform::rotation_3d(-1.0, 0.0, 0.0, angle.into().layout()));
+        self
+    }
+
+    /// Change `self` to apply a 3d rotation around the ***y*** axis.
+    ///
+    /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
+    pub fn rotate_y<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
+        self.then_transform(PxTransform::rotation_3d(0.0, -1.0, 0.0, angle.into().layout()));
+        self
+    }
+
+    /// Same as [`rotate`].
+    ///
+    /// [`rotate`]: Self::rotate
+    pub fn rotate_z<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
+        self.then_transform(PxTransform::rotation(0.0, 0.0, angle.into().layout()));
+        self
+    }
+
     /// Change `self` to apply a 2d translation after its transformation.
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
         self.parts.push(TransformPart::Translate(x.into(), y.into()));
@@ -93,6 +118,15 @@ impl Transform {
     /// Change `self` to apply a ***y*** translation after its transformation.
     pub fn translate_y<Y: Into<Length>>(self, y: Y) -> Self {
         self.translate(0.0, y)
+    }
+
+    /// Change `self` to apply a 3d translation after its transformation.
+    ///
+    /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
+    pub fn translate_3d<X: Into<Length>, Y: Into<Length>, Z: Into<Length>>(mut self, x: X, y: Y, z: Z) -> Self {
+        self.parts.push(TransformPart::Translate3d(x.into(), y.into(), z.into()));
+        self.needs_layout = true;
+        self
     }
 
     /// Change `self` to apply a 2d skew after its transformation.
@@ -137,6 +171,9 @@ impl Transform {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(x, y) => r.then(&PxTransform::translation(x.layout_f32_x(), y.layout_f32_y())),
+                TransformPart::Translate3d(x, y, z) => {
+                    r.then(&PxTransform::translation_3d(x.layout_f32_x(), y.layout_f32_y(), z.layout_f32_x()))
+                }
             };
         }
 
@@ -159,6 +196,7 @@ impl Transform {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(_, _) => unreachable!(),
+                TransformPart::Translate3d(_, _, _) => unreachable!(),
             }
         }
         Some(r)
@@ -184,6 +222,11 @@ impl super::Layout2d for Transform {
                 TransformPart::Translate(x, y) => {
                     mask |= x.affect_mask();
                     mask |= y.affect_mask();
+                }
+                TransformPart::Translate3d(x, y, z) => {
+                    mask |= x.affect_mask();
+                    mask |= y.affect_mask();
+                    mask |= z.affect_mask();
                 }
             }
         }
@@ -254,9 +297,29 @@ pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
     Transform::default().rotate(angle)
 }
 
+/// Create a 3d rotation transform around the ***x*** axis.
+pub fn rotate_x<A: Into<AngleRadian>>(angle: A) -> Transform {
+    Transform::default().rotate_x(angle)
+}
+
+/// Create a 3d rotation transform around the ***y*** axis.
+pub fn rotate_y<A: Into<AngleRadian>>(angle: A) -> Transform {
+    Transform::default().rotate_y(angle)
+}
+
+/// Same as [`rotate`].
+pub fn rotate_z<A: Into<AngleRadian>>(angle: A) -> Transform {
+    Transform::default().rotate_z(angle)
+}
+
 /// Create a 2d translation transform.
 pub fn translate<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Transform {
     Transform::default().translate(x, y)
+}
+
+/// Create a 3d translation transform.
+pub fn translate_3d<X: Into<Length>, Y: Into<Length>, Z: Into<Length>>(x: X, y: Y, z: Z) -> Transform {
+    Transform::default().translate_3d(x, y, z)
 }
 
 /// Create a 2d translation transform in the X dimension.
@@ -267,6 +330,11 @@ pub fn translate_x<X: Into<Length>>(x: X) -> Transform {
 /// Create a 2d translation transform in the Y dimension.
 pub fn translate_y<Y: Into<Length>>(y: Y) -> Transform {
     translate(0.0, y)
+}
+
+/// Create a 3d translation transform in the z dimension.
+pub fn translate_z<Z: Into<Length>>(z: Z) -> Transform {
+    translate_3d(0.0, 0.0, z)
 }
 
 /// Create a 2d skew transform.

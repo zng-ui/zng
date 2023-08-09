@@ -39,6 +39,16 @@ fn app_main() {
                     },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
+                        spacing = 25;
+                        children_align = Align::TOP;
+                        children = ui_vec![
+                            transformed("Rotate-X 45º", rotate_x(45.deg())),
+                            transformed("Rotate-Y 45º", rotate_y(45.deg())),
+                            transformed("Translate-Z 30", translate_z(30)),
+                        ];
+                    },
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
                         spacing = 40;
                         children = ui_vec![
                             transform_stack(),

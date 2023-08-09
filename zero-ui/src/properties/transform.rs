@@ -69,13 +69,47 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 ///
 /// This property is a shorthand way of setting [`transform`] to [`rotate(angle)`](units::rotate) using variable mapping.
 ///
-/// The rotation is done *around* the [`transform_origin`].
+/// The rotation is done *around* the [`transform_origin`] in 2D.
 ///
 /// [`transform`]: fn@transform
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, angle.into_var().map(|&a| units::rotate(a)))
+}
+
+/// Rotate transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`rotate_x(angle)`](units::rotate_x) using variable mapping.
+///
+/// The rotation is done *around* the ***x*** axis that passes trough the [`transform_origin`] in 3D.
+///
+/// [`transform`]: fn@transform
+/// [`transform_origin`]: fn@transform_origin
+#[property(LAYOUT, default(0.rad()))]
+pub fn rotate_x(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+    transform(child, angle.into_var().map(|&a| units::rotate_x(a)))
+}
+
+/// Rotate transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`rotate_y(angle)`](units::rotate_y) using variable mapping.
+///
+/// The rotation is done *around* the ***y*** axis that passes trough the [`transform_origin`] in 3D.
+///
+/// [`transform`]: fn@transform
+/// [`transform_origin`]: fn@transform_origin
+#[property(LAYOUT, default(0.rad()))]
+pub fn rotate_y(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+    transform(child, angle.into_var().map(|&a| units::rotate_y(a)))
+}
+
+/// Same as [`rotate`].
+///
+/// [`rotate`]: fn@rotate
+#[property(LAYOUT, default(0.rad()))]
+pub fn rotate_z(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+    transform(child, angle.into_var().map(|&a| units::rotate_z(a)))
 }
 
 /// Scale transform.
@@ -179,6 +213,16 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 #[property(LAYOUT, default(0))]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform(child, y.into_var().map(|y| units::translate_y(y.clone())))
+}
+
+/// Translate Z transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`translate_z(z)`](units::translate_z) using variable mapping.
+///
+/// [`transform`]: fn@transform
+#[property(LAYOUT, default(0))]
+pub fn translate_z(child: impl UiNode, z: impl IntoVar<Length>) -> impl UiNode {
+    transform(child, z.into_var().map(|z| units::translate_z(z.clone())))
 }
 
 /// Point relative to the widget inner bounds around which the [`transform`] is applied.

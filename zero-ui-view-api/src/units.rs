@@ -1440,6 +1440,11 @@ impl PxTransform {
         PxTransform::Offset(euclid::vec2(x, y))
     }
 
+    /// New 3D translation.
+    pub fn translation_3d(x: f32, y: f32, z: f32) -> Self {
+        PxTransform::Transform(euclid::Transform3D::translation(x, y, z))
+    }
+
     /// New 2D rotation.
     pub fn rotation(x: f32, y: f32, theta: euclid::Angle<f32>) -> Self {
         PxTransform::Transform(euclid::Transform3D::rotation(x, y, -1.0, theta))

@@ -35,9 +35,9 @@
     - Is flat by default?
     - If yes, we may not want to implement the other.
     - The user should use sibling widgets to "preserve-3d".
-* rotate_x.
 * perspective ("distance from z-plane to the user").
 * perspective_origin ("vanishing point").
+* translate_z shows no visual change (need perspective?)
 
 
 # WR Items
