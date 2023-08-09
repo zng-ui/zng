@@ -255,9 +255,10 @@ pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> im
     with_context_var(child, PERSPECTIVE_ORIGIN_VAR, origin)
 }
 
-/// Defines how the widget and descendants are positioned in 3D space.
+/// Defines how the widget and children are positioned in 3D space.
 ///
-/// This sets the style for the widget layout transform, the [`transform`] and other properties derived from [`transform`].
+/// This sets the style for the widget and children layout transform, the [`transform`] and other properties derived from [`transform`].
+/// It does not affect any other descendant, only the widget and immediate children.
 ///
 /// [`transform`]: fn@transform
 #[property(CONTEXT, default(TransformStyle::Flat))]

@@ -198,23 +198,44 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
 
             if joiner.width > Px(0) {
                 let transform = PxTransform::from(PxVector::new(viewport.width, Px(0)));
-                frame.push_reference_frame((spatial_id, 1).into(), FrameValue::Value(transform), TransformStyle::Flat, true, false, |frame| {
-                    children.with_node(1, |n| n.render(frame));
-                });
+                frame.push_reference_frame(
+                    (spatial_id, 1).into(),
+                    FrameValue::Value(transform),
+                    TransformStyle::Flat,
+                    true,
+                    false,
+                    |frame| {
+                        children.with_node(1, |n| n.render(frame));
+                    },
+                );
             }
 
             if joiner.height > Px(0) {
                 let transform = PxTransform::from(PxVector::new(Px(0), viewport.height));
-                frame.push_reference_frame((spatial_id, 2).into(), FrameValue::Value(transform), TransformStyle::Flat, true, false, |frame| {
-                    children.with_node(2, |n| n.render(frame));
-                });
+                frame.push_reference_frame(
+                    (spatial_id, 2).into(),
+                    FrameValue::Value(transform),
+                    TransformStyle::Flat,
+                    true,
+                    false,
+                    |frame| {
+                        children.with_node(2, |n| n.render(frame));
+                    },
+                );
             }
 
             if joiner.width > Px(0) && joiner.height > Px(0) {
                 let transform = PxTransform::from(viewport.to_vector());
-                frame.push_reference_frame((spatial_id, 3).into(), FrameValue::Value(transform), TransformStyle::Flat, true, false, |frame| {
-                    children.with_node(3, |n| n.render(frame));
-                });
+                frame.push_reference_frame(
+                    (spatial_id, 3).into(),
+                    FrameValue::Value(transform),
+                    TransformStyle::Flat,
+                    true,
+                    false,
+                    |frame| {
+                        children.with_node(3, |n| n.render(frame));
+                    },
+                );
             }
         }
         UiNodeOp::RenderUpdate { update } => {

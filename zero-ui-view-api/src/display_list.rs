@@ -1135,6 +1135,23 @@ impl DisplayItem {
                     *key,
                 );
                 sc.push_spatial(spatial_id);
+
+                if let wr::TransformStyle::Preserve3D = transform_style {
+                    let clip = sc.clip_chain_id(wr_list);
+                    wr_list.push_stacking_context(
+                        wr::units::LayoutPoint::zero(),
+                        sc.spatial_id(),
+                        wr::PrimitiveFlags::empty(),
+                        Some(clip),
+                        wr::TransformStyle::Preserve3D,
+                        wr::MixBlendMode::Normal,
+                        &[],
+                        &[],
+                        &[],
+                        wr::RasterSpace::Screen,
+                        wr::StackingContextFlags::empty(),
+                    )
+                }
             }
             DisplayItem::PopReferenceFrame => {
                 wr_list.pop_reference_frame();

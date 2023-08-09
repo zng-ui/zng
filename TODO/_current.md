@@ -31,15 +31,11 @@
 
 # Transform 3D
 
-* transform_style, sets webrender `TransformStyle`.
-    - Can set in reference-frames and stacking-contexts.
-    - If any filter is set in the stacking context it forces Flat.
-    - Lets try using only the reference frame.
-        - Filter on the "parent" stacking context applies to the 3D stuff right?
-        - Yes, it applies (weird that stacking-context disables this).
 * backface_visible, sets webrender `PrimitiveFlags::IS_BACKFACE_VISIBLE`.
     - Flag can be set in any primitive, figure out why?
     - Can we just have a context push?
+
+* `rotate_3d`.
 
 * translate_z shows no visual change (need perspective?)
 
@@ -57,7 +53,6 @@
 * Finish items implemented by webrender.
     - 3D transforms stuff.
         - Backface vis.
-        - `TransformStyle::Preserve3D`.
 
     - Touch events.
         - Use `Spacedesk` to generate touch events.

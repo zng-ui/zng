@@ -226,6 +226,7 @@ pub struct FrameBuilder {
 
     auto_hide_rect: PxRect,
     widget_data: Option<WidgetData>,
+    parent_transform_style: TransformStyle,
     child_offset: PxVector,
     parent_inner_bounds: Option<PxRect>,
 
@@ -300,6 +301,7 @@ impl FrameBuilder {
                 inner_transform: PxTransform::identity(),
                 inner_transform_style: TransformStyle::Flat,
             }),
+            parent_transform_style: TransformStyle::Flat,
             child_offset: PxVector::zero(),
             parent_inner_bounds: None,
             can_reuse: true,
@@ -571,13 +573,15 @@ impl FrameBuilder {
                 outer_offset: child_offset,
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
-                inner_transform_style: TransformStyle::Flat,
+                inner_transform_style: frame.parent_transform_style,
             });
             let parent_widget = mem::replace(&mut frame.widget_id, id);
+            let parent_style = mem::take(&mut frame.parent_transform_style);
 
             render(frame);
 
             frame.widget_id = parent_widget;
+            frame.parent_transform_style = parent_style;
             frame.widget_data = None;
         });
 
@@ -904,25 +908,26 @@ impl FrameBuilder {
         }
     }
 
-    /// Sets the widget transform style.
+    /// Sets the widget and children transform style.
     ///
     /// This is valid only when [`is_outer`].
     ///
     /// When [`push_inner`] is called a reference frame is created for the widget that applies the layout transform then the `transform`
-    /// using this `style`.
+    /// using this `style`. The style propagates to all children widgets too, but not to grand-children or other descendants.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
     pub fn push_inner_transform_style(&mut self, style: TransformStyle, render: impl FnOnce(&mut Self)) {
         if let Some(data) = &mut self.widget_data {
-            let parent_style = data.inner_transform_style;
-            data.inner_transform_style = style;
+            let parent_style = mem::replace(&mut data.inner_transform_style, style);
+            let grand_parent_style = mem::replace(&mut self.parent_transform_style, style);
 
             render(self);
 
             if let Some(data) = &mut self.widget_data {
                 data.inner_transform_style = parent_style;
             }
+            self.parent_transform_style = grand_parent_style;
         } else {
             tracing::error!("called `push_inner_transform_style` inside inner context of `{}`", self.widget_id);
             render(self);
@@ -1094,6 +1099,10 @@ impl FrameBuilder {
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
+    /// If `transform_style` is [`Preserve3D`] a new stacking context is created, note that to preserve 3D both the parent reference frame
+    /// and the 3D children ref. frame must have the `Preserve3d` style, unlike [`push_inner_transform_style`] this does not automatically
+    /// propagates the style to children.
+    ///
     /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
     ///
     /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
@@ -1101,6 +1110,8 @@ impl FrameBuilder {
     /// [`push_inner`]: Self::push_inner
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     /// [`auto_hit_test`]: Self::auto_hit_test
+    /// [`Preserve3D`]: TransformStyle::Preserve3D
+    /// [`push_inner_transform_style`]: Self::push_inner_transform_style
     pub fn push_reference_frame(
         &mut self,
         key: SpatialFrameKey,
@@ -1758,6 +1769,7 @@ impl FrameBuilder {
             hit_clips: self.hit_clips.parallel_split(),
             auto_hide_rect: self.auto_hide_rect,
             widget_data: None,
+            parent_transform_style: self.parent_transform_style,
             child_offset: self.child_offset,
             parent_inner_bounds: self.parent_inner_bounds,
             can_reuse: self.can_reuse,
