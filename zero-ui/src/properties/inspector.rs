@@ -100,16 +100,23 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
             let wgt = wgt.bounds_info();
             let transform = wgt.inner_transform();
             if let Some(inline) = wgt.inline() {
-                frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
-                    for row in &inline.rows {
-                        frame.push_border(
-                            *row,
-                            PxSideOffsets::new_all_same(p),
-                            BorderSides::dotted(colors::LIGHT_SALMON),
-                            PxCornerRadius::zero(),
-                        )
-                    }
-                })
+                frame.push_reference_frame(
+                    (spatial_id, i as u32).into(),
+                    FrameValue::Value(transform),
+                    TransformStyle::Flat,
+                    false,
+                    false,
+                    |frame| {
+                        for row in &inline.rows {
+                            frame.push_border(
+                                *row,
+                                PxSideOffsets::new_all_same(p),
+                                BorderSides::dotted(colors::LIGHT_SALMON),
+                                PxCornerRadius::zero(),
+                            )
+                        }
+                    },
+                )
             };
         },
         mode,
@@ -137,7 +144,7 @@ fn show_widget_tree(
                         render(wgt, frame);
                     } else if let Some(t) = frame.transform().inverse() {
                         // cancel current transform
-                        frame.push_reference_frame(cancel_space.into(), t.into(), false, false, |frame| {
+                        frame.push_reference_frame(cancel_space.into(), t.into(), TransformStyle::Flat, false, false, |frame| {
                             render(wgt, frame);
                         })
                     } else {

@@ -130,11 +130,18 @@ impl DisplayListBuilder {
     /// Start a new spatial context, must be paired with a call to [`pop_reference_frame`].
     ///
     /// [`pop_reference_frame`]: Self::pop_reference_frame
-    pub fn push_reference_frame(&mut self, key: wr::SpatialTreeItemKey, transform: FrameValue<PxTransform>, is_2d_scale_translation: bool) {
+    pub fn push_reference_frame(
+        &mut self,
+        key: wr::SpatialTreeItemKey,
+        transform: FrameValue<PxTransform>,
+        transform_style: wr::TransformStyle,
+        is_2d_scale_translation: bool,
+    ) {
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
             key,
             transform,
+            transform_style,
             is_2d_scale_translation,
         });
     }
@@ -982,6 +989,7 @@ enum DisplayItem {
     PushReferenceFrame {
         key: wr::SpatialTreeItemKey,
         transform: FrameValue<PxTransform>,
+        transform_style: wr::TransformStyle,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
@@ -1111,12 +1119,13 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 key,
                 transform,
+                transform_style,
                 is_2d_scale_translation,
             } => {
                 let spatial_id = wr_list.push_reference_frame(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
-                    wr::TransformStyle::Flat,
+                    *transform_style,
                     transform.into_wr(),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,

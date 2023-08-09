@@ -820,9 +820,16 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             };
 
             if define_frame {
-                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
-                    render(frame);
-                });
+                frame.push_reference_frame(
+                    offset_key.into(),
+                    offset_key.bind(offset.into(), false),
+                    crate::render::TransformStyle::Flat,
+                    true,
+                    false,
+                    |frame| {
+                        render(frame);
+                    },
+                );
             } else {
                 render(frame);
             }

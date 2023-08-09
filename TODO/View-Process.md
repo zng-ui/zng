@@ -4,6 +4,12 @@
   - when monitor changes: See WindowVars::monitor()
   - actual_monitor: Computed by intersection between window and monitors? (the monitor area that contains more than half of the window?)
 
+## API
+
+* Remove webrender-api from view-api?
+    - We can provide better documented types that map directly to webrender.
+    - This change enables supporting alternative renderer backends more directly?
+
 ## Extensions
 
 * Implement custom OpenGL texture example.

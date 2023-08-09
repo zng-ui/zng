@@ -161,10 +161,41 @@ macro_rules! expect_inner {
     };
 }
 
+/// Defines how an widget and descendants are positioned in 3D space.
+#[derive(Default, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
+#[repr(u8)]
+pub enum TransformStyle {
+    /// Descendants of the 3D transform are laid flat on its Z plane.
+    #[default]
+    Flat = 0,
+    /// Descendant 3D transforms are positioned in 3D space.
+    Preserve3D = 1,
+}
+impl std::fmt::Debug for TransformStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "TransformStyle::")?;
+        }
+        match self {
+            Self::Flat => write!(f, "Flat"),
+            Self::Preserve3D => write!(f, "Preserve3D"),
+        }
+    }
+}
+impl From<TransformStyle> for webrender_api::TransformStyle {
+    fn from(value: TransformStyle) -> Self {
+        match value {
+            TransformStyle::Flat => webrender_api::TransformStyle::Flat,
+            TransformStyle::Preserve3D => webrender_api::TransformStyle::Preserve3D,
+        }
+    }
+}
+
 struct WidgetData {
     outer_offset: PxVector,
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
+    inner_transform_style: TransformStyle,
     filter: RenderFilter,
     blend: RenderMixBlendMode,
     backdrop_filter: RenderFilter,
@@ -267,6 +298,7 @@ impl FrameBuilder {
                 outer_offset: PxVector::zero(),
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
+                inner_transform_style: TransformStyle::Flat,
             }),
             child_offset: PxVector::zero(),
             parent_inner_bounds: None,
@@ -539,6 +571,7 @@ impl FrameBuilder {
                 outer_offset: child_offset,
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
+                inner_transform_style: TransformStyle::Flat,
             });
             let parent_widget = mem::replace(&mut frame.widget_id, id);
 
@@ -871,6 +904,31 @@ impl FrameBuilder {
         }
     }
 
+    /// Sets the widget transform style.
+    ///
+    /// This is valid only when [`is_outer`].
+    ///
+    /// When [`push_inner`] is called a reference frame is created for the widget that applies the layout transform then the `transform`
+    /// using this `style`.
+    ///
+    /// [`is_outer`]: Self::is_outer
+    /// [`push_inner`]: Self::push_inner
+    pub fn push_inner_transform_style(&mut self, style: TransformStyle, render: impl FnOnce(&mut Self)) {
+        if let Some(data) = &mut self.widget_data {
+            let parent_style = data.inner_transform_style;
+            data.inner_transform_style = style;
+
+            render(self);
+
+            if let Some(data) = &mut self.widget_data {
+                data.inner_transform_style = parent_style;
+            }
+        } else {
+            tracing::error!("called `push_inner_transform_style` inside inner context of `{}`", self.widget_id);
+            render(self);
+        }
+    }
+
     /// Push the widget reference frame and stacking context then call `render` inside of it.
     ///
     /// If `layout_translation_animating` is `false` the view-process can still be updated using [`FrameUpdate::update_inner`], but
@@ -902,6 +960,7 @@ impl FrameBuilder {
                 self.display_list.push_reference_frame(
                     SpatialFrameKey::from_widget(self.widget_id).to_wr(),
                     layout_translation_key.bind(inner_transform, layout_translation_animating),
+                    data.inner_transform_style.into(),
                     !data.inner_is_set,
                 );
 
@@ -1046,6 +1105,7 @@ impl FrameBuilder {
         &mut self,
         key: SpatialFrameKey,
         transform: FrameValue<PxTransform>,
+        transform_style: TransformStyle,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -1057,7 +1117,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_reference_frame(key.to_wr(), transform, is_2d_scale_translation);
+                .push_reference_frame(key.to_wr(), transform, transform_style.into(), is_2d_scale_translation);
         }
 
         let hit_test = hit_test || self.auto_hit_test;

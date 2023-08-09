@@ -46,6 +46,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 frame.push_reference_frame(
                     binding_key.into(),
                     binding_key.bind_var_mapped(&transform, render_transform),
+                    TransformStyle::Flat,
                     false,
                     false,
                     |frame| child.render(frame),
@@ -252,6 +253,25 @@ pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl U
 #[property(CONTEXT, default(PERSPECTIVE_ORIGIN_VAR))]
 pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     with_context_var(child, PERSPECTIVE_ORIGIN_VAR, origin)
+}
+
+/// Defines how the widget and descendants are positioned in 3D space.
+///
+/// This sets the style for the widget layout transform, the [`transform`] and other properties derived from [`transform`].
+///
+/// [`transform`]: fn@transform
+#[property(CONTEXT, default(TransformStyle::Flat))]
+pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) -> impl UiNode {
+    let style = style.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&style);
+        }
+        UiNodeOp::Render { frame } => {
+            frame.push_inner_transform_style(style.get(), |frame| c.render(frame));
+        }
+        _ => {}
+    })
 }
 
 context_var! {

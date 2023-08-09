@@ -130,7 +130,7 @@ pub mod prelude {
         keyboard::{Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         l10n::{l10n, lang},
         mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
-        render::RenderMode,
+        render::{RenderMode, TransformStyle},
         task::{self, rayon::prelude::*},
         text::{
             font_features::{
