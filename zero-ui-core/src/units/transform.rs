@@ -32,6 +32,7 @@ enum TransformPart {
     Computed(PxTransform),
     Translate(Length, Length),
     Translate3d(Length, Length, Length),
+    Perspective(Length),
 }
 impl Transform {
     /// No transform.
@@ -162,6 +163,13 @@ impl Transform {
         self.scale_xy(s, s)
     }
 
+    /// Change `self` 3d perspective distance.
+    pub fn perspective<D: Into<Length>>(mut self, d: D) -> Self {
+        self.parts.push(TransformPart::Perspective(d.into()));
+        self.needs_layout = true;
+        self
+    }
+
     /// Compute a [`PxTransform`] in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
@@ -172,8 +180,9 @@ impl Transform {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(x, y) => r.then(&PxTransform::translation(x.layout_f32_x(), y.layout_f32_y())),
                 TransformPart::Translate3d(x, y, z) => {
-                    r.then(&PxTransform::translation_3d(x.layout_f32_x(), y.layout_f32_y(), z.layout_f32_x()))
+                    r.then(&PxTransform::translation_3d(x.layout_f32_x(), y.layout_f32_y(), z.layout_f32_z()))
                 }
+                TransformPart::Perspective(d) => r.then(&PxTransform::perspective(d.layout_f32_z())),
             };
         }
 
@@ -195,8 +204,7 @@ impl Transform {
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
-                TransformPart::Translate(_, _) => unreachable!(),
-                TransformPart::Translate3d(_, _, _) => unreachable!(),
+                TransformPart::Translate(_, _) | TransformPart::Translate3d(_, _, _) | TransformPart::Perspective(_) => unreachable!(),
             }
         }
         Some(r)
@@ -228,6 +236,7 @@ impl super::Layout2d for Transform {
                     mask |= y.affect_mask();
                     mask |= z.affect_mask();
                 }
+                TransformPart::Perspective(d) => mask |= d.affect_mask(),
             }
         }
         mask

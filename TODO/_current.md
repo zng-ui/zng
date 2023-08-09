@@ -35,9 +35,15 @@
     - Is flat by default?
     - If yes, we may not want to implement the other.
     - The user should use sibling widgets to "preserve-3d".
-* perspective ("distance from z-plane to the user").
+
 * perspective_origin ("vanishing point").
+
 * translate_z shows no visual change (need perspective?)
+* Contextual depth?
+    - Right now we compute relative Z translate on the available-width.
+* Contextual perspective?
+    - CSS has a perspective function and a property of the same name.
+    - The function is set in transform, the property is set on a parent widget.
 
 
 # WR Items

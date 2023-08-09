@@ -443,6 +443,14 @@ pub trait Layout1d {
         self.layout_f32(true)
     }
 
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_z(&self) -> f32 {
+        // TODO
+        self.layout_f32(true)
+    }
+
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT

@@ -1470,6 +1470,11 @@ impl PxTransform {
         PxTransform::Transform(euclid::Transform3D::scale(x, y, z))
     }
 
+    /// New 3D perspective distance.
+    pub fn perspective(d: f32) -> Self {
+        PxTransform::Transform(euclid::Transform3D::perspective(d))
+    }
+
     /// To full transform.
     pub fn to_transform(self) -> euclid::Transform3D<f32, Px, Px> {
         match self {
