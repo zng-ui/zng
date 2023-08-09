@@ -44,6 +44,8 @@
 * Contextual perspective?
     - CSS has a perspective function and a property of the same name.
     - The function is set in transform, the property is set on a parent widget.
+    - Is it layout in the parent widget?
+* https://drafts.csswg.org/css-transforms-2/#perspective
 
 
 # WR Items

@@ -235,11 +235,44 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     with_context_var(child, TRANSFORM_ORIGIN_VAR, origin)
 }
 
+///Distance from the Z plane (0) the viewer is, used by [`transform`] when it is 3D.
+///
+/// This property sets the [`PERSPECTIVE_VAR`] context variable.
+///
+/// [`transform`]: fn@transform
+#[property(CONTEXT, default(PERSPECTIVE_VAR))]
+pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, PERSPECTIVE_VAR, distance)
+}
+/// Vanishing point used by [`transform`] when it is 3D.
+///
+/// This property sets the [`PERSPECTIVE_ORIGIN_VAR`] context variable.
+///
+/// [`transform`]: fn@transform
+#[property(CONTEXT, default(PERSPECTIVE_ORIGIN_VAR))]
+pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+    with_context_var(child, PERSPECTIVE_ORIGIN_VAR, origin)
+}
+
 context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///
-    /// Default origin is the center (50%, 50%).
+    /// Default origin is [`Point::center()`].
     ///
     /// [`transform`]: fn@transform
     pub static TRANSFORM_ORIGIN_VAR: Point = Point::center();
+
+    /// Distance from the Z plane (0) the viewer is, used by [`transform`] when it is 3D.
+    ///
+    /// Default is `1.px()` that is also the minimum.
+    ///
+    /// [`transform`]: fn@transform
+    pub static PERSPECTIVE_VAR: Length = Length::Default;
+
+    /// Vanishing point used by [`transform`] when it is 3D.
+    ///
+    /// Default origin is [`Point::center()`].
+    ///
+    /// [`transform`]: fn@transform
+    pub static PERSPECTIVE_ORIGIN_VAR: Point = Point::center();
 }

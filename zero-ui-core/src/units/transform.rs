@@ -346,6 +346,11 @@ pub fn translate_z<Z: Into<Length>>(z: Z) -> Transform {
     translate_3d(0.0, 0.0, z)
 }
 
+/// Create a 3d perspective transform.
+pub fn perspective<D: Into<Length>>(d: D) -> Transform {
+    Transform::default().perspective(d)
+}
+
 /// Create a 2d skew transform.
 pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(x: X, y: Y) -> Transform {
     Transform::default().skew(x, y)
