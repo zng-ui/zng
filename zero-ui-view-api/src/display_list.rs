@@ -127,32 +127,51 @@ impl DisplayListBuilder {
         }
     }
 
-    /// Start a new spatial context, must be paired with a call to [`pop_reference_frame`].
+    /// Start a new flat spatial context, must be paired with a call to [`pop_reference_frame`].
     ///
     /// [`pop_reference_frame`]: Self::pop_reference_frame
-    pub fn push_reference_frame(
-        &mut self,
-        key: wr::SpatialTreeItemKey,
-        transform: FrameValue<PxTransform>,
-        transform_style: wr::TransformStyle,
-        is_2d_scale_translation: bool,
-    ) {
+    pub fn push_reference_frame(&mut self, key: wr::SpatialTreeItemKey, transform: FrameValue<PxTransform>, is_2d_scale_translation: bool) {
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
             key,
             transform,
-            transform_style,
             is_2d_scale_translation,
         });
     }
 
-    /// Finish the spatial context started by a call to [`push_reference_frame`].
+    /// Finish the flat spatial context started by a call to [`push_reference_frame`].
     ///
     /// [`push_reference_frame`]: Self::push_reference_frame
     pub fn pop_reference_frame(&mut self) {
         debug_assert!(self.space_len > 1);
         self.space_len -= 1;
         self.list.push(DisplayItem::PopReferenceFrame);
+    }
+
+    /// Start a new preserve-3D spatial context, must be paired with a call to [`pop_reference_frame_3d`].
+    ///
+    /// [`pop_reference_frame_3d`]: Self::pop_reference_frame_3d
+    pub fn push_reference_frame_3d(
+        &mut self,
+        key: wr::SpatialTreeItemKey,
+        transform: FrameValue<PxTransform>,
+        is_2d_scale_translation: bool,
+    ) {
+        self.space_len += 1;
+        self.list.push(DisplayItem::PushReferenceFrame3D {
+            key,
+            transform,
+            is_2d_scale_translation,
+        });
+    }
+
+    /// Finish the preserve-3D spatial context started by a call to [`push_reference_frame_3d`].
+    ///
+    /// [`push_reference_frame_3d`]: Self::push_reference_frame_3d
+    pub fn pop_reference_frame_3d(&mut self) {
+        debug_assert!(self.space_len > 1);
+        self.space_len -= 1;
+        self.list.push(DisplayItem::PopReferenceFrame3D);
     }
 
     /// Start a new filters context, must be paired with a call to [`pop_stacking_context`].
@@ -989,10 +1008,16 @@ enum DisplayItem {
     PushReferenceFrame {
         key: wr::SpatialTreeItemKey,
         transform: FrameValue<PxTransform>,
-        transform_style: wr::TransformStyle,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
+
+    PushReferenceFrame3D {
+        key: wr::SpatialTreeItemKey,
+        transform: FrameValue<PxTransform>,
+        is_2d_scale_translation: bool,
+    },
+    PopReferenceFrame3D,
 
     PushStackingContext {
         blend_mode: wr::MixBlendMode,
@@ -1119,13 +1144,36 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 key,
                 transform,
-                transform_style,
                 is_2d_scale_translation,
             } => {
                 let spatial_id = wr_list.push_reference_frame(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
-                    *transform_style,
+                    wr::TransformStyle::Flat,
+                    transform.into_wr(),
+                    wr::ReferenceFrameKind::Transform {
+                        is_2d_scale_translation: *is_2d_scale_translation,
+                        should_snap: false,
+                        paired_with_perspective: false,
+                    },
+                    *key,
+                );
+                sc.push_spatial(spatial_id);
+            }
+            DisplayItem::PopReferenceFrame => {
+                wr_list.pop_reference_frame();
+                sc.pop_spatial();
+            }
+
+            DisplayItem::PushReferenceFrame3D {
+                key,
+                transform,
+                is_2d_scale_translation,
+            } => {
+                let spatial_id = wr_list.push_reference_frame(
+                    wr::units::LayoutPoint::zero(),
+                    sc.spatial_id(),
+                    wr::TransformStyle::Preserve3D,
                     transform.into_wr(),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,
@@ -1136,24 +1184,23 @@ impl DisplayItem {
                 );
                 sc.push_spatial(spatial_id);
 
-                if let wr::TransformStyle::Preserve3D = transform_style {
-                    let clip = sc.clip_chain_id(wr_list);
-                    wr_list.push_stacking_context(
-                        wr::units::LayoutPoint::zero(),
-                        sc.spatial_id(),
-                        wr::PrimitiveFlags::empty(),
-                        Some(clip),
-                        wr::TransformStyle::Preserve3D,
-                        wr::MixBlendMode::Normal,
-                        &[],
-                        &[],
-                        &[],
-                        wr::RasterSpace::Screen,
-                        wr::StackingContextFlags::empty(),
-                    )
-                }
+                let clip = sc.clip_chain_id(wr_list);
+                wr_list.push_stacking_context(
+                    wr::units::LayoutPoint::zero(),
+                    sc.spatial_id(),
+                    wr::PrimitiveFlags::empty(),
+                    Some(clip),
+                    wr::TransformStyle::Preserve3D,
+                    wr::MixBlendMode::Normal,
+                    &[],
+                    &[],
+                    &[],
+                    wr::RasterSpace::Screen,
+                    wr::StackingContextFlags::empty(),
+                );
             }
-            DisplayItem::PopReferenceFrame => {
+            DisplayItem::PopReferenceFrame3D => {
+                wr_list.pop_stacking_context();
                 wr_list.pop_reference_frame();
                 sc.pop_spatial();
             }

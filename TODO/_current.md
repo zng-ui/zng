@@ -37,8 +37,6 @@
 
 * `rotate_3d`.
 
-* translate_z shows no visual change (need perspective?)
-
 * Contextual depth?
     - Right now we compute relative Z translate on the available-width.
 * Contextual perspective?
@@ -51,8 +49,7 @@
 # WR Items
 
 * Finish items implemented by webrender.
-    - 3D transforms stuff.
-        - Backface vis.
+    - Backface vis.
 
     - Touch events.
         - Use `Spacedesk` to generate touch events.

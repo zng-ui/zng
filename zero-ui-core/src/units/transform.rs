@@ -121,6 +121,11 @@ impl Transform {
         self.translate(0.0, y)
     }
 
+    /// Change `self` to apply a ***z*** translation after its transformation.
+    pub fn translate_z<Z: Into<Length>>(self, z: Z) -> Self {
+        self.translate_3d(0.0, 0.0, z)
+    }
+
     /// Change `self` to apply a 3d translation after its transformation.
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.

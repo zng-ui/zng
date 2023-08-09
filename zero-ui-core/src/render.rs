@@ -962,12 +962,23 @@ impl FrameBuilder {
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             if self.visible {
-                self.display_list.push_reference_frame(
-                    SpatialFrameKey::from_widget(self.widget_id).to_wr(),
-                    layout_translation_key.bind(inner_transform, layout_translation_animating),
-                    data.inner_transform_style.into(),
-                    !data.inner_is_set,
-                );
+                let transform_style = data.inner_transform_style;
+                match transform_style {
+                    TransformStyle::Flat => {
+                        self.display_list.push_reference_frame(
+                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
+                            layout_translation_key.bind(inner_transform, layout_translation_animating),
+                            !data.inner_is_set,
+                        );
+                    }
+                    TransformStyle::Preserve3D => {
+                        self.display_list.push_reference_frame_3d(
+                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
+                            layout_translation_key.bind(inner_transform, layout_translation_animating),
+                            !data.inner_is_set,
+                        );
+                    }
+                }
 
                 if !data.backdrop_filter.is_empty() {
                     self.display_list
@@ -992,7 +1003,11 @@ impl FrameBuilder {
                 if has_stacking_ctx {
                     self.display_list.pop_stacking_context();
                 }
-                self.display_list.pop_reference_frame();
+
+                match transform_style {
+                    TransformStyle::Flat => self.display_list.pop_reference_frame(),
+                    TransformStyle::Preserve3D => self.display_list.pop_reference_frame_3d(),
+                }
             } else {
                 render(self);
             }
@@ -1127,8 +1142,16 @@ impl FrameBuilder {
         self.transform = transform_value.then(&prev_transform);
 
         if self.visible {
-            self.display_list
-                .push_reference_frame(key.to_wr(), transform, transform_style.into(), is_2d_scale_translation);
+            match transform_style {
+                TransformStyle::Flat => {
+                    self.display_list
+                        .push_reference_frame(key.to_wr(), transform, is_2d_scale_translation);
+                }
+                TransformStyle::Preserve3D => {
+                    self.display_list
+                        .push_reference_frame_3d(key.to_wr(), transform, is_2d_scale_translation);
+                }
+            }
         }
 
         let hit_test = hit_test || self.auto_hit_test;
@@ -1140,7 +1163,10 @@ impl FrameBuilder {
         render(self);
 
         if self.visible {
-            self.display_list.pop_reference_frame();
+            match transform_style {
+                TransformStyle::Flat => self.display_list.pop_reference_frame(),
+                TransformStyle::Preserve3D => self.display_list.pop_reference_frame_3d(),
+            }
         }
         self.transform = prev_transform;
 
