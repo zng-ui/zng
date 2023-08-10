@@ -1264,12 +1264,12 @@ impl LAYOUT {
     }
 
     /// Current length constraints for the given axis.
-    pub fn constraints_for(&self, x_axis: bool) -> PxConstraints {
+    pub fn constraints_for(&self, axis: LayoutAxis) -> PxConstraints {
         let c = self.constraints();
-        if x_axis {
-            c.x
-        } else {
-            c.y
+        match axis {
+            LayoutAxis::X => c.x,
+            LayoutAxis::Y => c.y,
+            LayoutAxis::Z => c.x, // TODO perspective
         }
     }
 
@@ -1278,13 +1278,13 @@ impl LAYOUT {
         self.with_context(self.metrics().with_constraints(constraints), f)
     }
 
-    /// Calls `f` with the `constraints` in context..
-    pub fn with_constraints_for<R>(&self, x_axis: bool, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
+    /// Calls `f` with the `constraints` in context.
+    pub fn with_constraints_for<R>(&self, axis: LayoutAxis, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
         let mut c = self.constraints();
-        if x_axis {
-            c.x = constraints;
-        } else {
-            c.y = constraints;
+        match axis {
+            LayoutAxis::X => c.x = constraints,
+            LayoutAxis::Y => c.y = constraints,
+            LayoutAxis::Z => todo!("TODO perspective"),
         }
         self.with_constraints(c, f)
     }
@@ -1424,12 +1424,12 @@ impl LAYOUT {
     }
 
     /// Current viewport length for the given axis.
-    pub fn viewport_for(&self, x_axis: bool) -> Px {
+    pub fn viewport_for(&self, axis: LayoutAxis) -> Px {
         let vp = self.viewport();
-        if x_axis {
-            vp.width
-        } else {
-            vp.height
+        match axis {
+            LayoutAxis::X => vp.width,
+            LayoutAxis::Y => vp.height,
+            LayoutAxis::Z => Px(1), // TODO perspective
         }
     }
 
@@ -1476,12 +1476,13 @@ impl LAYOUT {
     }
 
     /// Context leftover length for the given axis.
-    pub fn leftover_for(&self, x_axis: bool) -> Option<Px> {
+    pub fn leftover_for(&self, axis: LayoutAxis) -> Option<Px> {
         let l = self.leftover();
-        if x_axis {
-            l.width
-        } else {
-            l.height
+
+        match axis {
+            LayoutAxis::X => l.width,
+            LayoutAxis::Y => l.height,
+            LayoutAxis::Z => None,
         }
     }
 

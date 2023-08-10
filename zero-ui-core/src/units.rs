@@ -380,6 +380,17 @@ pub trait Layout2d {
     fn affect_mask(&self) -> LayoutMask;
 }
 
+/// Represents a layout dimension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LayoutAxis {
+    /// Horizontal.
+    X,
+    /// Vertical.
+    Y,
+    /// Depth.
+    Z,
+}
+
 /// Represents a one-dimensional length value that can be converted to a pixel length in a [`LAYOUT`] context.
 ///
 /// [`LAYOUT`]: crate::context::LAYOUT
@@ -387,89 +398,109 @@ pub trait Layout1d {
     /// Compute the pixel value in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
-    fn layout(&self, x_axis: bool) -> Px {
-        self.layout_dft(x_axis, Px(0))
+    fn layout(&self, axis: LayoutAxis) -> Px {
+        self.layout_dft(axis, Px(0))
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
-    fn layout_dft(&self, x_axis: bool, default: Px) -> Px;
+    fn layout_dft(&self, axis: LayoutAxis, default: Px) -> Px;
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_x(&self) -> Px {
-        self.layout(true)
+        self.layout(LayoutAxis::X)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_y(&self) -> Px {
-        self.layout(false)
+        self.layout(LayoutAxis::Y)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_z(&self) -> Px {
+        self.layout(LayoutAxis::Z)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_dft_x(&self, default: Px) -> Px {
-        self.layout_dft(true, default)
+        self.layout_dft(LayoutAxis::X, default)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_dft_y(&self, default: Px) -> Px {
-        self.layout_dft(false, default)
+        self.layout_dft(LayoutAxis::Y, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_z(&self, default: Px) -> Px {
+        self.layout_dft(LayoutAxis::Z, default)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
-    fn layout_f32(&self, x_axis: bool) -> f32 {
-        self.layout_f32_dft(x_axis, 0.0)
+    fn layout_f32(&self, axis: LayoutAxis) -> f32 {
+        self.layout_f32_dft(axis, 0.0)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
-    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32;
+    fn layout_f32_dft(&self, axis: LayoutAxis, default: f32) -> f32;
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_f32_x(&self) -> f32 {
-        self.layout_f32(true)
-    }
-
-    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    fn layout_f32_z(&self) -> f32 {
-        // TODO
-        self.layout_f32(true)
+        self.layout_f32(LayoutAxis::X)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_f32_y(&self) -> f32 {
-        self.layout_f32(false)
+        self.layout_f32(LayoutAxis::Y)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_z(&self) -> f32 {
+        self.layout_f32(LayoutAxis::Z)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_f32_dft_x(&self, default: f32) -> f32 {
-        self.layout_f32_dft(true, default)
+        self.layout_f32_dft(LayoutAxis::X, default)
     }
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_f32_dft_y(&self, default: f32) -> f32 {
-        self.layout_f32_dft(false, default)
+        self.layout_f32_dft(LayoutAxis::Y, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_dft_z(&self, default: f32) -> f32 {
+        self.layout_f32_dft(LayoutAxis::Z, default)
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].

@@ -23,14 +23,31 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
             let transform = transform.layout();
             let av_size = WIDGET.bounds().inner_size();
+
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
-            let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(av_size), || {
-                TRANSFORM_ORIGIN_VAR.layout_dft(default_origin)
+            let (origin, perspective, perspective_origin) = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(av_size), || {
+                (
+                    TRANSFORM_ORIGIN_VAR.layout_dft(default_origin), 
+                    PERSPECTIVE_VAR.layout_dft_z(Px(1)),// TODO default is CSS none that is +inf, CSS also does not accept % values
+                    PERSPECTIVE_ORIGIN_VAR.layout_dft(default_origin),
+                )
             });
+
+            let _perspective = {
+                // TODO compute in parent?
+                let x = perspective_origin.x.0 as f32;
+                let y = perspective_origin.y.0 as f32;
+                let d = perspective.0 as f32;
+                PxTransform::translation(-x, -y)
+                    .then(&PxTransform::perspective(d))
+                    .then_translate(euclid::vec2(x, y))
+            };
 
             let x = origin.x.0 as f32;
             let y = origin.y.0 as f32;
             let transform = PxTransform::translation(-x, -y).then(&transform).then_translate(euclid::vec2(x, y));
+
+            // let transform = perspective.then(&transform);
 
             if transform != render_transform {
                 render_transform = transform;

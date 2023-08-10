@@ -507,7 +507,7 @@ where
 
             LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_x(length), || {
                 self.stops
-                    .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
+                    .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
             });
 
             WIDGET.render();
@@ -572,7 +572,7 @@ where
             let length = self.data.line.length();
             LAYOUT.with_constraints(constraints.with_new_exact_x(length), || {
                 self.stops
-                    .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
+                    .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
             });
 
             WIDGET.render();
@@ -635,7 +635,7 @@ where
                     .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
                 || {
                     self.stops
-                        .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.data.stops))
+                        .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
                 },
             );
 
@@ -702,7 +702,7 @@ where
                     .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
                 || {
                     self.stops
-                        .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.data.stops))
+                        .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
                 },
             );
 
@@ -766,7 +766,7 @@ where
             } as _);
             LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
                 self.stops
-                    .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.data.stops))
+                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
             });
 
             WIDGET.render();
@@ -832,7 +832,7 @@ where
             } as _);
             LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
                 self.stops
-                    .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.data.stops))
+                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
             });
 
             WIDGET.render();

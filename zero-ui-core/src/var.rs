@@ -2159,6 +2159,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(|s| s.layout_y())
     }
 
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_z(&self) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(|s| s.layout_z())
+    }
+
     // Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
@@ -2177,6 +2187,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: Layout1d,
     {
         self.with(move |s| s.layout_dft_y(default))
+    }
+
+    // Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_z(&self, default: Px) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(move |s| s.layout_dft_z(default))
     }
 
     /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.

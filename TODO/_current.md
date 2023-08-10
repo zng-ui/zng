@@ -40,10 +40,8 @@
 * Contextual depth?
     - Right now we compute relative Z translate on the available-width.
 * Contextual perspective?
-    - CSS has a perspective function and a property of the same name.
-    - The function is set in transform, the property is set on a parent widget.
-    - Is it layout in the parent widget?
-* https://drafts.csswg.org/css-transforms-2/#perspective
+    - https://drafts.csswg.org/css-transforms-2/#perspective
+    - Must be computed on the parent.
 
 
 # WR Items

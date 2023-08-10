@@ -1,4 +1,4 @@
-use super::{about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
+use super::{about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, LayoutAxis, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
 use crate::{context::LAYOUT, impl_from_and_into_var, var::animation::Transitionable};
@@ -581,19 +581,19 @@ impl Length {
     const PT_TO_DIP: f32 = 96.0 / 72.0; // 1.3333..;
 }
 impl super::Layout1d for Length {
-    fn layout_dft(&self, x_axis: bool, default: Px) -> Px {
+    fn layout_dft(&self, axis: LayoutAxis, default: Px) -> Px {
         use Length::*;
         match self {
             Default => default,
             Dip(l) => l.to_px(LAYOUT.scale_factor().0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constraints_for(x_axis).fill() * f.0,
+            Relative(f) => LAYOUT.constraints_for(axis).fill() * f.0,
             Leftover(f) => {
-                if let Some(l) = LAYOUT.leftover_for(x_axis) {
+                if let Some(l) = LAYOUT.leftover_for(axis) {
                     l
                 } else {
-                    let fill = LAYOUT.constraints_for(x_axis).fill();
+                    let fill = LAYOUT.constraints_for(axis).fill();
                     (fill * f.0).clamp(self::Px(0), fill)
                 }
             }
@@ -605,23 +605,23 @@ impl super::Layout1d for Length {
             ViewportMax(p) => LAYOUT.viewport_max() * *p,
             DipF32(l) => self::Px((l * LAYOUT.scale_factor().0).round() as i32),
             PxF32(l) => self::Px(l.round() as i32),
-            Expr(e) => e.layout_dft(x_axis, default),
+            Expr(e) => e.layout_dft(axis, default),
         }
     }
 
-    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32 {
+    fn layout_f32_dft(&self, axis: LayoutAxis, default: f32) -> f32 {
         use Length::*;
         match self {
             Default => default,
             Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
             Px(l) => l.0 as f32,
             Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constraints_for(x_axis).fill().0 as f32 * f.0,
+            Relative(f) => LAYOUT.constraints_for(axis).fill().0 as f32 * f.0,
             Leftover(f) => {
-                if let Some(l) = LAYOUT.leftover_for(x_axis) {
+                if let Some(l) = LAYOUT.leftover_for(axis) {
                     l.0 as f32
                 } else {
-                    let fill = LAYOUT.constraints_for(x_axis).fill().0 as f32;
+                    let fill = LAYOUT.constraints_for(axis).fill().0 as f32;
                     (fill * f.0).clamp(0.0, fill)
                 }
             }
@@ -633,7 +633,7 @@ impl super::Layout1d for Length {
             ViewportMax(p) => LAYOUT.viewport_max().0 as f32 * *p,
             DipF32(l) => *l * LAYOUT.scale_factor().0,
             PxF32(l) => *l,
-            Expr(e) => e.layout_f32_dft(x_axis, default),
+            Expr(e) => e.layout_f32_dft(axis, default),
         }
     }
 
@@ -748,31 +748,31 @@ impl LengthExpr {
     }
 }
 impl super::Layout1d for LengthExpr {
-    fn layout_dft(&self, x_axis: bool, default: Px) -> Px {
-        let l = self.layout_f32_dft(x_axis, default.0 as f32);
+    fn layout_dft(&self, axis: LayoutAxis, default: Px) -> Px {
+        let l = self.layout_f32_dft(axis, default.0 as f32);
         Px(l.round() as i32)
     }
 
-    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32 {
+    fn layout_f32_dft(&self, axis: LayoutAxis, default: f32) -> f32 {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.layout_f32_dft(x_axis, default) + b.layout_f32_dft(x_axis, default),
-            Sub(a, b) => a.layout_f32_dft(x_axis, default) - b.layout_f32_dft(x_axis, default),
-            Mul(l, s) => l.layout_f32_dft(x_axis, default) * s.0,
-            Div(l, s) => l.layout_f32_dft(x_axis, default) / s.0,
+            Add(a, b) => a.layout_f32_dft(axis, default) + b.layout_f32_dft(axis, default),
+            Sub(a, b) => a.layout_f32_dft(axis, default) - b.layout_f32_dft(axis, default),
+            Mul(l, s) => l.layout_f32_dft(axis, default) * s.0,
+            Div(l, s) => l.layout_f32_dft(axis, default) / s.0,
             Max(a, b) => {
-                let a = a.layout_f32_dft(x_axis, default);
-                let b = b.layout_f32_dft(x_axis, default);
+                let a = a.layout_f32_dft(axis, default);
+                let b = b.layout_f32_dft(axis, default);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.layout_f32_dft(x_axis, default);
-                let b = b.layout_f32_dft(x_axis, default);
+                let a = a.layout_f32_dft(axis, default);
+                let b = b.layout_f32_dft(axis, default);
                 a.min(b)
             }
-            Abs(e) => e.layout_f32_dft(x_axis, default).abs(),
-            Neg(e) => -e.layout_f32_dft(x_axis, default),
-            Lerp(a, b, f) => a.layout_f32_dft(x_axis, default).lerp(&b.layout_f32_dft(x_axis, default), *f),
+            Abs(e) => e.layout_f32_dft(axis, default).abs(),
+            Neg(e) => -e.layout_f32_dft(axis, default),
+            Lerp(a, b, f) => a.layout_f32_dft(axis, default).lerp(&b.layout_f32_dft(axis, default), *f),
         }
     }
 
