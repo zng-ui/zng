@@ -665,7 +665,7 @@ bitflags! {
     pub struct LayoutMask: u32 {
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The [`LayoutMetrics::constraints`] and [`LayoutMetrics::inline_constraints`].
+        /// The [`LayoutMetrics::constraints`], [`LayoutMetrics::z_constraints`] and [`LayoutMetrics::inline_constraints`].
         const CONSTRAINTS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].

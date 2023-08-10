@@ -81,8 +81,7 @@ impl<D> WidgetFn<D> {
     ///     pub static FOO_FN_VAR: WidgetFn<Foo> = WidgetFn::nil();
     /// }
     /// ```
-    pub fn nil() -> Self {
-        // TODO make this const when rust#100136 is resolved.
+    pub const fn nil() -> Self {
         WidgetFn(None)
     }
 

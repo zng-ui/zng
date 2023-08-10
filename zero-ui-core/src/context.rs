@@ -1263,13 +1263,17 @@ impl LAYOUT {
         LAYOUT_CTX.get().metrics.constraints()
     }
 
+    /// Current perspective constraints.
+    pub fn z_constraints(&self) -> PxConstraints {
+        LAYOUT_CTX.get().metrics.z_constraints()
+    }
+
     /// Current length constraints for the given axis.
     pub fn constraints_for(&self, axis: LayoutAxis) -> PxConstraints {
-        let c = self.constraints();
         match axis {
-            LayoutAxis::X => c.x,
-            LayoutAxis::Y => c.y,
-            LayoutAxis::Z => c.x, // TODO perspective
+            LayoutAxis::X => self.constraints().x,
+            LayoutAxis::Y => self.constraints().y,
+            LayoutAxis::Z => self.z_constraints(),
         }
     }
 
@@ -1277,16 +1281,27 @@ impl LAYOUT {
     pub fn with_constraints<R>(&self, constraints: PxConstraints2d, f: impl FnOnce() -> R) -> R {
         self.with_context(self.metrics().with_constraints(constraints), f)
     }
+    
+    /// Calls `f` with the `constraints` for perspective in context.
+    pub fn with_z_constraints<R>(&self, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
+        self.with_context(self.metrics().with_z_constraints(constraints), f)
+    }
 
     /// Calls `f` with the `constraints` in context.
     pub fn with_constraints_for<R>(&self, axis: LayoutAxis, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
-        let mut c = self.constraints();
         match axis {
-            LayoutAxis::X => c.x = constraints,
-            LayoutAxis::Y => c.y = constraints,
-            LayoutAxis::Z => todo!("TODO perspective"),
+            LayoutAxis::X => {
+                let mut c = self.constraints();
+                c.x = constraints;
+                self.with_constraints(c, f)
+            },
+            LayoutAxis::Y => {
+                let mut c = self.constraints();
+                c.y = constraints;
+                self.with_constraints(c, f)
+            },
+            LayoutAxis::Z => self.with_z_constraints(constraints, f),
         }
-        self.with_constraints(c, f)
     }
 
     /// Runs a function `f` in a context that has its max size subtracted by `removed` and its final size added by `removed`.
@@ -1429,7 +1444,7 @@ impl LAYOUT {
         match axis {
             LayoutAxis::X => vp.width,
             LayoutAxis::Y => vp.height,
-            LayoutAxis::Z => Px(1), // TODO perspective
+            LayoutAxis::Z => Px::MAX,
         }
     }
 
@@ -2714,6 +2729,11 @@ pub struct LayoutMetricsSnapshot {
     /// [`inline_constraints`]: LayoutMetrics::inline_constraints
     pub inline_constraints: Option<InlineConstraints>,
 
+    /// The [`z_constraints`].
+    ///
+    /// [`z_constraints`]: LayoutMetrics::z_constraints
+    pub z_constraints: PxConstraints,
+
     /// The [`font_size`].
     ///
     /// [`font_size`]: LayoutMetrics::font_size
@@ -2749,7 +2769,9 @@ impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
         (!mask.contains(LayoutMask::CONSTRAINTS)
-            || (self.constraints == other.constraints && self.inline_constraints == other.inline_constraints))
+            || (self.constraints == other.constraints
+                && self.z_constraints != other.z_constraints
+                && self.inline_constraints == other.inline_constraints))
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
@@ -2762,6 +2784,7 @@ impl LayoutMetricsSnapshot {
 impl PartialEq for LayoutMetricsSnapshot {
     fn eq(&self, other: &Self) -> bool {
         self.constraints == other.constraints
+            && self.z_constraints == other.z_constraints
             && self.inline_constraints == other.inline_constraints
             && self.font_size == other.font_size
             && self.root_font_size == other.root_font_size
@@ -2798,6 +2821,7 @@ impl LayoutMetrics {
         LayoutMetrics {
             s: LayoutMetricsSnapshot {
                 constraints: PxConstraints2d::new_fill_size(viewport),
+                z_constraints: PxConstraints::new_unbounded().with_min(Px(1)),
                 inline_constraints: None,
                 font_size,
                 root_font_size: font_size,
@@ -2814,6 +2838,12 @@ impl LayoutMetrics {
     pub fn constraints(&self) -> PxConstraints2d {
         LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
         self.s.constraints
+    }
+
+    /// Current perspective constraints.
+    pub fn z_constraints(&self) -> PxConstraints {
+        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
+        self.s.z_constraints
     }
 
     /// Current inline constraints.
@@ -2898,6 +2928,14 @@ impl LayoutMetrics {
     /// [`constraints`]: Self::constraints
     pub fn with_constraints(mut self, constraints: PxConstraints2d) -> Self {
         self.s.constraints = constraints;
+        self
+    }
+
+    /// Sets the [`z_constraints`] to `constraints`.
+    /// 
+    /// [`z_constraints`]: Self::z_constraints
+    pub fn with_z_constraints(mut self, constraints: PxConstraints) -> Self {
+        self.s.z_constraints = constraints;
         self
     }
 
