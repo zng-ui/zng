@@ -1560,6 +1560,10 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 transform: FrameValue::Bind { key, .. },
                 ..
+            }
+            | DisplayItem::PushReferenceFrame3D {
+                transform: FrameValue::Bind { key, .. },
+                ..
             } => {
                 bindings.insert(key.id, value);
             }
@@ -1590,6 +1594,15 @@ impl DisplayItem {
     fn update_transform(&mut self, t: &FrameValueUpdate<PxTransform>) -> bool {
         match self {
             DisplayItem::PushReferenceFrame {
+                transform:
+                    FrameValue::Bind {
+                        key,
+                        value,
+                        animating: animation,
+                    },
+                ..
+            }
+            | DisplayItem::PushReferenceFrame3D {
                 transform:
                     FrameValue::Bind {
                         key,
