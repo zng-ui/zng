@@ -1447,11 +1447,12 @@ impl PxTransform {
 
     /// New 2D rotation.
     pub fn rotation(x: f32, y: f32, theta: euclid::Angle<f32>) -> Self {
-        PxTransform::Transform(euclid::Transform3D::rotation(x, y, -1.0, theta))
+        Self::rotation_3d(x, y, -1.0, theta)
     }
 
     /// New 3D rotation.
     pub fn rotation_3d(x: f32, y: f32, z: f32, theta: euclid::Angle<f32>) -> Self {
+        let [x, y, z] = euclid::vec3::<_, ()>(x, y, z).normalize().to_array();
         PxTransform::Transform(euclid::Transform3D::rotation(x, y, z, theta))
     }
 

@@ -28,8 +28,6 @@
     - Flag can be set in any primitive, figure out why?
     - Can we just have a context push?
 
-* `rotate_3d`.
-
 * Contextual depth?
     - Right now we compute relative Z translate on the available-width.
 * Contextual perspective?

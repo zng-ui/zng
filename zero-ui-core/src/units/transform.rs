@@ -102,7 +102,15 @@ impl Transform {
     ///
     /// [`rotate`]: Self::rotate
     pub fn rotate_z<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation(0.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(0.0, 0.0, -1.0, angle.into().layout()));
+        self
+    }
+
+    /// Change `self` to apply a 3d rotation.
+    ///
+    /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
+    pub fn rotate_3d<A: Into<AngleRadian>>(mut self, x: f32, y: f32, z: f32, angle: A) -> Self {
+        self.then_transform(PxTransform::rotation_3d(x, y, z, angle.into().layout()));
         self
     }
 
@@ -324,6 +332,11 @@ pub fn rotate_y<A: Into<AngleRadian>>(angle: A) -> Transform {
 /// Same as [`rotate`].
 pub fn rotate_z<A: Into<AngleRadian>>(angle: A) -> Transform {
     Transform::default().rotate_z(angle)
+}
+
+/// Create a 3d rotation transform.
+pub fn rotate_3d<A: Into<AngleRadian>>(x: f32, y: f32, z: f32, angle: A) -> Transform {
+    Transform::default().rotate_3d(x, y, z, angle)
 }
 
 /// Create a 2d translation transform.
