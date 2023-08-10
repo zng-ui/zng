@@ -49,20 +49,20 @@ pub struct ViewLib {
     _lib: Library,
 }
 impl ViewLib {
-    /// Extract the embedded library to the shared data directory and link to it.
+    /// Extract the embedded library to the temp directory and link to it.
     pub fn install() -> Result<Self, Error> {
-        let dir = dirs::data_dir().unwrap_or_else(env::temp_dir).join("zero_ui_view");
+        let dir = env::temp_dir().join("zero_ui_view");
         std::fs::create_dir_all(&dir)?;
         Self::install_to(dir)
     }
 
-    /// Try to delete the installed library from the data directory.
+    /// Try to delete the installed library from the temp directory.
     ///
     /// See [`uninstall_from`] for details.
     ///
     /// [`uninstall_from`]: Self::uninstall_from
     pub fn uninstall() -> Result<bool, io::Error> {
-        let dir = dirs::data_dir().unwrap_or_else(env::temp_dir).join("zero_ui_view");
+        let dir = env::temp_dir().join("zero_ui_view");
         Self::uninstall_from(dir)
     }
 

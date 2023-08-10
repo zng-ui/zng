@@ -1,16 +1,9 @@
-* Prebuild installed DLLs are never removed.
-    - Why do we install?
-    - Place in temp?
-        - Antivirus issue?
-    - Can we load DLL from memory?
-
 # TextInput
 
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
-        - VsCode copies the current line if there is no selection, how common is this?
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

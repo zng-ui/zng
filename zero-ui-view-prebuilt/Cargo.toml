@@ -7,7 +7,6 @@ license = "Apache-2.0"
 
 [dependencies]
 libloading = "0.8"
-dirs = "5"
 
 [build-dependencies]
 hashers = "1"
