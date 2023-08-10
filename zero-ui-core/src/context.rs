@@ -1281,7 +1281,7 @@ impl LAYOUT {
     pub fn with_constraints<R>(&self, constraints: PxConstraints2d, f: impl FnOnce() -> R) -> R {
         self.with_context(self.metrics().with_constraints(constraints), f)
     }
-    
+
     /// Calls `f` with the `constraints` for perspective in context.
     pub fn with_z_constraints<R>(&self, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
         self.with_context(self.metrics().with_z_constraints(constraints), f)
@@ -1294,12 +1294,12 @@ impl LAYOUT {
                 let mut c = self.constraints();
                 c.x = constraints;
                 self.with_constraints(c, f)
-            },
+            }
             LayoutAxis::Y => {
                 let mut c = self.constraints();
                 c.y = constraints;
                 self.with_constraints(c, f)
-            },
+            }
             LayoutAxis::Z => self.with_z_constraints(constraints, f),
         }
     }
@@ -2932,7 +2932,7 @@ impl LayoutMetrics {
     }
 
     /// Sets the [`z_constraints`] to `constraints`.
-    /// 
+    ///
     /// [`z_constraints`]: Self::z_constraints
     pub fn with_z_constraints(mut self, constraints: PxConstraints) -> Self {
         self.s.z_constraints = constraints;
