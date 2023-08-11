@@ -288,9 +288,7 @@ pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> im
         UiNodeOp::Layout { wl, final_size } => {
             let size = c.layout(wl);
             let default_origin = PxPoint::new(size.width / 2.0, size.height / 2.0);
-            let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
-                TRANSFORM_ORIGIN_VAR.layout_dft(default_origin)
-            });
+            let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || origin.layout_dft(default_origin));
 
             if origin != origin_render {
                 origin_render = origin;
