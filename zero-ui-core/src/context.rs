@@ -2770,7 +2770,7 @@ impl LayoutMetricsSnapshot {
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
         (!mask.contains(LayoutMask::CONSTRAINTS)
             || (self.constraints == other.constraints
-                && self.z_constraints != other.z_constraints
+                && self.z_constraints == other.z_constraints
                 && self.inline_constraints == other.inline_constraints))
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
