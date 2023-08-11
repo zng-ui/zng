@@ -43,7 +43,7 @@ fn app_main() {
                         children_align = Align::TOP;
                         children = ui_vec![
                             transformed_3d("Rotate Y:45º, X:10º", rotate_y(45.deg()).rotate_x(10.deg())),
-                            transformed_3d("Translate-Z 30", translate_z(30)),
+                            // transformed_3d("Translate-Z 30", translate_z(30)),
                         ];
                     },
                     Stack! {
@@ -84,12 +84,16 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
             child = Text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
+            id = "3d-child";
+
 
             when *#is_hovered {
                 transform = Transform::identity();
             }
         };
 
+        id = "3d-parent";
+        perspective = 800;
         transform_style = TransformStyle::Preserve3D;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }

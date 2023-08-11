@@ -22,32 +22,15 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             let size = child.layout(wl);
 
             let transform = transform.layout();
-            let av_size = WIDGET.bounds().inner_size();
 
-            let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
-            let (origin, perspective, perspective_origin) = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(av_size), || {
-                (
-                    TRANSFORM_ORIGIN_VAR.layout_dft(default_origin),
-                    PERSPECTIVE_VAR.layout_dft_z(Px::MAX), // TODO default is CSS none that is +inf, CSS also does not accept % values
-                    PERSPECTIVE_ORIGIN_VAR.layout_dft(default_origin),
-                )
+            let default_origin = PxPoint::new(size.width / 2.0, size.height / 2.0);
+            let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
+                TRANSFORM_ORIGIN_VAR.layout_dft(default_origin)
             });
-
-            let _perspective = {
-                // TODO compute in parent?
-                let x = perspective_origin.x.0 as f32;
-                let y = perspective_origin.y.0 as f32;
-                let d = perspective.0 as f32;
-                PxTransform::translation(-x, -y)
-                    .then(&PxTransform::perspective(d))
-                    .then_translate(euclid::vec2(x, y))
-            };
 
             let x = origin.x.0 as f32;
             let y = origin.y.0 as f32;
             let transform = PxTransform::translation(-x, -y).then(&transform).then_translate(euclid::vec2(x, y));
-
-            // let transform = perspective.then(&transform);
 
             if transform != render_transform {
                 render_transform = transform;
@@ -253,23 +236,77 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     with_context_var(child, TRANSFORM_ORIGIN_VAR, origin)
 }
 
-///Distance from the Z plane (0) the viewer is, used by [`transform`] when it is 3D.
+///Distance from the Z plane (0) the viewer is, affects 3D transform on the widget's children.
 ///
-/// This property sets the [`PERSPECTIVE_VAR`] context variable.
-///
-/// [`transform`]: fn@transform
-#[property(CONTEXT, default(PERSPECTIVE_VAR))]
+/// [`Length::Default`] is an infinite distance, the lower the value the *closest* the viewer is and therefore
+/// the 3D transforms are more noticeable. Distances less then `1.px()` are coerced to it.
+#[property(LAYOUT-20, default(Length::Default))]
 pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl UiNode {
-    with_context_var(child, PERSPECTIVE_VAR, distance)
+    let distance = distance.into_var();
+    let mut distance_render = Px::MAX;
+
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&distance);
+        }
+        UiNodeOp::Layout { .. } => {
+            let d = distance.layout_dft_z(Px::MAX);
+            let d = LAYOUT.z_constraints().clamp(d).max(Px(1));
+            if d != distance_render {
+                distance_render = d;
+                WIDGET.render_update();
+            }
+        }
+        UiNodeOp::Render { frame } => {
+            if distance_render < Px::MAX {
+                frame.push_child_perspective(distance_render.0 as f32, |frame| c.render(frame));
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            if distance_render < Px::MAX {
+                // TODO
+            }
+        }
+        _ => {}
+    })
 }
-/// Vanishing point used by [`transform`] when it is 3D.
+
+/// Vanishing point used 3D transforms in the widget's children.
 ///
-/// This property sets the [`PERSPECTIVE_ORIGIN_VAR`] context variable.
+/// Is the widget center by default.
 ///
 /// [`transform`]: fn@transform
-#[property(CONTEXT, default(PERSPECTIVE_ORIGIN_VAR))]
+#[property(LAYOUT-20, default(Point::default()))]
 pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
-    with_context_var(child, PERSPECTIVE_ORIGIN_VAR, origin)
+    let origin = origin.into_var();
+    let mut origin_render = PxPoint::zero();
+
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&origin);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = c.layout(wl);
+            let default_origin = PxPoint::new(size.width / 2.0, size.height / 2.0);
+            let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
+                TRANSFORM_ORIGIN_VAR.layout_dft(default_origin)
+            });
+
+            if origin != origin_render {
+                origin_render = origin;
+                WIDGET.render_update();
+            }
+
+            *final_size = size;
+        }
+        UiNodeOp::Render { frame } => {
+            frame.push_child_perspective_origin(origin_render, |frame| c.render(frame));
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            // TODO
+        }
+        _ => {}
+    })
 }
 
 /// Defines how the widget and children are positioned in 3D space.
@@ -299,13 +336,6 @@ context_var! {
     ///
     /// [`transform`]: fn@transform
     pub static TRANSFORM_ORIGIN_VAR: Point = Point::center();
-
-    /// Distance from the Z plane (0) the viewer is, used by [`transform`] when it is 3D.
-    ///
-    /// Default is `1.px()` that is also the minimum.
-    ///
-    /// [`transform`]: fn@transform
-    pub static PERSPECTIVE_VAR: Length = Length::Default;
 
     /// Vanishing point used by [`transform`] when it is 3D.
     ///

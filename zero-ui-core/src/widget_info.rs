@@ -11,7 +11,7 @@ use crate::{
     context::{LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
     crate_util::{IdMap, ParallelSegmentId, ParallelSegmentOffsets},
     impl_from_and_into_var,
-    render::{FrameId, FrameValueUpdate},
+    render::{FrameId, FrameValueUpdate, TransformStyle},
     text::Txt,
     units::*,
     widget_instance::{WidgetId, ZIndex},
@@ -338,6 +338,8 @@ struct WidgetBoundsData {
 pub(crate) struct WidgetRenderInfo {
     // Visible/hidden.
     pub visible: bool,
+
+    pub parent_3d_info: (TransformStyle, f32, Option<PxPoint>),
 
     // raw z-index in widget_count units.
     pub seg_id: ParallelSegmentId,

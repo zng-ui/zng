@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{app::App, units::*, widget_info::*, window::WindowId};
+use crate::{app::App, render::TransformStyle, units::*, widget_info::*, window::WindowId};
 
 use super::*;
 
@@ -25,6 +25,7 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                 Some(rect.origin.to_vector().into()),
                 Some(WidgetRenderInfo {
                     visible: true,
+                    parent_3d_info: (TransformStyle::Flat, f32::INFINITY, None),
                     seg_id: 0,
                     back: 0,
                     front: 0,
@@ -112,6 +113,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             None,
             Some(WidgetRenderInfo {
                 visible: true,
+                parent_3d_info: (TransformStyle::Flat, f32::INFINITY, None),
                 seg_id: 0,
                 back: 0,
                 front: 0,
