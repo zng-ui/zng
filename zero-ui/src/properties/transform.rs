@@ -34,7 +34,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
             if transform != render_transform {
                 render_transform = transform;
-                WIDGET.render_update();
+                WIDGET.render(); // !!:
             }
 
             *final_size = size;

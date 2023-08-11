@@ -45,16 +45,18 @@ fn app_main() {
                             transformed_3d("Rotate Y:45º (.5, .5)", rotate_y(45.deg()), Point::center()),
                             transformed_3d("Rotate Y:45º (0., 0.)", rotate_y(45.deg()), Point::top_left()),
                             transformed_3d("Rotate Y:45º (1., 1.)", rotate_y(45.deg()), Point::bottom_right()),
-
-                            // transformed_3d("Translate-Z 30", translate_z(30)),
-                        ];
-                    },
+                            transformed_3d("Rotate Y:145º (.5, .5)", rotate_y(145.deg()), Point::center()),
+                            transformed_3d("Translate Z 50", translate_z(50), Point::center()),
+                            ];
+                        },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
+                        children_align = Align::TOP_LEFT;
                         spacing = 40;
                         children = ui_vec![
                             transform_stack(),
                             transform_order(),
+                            cube(),
                         ]
                     }
                 ]
@@ -93,7 +95,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
             }
         };
 
-        perspective = 200;
+        perspective = 400;
         perspective_origin = origin;
         transform_style = TransformStyle::Preserve3D;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
@@ -156,7 +158,7 @@ fn transform_order() -> impl UiNode {
     z_stack(ui_vec![
         Wgt! {
             // single property
-            transform = rotate(10.deg()).translate(50, 30);
+            transform = rotate(10.deg()).translate(-5, -5);
 
             size = (60, 60);
             background_color = colors::BLUE.lighten(50.pct());
@@ -168,7 +170,7 @@ fn transform_order() -> impl UiNode {
         Wgt! {
             // two properties
             rotate = 10.deg();
-            translate = 50, 30;
+            translate = -5, -5;
 
             size = (60, 60);
             background_color = colors::GREEN;
@@ -178,4 +180,69 @@ fn transform_order() -> impl UiNode {
             }
         },
     ])
+}
+
+#[allow(clippy::precedence)]
+fn cube() -> impl UiNode {
+    let show = var(1u8);
+    Stack! {
+        direction = StackDirection::top_to_bottom();
+        spacing = 5;
+        children = ui_vec![
+            Container! {
+                id = "scene";
+                size = 200;
+                perspective = 400;
+                
+                child = Stack! {
+                    id = "cube";
+                    transform_style = TransformStyle::Preserve3D;
+                    perspective = 400;
+                    
+                    children = (1..=6u8).map(|i| Text! {
+                        txt = i.to_text();
+                        // size = 200;
+                        font_size = 62;
+                        font_weight = FontWeight::BOLD;
+                        txt_align = Align::CENTER;
+                        background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
+                        border = 2, text::FONT_COLOR_VAR.map_into();
+                        
+                        transform_style = TransformStyle::Preserve3D;
+                        transform = translate_z(100).then(match i {
+                            1 => rotate_y(0.deg()),
+                            2 => rotate_y(90.deg()),
+                            3 => rotate_y(180.deg()),
+                            4 => rotate_y(-90.deg()),
+                            5 => rotate_x(90.deg()),
+                            6 => rotate_x(-90.deg()),
+                            _ => unreachable!()
+                        });
+                    }.boxed())
+                    .collect::<UiNodeVec>();
+
+                    #[easing(1.secs())]
+                    transform = show.map(|&i| match i {
+                        1 => rotate_y(0.deg()),
+                        2 => rotate_y(-90.deg()),
+                        3 => rotate_y(-180.deg()),
+                        4 => rotate_y(90.deg()),
+                        5 => rotate_x(-90.deg()),
+                        6 => rotate_x(90.deg()),
+                        _ => unreachable!(),
+                    }.translate_z(-100))
+                }
+            },
+            Wrap! {
+                align = Align::CENTER;
+                toggle::selector = toggle::Selector::single(show.clone());
+                spacing = 5;
+                children = (1..=6u8).map(|i| Toggle! {
+                    style_fn = toggle::RadioStyle!();
+                    value::<u8> = i;
+                    child = Text!(i.to_text());
+                }).collect::<UiNodeVec>();
+            }
+        ];
+    }
 }
