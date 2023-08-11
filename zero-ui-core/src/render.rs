@@ -582,7 +582,7 @@ impl FrameBuilder {
                 blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
                 outer_offset: child_offset,
-                inner_is_set: false,
+                inner_is_set: frame.parent_perspective.is_finite(),
                 inner_transform: PxTransform::identity(),
                 inner_transform_style: frame.parent_transform_style,
                 inner_perspective: frame.parent_perspective,
