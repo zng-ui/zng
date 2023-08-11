@@ -1447,7 +1447,7 @@ impl PxTransform {
 
     /// New 2D rotation.
     pub fn rotation(x: f32, y: f32, theta: euclid::Angle<f32>) -> Self {
-        Self::rotation_3d(x, y, -1.0, theta)
+        Self::rotation_3d(x, y, 1.0, theta)
     }
 
     /// New 3D rotation.

@@ -1005,9 +1005,9 @@ impl FrameBuilder {
             let tree = WINDOW.info();
 
             let inner_offset = bounds.inner_offset();
-            let inner_transform = data.inner_transform.then_translate((data.outer_offset + inner_offset).cast());
+            let mut inner_transform = data.inner_transform;
 
-            let perspective = if data.inner_perspective.is_finite() {
+            if data.inner_perspective.is_finite() {
                 let (x, y) = if let Some(p) = data.inner_perspective_origin {
                     // TODO add offset to parent inner
                     (p.x.0 as f32, p.y.0 as f32)
@@ -1021,15 +1021,16 @@ impl FrameBuilder {
                     let y = s.height.0 as f32 / 2.0;
                     (x, y)
                 };
-                PxTransform::translation(-x, -y)
+                let perspective = PxTransform::translation(-x, -y)
                     .then(&PxTransform::perspective(data.inner_perspective))
-                    .then_translate(euclid::vec2(x, y))
-            } else {
-                PxTransform::identity()
-            };
+                    .then_translate(euclid::vec2(x, y));
 
-            self.transform = perspective.then(&inner_transform).then(&parent_transform);
-            // self.transform = inner_transform.then(&parent_transform);
+                inner_transform = inner_transform.then(&perspective);
+            }
+
+            inner_transform = inner_transform.then_translate((data.outer_offset + inner_offset).cast());
+
+            self.transform = inner_transform.then(&parent_transform);
             bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));

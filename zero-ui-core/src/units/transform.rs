@@ -86,7 +86,7 @@ impl Transform {
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
     pub fn rotate_x<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(-1.0, 0.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(1.0, 0.0, 0.0, angle.into().layout()));
         self
     }
 
@@ -94,7 +94,7 @@ impl Transform {
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
     pub fn rotate_y<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(0.0, -1.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(0.0, 1.0, 0.0, angle.into().layout()));
         self
     }
 
@@ -102,7 +102,7 @@ impl Transform {
     ///
     /// [`rotate`]: Self::rotate
     pub fn rotate_z<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(0.0, 0.0, -1.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(0.0, 0.0, 1.0, angle.into().layout()));
         self
     }
 
