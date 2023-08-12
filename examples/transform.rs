@@ -197,7 +197,6 @@ fn cube() -> impl UiNode {
                 child = Stack! {
                     id = "cube";
                     transform_style = TransformStyle::Preserve3D;
-                    perspective = 400;
 
                     children = (1..=6u8).map(|i| Text! {
                         txt = i.to_text();
@@ -208,7 +207,6 @@ fn cube() -> impl UiNode {
                         background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
                         border = 2, text::FONT_COLOR_VAR.map_into();
 
-                        transform_style = TransformStyle::Preserve3D;
                         transform = translate_z(100).then(match i {
                             1 => rotate_y(0.deg()),
                             2 => rotate_y(90.deg()),
