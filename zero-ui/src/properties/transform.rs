@@ -243,29 +243,15 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 #[property(LAYOUT-20, default(Length::Default))]
 pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl UiNode {
     let distance = distance.into_var();
-    let mut distance_render = Px::MAX;
 
-    match_node(child, move |c, op| match op {
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&distance);
         }
-        UiNodeOp::Layout { .. } => {
+        UiNodeOp::Layout { wl, .. } => {
             let d = distance.layout_dft_z(Px::MAX);
             let d = LAYOUT.z_constraints().clamp(d).max(Px(1));
-            if d != distance_render {
-                distance_render = d;
-                WIDGET.render_update();
-            }
-        }
-        UiNodeOp::Render { frame } => {
-            if distance_render < Px::MAX {
-                frame.push_child_perspective(distance_render.0 as f32, |frame| c.render(frame));
-            }
-        }
-        UiNodeOp::RenderUpdate { update } => {
-            if distance_render < Px::MAX {
-                // TODO
-            }
+            wl.set_perspective(d.0 as f32);
         }
         _ => {}
     })
@@ -279,7 +265,6 @@ pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl U
 #[property(LAYOUT-20, default(Point::default()))]
 pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     let origin = origin.into_var();
-    let mut origin_render = PxPoint::zero();
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -289,19 +274,9 @@ pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> im
             let size = c.layout(wl);
             let default_origin = PxPoint::new(size.width / 2.0, size.height / 2.0);
             let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || origin.layout_dft(default_origin));
-
-            if origin != origin_render {
-                origin_render = origin;
-                WIDGET.render_update();
-            }
+            wl.set_perspective_origin(origin);
 
             *final_size = size;
-        }
-        UiNodeOp::Render { frame } => {
-            frame.push_child_perspective_origin(origin_render, |frame| c.render(frame));
-        }
-        UiNodeOp::RenderUpdate { update } => {
-            // TODO
         }
         _ => {}
     })
@@ -316,12 +291,12 @@ pub fn perspective_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> im
 #[property(CONTEXT, default(TransformStyle::Flat))]
 pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) -> impl UiNode {
     let style = style.into_var();
-    match_node(child, move |c, op| match op {
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_render(&style);
+            WIDGET.sub_var_layout(&style);
         }
-        UiNodeOp::Render { frame } => {
-            frame.push_inner_transform_style(style.get(), |frame| c.render(frame));
+        UiNodeOp::Layout { wl, .. } => {
+            wl.set_transform_style(style.get());
         }
         _ => {}
     })

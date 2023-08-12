@@ -195,9 +195,6 @@ struct WidgetData {
     outer_offset: PxVector,
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
-    inner_transform_style: TransformStyle,
-    inner_perspective: f32,
-    inner_perspective_origin: Option<PxPoint>,
     filter: RenderFilter,
     blend: RenderMixBlendMode,
     backdrop_filter: RenderFilter,
@@ -226,11 +223,10 @@ pub struct FrameBuilder {
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
+    perspective: PxTransform,
+
     auto_hide_rect: PxRect,
     widget_data: Option<WidgetData>,
-    parent_transform_style: TransformStyle,
-    parent_perspective: f32,                    // only set if finite
-    parent_perspective_origin: Option<PxPoint>, // None is center
     child_offset: PxVector,
     parent_inner_bounds: Option<PxRect>,
 
@@ -303,15 +299,10 @@ impl FrameBuilder {
                 outer_offset: PxVector::zero(),
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
-                inner_transform_style: TransformStyle::Flat,
-                inner_perspective: f32::INFINITY,
-                inner_perspective_origin: None,
             }),
-            parent_transform_style: TransformStyle::Flat,
-            parent_perspective: f32::INFINITY,
-            parent_perspective_origin: None,
             child_offset: PxVector::zero(),
             parent_inner_bounds: None,
+            perspective: PxTransform::identity(),
             can_reuse: true,
             open_reuse: None,
             auto_hide_rect,
@@ -477,7 +468,8 @@ impl FrameBuilder {
     /// [`can_reuse`]: Self::can_reuse
     /// [`WidgetLayout::collapse`]: crate::widget_info::WidgetLayout::collapse
     pub fn push_widget(&mut self, render: impl FnOnce(&mut Self)) {
-        let id = WIDGET.id();
+        let wgt_info = WIDGET.info();
+        let id = wgt_info.id();
 
         if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
@@ -487,13 +479,13 @@ impl FrameBuilder {
             );
         }
 
-        let bounds = WIDGET.bounds();
-        let tree = WINDOW.info();
+        let bounds = wgt_info.bounds_info();
+        let tree = wgt_info.tree();
 
         if bounds.is_collapsed() {
             // collapse
-            for info in tree.get(id).unwrap().self_and_descendants() {
-                info.bounds_info().set_rendered(None, &tree);
+            for info in wgt_info.self_and_descendants() {
+                info.bounds_info().set_rendered(None, tree);
             }
             let _ = WIDGET.take_update(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
             return;
@@ -506,7 +498,7 @@ impl FrameBuilder {
         if prev_outer != outer_transform {
             try_reuse = false;
         }
-        bounds.set_outer_transform(outer_transform, &tree);
+        bounds.set_outer_transform(outer_transform, tree);
         let outer_bounds = bounds.outer_bounds();
 
         let parent_visible = self.visible;
@@ -530,11 +522,11 @@ impl FrameBuilder {
             bounds.set_is_partially_culled(false);
         }
 
+        let parent_perspective = self.perspective;
+        self.perspective = wgt_info.perspective();
+
         let can_reuse = match bounds.render_info() {
-            Some(i) => {
-                i.visible == self.visible
-                    && i.parent_3d_info == (self.parent_transform_style, self.parent_perspective, self.parent_perspective_origin)
-            }
+            Some(i) => i.visible == self.visible && i.parent_perspective == self.perspective,
             // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
             None => false,
         };
@@ -582,23 +574,14 @@ impl FrameBuilder {
                 blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
                 outer_offset: child_offset,
-                inner_is_set: frame.parent_perspective.is_finite(),
+                inner_is_set: !frame.perspective.is_identity(),
                 inner_transform: PxTransform::identity(),
-                inner_transform_style: frame.parent_transform_style,
-                inner_perspective: frame.parent_perspective,
-                inner_perspective_origin: frame.parent_perspective_origin,
             });
             let parent_widget = mem::replace(&mut frame.widget_id, id);
-            let parent_style = mem::take(&mut frame.parent_transform_style);
-            let parent_perspective = mem::replace(&mut frame.parent_perspective, f32::INFINITY);
-            let parent_prespective_origin = mem::take(&mut frame.parent_perspective_origin);
 
             render(frame);
 
             frame.widget_id = parent_widget;
-            frame.parent_transform_style = parent_style;
-            frame.parent_perspective = parent_perspective;
-            frame.parent_perspective_origin = parent_prespective_origin;
             frame.widget_data = None;
         });
 
@@ -634,11 +617,11 @@ impl FrameBuilder {
 
                     if b != bounds {
                         // only patch outer of descendants
-                        b.set_outer_transform(b.outer_transform().then(&transform_patch), &tree);
+                        b.set_outer_transform(b.outer_transform().then(&transform_patch), tree);
                     }
                     b.set_inner_transform(
                         b.inner_transform().then(&transform_patch),
-                        &tree,
+                        tree,
                         info.id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
@@ -651,12 +634,12 @@ impl FrameBuilder {
                         b.set_rendered(
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
-                                parent_3d_info: i.parent_3d_info,
+                                parent_perspective: i.parent_perspective,
                                 seg_id,
                                 back: back.try_into().unwrap(),
                                 front: front.try_into().unwrap(),
                             }),
-                            &tree,
+                            tree,
                         );
                     }
                 };
@@ -686,12 +669,12 @@ impl FrameBuilder {
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
-                                parent_3d_info: i.parent_3d_info,
+                                parent_perspective: i.parent_perspective,
                                 seg_id,
                                 back: back as _,
                                 front: front as _,
                             }),
-                            &tree,
+                            tree,
                         );
                     }
                 };
@@ -711,16 +694,17 @@ impl FrameBuilder {
             bounds.set_rendered(
                 Some(WidgetRenderInfo {
                     visible: self.display_list.len() > display_count,
-                    parent_3d_info: (self.parent_transform_style, self.parent_perspective, self.parent_perspective_origin),
+                    parent_perspective: self.perspective,
                     seg_id: self.widget_count_offsets.id(),
                     back: widget_z,
                     front: self.widget_count,
                 }),
-                &tree,
+                tree,
             );
         }
 
         self.visible = parent_visible;
+        self.perspective = parent_perspective;
         self.can_reuse = parent_can_reuse;
     }
 
@@ -928,62 +912,6 @@ impl FrameBuilder {
         }
     }
 
-    /// Include the perspective distance `d` on the widget's children inner reference frame if it is 3D.
-    ///
-    /// When [`push_inner`] is called on the children a reference frame is created for the widget that applies the layout transform then
-    /// the perspective transform, then the `transform`.
-    ///
-    /// [`is_outer`]: Self::is_outer
-    /// [`push_inner`]: Self::push_inner
-    pub fn push_child_perspective(&mut self, d: f32, render: impl FnOnce(&mut Self)) {
-        let grand_parent_prespective = mem::replace(&mut self.parent_perspective, d);
-
-        render(self);
-
-        self.parent_perspective = grand_parent_prespective;
-    }
-
-    /// Include the perspective `origin` on the widget's children inner reference frame if it is 3D.
-    ///
-    /// When [`push_inner`] is called on the children a reference frame is created for the widget that applies the layout transform then
-    /// the perspective transform, then the `transform`.
-    ///
-    /// [`is_outer`]: Self::is_outer
-    /// [`push_inner`]: Self::push_inner
-    pub fn push_child_perspective_origin(&mut self, origin: PxPoint, render: impl FnOnce(&mut Self)) {
-        let grand_parent_perspective_origin = self.parent_perspective_origin.replace(origin);
-
-        render(self);
-
-        self.parent_perspective_origin = grand_parent_perspective_origin;
-    }
-
-    /// Sets the widget and children transform style.
-    ///
-    /// This is valid only when [`is_outer`].
-    ///
-    /// When [`push_inner`] is called a reference frame is created for the widget that applies the layout transform then the `transform`
-    /// using this `style`. The style propagates to all children widgets too, but not to grand-children or other descendants.
-    ///
-    /// [`is_outer`]: Self::is_outer
-    /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_transform_style(&mut self, style: TransformStyle, render: impl FnOnce(&mut Self)) {
-        if let Some(data) = &mut self.widget_data {
-            let parent_style = mem::replace(&mut data.inner_transform_style, style);
-            let grand_parent_style = mem::replace(&mut self.parent_transform_style, style);
-
-            render(self);
-
-            if let Some(data) = &mut self.widget_data {
-                data.inner_transform_style = parent_style;
-            }
-            self.parent_transform_style = grand_parent_style;
-        } else {
-            tracing::error!("called `push_inner_transform_style` inside inner context of `{}`", self.widget_id);
-            render(self);
-        }
-    }
-
     /// Push the widget reference frame and stacking context then call `render` inside of it.
     ///
     /// If `layout_translation_animating` is `false` the view-process can still be updated using [`FrameUpdate::update_inner`], but
@@ -1000,43 +928,24 @@ impl FrameBuilder {
             let parent_transform = self.transform;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
-            let id = WIDGET.id();
-            let bounds = WIDGET.bounds();
-            let tree = WINDOW.info();
+            let wgt_info = WIDGET.info();
+            let id = wgt_info.id();
+            let bounds = wgt_info.bounds_info();
+            let tree = wgt_info.tree();
 
             let inner_offset = bounds.inner_offset();
-            let mut inner_transform = data.inner_transform;
-
-            if data.inner_perspective.is_finite() {
-                let (x, y) = if let Some(p) = data.inner_perspective_origin {
-                    // TODO add offset to parent inner
-                    (p.x.0 as f32, p.y.0 as f32)
-                } else {
-                    let s = WIDGET
-                        .info()
-                        .parent()
-                        .map(|p| p.bounds_info().inner_size())
-                        .unwrap_or_else(|| bounds.inner_size());
-                    let x = s.width.0 as f32 / 2.0;
-                    let y = s.height.0 as f32 / 2.0;
-                    (x, y)
-                };
-                let perspective = PxTransform::translation(-x, -y)
-                    .then(&PxTransform::perspective(data.inner_perspective))
-                    .then_translate(euclid::vec2(x, y));
-
-                inner_transform = inner_transform.then(&perspective);
-            }
-
-            inner_transform = inner_transform.then_translate((data.outer_offset + inner_offset).cast());
+            let inner_transform = data
+                .inner_transform
+                .then(&self.perspective)
+                .then_translate((data.outer_offset + inner_offset).cast());
 
             self.transform = inner_transform.then(&parent_transform);
-            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
+            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             if self.visible {
-                let transform_style = data.inner_transform_style;
+                let transform_style = wgt_info.transform_style();
                 match transform_style {
                     TransformStyle::Flat => {
                         self.display_list.push_reference_frame(
@@ -1189,7 +1098,7 @@ impl FrameBuilder {
     /// allowing for webrender optimizations.
     ///
     /// If `transform_style` is [`Preserve3D`] a new stacking context is created, note that to preserve 3D both the parent reference frame
-    /// and the 3D children ref. frame must have the `Preserve3d` style, unlike [`push_inner_transform_style`] this does not automatically
+    /// and the 3D children ref. frame must have the `Preserve3d` style, unlike the widget transform-style this does not automatically
     /// propagates the style to children.
     ///
     /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
@@ -1200,7 +1109,6 @@ impl FrameBuilder {
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     /// [`auto_hit_test`]: Self::auto_hit_test
     /// [`Preserve3D`]: TransformStyle::Preserve3D
-    /// [`push_inner_transform_style`]: Self::push_inner_transform_style
     pub fn push_reference_frame(
         &mut self,
         key: SpatialFrameKey,
@@ -1869,11 +1777,9 @@ impl FrameBuilder {
             hit_clips: self.hit_clips.parallel_split(),
             auto_hide_rect: self.auto_hide_rect,
             widget_data: None,
-            parent_transform_style: self.parent_transform_style,
-            parent_perspective: self.parent_perspective,
-            parent_perspective_origin: self.parent_perspective_origin,
             child_offset: self.child_offset,
             parent_inner_bounds: self.parent_inner_bounds,
+            perspective: self.perspective,
             can_reuse: self.can_reuse,
             open_reuse: None,
             clear_color: None,
@@ -1901,7 +1807,7 @@ impl FrameBuilder {
         info_tree.root().bounds_info().set_rendered(
             Some(WidgetRenderInfo {
                 visible: self.visible,
-                parent_3d_info: (TransformStyle::Flat, f32::MAX, None),
+                parent_perspective: self.perspective,
                 seg_id: 0,
                 back: 0,
                 front: self.widget_count,

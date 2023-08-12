@@ -312,6 +312,10 @@ struct WidgetBoundsData {
     baseline: Px,
     inner_offset_baseline: bool,
 
+    transform_style: TransformStyle,
+    perspective: f32,
+    perspective_origin: Option<PxPoint>,
+
     measure_metrics: Option<LayoutMetricsSnapshot>,
     measure_metrics_used: LayoutMask,
     metrics: Option<LayoutMetricsSnapshot>,
@@ -339,7 +343,7 @@ pub(crate) struct WidgetRenderInfo {
     // Visible/hidden.
     pub visible: bool,
 
-    pub parent_3d_info: (TransformStyle, f32, Option<PxPoint>),
+    pub parent_perspective: PxTransform,
 
     // raw z-index in widget_count units.
     pub seg_id: ParallelSegmentId,
@@ -649,6 +653,23 @@ impl WidgetBoundsInfo {
         self.0.lock().is_collapsed
     }
 
+    /// Gets if the widget sets preserves 3D perspective.
+    pub fn transform_style(&self) -> TransformStyle {
+        self.0.lock().transform_style
+    }
+
+    /// Gets the widget perspective and perspective origin (in the inner bounds).
+    pub fn perspective(&self) -> Option<(f32, PxPoint)> {
+        let p = self.0.lock();
+        if p.perspective.is_finite() {
+            let s = p.inner_size;
+            let o = p.perspective_origin.unwrap_or_else(|| PxPoint::new(s.width / 2.0, s.height / 2.0));
+            Some((p.perspective, o))
+        } else {
+            None
+        }
+    }
+
     /// Snapshot of the [`LayoutMetrics`] on the last layout.
     ///
     /// The [`metrics_used`] value indicates what fields where actually used in the last layout.
@@ -751,6 +772,26 @@ impl WidgetBoundsInfo {
 
     fn set_inner_offset_baseline(&self, enabled: bool) {
         self.0.lock().inner_offset_baseline = enabled;
+    }
+
+    fn set_transform_style(&self, style: TransformStyle) {
+        self.0.lock().transform_style = style;
+    }
+
+    fn raw_perspective(&self) -> f32 {
+        self.0.lock().perspective
+    }
+
+    fn raw_perspective_origin(&self) -> Option<PxPoint> {
+        self.0.lock().perspective_origin
+    }
+
+    fn set_perspective(&self, d: f32) {
+        self.0.lock().perspective = d;
+    }
+
+    fn set_perspective_origin(&self, o: Option<PxPoint>) {
+        self.0.lock().perspective_origin = o;
     }
 
     fn set_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
@@ -1181,6 +1222,61 @@ impl WidgetInfo {
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
     pub fn border_info(&self) -> WidgetBorderInfo {
         self.info().border_info.clone()
+    }
+
+    /// Gets the ancestor that is the last to set
+    pub fn preserve_3d_root(&self) -> Option<WidgetInfo> {
+        let mut c = None;
+        for a in self.ancestors() {
+            if let TransformStyle::Preserve3D = a.bounds_info().transform_style() {
+                c = Some(a);
+            } else {
+                break;
+            }
+        }
+        c
+    }
+
+    /// Gets the 3D perspective transform for this widget with offsets.
+    ///
+    /// The perspective is defined by the parent widget, or by an ancestor that is `Preserve3D` or by the
+    /// parent of the [`preserve_3d_root`].
+    ///
+    /// Returns identity if the widget is not inside any 3D space.
+    ///
+    /// [`preserve_3d_root`]: Self::preserve_3d_root
+    pub fn perspective(&self) -> PxTransform {
+        for p in self.ancestors() {
+            let info = p.bounds_info();
+            if let Some((d, origin)) = info.perspective() {
+                // !!: TODO transform origin to self bounds.
+                let x = origin.x.0 as f32;
+                let y = origin.y.0 as f32;
+
+                return PxTransform::translation(-x, -y)
+                    .then(&PxTransform::perspective(d))
+                    .then_translate(euclid::vec2(x, y));
+            } else if let TransformStyle::Flat = info.transform_style() {
+                break;
+            }
+            // else extend 3D
+        }
+        PxTransform::identity()
+    }
+
+    /// Gets the transform style for this widget.
+    ///
+    /// Is `Flat` unless it or the parent widget sets `Preserve3D`.
+    pub fn transform_style(&self) -> TransformStyle {
+        if let TransformStyle::Flat = self.bounds_info().transform_style() {
+            if let Some(p) = self.parent() {
+                p.bounds_info().transform_style()
+            } else {
+                TransformStyle::Flat
+            }
+        } else {
+            TransformStyle::Preserve3D
+        }
     }
 
     /// Size of the widget outer area, not transformed.

@@ -965,11 +965,17 @@ impl WidgetLayout {
         let prev_baseline = self.bounds.baseline();
         let prev_inner_offset_baseline = self.bounds.inner_offset_baseline();
         let prev_can_auto_hide = self.bounds.can_auto_hide();
+        let prev_transform_style = self.bounds.transform_style();
+        let prev_perspective = self.bounds.raw_perspective();
+        let prev_perspective_origin = self.bounds.raw_perspective_origin();
         self.bounds.set_inner_offset(PxVector::zero());
         self.bounds.set_child_offset(PxVector::zero());
         self.bounds.set_baseline(Px(0));
         self.bounds.set_inner_offset_baseline(false);
         self.bounds.set_can_auto_hide(true);
+        self.bounds.set_transform_style(TransformStyle::Flat);
+        self.bounds.set_perspective(f32::INFINITY);
+        self.bounds.set_perspective_origin(None);
 
         // layout
         let (uses, size) = LAYOUT.capture_metrics_use(|| layout(self));
@@ -983,11 +989,13 @@ impl WidgetLayout {
         }
         self.bounds.set_inline(self.inline.take());
 
-        if prev_can_auto_hide != self.bounds.can_auto_hide() {
+        if prev_can_auto_hide != self.bounds.can_auto_hide() || prev_transform_style != self.bounds.transform_style() {
             WIDGET.render();
         } else if prev_inner_offset != self.bounds.inner_offset()
             || prev_child_offset != self.bounds.child_offset()
             || prev_inner_offset_baseline != self.bounds.inner_offset_baseline()
+            || prev_perspective != self.bounds.raw_perspective()
+            || prev_perspective_origin != self.bounds.raw_perspective_origin()
             || (self.bounds.inner_offset_baseline() && prev_baseline != self.bounds.baseline())
         {
             WIDGET.render_update();
@@ -1126,6 +1134,23 @@ impl WidgetLayout {
     /// Set if the baseline is added to the inner offset  *y* axis.
     pub fn translate_baseline(&mut self, enabled: bool) {
         self.bounds.set_inner_offset_baseline(enabled);
+    }
+
+    /// Set if the widget preserved 3D perspective form the parent.
+    pub fn set_transform_style(&mut self, style: TransformStyle) {
+        self.bounds.set_transform_style(style);
+    }
+
+    /// Set the 3D perspective that defines the children 3D space.
+    ///
+    /// This is the distance from the Z-plane to the viewer.
+    pub fn set_perspective(&mut self, d: f32) {
+        self.bounds.set_perspective(d)
+    }
+
+    /// Sets the vanishing point of the children 3D space as a point in the inner bounds of this widget.
+    pub fn set_perspective_origin(&mut self, origin: PxPoint) {
+        self.bounds.set_perspective_origin(Some(origin))
     }
 
     /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
