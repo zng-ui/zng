@@ -27,6 +27,7 @@
 * Fix the cube example.
     - Nested 3D broken?
     - See https://github.com/servo/webrender/blob/ce1baed3aa87a1f5c6d970ebce94d7f00d05340d/wrench/src/yaml_frame_reader.rs#L1856
+    - Based on https://codepen.io/desandro/pen/KRWjzm?editors=1100
 * Implement perspective render_update.
     - For now transform updates request full render (!!:).
 
