@@ -24,16 +24,15 @@
 
 # Transform 3D
 
-* Perspective (and origin) is computed on the parent.
-    - Firefox creates a stacking-context for the perspective transform on its own.
-    - There is a `paired_with_perspective` flag in the stacking-context.
-    - Fix the cube example.
+* Fix the cube example.
+    - Nested 3D broken?
 * Implement perspective render_update.
     - For now transform updates request full render (!!:).
 
 * backface_visible, sets webrender `PrimitiveFlags::IS_BACKFACE_VISIBLE`.
     - Flag can be set in any primitive, figure out why?
     - Can we just have a context push?
+    - For now is enabled for all display items.
 
 # WR Items
 

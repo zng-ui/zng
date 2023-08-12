@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
-// use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view; // !!:
 
 fn main() {
     examples_util::print_info();
@@ -193,12 +193,12 @@ fn cube() -> impl UiNode {
                 id = "scene";
                 size = 200;
                 perspective = 400;
-                
+
                 child = Stack! {
                     id = "cube";
                     transform_style = TransformStyle::Preserve3D;
                     perspective = 400;
-                    
+
                     children = (1..=6u8).map(|i| Text! {
                         txt = i.to_text();
                         // size = 200;
@@ -207,7 +207,7 @@ fn cube() -> impl UiNode {
                         txt_align = Align::CENTER;
                         background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
                         border = 2, text::FONT_COLOR_VAR.map_into();
-                        
+
                         transform_style = TransformStyle::Preserve3D;
                         transform = translate_z(100).then(match i {
                             1 => rotate_y(0.deg()),
