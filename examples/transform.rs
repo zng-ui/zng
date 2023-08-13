@@ -47,8 +47,25 @@ fn app_main() {
                             transformed_3d("Rotate Y:45º (1., 1.)", rotate_y(45.deg()), Point::bottom_right()),
                             transformed_3d("Rotate Y:145º (.5, .5)", rotate_y(145.deg()), Point::center()),
                             transformed_3d("Translate Z 50", translate_z(50), Point::center()),
-                            ];
-                        },
+                            Container! {
+                                child = Container! {
+                                    transform = rotate_y(45.deg());
+                                    child = Text!("Perspective");
+                                    background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                                    padding = 10;
+                                };
+                        
+                                transform_style = TransformStyle::Preserve3D;
+                                border = 2, (colors::GRAY, BorderStyle::Dashed);
+                                
+                                #[easing(300.ms())]
+                                perspective = 700;
+                                when *#is_hovered {
+                                    perspective = 100;
+                                }
+                            }
+                        ];
+                    },
                     Stack! {
                         direction = StackDirection::top_to_bottom();
                         children_align = Align::TOP_LEFT;

@@ -2349,7 +2349,7 @@ impl FrameUpdate {
         let wgt_info = WIDGET.info();
         let id = wgt_info.id();
 
-        if self.inner_transform.is_some() && WIDGET.parent_id().is_some() {
+        if self.inner_transform.is_some() && wgt_info.parent().is_some() {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
                 id,
@@ -2357,19 +2357,26 @@ impl FrameUpdate {
             );
         }
 
-        let bounds = WIDGET.bounds();
+        let bounds = wgt_info.bounds_info();
         if bounds.is_collapsed() {
             let _ = WIDGET.take_update(UpdateFlags::RENDER_UPDATE);
             return;
         }
 
-        let tree = WINDOW.info();
+        let tree = wgt_info.tree();
 
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
 
         let parent_can_reuse = self.can_reuse_widget;
         let parent_perspective = mem::replace(&mut self.perspective, wgt_info.perspective());
         let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
+
+        let render_info = bounds.render_info();
+        if let Some(i) = &render_info {
+            if i.parent_perspective != self.perspective {
+                self.can_reuse_widget = false;
+            }
+        }
 
         if !WIDGET.take_update(UpdateFlags::RENDER_UPDATE)
             && self.can_reuse_widget
@@ -2384,10 +2391,10 @@ impl FrameUpdate {
 
                     let update = |info: WidgetInfo| {
                         let bounds = info.bounds_info();
-                        bounds.set_outer_transform(bounds.outer_transform().then(&patch), &tree);
+                        bounds.set_outer_transform(bounds.outer_transform().then(&patch), tree);
                         bounds.set_inner_transform(
                             bounds.inner_transform().then(&patch),
-                            &tree,
+                            tree,
                             info.id(),
                             info.parent().map(|p| p.inner_bounds()),
                         );
@@ -2409,7 +2416,7 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        bounds.set_outer_transform(outer_transform, &tree);
+        bounds.set_outer_transform(outer_transform, tree);
         self.outer_offset = mem::take(&mut self.child_offset);
         self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;
@@ -2417,6 +2424,10 @@ impl FrameUpdate {
 
         render_update(self);
 
+        if let Some(mut i) = render_info {
+            i.parent_perspective = self.perspective;
+            bounds.set_rendered(Some(i), tree);
+        }
         self.outer_offset = PxVector::zero();
         self.inner_transform = None;
         self.widget_id = parent_id;

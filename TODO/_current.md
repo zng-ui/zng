@@ -24,11 +24,8 @@
 
 # Transform 3D
 
-* Implement perspective update in render_update.
-    - We are applying perspective in update.
-    - Test if changes to it cause a full render or just render_update.
-    - If just render_update it needs to be compared.
-    - Also need to update the render info for the widgets?
+* Implement same perspective affecting children with different offsets only.
+    - !!:
 * Fix visible.
     - Cube example not considered visible if 90º rotated.
 * Fix filters.
