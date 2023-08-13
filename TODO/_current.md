@@ -24,10 +24,18 @@
 
 # Transform 3D
 
-* Implement perspective render_update.
-    - For now transform updates request full render (!!:).
+* Implement perspective update in render_update.
+    - We are applying perspective in update.
+    - Test if changes to it cause a full render or just render_update.
+    - If just render_update it needs to be compared.
+    - Also need to update the render info for the widgets?
 * Fix visible.
+    - Cube example not considered visible if 90º rotated.
 * Fix filters.
+    - Webrender disables 3D if any filter is used in a stacking-context.
+    - We also can't just have a nested context just for the filters because this breaks the Preserve3D chain.
+    - This issue is documented in the CSS specs.
+    - CSS users work around this by coping effects onto the inner parts.
 
 * backface_visible, sets webrender `PrimitiveFlags::IS_BACKFACE_VISIBLE`.
     - Flag can be set in any primitive, figure out why?

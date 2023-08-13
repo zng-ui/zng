@@ -2110,6 +2110,7 @@ pub struct FrameUpdate {
     widget_id: WidgetId,
     transform: PxTransform,
     outer_offset: PxVector,
+    perspective: PxTransform,
     inner_transform: Option<PxTransform>,
     child_offset: PxVector,
     can_reuse_widget: bool,
@@ -2157,6 +2158,7 @@ impl FrameUpdate {
             current_clear_color: clear_color,
 
             transform: PxTransform::identity(),
+            perspective: PxTransform::identity(),
             outer_offset: PxVector::zero(),
             inner_transform: Some(PxTransform::identity()),
             child_offset: PxVector::zero(),
@@ -2344,7 +2346,8 @@ impl FrameUpdate {
     ///
     /// [`can_reuse_widget`]: Self::can_reuse_widget
     pub fn update_widget(&mut self, render_update: impl FnOnce(&mut Self)) {
-        let id = WIDGET.id();
+        let wgt_info = WIDGET.info();
+        let id = wgt_info.id();
 
         if self.inner_transform.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
@@ -2365,6 +2368,7 @@ impl FrameUpdate {
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
 
         let parent_can_reuse = self.can_reuse_widget;
+        let parent_perspective = mem::replace(&mut self.perspective, wgt_info.perspective());
         let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
 
         if !WIDGET.take_update(UpdateFlags::RENDER_UPDATE)
@@ -2417,6 +2421,7 @@ impl FrameUpdate {
         self.inner_transform = None;
         self.widget_id = parent_id;
         self.can_reuse_widget = parent_can_reuse;
+        self.perspective = parent_perspective;
         self.widget_bounds = parent_bounds;
     }
 
@@ -2449,7 +2454,9 @@ impl FrameUpdate {
             let tree = WINDOW.info();
 
             let inner_offset = bounds.inner_offset();
-            let inner_transform = inner_transform.then_translate((self.outer_offset + inner_offset).cast());
+            let inner_transform = inner_transform
+                .then(&self.perspective)
+                .then_translate((self.outer_offset + inner_offset).cast());
             self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;
 
@@ -2535,6 +2542,7 @@ impl FrameUpdate {
 
             widget_id: self.widget_id,
             transform: self.transform,
+            perspective: self.perspective,
             outer_offset: self.outer_offset,
             inner_transform: self.inner_transform,
             child_offset: self.child_offset,
