@@ -46,7 +46,6 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 frame.push_reference_frame(
                     binding_key.into(),
                     binding_key.bind_var_mapped(&transform, render_transform),
-                    TransformStyle::Flat,
                     false,
                     false,
                     |frame| child.render(frame),

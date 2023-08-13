@@ -382,7 +382,6 @@ impl LAYERS {
                             frame.push_reference_frame(
                                 transform_key.into(),
                                 transform_key.bind(transform, true),
-                                TransformStyle::Preserve3D,
                                 is_translate_only,
                                 false,
                                 |frame| widget.render(frame),

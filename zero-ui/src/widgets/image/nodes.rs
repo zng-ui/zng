@@ -403,23 +403,16 @@ pub fn image_presenter() -> impl UiNode {
                 if img.is_loaded() && !img_size.is_empty() && !render_clip.is_empty() {
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
-                        frame.push_reference_frame(
-                            spatial_id.into(),
-                            FrameValue::Value(transform),
-                            TransformStyle::Flat,
-                            true,
-                            false,
-                            |frame| {
-                                frame.push_image(
-                                    render_clip,
-                                    render_img_size,
-                                    render_tile_size,
-                                    render_tile_spacing,
-                                    img,
-                                    IMAGE_RENDERING_VAR.get(),
-                                )
-                            },
-                        );
+                        frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
+                            frame.push_image(
+                                render_clip,
+                                render_img_size,
+                                render_tile_size,
+                                render_tile_spacing,
+                                img,
+                                IMAGE_RENDERING_VAR.get(),
+                            )
+                        });
                     } else {
                         frame.push_image(
                             render_clip,

@@ -184,6 +184,7 @@ fn transform_order() -> impl UiNode {
 
 #[allow(clippy::precedence)]
 fn cube() -> impl UiNode {
+    // Based on https://codepen.io/desandro/pen/KRWjzm?editors=1100
     let show = var(1u8);
     Stack! {
         direction = StackDirection::top_to_bottom();

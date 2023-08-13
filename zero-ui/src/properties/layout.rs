@@ -1200,16 +1200,9 @@ pub fn child_insert(
         }
         UiNodeOp::Render { frame } => children.for_each(|i, child| {
             if i as u8 == offset_child {
-                frame.push_reference_frame(
-                    offset_key.into(),
-                    offset_key.bind(offset.into(), false),
-                    TransformStyle::Flat,
-                    true,
-                    true,
-                    |frame| {
-                        child.render(frame);
-                    },
-                );
+                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
+                    child.render(frame);
+                });
             } else {
                 child.render(frame);
             }

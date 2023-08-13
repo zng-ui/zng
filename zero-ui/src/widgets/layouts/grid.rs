@@ -275,7 +275,6 @@ pub fn node(
                 frame.push_reference_frame(
                     (offset_key, i as u32).into(),
                     FrameValue::Value(offset.into()),
-                    TransformStyle::Flat,
                     true,
                     true,
                     |frame| {
@@ -289,7 +288,6 @@ pub fn node(
                 frame.push_reference_frame(
                     (offset_key, (i + i_extra) as u32).into(),
                     FrameValue::Value(offset.into()),
-                    TransformStyle::Flat,
                     true,
                     true,
                     |frame| {
@@ -303,7 +301,6 @@ pub fn node(
                     frame.push_reference_frame(
                         (offset_key, (i + i_extra) as u32).into(),
                         FrameValue::Value(data.child_offset.into()),
-                        TransformStyle::Flat,
                         true,
                         true,
                         |frame| {

@@ -209,6 +209,7 @@ pub struct FrameBuilder {
     pipeline_id: PipelineId,
     widget_id: WidgetId,
     transform: PxTransform,
+    transform_style: TransformStyle,
 
     default_font_aa: FontRenderMode,
 
@@ -282,6 +283,7 @@ impl FrameBuilder {
             pipeline_id,
             widget_id: root_id,
             transform: PxTransform::identity(),
+            transform_style: TransformStyle::Flat,
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -930,6 +932,7 @@ impl FrameBuilder {
     ) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
+            let parent_transform_style = self.transform_style;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
             let wgt_info = WIDGET.info();
@@ -945,45 +948,28 @@ impl FrameBuilder {
 
             self.transform = inner_transform.then(&parent_transform);
 
-            if id.name() == "face-1" || id.name() == "face-3" {
-                // !!: 
-                // self.push_debug_dot(PxPoint::zero(), crate::color::colors::GREEN);
-                let br = Px((200.0 * self.scale_factor.0) as _);
-                self.push_debug_dot_overlay(PxPoint::zero(), crate::color::colors::RED);
-                self.push_debug_dot_overlay(PxPoint::new(br, Px(0)), crate::color::colors::GREEN);
-                self.push_debug_dot_overlay(PxPoint::splat(br), crate::color::colors::BLUE);
-                self.push_debug_dot_overlay(PxPoint::new(Px(0), br), crate::color::colors::YELLOW);
-            }
-
             bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             if self.visible {
-                let transform_style = wgt_info.transform_style();
-                match transform_style {
-                    TransformStyle::Flat => {
-                        self.display_list.push_reference_frame(
-                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
-                            layout_translation_key.bind(inner_transform, layout_translation_animating),
-                            !data.inner_is_set,
-                        );
-                    }
-                    TransformStyle::Preserve3D => {
-                        self.display_list.push_reference_frame_3d(
-                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
-                            layout_translation_key.bind(inner_transform, layout_translation_animating),
-                            !data.inner_is_set,
-                        );
-                    }
-                }
+                self.transform_style = wgt_info.transform_style();
+
+                self.display_list.push_reference_frame(
+                    SpatialFrameKey::from_widget(self.widget_id).to_wr(),
+                    layout_translation_key.bind(inner_transform, layout_translation_animating),
+                    self.transform_style.into(),
+                    !data.inner_is_set,
+                );
 
                 if !data.backdrop_filter.is_empty() {
                     self.display_list
                         .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
                 }
 
-                let has_stacking_ctx = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
+                let has_stacking_ctx = matches!(self.transform_style, TransformStyle::Preserve3D)
+                    || !data.filter.is_empty()
+                    || data.blend != RenderMixBlendMode::Normal;
                 if has_stacking_ctx {
                     // we want to apply filters in the top-to-bottom, left-to-right order they appear in
                     // the widget declaration, but the widget declaration expands to have the top property
@@ -993,7 +979,8 @@ impl FrameBuilder {
                     // so they get reversed again here and everything ends up in order.
                     data.filter.reverse();
 
-                    self.display_list.push_stacking_context(data.blend, &data.filter, &[], &[]);
+                    self.display_list
+                        .push_stacking_context(data.blend, self.transform_style.into(), &data.filter, &[], &[]);
                 }
 
                 render(self);
@@ -1002,19 +989,23 @@ impl FrameBuilder {
                     self.display_list.pop_stacking_context();
                 }
 
-                match transform_style {
-                    TransformStyle::Flat => self.display_list.pop_reference_frame(),
-                    TransformStyle::Preserve3D => self.display_list.pop_reference_frame_3d(),
-                }
+                self.display_list.pop_reference_frame()
             } else {
                 render(self);
             }
 
             self.transform = parent_transform;
+            self.transform_style = parent_transform_style;
             self.parent_inner_bounds = parent_parent_inner_bounds;
 
             let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
             bounds.set_hit_clips(hit_clips);
+
+            if !self.debug_dot_overlays.is_empty() && wgt_info.parent().is_none() {
+                for (offset, color) in mem::take(&mut self.debug_dot_overlays) {
+                    self.push_debug_dot(offset, color);
+                }
+            }
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
             render(self)
@@ -1112,10 +1103,6 @@ impl FrameBuilder {
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
-    /// If `transform_style` is [`Preserve3D`] a new stacking context is created, note that to preserve 3D both the parent reference frame
-    /// and the 3D children ref. frame must have the `Preserve3d` style, unlike the widget transform-style this does not automatically
-    /// propagates the style to children.
-    ///
     /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
     ///
     /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
@@ -1128,7 +1115,6 @@ impl FrameBuilder {
         &mut self,
         key: SpatialFrameKey,
         transform: FrameValue<PxTransform>,
-        transform_style: TransformStyle,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -1139,16 +1125,8 @@ impl FrameBuilder {
         self.transform = transform_value.then(&prev_transform);
 
         if self.visible {
-            match transform_style {
-                TransformStyle::Flat => {
-                    self.display_list
-                        .push_reference_frame(key.to_wr(), transform, is_2d_scale_translation);
-                }
-                TransformStyle::Preserve3D => {
-                    self.display_list
-                        .push_reference_frame_3d(key.to_wr(), transform, is_2d_scale_translation);
-                }
-            }
+            self.display_list
+                .push_reference_frame(key.to_wr(), transform, self.transform_style.into(), is_2d_scale_translation);
         }
 
         let hit_test = hit_test || self.auto_hit_test;
@@ -1160,10 +1138,7 @@ impl FrameBuilder {
         render(self);
 
         if self.visible {
-            match transform_style {
-                TransformStyle::Flat => self.display_list.pop_reference_frame(),
-                TransformStyle::Preserve3D => self.display_list.pop_reference_frame_3d(),
-            }
+            self.display_list.pop_reference_frame();
         }
         self.transform = prev_transform;
 
@@ -1183,7 +1158,8 @@ impl FrameBuilder {
         expect_inner!(self.push_filter);
 
         if self.visible {
-            self.display_list.push_stacking_context(blend, filter, &[], &[]);
+            self.display_list
+                .push_stacking_context(blend, self.transform_style.into(), filter, &[], &[]);
 
             render(self);
 
@@ -1203,8 +1179,13 @@ impl FrameBuilder {
         expect_inner!(self.push_opacity);
 
         if self.visible {
-            self.display_list
-                .push_stacking_context(RenderMixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
+            self.display_list.push_stacking_context(
+                RenderMixBlendMode::Normal,
+                self.transform_style.into(),
+                &[FilterOp::Opacity(bind)],
+                &[],
+                &[],
+            );
 
             render(self);
 
@@ -1791,6 +1772,7 @@ impl FrameBuilder {
             pipeline_id: self.pipeline_id,
             widget_id: self.widget_id,
             transform: self.transform,
+            transform_style: self.transform_style,
             default_font_aa: self.default_font_aa,
             renderer: self.renderer.clone(),
             scale_factor: self.scale_factor,
@@ -1829,11 +1811,7 @@ impl FrameBuilder {
     }
 
     /// Finalizes the build.
-    pub fn finalize(mut self, info_tree: &WidgetInfoTree) -> BuiltFrame {
-        for (offset, color) in mem::take(&mut self.debug_dot_overlays) {
-            self.push_debug_dot(offset, color);
-        }
-
+    pub fn finalize(self, info_tree: &WidgetInfoTree) -> BuiltFrame {
         info_tree.root().bounds_info().set_rendered(
             Some(WidgetRenderInfo {
                 visible: self.visible,

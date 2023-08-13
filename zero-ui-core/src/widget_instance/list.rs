@@ -2245,7 +2245,6 @@ where
                         frame.push_reference_frame(
                             (offset_key, i as u32).into(),
                             offset_key.bind_child(i as u32, offset.into(), false),
-                            crate::render::TransformStyle::Flat,
                             true,
                             true,
                             |frame| {
@@ -2272,7 +2271,6 @@ where
                     frame.push_reference_frame(
                         (offset_key, i as u32).into(),
                         offset_key.bind_child(i as u32, offset.into(), false),
-                        crate::render::TransformStyle::Flat,
                         true,
                         true,
                         |frame| {

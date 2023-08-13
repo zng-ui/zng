@@ -1246,7 +1246,7 @@ impl WidgetInfo {
     ///
     /// [`preserve_3d_root`]: Self::preserve_3d_root
     pub fn perspective(&self) -> PxTransform {
-        for p in self.ancestors() {
+        if let Some(p) = self.parent() {
             let info = p.bounds_info();
             if let Some((d, origin)) = info.perspective() {
                 // !!: TODO transform origin to self bounds.
@@ -1256,10 +1256,7 @@ impl WidgetInfo {
                 return PxTransform::translation(-x, -y)
                     .then(&PxTransform::perspective(d))
                     .then_translate(euclid::vec2(x, y));
-            } else if let TransformStyle::Flat = info.transform_style() {
-                break;
             }
-            // else extend 3D
         }
         PxTransform::identity()
     }

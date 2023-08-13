@@ -191,7 +191,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             frame.push_reference_frame(
                 binding_key.into(),
                 binding_key.bind(content_offset.into(), true),
-                TransformStyle::Flat,
                 true,
                 false,
                 |frame| {

@@ -127,14 +127,24 @@ impl DisplayListBuilder {
         }
     }
 
-    /// Start a new flat spatial context, must be paired with a call to [`pop_reference_frame`].
+    /// Start a new spatial context, must be paired with a call to [`pop_reference_frame`].
+    ///
+    /// If `transform_style` is `Preserve3D` if extends the 3D context of the parent. If the parent
+    /// is not `Preserve3D` a stacking context with `Preserve3D` must be the next display item.
     ///
     /// [`pop_reference_frame`]: Self::pop_reference_frame
-    pub fn push_reference_frame(&mut self, key: wr::SpatialTreeItemKey, transform: FrameValue<PxTransform>, is_2d_scale_translation: bool) {
+    pub fn push_reference_frame(
+        &mut self,
+        key: wr::SpatialTreeItemKey,
+        transform: FrameValue<PxTransform>,
+        transform_style: wr::TransformStyle,
+        is_2d_scale_translation: bool,
+    ) {
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
             key,
             transform,
+            transform_style,
             is_2d_scale_translation,
         });
     }
@@ -148,38 +158,13 @@ impl DisplayListBuilder {
         self.list.push(DisplayItem::PopReferenceFrame);
     }
 
-    /// Start a new preserve-3D spatial context, must be paired with a call to [`pop_reference_frame_3d`].
-    ///
-    /// [`pop_reference_frame_3d`]: Self::pop_reference_frame_3d
-    pub fn push_reference_frame_3d(
-        &mut self,
-        key: wr::SpatialTreeItemKey,
-        transform: FrameValue<PxTransform>,
-        is_2d_scale_translation: bool,
-    ) {
-        self.space_len += 1;
-        self.list.push(DisplayItem::PushReferenceFrame3D {
-            key,
-            transform,
-            is_2d_scale_translation,
-        });
-    }
-
-    /// Finish the preserve-3D spatial context started by a call to [`push_reference_frame_3d`].
-    ///
-    /// [`push_reference_frame_3d`]: Self::push_reference_frame_3d
-    pub fn pop_reference_frame_3d(&mut self) {
-        debug_assert!(self.space_len > 1);
-        self.space_len -= 1;
-        self.list.push(DisplayItem::PopReferenceFrame3D);
-    }
-
     /// Start a new filters context, must be paired with a call to [`pop_stacking_context`].
     ///
     /// [`pop_stacking_context`]: Self::pop_stacking_context
     pub fn push_stacking_context(
         &mut self,
         blend_mode: wr::MixBlendMode,
+        transform_style: wr::TransformStyle,
         filters: &[FilterOp],
         filter_datas: &[wr::FilterData],
         filter_primitives: &[wr::FilterPrimitive],
@@ -187,6 +172,7 @@ impl DisplayListBuilder {
         self.stack_ctx_len += 1;
         self.list.push(DisplayItem::PushStackingContext {
             blend_mode,
+            transform_style,
             filters: filters.to_vec().into_boxed_slice(),
             filter_datas: filter_datas.to_vec().into_boxed_slice(),
             filter_primitives: filter_primitives.to_vec().into_boxed_slice(),
@@ -1008,18 +994,13 @@ enum DisplayItem {
     PushReferenceFrame {
         key: wr::SpatialTreeItemKey,
         transform: FrameValue<PxTransform>,
+        transform_style: wr::TransformStyle,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
 
-    PushReferenceFrame3D {
-        key: wr::SpatialTreeItemKey,
-        transform: FrameValue<PxTransform>,
-        is_2d_scale_translation: bool,
-    },
-    PopReferenceFrame3D,
-
     PushStackingContext {
+        transform_style: wr::TransformStyle,
         blend_mode: wr::MixBlendMode,
         filters: Box<[FilterOp]>,
         filter_datas: Box<[wr::FilterData]>,
@@ -1144,12 +1125,13 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 key,
                 transform,
+                transform_style,
                 is_2d_scale_translation,
             } => {
                 let spatial_id = wr_list.push_reference_frame(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
-                    wr::TransformStyle::Flat,
+                    *transform_style,
                     transform.into_wr(),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,
@@ -1165,48 +1147,9 @@ impl DisplayItem {
                 sc.pop_spatial();
             }
 
-            DisplayItem::PushReferenceFrame3D {
-                key,
-                transform,
-                is_2d_scale_translation,
-            } => {
-                let spatial_id = wr_list.push_reference_frame(
-                    wr::units::LayoutPoint::zero(),
-                    sc.spatial_id(),
-                    wr::TransformStyle::Preserve3D,
-                    transform.into_wr(),
-                    wr::ReferenceFrameKind::Transform {
-                        is_2d_scale_translation: *is_2d_scale_translation,
-                        should_snap: false,
-                        paired_with_perspective: false,
-                    },
-                    *key,
-                );
-                sc.push_spatial(spatial_id);
-
-                let clip = sc.clip_chain_id(wr_list);
-                wr_list.push_stacking_context(
-                    wr::units::LayoutPoint::zero(),
-                    sc.spatial_id(),
-                    wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
-                    Some(clip),
-                    wr::TransformStyle::Preserve3D,
-                    wr::MixBlendMode::Normal,
-                    &[],
-                    &[],
-                    &[],
-                    wr::RasterSpace::Screen,
-                    wr::StackingContextFlags::empty(),
-                );
-            }
-            DisplayItem::PopReferenceFrame3D => {
-                wr_list.pop_stacking_context();
-                sc.pop_spatial();
-                wr_list.pop_reference_frame();
-            }
-
             DisplayItem::PushStackingContext {
                 blend_mode,
+                transform_style,
                 filters,
                 filter_datas,
                 filter_primitives,
@@ -1217,7 +1160,7 @@ impl DisplayItem {
                     sc.spatial_id(),
                     wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
                     Some(clip),
-                    wr::TransformStyle::Flat,
+                    *transform_style,
                     *blend_mode,
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                     filter_datas,
@@ -1560,10 +1503,6 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 transform: FrameValue::Bind { key, .. },
                 ..
-            }
-            | DisplayItem::PushReferenceFrame3D {
-                transform: FrameValue::Bind { key, .. },
-                ..
             } => {
                 bindings.insert(key.id, value);
             }
@@ -1594,15 +1533,6 @@ impl DisplayItem {
     fn update_transform(&mut self, t: &FrameValueUpdate<PxTransform>) -> bool {
         match self {
             DisplayItem::PushReferenceFrame {
-                transform:
-                    FrameValue::Bind {
-                        key,
-                        value,
-                        animating: animation,
-                    },
-                ..
-            }
-            | DisplayItem::PushReferenceFrame3D {
                 transform:
                     FrameValue::Bind {
                         key,
@@ -1653,6 +1583,10 @@ impl DisplayItem {
             _ => false,
         }
     }
+
+    // fn name(&self) -> &'static str {
+    //     serde_variant::to_variant_name(self).unwrap_or("")
+    // }
 }
 
 /// Nine-patch image source.
