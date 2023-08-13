@@ -237,6 +237,8 @@ pub struct FrameBuilder {
 
     widget_count: usize,
     widget_count_offsets: ParallelSegmentOffsets,
+
+    debug_dot_overlays: Vec<(PxPoint, RenderColor)>,
 }
 impl FrameBuilder {
     /// New builder.
@@ -311,6 +313,8 @@ impl FrameBuilder {
             widget_count_offsets: ParallelSegmentOffsets::default(),
 
             clear_color: Some(color::rgba(0, 0, 0, 0).into()),
+
+            debug_dot_overlays: vec![],
         }
     }
 
@@ -940,6 +944,17 @@ impl FrameBuilder {
                 .then_translate((data.outer_offset + inner_offset).cast());
 
             self.transform = inner_transform.then(&parent_transform);
+
+            if id.name() == "face-1" || id.name() == "face-3" {
+                // !!: 
+                // self.push_debug_dot(PxPoint::zero(), crate::color::colors::GREEN);
+                let br = Px((200.0 * self.scale_factor.0) as _);
+                self.push_debug_dot_overlay(PxPoint::zero(), crate::color::colors::RED);
+                self.push_debug_dot_overlay(PxPoint::new(br, Px(0)), crate::color::colors::GREEN);
+                self.push_debug_dot_overlay(PxPoint::splat(br), crate::color::colors::BLUE);
+                self.push_debug_dot_overlay(PxPoint::new(Px(0), br), crate::color::colors::YELLOW);
+            }
+
             bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
@@ -1671,6 +1686,15 @@ impl FrameBuilder {
         }
     }
 
+    /// Record the `offset` in the current context and [`push_debug_dot`] after render.
+    ///
+    /// [`push_debug_dot`]: self::push_debug_dot
+    pub fn push_debug_dot_overlay(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
+        if let Some(offset) = self.transform.transform_point(offset) {
+            self.debug_dot_overlays.push((offset, color.into()));
+        }
+    }
+
     /// Push a `color` dot to mark the `offset`.
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
@@ -1785,6 +1809,7 @@ impl FrameBuilder {
             clear_color: None,
             widget_count: 0,
             widget_count_offsets: self.widget_count_offsets.parallel_split(),
+            debug_dot_overlays: vec![],
         }))
     }
 
@@ -1800,10 +1825,15 @@ impl FrameBuilder {
             .parallel_fold(split.widget_count_offsets, self.widget_count);
 
         self.widget_count += split.widget_count;
+        self.debug_dot_overlays.extend(split.debug_dot_overlays);
     }
 
     /// Finalizes the build.
-    pub fn finalize(self, info_tree: &WidgetInfoTree) -> BuiltFrame {
+    pub fn finalize(mut self, info_tree: &WidgetInfoTree) -> BuiltFrame {
+        for (offset, color) in mem::take(&mut self.debug_dot_overlays) {
+            self.push_debug_dot(offset, color);
+        }
+
         info_tree.root().bounds_info().set_rendered(
             Some(WidgetRenderInfo {
                 visible: self.visible,

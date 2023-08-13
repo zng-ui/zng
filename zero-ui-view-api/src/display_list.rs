@@ -1201,8 +1201,8 @@ impl DisplayItem {
             }
             DisplayItem::PopReferenceFrame3D => {
                 wr_list.pop_stacking_context();
-                wr_list.pop_reference_frame();
                 sc.pop_spatial();
+                wr_list.pop_reference_frame();
             }
 
             DisplayItem::PushStackingContext {
