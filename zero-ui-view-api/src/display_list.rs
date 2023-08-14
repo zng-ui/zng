@@ -427,6 +427,11 @@ impl DisplayListBuilder {
         self.list.push(DisplayItem::PopExtension { extension_id })
     }
 
+    /// Sets the backface visibility of all display items after this call.
+    pub fn set_backface_visibility(&mut self, visible: bool) {
+        self.list.push(DisplayItem::SetBackfaceVisibility { visible })
+    }
+
     /// Number of display items.
     pub fn len(&self) -> usize {
         self.list.len()
@@ -1104,6 +1109,10 @@ enum DisplayItem {
     PopExtension {
         extension_id: ApiExtensionId,
     },
+
+    SetBackfaceVisibility {
+        visible: bool,
+    },
 }
 impl DisplayItem {
     fn to_webrender(
@@ -1158,7 +1167,7 @@ impl DisplayItem {
                 wr_list.push_stacking_context(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
-                    wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                    sc.primitive_flags(),
                     Some(clip),
                     *transform_style,
                     *blend_mode,
@@ -1212,6 +1221,10 @@ impl DisplayItem {
             }
             DisplayItem::PopClip => sc.pop_clip(),
 
+            DisplayItem::SetBackfaceVisibility { visible } => {
+                sc.set_backface_visibility(*visible);
+            }
+
             DisplayItem::Text {
                 clip_rect,
                 font_key,
@@ -1226,7 +1239,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     glyphs,
@@ -1244,7 +1257,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     color.into_wr(),
@@ -1263,7 +1276,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                     filter_datas,
@@ -1284,7 +1297,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     widths.to_wr(),
@@ -1330,7 +1343,7 @@ impl DisplayItem {
                         clip_rect: wr_bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     wr_bounds,
                     widths.to_wr(),
@@ -1361,7 +1374,7 @@ impl DisplayItem {
                     clip_rect: bounds,
                     clip_chain_id: clip,
                     spatial_id: sc.spatial_id(),
-                    flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                    flags: sc.primitive_flags(),
                 };
 
                 if tile_spacing.is_empty() && tile_size == image_size {
@@ -1404,7 +1417,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     *gradient,
@@ -1427,7 +1440,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     *gradient,
@@ -1450,7 +1463,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     bounds,
                     *gradient,
@@ -1472,7 +1485,7 @@ impl DisplayItem {
                         clip_rect: bounds,
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+                        flags: sc.primitive_flags(),
                     },
                     &bounds,
                     *wavy_line_thickness,
@@ -1611,11 +1624,12 @@ pub enum NinePatchSource {
     },
 }
 
-/// Tracks the current space and clip chain.
+/// Tracks the current space & clip chain, and the backface visibility primitive flag.
 pub struct SpaceAndClip {
     spatial_stack: Vec<wr::SpatialId>,
     clip_stack: Vec<wr::ClipId>,
     clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
+    prim_flags: wr::PrimitiveFlags,
 }
 impl SpaceAndClip {
     pub(crate) fn new(pipeline_id: PipelineId) -> Self {
@@ -1624,6 +1638,7 @@ impl SpaceAndClip {
             spatial_stack: vec![sid],
             clip_stack: vec![],
             clip_chain_stack: vec![],
+            prim_flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
         }
     }
 
@@ -1679,6 +1694,16 @@ impl SpaceAndClip {
         }
     }
 
+    /// Gets the primitive flags for the item.
+    pub fn primitive_flags(&self) -> wr::PrimitiveFlags {
+        self.prim_flags
+    }
+
+    /// Set the `IS_BACKFACE_VISIBLE` flag to the next items.
+    pub fn set_backface_visibility(&mut self, visible: bool) {
+        self.prim_flags.set(wr::PrimitiveFlags::IS_BACKFACE_VISIBLE, visible);
+    }
+
     pub(crate) fn clear(&mut self, pipeline_id: PipelineId) {
         #[cfg(debug_assertions)]
         {
@@ -1701,6 +1726,8 @@ impl SpaceAndClip {
         self.spatial_stack.push(wr::SpatialId::root_reference_frame(pipeline_id));
 
         self.clip_chain_stack.clear();
+
+        self.prim_flags = wr::PrimitiveFlags::IS_BACKFACE_VISIBLE;
     }
 }
 

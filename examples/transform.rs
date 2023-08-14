@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
@@ -54,14 +54,49 @@ fn app_main() {
                                     background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                                     padding = 10;
                                 };
-                        
+
                                 transform_style = TransformStyle::Preserve3D;
                                 border = 2, (colors::GRAY, BorderStyle::Dashed);
-                                
+
                                 #[easing(300.ms())]
                                 perspective = 700;
                                 when *#is_hovered {
                                     perspective = 100;
+                                }
+                            },
+                            Container! {
+                                perspective = 600;
+                                child = {
+                                    let show_front = var(true);
+                                    Container! {
+                                        tooltip = Tip!(Text!("Click to flip"));
+
+                                        transform_style = TransformStyle::Preserve3D;
+                                        #[easing(300.ms())]
+                                        rotate_y = show_front.map(|&f| if f { 0.deg() } else { 180.deg() }.into());
+                                        on_click = hn!(|_| {
+                                            show_front.set(!show_front.get());
+                                        });
+                                        size = (100, 80);
+                                        corner_radius = 5;
+                                        backface_visibility = false;
+
+                                        child = Text! {
+                                            background_color = colors::GREEN.with_alpha(70.pct());
+                                            txt_align = Align::CENTER;
+                                            font_weight = FontWeight::BOLD;
+                                            font_size = 24;
+                                            txt = "FRONT";
+                                        };
+                                        background = Text! {
+                                            rotate_y = 180.deg();
+                                            background_color = colors::BLUE.lighten(50.pct()).with_alpha(70.pct());
+                                            txt_align = Align::CENTER;
+                                            font_weight = FontWeight::BOLD;
+                                            font_size = 24;
+                                            txt = "BACK";
+                                        };
+                                    }
                                 }
                             }
                         ];

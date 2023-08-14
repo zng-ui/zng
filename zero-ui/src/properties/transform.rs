@@ -301,6 +301,28 @@ pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) 
     })
 }
 
+/// Sets if the widget is still visible when it is turned back towards the viewport due to rotations in X or Y axis in
+/// the widget or in parent widgets.
+///
+/// Widget back face is visible by default, the back face is a mirror image of the front face, if `visible` is set
+/// to `false` the widget is still layout and rendered, but it is not displayed on screen by the view-process if
+/// the final global transform of the widget turns the backface towards the viewport.
+/// 
+/// This property affects any descendant widgets too, unless they also set `backface_visibility`.
+#[property(CONTEXT, default(true))]
+pub fn backface_visibility(child: impl UiNode, visible: impl IntoVar<bool>) -> impl UiNode {
+    let visible = visible.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&visible);
+        }
+        UiNodeOp::Render { frame } => {
+            frame.with_backface_visibility(visible.get(), |frame| c.render(frame));
+        }
+        _ => {}
+    })
+}
+
 context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///

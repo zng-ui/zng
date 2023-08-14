@@ -30,11 +30,6 @@
     - This issue is documented in the CSS specs.
     - CSS users work around this by coping effects onto the inner parts.
 
-* backface_visible, sets webrender `PrimitiveFlags::IS_BACKFACE_VISIBLE`.
-    - Flag can be set in any primitive, figure out why?
-    - Can we just have a context push?
-    - For now is enabled for all display items.
-
 # WR Items
 
 * Finish items implemented by webrender.

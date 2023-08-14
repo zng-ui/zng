@@ -221,6 +221,7 @@ pub struct FrameBuilder {
 
     hit_testable: bool,
     visible: bool,
+    backface_visible: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
@@ -294,6 +295,7 @@ impl FrameBuilder {
             display_list,
             hit_testable: true,
             visible: true,
+            backface_visible: true,
             auto_hit_test: false,
             hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
@@ -793,6 +795,21 @@ impl FrameBuilder {
         let parent_visible = mem::replace(&mut self.visible, false);
         render(self);
         self.visible = parent_visible;
+    }
+
+    /// Calls `render` with back face visibility set to `visible`.
+    ///
+    /// All visual display items pushed inside `render` will have the `visible` flag.
+    pub fn with_backface_visibility(&mut self, visible: bool, render: impl FnOnce(&mut Self)) {
+        if self.backface_visible != visible {
+            let parent = self.backface_visible;
+            self.display_list.set_backface_visibility(visible);
+            render(self);
+            self.display_list.set_backface_visibility(parent);
+            self.backface_visible = parent;
+        } else {
+            render(self);
+        }
     }
 
     /// Returns `true`  if the widget stacking context is still being build.
@@ -1799,6 +1816,7 @@ impl FrameBuilder {
             display_list: self.display_list.parallel_split(),
             hit_testable: self.hit_testable,
             visible: self.visible,
+            backface_visible: self.backface_visible,
             auto_hit_test: self.auto_hit_test,
             hit_clips: self.hit_clips.parallel_split(),
             auto_hide_rect: self.auto_hide_rect,
