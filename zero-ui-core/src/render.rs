@@ -1706,7 +1706,7 @@ impl FrameBuilder {
 
     /// Record the `offset` in the current context and [`push_debug_dot`] after render.
     ///
-    /// [`push_debug_dot`]: self::push_debug_dot
+    /// [`push_debug_dot`]: Self::push_debug_dot
     pub fn push_debug_dot_overlay(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
         if let Some(offset) = self.transform.transform_point(offset) {
             self.debug_dot_overlays.push((offset, color.into()));

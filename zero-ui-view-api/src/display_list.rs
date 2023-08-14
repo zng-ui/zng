@@ -1174,7 +1174,7 @@ impl DisplayItem {
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                     filter_datas,
                     filter_primitives,
-                    wr::RasterSpace::Screen,
+                    wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
                     wr::StackingContextFlags::empty(),
                 )
             }

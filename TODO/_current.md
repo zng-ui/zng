@@ -31,13 +31,5 @@
     - CSS users work around this by coping effects onto the inner parts.
 
 # WR Items
-
-* Finish items implemented by webrender.
-    - Perspective and backface stuff.
-
     - Touch events.
         - Use `Spacedesk` to generate touch events.
-
-* Review `RasterSpace::Screen` usage.
-    - Firefox controls this (only Screen if stacking-context is not animating).
-    - https://searchfox.org/mozilla-central/source/layout/painting/nsDisplayList.cpp#6675

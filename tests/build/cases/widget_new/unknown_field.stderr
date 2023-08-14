@@ -1,4 +1,4 @@
-error[E0599]: no method named `unknown` found for struct `margin_inputs__` in the current scope
+error[E0599]: no method named `unknown` found for struct `zero_ui::properties::margin_inputs__` in the current scope
  --> cases/widget_new/unknown_field.rs:7:13
   |
 7 |             unknown: 0,
