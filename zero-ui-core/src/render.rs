@@ -510,6 +510,16 @@ impl FrameBuilder {
         let parent_visible = self.visible;
 
         if bounds.can_auto_hide() {
+            // collapse already handled, don't hide empty bounds here
+            // the bounds could be empty with visible content still,
+            // for example a Preserve3D object rotated 90º with 3D children also rotated.
+            let mut outer_bounds = outer_bounds;
+            if outer_bounds.size.width < Px(1) {
+                outer_bounds.size.width = Px(1);
+            }
+            if outer_bounds.size.height < Px(1) {
+                outer_bounds.size.height = Px(1);
+            }
             match self.auto_hide_rect.intersection(&outer_bounds) {
                 Some(cull) => {
                     let partial = cull != outer_bounds;
