@@ -24,6 +24,9 @@
 
 # Transform 3D
 
+* Implement angle animation config property.
+    - Animate 358 to 2 by going all the way around by default.
+    - Config enables the shorter path instead.
 * Fix filters.
     - Webrender disables 3D if any filter is used in a stacking-context.
     - We also can't just have a nested context just for the filters because this breaks the Preserve3D chain.
