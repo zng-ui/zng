@@ -343,7 +343,7 @@ pub(crate) struct WidgetRenderInfo {
     // Visible/hidden.
     pub visible: bool,
 
-    pub parent_perspective: PxTransform,
+    pub parent_perspective: Option<(f32, PxPoint)>,
 
     // raw z-index in widget_count units.
     pub seg_id: ParallelSegmentId,
@@ -1224,28 +1224,11 @@ impl WidgetInfo {
         self.info().border_info.clone()
     }
 
-    /// Gets the 3D perspective transform for this widget with offsets.
+    /// Gets the 3D perspective for this widget.
     ///
-    /// The perspective is defined by the parent widget, or by an ancestor that is `Preserve3D` or by the
-    /// parent of the [`preserve_3d_root`].
-    ///
-    /// Returns identity if the widget is not inside any 3D space.
-    ///
-    /// [`preserve_3d_root`]: Self::preserve_3d_root
-    pub fn perspective(&self) -> PxTransform {
-        if let Some(p) = self.parent() {
-            let info = p.bounds_info();
-            if let Some((d, origin)) = info.perspective() {
-                // !!: TODO transform origin to self bounds.
-                let x = origin.x.0 as f32;
-                let y = origin.y.0 as f32;
-
-                return PxTransform::translation(-x, -y)
-                    .then(&PxTransform::perspective(d))
-                    .then_translate(euclid::vec2(x, y));
-            }
-        }
-        PxTransform::identity()
+    /// The `f32` is a distance from the Z-plane to the viewer, the point is the vanishing center in the parent widget inner bounds.
+    pub fn perspective(&self) -> Option<(f32, PxPoint)> {
+        self.parent()?.bounds_info().perspective()
     }
 
     /// Gets the transform style for this widget.

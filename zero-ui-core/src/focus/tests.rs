@@ -25,7 +25,7 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                 Some(rect.origin.to_vector().into()),
                 Some(WidgetRenderInfo {
                     visible: true,
-                    parent_perspective: PxTransform::identity(),
+                    parent_perspective: None,
                     seg_id: 0,
                     back: 0,
                     front: 0,
@@ -113,7 +113,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             None,
             Some(WidgetRenderInfo {
                 visible: true,
-                parent_perspective: PxTransform::identity(),
+                parent_perspective: None,
                 seg_id: 0,
                 back: 0,
                 front: 0,

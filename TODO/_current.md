@@ -24,8 +24,6 @@
 
 # Transform 3D
 
-* Implement same perspective affecting children with different offsets only.
-    - !!:
 * Fix filters.
     - Webrender disables 3D if any filter is used in a stacking-context.
     - We also can't just have a nested context just for the filters because this breaks the Preserve3D chain.

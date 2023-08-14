@@ -224,7 +224,7 @@ pub struct FrameBuilder {
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
-    perspective: PxTransform,
+    perspective: Option<(f32, PxPoint)>,
 
     auto_hide_rect: PxRect,
     widget_data: Option<WidgetData>,
@@ -306,7 +306,7 @@ impl FrameBuilder {
             }),
             child_offset: PxVector::zero(),
             parent_inner_bounds: None,
-            perspective: PxTransform::identity(),
+            perspective: None,
             can_reuse: true,
             open_reuse: None,
             auto_hide_rect,
@@ -540,6 +540,9 @@ impl FrameBuilder {
 
         let parent_perspective = self.perspective;
         self.perspective = wgt_info.perspective();
+        if let Some((_, o)) = &mut self.perspective {
+            *o -= self.child_offset;
+        }
 
         let can_reuse = match bounds.render_info() {
             Some(i) => i.visible == self.visible && i.parent_perspective == self.perspective,
@@ -590,7 +593,7 @@ impl FrameBuilder {
                 blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
                 outer_offset: child_offset,
-                inner_is_set: !frame.perspective.is_identity(),
+                inner_is_set: frame.perspective.is_some(),
                 inner_transform: PxTransform::identity(),
             });
             let parent_widget = mem::replace(&mut frame.widget_id, id);
@@ -951,10 +954,17 @@ impl FrameBuilder {
             let tree = wgt_info.tree();
 
             let inner_offset = bounds.inner_offset();
-            let inner_transform = data
-                .inner_transform
-                .then(&self.perspective)
-                .then_translate((data.outer_offset + inner_offset).cast());
+            let mut inner_transform = data.inner_transform;
+            if let Some((d, mut o)) = self.perspective {
+                o -= inner_offset;
+                let x = o.x.0 as f32;
+                let y = o.y.0 as f32;
+                let p = PxTransform::translation(-x, -y)
+                    .then(&PxTransform::perspective(d))
+                    .then_translate(euclid::vec2(x, y));
+                inner_transform = inner_transform.then(&p);
+            }
+            let inner_transform = inner_transform.then_translate((data.outer_offset + inner_offset).cast());
 
             self.transform = inner_transform.then(&parent_transform);
 
@@ -2120,7 +2130,7 @@ pub struct FrameUpdate {
     widget_id: WidgetId,
     transform: PxTransform,
     outer_offset: PxVector,
-    perspective: PxTransform,
+    perspective: Option<(f32, PxPoint)>,
     inner_transform: Option<PxTransform>,
     child_offset: PxVector,
     can_reuse_widget: bool,
@@ -2168,7 +2178,7 @@ impl FrameUpdate {
             current_clear_color: clear_color,
 
             transform: PxTransform::identity(),
-            perspective: PxTransform::identity(),
+            perspective: None,
             outer_offset: PxVector::zero(),
             inner_transform: Some(PxTransform::identity()),
             child_offset: PxVector::zero(),
@@ -2381,6 +2391,10 @@ impl FrameUpdate {
         let parent_perspective = mem::replace(&mut self.perspective, wgt_info.perspective());
         let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
 
+        if let Some((_, o)) = &mut self.perspective {
+            *o -= self.child_offset;
+        }
+
         let render_info = bounds.render_info();
         if let Some(i) = &render_info {
             if i.parent_perspective != self.perspective {
@@ -2470,14 +2484,21 @@ impl FrameUpdate {
         render_update: impl FnOnce(&mut Self),
     ) {
         let id = WIDGET.id();
-        if let Some(inner_transform) = self.inner_transform.take() {
+        if let Some(mut inner_transform) = self.inner_transform.take() {
             let bounds = WIDGET.bounds();
             let tree = WINDOW.info();
 
             let inner_offset = bounds.inner_offset();
-            let inner_transform = inner_transform
-                .then(&self.perspective)
-                .then_translate((self.outer_offset + inner_offset).cast());
+            if let Some((p, mut o)) = self.perspective {
+                o -= inner_offset;
+                let x = o.x.0 as f32;
+                let y = o.y.0 as f32;
+                let p = PxTransform::translation(-x, -y)
+                    .then(&PxTransform::perspective(p))
+                    .then_translate(euclid::vec2(x, y));
+                inner_transform = inner_transform.then(&p);
+            }
+            let inner_transform = inner_transform.then_translate((self.outer_offset + inner_offset).cast());
             self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;
 
