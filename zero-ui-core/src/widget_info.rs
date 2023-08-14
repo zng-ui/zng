@@ -1224,19 +1224,6 @@ impl WidgetInfo {
         self.info().border_info.clone()
     }
 
-    /// Gets the ancestor that is the last to set
-    pub fn preserve_3d_root(&self) -> Option<WidgetInfo> {
-        let mut c = None;
-        for a in self.ancestors() {
-            if let TransformStyle::Preserve3D = a.bounds_info().transform_style() {
-                c = Some(a);
-            } else {
-                break;
-            }
-        }
-        c
-    }
-
     /// Gets the 3D perspective transform for this widget with offsets.
     ///
     /// The perspective is defined by the parent widget, or by an ancestor that is `Preserve3D` or by the
