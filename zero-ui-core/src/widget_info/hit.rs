@@ -378,7 +378,7 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
 }
 
 fn inv_transform_point(t: &PxTransform, point: PxPoint) -> Option<PxPoint> {
-    t.inverse()?.transform_point(point)
+    t.inverse()?.project_point(point)
 }
 
 #[derive(Debug, Clone, Copy)]

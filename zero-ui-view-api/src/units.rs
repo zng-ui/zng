@@ -1415,13 +1415,23 @@ impl PxCornerRadius {
 }
 
 /// A transform in device pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PxTransform {
     /// Simple offset.
     Offset(euclid::Vector2D<f32, Px>),
     /// Full transform.
     #[serde(with = "serde_px_transform3d")]
     Transform(euclid::Transform3D<f32, Px, Px>),
+}
+
+impl PartialEq for PxTransform {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Offset(l0), Self::Offset(r0)) => l0 == r0,
+            (Self::Transform(l0), Self::Transform(r0)) => l0 == r0,
+            (a, b) => a.is_identity() && b.is_identity() || a.to_transform() == b.to_transform(),
+        }
+    }
 }
 impl Default for PxTransform {
     /// Identity.
@@ -1549,11 +1559,23 @@ impl PxTransform {
     }
 
     /// Transform the pixel point.
+    ///
+    /// Note that if the transform is 3D the point will be transformed with z=0, you can
+    /// use [`project_point`] to find the 2D point in the 3D z-plane represented by the 3D
+    /// transform.
+    ///
+    /// [`project_point`]: Self::project_point
     pub fn transform_point(&self, point: PxPoint) -> Option<PxPoint> {
         self.transform_point_f32(point.cast()).map(|p| p.cast())
     }
 
     /// Transform the pixel point.
+    ///
+    /// Note that if the transform is 3D the point will be transformed with z=0, you can
+    /// use [`project_point_f32`] to find the 2D point in the 3D z-plane represented by the 3D
+    /// transform.
+    ///
+    /// [`project_point_f32`]: Self::project_point_f32
     pub fn transform_point_f32(&self, point: euclid::Point2D<f32, Px>) -> Option<euclid::Point2D<f32, Px>> {
         match self {
             PxTransform::Offset(v) => Some(point + *v),
@@ -1571,6 +1593,32 @@ impl PxTransform {
         match self {
             PxTransform::Offset(v) => vector + *v,
             PxTransform::Transform(t) => t.transform_vector2d(vector),
+        }
+    }
+
+    /// Project the 2D point onto the transform Z-plane.
+    pub fn project_point(&self, point: PxPoint) -> Option<PxPoint> {
+        self.project_point_f32(point.cast()).map(|p| p.cast())
+    }
+
+    /// Project the 2D point onto the transform Z-plane.
+    pub fn project_point_f32(&self, point: euclid::Point2D<f32, Px>) -> Option<euclid::Point2D<f32, Px>> {
+        match self {
+            PxTransform::Offset(v) => Some(point + *v),
+            PxTransform::Transform(t) => {
+                // source: https://github.com/servo/webrender/blob/master/webrender/src/util.rs#L1181
+
+                // Find a value for z that will transform to 0.
+
+                // The transformed value of z is computed as:
+                // z' = point.x * self.m13 + point.y * self.m23 + z * self.m33 + self.m43
+
+                // Solving for z when z' = 0 gives us:
+                let z = -(point.x * t.m13 + point.y * t.m23 + t.m43) / t.m33;
+
+                t.transform_point3d(euclid::point3(point.x, point.y, z))
+                    .map(|p3| euclid::point2(p3.x, p3.y))
+            }
         }
     }
 

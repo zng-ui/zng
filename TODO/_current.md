@@ -24,6 +24,10 @@
 
 # Transform 3D
 
+* Fix 3D transformed hit-test for perspective (transform example).
+    - Include backface visibility in hit-test.
+* Tested 3D hit-test in text for position of caret.
+
 * Implement angle animation config property.
     - Animate 358 to 2 by going all the way around by default.
     - Config enables the shorter path instead.

@@ -307,7 +307,7 @@ pub fn transform_style(child: impl UiNode, style: impl IntoVar<TransformStyle>) 
 /// Widget back face is visible by default, the back face is a mirror image of the front face, if `visible` is set
 /// to `false` the widget is still layout and rendered, but it is not displayed on screen by the view-process if
 /// the final global transform of the widget turns the backface towards the viewport.
-/// 
+///
 /// This property affects any descendant widgets too, unless they also set `backface_visibility`.
 #[property(CONTEXT, default(true))]
 pub fn backface_visibility(child: impl UiNode, visible: impl IntoVar<bool>) -> impl UiNode {
