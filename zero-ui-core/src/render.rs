@@ -171,7 +171,7 @@ pub enum TransformStyle {
     Flat = 0,
     /// Widget is a part of the 3D space of the parent. If it has 3D children
     /// they will be positioned relative to siblings in the same space.
-    /// 
+    ///
     /// Note that some properties require a flat image to work on, in particular all pixel filter properties including opacity.
     /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
     /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
@@ -1011,10 +1011,12 @@ impl FrameBuilder {
                         .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
                 }
 
-                let has_stacking_ctx = matches!(self.transform_style, TransformStyle::Preserve3D)
-                    || !data.filter.is_empty()
-                    || data.blend != RenderMixBlendMode::Normal;
-                if has_stacking_ctx {
+                let has_3d_ctx = matches!(self.transform_style, TransformStyle::Preserve3D);
+                let has_filters = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
+
+                let mut ctx_count = 0;
+
+                if has_filters {
                     // we want to apply filters in the top-to-bottom, left-to-right order they appear in
                     // the widget declaration, but the widget declaration expands to have the top property
                     // node be inside the bottom property node, so the bottom property ends up inserting
@@ -1023,14 +1025,43 @@ impl FrameBuilder {
                     // so they get reversed again here and everything ends up in order.
                     data.filter.reverse();
 
+                    if has_3d_ctx {
+                        // webrender ignores Preserve3D if there are filters, we work around the issue when possible here.
+
+                        // push the Preserve3D, unlike CSS we prefer this over filters.
+                        self.display_list
+                            .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                        ctx_count = 1;
+
+                        if matches!(
+                            (self.transform_style, bounds.transform_style()),
+                            (TransformStyle::Preserve3D, TransformStyle::Flat)
+                        ) {
+                            // is "flat root", push a nested stacking context with the filters.
+                            self.display_list
+                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                            ctx_count = 2;
+                        } else {
+                            // extends 3D space, cannot splice a filters stacking context because that
+                            // would disconnect the the sub-tree from the parent space.
+                            tracing::warn!("widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored");
+                        }
+                    } else {
+                        self.display_list
+                            .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                        ctx_count = 1;
+                    }
+                } else if has_3d_ctx {
                     self.display_list
-                        .push_stacking_context(data.blend, self.transform_style.into(), &data.filter, &[], &[]);
+                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                    ctx_count = 1;
                 }
 
                 render(self);
 
-                if has_stacking_ctx {
+                while ctx_count > 0 {
                     self.display_list.pop_stacking_context();
+                    ctx_count -= 1;
                 }
 
                 self.display_list.pop_reference_frame()

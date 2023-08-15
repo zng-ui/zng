@@ -26,6 +26,8 @@
 
 * Fix filters.
     - See `Preserve3D` docs.
+    - Implement filter *outside*.
+    - Test warning.
 
 * Implement angle animation config property.
     - Animate 358 to 2 by going all the way around by default.
