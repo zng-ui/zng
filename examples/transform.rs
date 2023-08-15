@@ -54,7 +54,7 @@ fn app_main() {
                                     background_color = color_scheme_map(colors::BLUE.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                                     padding = 10;
                                 };
-                                
+
                                 background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                                 transform_style = TransformStyle::Preserve3D;
                                 border = 2, (colors::GRAY, BorderStyle::Dashed);

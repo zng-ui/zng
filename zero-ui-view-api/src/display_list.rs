@@ -161,7 +161,7 @@ impl DisplayListBuilder {
     /// Start a new filters context or extend 3D space, must be paired with a call to [`pop_stacking_context`].
     ///
     /// Note that `transform_style` is coerced to `Flat` if any filter is also set.
-    /// 
+    ///
     /// [`pop_stacking_context`]: Self::pop_stacking_context
     pub fn push_stacking_context(
         &mut self,

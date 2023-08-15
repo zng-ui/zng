@@ -999,22 +999,29 @@ impl FrameBuilder {
             if self.visible {
                 self.transform_style = wgt_info.transform_style();
 
-                self.display_list.push_reference_frame(
-                    SpatialFrameKey::from_widget(self.widget_id).to_wr(),
-                    layout_translation_key.bind(inner_transform, layout_translation_animating),
-                    self.transform_style.into(),
-                    !data.inner_is_set,
-                );
-
-                if !data.backdrop_filter.is_empty() {
-                    self.display_list
-                        .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
-                }
-
                 let has_3d_ctx = matches!(self.transform_style, TransformStyle::Preserve3D);
                 let has_filters = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
 
-                let mut ctx_count = 0;
+                let mut ctx_outside_ref_frame = 0;
+                let mut ctx_inside_ref_frame = 0;
+
+                // reference frame must be just outside the stacking context, except for the
+                // pre-filter context in Preserve3D roots.
+                macro_rules! push_reference_frame {
+                    () => {
+                        self.display_list.push_reference_frame(
+                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
+                            layout_translation_key.bind(inner_transform, layout_translation_animating),
+                            self.transform_style.into(),
+                            !data.inner_is_set,
+                        );
+                        if !data.backdrop_filter.is_empty() {
+                            // backdrop filter is not an issue? !!: test this
+                            self.display_list
+                                .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
+                        }
+                    };
+                }
 
                 if has_filters {
                     // we want to apply filters in the top-to-bottom, left-to-right order they appear in
@@ -1029,42 +1036,75 @@ impl FrameBuilder {
                         // webrender ignores Preserve3D if there are filters, we work around the issue when possible here.
 
                         // push the Preserve3D, unlike CSS we prefer this over filters.
-                        self.display_list
-                            .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
-                        ctx_count = 1;
 
                         if matches!(
                             (self.transform_style, bounds.transform_style()),
                             (TransformStyle::Preserve3D, TransformStyle::Flat)
                         ) {
                             // is "flat root", push a nested stacking context with the filters.
+                            push_reference_frame!();
+                            self.display_list
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
                             self.display_list
                                 .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
-                            ctx_count = 2;
+                            ctx_inside_ref_frame = 2;
+                        } else if wgt_info
+                            .parent()
+                            .map(|p| matches!(p.bounds_info().transform_style(), TransformStyle::Flat))
+                            .unwrap_or(false)
+                        {
+                            // is "3D root", push the filters first, then the 3D root.
+
+                            self.display_list
+                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                            ctx_outside_ref_frame = 1;
+                            push_reference_frame!();
+                            self.display_list
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                            ctx_inside_ref_frame = 1;
                         } else {
                             // extends 3D space, cannot splice a filters stacking context because that
                             // would disconnect the the sub-tree from the parent space.
-                            tracing::warn!("widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored");
+                            tracing::warn!(
+                                "widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored"
+                            );
+
+                            push_reference_frame!();
+                            self.display_list
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                            ctx_inside_ref_frame = 1;
                         }
                     } else {
+                        // no 3D context, push the filters context
+                        push_reference_frame!();
                         self.display_list
                             .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
-                        ctx_count = 1;
+                        ctx_inside_ref_frame = 1;
                     }
                 } else if has_3d_ctx {
+                    // just 3D context
+                    push_reference_frame!();
                     self.display_list
                         .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
-                    ctx_count = 1;
+                    ctx_inside_ref_frame = 1;
+                } else {
+                    // just flat, no filters
+                    push_reference_frame!();
                 }
 
                 render(self);
 
-                while ctx_count > 0 {
+                while ctx_inside_ref_frame > 0 {
                     self.display_list.pop_stacking_context();
-                    ctx_count -= 1;
+                    ctx_inside_ref_frame -= 1;
                 }
 
-                self.display_list.pop_reference_frame()
+                self.display_list.pop_reference_frame();
+
+                while ctx_outside_ref_frame > 0 {
+                    self.display_list.pop_stacking_context();
+                    ctx_outside_ref_frame -= 1;
+                }
             } else {
                 render(self);
             }
