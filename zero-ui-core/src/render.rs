@@ -161,14 +161,21 @@ macro_rules! expect_inner {
     };
 }
 
-/// Defines how an widget and descendants are positioned in 3D space.
+/// Defines if a widget is part of the same 3D space as the parent.
 #[derive(Default, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
 #[repr(u8)]
 pub enum TransformStyle {
-    /// Descendants of the 3D transform are laid flat on its Z plane.
+    /// Widget is not a part of the 3D space of the parent. If it has
+    /// 3D children they will be rendered into a flat plane that is placed in the 3D space of the parent.
     #[default]
     Flat = 0,
-    /// Descendant 3D transforms are positioned in 3D space.
+    /// Widget is a part of the 3D space of the parent. If it has 3D children
+    /// they will be positioned relative to siblings in the same space.
+    /// 
+    /// Note that some properties require a flat image to work on, in particular all pixel filter properties including opacity.
+    /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
+    /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
+    /// *outside* the 3D space, when the widget is `Preserve3D` with all `Flat` children the filters are applied *inside* the 3D space.
     Preserve3D = 1,
 }
 impl std::fmt::Debug for TransformStyle {

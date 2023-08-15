@@ -24,14 +24,12 @@
 
 # Transform 3D
 
+* Fix filters.
+    - See `Preserve3D` docs.
+
 * Implement angle animation config property.
     - Animate 358 to 2 by going all the way around by default.
     - Config enables the shorter path instead.
-* Fix filters.
-    - Webrender disables 3D if any filter is used in a stacking-context.
-    - We also can't just have a nested context just for the filters because this breaks the Preserve3D chain.
-    - This issue is documented in the CSS specs.
-    - CSS users work around this by coping effects onto the inner parts.
 
 # WR Items
     - Touch events.
