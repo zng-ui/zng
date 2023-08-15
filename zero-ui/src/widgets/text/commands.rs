@@ -724,7 +724,7 @@ impl TextSelectOp {
             if let Some(pos) = info
                 .transform
                 .inverse()
-                .and_then(|t| t.transform_point(window_point.to_px(info.scale_factor.0)))
+                .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
             {
                 //if has rendered
                 let mut i = match layout.shaped_text.nearest_line(pos.y) {

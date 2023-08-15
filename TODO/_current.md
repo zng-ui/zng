@@ -24,8 +24,6 @@
 
 # Transform 3D
 
-* Tested 3D hit-test in text for position of caret.
-
 * Implement angle animation config property.
     - Animate 358 to 2 by going all the way around by default.
     - Config enables the shorter path instead.
