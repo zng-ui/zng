@@ -49,12 +49,13 @@ fn app_main() {
                             transformed_3d("Translate Z 50", translate_z(50), Point::center()),
                             Container! {
                                 child = Container! {
-                                    transform = rotate_y(45.deg());
+                                    transform = rotate_y(45.deg()).translate_z(20);
                                     child = Text!("Perspective");
-                                    background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                                    background_color = color_scheme_map(colors::BLUE.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                                     padding = 10;
                                 };
-
+                                
+                                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                                 transform_style = TransformStyle::Preserve3D;
                                 border = 2, (colors::GRAY, BorderStyle::Dashed);
 
