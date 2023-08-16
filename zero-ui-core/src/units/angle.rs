@@ -1,12 +1,57 @@
 use derive_more as dm;
 
-use super::{about_eq, euclid, EasingStep, Factor, EPSILON, EPSILON_100};
-use crate::{impl_from_and_into_var, var::animation::Transitionable};
+use super::{about_eq, euclid, EasingStep, Factor, FactorUnits, EPSILON, EPSILON_100};
+use crate::{
+    impl_from_and_into_var,
+    var::{animation::Transitionable, context_var},
+};
 
 use std::{
     f32::consts::{PI, TAU},
     fmt,
 };
+
+/// Defines how rotation animations compute the change between angles.
+///
+/// The angle units and transform use the [`ROTATE_TRANSITION_MODE_VAR`] to select the mode, in the
+/// main crate the `rotate_transition_mode` property can be used to set the mode.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum RotateTransitionMode {
+    /// Linear interpolation.
+    ///
+    /// Always animates over the full numeric range between angles. This mode is required for animations that
+    /// iterate over multiple rotation turns.
+    ///
+    /// A transition from 358º to 1º iterates over almost a full counterclockwise turn to reach the final value.
+    ///
+    /// This is the default mode.
+    #[default]
+    Lerp,
+    /// Spherical linear interpolation.
+    ///
+    /// Always animates over the shortest distance between angles by modulo wrapping. This mode is recommended
+    /// for animations that
+    ///
+    /// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
+    Slerp,
+}
+
+impl fmt::Debug for RotateTransitionMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "RotateTransitionMode::")?;
+        }
+        match self {
+            Self::Lerp => write!(f, "Lerp"),
+            Self::Slerp => write!(f, "Slerp"),
+        }
+    }
+}
+
+context_var! {
+    /// Defines the rotation animation mode for angle units and transform.
+    pub static ROTATE_TRANSITION_MODE_VAR: RotateTransitionMode = RotateTransitionMode::default();
+}
 
 /// Angle in radians.
 ///
@@ -58,10 +103,19 @@ impl AngleRadian {
     /// normalized.
     ///
     /// [`lerp`]: Self::lerp
-    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        Self(slerp(self.0, to.0, TAU, step))
+    pub fn slerp(self, to: Self, factor: Factor) -> Self {
+        Self(slerp(self.0, to.0, TAU, factor))
     }
 }
+
+// impl Transitionable for AngleRadian {
+//     fn lerp(self, to: &Self, step: EasingStep) -> Self {
+//         match ROTATE_TRANSITION_MODE_VAR.get() {
+//             RotateTransitionMode::Lerp => self.lerp(*to, step),
+//             RotateTransitionMode::Slerp => self.slerp(*to, step),
+//         }
+//     }
+// }
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON)
@@ -139,8 +193,8 @@ impl AngleGradian {
     /// normalized.
     ///
     /// [`lerp`]: Self::lerp
-    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        Self(slerp(self.0, to.0, 400.0, step))
+    pub fn slerp(self, to: Self, factor: Factor) -> Self {
+        Self(slerp(self.0, to.0, 400.0, factor))
     }
 }
 impl PartialEq for AngleGradian {
@@ -220,8 +274,8 @@ impl AngleDegree {
     /// normalized.
     ///
     /// [`lerp`]: Self::lerp
-    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        Self(slerp(self.0, to.0, 360.0, step))
+    pub fn slerp(self, to: Self, factor: Factor) -> Self {
+        Self(slerp(self.0, to.0, 360.0, factor))
     }
 }
 impl PartialEq for AngleDegree {
@@ -301,8 +355,8 @@ impl AngleTurn {
     /// normalized.
     ///
     /// [`lerp`]: Self::lerp
-    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        Self(slerp(self.0, to.0, 1.0, step))
+    pub fn slerp(self, to: Self, factor: Factor) -> Self {
+        Self(slerp(self.0, to.0, 1.0, factor))
     }
 }
 impl fmt::Debug for AngleTurn {

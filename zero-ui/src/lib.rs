@@ -145,7 +145,7 @@ pub mod prelude {
             self, rotate, rotate_x, rotate_y, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_3d,
             translate_x, translate_y, translate_z, Align, AngleUnits, ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits,
             Line, LineFromTuplesBuilder, LineHeight, Point, Px, PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
-            Transform, Vector,
+            Transform, Vector, RotateTransitionMode,
         },
         var::{
             animation::{self, easing},

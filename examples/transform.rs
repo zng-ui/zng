@@ -273,6 +273,7 @@ fn cube() -> impl UiNode {
                     }.boxed())
                     .collect::<UiNodeVec>();
 
+                    rotate_transition_mode = RotateTransitionMode::Slerp;
                     #[easing(1.secs())]
                     transform = show.map(|&i| match i {
                         1 => rotate_y(0.deg()),

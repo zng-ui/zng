@@ -25,12 +25,9 @@
 # Transform 3D
 
 * Implement angle animation config property.
-    - Animate 358 to 2 by going all the way around by default.
-    - Config enables the shorter path instead.
-    - This is called "slerp".
-        - https://en.wikipedia.org/wiki/Slerp
-    - Euclid has Rotation3D type that is a quaternion and can slerp.
-        - https://docs.rs/euclid/latest/euclid/struct.Rotation3D.html#method.slerp
+    - Implementation conflict in angle units.
+    - Because of it matches the generic default.
+    - Rust still has not implemented `default`.
 
 # WR Items
     - Touch events.
