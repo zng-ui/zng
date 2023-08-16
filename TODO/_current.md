@@ -1,5 +1,3 @@
-* ROTATE_TRANSITION_MODE_VAR does not work in any animation because they do not update in context.
-
 # TextInput
 
 * Implement selection.

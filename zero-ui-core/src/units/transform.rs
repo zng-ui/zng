@@ -2,7 +2,7 @@ use zero_ui_view_api::{units::Px, webrender_api::euclid};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{is_slerp_enabled, AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform};
+use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform};
 
 /// A transform builder type.
 ///
@@ -23,7 +23,7 @@ use super::{is_slerp_enabled, AngleRadian, AngleUnits, EasingStep, Factor, Facto
 pub struct Transform {
     parts: Vec<TransformPart>,
     needs_layout: bool,
-    lerp_to: Vec<(Self, EasingStep)>,
+    lerp_to: Vec<(Self, EasingStep, bool)>,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum TransformPart {
@@ -197,9 +197,9 @@ impl Transform {
             };
         }
 
-        for (to, step) in self.lerp_to.iter() {
+        for (to, step, slerp) in self.lerp_to.iter() {
             let to = to.layout();
-            r = r.lerp(&to, *step);
+            r = slerp_enabled(*slerp, || r.lerp(&to, *step));
         }
 
         r
@@ -295,7 +295,7 @@ impl Transitionable for Transform {
         } else {
             if self.needs_layout || to.needs_layout {
                 self.needs_layout = true;
-                self.lerp_to.push((to.clone(), step));
+                self.lerp_to.push((to.clone(), step, is_slerp_enabled()));
             } else {
                 let a = self.layout();
                 let b = to.layout();

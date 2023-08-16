@@ -20,7 +20,7 @@ use std::{
 /// mode, types that don't support this use the normal linear interpolation. All angle and transform units
 /// implement this.
 pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: super::EasingStep) -> T {
-    SLERP_ENABLED.with_context_value(true, || t.sample(step))
+    slerp_enabled(true, || t.sample(step))
 }
 
 /// Gets if slerp mode is enabled in the context.
@@ -28,6 +28,11 @@ pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: super::EasingSt
 /// See [`slerp_sampler`] for more details.
 pub fn is_slerp_enabled() -> bool {
     SLERP_ENABLED.get_clone()
+}
+
+/// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
+pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
+    SLERP_ENABLED.with_context_value(enabled, f)
 }
 
 context_local! {
