@@ -51,7 +51,7 @@ fn app_main() {
                                 child = Container! {
                                     transform = rotate_y(45.deg()).translate_z(20);
                                     child = Text!("Perspective");
-                                    background_color = color_scheme_map(colors::BLUE.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                                    background_color = color_scheme_map(colors::BLUE.with_alpha(80.pct()), hex!(#62BEFC).with_alpha(80.pct()));
                                     padding = 10;
                                 };
 

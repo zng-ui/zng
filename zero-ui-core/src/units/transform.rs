@@ -25,7 +25,7 @@ use super::{AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, 
 pub struct Transform {
     parts: Vec<TransformPart>,
     needs_layout: bool,
-    lerp_to: Option<Box<(Self, EasingStep)>>,
+    lerp_to: Vec<(Self, EasingStep)>,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum TransformPart {
@@ -199,7 +199,7 @@ impl Transform {
             };
         }
 
-        if let Some((to, step)) = self.lerp_to.as_deref() {
+        for (to, step) in self.lerp_to.iter() {
             let to = to.layout();
             r = r.lerp(&to, *step);
         }
@@ -297,7 +297,7 @@ impl Transitionable for Transform {
         } else {
             if self.needs_layout || to.needs_layout {
                 self.needs_layout = true;
-                self.lerp_to = Some(Box::new((to.clone(), step)));
+                self.lerp_to.push((to.clone(), step));
             } else {
                 let a = self.layout();
                 let b = to.layout();
@@ -310,7 +310,7 @@ impl Transitionable for Transform {
 
 impl_from_and_into_var! {
     fn from(t: PxTransform) -> Transform {
-        Transform { parts: vec![TransformPart::Computed(t)], needs_layout: false, lerp_to: None }
+        Transform { parts: vec![TransformPart::Computed(t)], needs_layout: false, lerp_to: vec![] }
     }
 }
 
