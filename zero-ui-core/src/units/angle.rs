@@ -1,7 +1,7 @@
 use derive_more as dm;
 
-use super::{about_eq, euclid, EPSILON, EPSILON_100};
-use crate::impl_from_and_into_var;
+use super::{about_eq, euclid, EasingStep, Factor, EPSILON, EPSILON_100};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use std::{
     f32::consts::{PI, TAU},
@@ -35,13 +35,31 @@ pub struct AngleRadian(pub f32);
 impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
     pub fn modulo(self) -> Self {
-        AngleGradian::from(self).modulo().into()
+        AngleRadian(self.0.rem_euclid(TAU))
     }
     /// Change type to [`LayoutAngle`].
     ///
     /// Note that layout angle is in radians so no computation happens.
     pub fn layout(self) -> LayoutAngle {
         self.into()
+    }
+
+    /// Linear interpolation.
+    pub fn lerp(self, to: Self, factor: Factor) -> Self {
+        Self(self.0.lerp(&to.0, factor))
+    }
+
+    /// Spherical linear interpolation.
+    ///
+    /// Always uses the shortest path from `self` to `to`.
+    ///
+    /// The [`lerp`] linear interpolation always covers the numeric range between angles, so a transition from 358º to 1º
+    /// iterates over almost a full counterclockwise turn to reach the final value, `slerp` simply goes from 358º to 361º modulo
+    /// normalized.
+    ///
+    /// [`lerp`]: Self::lerp
+    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
+        slerp(self, to, TAU, step)
     }
 }
 impl PartialEq for AngleRadian {
@@ -106,6 +124,24 @@ impl AngleGradian {
     pub fn modulo(self) -> Self {
         AngleGradian(self.0.rem_euclid(400.0))
     }
+
+    /// Linear interpolation.
+    pub fn lerp(self, to: Self, factor: Factor) -> Self {
+        Self(self.0.lerp(&to.0, factor))
+    }
+
+    /// Spherical linear interpolation.
+    ///
+    /// Always uses the shortest path from `self` to `to`.
+    ///
+    /// The [`lerp`] linear interpolation always covers the numeric range between angles, so a transition from 358º to 1º
+    /// iterates over almost a full counterclockwise turn to reach the final value, `slerp` simply goes from 358º to 361º modulo
+    /// normalized.
+    ///
+    /// [`lerp`]: Self::lerp
+    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
+        slerp(self, to, 400.0, step)
+    }
 }
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
@@ -169,6 +205,24 @@ impl AngleDegree {
     pub fn modulo(self) -> Self {
         AngleDegree(self.0.rem_euclid(360.0))
     }
+
+    /// Linear interpolation.
+    pub fn lerp(self, to: Self, factor: Factor) -> Self {
+        Self(self.0.lerp(&to.0, factor))
+    }
+
+    /// Spherical linear interpolation.
+    ///
+    /// Always uses the shortest path from `self` to `to`.
+    ///
+    /// The [`lerp`] linear interpolation always covers the numeric range between angles, so a transition from 358º to 1º
+    /// iterates over almost a full counterclockwise turn to reach the final value, `slerp` simply goes from 358º to 361º modulo
+    /// normalized.
+    ///
+    /// [`lerp`]: Self::lerp
+    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
+        slerp(self, to, 360.0, step)
+    }
 }
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
@@ -231,6 +285,24 @@ impl AngleTurn {
     /// Turns in `[0.0 ..= 1.0]`.
     pub fn modulo(self) -> Self {
         AngleTurn(self.0.rem_euclid(1.0))
+    }
+
+    /// Linear interpolation.
+    pub fn lerp(self, to: Self, factor: Factor) -> Self {
+        Self(self.0.lerp(&to.0, factor))
+    }
+
+    /// Spherical linear interpolation.
+    ///
+    /// Always uses the shortest path from `self` to `to`.
+    ///
+    /// The [`lerp`] linear interpolation always covers the numeric range between angles, so a transition from 358º to 1º
+    /// iterates over almost a full counterclockwise turn to reach the final value, `slerp` simply goes from 358º to 361º modulo
+    /// normalized.
+    ///
+    /// [`lerp`]: Self::lerp
+    pub fn slerp(self, to: Self, step: EasingStep) -> Self {
+        slerp(self, to, 1.0, step)
     }
 }
 impl fmt::Debug for AngleTurn {
@@ -333,5 +405,16 @@ impl AngleUnits for i32 {
 
     fn turn(self) -> AngleTurn {
         AngleTurn(self as f32)
+    }
+}
+
+fn slerp(from: f32, to: f32, turn: f32, factor: Factor) -> f32 {
+    let from = from.rem_euclid(turn);
+    let to = to.rem_euclid(turn);
+
+    if (from - to).abs() > turn * 0.5 {
+        to.lerp(&from, factor)
+    } else {
+        from.lerp(&to, factor)
     }
 }
