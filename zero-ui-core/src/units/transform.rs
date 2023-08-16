@@ -413,7 +413,7 @@ pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(x: X, y: Y) -> Transform {
 type Scale = (f32, f32, f32);
 type Skew = (f32, f32, f32);
 type Perspective = (f32, f32, f32, f32);
-type Quaternion = (f64, f64, f64, f64);
+type Quaternion = euclid::Rotation3D<f64, (), ()>;
 
 /// A decomposed 3d matrix.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -535,7 +535,7 @@ impl MatrixDecomposed3D {
         }
 
         // Now, get the rotations out.
-        let mut quaternion = (
+        let mut quaternion = Quaternion::quaternion(
             0.5 * ((1.0 + row[0][0] - row[1][1] - row[2][2]).max(0.0) as f64).sqrt(),
             0.5 * ((1.0 - row[0][0] + row[1][1] - row[2][2]).max(0.0) as f64).sqrt(),
             0.5 * ((1.0 - row[0][0] - row[1][1] + row[2][2]).max(0.0) as f64).sqrt(),
@@ -543,13 +543,13 @@ impl MatrixDecomposed3D {
         );
 
         if row[2][1] > row[1][2] {
-            quaternion.0 = -quaternion.0
+            quaternion.i = -quaternion.i
         }
         if row[0][2] > row[2][0] {
-            quaternion.1 = -quaternion.1
+            quaternion.j = -quaternion.j
         }
         if row[1][0] > row[0][1] {
-            quaternion.2 = -quaternion.2
+            quaternion.k = -quaternion.k
         }
 
         Some(MatrixDecomposed3D {
@@ -578,10 +578,10 @@ impl MatrixDecomposed3D {
 
         // apply rotation
         {
-            let x = self.quaternion.0;
-            let y = self.quaternion.1;
-            let z = self.quaternion.2;
-            let w = self.quaternion.3;
+            let x = self.quaternion.i;
+            let y = self.quaternion.j;
+            let z = self.quaternion.k;
+            let w = self.quaternion.r;
 
             // Construct a composite rotation matrix from the quaternion values
             // rotationMatrix is a identity 4x4 matrix initially
@@ -655,27 +655,7 @@ impl MatrixDecomposed3D {
     }
 
     pub fn lerp_quaternion(from: Quaternion, to: Quaternion, step: EasingStep) -> Quaternion {
-        let step = step.0 as f64;
-
-        let dot = (from.0 * to.0 + from.1 * to.1 + from.2 * to.2 + from.3 * to.3).min(1.0).max(-1.0);
-
-        if dot.abs() == 1.0 {
-            return from;
-        }
-
-        let theta = dot.acos();
-        let rsintheta = 1.0 / (1.0 - dot * dot).sqrt();
-
-        let right_weight = (step * theta).sin() * rsintheta;
-        let left_weight = (step * theta).cos() - dot * right_weight;
-
-        fn scale(q: Quaternion, s: f64) -> Quaternion {
-            (q.0 * s, q.1 * s, q.2 * s, q.3 * s)
-        }
-        let left = scale(from, left_weight);
-        let right = scale(to, right_weight);
-
-        (left.0 + right.0, left.1 + right.1, left.2 + right.2, left.3 + right.3)
+        from.lerp(&to, step.0 as _)
     }
 }
 impl Transitionable for MatrixDecomposed3D {
