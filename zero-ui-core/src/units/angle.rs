@@ -59,7 +59,7 @@ impl AngleRadian {
     ///
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        slerp(self, to, TAU, step)
+        Self(slerp(self.0, to.0, TAU, step))
     }
 }
 impl PartialEq for AngleRadian {
@@ -140,7 +140,7 @@ impl AngleGradian {
     ///
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        slerp(self, to, 400.0, step)
+        Self(slerp(self.0, to.0, 400.0, step))
     }
 }
 impl PartialEq for AngleGradian {
@@ -221,7 +221,7 @@ impl AngleDegree {
     ///
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        slerp(self, to, 360.0, step)
+        Self(slerp(self.0, to.0, 360.0, step))
     }
 }
 impl PartialEq for AngleDegree {
@@ -302,7 +302,7 @@ impl AngleTurn {
     ///
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, step: EasingStep) -> Self {
-        slerp(self, to, 1.0, step)
+        Self(slerp(self.0, to.0, 1.0, step))
     }
 }
 impl fmt::Debug for AngleTurn {

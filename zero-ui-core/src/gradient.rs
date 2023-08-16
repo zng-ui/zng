@@ -372,7 +372,7 @@ impl Transitionable for LinearGradientAxis {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         use LinearGradientAxis::*;
         match (self, to) {
-            (Angle(s), Angle(t)) => Angle(s.lerp(t, step)),
+            (Angle(s), Angle(t)) => Angle(s.lerp(*t, step)),
             (Line(s), Line(t)) => Line(s.lerp(t, step)),
             (s, t) => {
                 if step <= 1.fct() {
