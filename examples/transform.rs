@@ -35,11 +35,7 @@ fn app_main() {
                             transformed("Skew-X 15º", skew_x(15.deg())),
                             transformed("Scale 130%", scale(130.pct())),
                             transformed("Identity", Transform::identity()),
-                            transformed("Rotate Lerp", rotate(350.deg())),
-                            Container! {
-                                rotate_transition_mode = RotateTransitionMode::Slerp;
-                                child = transformed("Rotate Slerp", rotate(350.deg()));
-                            }
+                            
                         ];
                     },
                     Stack! {
@@ -278,8 +274,6 @@ fn cube() -> impl UiNode {
                     }.boxed())
                     .collect::<UiNodeVec>();
 
-                    rotate_transition_mode = RotateTransitionMode::Slerp;
-                    #[easing(1.secs())]
                     transform = show.map(|&i| match i {
                         1 => rotate_y(0.deg()),
                         2 => rotate_y(-90.deg()),
@@ -288,7 +282,9 @@ fn cube() -> impl UiNode {
                         5 => rotate_x(-90.deg()),
                         6 => rotate_x(90.deg()),
                         _ => unreachable!(),
-                    }.translate_z(-100))
+                    }
+                    .translate_z(-100))
+                    .easing_with(1.secs(), easing::linear, units::slerp_sampler)
                 }
             },
             Wrap! {

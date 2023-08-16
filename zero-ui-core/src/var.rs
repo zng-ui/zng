@@ -1941,12 +1941,36 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         E: Into<T>,
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(animation::var_set_ease(
+        self.set_ease_with(start_value, end_value, duration, easing, animation::Transition::sample)
+    }
+
+    /// Schedule an easing transition from the `start_value` to `end_value` using a custom value sampler.
+    ///
+    /// The variable updates every time the [`EasingStep`] for each frame changes and a different value is sampled.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn set_ease_with<S, E, F, Sa>(
+        &self,
+        start_value: S,
+        end_value: E,
+        duration: Duration,
+        easing: F,
+        sampler: Sa,
+    ) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        S: Into<T>,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        Sa: Fn(&animation::Transition<T>, EasingStep) -> T + Send + 'static,
+    {
+        self.animate(animation::var_set_ease_with(
             start_value.into(),
             end_value.into(),
             duration,
             easing,
             999.fct(),
+            sampler,
         ))
     }
 
@@ -1961,7 +1985,29 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         E: Into<T>,
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(animation::var_set_ease(self.get(), new_value.into(), duration, easing, 0.fct()))
+        self.ease_with(new_value, duration, easing, animation::Transition::sample)
+    }
+
+    /// Schedule an easing transition from the current value to `new_value` using a custom value sampler.
+    ///
+    /// The variable updates every time the [`EasingStep`] for each frame changes and a different value is sampled.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn ease_with<E, F, S>(&self, new_value: E, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + 'static,
+    {
+        self.animate(animation::var_set_ease_with(
+            self.get(),
+            new_value.into(),
+            duration,
+            easing,
+            0.fct(),
+            sampler,
+        ))
     }
 
     /// Schedule a keyframed transition animation for the variable, starting from the first key.
@@ -1972,11 +2018,24 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn set_ease_keyed<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
+        self.set_ease_keyed_with(keys, duration, easing, animation::TransitionKeyed::sample)
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the first key, using a custom value sampler.
+    ///
+    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn set_ease_keyed_with<F, S>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        S: Fn(&animation::TransitionKeyed<T>, EasingStep) -> T + Send + 'static,
+    {
         if let Some(transition) = animation::TransitionKeyed::new(keys) {
-            self.animate(animation::var_set_ease_keyed(transition, duration, easing, 999.fct()))
+            self.animate(animation::var_set_ease_keyed_with(transition, duration, easing, 999.fct(), sampler))
         } else {
             animation::AnimationHandle::dummy()
         }
@@ -1987,16 +2046,29 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The variable will be set to to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
-    fn ease_keyed<F>(&self, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn ease_keyed<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
+    {
+        self.ease_keyed_with(keys, duration, easing, animation::TransitionKeyed::sample)
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the current value, using a custom value sampler.
+    ///
+    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn ease_keyed_with<F, S>(&self, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        S: Fn(&animation::TransitionKeyed<T>, EasingStep) -> T + Send + 'static,
     {
         keys.insert(0, (0.fct(), self.get()));
 
         let transition = animation::TransitionKeyed::new(keys).unwrap();
-        self.animate(animation::var_set_ease_keyed(transition, duration, easing, 0.fct()))
+        self.animate(animation::var_set_ease_keyed_with(transition, duration, easing, 0.fct(), sampler))
     }
 
     /// Set the variable to `new_value` after a `delay`.
@@ -2072,8 +2144,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a vars that [`ease`] to each new value of `self`.
     ///
     /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
-    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR` in the `property` context,
-    /// not the property instantiation.
+    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
+    /// in the `property` context, not the property instantiation.
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
@@ -2092,6 +2164,43 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             var_bind(&source, &easing_var, move |value, args, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
+                if args.update {
+                    easing_var.update();
+                }
+            })
+            .perm();
+            easing_var.read_only()
+        }))
+    }
+
+    /// Create a vars that [`ease_with`] to each new value of `self`.
+    ///
+    /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
+    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
+    /// in the `property` context, not the property instantiation.
+    ///
+    /// [contextualized]: types::ContextualizedVar
+    /// [`ease_with`]: Var::ease_with
+    fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+    where
+        T: animation::Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+    {
+        let source = self.clone();
+        let fns = Arc::new((easing, sampler));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let easing_var = var(source.get());
+
+            let fns = fns.clone();
+            let mut _anim_handle = animation::AnimationHandle::dummy();
+            var_bind(&source, &easing_var, move |value, args, easing_var| {
+                _anim_handle = easing_var.ease_with(
+                    value.clone(),
+                    duration,
+                    clmv!(fns, |t| (fns.0)(t)),
+                    clmv!(fns, |t, s| (fns.1)(t, s)),
+                );
                 if args.update {
                     easing_var.update();
                 }

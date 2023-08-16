@@ -1,14 +1,8 @@
 use zero_ui_view_api::{units::Px, webrender_api::euclid};
 
-use crate::{
-    impl_from_and_into_var,
-    var::{animation::Transitionable, Var},
-};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{
-    AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform, RotateTransitionMode,
-    ROTATE_TRANSITION_MODE_VAR,
-};
+use super::{is_slerp_enabled, AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform};
 
 /// A transform builder type.
 ///
@@ -25,8 +19,6 @@ use super::{
 /// # use zero_ui_core::units::*;
 /// let rotate_then_move = rotate(10.deg()).translate(50, 30);
 /// ```
-///
-///
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Transform {
     parts: Vec<TransformPart>,
@@ -661,9 +653,9 @@ impl MatrixDecomposed3D {
     }
 
     pub fn lerp_quaternion(from: Quaternion, to: Quaternion, step: EasingStep) -> Quaternion {
-        match ROTATE_TRANSITION_MODE_VAR.get() {
-            RotateTransitionMode::Lerp => from.lerp(&to, step.0 as _),
-            RotateTransitionMode::Slerp => from.slerp(&to, step.0 as _),
+        match is_slerp_enabled() {
+            false => from.lerp(&to, step.0 as _),
+            true => from.slerp(&to, step.0 as _),
         }
     }
 }

@@ -323,12 +323,6 @@ pub fn backface_visibility(child: impl UiNode, visible: impl IntoVar<bool>) -> i
     })
 }
 
-/// Defines how rotation animations transition between angles.
-#[property(CONTEXT, default(ROTATE_TRANSITION_MODE_VAR))]
-pub fn rotate_transition_mode(child: impl UiNode, mode: impl IntoVar<RotateTransitionMode>) -> impl UiNode {
-    with_context_var(child, ROTATE_TRANSITION_MODE_VAR, mode)
-}
-
 context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///

@@ -2,8 +2,8 @@ use derive_more as dm;
 
 use super::{about_eq, euclid, EasingStep, Factor, EPSILON, EPSILON_100};
 use crate::{
-    impl_from_and_into_var,
-    var::{animation::Transitionable, context_var, Var},
+    context_local, impl_from_and_into_var,
+    var::animation::{Transition, Transitionable},
 };
 
 use std::{
@@ -11,46 +11,27 @@ use std::{
     fmt,
 };
 
-/// Defines how rotation animations compute the change between angles.
+/// Spherical linear interpolation sampler.
 ///
-/// The angle units and transform use the [`ROTATE_TRANSITION_MODE_VAR`] to select the mode, in the
-/// main crate the `rotate_transition_mode` property can be used to set the mode.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum RotateTransitionMode {
-    /// Linear interpolation.
-    ///
-    /// Always animates over the full numeric range between angles. This mode is required for animations that
-    /// iterate over multiple rotation turns.
-    ///
-    /// A transition from 358º to 1º iterates over almost a full counterclockwise turn to reach the final value.
-    ///
-    /// This is the default mode.
-    #[default]
-    Lerp,
-    /// Spherical linear interpolation.
-    ///
-    /// Always animates over the shortest distance between angles by modulo wrapping. This mode is recommended
-    /// for animations that
-    ///
-    /// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
-    Slerp,
+/// Animates rotations over the shortest change between angles by modulo wrapping.
+/// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
+///
+/// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
+/// mode, types that don't support this use the normal linear interpolation. All angle and transform units
+/// implement this.
+pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: super::EasingStep) -> T {
+    SLERP_ENABLED.with_context_value(true, || t.sample(step))
 }
 
-impl fmt::Debug for RotateTransitionMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "RotateTransitionMode::")?;
-        }
-        match self {
-            Self::Lerp => write!(f, "Lerp"),
-            Self::Slerp => write!(f, "Slerp"),
-        }
-    }
+/// Gets if slerp mode is enabled in the context.
+///
+/// See [`slerp_sampler`] for more details.
+pub fn is_slerp_enabled() -> bool {
+    SLERP_ENABLED.get_clone()
 }
 
-context_var! {
-    /// Defines the rotation animation mode for angle units and transform.
-    pub static ROTATE_TRANSITION_MODE_VAR: RotateTransitionMode = RotateTransitionMode::default();
+context_local! {
+    static SLERP_ENABLED: bool = false;
 }
 
 /// Angle in radians.
@@ -95,9 +76,9 @@ impl AngleRadian {
 }
 impl Transitionable for AngleRadian {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match ROTATE_TRANSITION_MODE_VAR.get() {
-            RotateTransitionMode::Lerp => self.lerp(*to, step),
-            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
         }
     }
 }
@@ -170,9 +151,9 @@ impl AngleGradian {
 }
 impl Transitionable for AngleGradian {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match ROTATE_TRANSITION_MODE_VAR.get() {
-            RotateTransitionMode::Lerp => self.lerp(*to, step),
-            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
         }
     }
 }
@@ -245,9 +226,9 @@ impl AngleDegree {
 }
 impl Transitionable for AngleDegree {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match ROTATE_TRANSITION_MODE_VAR.get() {
-            RotateTransitionMode::Lerp => self.lerp(*to, step),
-            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
         }
     }
 }
@@ -320,9 +301,9 @@ impl AngleTurn {
 }
 impl Transitionable for AngleTurn {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match ROTATE_TRANSITION_MODE_VAR.get() {
-            RotateTransitionMode::Lerp => self.lerp(*to, step),
-            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
         }
     }
 }

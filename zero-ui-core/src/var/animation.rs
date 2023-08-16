@@ -17,11 +17,12 @@ pub mod easing;
 ///
 /// # Arguments
 ///
-/// The attribute takes two arguments that match the [`Var::easing`] parameters, a duration and easing function. The easing
-/// function can be omitted, if not present the [`easing::linear`] is used.
+/// The attribute takes one required argument and one optional that matches the [`Var::easing`] 
+/// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
-/// Some items are auto-imported in the arguments cope, the [`TimeUnits`] and a block import for the [`easing::*`] functions, this
-/// means you can just name.
+/// Some items are auto-imported in each argument scope, the [`TimeUnits`] are imported in the first argument, so you can use syntax 
+/// like `300.ms()` to declare the duration, all of the [`easing::*`] functions are imported in the second argument so you can use
+/// the function names directly.
 ///
 /// ## Unset
 ///
@@ -417,6 +418,11 @@ where
         Some(TransitionKeyed { keys })
     }
 
+    /// Keyed values.
+    pub fn keys(&self) -> &[(Factor, T)] {
+        &self.keys
+    }
+
     /// Compute the transition value at the `step`.
     pub fn sample(&self, step: EasingStep) -> T {
         if let Some(i) = self.keys.iter().position(|(f, _)| *f > step) {
@@ -747,12 +753,13 @@ pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
     VarHandle::dummy()
 }
 
-pub(super) fn var_set_ease<T>(
+pub(super) fn var_set_ease_with<T>(
     start_value: T,
     end_value: T,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+    sampler: impl Fn(&Transition<T>, EasingStep) -> T + Send + 'static,
 ) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable,
@@ -763,17 +770,18 @@ where
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
-            vm.set(transition.sample(step));
+            vm.set(sampler(&transition, step));
             prev_step = step;
         }
     }
 }
 
-pub(super) fn var_set_ease_keyed<T>(
+pub(super) fn var_set_ease_keyed_with<T>(
     transition: TransitionKeyed<T>,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep,
+    sampler: impl Fn(&TransitionKeyed<T>, EasingStep) -> T + Send + 'static,
 ) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable,
@@ -783,7 +791,7 @@ where
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
-            value.set(transition.sample(step));
+            value.set(sampler(&transition, step));
             prev_step = step;
         }
     }
