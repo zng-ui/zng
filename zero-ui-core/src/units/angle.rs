@@ -1,9 +1,9 @@
 use derive_more as dm;
 
-use super::{about_eq, euclid, EasingStep, Factor, FactorUnits, EPSILON, EPSILON_100};
+use super::{about_eq, euclid, EasingStep, Factor, EPSILON, EPSILON_100};
 use crate::{
     impl_from_and_into_var,
-    var::{animation::Transitionable, context_var},
+    var::{animation::Transitionable, context_var, Var},
 };
 
 use std::{
@@ -60,21 +60,7 @@ context_var! {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Neg, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleRadian(pub f32);
 impl AngleRadian {
@@ -107,15 +93,14 @@ impl AngleRadian {
         Self(slerp(self.0, to.0, TAU, factor))
     }
 }
-
-// impl Transitionable for AngleRadian {
-//     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-//         match ROTATE_TRANSITION_MODE_VAR.get() {
-//             RotateTransitionMode::Lerp => self.lerp(*to, step),
-//             RotateTransitionMode::Slerp => self.slerp(*to, step),
-//         }
-//     }
-// }
+impl Transitionable for AngleRadian {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match ROTATE_TRANSITION_MODE_VAR.get() {
+            RotateTransitionMode::Lerp => self.lerp(*to, step),
+            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        }
+    }
+}
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON)
@@ -156,21 +141,7 @@ impl fmt::Display for AngleRadian {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Neg, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleGradian(pub f32);
 impl AngleGradian {
@@ -195,6 +166,14 @@ impl AngleGradian {
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, factor: Factor) -> Self {
         Self(slerp(self.0, to.0, 400.0, factor))
+    }
+}
+impl Transitionable for AngleGradian {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match ROTATE_TRANSITION_MODE_VAR.get() {
+            RotateTransitionMode::Lerp => self.lerp(*to, step),
+            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        }
     }
 }
 impl PartialEq for AngleGradian {
@@ -237,21 +216,7 @@ impl fmt::Display for AngleGradian {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Neg, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleDegree(pub f32);
 impl AngleDegree {
@@ -276,6 +241,14 @@ impl AngleDegree {
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, factor: Factor) -> Self {
         Self(slerp(self.0, to.0, 360.0, factor))
+    }
+}
+impl Transitionable for AngleDegree {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match ROTATE_TRANSITION_MODE_VAR.get() {
+            RotateTransitionMode::Lerp => self.lerp(*to, step),
+            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        }
     }
 }
 impl PartialEq for AngleDegree {
@@ -318,21 +291,7 @@ impl fmt::Display for AngleDegree {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(
-    Copy,
-    Clone,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
-    dm::Neg,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Neg, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
@@ -357,6 +316,14 @@ impl AngleTurn {
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, factor: Factor) -> Self {
         Self(slerp(self.0, to.0, 1.0, factor))
+    }
+}
+impl Transitionable for AngleTurn {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match ROTATE_TRANSITION_MODE_VAR.get() {
+            RotateTransitionMode::Lerp => self.lerp(*to, step),
+            RotateTransitionMode::Slerp => self.slerp(*to, step),
+        }
     }
 }
 impl fmt::Debug for AngleTurn {

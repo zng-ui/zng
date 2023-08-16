@@ -35,6 +35,11 @@ fn app_main() {
                             transformed("Skew-X 15º", skew_x(15.deg())),
                             transformed("Scale 130%", scale(130.pct())),
                             transformed("Identity", Transform::identity()),
+                            transformed("Rotate Lerp", rotate(350.deg())),
+                            Container! {
+                                rotate_transition_mode = RotateTransitionMode::Slerp;
+                                child = transformed("Rotate Slerp", rotate(350.deg()));
+                            }
                         ];
                     },
                     Stack! {

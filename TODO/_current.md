@@ -1,3 +1,5 @@
+* ROTATE_TRANSITION_MODE_VAR does not work in any animation because they do not update in context.
+
 # TextInput
 
 * Implement selection.
@@ -21,13 +23,6 @@
 * Implement OpenGL example.
     - Overlay and texture image.
 * Implement automation/screen reader APIs.
-
-# Transform 3D
-
-* Implement angle animation config property.
-    - Implementation conflict in angle units.
-    - Because of it matches the generic default.
-    - Rust still has not implemented `default`.
 
 # WR Items
     - Touch events.

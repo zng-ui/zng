@@ -1,6 +1,9 @@
 use zero_ui_view_api::{units::Px, webrender_api::euclid};
 
-use crate::{impl_from_and_into_var, var::{animation::Transitionable, Var}};
+use crate::{
+    impl_from_and_into_var,
+    var::{animation::Transitionable, Var},
+};
 
 use super::{
     AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform, RotateTransitionMode,
