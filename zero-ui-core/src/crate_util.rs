@@ -158,7 +158,13 @@ macro_rules! unique_id {
     ) => {
 
         $(#[$attrs])*
+        #[repr(transparent)]
         $vis struct $Type $(<$T $(: $($bounds)+)?>)? ($non_zero $(, std::marker::PhantomData<$T>)?);
+
+        // SAFETY: $Type a transparent wrapper on a std non-zero integer.
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::NoUninit for $Type $(<$T>)? { }
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::ZeroableInOption for $Type $(<$T>)? { }
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::PodInOption for $Type $(<$T>)? { }
 
         impl$(<$T $(: $($bounds)+)?>)? Clone for $Type $(<$T>)? {
             fn clone(&self) -> Self {

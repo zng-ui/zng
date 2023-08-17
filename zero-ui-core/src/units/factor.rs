@@ -95,7 +95,8 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize, bytemuck::NoUninit)]
+#[repr(transparent)]
 #[serde(transparent)]
 pub struct Factor(pub f32);
 impl Factor {

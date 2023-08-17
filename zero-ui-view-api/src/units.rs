@@ -26,7 +26,8 @@ const DIP_TO_PX: i32 = 60;
 /// Device pixel.
 ///
 /// Represents an actual device pixel, not scaled/descaled by the pixel scale factor.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, bytemuck::NoUninit)]
+#[repr(transparent)]
 #[serde(transparent)]
 pub struct Px(pub i32);
 impl Px {

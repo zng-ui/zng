@@ -132,24 +132,25 @@ pub struct AxisId(pub u32);
 pub struct ButtonId(pub u32);
 
 /// Identifier of a frame or frame update.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FrameId(Epoch, u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, bytemuck::NoUninit)]
+#[repr(C)]
+pub struct FrameId(u32, u32);
 impl FrameId {
     /// Dummy frame ID.
-    pub const INVALID: FrameId = FrameId(Epoch(u32::MAX), u32::MAX);
+    pub const INVALID: FrameId = FrameId(u32::MAX, u32::MAX);
 
     /// Create first frame id of a window.
     pub fn first() -> FrameId {
-        FrameId(Epoch(0), 0)
+        FrameId(0, 0)
     }
 
     /// Create the next full frame ID after the current one.
     pub fn next(self) -> FrameId {
-        let mut id = self.0 .0.wrapping_add(1);
+        let mut id = self.0.wrapping_add(1);
         if id == u32::MAX {
             id = 0;
         }
-        FrameId(Epoch(id), 0)
+        FrameId(id, 0)
     }
 
     /// Create the next update frame ID after the current one.
@@ -163,12 +164,12 @@ impl FrameId {
 
     /// Get the raw ID.
     pub fn get(self) -> u64 {
-        (self.0 .0 as u64) << 32 | (self.1 as u64)
+        (self.0 as u64) << 32 | (self.1 as u64)
     }
 
     /// Get the full frame ID.
     pub fn epoch(self) -> Epoch {
-        self.0
+        Epoch(self.0)
     }
 
     /// Get the frame update ID.

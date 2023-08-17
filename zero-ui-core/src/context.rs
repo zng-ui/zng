@@ -35,7 +35,8 @@ use crate::{
 };
 
 bitflags! {
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, bytemuck::NoUninit)]
+    #[repr(transparent)]
     pub(crate) struct UpdateFlags: u8 {
         const REINIT =        0b1000_0000;
         const INFO =          0b0001_0000;

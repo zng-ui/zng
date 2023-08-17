@@ -88,6 +88,13 @@ context_local! {
     static SCROLL_CONFIG: ScrollConfig = ScrollConfig::default();
 }
 
+#[derive(Debug, Clone, Copy, bytemuck::NoUninit)]
+#[repr(C)]
+struct RenderedOffsets {
+    h: Factor,
+    v: Factor,
+}
+
 #[derive(Debug)]
 struct ScrollConfig {
     id: Option<WidgetId>,
@@ -95,7 +102,7 @@ struct ScrollConfig {
     vertical: Mutex<Option<ChaseAnimation<Factor>>>,
 
     // last rendered horizontal, vertical offsets.
-    rendered: Atomic<(Factor, Factor)>,
+    rendered: Atomic<RenderedOffsets>,
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -103,7 +110,7 @@ impl Default for ScrollConfig {
             id: Default::default(),
             horizontal: Default::default(),
             vertical: Default::default(),
-            rendered: Atomic::new((0.fct(), 0.fct())),
+            rendered: Atomic::new(RenderedOffsets { h: 0.fct(), v: 0.fct() }),
         }
     }
 }
@@ -164,7 +171,7 @@ impl SCROLL {
             if let UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } = op {
                 let h = SCROLL_HORIZONTAL_OFFSET_VAR.get();
                 let v = SCROLL_VERTICAL_OFFSET_VAR.get();
-                SCROLL_CONFIG.get().rendered.store((h, v), Ordering::Relaxed);
+                SCROLL_CONFIG.get().rendered.store(RenderedOffsets { h, v }, Ordering::Relaxed);
             }
         });
         with_context_local_init(child, &SCROLL_CONFIG, || ScrollConfig {
@@ -233,7 +240,7 @@ impl SCROLL {
             }
             ScrollFrom::Rendered(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).1;
+                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).v;
                 SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
             }
         }
@@ -266,7 +273,7 @@ impl SCROLL {
             }
             ScrollFrom::Rendered(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).0;
+                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h;
                 SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());
             }
         }

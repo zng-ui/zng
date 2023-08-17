@@ -105,7 +105,7 @@ icu_properties = "1"
 icu_testdata = "1"
 
 # task
-flume = { version = "0.10", default-features  = false, features = ["async"] }
+flume = { version = "0.11", default-features  = false, features = ["async"] }
 rayon = "1"
 blocking = "1"
 parking_lot = "0.12"
@@ -117,7 +117,7 @@ http-cache-semantics = { version = "1", optional = true }
 http-serde = { version = "1", optional = true }
 
 # util
-bitflags = { version = "2", features = ["serde"] }
+bitflags = { version = "2", features = ["serde", "bytemuck"] }
 paste = "1"
 rustc-hash = "1"
 colored = "2"
@@ -134,11 +134,12 @@ remove_dir_all = "0.8"
 async-trait = "0.1"
 async-recursion = "1"
 pretty-type-name = "1"
-num_enum = "0.6"
+num_enum = "0.7"
 take_mut = "0.2"
 smallvec = { version = "1", features = ["const_new"] }
 const-random = "0.1.15"
-atomic = "0.5"
+atomic = "0.6"
+bytemuck = { version = "1", features = ["derive"] }
 notify = "6"
 glob = "0.3"
 path-absolutize = "3"

@@ -661,7 +661,8 @@ impl super::Layout1d for Length {
 
 bitflags! {
     /// Mask of values that can affect the [`Length::layout`] operation.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, bytemuck::NoUninit)]
+    #[repr(transparent)]
     pub struct LayoutMask: u32 {
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;

@@ -5,8 +5,11 @@ use std::{
     io::{self, Write as _},
     mem, ops,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc},
-    time::{Duration, Instant},
+    sync::{
+        atomic::{AtomicBool, AtomicU64},
+        Arc,
+    },
+    time::{Duration, Instant, SystemTime},
 };
 
 use atomic::{Atomic, Ordering};
@@ -1405,13 +1408,13 @@ impl SyncWithVar {
             pending: Atomic<PendingFlag>,
             read_write: Mutex<(R, W)>,
             wk_var: WeakArcVar<O>,
-            last_write: Atomic<Option<Instant>>,
+            last_write: AtomicU64, // ms from epoch
         }
         let task_data = Arc::new(TaskData {
             pending: Atomic::new(0),
             read_write: Mutex::new((read, write)),
             wk_var: var.downgrade(),
-            last_write: Atomic::new(None),
+            last_write: AtomicU64::new(0),
         });
 
         // task drains pending, drops handle if the var is dropped.
@@ -1486,13 +1489,16 @@ impl SyncWithVar {
 
                     if pending == WRITE {
                         if let Some(d) = debounce {
-                            if let Some(t) = task_data.last_write.load(Ordering::Relaxed) {
-                                let elapsed = t.elapsed();
-                                if elapsed < d {
-                                    std::thread::sleep(d - elapsed);
-                                }
+                            let now_ms = SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64;
+                            let prev_ms = task_data.last_write.load(Ordering::Relaxed);
+                            let elapsed = Duration::from_millis(now_ms - prev_ms);
+                            if elapsed < d {
+                                std::thread::sleep(d - elapsed);
                             }
-                            task_data.last_write.store(Some(Instant::now()), Ordering::Relaxed);
+                            task_data.last_write.store(now_ms, Ordering::Relaxed);
                         }
 
                         let (id, value) = if let Some(var) = task_data.wk_var.upgrade() {

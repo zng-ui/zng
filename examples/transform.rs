@@ -35,7 +35,6 @@ fn app_main() {
                             transformed("Skew-X 15º", skew_x(15.deg())),
                             transformed("Scale 130%", scale(130.pct())),
                             transformed("Identity", Transform::identity()),
-                            
                         ];
                     },
                     Stack! {

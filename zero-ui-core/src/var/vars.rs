@@ -10,7 +10,8 @@ use super::{
 };
 
 /// Represents the last time a variable was mutated or the current update cycle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, bytemuck::NoUninit)]
+#[repr(transparent)]
 pub struct VarUpdateId(u32);
 impl VarUpdateId {
     /// ID that is never new.

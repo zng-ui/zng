@@ -17,10 +17,10 @@ pub mod easing;
 ///
 /// # Arguments
 ///
-/// The attribute takes one required argument and one optional that matches the [`Var::easing`] 
+/// The attribute takes one required argument and one optional that matches the [`Var::easing`]
 /// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
-/// Some items are auto-imported in each argument scope, the [`TimeUnits`] are imported in the first argument, so you can use syntax 
+/// Some items are auto-imported in each argument scope, the [`TimeUnits`] are imported in the first argument, so you can use syntax
 /// like `300.ms()` to declare the duration, all of the [`easing::*`] functions are imported in the second argument so you can use
 /// the function names directly.
 ///
