@@ -416,12 +416,9 @@ impl AngleUnits for i32 {
 }
 
 fn slerp(from: f32, to: f32, turn: f32, factor: Factor) -> f32 {
-    let from = from.rem_euclid(turn);
-    let to = to.rem_euclid(turn);
-
-    if (from - to).abs() > turn * 0.5 {
-        to.lerp(&from, factor)
-    } else {
-        from.lerp(&to, factor)
-    }
+    let angle_to = {
+        let d = (to - from) % turn;
+        2.0 * d % turn - d
+    };
+    from + angle_to * factor.0
 }

@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+use zero_ui::prelude::{units::AngleRadian, *};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -35,6 +35,8 @@ fn app_main() {
                             transformed("Skew-X 15º", skew_x(15.deg())),
                             transformed("Scale 130%", scale(130.pct())),
                             transformed("Identity", Transform::identity()),
+                            transformed_sampler("Lerp", animation::Transition::sample),
+                            transformed_sampler("Slerp", units::slerp_sampler),
                         ];
                     },
                     Stack! {
@@ -167,6 +169,28 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
 
             when *#is_hovered {
                 transform = Transform::identity();
+            }
+        };
+        border = 2, (colors::GRAY, BorderStyle::Dashed);
+    }
+}
+fn transformed_sampler(
+    label: impl Into<Txt>,
+    sampler: impl Fn(&animation::Transition<AngleRadian>, EasingStep) -> AngleRadian + Send + Sync + 'static,
+) -> impl UiNode {
+    Container! {
+        child = {
+            let is_hovered = var(false);
+            Container! {
+                rotate = is_hovered
+                    .map(|&hovered| if !hovered { 20.deg() } else { (360 - 20).deg() }.into())
+                    .easing_with(300.ms(), easing::linear, sampler);
+
+                child = Text!(label.into());
+                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                padding = 10;
+
+                is_hovered;
             }
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed);
