@@ -64,7 +64,24 @@ fn app_main() {
                                 child = using_blob::app_side::custom_render_node();
                             },
                         ]
-                    }
+                    },
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        children_align = Align::CENTER;
+                        spacing = 5;
+                        children = ui_vec![
+                            Text!("Using GL Overlay"),
+                            Container! {
+                                size = 30.vmin_pct();
+                                child = using_gl_overlay::app_side::custom_render_node();
+                            },
+                            Container! {
+                                size = 30.vmin_pct();
+                                hue_rotate = 180.deg();
+                                child = using_gl_overlay::app_side::custom_render_node();
+                            },
+                        ]
+                    },
                 ]
             }
         }
@@ -76,6 +93,7 @@ fn view_extensions() -> ViewExtensions {
     let mut exts = ViewExtensions::new();
     using_display_items::view_side::extend(&mut exts);
     using_blob::view_side::extend(&mut exts);
+    using_gl_overlay::view_side::extend(&mut exts);
     exts
 }
 
@@ -95,7 +113,7 @@ pub mod using_display_items {
         pub fn custom_render_node() -> impl UiNode {
             custom_ext_node(extension_id)
         }
-        // node that sends the cursor position and widget size to a view extension.
+        // node that sends the cursor position, widget size and widget position in window to a view extension.
         // abstracted here to be reused by the other demos.
         pub(crate) fn custom_ext_node(extension_id: fn() -> ApiExtensionId) -> impl UiNode {
             let mut ext_id = ApiExtensionId::INVALID;
@@ -160,6 +178,8 @@ pub mod using_display_items {
                             }
                         }
 
+                        let window_pos = frame.transform().transform_point(PxPoint::zero()).unwrap_or_default();
+
                         // push the entire custom item.
                         frame.push_extension_item(
                             ext_id,
@@ -167,6 +187,7 @@ pub mod using_display_items {
                                 cursor_binding: Some(cursor_binding),
                                 cursor,
                                 size: render_size,
+                                window_pos,
                             },
                         );
                     }
@@ -347,6 +368,7 @@ pub mod using_display_items {
             pub cursor_binding: Option<BindingId>,
             pub cursor: PxPoint,
             pub size: PxSize,
+            pub window_pos: PxPoint,
         }
 
         #[derive(serde::Serialize, serde::Deserialize)]
@@ -791,6 +813,187 @@ pub mod using_blob {
 
         pub fn extension_name() -> ApiExtensionName {
             ApiExtensionName::new("zero-ui.examples.extend_renderer.using_blob").unwrap()
+        }
+    }
+}
+
+/// Demo view extension custom renderer, integrated by drawing directly over the frame.
+pub mod using_gl_overlay {
+    /// App-process stuff, nodes.
+    pub mod app_side {
+        use zero_ui::{
+            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
+            prelude::UiNode,
+        };
+
+        /// Node that sends external display item and updates.
+        pub fn custom_render_node() -> impl UiNode {
+            crate::using_display_items::app_side::custom_ext_node(extension_id)
+        }
+
+        pub fn extension_id() -> ApiExtensionId {
+            VIEW_PROCESS
+                .extension_id(super::api::extension_name())
+                .ok()
+                .flatten()
+                .unwrap_or(ApiExtensionId::INVALID)
+        }
+    }
+
+    /// View-process stuff, the actual extension.
+    pub mod view_side {
+        use zero_ui::{
+            core::app::view_process::ApiExtensionId,
+            prelude::{units::PxRect, Px, PxPoint, PxSize},
+        };
+        use zero_ui_view::{
+            extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+            gleam::gl,
+        };
+
+        use super::api::BindingId;
+
+        pub fn extend(exts: &mut ViewExtensions) {
+            exts.renderer(super::api::extension_name(), CustomExtension::new);
+        }
+
+        struct CustomExtension {
+            // id of this extension, for tracing.
+            _id: ApiExtensionId,
+            renderer: Option<CustomRenderer>,
+        }
+        impl CustomExtension {
+            fn new(id: ApiExtensionId) -> Self {
+                Self { _id: id, renderer: None }
+            }
+        }
+        impl RendererExtension for CustomExtension {
+            fn is_config_only(&self) -> bool {
+                false // retain the extension after renderer creation.
+            }
+
+            fn renderer_inited(&mut self, args: &mut zero_ui_view::extensions::RendererInitedArgs) {
+                // shaders/programs can be loaded here.
+                self.renderer = Some(CustomRenderer::load(args.gl));
+            }
+            fn renderer_deinited(&mut self, args: &mut zero_ui_view::extensions::RendererDeinitedArgs) {
+                // ..and unloaded here.
+                if let Some(r) = self.renderer.take() {
+                    r.unload(args.gl);
+                }
+            }
+
+            fn render_start(&mut self, _: &mut zero_ui_view::extensions::RenderArgs) {
+                if let Some(r) = &mut self.renderer {
+                    r.clear();
+                }
+            }
+
+            fn render_push(&mut self, args: &mut RenderItemArgs) {
+                match args.payload.deserialize::<super::api::RenderPayload>() {
+                    Ok(p) => {
+                        // we use the display list for convenience only, each render/update
+                        // is paired with Webrender updates, this extension does not actually
+                        // use Webrender.
+                        if let Some(r) = &mut self.renderer {
+                            r.push_task(&p);
+                        }
+                    }
+                    Err(e) => tracing::error!("invalid display item, {e}"),
+                }
+            }
+
+            fn render_update(&mut self, args: &mut RenderUpdateArgs) {
+                match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
+                    Ok(p) => {
+                        if let Some(r) = &mut self.renderer {
+                            r.update_task(&p);
+                        }
+                    }
+                    Err(e) => tracing::error!("invalid update request, {e}"),
+                }
+            }
+
+            fn redraw(&mut self, args: &mut zero_ui_view::extensions::RedrawArgs) {
+                if let Some(r) = &mut self.renderer {
+                    r.redraw(args.size, args.gl);
+                }
+            }
+        }
+
+        struct CustomRenderer {
+            tasks: Vec<DrawTask>,
+            unloaded_ok: bool,
+        }
+        impl CustomRenderer {
+            pub fn load(_gl: &dyn gl::Gl) -> Self {
+                Self {
+                    tasks: vec![],
+                    unloaded_ok: false,
+                }
+            }
+            fn unload(mut self, _gl: &dyn gl::Gl) {
+                self.unloaded_ok = true;
+            }
+
+            pub fn clear(&mut self) {
+                self.tasks.clear();
+            }
+
+            pub fn push_task(&mut self, task: &super::api::RenderPayload) {
+                self.tasks.push(DrawTask {
+                    area: PxRect::new(task.window_pos, task.size),
+                    cursor: task.cursor,
+                    cursor_binding: task.cursor_binding,
+                });
+            }
+
+            pub fn update_task(&mut self, p: &super::api::RenderUpdatePayload) {
+                if let Some(i) = self.tasks.iter_mut().find(|i| i.cursor_binding == Some(p.cursor_binding)) {
+                    i.cursor = p.cursor;
+                }
+            }
+
+            pub fn redraw(&mut self, canvas_size: PxSize, gl: &dyn gl::Gl) {
+                // gl (0, 0) is the bottom-left corner not the top-left.
+                let gl_y = |max_y: Px| canvas_size.height - max_y;
+
+                for task in &self.tasks {
+                    gl.enable(gl::SCISSOR_TEST);
+                    gl.scissor(
+                        task.area.origin.x.0,
+                        gl_y(task.area.max_y()).0,
+                        task.area.size.width.0,
+                        task.area.size.height.0,
+                    );
+                    gl.clear_color(1.0, 1.0, 0.0, 1.0);
+                    gl.clear(gl::COLOR_BUFFER_BIT);
+                }
+            }
+        }
+        impl Drop for CustomRenderer {
+            fn drop(&mut self) {
+                if !self.unloaded_ok {
+                    tracing::error!("CustomRenderer::unload was not used to drop the renderer");
+                }
+            }
+        }
+
+        #[derive(Debug)]
+        struct DrawTask {
+            area: PxRect,
+            cursor: PxPoint,
+            cursor_binding: Option<BindingId>,
+        }
+    }
+
+    pub mod api {
+        use zero_ui::core::app::view_process::ApiExtensionName;
+
+        pub use crate::using_display_items::api::*;
+
+        pub fn extension_name() -> ApiExtensionName {
+            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_gl_overlay").unwrap()
         }
     }
 }
