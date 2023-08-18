@@ -2380,9 +2380,21 @@ impl<'a> ShapedSegment<'a> {
         PxRect::new(PxPoint::new(x, y), size)
     }
 
-    /// Gets the first grapheme char that is outside or clipped by the `max_width`.
+    /// Gets the first grapheme char with advance that overflows `max_width`.
     pub fn overflow_char(&self, max_width: Px) -> Option<usize> {
-        todo!()
+        let max_width = max_width.0 as f32;
+        if self.advance() > max_width {
+            let mut x = 0.0;
+            for (_, c) in self.cluster_glyphs_with_x_advance() {
+                for (cluster, _, advance) in c {
+                    x += advance;
+                    if x > max_width {
+                        return Some(cluster as usize);
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// Segment info for widget inline segments.
