@@ -1,18 +1,4 @@
-```rust
-    use zero_ui_material_icons as icons;
-    App::default().extend(icons::MaterialFonts).run_window(async {
-        Window! {
-            //background_color = colors::YELLOW;
-            child_align = Align::CENTER;
-            child = Icon!{
-                ico = icons::outlined::N3G_MOBILEDATA;
-                //size = 500;
-                background_color = colors::RED;
-                border = 10, colors::GREEN.with_alpha(20.pct());
-            };
-        }
-    })
-```
+* `fill_node` "BORDER.inner_radius().inflate(size_offset)" causes round corner clips for all widgets.
 
 # TextInput
 

@@ -20,43 +20,61 @@ fn app_main() {
         Window! {
             title = "Border Example";
 
-            height = 800;
-
             background_color = colors::BLUE.darken(70.pct());
 
             color_scheme = ColorScheme::Dark;
 
             child = Stack! {
-                direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 20;
+                direction = StackDirection::left_to_right();
                 children = ui_vec![
-                    widgets::MrBorders! {
-                        border_align = 0.pct();
-                        child = Text!("border_align = 0.pct();");
-                    },
-                    widgets::MrBorders! {
-                        border_align = (1.0 / 3.0).fct();
-                        child = Text!("border_align = (1.0 / 3.0).fct();");
-                    },
-                    widgets::MrBorders! {
-                        border_align = 50.pct();
-                        child = Text!("border_align = 50.pct();");
-                    },
-                    widgets::MrBorders! {
-                        border_align = 100.pct();
-                        child = Text!("border_align = 100.pct();");
-                    },
-                    clip_to_bounds_demo(),
-                    widgets::MrBorders! {
-                        border_align = 100.pct();
-                        child = widgets::MrBorders! {
-                            border_align = 100.pct();
-                            child = widgets::MrBorders! {
-                                border_align = 100.pct();
-                                child = Text!("Nested");
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 20;
+                        children = ui_vec![
+                            widgets::MrBorders! {
+                                border_align = 0.pct();
+                                child = Text!("border_align = 0.pct();");
                             },
-                        },
+                            widgets::MrBorders! {
+                                border_align = (1.0 / 3.0).fct();
+                                child = Text!("border_align = (1.0 / 3.0).fct();");
+                            },
+                            widgets::MrBorders! {
+                                border_align = 50.pct();
+                                child = Text!("border_align = 50.pct();");
+                            },
+                            widgets::MrBorders! {
+                                border_align = 100.pct();
+                                child = Text!("border_align = 100.pct();");
+                            },
+                        ]
+                    },
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 20;
+                        children = ui_vec![
+                            widgets::MrBorders! {
+                                child = Text!("corner_radius = 0;");
+                                corner_radius = 0;
+                            },
+                            widgets::MrBorders! {
+                                child = Text!("corner_radius = 40;");
+                                corner_radius = 40;
+                            },
+                            widgets::MrBorders! {
+                                border_align = 100.pct();
+                                child = widgets::MrBorders! {
+                                    border_align = 100.pct();
+                                    child = widgets::MrBorders! {
+                                        border_align = 100.pct();
+                                        child = Text!("Nested");
+                                    },
+                                },
+                            },
+                            clip_to_bounds_demo(),
+                        ]
                     },
                 ]
             };

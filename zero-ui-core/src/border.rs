@@ -9,7 +9,7 @@ use crate::{
     render::{webrender_api as w_api, FrameValueKey},
     ui_vec,
     units::*,
-    var::{impl_from_and_into_var, *},
+    var::{animation::Transitionable, impl_from_and_into_var, *},
     widget_info::WidgetBorderInfo,
     widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp, WidgetId},
 };
@@ -763,24 +763,17 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             //
             // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
 
-            let offsets = BORDER.inner_offsets();
-            let align = BORDER_ALIGN_VAR.get();
+            let (bounds, corners) = BORDER.fill_bounds();
 
-            let our_offsets = offsets * align;
-            let mut new_offset = PxVector::new(our_offsets.left, our_offsets.top);
+            let mut new_offset = bounds.origin.to_vector();
 
-            let size_offset = offsets - our_offsets;
-            let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
-            let fill_bounds = LAYOUT.constraints().fill_size() + size_increase;
-            let corners = BORDER.inner_radius().inflate(size_offset);
-
-            if clip_bounds != fill_bounds || clip_corners != corners {
-                clip_bounds = fill_bounds;
+            if clip_bounds != bounds.size || clip_corners != corners {
+                clip_bounds = bounds.size;
                 clip_corners = corners;
                 WIDGET.render();
             }
 
-            let (_, branch_offset) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
+            let (_, branch_offset) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.size), || {
                 wl.with_branch_child(|wl| child.layout(wl))
             });
             new_offset += branch_offset;
@@ -796,7 +789,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 }
             }
 
-            *final_size = fill_bounds;
+            *final_size = bounds.size;
         }
         UiNodeOp::Render { frame } => {
             let mut render = |frame: &mut crate::render::FrameBuilder| {
@@ -979,6 +972,75 @@ impl BORDER {
             }
             _ => CORNER_RADIUS_VAR.layout(),
         }
+    }
+
+    /// Gets the corner radius for the outside of the outer border of the current widget.
+    pub fn outer_radius(&self) -> PxCornerRadius {
+        BORDER_DATA.get().corner_radius
+    }
+
+    /// Gets the bounds and corner radius for the widget fill content.
+    ///
+    /// Must be called during layout in FILL nesting group.
+    ///
+    /// This value is influenced by [`CORNER_RADIUS_VAR`], [`CORNER_RADIUS_FIT_VAR`] and [`BORDER_ALIGN_VAR`].
+    pub fn fill_bounds(&self) -> (PxRect, PxCornerRadius) {
+        let align = BORDER_ALIGN_VAR.get();
+
+        let fill_size = LAYOUT.constraints().fill_size();
+        let inner_offsets = self.inner_offsets();
+
+        // !!: (un)comment to test.
+        if align == FactorSideOffsets::zero() {
+            let fill_size = PxSize::new(
+                fill_size.width + inner_offsets.horizontal(),
+                fill_size.height + inner_offsets.vertical(),
+            );
+            return (PxRect::from_size(fill_size), self.outer_radius());
+        } else if align == FactorSideOffsets::new_all(1.0.fct()) {
+            return (
+                PxRect::new(PxPoint::new(inner_offsets.left, inner_offsets.top), fill_size),
+                self.inner_radius(),
+            );
+        }
+
+        let outer = self.outer_radius();
+        let inner = self.inner_radius();
+
+        let b_align = FactorSideOffsets {
+            top: 1.0.fct() - align.top,
+            right: 1.0.fct() - align.right,
+            bottom: 1.0.fct() - align.bottom,
+            left: 1.0.fct() - align.left,
+        };
+        let bounds = PxRect {
+            origin: PxPoint::new(inner_offsets.left * (align.left), inner_offsets.top * align.top),
+            size: PxSize::new(
+                fill_size.width + inner_offsets.left * b_align.left + inner_offsets.right * b_align.right,
+                fill_size.height + inner_offsets.top * b_align.top + inner_offsets.bottom * b_align.bottom,
+            ),
+        };
+
+        let radius = PxCornerRadius {
+            top_left: PxSize::new(
+                outer.top_left.width.lerp(&inner.top_left.width, align.left),
+                outer.top_left.height.lerp(&inner.top_left.height, align.top),
+            ),
+            top_right: PxSize::new(
+                outer.top_right.width.lerp(&inner.top_right.width, align.right),
+                outer.top_right.height.lerp(&inner.top_right.height, align.top),
+            ),
+            bottom_left: PxSize::new(
+                outer.bottom_left.width.lerp(&inner.bottom_left.width, align.left),
+                outer.bottom_left.height.lerp(&inner.bottom_left.height, align.bottom),
+            ),
+            bottom_right: PxSize::new(
+                outer.bottom_right.width.lerp(&inner.bottom_right.width, align.right),
+                outer.bottom_right.height.lerp(&inner.bottom_right.height, align.bottom),
+            ),
+        };
+
+        (bounds, radius)
     }
 
     pub(super) fn with_inner(&self, f: impl FnOnce() -> PxSize) -> PxSize {
