@@ -168,8 +168,10 @@ fn icon_btn(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
                 },
                 Text! {
                     txt = formatx!("{ico}");
-                    txt_wrap = false;
+                    txt_align = Align::CENTER;
                     font_size = 10;
+                    height = 2.em();
+                    line_height = 1.em();
                 },
             ]
         };
