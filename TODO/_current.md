@@ -1,5 +1,3 @@
-* `fill_node` "BORDER.inner_radius().inflate(size_offset)" causes round corner clips for all widgets.
-
 # TextInput
 
 * Implement selection.
@@ -14,11 +12,14 @@
 
 * Implement text clip.
     - Ellipses, fade-out.
-    - Very visible in icon example.
+    - Track overflow point, that is, a char that starts overflowing.
+        - Can use this char to implement fade-out.
+        - Can use it to implement continuation in another text, bound `get_overflow_index` of the first
+          text as the starting index of the second text.
 
 # Tooltip
 
-* Tooltips stop showing upon interaction (click/tab/enter/etc) in HTML.
+* Tooltips stop showing upon interaction (click/tab/enter/etc.) in HTML.
     - Ours doesn't.
 
 # View-Process

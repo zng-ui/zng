@@ -990,7 +990,6 @@ impl BORDER {
         let fill_size = LAYOUT.constraints().fill_size();
         let inner_offsets = self.inner_offsets();
 
-        // !!: (un)comment to test.
         if align == FactorSideOffsets::zero() {
             let fill_size = PxSize::new(
                 fill_size.width + inner_offsets.horizontal(),

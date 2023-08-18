@@ -539,6 +539,32 @@ impl ShapedText {
         }
     }
 
+    /// Gets the first line that overflows the `max_height`. A line overflows when the line [`PxRect::max_y`]
+    /// is greater than `max_height`.
+    pub fn overflow_line(&self, max_height: Px) -> Option<ShapedLine> {
+        let mut y = self.first_line.max_y();
+        if y > max_height {
+            self.line(0)
+        } else if self.lines.0.len() > 1 {
+            let mid_lines = self.lines.0.len() - 2;
+            for i in 0..=mid_lines {
+                y += self.line_spacing;
+                y += self.line_height;
+                if y > max_height {
+                    return self.line(i + 1);
+                }
+            }
+
+            if self.last_line.max_y() > max_height {
+                self.line(self.lines.0.len() - 1)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     fn update_mid_size(&mut self) {
         self.mid_size = if self.lines.0.len() <= 2 {
             PxSize::zero()
@@ -1924,6 +1950,22 @@ impl<'a> ShapedLine<'a> {
         PxSize::new(self.width, self.text.line_height)
     }
 
+    /// Gets the first segment that overflows `max_width`. A segment overflows when its line advance is
+    /// greater than [`max_width`].
+    pub fn overflow_seg(&self, max_width: Px) -> Option<ShapedSegment<'a>> {
+        let max_width = max_width.0 as f32;
+        let mut x = self.text.lines.0[self.index].width;
+        if x > max_width {
+            for seg in self.segs().rev() {
+                x -= seg.advance();
+                if x <= max_width {
+                    return Some(seg);
+                }
+            }
+        }
+        None
+    }
+
     /// Full overline, start point + width.
     pub fn overline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.overline)
@@ -2153,7 +2195,7 @@ impl<'a> ShapedLine<'a> {
         min
     }
 
-    /// Gets the line index
+    /// Gets the line index.
     pub fn index(&self) -> usize {
         self.index
     }
@@ -2336,6 +2378,11 @@ impl<'a> ShapedSegment<'a> {
             self.text.line_height * Px((self.line_index - 1) as i32) + self.text.first_line.max_y() + self.text.mid_clear
         };
         PxRect::new(PxPoint::new(x, y), size)
+    }
+
+    /// Gets the first grapheme char that is outside or clipped by the `max_width`.
+    pub fn overflow_char(&self, max_width: Px) -> Option<usize> {
+        todo!()
     }
 
     /// Segment info for widget inline segments.
@@ -2621,6 +2668,11 @@ impl<'a> ShapedSegment<'a> {
         } else {
             txt_range.end()
         }
+    }
+
+    /// Gets the segment index in the line.
+    pub fn index(&self) -> usize {
+        self.index - self.text.lines.segs(self.line_index).start()
     }
 }
 

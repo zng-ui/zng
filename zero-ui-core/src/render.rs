@@ -1016,7 +1016,6 @@ impl FrameBuilder {
                             !data.inner_is_set,
                         );
                         if !data.backdrop_filter.is_empty() {
-                            // backdrop filter is not an issue? !!: test this
                             self.display_list
                                 .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
                         }

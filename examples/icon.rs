@@ -132,7 +132,12 @@ fn icons() -> impl UiNode {
                             "two_tone" => icons::two_tone::all(),
                             _ => unreachable!(),
                         };
-                        if !s.is_empty() {
+                        if let Some(len) = s.strip_prefix("-len") {
+                            let len: usize = len.trim().parse().unwrap_or(0);
+                            icons.retain(|f| {
+                                f.name.len() >= len
+                            });
+                        } else if !s.is_empty() {
                             let s = s.to_uppercase();
                             icons.retain(|f| {
                                 f.name.contains(&s) ||
