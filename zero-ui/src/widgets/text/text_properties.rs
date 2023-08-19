@@ -331,7 +331,7 @@ pub enum TextOverflow {
     /// that overflows over one line-height in any direction. Text overflow is tracked even if `Ignore`
     /// is set, so custom properties may also implement some form of overflow handling.
     ///
-    /// [`clip_to_bounds`]: fn@clip_to_bounds
+    /// [`clip_to_bounds`]: fn@crate::properties::clip_to_bounds
     Ignore,
     /// Truncate the text so it will fit, the associated `Txt` is a suffix appended to the truncated text.
     ///

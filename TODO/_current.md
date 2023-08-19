@@ -17,6 +17,10 @@
     - Interaction with txt_wrap?
         - Could fit part of the word wrapped into overflow.
     - Append suffix.
+        - Need to find last segment from overflow.
+        - Use direction of it?
+    - Test RTL.
+    - Not enabled when editable?
     - `get_overflow`, gets OverflowInfo.
     - `is_overflow`.
     - `get_overflow_txt`, gets the text starting at overflow.

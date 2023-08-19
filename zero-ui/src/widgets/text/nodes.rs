@@ -1778,7 +1778,7 @@ pub fn render_text() -> impl UiNode {
             }
 
             frame.push_reuse(&mut reuse, |frame| {
-                if t.shaped_text.has_colored_glyphs() {
+                if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false) {
                     let palette_query = FONT_PALETTE_VAR.get();
                     FONT_PALETTE_COLORS_VAR.with(|palette_colors| {
                         let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs| {
@@ -1820,8 +1820,21 @@ pub fn render_text() -> impl UiNode {
                                     push_font_glyphs(font, glyphs)
                                 }
 
-                                if let Some(o) = &t.overflow_suffix {
-                                    // !!: TODO
+                                if let Some(suf) = &t.overflow_suffix {
+                                    let mut suf_origin = euclid::Point2D::<f32, Px>::new(0.0, 0.0);
+
+                                    if let Some(line) = t.shaped_text.line(o.last_line()) {
+                                        suf_origin.y = line.rect().origin.y.0 as f32;
+                                        if let Some(seg) = line.seg(o.last_seg()) {
+                                            if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
+                                                suf_origin.x = g.point.x;
+                                            }
+                                        }
+                                    }
+
+                                    for (font, glyphs) in suf.colored_glyphs() {
+                                        push_font_glyphs(font, glyphs)
+                                    }
                                 }
                             }
                             _ => {
@@ -1832,23 +1845,43 @@ pub fn render_text() -> impl UiNode {
                         }
                     });
                 } else {
-                    let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs| {
-                        frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                    let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs: Cow<[GlyphInstance]>| {
+                        frame.push_text(clip, glyphs.as_ref(), font, color_value, r.synthesis, aa);
                     };
 
                     match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
                         (Some(o), TextOverflow::Truncate(_)) => {
                             for (font, glyphs) in t.shaped_text.glyphs_slice(..o.text_glyph) {
-                                push_font_glyphs(font, glyphs)
+                                push_font_glyphs(font, Cow::Borrowed(glyphs))
                             }
 
-                            if let Some(o) = &t.overflow_suffix {
-                                // !!: TODO
+                            if let Some(suf) = &t.overflow_suffix {
+                                let mut suf_origin = euclid::Point2D::new(0.0, 0.0);
+
+                                if let Some(line) = t.shaped_text.line(o.last_line()) {
+                                    suf_origin.y = line.rect().origin.y.0 as f32;
+                                    if let Some(seg) = line.seg(o.last_seg()) {
+                                        if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
+                                            suf_origin.x = g.point.x;
+                                        } else {
+                                            suf_origin.x = seg.rect().max_x().0 as f32;
+                                        }
+                                    }
+                                }
+                                let suf_offset = suf_origin.to_vector();
+
+                                for (font, glyphs) in suf.glyphs() {
+                                    let mut glyphs = glyphs.to_vec();
+                                    for g in &mut glyphs {
+                                        g.point += suf_offset;
+                                    }
+                                    push_font_glyphs(font, Cow::Owned(glyphs))
+                                }
                             }
                         }
                         _ => {
                             for (font, glyphs) in t.shaped_text.glyphs() {
-                                push_font_glyphs(font, glyphs)
+                                push_font_glyphs(font, Cow::Borrowed(glyphs))
                             }
                         }
                     }
