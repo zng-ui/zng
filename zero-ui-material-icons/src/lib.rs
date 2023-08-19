@@ -79,15 +79,14 @@ impl_from_and_into_var! {
 }
 impl fmt::Display for MaterialIcon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut chars = self.name.chars();
+        let mut chars = self.name.chars().peekable();
         if let Some(n) = chars.next() {
             // skip N if followed by number.
             if n == 'N' {
-                if let Some(q) = chars.next() {
+                if let Some(q) = chars.peek() {
                     if !q.is_ascii_digit() {
                         write!(f, "{n}")?;
                     }
-                    write!(f, "{q}")?;
                 }
             } else {
                 write!(f, "{n}")?;
