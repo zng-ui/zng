@@ -317,6 +317,72 @@ context_var! {
 
     /// Hyphen text rendered when auto-hyphenating.
     pub static HYPHEN_CHAR_VAR: Txt = Txt::from_char('-');
+
+    /// Text overflow handling.
+    pub static TEXT_OVERFLOW_VAR: TextOverflow = TextOverflow::Ignore;
+}
+
+/// Defines how text overflow is handled by the text widgets.
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum TextOverflow {
+    /// Text is allowed to overflow.
+    ///
+    /// Note that the text widget can still [`clip_to_bounds`], and text widgets also clip any text
+    /// that overflows over one line-height in any direction. Text overflow is tracked even if `Ignore`
+    /// is set, so custom properties may also implement some form of overflow handling.
+    ///
+    /// [`clip_to_bounds`]: fn@clip_to_bounds
+    Ignore,
+    /// Truncate the text so it will fit, the associated `Txt` is a suffix appended to the truncated text.
+    ///
+    /// Note that if the suffix is not empty the text will truncated more to reserve space for the suffix. If
+    /// the suffix itself is too wide it will overflow.
+    Truncate(Txt),
+}
+impl fmt::Debug for TextOverflow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TextOverflow")?
+        }
+        match self {
+            Self::Ignore => write!(f, "Ignore"),
+            Self::Truncate(arg0) => f.debug_tuple("Truncate").field(arg0).finish(),
+        }
+    }
+}
+impl TextOverflow {
+    /// Truncate without suffix.
+    pub fn truncate() -> Self {
+        Self::Truncate(Txt::from_static(""))
+    }
+
+    /// Truncate with the ellipses `'…'` char as suffix.
+    pub fn ellipses() -> Self {
+        Self::Truncate(Txt::from_char('…'))
+    }
+}
+impl_from_and_into_var! {
+    /// Truncate (no suffix), or ignore.
+    fn from(truncate: bool) -> TextOverflow {
+        if truncate {
+            TextOverflow::truncate()
+        } else {
+            TextOverflow::Ignore
+        }
+    }
+
+    fn from(truncate: Txt) -> TextOverflow {
+        TextOverflow::Truncate(truncate)
+    }
+    fn from(s: &'static str) -> TextOverflow {
+        Txt::from(s).into()
+    }
+    fn from(s: String) -> TextOverflow {
+        Txt::from(s).into()
+    }
+    fn from(c: char) -> TextOverflow {
+        Txt::from(c).into()
+    }
 }
 
 /// Enables or disables text wrap.
@@ -378,6 +444,12 @@ pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNod
 #[property(CONTEXT, default(HYPHEN_CHAR_VAR), widget_impl(TextWrapMix<P>))]
 pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode {
     with_context_var(child, HYPHEN_CHAR_VAR, hyphen)
+}
+
+/// Defines how text overflow is handled.
+#[property(CONTEXT, default(TEXT_OVERFLOW_VAR), widget_impl(TextWrapMix<P>))]
+pub fn txt_overflow(child: impl UiNode, overflow: impl IntoVar<TextOverflow>) -> impl UiNode {
+    with_context_var(child, TEXT_OVERFLOW_VAR, overflow)
 }
 
 /// Text underline, overline and strikethrough lines.

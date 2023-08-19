@@ -3045,9 +3045,9 @@ bitflags! {
         /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference added using extra stroke.
         const BOLD = 1;
         /// Enable synthetic oblique. If the font resolution does not find an oblique or italic variant a skew transform is applied.
-        const STYLE = 2;
+        const OBLIQUE = 2;
         /// Enabled all synthetic font possibilities.
-        const ENABLED = Self::BOLD.bits() | Self::STYLE.bits();
+        const ENABLED = Self::BOLD.bits() | Self::OBLIQUE.bits();
     }
 }
 impl Default for FontSynthesis {

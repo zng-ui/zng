@@ -175,6 +175,12 @@ pub struct LayoutText {
     /// Layout text.
     pub shaped_text: ShapedText,
 
+    /// Shaped text overflow info.
+    pub overflow: Option<OverflowInfo>,
+
+    /// Shaped text used as suffix when `shaped_text` overflows.
+    pub overflow_suffix: Option<ShapedText>,
+
     /// Version updated every time the `shaped_text` is reshaped.
     pub shaped_text_version: u32,
 
@@ -226,6 +232,8 @@ impl Clone for LayoutText {
         Self {
             fonts: self.fonts.clone(),
             shaped_text: self.shaped_text.clone(),
+            overflow: self.overflow.clone(),
+            overflow_suffix: self.overflow_suffix.clone(),
             shaped_text_version: self.shaped_text_version,
             overlines: self.overlines.clone(),
             overline_thickness: self.overline_thickness,
@@ -727,10 +735,12 @@ bitflags::bitflags! {
         const OVERLINE      = 0b0000_0100;
         /// Caret origin.
         const CARET         = 0b0000_1000;
+        /// Overflow.
+        const OVERFLOW      = 0b0001_0000;
         /// Text lines position, retains line glyphs but reposition for new align and outer box.
-        const RESHAPE_LINES = 0b0011_1111;
+        const RESHAPE_LINES = 0b0111_1111;
         /// Full reshape, re-compute all glyphs.
-        const RESHAPE       = 0b0111_1111;
+        const RESHAPE       = 0b1111_1111;
     }
 }
 
@@ -767,6 +777,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
                 self.txt = Some(LayoutText {
                     shaped_text: ShapedText::new(fonts.best()),
+                    overflow: None,
+                    overflow_suffix: None,
                     shaped_text_version: 0,
                     fonts,
                     overlines: vec![],
@@ -958,6 +970,23 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     t.baseline.store(txt.shaped_text.baseline(), Ordering::Relaxed);
                     txt.caret_origin = None;
                 }
+                if self.pending.contains(PendingLayout::OVERFLOW) {
+                    let suf_width = txt.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
+                    txt.overflow = txt.shaped_text.overflow_info(metrics.constraints().fill_size(), suf_width);
+
+                    if txt.overflow.is_some() && txt.overflow_suffix.is_none() {
+                        match TEXT_OVERFLOW_VAR.get() {
+                            TextOverflow::Truncate(suf) if !suf.is_empty() => {
+                                let suf = SegmentedText::new(suf, self.shaping_args.direction);
+                                let suf = txt.fonts.shape_text(&suf, &self.shaping_args);
+
+                                txt.overflow = txt.shaped_text.overflow_info(metrics.constraints().fill_size(), suf.size().width);
+                                txt.overflow_suffix = Some(suf);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
                 if self.pending.contains(PendingLayout::OVERLINE) {
                     if txt.overline_thickness > Px(0) {
                         txt.overlines = txt.shaped_text.lines().map(|l| l.overline()).collect();
@@ -1107,7 +1136,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 .sub_var(&WORD_BREAK_VAR)
                 .sub_var(&HYPHENS_VAR)
                 .sub_var(&HYPHEN_CHAR_VAR)
-                .sub_var(&TEXT_WRAP_VAR);
+                .sub_var(&TEXT_WRAP_VAR)
+                .sub_var(&TEXT_OVERFLOW_VAR);
 
             WIDGET.sub_var(&FONT_FEATURES_VAR);
             // LANG_VAR already subscribed by `resolve_text`.
@@ -1300,6 +1330,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Update { updates } => {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 txt.pending.insert(PendingLayout::RESHAPE);
+                if let Some(t) = &mut txt.txt {
+                    t.overflow_suffix = None;
+                }
                 WIDGET.layout();
             }
 
@@ -1312,6 +1345,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             {
                 txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
+                if let Some(t) = &mut txt.txt {
+                    t.overflow_suffix = None;
+                }
                 txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             }
@@ -1353,6 +1389,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             }
+            if TEXT_OVERFLOW_VAR.is_new() {
+                if let Some(t) = &mut txt.txt {
+                    t.overflow_suffix = None;
+                }
+                txt.pending.insert(PendingLayout::OVERFLOW);
+                WIDGET.layout();
+            }
 
             FONT_FEATURES_VAR.with_new(|f| {
                 txt.shaping_args.font_features = f.finalize();
@@ -1370,6 +1413,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 } else {
                     edit_data = None;
+                }
+            }
+
+            if FONT_FAMILY_VAR.is_new()
+                || FONT_STYLE_VAR.is_new()
+                || FONT_STRETCH_VAR.is_new()
+                || FONT_WEIGHT_VAR.is_new()
+                || LANG_VAR.is_new()
+            {
+                // resolve_text already requests RESHAPE
+
+                if let Some(t) = &mut txt.txt {
+                    t.overflow_suffix = None;
                 }
             }
 

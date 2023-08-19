@@ -1102,10 +1102,10 @@ impl ShapedText {
         for line in self.line(caret.line).into_iter().chain(self.lines()) {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
-                if !txt_range.contains(index) {
+                if !txt_range.contains(&index) {
                     continue;
                 }
-                let local_index = index - txt_range.start();
+                let local_index = index - txt_range.start;
                 let is_rtl = seg.direction().is_rtl();
 
                 let seg_rect = seg.rect();
@@ -1173,18 +1173,18 @@ impl ShapedText {
 
                 if search_lig {
                     if let Some((font, g_index, advance)) = search_lig_data {
-                        let lig_start = txt_range.start() + clusters[cluster_i] as usize;
+                        let lig_start = txt_range.start + clusters[cluster_i] as usize;
                         let lig_end = if is_rtl {
                             if cluster_i == 0 {
-                                txt_range.end()
+                                txt_range.end
                             } else {
-                                txt_range.start() + clusters[cluster_i - 1] as usize
+                                txt_range.start + clusters[cluster_i - 1] as usize
                             }
                         } else {
                             clusters
                                 .get(cluster_i + 1)
-                                .map(|c| txt_range.start() + *c as usize)
-                                .unwrap_or_else(|| txt_range.end())
+                                .map(|c| txt_range.start + *c as usize)
+                                .unwrap_or_else(|| txt_range.end)
                         };
 
                         let maybe_lig = &full_text[lig_start..lig_end];
@@ -1293,6 +1293,72 @@ impl ShapedText {
         caret.line = self.lines.0.len().saturating_sub(1);
         caret
     }
+
+    /// Gets a full overflow analysis.
+    pub fn overflow_info(&self, max_size: PxSize, overflow_indicator: Px) -> Option<OverflowInfo> {
+        if let Some(line) = self.overflow_line(max_size.height) {
+            if line.index == 0 {
+                // text cannot fit
+                Some(OverflowInfo {
+                    line: 0,
+                    seg: 0,
+                    grapheme: 0,
+                    text: 0,
+                })
+            } else {
+                // overflow indicator may mess with last line too.
+                let max_width = max_size.width - overflow_indicator;
+
+                let prev_line = self.line(line.index - 1).unwrap();
+                if let Some(seg) = prev_line.overflow_seg(max_width) {
+                    let c = seg.overflow_char(max_width - seg.x_width().0).unwrap_or(0);
+                    Some(OverflowInfo {
+                        line: line.index() as _,
+                        seg: seg.index() as _,
+                        grapheme: c as _,
+                        text: seg.text_range().start + c,
+                    })
+                } else {
+                    Some(OverflowInfo {
+                        line: line.index() as _,
+                        seg: prev_line.seg_range.len() as _,
+                        grapheme: 0,
+                        text: line.text_range().start,
+                    })
+                }
+            }
+        } else if self.lines_len() == 1 {
+            let max_width = max_size.width - overflow_indicator;
+            if let Some(seg) = self.line(0).unwrap().overflow_seg(max_width) {
+                let c = seg.overflow_char(max_width - seg.x_width().0).unwrap_or(0);
+                Some(OverflowInfo {
+                    line: 1,
+                    seg: seg.index() as _,
+                    grapheme: c as _,
+                    text: seg.text_range().start + c,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+/// Info about a shaped text overflow in a given constraint.
+///
+/// Can be computed using [`ShapedText::overflow_info`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OverflowInfo {
+    /// First overflow line.
+    pub line: u32,
+    /// First overflow segment in the last not overflow line.
+    pub seg: u32,
+    /// First overflow grapheme in the last overflow segment.
+    pub grapheme: u32,
+    /// First overflow character in the text.
+    pub text: usize,
 }
 
 trait FontListRef {
@@ -2330,7 +2396,8 @@ impl<'a> ShapedSegment<'a> {
         self.text.seg_cluster_glyphs_with_x_advance(self.index, r)
     }
 
-    fn x_width(&self) -> (Px, Px) {
+    /// Gets the segment x offset and advance.
+    pub fn x_width(&self) -> (Px, Px) {
         let IndexRange(start, end) = self.glyphs_range();
 
         let is_line_break = start == end && matches!(self.kind(), TextSegmentKind::LineBreak);
@@ -2524,7 +2591,7 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Get the text bytes range of this segment in the original text.
-    pub fn text_range(&self) -> IndexRange {
+    pub fn text_range(&self) -> ops::Range<usize> {
         let start = if self.index == 0 {
             0
         } else {
@@ -2532,7 +2599,7 @@ impl<'a> ShapedSegment<'a> {
         };
         let end = self.text.segments.0[self.index].text.end;
 
-        IndexRange(start, end)
+        IndexRange(start, end).iter()
     }
 
     /// Get the text bytes range of the `glyph_range` in this segment's [`text`].
@@ -2565,9 +2632,9 @@ impl<'a> ShapedSegment<'a> {
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
     pub fn text<'s>(&self, full_text: &'s str) -> &'s str {
-        let IndexRange(start, end) = self.text_range();
-        let start = start.min(full_text.len());
-        let end = end.min(full_text.len());
+        let r = self.text_range();
+        let start = r.start.min(full_text.len());
+        let end = r.end.min(full_text.len());
         &full_text[start..end]
     }
 
@@ -2587,19 +2654,19 @@ impl<'a> ShapedSegment<'a> {
                 }
                 let cluster_i = seg_clusters.iter().position(|&c| c == cluster).unwrap();
 
-                let char_a = txt_range.start() + cluster as usize;
+                let char_a = txt_range.start + cluster as usize;
                 let char_b = if is_rtl {
                     if cluster_i == 0 {
-                        txt_range.end()
+                        txt_range.end
                     } else {
-                        txt_range.start() + seg_clusters[cluster_i - 1] as usize
+                        txt_range.start + seg_clusters[cluster_i - 1] as usize
                     }
                 } else {
                     let next_cluster = cluster_i + glyphs.len();
                     if next_cluster == seg_clusters.len() {
-                        txt_range.end()
+                        txt_range.end
                     } else {
-                        txt_range.start() + seg_clusters[next_cluster] as usize
+                        txt_range.start + seg_clusters[next_cluster] as usize
                     }
                 };
 
@@ -2676,9 +2743,9 @@ impl<'a> ShapedSegment<'a> {
             start = !start;
         }
         if start {
-            txt_range.start()
+            txt_range.start
         } else {
-            txt_range.end()
+            txt_range.end
         }
     }
 

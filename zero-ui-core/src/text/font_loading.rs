@@ -730,7 +730,7 @@ impl FontFace {
 
         if style != FontStyle::Normal && self.style() == FontStyle::Normal {
             // if requested oblique or italic and the face is neither.
-            synth |= FontSynthesis::STYLE;
+            synth |= FontSynthesis::OBLIQUE;
         }
         if weight > self.weight() {
             // if requested a weight larger then the face weight the renderer can
@@ -862,7 +862,7 @@ impl Font {
         let mut flags = wr::FontInstanceFlags::empty();
 
         let mut opt = wr::FontInstanceOptions::default();
-        if synthesis.contains(FontSynthesis::STYLE) {
+        if synthesis.contains(FontSynthesis::OBLIQUE) {
             opt.synthetic_italics = wr::SyntheticItalics::enabled();
         }
         if synthesis.contains(FontSynthesis::BOLD) {
