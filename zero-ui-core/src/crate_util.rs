@@ -1319,6 +1319,21 @@ impl From<std::ops::Range<usize>> for IndexRange {
     }
 }
 impl IndexRange {
+    pub fn from_bounds(bounds: impl ops::RangeBounds<usize>) -> Self {
+        // start..end
+        let start = match bounds.start_bound() {
+            ops::Bound::Included(&i) => i,
+            ops::Bound::Excluded(&i) => i + 1,
+            ops::Bound::Unbounded => 0,
+        };
+        let end = match bounds.end_bound() {
+            ops::Bound::Included(&i) => i + 1,
+            ops::Bound::Excluded(&i) => i,
+            ops::Bound::Unbounded => 0,
+        };
+        Self(start, end)
+    }
+
     /// Into `Range<usize>`.
     pub fn iter(self) -> std::ops::Range<usize> {
         self.0..self.1

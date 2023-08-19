@@ -185,7 +185,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::text::{
         direction, font_color, font_family, font_size, font_stretch, font_style, font_weight, lang, letter_spacing, line_height,
-        tab_length, txt_align, txt_transform, word_spacing, FONT_COLOR_VAR,
+        tab_length, txt_align, txt_transform, word_spacing, FONT_COLOR_VAR, TextOverflow,
     };
 
     #[doc(no_inline)]

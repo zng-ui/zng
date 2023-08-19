@@ -347,6 +347,18 @@ impl ShapedText {
         self.fonts.iter_glyphs().map(move |(f, r)| (f, &self.glyphs[r.iter()]))
     }
 
+    /// Glyphs in a range by font.
+    ///
+    /// Similar output to [`glyphs`], but only glyphs in the `range`.
+    ///
+    /// [`glyphs`]: Self::glyphs
+    pub fn glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
+        self.glyphs_slice_impl(IndexRange::from_bounds(range))
+    }
+    fn glyphs_slice_impl(&self, range: IndexRange) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
+        self.fonts.iter_glyphs_clip(range).map(move |(f, r)| (f, &self.glyphs[r.iter()]))
+    }
+
     /// If the shaped text has any Emoji glyph associated with a font that has color palettes.
     pub fn has_colored_glyphs(&self) -> bool {
         self.has_colored_glyphs
@@ -354,74 +366,16 @@ impl ShapedText {
 
     /// Glyphs by font and palette color.
     pub fn colored_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
-        struct Iter<'a, G>
-        where
-            G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
-        {
-            glyphs: G,
-            maybe_colored: Option<(&'a Font, &'a [GlyphInstance])>,
-        }
-        impl<'a, G> Iterator for Iter<'a, G>
-        where
-            G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
-        {
-            type Item = (&'a Font, ShapedColoredGlyphs<'a>);
-
-            fn next(&mut self) -> Option<Self::Item> {
-                loop {
-                    if let Some((font, glyphs)) = self.maybe_colored {
-                        // maybe-colored iter
-
-                        let color_glyphs = font.face().color_glyphs();
-
-                        for (i, g) in glyphs.iter().enumerate() {
-                            if let Some(c_glyphs) = color_glyphs.glyph(g.index) {
-                                // colored yield
-
-                                let next_start = i + 1;
-                                if next_start < glyphs.len() {
-                                    // continue maybe-colored iter
-                                    self.maybe_colored = Some((font, &glyphs[next_start..]));
-                                } else {
-                                    // continue normal iter
-                                    self.maybe_colored = None;
-                                }
-
-                                return Some((
-                                    font,
-                                    ShapedColoredGlyphs::Colored {
-                                        point: g.point,
-                                        base_glyph: g.index,
-                                        glyphs: c_glyphs,
-                                    },
-                                ));
-                            }
-                        }
-                        // enter normal iter
-                        self.maybe_colored = None;
-
-                        // last normal in maybe-colored yield
-                        debug_assert!(!glyphs.is_empty());
-                        return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
-                    } else if let Some((font, glyphs)) = self.glyphs.next() {
-                        // normal iter
-
-                        let color_glyphs = font.face().color_glyphs();
-                        if color_glyphs.is_empty() {
-                            return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
-                        } else {
-                            // enter maybe-colored iter
-                            self.maybe_colored = Some((font, glyphs));
-                            continue;
-                        }
-                    } else {
-                        return None;
-                    }
-                }
-            }
-        }
-        Iter {
+        ColoredGlyphsIter {
             glyphs: self.glyphs(),
+            maybe_colored: None,
+        }
+    }
+
+    /// Glyphs in a range by font and palette color.
+    pub fn colored_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
+        ColoredGlyphsIter {
+            glyphs: self.glyphs_slice_impl(IndexRange::from_bounds(range)),
             maybe_colored: None,
         }
     }
@@ -1302,8 +1256,10 @@ impl ShapedText {
                 Some(OverflowInfo {
                     line: 0,
                     seg: 0,
-                    grapheme: 0,
-                    text: 0,
+                    seg_char: 0,
+                    seg_glyph: 0,
+                    text_char: 0,
+                    text_glyph: 0,
                 })
             } else {
                 // overflow indicator may mess with last line too.
@@ -1311,31 +1267,37 @@ impl ShapedText {
 
                 let prev_line = self.line(line.index - 1).unwrap();
                 if let Some(seg) = prev_line.overflow_seg(max_width) {
-                    let c = seg.overflow_char(max_width - seg.x_width().0).unwrap_or(0);
+                    let (c, g) = seg.overflow_char_glyph(max_width - seg.x_width().0).unwrap_or((0, 0));
                     Some(OverflowInfo {
                         line: line.index() as _,
                         seg: seg.index() as _,
-                        grapheme: c as _,
-                        text: seg.text_range().start + c,
+                        seg_char: c as _,
+                        seg_glyph: g as _,
+                        text_char: seg.text_range().start + c,
+                        text_glyph: seg.glyphs_range().start() + g,
                     })
                 } else {
                     Some(OverflowInfo {
                         line: line.index() as _,
                         seg: prev_line.seg_range.len() as _,
-                        grapheme: 0,
-                        text: line.text_range().start,
+                        seg_char: 0,
+                        seg_glyph: 0,
+                        text_char: line.text_range().start,
+                        text_glyph: line.glyphs_range().start(),
                     })
                 }
             }
         } else if self.lines_len() == 1 {
             let max_width = max_size.width - overflow_indicator;
             if let Some(seg) = self.line(0).unwrap().overflow_seg(max_width) {
-                let c = seg.overflow_char(max_width - seg.x_width().0).unwrap_or(0);
+                let (c, g) = seg.overflow_char_glyph(max_width - seg.x_width().0).unwrap_or((0, 0));
                 Some(OverflowInfo {
                     line: 1,
                     seg: seg.index() as _,
-                    grapheme: c as _,
-                    text: seg.text_range().start + c,
+                    seg_char: c as _,
+                    seg_glyph: g as _,
+                    text_char: seg.text_range().start + c,
+                    text_glyph: seg.glyphs_range().start() + g,
                 })
             } else {
                 None
@@ -1346,19 +1308,91 @@ impl ShapedText {
     }
 }
 
+struct ColoredGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    glyphs: G,
+    maybe_colored: Option<(&'a Font, &'a [GlyphInstance])>,
+}
+impl<'a, G> Iterator for ColoredGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    type Item = (&'a Font, ShapedColoredGlyphs<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((font, glyphs)) = self.maybe_colored {
+                // maybe-colored iter
+
+                let color_glyphs = font.face().color_glyphs();
+
+                for (i, g) in glyphs.iter().enumerate() {
+                    if let Some(c_glyphs) = color_glyphs.glyph(g.index) {
+                        // colored yield
+
+                        let next_start = i + 1;
+                        if next_start < glyphs.len() {
+                            // continue maybe-colored iter
+                            self.maybe_colored = Some((font, &glyphs[next_start..]));
+                        } else {
+                            // continue normal iter
+                            self.maybe_colored = None;
+                        }
+
+                        return Some((
+                            font,
+                            ShapedColoredGlyphs::Colored {
+                                point: g.point,
+                                base_glyph: g.index,
+                                glyphs: c_glyphs,
+                            },
+                        ));
+                    }
+                }
+                // enter normal iter
+                self.maybe_colored = None;
+
+                // last normal in maybe-colored yield
+                debug_assert!(!glyphs.is_empty());
+                return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
+            } else if let Some((font, glyphs)) = self.glyphs.next() {
+                // normal iter
+
+                let color_glyphs = font.face().color_glyphs();
+                if color_glyphs.is_empty() {
+                    return Some((font, ShapedColoredGlyphs::Normal(glyphs)));
+                } else {
+                    // enter maybe-colored iter
+                    self.maybe_colored = Some((font, glyphs));
+                    continue;
+                }
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
 /// Info about a shaped text overflow in a given constraint.
 ///
 /// Can be computed using [`ShapedText::overflow_info`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct OverflowInfo {
     /// First overflow line.
     pub line: u32,
     /// First overflow segment in the last not overflow line.
     pub seg: u32,
     /// First overflow grapheme in the last overflow segment.
-    pub grapheme: u32,
+    pub seg_char: u32,
+    /// First overflow glyph in the last overflow segment.
+    pub seg_glyph: u32,
+
     /// First overflow character in the text.
-    pub text: usize,
+    pub text_char: usize,
+    /// First overflow glyph in the text.
+    pub text_glyph: usize,
 }
 
 trait FontListRef {
@@ -2447,17 +2481,19 @@ impl<'a> ShapedSegment<'a> {
         PxRect::new(PxPoint::new(x, y), size)
     }
 
-    /// Gets the first grapheme char with advance that overflows `max_width`.
-    pub fn overflow_char(&self, max_width: Px) -> Option<usize> {
+    /// Gets the first grapheme char and glyph with advance that overflows `max_width`.
+    pub fn overflow_char_glyph(&self, max_width: Px) -> Option<(usize, usize)> {
         let max_width = max_width.0 as f32;
         if self.advance() > max_width {
             let mut x = 0.0;
+            let mut g = 0;
             for (_, c) in self.cluster_glyphs_with_x_advance() {
-                for (cluster, _, advance) in c {
+                for (cluster, glyphs, advance) in c {
                     x += advance;
                     if x > max_width {
-                        return Some(cluster as usize);
+                        return Some((cluster as usize, g));
                     }
+                    g += glyphs.len();
                 }
             }
         }

@@ -10,12 +10,16 @@
 
 # Text
 
-* Implement text clip.
-    - Ellipses, fade-out.
-    - Track overflow point, that is, a char that starts overflowing.
-        - Can use this char to implement fade-out.
-        - Can use it to implement continuation in another text, bound `get_overflow_index` of the first
-          text as the starting index of the second text.
+* `txt_overflow`.
+    - Overflow size correction.
+        - Layout size already correct.
+        - Render size/align needs to be corrected?
+    - Interaction with txt_wrap?
+        - Could fit part of the word wrapped into overflow.
+    - Append suffix.
+    - `get_overflow`, gets OverflowInfo.
+    - `is_overflow`.
+    - `get_overflow_txt`, gets the text starting at overflow.
 
 # Tooltip
 

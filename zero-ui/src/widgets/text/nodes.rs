@@ -232,7 +232,7 @@ impl Clone for LayoutText {
         Self {
             fonts: self.fonts.clone(),
             shaped_text: self.shaped_text.clone(),
-            overflow: self.overflow.clone(),
+            overflow: self.overflow,
             overflow_suffix: self.overflow_suffix.clone(),
             shaped_text_version: self.shaped_text_version,
             overlines: self.overlines.clone(),
@@ -971,20 +971,26 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     txt.caret_origin = None;
                 }
                 if self.pending.contains(PendingLayout::OVERFLOW) {
-                    let suf_width = txt.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
-                    txt.overflow = txt.shaped_text.overflow_info(metrics.constraints().fill_size(), suf_width);
+                    let txt_size = txt.shaped_text.size();
+                    let max_size = metrics.constraints().fill_size_or(txt_size);
+                    if txt_size.width < max_size.width || txt_size.height < max_size.height {
+                        let suf_width = txt.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
+                        txt.overflow = txt.shaped_text.overflow_info(max_size, suf_width);
 
-                    if txt.overflow.is_some() && txt.overflow_suffix.is_none() {
-                        match TEXT_OVERFLOW_VAR.get() {
-                            TextOverflow::Truncate(suf) if !suf.is_empty() => {
-                                let suf = SegmentedText::new(suf, self.shaping_args.direction);
-                                let suf = txt.fonts.shape_text(&suf, &self.shaping_args);
+                        if txt.overflow.is_some() && txt.overflow_suffix.is_none() {
+                            match TEXT_OVERFLOW_VAR.get() {
+                                TextOverflow::Truncate(suf) if !suf.is_empty() => {
+                                    let suf = SegmentedText::new(suf, self.shaping_args.direction);
+                                    let suf = txt.fonts.shape_text(&suf, &self.shaping_args);
 
-                                txt.overflow = txt.shaped_text.overflow_info(metrics.constraints().fill_size(), suf.size().width);
-                                txt.overflow_suffix = Some(suf);
+                                    txt.overflow = txt.shaped_text.overflow_info(max_size, suf.size().width);
+                                    txt.overflow_suffix = Some(suf);
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
+                    } else {
+                        txt.overflow = None;
                     }
                 }
                 if self.pending.contains(PendingLayout::OVERLINE) {
@@ -1775,7 +1781,7 @@ pub fn render_text() -> impl UiNode {
                 if t.shaped_text.has_colored_glyphs() {
                     let palette_query = FONT_PALETTE_VAR.get();
                     FONT_PALETTE_COLORS_VAR.with(|palette_colors| {
-                        for (font, glyphs) in t.shaped_text.colored_glyphs() {
+                        let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs| {
                             let mut palette = None;
 
                             match glyphs {
@@ -1806,11 +1812,45 @@ pub fn render_text() -> impl UiNode {
                                     }
                                 }
                             }
+                        };
+
+                        match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
+                            (Some(o), TextOverflow::Truncate(_)) => {
+                                for (font, glyphs) in t.shaped_text.colored_glyphs_slice(..o.text_glyph) {
+                                    push_font_glyphs(font, glyphs)
+                                }
+
+                                if let Some(o) = &t.overflow_suffix {
+                                    // !!: TODO
+                                }
+                            }
+                            _ => {
+                                for (font, glyphs) in t.shaped_text.colored_glyphs() {
+                                    push_font_glyphs(font, glyphs)
+                                }
+                            }
                         }
                     });
                 } else {
-                    for (font, glyphs) in t.shaped_text.glyphs() {
+                    let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs| {
                         frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                    };
+
+                    match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
+                        (Some(o), TextOverflow::Truncate(_)) => {
+                            for (font, glyphs) in t.shaped_text.glyphs_slice(..o.text_glyph) {
+                                push_font_glyphs(font, glyphs)
+                            }
+
+                            if let Some(o) = &t.overflow_suffix {
+                                // !!: TODO
+                            }
+                        }
+                        _ => {
+                            for (font, glyphs) in t.shaped_text.glyphs() {
+                                push_font_glyphs(font, glyphs)
+                            }
+                        }
                     }
                 }
             });
