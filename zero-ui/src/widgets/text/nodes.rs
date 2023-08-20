@@ -176,7 +176,7 @@ pub struct LayoutText {
     pub shaped_text: ShapedText,
 
     /// Shaped text overflow info.
-    pub overflow: Option<OverflowInfo>,
+    pub overflow: Option<TextOverflowInfo>,
 
     /// Shaped text used as suffix when `shaped_text` overflows.
     pub overflow_suffix: Option<ShapedText>,

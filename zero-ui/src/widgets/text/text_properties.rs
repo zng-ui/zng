@@ -452,6 +452,71 @@ pub fn txt_overflow(child: impl UiNode, overflow: impl IntoVar<TextOverflow>) ->
     with_context_var(child, TEXT_OVERFLOW_VAR, overflow)
 }
 
+/// Gets if the text is overflown.
+#[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
+pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Deinit => {
+            let _ = state.set(false);
+        }
+        UiNodeOp::Layout { .. } => {
+            let is_o = super::nodes::LayoutText::get().overflow.is_some();
+            if is_o != state.get() {
+                let _ = state.set(is_o);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Gets if the text has an entire line overflown.
+///
+/// This is `true` when the text has multiple lines, either due to line-break or wrap, and at
+/// least one line overflows the allowed height, partially or fully.
+#[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
+pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Deinit => {
+            let _ = state.set(false);
+        }
+        UiNodeOp::Layout { .. } => {
+            let txt = super::nodes::LayoutText::get();
+            let is_o = if let Some(info) = txt.overflow {
+                info.line < txt.shaped_text.lines_len().saturating_sub(1) as _
+            } else {
+                false
+            };
+            if is_o != state.get() {
+                let _ = state.set(is_o);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Gets the overflow text, that is a clone of the text starting from the first overflow character.
+///
+/// Note that overflow is tracked even if [`txt_overflow`] is set to [`TextOverflow::Ignore`].
+#[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
+pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
+    let txt = txt.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Layout { .. } = op {
+            if let Some(info) = super::nodes::LayoutText::get().overflow {
+                let r = super::nodes::ResolvedText::get();
+                let tail = &r.text.text()[info.text_char..];
+                if txt.with(|t| t != tail) {
+                    let _ = txt.set(Txt::from_str(tail));
+                }
+            } else if txt.with(|t| !t.is_empty()) {
+                let _ = txt.set(Txt::from_static(""));
+            }
+        }
+    })
+}
+
 /// Text underline, overline and strikethrough lines.
 ///
 /// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.

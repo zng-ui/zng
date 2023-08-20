@@ -18,9 +18,6 @@
         - Could fit part of the word wrapped into overflow.
     - Test RTL.
     - Not enabled when editable?
-    - `get_overflow`, gets OverflowInfo.
-    - `is_overflow`.
-    - `get_overflow_txt`, gets the text starting at overflow.
 
 # Tooltip
 

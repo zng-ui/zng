@@ -1249,11 +1249,11 @@ impl ShapedText {
     }
 
     /// Gets a full overflow analysis.
-    pub fn overflow_info(&self, max_size: PxSize, overflow_indicator: Px) -> Option<OverflowInfo> {
+    pub fn overflow_info(&self, max_size: PxSize, overflow_indicator: Px) -> Option<TextOverflowInfo> {
         if let Some(line) = self.overflow_line(max_size.height) {
             if line.index == 0 {
                 // text cannot fit
-                Some(OverflowInfo {
+                Some(TextOverflowInfo {
                     line: 0,
                     seg: 0,
                     seg_char: 0,
@@ -1271,7 +1271,7 @@ impl ShapedText {
                         Some(r) => r,
                         None => (seg.text_range().len(), seg.glyphs_range().len()),
                     };
-                    Some(OverflowInfo {
+                    Some(TextOverflowInfo {
                         line: line.index() as _,
                         seg: seg.index() as _,
                         seg_char: c as _,
@@ -1280,7 +1280,7 @@ impl ShapedText {
                         text_glyph: seg.glyphs_range().start() + g,
                     })
                 } else {
-                    Some(OverflowInfo {
+                    Some(TextOverflowInfo {
                         line: line.index() as _,
                         seg: prev_line.seg_range.len() as _,
                         seg_char: 0,
@@ -1297,7 +1297,7 @@ impl ShapedText {
                     Some(r) => r,
                     None => (seg.text_range().len(), seg.glyphs_range().len()),
                 };
-                Some(OverflowInfo {
+                Some(TextOverflowInfo {
                     line: 1,
                     seg: seg.index() as _,
                     seg_char: c as _,
@@ -1385,7 +1385,7 @@ where
 ///
 /// Can be computed using [`ShapedText::overflow_info`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct OverflowInfo {
+pub struct TextOverflowInfo {
     /// First overflow line.
     pub line: u32,
     /// First overflow segment in the last not overflow line.
