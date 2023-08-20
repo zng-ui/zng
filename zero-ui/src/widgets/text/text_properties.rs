@@ -499,6 +499,8 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
 /// Gets the overflow text, that is a clone of the text starting from the first overflow character.
 ///
 /// Note that overflow is tracked even if [`txt_overflow`] is set to [`TextOverflow::Ignore`].
+/// 
+/// [`txt_overflow`]: fn@txt_overflow
 #[property(CHILD_LAYOUT+100, widget_impl(TextWrapMix<P>))]
 pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
     let txt = txt.into_var();

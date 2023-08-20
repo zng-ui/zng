@@ -2057,7 +2057,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Gets the first segment that overflows `max_width`. A segment overflows when its line advance is
-    /// greater than [`max_width`].
+    /// greater than `max_width`.
     pub fn overflow_seg(&self, max_width: Px) -> Option<ShapedSegment<'a>> {
         let max_width = max_width.0 as f32;
         let mut x = self.text.lines.0[self.index].width;
