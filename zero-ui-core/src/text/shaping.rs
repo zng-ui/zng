@@ -1267,7 +1267,10 @@ impl ShapedText {
 
                 let prev_line = self.line(line.index - 1).unwrap();
                 if let Some(seg) = prev_line.overflow_seg(max_width) {
-                    let (c, g) = seg.overflow_char_glyph(max_width - seg.x_width().0).unwrap_or((0, 0));
+                    let (c, g) = match seg.overflow_char_glyph(max_width - seg.x_width().0) {
+                        Some(r) => r,
+                        None => (seg.text_range().len(), seg.glyphs_range().len()),
+                    };
                     Some(OverflowInfo {
                         line: line.index() as _,
                         seg: seg.index() as _,
@@ -1290,7 +1293,10 @@ impl ShapedText {
         } else if self.lines_len() == 1 {
             let max_width = max_size.width - overflow_indicator;
             if let Some(seg) = self.line(0).unwrap().overflow_seg(max_width) {
-                let (c, g) = seg.overflow_char_glyph(max_width - seg.x_width().0).unwrap_or((0, 0));
+                let (c, g) = match seg.overflow_char_glyph(max_width - seg.x_width().0) {
+                    Some(r) => r,
+                    None => (seg.text_range().len(), seg.glyphs_range().len()),
+                };
                 Some(OverflowInfo {
                     line: 1,
                     seg: seg.index() as _,

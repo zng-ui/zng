@@ -16,9 +16,6 @@
         - Render size/align needs to be corrected?
     - Interaction with txt_wrap?
         - Could fit part of the word wrapped into overflow.
-    - Append suffix.
-        - Need to find last segment from overflow.
-        - Use direction of it?
     - Test RTL.
     - Not enabled when editable?
     - `get_overflow`, gets OverflowInfo.
