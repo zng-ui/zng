@@ -1394,22 +1394,6 @@ pub struct OverflowInfo {
     /// First overflow glyph in the text.
     pub text_glyph: usize,
 }
-impl OverflowInfo {
-    /// Last line not overflown.
-    pub fn last_line(self) -> usize {
-        self.line.saturating_sub(1) as _
-    }
-
-    /// Last segment not overflown in the last line.
-    pub fn last_seg(self) -> usize {
-        self.seg.saturating_sub(1) as _
-    }
-
-    /// Last glyph not overflown in the last segment.
-    pub fn last_glyph(self) -> usize {
-        self.seg_glyph.saturating_sub(1) as _
-    }
-}
 
 trait FontListRef {
     /// Shape segment, try fallback fonts if a glyph in the segment is not resolved.
