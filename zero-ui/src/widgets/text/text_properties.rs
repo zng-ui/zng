@@ -258,24 +258,49 @@ pub fn font_palette_colors(child: impl UiNode, colors: impl IntoVar<Vec<(u16, Rg
 pub struct TextAlignMix<P>(P);
 
 context_var! {
-    /// Text line alignment inside a text block.
+    /// Text alignment inside the available space.
     pub static TEXT_ALIGN_VAR: Align = Align::START;
+
+    /// Text alignment inside the available space when it overflows.
+    pub static TEXT_OVERFLOW_ALIGN_VAR: Align = Align::TOP_START;
 
     /// Text justify mode when text align is fill.
     pub static JUSTIFY_VAR: Option<Justify> = None;
 }
 
-/// Alignment of text lines inside text blocks.
+/// Alignment of text inside available space.
+///
+/// Horizontal alignment is applied for each line independently, vertical alignment is applied for the entire
+/// text block together.
 ///
 /// Note that the [`Text!`] widget only implements this for text inside each instance in isolation, multiple
 /// text instances in an inline row will not all align together by the [`Text!`] layout implementation alone.
 ///
 /// Sets the [`TEXT_ALIGN_VAR`].
 ///
+/// See also [`txt_overflow_align`], used when the text overflows.
+///
 /// [`Text!`]: struct@crate::widgets::Text
+/// [`txt_overflow_align`]: fn@txt_overflow_align
 #[property(CONTEXT, default(TEXT_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
+}
+
+/// Alignment of text inside available space when the text overflows.
+///
+/// Note that the [`Text!`] widget only implements this for text inside each instance in isolation, multiple
+/// text instances in an inline row will not all align together. Also note that [`txt_overflow`] truncation
+/// only applies to the end of the text after it is aligned, so unless this is [`Align::TOP_START`] (default) the
+/// start of the text maybe still be clipped after truncation.
+///
+/// Sets the [`TEXT_OVERFLOW_ALIGN_VAR`].
+///
+/// [`Text!`]: struct@crate::widgets::Text
+/// [`txt_overflow`]: fn@txt_overflow
+#[property(CONTEXT, default(TEXT_OVERFLOW_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
+pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
+    with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
 }
 
 /// Config the automatic spacing inserted between words and letters when text is aligned to fill.

@@ -935,7 +935,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.underline_thickness = underline;
 
             let align = TEXT_ALIGN_VAR.get();
-            if !self.pending.contains(PendingLayout::RESHAPE_LINES) && align != txt.shaped_text.align() {
+            let overflow_align = TEXT_OVERFLOW_ALIGN_VAR.get();
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES)
+                && (align != txt.shaped_text.align() || overflow_align != txt.shaped_text.overflow_align())
+            {
                 self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
@@ -962,6 +965,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         metrics.constraints(),
                         metrics.inline_constraints().map(|c| c.layout()),
                         align,
+                        overflow_align,
                         line_height,
                         line_spacing,
                         metrics.direction(),

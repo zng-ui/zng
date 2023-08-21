@@ -1,5 +1,5 @@
 use std::{
-    fmt,
+    cmp, fmt,
     hash::{BuildHasher, Hash, Hasher},
     mem, ops,
 };
@@ -298,6 +298,7 @@ pub struct ShapedText {
     mid_offset: f32,
     align_size: PxSize,
     align: Align,
+    overflow_align: Align,
     direction: LayoutDirection,
 
     // inline layout values
@@ -574,6 +575,15 @@ impl ShapedText {
         self.align
     }
 
+    /// Last applied overflow alignment.
+    ///
+    /// Only used in dimensions of the text that overflow [`align_size`].
+    ///
+    /// [`align_size`]: Self::align_size
+    pub fn overflow_align(&self) -> Align {
+        self.overflow_align
+    }
+
     /// Last applied alignment area.
     ///
     /// The lines are aligned inside this size. If the text is inlined only the mid-lines are aligned and only horizontally.
@@ -608,6 +618,7 @@ impl ShapedText {
         constraints: PxConstraints2d,
         inline_constraints: Option<InlineConstraintsLayout>,
         align: Align,
+        overflow_align: Align,
         line_height: Px,
         line_spacing: Px,
         direction: LayoutDirection,
@@ -618,6 +629,8 @@ impl ShapedText {
 
         let align_x = align.x(direction);
         let align_y = if is_inlined { 0.fct() } else { align.y() };
+        let overflow_align_x = overflow_align.x(direction);
+        let overflow_align_y = if is_inlined { 0.fct() } else { overflow_align.y() };
 
         let (first, mid, last, first_segs, last_segs) = if let Some(l) = &inline_constraints {
             (l.first, l.mid_clear, l.last, &*l.first_segs, &*l.last_segs)
@@ -634,12 +647,30 @@ impl ShapedText {
             );
             last.origin.y = block_size.height - last.size.height;
 
-            first.origin.x = (align_size.width - first.size.width) * align_x;
-            last.origin.x = (align_size.width - last.size.width) * align_x;
+            match first.size.width.cmp(&align_size.width) {
+                cmp::Ordering::Less => first.origin.x = (align_size.width - first.size.width) * align_x,
+                cmp::Ordering::Equal => {}
+                cmp::Ordering::Greater => first.origin.x = (align_size.width - first.size.width) * overflow_align_x,
+            }
+            match last.size.width.cmp(&align_size.width) {
+                cmp::Ordering::Less => last.origin.x = (align_size.width - last.size.width) * align_x,
+                cmp::Ordering::Equal => {}
+                cmp::Ordering::Greater => last.origin.x = (align_size.width - last.size.width) * overflow_align_x,
+            }
 
-            let align_y = (align_size.height - block_size.height) * align_y;
-            first.origin.y += align_y;
-            last.origin.y += align_y;
+            match block_size.height.cmp(&align_size.height) {
+                cmp::Ordering::Less => {
+                    let align_y = (align_size.height - block_size.height) * align_y;
+                    first.origin.y += align_y;
+                    last.origin.y += align_y;
+                }
+                cmp::Ordering::Equal => {}
+                cmp::Ordering::Greater => {
+                    let align_y = (align_size.height - block_size.height) * overflow_align_y;
+                    first.origin.y += align_y;
+                    last.origin.y += align_y;
+                }
+            }
 
             static EMPTY: Vec<InlineSegmentPos> = vec![];
             (first, Px(0), last, &EMPTY, &EMPTY)
@@ -733,7 +764,11 @@ impl ShapedText {
 
             let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
                 0.0,
-                (align_size.height - block_size.height).0 as f32 * align_y + mid.0 as f32,
+                match block_size.height.cmp(&align_size.height) {
+                    cmp::Ordering::Less => (align_size.height - block_size.height).0 as f32 * align_y + mid.0 as f32,
+                    cmp::Ordering::Equal => mid.0 as f32,
+                    cmp::Ordering::Greater => (align_size.height - block_size.height).0 as f32 * overflow_align_y + mid.0 as f32,
+                },
             );
             let y_transform = mid_offset.y - self.mid_offset;
             let align_width = align_size.width.0 as f32;
@@ -741,7 +776,11 @@ impl ShapedText {
             let skip_last = self.lines.0.len() - 2;
             let mut line_start = self.lines.0[0].end;
             for line in &mut self.lines.0[1..=skip_last] {
-                let x_offset = (align_width - line.width) * align_x;
+                let x_offset = if line.width < align_width {
+                    (align_width - line.width) * align_x
+                } else {
+                    (align_width - line.width) * overflow_align_x
+                };
                 let x_transform = x_offset - line.x_offset;
 
                 let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));
@@ -840,6 +879,7 @@ impl ShapedText {
         self.reshape_lines(
             PxConstraints2d::new_fill_size(self.align_size()),
             None,
+            Align::TOP_LEFT,
             Align::TOP_LEFT,
             self.orig_line_height,
             self.orig_line_spacing,
@@ -957,6 +997,7 @@ impl ShapedText {
             mid_offset: 0.0,
             align_size: PxSize::zero(),
             align: Align::TOP_LEFT,
+            overflow_align: Align::TOP_LEFT,
             direction: LayoutDirection::LTR,
             first_wrapped: false,
             first_line: PxRect::zero(),
@@ -1072,29 +1113,29 @@ impl ShapedText {
                 if is_rtl {
                     for (i, c) in clusters.iter().enumerate().rev() {
                         match (*c as usize).cmp(&local_index) {
-                            std::cmp::Ordering::Less => {
+                            cmp::Ordering::Less => {
                                 cluster_i = i;
                             }
-                            std::cmp::Ordering::Equal => {
+                            cmp::Ordering::Equal => {
                                 cluster_i = i;
                                 search_lig = false;
                                 break;
                             }
-                            std::cmp::Ordering::Greater => break,
+                            cmp::Ordering::Greater => break,
                         }
                     }
                 } else {
                     for (i, c) in clusters.iter().enumerate() {
                         match (*c as usize).cmp(&local_index) {
-                            std::cmp::Ordering::Less => {
+                            cmp::Ordering::Less => {
                                 cluster_i = i;
                             }
-                            std::cmp::Ordering::Equal => {
+                            cmp::Ordering::Equal => {
                                 cluster_i = i;
                                 search_lig = false;
                                 break;
                             }
-                            std::cmp::Ordering::Greater => break,
+                            cmp::Ordering::Greater => break,
                         }
                     }
                 }
@@ -1491,6 +1532,7 @@ impl ShapedTextBuilder {
                 mid_offset: 0.0,
                 align_size: PxSize::zero(),
                 align: Align::TOP_LEFT,
+                overflow_align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
                 is_inlined: config.inline_constraints.is_some(),
@@ -3329,6 +3371,7 @@ mod tests {
             PxConstraints2d::new_fill_size(test.align_size()),
             None,
             test.align(),
+            test.overflow_align(),
             test.line_height(),
             to,
             test.direction(),
@@ -3371,6 +3414,7 @@ mod tests {
             PxConstraints2d::new_fill_size(test.align_size()),
             None,
             test.align(),
+            test.overflow_align(),
             to,
             test.line_spacing(),
             test.direction(),

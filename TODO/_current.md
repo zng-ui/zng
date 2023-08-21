@@ -11,9 +11,6 @@
 # Text
 
 * `txt_overflow`.
-    - Overflow size correction.
-        - Layout size already correct.
-        - Render size/align needs to be corrected?
     - Test RTL.
     - Test emoticon suffix.
     - Not enabled when editable?
