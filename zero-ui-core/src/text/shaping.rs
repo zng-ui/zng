@@ -1333,8 +1333,13 @@ impl ShapedText {
             }
         } else if self.lines_len() == 1 {
             let max_width = max_size.width - overflow_indicator;
-            if let Some(seg) = self.line(0).unwrap().overflow_seg(max_width) {
-                let (c, g) = match seg.overflow_char_glyph(max_width - seg.x_width().0) {
+            let line = self.line(0).unwrap();
+            if let Some(seg) = line.overflow_seg(max_width) {
+                let mut max_width = max_width.0 as f32;
+                for s in line.segs().take(seg.index) {
+                    max_width -= s.advance();
+                }
+                let (c, g) = match seg.overflow_char_glyph(Px(max_width.round() as _)) {
                     Some(r) => r,
                     None => (seg.text_range().len(), seg.glyphs_range().len()),
                 };
@@ -2102,11 +2107,11 @@ impl<'a> ShapedLine<'a> {
     /// greater than `max_width`.
     pub fn overflow_seg(&self, max_width: Px) -> Option<ShapedSegment<'a>> {
         let max_width = max_width.0 as f32;
-        let mut x = self.text.lines.0[self.index].width;
-        if x > max_width {
-            for seg in self.segs().rev() {
-                x -= seg.advance();
-                if x <= max_width {
+        if self.text.lines.0[self.index].width > max_width {
+            let mut x = 0.0;
+            for seg in self.segs() {
+                x += seg.advance();
+                if x > max_width {
                     return Some(seg);
                 }
             }
@@ -2536,19 +2541,33 @@ impl<'a> ShapedSegment<'a> {
         PxRect::new(PxPoint::new(x, y), size)
     }
 
-    /// Gets the first grapheme char and glyph with advance that overflows `max_width`.
+    /// Gets the first char and glyph with advance that overflows `max_width`.
     pub fn overflow_char_glyph(&self, max_width: Px) -> Option<(usize, usize)> {
         let max_width = max_width.0 as f32;
         if self.advance() > max_width {
-            let mut x = 0.0;
-            let mut g = 0;
-            for (_, c) in self.cluster_glyphs_with_x_advance() {
-                for (cluster, glyphs, advance) in c {
-                    x += advance;
-                    if x > max_width {
-                        return Some((cluster as usize, g));
+            if self.direction().is_ltr() {
+                let mut x = 0.0;
+                let mut g = 0;
+                for (_, c) in self.cluster_glyphs_with_x_advance() {
+                    for (cluster, glyphs, advance) in c {
+                        x += advance;
+                        if x > max_width {
+                            return Some((cluster as usize, g));
+                        }
+                        g += glyphs.len();
                     }
-                    g += glyphs.len();
+                }
+            } else {
+                let mut x = max_width;
+                let mut g = 0;
+                for (_, c) in self.cluster_glyphs_with_x_advance() {
+                    for (cluster, glyphs, advance) in c {
+                        x -= advance;
+                        if x < 0.0 {
+                            return Some((cluster as usize, g));
+                        }
+                        g += glyphs.len();
+                    }
                 }
             }
         }
