@@ -1148,6 +1148,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 .sub_var(&HYPHEN_CHAR_VAR)
                 .sub_var(&TEXT_WRAP_VAR)
                 .sub_var(&TEXT_OVERFLOW_VAR);
+            WIDGET.sub_var_layout(&TEXT_ALIGN_VAR).sub_var_layout(&TEXT_OVERFLOW_ALIGN_VAR);
 
             WIDGET.sub_var(&FONT_FEATURES_VAR);
             // LANG_VAR already subscribed by `resolve_text`.
