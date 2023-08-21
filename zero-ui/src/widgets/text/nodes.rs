@@ -977,7 +977,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if self.pending.contains(PendingLayout::OVERFLOW) {
                     let txt_size = txt.shaped_text.size();
                     let max_size = metrics.constraints().fill_size_or(txt_size);
-                    if txt_size.width < max_size.width || txt_size.height < max_size.height {
+                    if txt_size.width > max_size.width || txt_size.height > max_size.height {
                         let suf_width = txt.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
                         txt.overflow = txt.shaped_text.overflow_info(max_size, suf_width);
 
