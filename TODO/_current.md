@@ -17,6 +17,7 @@
     - Interaction with txt_wrap?
         - Could fit part of the word wrapped into overflow.
     - Test RTL.
+    - Test emoticon suffix.
     - Not enabled when editable?
 
 # Tooltip

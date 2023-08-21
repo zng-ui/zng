@@ -1915,7 +1915,7 @@ impl notify::Watcher for PollWatcher {
         let worker = std::thread::Builder::new()
             .name(String::from("poll-watcher"))
             .spawn(move || loop {
-                match rcv.recv_timeout(config.poll_interval()) {
+                match rcv.recv_timeout(config.poll_interval_v2().unwrap_or_default()) {
                     Ok(msg) => match msg {
                         PollMsg::Watch(d, r) => {
                             let info = PollInfo::new(&d, r);
