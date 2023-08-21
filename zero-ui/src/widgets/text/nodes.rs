@@ -1824,13 +1824,16 @@ pub fn render_text() -> impl UiNode {
                                     let mut suf_origin = euclid::Point2D::<f32, Px>::new(0.0, 0.0);
 
                                     if let Some(line) = t.shaped_text.line(o.line.saturating_sub(1) as _) {
-                                        suf_origin.y = line.rect().origin.y.0 as f32;
+                                        let line_rect = line.rect();
+                                        suf_origin.y = line_rect.origin.y.0 as f32;
                                         if let Some(seg) = line.seg(o.seg as _) {
                                             if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
                                                 suf_origin.x = g.point.x;
                                             } else {
                                                 suf_origin.x = seg.rect().max_x().0 as f32;
                                             }
+                                        } else {
+                                            suf_origin.x = line_rect.width().0 as f32;
                                         }
                                     }
 
@@ -1861,13 +1864,16 @@ pub fn render_text() -> impl UiNode {
                                 let mut suf_origin = euclid::Point2D::new(0.0, 0.0);
 
                                 if let Some(line) = t.shaped_text.line(o.line.saturating_sub(1) as _) {
-                                    suf_origin.y = line.rect().origin.y.0 as f32;
+                                    let line_rect = line.rect();
+                                    suf_origin.y = line_rect.origin.y.0 as f32;
                                     if let Some(seg) = line.seg(o.seg as _) {
                                         if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
                                             suf_origin.x = g.point.x;
                                         } else {
                                             suf_origin.x = seg.rect().max_x().0 as f32;
                                         }
+                                    } else {
+                                        suf_origin.x = line_rect.width().0 as f32;
                                     }
                                 }
                                 let suf_offset = suf_origin.to_vector();

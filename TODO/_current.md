@@ -14,8 +14,6 @@
     - Overflow size correction.
         - Layout size already correct.
         - Render size/align needs to be corrected?
-    - Interaction with txt_wrap?
-        - Could fit part of the word wrapped into overflow.
     - Test RTL.
     - Test emoticon suffix.
     - Not enabled when editable?

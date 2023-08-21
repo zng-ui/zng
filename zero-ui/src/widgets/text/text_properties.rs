@@ -446,7 +446,11 @@ pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode
     with_context_var(child, HYPHEN_CHAR_VAR, hyphen)
 }
 
-/// Defines how text overflow is handled.
+/// Defines if text overflow is truncated, with optional suffix append.
+///
+/// When enabled overflow is truncated by character or by the wrap rules if [`txt_wrap`] is enabled (it is by default).
+///
+/// [`txt_wrap`]: fn@txt_wrap
 #[property(CONTEXT, default(TEXT_OVERFLOW_VAR), widget_impl(TextWrapMix<P>))]
 pub fn txt_overflow(child: impl UiNode, overflow: impl IntoVar<TextOverflow>) -> impl UiNode {
     with_context_var(child, TEXT_OVERFLOW_VAR, overflow)
