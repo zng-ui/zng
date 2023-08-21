@@ -466,13 +466,13 @@ impl ShapedText {
         })
     }
 
-    /// Bounding box size, the width is the longest line or the right-most point of first and
-    /// last line, the height is the bottom-most point of the last line.
+    /// Bounding box size, the width is the longest line or the first or
+    /// last line width + absolute offset, the height is the bottom-most point of the last line.
     pub fn size(&self) -> PxSize {
-        self.mid_size().max(PxSize::new(
-            self.first_line.max_x().max(self.last_line.max_x()),
-            self.last_line.max_y(),
-        ))
+        let first_width = self.first_line.origin.x.abs() + self.first_line.size.width;
+        let last_width = self.last_line.origin.x.abs() + self.last_line.size.width;
+        self.mid_size()
+            .max(PxSize::new(first_width.max(last_width), self.last_line.max_y()))
     }
 
     /// Size of the text, if it is not inlined.
