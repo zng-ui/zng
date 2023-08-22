@@ -1864,6 +1864,24 @@ pub fn render_text() -> impl UiNode {
                             for (font, glyphs) in t.shaped_text.glyphs_slice(..o.text_glyph) {
                                 push_font_glyphs(font, Cow::Borrowed(glyphs))
                             }
+                            if o.seg_glyphs_len > 0 {
+                                // partial segment, glyphs are always LTR within segment ranges.
+                                match o.seg_direction {
+                                    LayoutDirection::LTR => {
+                                        let end = o.text_glyph + o.seg_glyph as usize;
+                                        for (font, glyphs) in t.shaped_text.glyphs_slice(o.text_glyph..end) {
+                                            push_font_glyphs(font, Cow::Borrowed(glyphs))
+                                        }
+                                    }
+                                    LayoutDirection::RTL => {
+                                        let start = o.text_glyph + o.seg_glyph as usize;
+                                        let end = o.text_glyph + o.seg_glyphs_len as usize;
+                                        for (font, glyphs) in t.shaped_text.glyphs_slice(start..end) {
+                                            push_font_glyphs(font, Cow::Borrowed(glyphs))
+                                        }
+                                    }
+                                }
+                            }
 
                             if let Some(suf) = &t.overflow_suffix {
                                 let mut suf_origin = euclid::Point2D::new(0.0, 0.0);

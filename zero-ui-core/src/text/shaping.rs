@@ -1299,6 +1299,8 @@ impl ShapedText {
                     seg: 0,
                     seg_char: 0,
                     seg_glyph: 0,
+                    seg_glyphs_len: 0,
+                    seg_direction: self.direction,
                     text_char: 0,
                     text_glyph: 0,
                 })
@@ -1317,8 +1319,10 @@ impl ShapedText {
                         seg: seg.index() as _,
                         seg_char: c as _,
                         seg_glyph: g as _,
+                        seg_glyphs_len: seg.glyphs_range().len() as _,
+                        seg_direction: seg.direction(),
                         text_char: seg.text_range().start + c,
-                        text_glyph: seg.glyphs_range().start() + g,
+                        text_glyph: seg.glyphs_range().start(),
                     })
                 } else {
                     Some(TextOverflowInfo {
@@ -1326,6 +1330,8 @@ impl ShapedText {
                         seg: prev_line.seg_range.len() as _,
                         seg_char: 0,
                         seg_glyph: 0,
+                        seg_glyphs_len: 0,
+                        seg_direction: self.direction,
                         text_char: line.text_range().start,
                         text_glyph: line.glyphs_range().start(),
                     })
@@ -1348,8 +1354,10 @@ impl ShapedText {
                     seg: seg.index() as _,
                     seg_char: c as _,
                     seg_glyph: g as _,
+                    seg_glyphs_len: seg.glyphs_range().len() as _,
+                    seg_direction: seg.direction(),
                     text_char: seg.text_range().start + c,
-                    text_glyph: seg.glyphs_range().start() + g,
+                    text_glyph: seg.glyphs_range().start(),
                 })
             } else {
                 None
@@ -1436,14 +1444,23 @@ pub struct TextOverflowInfo {
     pub line: u32,
     /// First overflow segment in the last not overflow line.
     pub seg: u32,
-    /// First overflow grapheme in the last overflow segment.
+    /// First overflow grapheme in the first overflow segment.
     pub seg_char: u32,
-    /// First overflow glyph in the last overflow segment.
+
+    /// First overflow glyph in the first overflow segment.
     pub seg_glyph: u32,
+    /// Count of glyphs in the first overflow segment.
+    pub seg_glyphs_len: u32,
+    /// First overflow segment direction.
+    pub seg_direction: LayoutDirection,
 
     /// First overflow character in the text.
     pub text_char: usize,
-    /// First overflow glyph in the text.
+    /// First overflow segment first glyph.
+    ///
+    /// Glyphs are yielded in text order per segment and in visual order (LTR) within each
+    /// segment, to the visit all glyphs not overflown you must iterate from start to this
+    /// value, and then iterate from the seg start (LTR) or end (RTL) to `seg_glyph`.
     pub text_glyph: usize,
 }
 
@@ -2545,29 +2562,15 @@ impl<'a> ShapedSegment<'a> {
     pub fn overflow_char_glyph(&self, max_width: Px) -> Option<(usize, usize)> {
         let max_width = max_width.0 as f32;
         if self.advance() > max_width {
-            if self.direction().is_ltr() {
-                let mut x = 0.0;
-                let mut g = 0;
-                for (_, c) in self.cluster_glyphs_with_x_advance() {
-                    for (cluster, glyphs, advance) in c {
-                        x += advance;
-                        if x > max_width {
-                            return Some((cluster as usize, g));
-                        }
-                        g += glyphs.len();
+            let mut x = 0.0;
+            let mut g = 0;
+            for (_, c) in self.cluster_glyphs_with_x_advance() {
+                for (cluster, glyphs, advance) in c {
+                    x += advance;
+                    if x > max_width {
+                        return Some((cluster as usize, g));
                     }
-                }
-            } else {
-                let mut x = max_width;
-                let mut g = 0;
-                for (_, c) in self.cluster_glyphs_with_x_advance() {
-                    for (cluster, glyphs, advance) in c {
-                        x -= advance;
-                        if x < 0.0 {
-                            return Some((cluster as usize, g));
-                        }
-                        g += glyphs.len();
-                    }
+                    g += glyphs.len();
                 }
             }
         }
