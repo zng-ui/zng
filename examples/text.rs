@@ -131,6 +131,7 @@ fn basic() -> impl UiNode {
                     font_color = color_scheme_map(colors::YELLOW, colors::BROWN);
                 }
             },
+            Text!("Emoticons 🔎👨‍💻🧐"),
         ],
     )
 }

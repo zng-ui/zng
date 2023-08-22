@@ -1786,12 +1786,21 @@ pub fn render_text() -> impl UiNode {
                 if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false) {
                     let palette_query = FONT_PALETTE_VAR.get();
                     FONT_PALETTE_COLORS_VAR.with(|palette_colors| {
-                        let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs| {
+                        let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs, offset: Option<euclid::Vector2D<f32, Px>>| {
                             let mut palette = None;
 
                             match glyphs {
                                 ShapedColoredGlyphs::Normal(glyphs) => {
-                                    frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                                    if let Some(offset) = offset {
+                                        let mut glyphs = glyphs.to_vec();
+                                        for g in &mut glyphs {
+                                            g.point.x += offset.x;
+                                            g.point.y += offset.y;
+                                        }
+                                        frame.push_text(clip, &glyphs, font, color_value, r.synthesis, aa);
+                                    } else {
+                                        frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                                    }
                                 }
                                 ShapedColoredGlyphs::Colored { point, glyphs, .. } => {
                                     for (index, color_i) in glyphs.iter() {
@@ -1812,7 +1821,11 @@ pub fn render_text() -> impl UiNode {
                                             color
                                         };
 
-                                        let g = GlyphInstance { point, index };
+                                        let mut g = GlyphInstance { point, index };
+                                        if let Some(offset) = offset {
+                                            g.point.x += offset.x;
+                                            g.point.y += offset.y;
+                                        }
                                         frame.push_text(clip, &[g], font, FrameValue::Value(color.into()), r.synthesis, aa);
                                     }
                                 }
@@ -1822,11 +1835,28 @@ pub fn render_text() -> impl UiNode {
                         match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
                             (Some(o), TextOverflow::Truncate(_)) => {
                                 for (font, glyphs) in t.shaped_text.colored_glyphs_slice(..o.text_glyph) {
-                                    push_font_glyphs(font, glyphs)
+                                    push_font_glyphs(font, glyphs, None)
+                                }
+                                if o.seg_glyphs_len > 0 {
+                                    match o.seg_direction {
+                                        LayoutDirection::LTR => {
+                                            let end = o.text_glyph + o.seg_glyph as usize;
+                                            for (font, glyphs) in t.shaped_text.colored_glyphs_slice(o.text_glyph..end) {
+                                                push_font_glyphs(font, glyphs, None)
+                                            }
+                                        }
+                                        LayoutDirection::RTL => {
+                                            let start = o.text_glyph + o.seg_glyph as usize;
+                                            let end = o.text_glyph + o.seg_glyphs_len as usize;
+                                            for (font, glyphs) in t.shaped_text.colored_glyphs_slice(start..end) {
+                                                push_font_glyphs(font, glyphs, None)
+                                            }
+                                        }
+                                    }
                                 }
 
                                 if let Some(suf) = &t.overflow_suffix {
-                                    let mut suf_origin = euclid::Point2D::<f32, Px>::new(0.0, 0.0);
+                                    let mut suf_origin = euclid::Point2D::new(0.0, 0.0);
 
                                     if let Some(line) = t.shaped_text.line(o.line.saturating_sub(1) as _) {
                                         let line_rect = line.rect();
@@ -1841,20 +1871,23 @@ pub fn render_text() -> impl UiNode {
                                             suf_origin.x = line_rect.width().0 as f32;
                                         }
                                     }
+                                    let suf_offset = suf_origin.to_vector();
 
                                     for (font, glyphs) in suf.colored_glyphs() {
-                                        push_font_glyphs(font, glyphs)
+                                        push_font_glyphs(font, glyphs, Some(suf_offset))
                                     }
                                 }
                             }
                             _ => {
                                 for (font, glyphs) in t.shaped_text.colored_glyphs() {
-                                    push_font_glyphs(font, glyphs)
+                                    push_font_glyphs(font, glyphs, None)
                                 }
                             }
                         }
                     });
                 } else {
+                    // no colored glyphs
+
                     let mut push_font_glyphs = |font: &crate::core::text::Font, glyphs: Cow<[GlyphInstance]>| {
                         frame.push_text(clip, glyphs.as_ref(), font, color_value, r.synthesis, aa);
                     };
