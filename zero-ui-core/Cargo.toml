@@ -136,7 +136,7 @@ async-recursion = "1"
 pretty-type-name = "1"
 num_enum = "0.7"
 take_mut = "0.2"
-smallvec = { version = "1", features = ["const_new"] }
+smallvec = { version = "1", features = ["const_new", "serde"] }
 const-random = "0.1.15"
 atomic = "0.6"
 bytemuck = { version = "1", features = ["derive"] }

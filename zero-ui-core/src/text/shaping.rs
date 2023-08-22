@@ -111,6 +111,7 @@ struct LineRange {
     width: f32,
     /// Applied align offset to the right.
     x_offset: f32,
+    directions: LayoutDirections,
 }
 
 /// Defines the font of a range of glyphs in a [`ShapedText`].
@@ -978,6 +979,7 @@ impl ShapedText {
                 end: 0,
                 width: 0.0,
                 x_offset: 0.0,
+                directions: LayoutDirections::empty(),
             }]),
             fonts: FontRangeVec(vec![FontRange {
                 font: self.fonts.font(0).clone(),
@@ -1290,23 +1292,19 @@ impl ShapedText {
     }
 
     /// Gets a full overflow analysis.
-    pub fn overflow_info(&self, max_size: PxSize, overflow_indicator: Px) -> Option<TextOverflowInfo> {
+    pub fn overflow_info(&self, max_size: PxSize, overflow_suffix_width: Px) -> Option<TextOverflowInfo> {
         if let Some(line) = self.overflow_line(max_size.height) {
             if line.index == 0 {
                 // text cannot fit
                 Some(TextOverflowInfo {
                     line: 0,
-                    seg: 0,
-                    seg_char: 0,
-                    seg_glyph: 0,
-                    seg_glyphs_len: 0,
-                    seg_direction: self.direction,
                     text_char: 0,
-                    text_glyph: 0,
+                    included_glyphs: smallvec::smallvec![],
+                    suffix_origin: self.first_line.origin.cast().cast_unit(),
                 })
             } else {
-                // overflow indicator may mess with last line too.
-                let max_width = max_size.width - overflow_indicator;
+                // check overflow of the last not overflown line
+                let max_width = max_size.width - overflow_suffix_width;
 
                 let prev_line = self.line(line.index - 1).unwrap();
                 if let Some(seg) = prev_line.overflow_seg(max_width) {
@@ -1315,30 +1313,32 @@ impl ShapedText {
                         None => (seg.text_range().len(), seg.glyphs_range().len()),
                     };
                     Some(TextOverflowInfo {
-                        line: line.index() as _,
-                        seg: seg.index() as _,
-                        seg_char: c as _,
-                        seg_glyph: g as _,
-                        seg_glyphs_len: seg.glyphs_range().len() as _,
-                        seg_direction: seg.direction(),
+                        line: line.index(),
                         text_char: seg.text_range().start + c,
-                        text_glyph: seg.glyphs_range().start(),
+                        included_glyphs: smallvec::smallvec_inline![0..seg.glyphs_range().start() + g], // !!: TODO handle bidi
+                        suffix_origin: if let Some(g) = seg.glyph(g) {
+                            euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
+                        } else {
+                            seg.rect().origin.cast().cast_unit()
+                        }, // !!: TODO handle RTL
                     })
                 } else {
+                    // last line fully visible and has space for the suffix
                     Some(TextOverflowInfo {
-                        line: line.index() as _,
-                        seg: prev_line.seg_range.len() as _,
-                        seg_char: 0,
-                        seg_glyph: 0,
-                        seg_glyphs_len: 0,
-                        seg_direction: self.direction,
+                        line: line.index(),
                         text_char: line.text_range().start,
-                        text_glyph: line.glyphs_range().start(),
+                        included_glyphs: smallvec::smallvec![],
+                        suffix_origin: {
+                            let rect = line.rect();
+                            PxPoint::new(rect.origin.y, rect.origin.x + rect.width()).cast().cast_unit()
+                        },
                     })
                 }
             }
         } else if self.lines_len() == 1 {
-            let max_width = max_size.width - overflow_indicator;
+            // no line y overflow, but single line might have x overflow.
+
+            let max_width = max_size.width - overflow_suffix_width;
             let line = self.line(0).unwrap();
             if let Some(seg) = line.overflow_seg(max_width) {
                 let mut max_width = max_width.0 as f32;
@@ -1351,18 +1351,19 @@ impl ShapedText {
                 };
                 Some(TextOverflowInfo {
                     line: 1,
-                    seg: seg.index() as _,
-                    seg_char: c as _,
-                    seg_glyph: g as _,
-                    seg_glyphs_len: seg.glyphs_range().len() as _,
-                    seg_direction: seg.direction(),
                     text_char: seg.text_range().start + c,
-                    text_glyph: seg.glyphs_range().start(),
+                    included_glyphs: smallvec::smallvec_inline![0..seg.glyphs_range().start() + g],
+                    suffix_origin: if let Some(g) = seg.glyph(g) {
+                        euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
+                    } else {
+                        seg.rect().origin.cast().cast_unit()
+                    },
                 })
             } else {
                 None
             }
         } else {
+            // no line overflow
             None
         }
     }
@@ -1435,33 +1436,36 @@ where
     }
 }
 
-/// Info about a shaped text overflow in a given constraint.
+/// Info about a shaped text overflow in constraint.
 ///
 /// Can be computed using [`ShapedText::overflow_info`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TextOverflowInfo {
     /// First overflow line.
-    pub line: u32,
-    /// First overflow segment in the last not overflow line.
-    pub seg: u32,
-    /// First overflow grapheme in the first overflow segment.
-    pub seg_char: u32,
-
-    /// First overflow glyph in the first overflow segment.
-    pub seg_glyph: u32,
-    /// Count of glyphs in the first overflow segment.
-    pub seg_glyphs_len: u32,
-    /// First overflow segment direction.
-    pub seg_direction: LayoutDirection,
+    ///
+    /// All segments in this line and next lines are fully overflown. The previous line line may
+    /// be partially overflown, the lines before that are fully visible.
+    ///
+    /// Is the [`ShapedText::lines_len`] if the last line is partially not overflown.
+    pub line: usize,
 
     /// First overflow character in the text.
-    pub text_char: usize,
-    /// First overflow segment first glyph.
     ///
-    /// Glyphs are yielded in text order per segment and in visual order (LTR) within each
-    /// segment, to the visit all glyphs not overflown you must iterate from start to this
-    /// value, and then iterate from the seg start (LTR) or end (RTL) to `seg_glyph`.
-    pub text_glyph: usize,
+    /// Note that if overflow is not wrapping (single text line) the char may not cover all visible
+    /// glyphs in the line if it is bidirectional.
+    pub text_char: usize,
+
+    /// Glyphs not overflown in the last not overflown line.
+    ///
+    /// If the line is not bidirectional this will be a single range covering the not overflow glyphs,
+    /// if it is bidi multiple ranges are possible due to bidi reordering.
+    pub included_glyphs: smallvec::SmallVec<[ops::Range<usize>; 1]>,
+
+    /// Placement of the suffix (ellipses or custom).
+    ///
+    /// The suffix must be of the width given to [`ShapedText::overflow_info`] and the same line height
+    /// as the text.
+    pub suffix_origin: crate::render::webrender_api::units::LayoutPoint,
 }
 
 trait FontListRef {
@@ -1746,11 +1750,12 @@ impl ShapedTextBuilder {
             }
         }
 
-        self.finish_current_line_bidi(text);
+        let directions = self.finish_current_line_bidi(text);
         self.out.lines.0.push(LineRange {
             end: self.out.segments.0.len(),
             width: self.origin.x,
             x_offset: 0.0,
+            directions,
         });
 
         self.out.update_mid_size();
@@ -1892,12 +1897,13 @@ impl ShapedTextBuilder {
         if self.out.glyphs.is_empty() && self.allow_first_wrap && soft {
             self.out.first_wrapped = true;
         } else {
-            self.finish_current_line_bidi(text);
+            let directions = self.finish_current_line_bidi(text);
 
             self.out.lines.0.push(LineRange {
                 end: self.out.segments.0.len(),
                 width: self.origin.x,
                 x_offset: 0.0,
+                directions,
             });
 
             if self.out.lines.0.len() == 1 {
@@ -1917,7 +1923,8 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn finish_current_line_bidi(&mut self, text: &SegmentedText) {
+    #[must_use]
+    fn finish_current_line_bidi(&mut self, text: &SegmentedText) -> LayoutDirections {
         if self.line_has_rtl {
             let seg_start = if self.out.lines.0.is_empty() {
                 0
@@ -1966,8 +1973,14 @@ impl ShapedTextBuilder {
             }
         }
 
+        let mut d = LayoutDirections::empty();
+        d.set(LayoutDirections::LTR, self.line_has_ltr);
+        d.set(LayoutDirections::RTL, self.line_has_rtl);
+
         self.line_has_ltr = false;
         self.line_has_rtl = false;
+
+        d
     }
 
     pub fn push_text_seg(&mut self, seg: &str, info: TextSegment) {
@@ -2065,6 +2078,22 @@ impl ShapedTextBuilder {
             font: font.clone(),
             end: self.out.glyphs.len(),
         })
+    }
+}
+
+bitflags! {
+    /// Identifies what direction segments a [`ShapedLine`] has.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct LayoutDirections: u8 {
+        /// Line has left-to-right segments.
+        const LTR = 1;
+        /// Line has right-to-left segments.
+        const RTL = 1;
+        /// Line as both left-to-right and right-to-left segments.
+        ///
+        /// When this is the case the line segments positions may be re-ordered.
+        const BIDI = Self::LTR.bits() | Self::RTL.bits();
     }
 }
 
@@ -2368,6 +2397,11 @@ impl<'a> ShapedLine<'a> {
     /// Gets the line index.
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    /// Layout directions of segments in this line.
+    pub fn directions(&self) -> LayoutDirections {
+        self.text.lines.0[self.index].directions
     }
 }
 

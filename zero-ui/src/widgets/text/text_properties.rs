@@ -512,7 +512,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
         }
         UiNodeOp::Layout { .. } => {
             let txt = super::nodes::LayoutText::get();
-            let is_o = if let Some(info) = txt.overflow {
+            let is_o = if let Some(info) = &txt.overflow {
                 info.line < txt.shaped_text.lines_len().saturating_sub(1) as _
             } else {
                 false
@@ -535,7 +535,8 @@ pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
     let txt = txt.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Layout { .. } = op {
-            if let Some(info) = super::nodes::LayoutText::get().overflow {
+            let l_txt = super::nodes::LayoutText::get();
+            if let Some(info) = &l_txt.overflow {
                 let r = super::nodes::ResolvedText::get();
                 let tail = &r.text.text()[info.text_char..];
                 if txt.with(|t| t != tail) {

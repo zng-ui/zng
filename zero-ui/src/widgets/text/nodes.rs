@@ -232,7 +232,7 @@ impl Clone for LayoutText {
         Self {
             fonts: self.fonts.clone(),
             shaped_text: self.shaped_text.clone(),
-            overflow: self.overflow,
+            overflow: self.overflow.clone(),
             overflow_suffix: self.overflow_suffix.clone(),
             shaped_text_version: self.shaped_text_version,
             overlines: self.overlines.clone(),
@@ -1832,53 +1832,23 @@ pub fn render_text() -> impl UiNode {
                             }
                         };
 
-                        match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
+                        match (&t.overflow, TEXT_OVERFLOW_VAR.get()) {
                             (Some(o), TextOverflow::Truncate(_)) => {
-                                for (font, glyphs) in t.shaped_text.colored_glyphs_slice(..o.text_glyph) {
-                                    push_font_glyphs(font, glyphs, None)
-                                }
-                                if o.seg_glyphs_len > 0 {
-                                    match o.seg_direction {
-                                        LayoutDirection::LTR => {
-                                            let end = o.text_glyph + o.seg_glyph as usize;
-                                            for (font, glyphs) in t.shaped_text.colored_glyphs_slice(o.text_glyph..end) {
-                                                push_font_glyphs(font, glyphs, None)
-                                            }
-                                        }
-                                        LayoutDirection::RTL => {
-                                            let start = o.text_glyph + o.seg_glyph as usize;
-                                            let end = o.text_glyph + o.seg_glyphs_len as usize;
-                                            for (font, glyphs) in t.shaped_text.colored_glyphs_slice(start..end) {
-                                                push_font_glyphs(font, glyphs, None)
-                                            }
-                                        }
+                                for glyphs in &o.included_glyphs {
+                                    for (font, glyphs) in t.shaped_text.colored_glyphs_slice(glyphs.clone()) {
+                                        push_font_glyphs(font, glyphs, None)
                                     }
                                 }
 
                                 if let Some(suf) = &t.overflow_suffix {
-                                    let mut suf_origin = euclid::Point2D::new(0.0, 0.0);
-
-                                    if let Some(line) = t.shaped_text.line(o.line.saturating_sub(1) as _) {
-                                        let line_rect = line.rect();
-                                        suf_origin.y = line_rect.origin.y.0 as f32;
-                                        if let Some(seg) = line.seg(o.seg as _) {
-                                            if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
-                                                suf_origin.x = g.point.x;
-                                            } else {
-                                                suf_origin.x = seg.rect().max_x().0 as f32;
-                                            }
-                                        } else {
-                                            suf_origin.x = line_rect.width().0 as f32;
-                                        }
-                                    }
-                                    let suf_offset = suf_origin.to_vector();
-
+                                    let suf_offset = o.suffix_origin.to_vector().cast_unit();
                                     for (font, glyphs) in suf.colored_glyphs() {
                                         push_font_glyphs(font, glyphs, Some(suf_offset))
                                     }
                                 }
                             }
                             _ => {
+                                // no overflow truncating
                                 for (font, glyphs) in t.shaped_text.colored_glyphs() {
                                     push_font_glyphs(font, glyphs, None)
                                 }
@@ -1892,48 +1862,16 @@ pub fn render_text() -> impl UiNode {
                         frame.push_text(clip, glyphs.as_ref(), font, color_value, r.synthesis, aa);
                     };
 
-                    match (t.overflow, TEXT_OVERFLOW_VAR.get()) {
+                    match (&t.overflow, TEXT_OVERFLOW_VAR.get()) {
                         (Some(o), TextOverflow::Truncate(_)) => {
-                            for (font, glyphs) in t.shaped_text.glyphs_slice(..o.text_glyph) {
-                                push_font_glyphs(font, Cow::Borrowed(glyphs))
-                            }
-                            if o.seg_glyphs_len > 0 {
-                                // partial segment, glyphs are always LTR within segment ranges.
-                                match o.seg_direction {
-                                    LayoutDirection::LTR => {
-                                        let end = o.text_glyph + o.seg_glyph as usize;
-                                        for (font, glyphs) in t.shaped_text.glyphs_slice(o.text_glyph..end) {
-                                            push_font_glyphs(font, Cow::Borrowed(glyphs))
-                                        }
-                                    }
-                                    LayoutDirection::RTL => {
-                                        let start = o.text_glyph + o.seg_glyph as usize;
-                                        let end = o.text_glyph + o.seg_glyphs_len as usize;
-                                        for (font, glyphs) in t.shaped_text.glyphs_slice(start..end) {
-                                            push_font_glyphs(font, Cow::Borrowed(glyphs))
-                                        }
-                                    }
+                            for glyphs in &o.included_glyphs {
+                                for (font, glyphs) in t.shaped_text.glyphs_slice(glyphs.clone()) {
+                                    push_font_glyphs(font, Cow::Borrowed(glyphs))
                                 }
                             }
 
                             if let Some(suf) = &t.overflow_suffix {
-                                let mut suf_origin = euclid::Point2D::new(0.0, 0.0);
-
-                                if let Some(line) = t.shaped_text.line(o.line.saturating_sub(1) as _) {
-                                    let line_rect = line.rect();
-                                    suf_origin.y = line_rect.origin.y.0 as f32;
-                                    if let Some(seg) = line.seg(o.seg as _) {
-                                        if let Some((_, g)) = seg.glyph(o.seg_glyph as _) {
-                                            suf_origin.x = g.point.x;
-                                        } else {
-                                            suf_origin.x = seg.rect().max_x().0 as f32;
-                                        }
-                                    } else {
-                                        suf_origin.x = line_rect.width().0 as f32;
-                                    }
-                                }
-                                let suf_offset = suf_origin.to_vector();
-
+                                let suf_offset = o.suffix_origin.to_vector().cast_unit();
                                 for (font, glyphs) in suf.glyphs() {
                                     let mut glyphs = glyphs.to_vec();
                                     for g in &mut glyphs {
@@ -1944,6 +1882,7 @@ pub fn render_text() -> impl UiNode {
                             }
                         }
                         _ => {
+                            // no overflow truncating
                             for (font, glyphs) in t.shaped_text.glyphs() {
                                 push_font_glyphs(font, Cow::Borrowed(glyphs))
                             }
