@@ -1295,7 +1295,7 @@ impl ShapedText {
     pub fn overflow_info(&self, max_size: PxSize, overflow_suffix_width: Px) -> Option<TextOverflowInfo> {
         // check y overflow
 
-        let line = match self.overflow_line(max_size.height) {
+        let (last_line, overflow_line) = match self.overflow_line(max_size.height) {
             Some(l) => {
                 if l.index == 0 {
                     // all text overflows
@@ -1306,24 +1306,45 @@ impl ShapedText {
                         suffix_origin: l.rect().origin.cast().cast_unit(),
                     });
                 } else {
-                    l
+                    (self.line(l.index - 1).unwrap(), l.index)
                 }
             }
-            None => self.line(self.lines_len().saturating_sub(1))?,
+            None => (self.line(self.lines_len().saturating_sub(1))?, self.lines_len()),
         };
 
         // check x overflow
 
         let max_width = max_size.width - overflow_suffix_width;
 
-        let directions = line.directions();
+        if last_line.width <= max_width {
+            // No x overflow
+            return if overflow_line < self.lines_len() {
+                Some(TextOverflowInfo {
+                    line: overflow_line,
+                    text_char: last_line.text_range().end,
+                    included_glyphs: smallvec::smallvec_inline![0..last_line.glyphs_range().end()],
+                    suffix_origin: {
+                        let r = last_line.rect();
+                        let mut o = r.origin;
+                        match self.direction {
+                            LayoutDirection::LTR => o.x += r.width(),
+                            LayoutDirection::RTL => o.x -= overflow_suffix_width,
+                        }
+                        o.cast().cast_unit()
+                    },
+                })
+            } else {
+                None
+            };
+        }
+
+        let directions = last_line.directions();
         if directions == LayoutDirections::BIDI {
-            // TODO
-            None
-        } else if line.width > max_width {
+            None // !!: TODO
+        } else {
             // single direction overflow
             let mut max_width_f32 = max_width.0 as f32;
-            for seg in line.segs() {
+            for seg in last_line.segs() {
                 let seg_advance = seg.advance();
                 max_width_f32 -= seg_advance;
                 if max_width_f32 <= 0.0 {
@@ -1337,7 +1358,7 @@ impl ShapedText {
                         };
 
                         return Some(TextOverflowInfo {
-                            line: 1,
+                            line: overflow_line,
                             text_char: seg_text_range.start + c,
                             included_glyphs: smallvec::smallvec![
                                 0..seg_glyphs_range.start(),
@@ -1365,7 +1386,7 @@ impl ShapedText {
                         };
 
                         return Some(TextOverflowInfo {
-                            line: 1,
+                            line: overflow_line,
                             text_char: seg_text_range.start + c,
                             included_glyphs: smallvec::smallvec_inline![0..seg_glyphs_range.start() + g],
                             suffix_origin: {
@@ -1383,9 +1404,6 @@ impl ShapedText {
                 }
             }
             // no overflow, rounding issue?
-            None
-        } else {
-            // no overflow
             None
         }
     }
