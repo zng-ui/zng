@@ -1293,77 +1293,97 @@ impl ShapedText {
 
     /// Gets a full overflow analysis.
     pub fn overflow_info(&self, max_size: PxSize, overflow_suffix_width: Px) -> Option<TextOverflowInfo> {
-        if let Some(line) = self.overflow_line(max_size.height) {
-            if line.index == 0 {
-                // text cannot fit
-                Some(TextOverflowInfo {
-                    line: 0,
-                    text_char: 0,
-                    included_glyphs: smallvec::smallvec![],
-                    suffix_origin: self.first_line.origin.cast().cast_unit(),
-                })
-            } else {
-                // check overflow of the last not overflown line
-                let max_width = max_size.width - overflow_suffix_width;
+        // check y overflow
 
-                let prev_line = self.line(line.index - 1).unwrap();
-                if let Some(seg) = prev_line.overflow_seg(max_width) {
-                    let (c, g) = match seg.overflow_char_glyph(max_width - seg.x_width().0) {
-                        Some(r) => r,
-                        None => (seg.text_range().len(), seg.glyphs_range().len()),
-                    };
-                    Some(TextOverflowInfo {
-                        line: line.index(),
-                        text_char: seg.text_range().start + c,
-                        included_glyphs: smallvec::smallvec_inline![0..seg.glyphs_range().start() + g], // !!: TODO handle bidi
-                        suffix_origin: if let Some(g) = seg.glyph(g) {
-                            euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
-                        } else {
-                            seg.rect().origin.cast().cast_unit()
-                        }, // !!: TODO handle RTL
-                    })
-                } else {
-                    // last line fully visible and has space for the suffix
-                    Some(TextOverflowInfo {
-                        line: line.index(),
-                        text_char: line.text_range().start,
+        let line = match self.overflow_line(max_size.height) {
+            Some(l) => {
+                if l.index == 0 {
+                    // all text overflows
+                    return Some(TextOverflowInfo {
+                        line: 0,
+                        text_char: 0,
                         included_glyphs: smallvec::smallvec![],
-                        suffix_origin: {
-                            let rect = line.rect();
-                            PxPoint::new(rect.origin.y, rect.origin.x + rect.width()).cast().cast_unit()
-                        },
-                    })
+                        suffix_origin: l.rect().origin.cast().cast_unit(),
+                    });
+                } else {
+                    l
                 }
             }
-        } else if self.lines_len() == 1 {
-            // no line y overflow, but single line might have x overflow.
+            None => self.line(self.lines_len().saturating_sub(1))?,
+        };
 
-            let max_width = max_size.width - overflow_suffix_width;
-            let line = self.line(0).unwrap();
-            if let Some(seg) = line.overflow_seg(max_width) {
-                let mut max_width = max_width.0 as f32;
-                for s in line.segs().take(seg.index) {
-                    max_width -= s.advance();
-                }
-                let (c, g) = match seg.overflow_char_glyph(Px(max_width.round() as _)) {
-                    Some(r) => r,
-                    None => (seg.text_range().len(), seg.glyphs_range().len()),
-                };
-                Some(TextOverflowInfo {
-                    line: 1,
-                    text_char: seg.text_range().start + c,
-                    included_glyphs: smallvec::smallvec_inline![0..seg.glyphs_range().start() + g],
-                    suffix_origin: if let Some(g) = seg.glyph(g) {
-                        euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
+        // check x overflow
+
+        let max_width = max_size.width - overflow_suffix_width;
+
+        let directions = line.directions();
+        if directions == LayoutDirections::BIDI {
+            // TODO
+            None
+        } else if line.width > max_width {
+            // single direction overflow
+            let mut max_width_f32 = max_width.0 as f32;
+            for seg in line.segs() {
+                max_width_f32 -= seg.advance();
+                if max_width_f32 <= 0.0 {
+                    let seg_text_range = seg.text_range();
+                    let seg_glyphs_range = seg.glyphs_range();
+
+                    if directions == LayoutDirections::RTL {
+                        let (c, g) = match seg.overflow_char_glyph(-max_width_f32) {
+                            Some(r) => r,
+                            None => (seg_text_range.len(), seg_glyphs_range.len()),
+                        };
+
+                        return Some(TextOverflowInfo {
+                            line: 1,
+                            text_char: seg_text_range.start + c,
+                            included_glyphs: if g > 0 {
+                                smallvec::smallvec![0..seg_glyphs_range.start(), seg_glyphs_range.start() + g..seg_glyphs_range.end()]
+                            } else {
+                                smallvec::smallvec_inline![0..seg_glyphs_range.start()]
+                            },
+                            suffix_origin: {
+                                let mut o = if let Some(g) = seg.glyph(g) {
+                                    euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
+                                } else {
+                                    let rect = seg.rect();
+                                    let mut o = rect.origin.cast().cast_unit();
+                                    o.x += seg.advance();
+                                    o
+                                };
+                                o.x -= overflow_suffix_width.0 as f32;
+                                o
+                            },
+                        });
                     } else {
-                        seg.rect().origin.cast().cast_unit()
-                    },
-                })
-            } else {
-                None
+                        let (c, g) = match seg.overflow_char_glyph((max_width - seg.x_width().0).0 as f32) {
+                            Some(r) => r,
+                            None => (seg_text_range.len(), seg_glyphs_range.len()),
+                        };
+
+                        return Some(TextOverflowInfo {
+                            line: 1,
+                            text_char: seg_text_range.start + c,
+                            included_glyphs: smallvec::smallvec_inline![0..seg_glyphs_range.start() + g],
+                            suffix_origin: {
+                                if let Some(g) = seg.glyph(g) {
+                                    euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
+                                } else {
+                                    let rect = seg.rect();
+                                    let mut o = rect.origin.cast().cast_unit();
+                                    o.x += seg.advance();
+                                    o
+                                }
+                            },
+                        });
+                    }
+                }
             }
+            // no overflow, rounding issue?
+            None
         } else {
-            // no line overflow
+            // no overflow
             None
         }
     }
@@ -2089,7 +2109,7 @@ bitflags! {
         /// Line has left-to-right segments.
         const LTR = 1;
         /// Line has right-to-left segments.
-        const RTL = 1;
+        const RTL = 2;
         /// Line as both left-to-right and right-to-left segments.
         ///
         /// When this is the case the line segments positions may be re-ordered.
@@ -2593,15 +2613,14 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Gets the first char and glyph with advance that overflows `max_width`.
-    pub fn overflow_char_glyph(&self, max_width: Px) -> Option<(usize, usize)> {
-        let max_width = max_width.0 as f32;
-        if self.advance() > max_width {
+    pub fn overflow_char_glyph(&self, max_width_px: f32) -> Option<(usize, usize)> {
+        if self.advance() > max_width_px {
             let mut x = 0.0;
             let mut g = 0;
             for (_, c) in self.cluster_glyphs_with_x_advance() {
                 for (cluster, glyphs, advance) in c {
                     x += advance;
-                    if x > max_width {
+                    if x > max_width_px {
                         return Some((cluster as usize, g));
                     }
                     g += glyphs.len();
