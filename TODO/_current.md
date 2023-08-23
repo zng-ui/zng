@@ -22,7 +22,8 @@
 # Tooltip
 
 * Tooltips stop showing upon interaction (click/tab/enter/etc.) in HTML.
-    - Ours doesn't.
+    - Implemented for click and mouse input events.
+    - Implement for more events and for events targetting other widgets.
 
 # View-Process
 

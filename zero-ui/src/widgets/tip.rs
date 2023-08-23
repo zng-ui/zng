@@ -4,7 +4,8 @@ use std::time::{Duration, Instant};
 
 use crate::{
     core::{
-        mouse::MOUSE_HOVERED_EVENT,
+        gesture::CLICK_EVENT,
+        mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT},
         timer::{DeadlineVar, TIMERS},
     },
     prelude::AnchorMode,
@@ -179,6 +180,8 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             }
                         }
                     }
+                } else if MOUSE_INPUT_EVENT.on(update).is_some() || CLICK_EVENT.on(update).is_some() {
+                    POPUP.close_var(&pop_state);
                 }
             }
             UiNodeOp::Update { .. } => {
@@ -191,26 +194,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 if let Some(d) = &auto_close {
                     if d.get().has_elapsed() {
                         auto_close = None;
-                        match pop_state.get() {
-                            PopupState::Opening => {
-                                // cancel
-                                pop_state
-                                    .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
-                                        match a.value {
-                                            PopupState::Open(id) => {
-                                                POPUP.force_close(id);
-                                            }
-                                            PopupState::Closed => {}
-                                            PopupState::Opening => unreachable!(),
-                                        }
-                                    }))
-                                    .perm();
-                            }
-                            PopupState::Open(id) => {
-                                POPUP.close(id);
-                            }
-                            PopupState::Closed => {}
-                        }
+                        POPUP.close_var(&pop_state);
                     }
                 }
             }

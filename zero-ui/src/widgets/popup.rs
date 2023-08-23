@@ -209,7 +209,7 @@ impl POPUP {
     }
 
     /// Close the popup widget when `state` is not already closed.
-    pub fn close_var(&self, state: ReadOnlyArcVar<PopupState>) {
+    pub fn close_var(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
                 .hook(Box::new(|a| {
@@ -225,7 +225,7 @@ impl POPUP {
     }
 
     /// Close the popup widget when `state` is not already closed.
-    pub fn force_close_var(&self, state: ReadOnlyArcVar<PopupState>) {
+    pub fn force_close_var(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
                 .hook(Box::new(|a| {

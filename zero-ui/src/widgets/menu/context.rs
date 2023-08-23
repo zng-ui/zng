@@ -56,7 +56,7 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
             WIDGET.sub_var(&menu).sub_event(&CLICK_EVENT);
         }
         UiNodeOp::Deinit => {
-            POPUP.close_var(pop_state.clone());
+            POPUP.close_var(&pop_state);
         }
         UiNodeOp::Event { update } => {
             c.event(update);
