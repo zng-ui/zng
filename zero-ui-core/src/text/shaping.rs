@@ -1324,13 +1324,14 @@ impl ShapedText {
             // single direction overflow
             let mut max_width_f32 = max_width.0 as f32;
             for seg in line.segs() {
-                max_width_f32 -= seg.advance();
+                let seg_advance = seg.advance();
+                max_width_f32 -= seg_advance;
                 if max_width_f32 <= 0.0 {
                     let seg_text_range = seg.text_range();
                     let seg_glyphs_range = seg.glyphs_range();
 
                     if directions == LayoutDirections::RTL {
-                        let (c, g) = match seg.overflow_char_glyph(-max_width_f32) {
+                        let (c, g) = match seg.overflow_char_glyph(seg_advance + max_width_f32) {
                             Some(r) => r,
                             None => (seg_text_range.len(), seg_glyphs_range.len()),
                         };
@@ -1338,13 +1339,12 @@ impl ShapedText {
                         return Some(TextOverflowInfo {
                             line: 1,
                             text_char: seg_text_range.start + c,
-                            included_glyphs: if g > 0 {
-                                smallvec::smallvec![0..seg_glyphs_range.start(), seg_glyphs_range.start() + g..seg_glyphs_range.end()]
-                            } else {
-                                smallvec::smallvec_inline![0..seg_glyphs_range.start()]
-                            },
+                            included_glyphs: smallvec::smallvec![
+                                0..seg_glyphs_range.start(),
+                                seg_glyphs_range.start() + g + 1..seg_glyphs_range.end()
+                            ],
                             suffix_origin: {
-                                let mut o = if let Some(g) = seg.glyph(g) {
+                                let mut o = if let Some(g) = seg.glyph(g + 1) {
                                     euclid::point2(g.1.point.x, seg.rect().origin.y.0 as f32)
                                 } else {
                                     let rect = seg.rect();
@@ -1357,6 +1357,8 @@ impl ShapedText {
                             },
                         });
                     } else {
+                        // LTR or empty
+
                         let (c, g) = match seg.overflow_char_glyph((max_width - seg.x_width().0).0 as f32) {
                             Some(r) => r,
                             None => (seg_text_range.len(), seg_glyphs_range.len()),
@@ -2615,15 +2617,37 @@ impl<'a> ShapedSegment<'a> {
     /// Gets the first char and glyph with advance that overflows `max_width`.
     pub fn overflow_char_glyph(&self, max_width_px: f32) -> Option<(usize, usize)> {
         if self.advance() > max_width_px {
-            let mut x = 0.0;
-            let mut g = 0;
-            for (_, c) in self.cluster_glyphs_with_x_advance() {
-                for (cluster, glyphs, advance) in c {
-                    x += advance;
-                    if x > max_width_px {
-                        return Some((cluster as usize, g));
+            match self.direction() {
+                LayoutDirection::LTR => {
+                    let mut x = 0.0;
+                    let mut g = 0;
+                    for (_, c) in self.cluster_glyphs_with_x_advance() {
+                        for (cluster, glyphs, advance) in c {
+                            x += advance;
+                            if x > max_width_px {
+                                return Some((cluster as usize, g));
+                            }
+                            g += glyphs.len();
+                        }
                     }
-                    g += glyphs.len();
+                }
+                LayoutDirection::RTL => {
+                    let mut g = 0;
+                    let mut rev = smallvec::SmallVec::<[_; 10]>::new();
+                    for (_, c) in self.cluster_glyphs_with_x_advance() {
+                        for (cluster, glyphs, advance) in c {
+                            rev.push((cluster, g, advance));
+                            g += glyphs.len();
+                        }
+                    }
+
+                    let mut x = 0.0;
+                    for (c, g, advance) in rev.into_iter().rev() {
+                        x += advance;
+                        if x > max_width_px {
+                            return Some((c as usize, g));
+                        }
+                    }
                 }
             }
         }
