@@ -1355,76 +1355,97 @@ impl ShapedText {
                 let seg_max_x = x + width;
 
                 if x < max_x && seg_max_x >= min_x {
-                    let mut glyphs = seg.glyphs_range().iter();
+                    let mut glyphs_range = seg.glyphs_range().iter();
+                    let mut text_range = seg.text_range();
                     if x < min_x {
-                        if let Some((_c, g)) = seg.overflow_char_glyph((width - (min_x - x)).0 as f32) {
-                            glyphs.start = g;
+                        if let Some((c, g)) = seg.overflow_char_glyph((width - (min_x - x)).0 as f32) {
+                            glyphs_range.start += g + 1;
+                            text_range.start += c;
                         }
                     } else if seg_max_x > max_x {
-                        if let Some((_c, g)) = seg.overflow_char_glyph((width - seg_max_x - max_x).0 as f32) {
-                            glyphs.end = g;
+                        if let Some((c, g)) = seg.overflow_char_glyph((width - seg_max_x - max_x).0 as f32) {
+                            glyphs_range.end -= g;
+                            text_range.end -= c;
                         }
                     }
 
                     if let Some(l) = included_glyphs.last_mut() {
-                        if l.end == glyphs.start {
-                            l.end = glyphs.end;
-                        } else if glyphs.end == l.start {
-                            l.start = glyphs.start;
+                        if l.end == glyphs_range.start {
+                            l.end = glyphs_range.end;
+                        } else if glyphs_range.end == l.start {
+                            l.start = glyphs_range.start;
                         } else {
-                            included_glyphs.push(glyphs);
+                            included_glyphs.push(glyphs_range.clone());
                         }
                     } else {
-                        included_glyphs.push(glyphs);
+                        included_glyphs.push(glyphs_range.clone());
                     }
 
                     match self.direction {
                         LayoutDirection::LTR => {
-                            if let Some((sx, se)) = &mut end_seg {
+                            if let Some((sx, se, gr, tr)) = &mut end_seg {
                                 if x < *sx {
                                     *sx = x;
                                     *se = seg;
+                                    *gr = glyphs_range;
+                                    *tr = text_range;
                                 }
                             } else {
-                                end_seg = Some((x, seg));
+                                end_seg = Some((x, seg, glyphs_range, text_range));
                             }
                         }
                         LayoutDirection::RTL => {
-                            if let Some((smx, se)) = &mut end_seg {
+                            if let Some((smx, se, gr, tr)) = &mut end_seg {
                                 if seg_max_x < *smx {
                                     *smx = seg_max_x;
                                     *se = seg;
+                                    *gr = glyphs_range;
+                                    *tr = text_range;
                                 }
                             } else {
-                                end_seg = Some((seg_max_x, seg));
+                                end_seg = Some((seg_max_x, seg, glyphs_range, text_range));
                             }
                         }
                     }
                 }
             }
 
-            if let Some((_, seg)) = end_seg {
+            if let Some((_, seg, glyphs_range, text_range)) = end_seg {
                 Some(match self.direction {
                     LayoutDirection::LTR => TextOverflowInfo {
                         line: overflow_line,
-                        text_char: seg.text_range().end,
+                        text_char: text_range.end,
                         included_glyphs,
                         suffix_origin: {
                             let r = seg.rect();
-                            let mut o = r.origin;
-                            o.x += r.width();
-                            o.cast().cast_unit()
+                            let seg_range = seg.glyphs_range().iter();
+                            let mut o = r.origin.cast().cast_unit();
+                            let mut w = r.width();
+                            if seg_range != glyphs_range {
+                                if let Some(g) = seg.glyph(glyphs_range.end - seg_range.start) {
+                                    o.x = g.1.point.x;
+                                    w = Px(0);
+                                }
+                            }
+                            o.x += w.0 as f32;
+                            o
                         },
                     },
                     LayoutDirection::RTL => TextOverflowInfo {
                         line: overflow_line,
-                        text_char: seg.text_range().start,
+                        text_char: text_range.start,
                         included_glyphs,
                         suffix_origin: {
                             let r = seg.rect();
-                            let mut o = r.origin;
-                            o.x -= overflow_suffix_width;
-                            o.cast().cast_unit()
+                            let mut o = r.origin.cast().cast_unit();
+                            let seg_range = seg.glyphs_range().iter();
+                            if seg_range != glyphs_range {
+                                if let Some(g) = seg.glyph(glyphs_range.start - seg_range.start) {
+                                    o.x = g.1.point.x;
+                                }
+                            }
+                            o.x -= overflow_suffix_width.0 as f32;
+                            o
                         },
                     },
                 })

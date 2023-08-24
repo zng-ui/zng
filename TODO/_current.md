@@ -11,11 +11,6 @@
 # Text
 
 * `txt_overflow`.
-    - Test RTL.
-        - Broken, current approach does not work.
-        - Bidi text can make all sorts of changes.
-        - We basically need to check every glyph to see if it is in the overflow region.
-        - Can't even use a clip?
     - Test emoticon suffix.
     - Not enabled when editable?
 
