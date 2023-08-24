@@ -475,6 +475,8 @@ pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode
 ///
 /// When enabled overflow is truncated by character or by the wrap rules if [`txt_wrap`] is enabled (it is by default).
 ///
+/// Overflow is always ignored when the text is editable.
+///
 /// [`txt_wrap`]: fn@txt_wrap
 #[property(CONTEXT, default(TEXT_OVERFLOW_VAR), widget_impl(TextWrapMix<P>))]
 pub fn txt_overflow(child: impl UiNode, overflow: impl IntoVar<TextOverflow>) -> impl UiNode {

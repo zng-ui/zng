@@ -8,12 +8,6 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
-# Text
-
-* `txt_overflow`.
-    - Test emoticon suffix.
-    - Not enabled when editable?
-
 # View-Process
 
 * Update to winit-29 when released.

@@ -981,7 +981,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         let suf_width = txt.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
                         txt.overflow = txt.shaped_text.overflow_info(max_size, suf_width);
 
-                        if txt.overflow.is_some() && txt.overflow_suffix.is_none() {
+                        if txt.overflow.is_some() && txt.overflow_suffix.is_none() && !TEXT_EDITABLE_VAR.get() {
                             match TEXT_OVERFLOW_VAR.get() {
                                 TextOverflow::Truncate(suf) if !suf.is_empty() => {
                                     let suf = SegmentedText::new(suf, self.shaping_args.direction);
@@ -1832,8 +1832,8 @@ pub fn render_text() -> impl UiNode {
                             }
                         };
 
-                        match (&t.overflow, TEXT_OVERFLOW_VAR.get()) {
-                            (Some(o), TextOverflow::Truncate(_)) => {
+                        match (&t.overflow, TEXT_OVERFLOW_VAR.get(), TEXT_EDITABLE_VAR.get()) {
+                            (Some(o), TextOverflow::Truncate(_), false) => {
                                 for glyphs in &o.included_glyphs {
                                     for (font, glyphs) in t.shaped_text.colored_glyphs_slice(glyphs.clone()) {
                                         push_font_glyphs(font, glyphs, None)
@@ -1862,8 +1862,8 @@ pub fn render_text() -> impl UiNode {
                         frame.push_text(clip, glyphs.as_ref(), font, color_value, r.synthesis, aa);
                     };
 
-                    match (&t.overflow, TEXT_OVERFLOW_VAR.get()) {
-                        (Some(o), TextOverflow::Truncate(_)) => {
+                    match (&t.overflow, TEXT_OVERFLOW_VAR.get(), !TEXT_EDITABLE_VAR.get()) {
+                        (Some(o), TextOverflow::Truncate(_), false) => {
                             for glyphs in &o.included_glyphs {
                                 for (font, glyphs) in t.shaped_text.glyphs_slice(glyphs.clone()) {
                                     push_font_glyphs(font, Cow::Borrowed(glyphs))
