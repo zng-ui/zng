@@ -2955,7 +2955,7 @@ impl<Tuple> PropertyInputTypes<Tuple> {
 }
 impl<Tuple> Clone for PropertyInputTypes<Tuple> {
     fn clone(&self) -> Self {
-        Self::unit()
+        *self
     }
 }
 impl<Tuple> Copy for PropertyInputTypes<Tuple> {}

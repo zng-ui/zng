@@ -33,7 +33,7 @@ note: method defined here
    | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
    |        ^^^^^^^^^^^^^^^^^^^
 help: provide the argument
-   --> $WORKSPACE/zero-ui/src/widgets.rs
-    |
-    | background_gradient({ }, /* stops */)
-    |
+  --> $WORKSPACE/zero-ui/src/widgets.rs
+   |
+   | background_gradient({ }, /* stops */)
+   |

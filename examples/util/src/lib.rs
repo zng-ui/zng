@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tracing::{Level, Subscriber};
+use tracing::Subscriber;
 use tracing_subscriber::{layer::Layer, prelude::*};
 
 mod mpsc;

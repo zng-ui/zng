@@ -857,8 +857,6 @@ impl Window {
                 &mut taskbar_list2 as *mut _ as *mut _,
             ) {
                 0 => {
-                    let taskbar_list2 = taskbar_list2 as *mut taskbar_com::ITaskbarList2;
-
                     let result = if visible {
                         let add_tab = (*(*taskbar_list2).lpVtbl).parent.AddTab;
                         add_tab(taskbar_list2.cast(), self.window.hwnd() as _)

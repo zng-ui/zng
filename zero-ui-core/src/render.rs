@@ -2879,10 +2879,7 @@ impl<T> PartialEq for FrameValueKey<T> {
 impl<T> Eq for FrameValueKey<T> {}
 impl<T> Clone for FrameValueKey<T> {
     fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            _type: PhantomData,
-        }
+        *self
     }
 }
 impl<T> Copy for FrameValueKey<T> {}

@@ -356,10 +356,7 @@ impl<A: EventArgs> Event<A> {
 }
 impl<A: EventArgs> Clone for Event<A> {
     fn clone(&self) -> Self {
-        Self {
-            local: self.local,
-            _args: PhantomData,
-        }
+        *self
     }
 }
 impl<A: EventArgs> Copy for Event<A> {}

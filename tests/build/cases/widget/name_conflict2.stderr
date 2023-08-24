@@ -33,25 +33,6 @@ error[E0428]: the name `zzz_widget_path__TestWidget` is defined multiple times
   |
   = note: `zzz_widget_path__TestWidget` must be defined only once in the type namespace of this module
 
-error[E0659]: `_TestWidget__` is ambiguous
- --> cases/widget/name_conflict2.rs:6:1
-  |
-6 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ambiguous name
-  |
-  = note: ambiguous because of multiple potential import sources
-note: `_TestWidget__` could refer to the macro defined here
- --> cases/widget/name_conflict2.rs:6:1
-  |
-6 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: `_TestWidget__` could also refer to the macro defined here
- --> cases/widget/name_conflict2.rs:3:1
-  |
-3 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0119]: conflicting implementations of trait `Deref` for type `TestWidget`
  --> cases/widget/name_conflict2.rs:6:1
   |

@@ -106,10 +106,7 @@ pub(super) struct NodeRef<'a, T> {
 }
 impl<'a, T> Clone for NodeRef<'a, T> {
     fn clone(&self) -> Self {
-        Self {
-            tree: self.tree,
-            id: self.id,
-        }
+        *self
     }
 }
 impl<'a, T> Copy for NodeRef<'a, T> {}

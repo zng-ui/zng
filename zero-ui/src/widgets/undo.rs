@@ -13,7 +13,7 @@ use crate::core::undo::{UndoInfo, UndoOp, UndoStackInfo, REDO_CMD, UNDO_CMD};
 use crate::widgets::button;
 use crate::widgets::{
     layouts::{stack::StackDirection, Stack},
-    view, Button, Scroll, Text,
+    Button, Scroll, Text,
 };
 
 /// Undo scope widget mixin.
@@ -67,7 +67,7 @@ impl UndoHistory {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             let op = wgt.capture_value::<UndoOp>(property_id!(Self::op)).unwrap_or(UndoOp::Undo);
-            wgt.set_child(view::presenter(UndoPanelArgs { op }, UNDO_PANEL_FN_VAR));
+            wgt.set_child(presenter(UndoPanelArgs { op }, UNDO_PANEL_FN_VAR));
         });
     }
 }

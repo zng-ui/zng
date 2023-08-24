@@ -122,7 +122,6 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
                     }
                     ButtonState::Released => return Some(false),
                 }
-            } else {
             }
             None
         },

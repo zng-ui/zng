@@ -9,7 +9,7 @@ use zero_ui_core::{
 use crate::{core::widget_instance::ArcNode, prelude::new_widget::*};
 
 mod vec;
-pub use vec::*;
+pub use vec::{ObservableVec, VecChange};
 
 type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 

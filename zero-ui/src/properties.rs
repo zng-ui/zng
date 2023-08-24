@@ -9,7 +9,7 @@ mod visual;
 pub use visual::*;
 
 mod border_;
-pub use border_::*;
+pub use border_::{border, border_align, corner_radius, corner_radius_fit, CornerRadiusFit};
 
 pub mod mask;
 pub use mask::{mask_align, mask_fit, mask_image, mask_mode};
@@ -17,7 +17,7 @@ pub use mask::{mask_align, mask_fit, mask_image, mask_mode};
 pub mod commands;
 
 mod data_;
-pub use data_::*;
+pub use data_::{data, DATA};
 
 pub mod events;
 pub mod filters;
@@ -35,7 +35,7 @@ mod mouse;
 pub use mouse::*;
 
 mod lazy_;
-pub use lazy_::*;
+pub use lazy_::{lazy, LazyMode};
 
 pub use crate::widgets::{
     menu::context::{context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn},

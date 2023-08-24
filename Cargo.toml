@@ -1,4 +1,7 @@
 [workspace]
+
+resolver = "2"
+
 members = [
     # view:
     "zero-ui-view-api", 

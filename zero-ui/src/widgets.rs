@@ -60,8 +60,8 @@ pub use toggle::Toggle;
 pub mod style;
 pub use style::Style;
 
-mod view;
-pub use view::*;
+mod view_;
+pub use view_::{list_presenter, presenter, presenter_opt, view, wgt_fn, ObservableVec, VecChange, View, ViewArgs, WidgetFn};
 
 pub mod window;
 pub use window::Window;

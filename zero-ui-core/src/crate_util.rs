@@ -168,7 +168,7 @@ macro_rules! unique_id {
 
         impl$(<$T $(: $($bounds)+)?>)? Clone for $Type $(<$T>)? {
             fn clone(&self) -> Self {
-                Self(self.0  $(, std::marker::PhantomData::<$T>)?)
+                *self
             }
         }
         impl$(<$T $(: $($bounds)+)?>)? Copy for $Type $(<$T>)? {

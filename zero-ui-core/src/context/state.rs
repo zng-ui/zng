@@ -54,7 +54,7 @@ impl<T: StateValue> fmt::Debug for StateId<T> {
 pub struct StateMapRef<'a, U>(&'a state_map::StateMap, PhantomData<U>);
 impl<'a, U> Clone for StateMapRef<'a, U> {
     fn clone(&self) -> Self {
-        Self(self.0, PhantomData)
+        *self
     }
 }
 impl<'a, U> Copy for StateMapRef<'a, U> {}

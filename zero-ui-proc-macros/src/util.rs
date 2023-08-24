@@ -323,7 +323,7 @@ impl Errors {
 }
 impl ToTokens for Errors {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.tokens.clone().into_iter())
+        tokens.extend(self.tokens.clone())
     }
     fn to_token_stream(&self) -> TokenStream {
         self.tokens.clone()
