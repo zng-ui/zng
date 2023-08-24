@@ -1340,7 +1340,97 @@ impl ShapedText {
 
         let directions = last_line.directions();
         if directions == LayoutDirections::BIDI {
-            None // !!: TODO
+            let mut included_glyphs = smallvec::SmallVec::<[ops::Range<usize>; 1]>::new_const();
+
+            let min_x = match self.direction {
+                LayoutDirection::LTR => Px(0),
+                LayoutDirection::RTL => last_line.rect().max_x() - max_width,
+            };
+            let max_x = min_x + max_width;
+
+            let mut end_seg = None;
+
+            for seg in last_line.segs() {
+                let (x, width) = seg.x_width();
+                let seg_max_x = x + width;
+
+                if x < max_x && seg_max_x >= min_x {
+                    let mut glyphs = seg.glyphs_range().iter();
+                    if x < min_x {
+                        if let Some((_c, g)) = seg.overflow_char_glyph((width - (min_x - x)).0 as f32) {
+                            glyphs.start = g;
+                        }
+                    } else if seg_max_x > max_x {
+                        if let Some((_c, g)) = seg.overflow_char_glyph((width - seg_max_x - max_x).0 as f32) {
+                            glyphs.end = g;
+                        }
+                    }
+
+                    if let Some(l) = included_glyphs.last_mut() {
+                        if l.end == glyphs.start {
+                            l.end = glyphs.end;
+                        } else if glyphs.end == l.start {
+                            l.start = glyphs.start;
+                        } else {
+                            included_glyphs.push(glyphs);
+                        }
+                    } else {
+                        included_glyphs.push(glyphs);
+                    }
+
+                    match self.direction {
+                        LayoutDirection::LTR => {
+                            if let Some((sx, se)) = &mut end_seg {
+                                if x < *sx {
+                                    *sx = x;
+                                    *se = seg;
+                                }
+                            } else {
+                                end_seg = Some((x, seg));
+                            }
+                        }
+                        LayoutDirection::RTL => {
+                            if let Some((smx, se)) = &mut end_seg {
+                                if seg_max_x < *smx {
+                                    *smx = seg_max_x;
+                                    *se = seg;
+                                }
+                            } else {
+                                end_seg = Some((seg_max_x, seg));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some((_, seg)) = end_seg {
+                Some(match self.direction {
+                    LayoutDirection::LTR => TextOverflowInfo {
+                        line: overflow_line,
+                        text_char: seg.text_range().end,
+                        included_glyphs,
+                        suffix_origin: {
+                            let r = seg.rect();
+                            let mut o = r.origin;
+                            o.x += r.width();
+                            o.cast().cast_unit()
+                        },
+                    },
+                    LayoutDirection::RTL => TextOverflowInfo {
+                        line: overflow_line,
+                        text_char: seg.text_range().start,
+                        included_glyphs,
+                        suffix_origin: {
+                            let r = seg.rect();
+                            let mut o = r.origin;
+                            o.x -= overflow_suffix_width;
+                            o.cast().cast_unit()
+                        },
+                    },
+                })
+            } else {
+                None
+            }
         } else {
             // single direction overflow
             let mut max_width_f32 = max_width.0 as f32;
@@ -2187,22 +2277,6 @@ impl<'a> ShapedLine<'a> {
             return self.text.orig_last_line;
         }
         PxSize::new(self.width, self.text.line_height)
-    }
-
-    /// Gets the first segment that overflows `max_width`. A segment overflows when its line advance is
-    /// greater than `max_width`.
-    pub fn overflow_seg(&self, max_width: Px) -> Option<ShapedSegment<'a>> {
-        let max_width = max_width.0 as f32;
-        if self.text.lines.0[self.index].width > max_width {
-            let mut x = 0.0;
-            for seg in self.segs() {
-                x += seg.advance();
-                if x > max_width {
-                    return Some(seg);
-                }
-            }
-        }
-        None
     }
 
     /// Full overline, start point + width.
