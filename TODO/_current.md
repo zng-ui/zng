@@ -1,8 +1,3 @@
-* Test focus move when tooltip is open.
-    - Directional does not work once (close tooltip).
-    - Logical works.
-    - `next_down` does not find a sibling when tooltip is open.
-
 # TextInput
 
 * Implement selection.

@@ -273,14 +273,17 @@ impl WidgetInfoBuilder {
 
         let generation;
         let widget_count_offsets;
+        let spatial_bounds;
 
         if let Some(t) = previous_tree {
             let t = t.0.frame.read();
             generation = t.stats.generation.wrapping_add(1);
             widget_count_offsets = t.widget_count_offsets.clone();
+            spatial_bounds = t.spatial_bounds;
         } else {
             generation = 0;
-            widget_count_offsets = ParallelSegmentOffsets::default()
+            widget_count_offsets = ParallelSegmentOffsets::default();
+            spatial_bounds = PxBox::zero();
         }
 
         let mut lookup = IdMap::new();
@@ -309,7 +312,7 @@ impl WidgetInfoBuilder {
                 out_of_bounds: Arc::new(out_of_bounds),
                 out_of_bounds_update: Default::default(),
                 scale_factor: self.scale_factor,
-                spatial_bounds: PxBox::zero(),
+                spatial_bounds,
                 widget_count_offsets,
             }),
 
