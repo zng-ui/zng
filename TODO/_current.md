@@ -1,3 +1,6 @@
+* Test focus move when tooltip is open.
+    - Directional does not work once (close tooltip).
+
 # TextInput
 
 * Implement selection.
@@ -18,12 +21,6 @@
         - Can't even use a clip?
     - Test emoticon suffix.
     - Not enabled when editable?
-
-# Tooltip
-
-* Tooltips stop showing upon interaction (click/tab/enter/etc.) in HTML.
-    - Implemented for click and mouse input events.
-    - Implement for more events and for events targeting other widgets.
 
 # View-Process
 

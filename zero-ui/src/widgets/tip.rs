@@ -4,8 +4,10 @@ use std::time::{Duration, Instant};
 
 use crate::{
     core::{
+        focus::FOCUS_CHANGED_EVENT,
         gesture::CLICK_EVENT,
-        mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT},
+        keyboard::KEY_INPUT_EVENT,
+        mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
         timer::{DeadlineVar, TIMERS},
     },
     prelude::AnchorMode,
@@ -88,6 +90,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
     let mut pop_state = var(PopupState::Closed).read_only();
     let mut open_delay = None::<DeadlineVar>;
     let mut auto_close = None::<DeadlineVar>;
+    let mut close_event_handles = vec![];
     match_node(child, move |child, op| {
         let mut open = false;
 
@@ -100,6 +103,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
                 open_delay = None;
                 auto_close = None;
+                close_event_handles.clear();
                 if let PopupState::Open(not_closed) = pop_state.get() {
                     POPUP.force_close(not_closed);
                 }
@@ -180,8 +184,6 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             }
                         }
                     }
-                } else if MOUSE_INPUT_EVENT.on(update).is_some() || CLICK_EVENT.on(update).is_some() {
-                    POPUP.close_var(&pop_state);
                 }
             }
             UiNodeOp::Update { .. } => {
@@ -196,6 +198,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         auto_close = None;
                         POPUP.close_var(&pop_state);
                     }
+                }
+
+                if let Some(PopupState::Closed) = pop_state.get_new() {
+                    close_event_handles.clear();
                 }
             }
             _ => {}
@@ -254,6 +260,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 _ => {}
             });
             pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, TOOLTIP_CONTEXT_CAPTURE_VAR.get());
+            pop_state.subscribe(UpdateOp::Update, anchor_id).perm();
 
             let duration = TOOLTIP_DURATION_VAR.get();
             if duration > Duration::ZERO {
@@ -262,6 +269,20 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 auto_close = Some(d);
             } else {
                 auto_close = None;
+            }
+
+            // close tooltip when the user starts doing something else
+            for event in [
+                MOUSE_INPUT_EVENT.as_any(),
+                CLICK_EVENT.as_any(),
+                FOCUS_CHANGED_EVENT.as_any(),
+                KEY_INPUT_EVENT.as_any(),
+                MOUSE_WHEEL_EVENT.as_any(),
+            ] {
+                close_event_handles.push(event.hook(clmv!(pop_state, |_| {
+                    POPUP.close_var(&pop_state);
+                    false
+                })));
             }
         }
     })
