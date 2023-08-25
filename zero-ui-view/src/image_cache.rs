@@ -269,7 +269,7 @@ impl ImageCache {
 
         self.images.insert(
             data.id,
-            Image(Arc::new(ImageData {
+            Image(Arc::new(ImageData::RawData {
                 size: data.size,
                 pixels: data.pixels.clone(),
                 descriptor: ImageDescriptor::new(
@@ -840,47 +840,77 @@ impl ImageCache {
 
 /// (pixels, size, ppi, is_opaque, is_mask)
 type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool, bool);
-struct ImageData {
-    size: PxSize,
-    pixels: IpcBytes,
-    descriptor: ImageDescriptor,
-    ppi: Option<ImagePpi>,
+pub(crate) enum ImageData {
+    RawData {
+        size: PxSize,
+        pixels: IpcBytes,
+        descriptor: ImageDescriptor,
+        ppi: Option<ImagePpi>,
+    },
+    NativeTexture {
+        uv: zero_ui_view_api::webrender_api::units::TexelRect,
+        texture: gleam::gl::GLint,
+    },
 }
 impl ImageData {
     pub fn is_opaque(&self) -> bool {
-        self.descriptor.flags.contains(ImageDescriptorFlags::IS_OPAQUE)
+        match self {
+            ImageData::RawData { descriptor, .. } => descriptor.flags.contains(ImageDescriptorFlags::IS_OPAQUE),
+            ImageData::NativeTexture { .. } => false,
+        }
     }
 
     pub fn is_mask(&self) -> bool {
-        self.descriptor.format == ImageFormat::R8
+        match self {
+            ImageData::RawData { descriptor, .. } => descriptor.format == ImageFormat::R8,
+            ImageData::NativeTexture { .. } => false,
+        }
     }
 }
+
 #[derive(Clone)]
 pub(crate) struct Image(Arc<ImageData>);
 impl fmt::Debug for Image {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Image")
-            .field("size", &self.0.size)
-            .field("descriptor", &self.0.descriptor)
-            .field("ppi", &self.0.ppi)
-            .field("pixels", &format_args!("<{} shared bytes>", self.0.pixels.len()))
-            .finish()
+        match &*self.0 {
+            ImageData::RawData {
+                size,
+                pixels,
+                descriptor,
+                ppi,
+            } => f
+                .debug_struct("Image")
+                .field("size", size)
+                .field("descriptor", descriptor)
+                .field("ppi", ppi)
+                .field("pixels", &format_args!("<{} shared bytes>", pixels.len()))
+                .finish(),
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
     }
 }
 impl Image {
     pub fn descriptor(&self) -> ImageDescriptor {
-        self.0.descriptor
+        match &*self.0 {
+            ImageData::RawData { descriptor, .. } => *descriptor,
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
     }
 
     /// Generate a window icon from the image.
     pub fn icon(&self) -> Option<Icon> {
-        let width = self.0.size.width.0 as u32;
-        let height = self.0.size.height.0 as u32;
+        let (size, pixels) = match &*self.0 {
+            ImageData::RawData { size, pixels, .. } => (size, pixels),
+            ImageData::NativeTexture { .. } => unreachable!(),
+        };
+
+        let width = size.width.0 as u32;
+        let height = size.height.0 as u32;
         if width == 0 || height == 0 || self.0.is_mask() {
             None
         } else if width > 255 || height > 255 {
             // resize to max 255
-            let mut buf = self.0.pixels.as_ref().to_vec();
+            let mut buf = pixels.as_ref().to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
@@ -892,7 +922,7 @@ impl Image {
             let buf = img.into_rgba8().into_raw();
             winit::window::Icon::from_rgba(buf, width, height).ok()
         } else {
-            let mut buf = self.0.pixels.as_ref().to_vec();
+            let mut buf = pixels.as_ref().to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             winit::window::Icon::from_rgba(buf, width, height).ok()
@@ -900,7 +930,12 @@ impl Image {
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
-        if self.0.size.width <= Px(0) || self.0.size.height <= Px(0) {
+        let (size, pixels, ppi) = match &*self.0 {
+            ImageData::RawData { size, pixels, ppi, .. } => (size, pixels, ppi),
+            ImageData::NativeTexture { .. } => unreachable!(),
+        };
+
+        if size.width <= Px(0) || size.height <= Px(0) {
             return Err(image::ImageError::IoError(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "cannot encode zero sized image",
@@ -910,10 +945,10 @@ impl Image {
         use image::*;
 
         if self.0.is_mask() {
-            let width = self.0.size.width.0 as u32;
-            let height = self.0.size.height.0 as u32;
+            let width = size.width.0 as u32;
+            let height = size.height.0 as u32;
             let is_opaque = self.0.is_opaque();
-            let r8 = self.0.pixels[..].to_vec();
+            let r8 = pixels[..].to_vec();
 
             let mut img = image::DynamicImage::ImageLuma8(image::ImageBuffer::from_raw(width, height, r8).unwrap());
             if is_opaque {
@@ -925,19 +960,19 @@ impl Image {
         }
 
         // invert rows, `image` only supports top-to-bottom buffers.
-        let mut buf = self.0.pixels[..].to_vec();
+        let mut buf = pixels[..].to_vec();
         // BGRA to RGBA
         buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
         let rgba = buf;
 
-        let width = self.0.size.width.0 as u32;
-        let height = self.0.size.height.0 as u32;
+        let width = size.width.0 as u32;
+        let height = size.height.0 as u32;
         let is_opaque = self.0.is_opaque();
 
         match format {
             ImageFormat::Jpeg => {
                 let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
-                if let Some(ppi) = self.0.ppi {
+                if let Some(ppi) = ppi {
                     jpg.set_pixel_density(codecs::jpeg::PixelDensity {
                         density: (ppi.x as u16, ppi.y as u16),
                         unit: codecs::jpeg::PixelDensityUnit::Inches,
@@ -950,7 +985,7 @@ impl Image {
                 if is_opaque {
                     img = image::DynamicImage::ImageRgb8(img.to_rgb8());
                 }
-                if let Some(ppi) = self.0.ppi {
+                if let Some(ppi) = ppi {
                     let mut png_bytes = vec![];
 
                     img.write_to(&mut std::io::Cursor::new(&mut png_bytes), ImageFormat::Png)?;
@@ -995,12 +1030,18 @@ impl Image {
 
     #[allow(unused)]
     pub fn size(&self) -> PxSize {
-        self.0.size
+        match &*self.0 {
+            ImageData::RawData { size, .. } => *size,
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
     }
 
     #[allow(unused)]
     pub fn pixels(&self) -> &IpcBytes {
-        &self.0.pixels
+        match &*self.0 {
+            ImageData::RawData { pixels, .. } => pixels,
+            ImageData::NativeTexture { .. } => unreachable!(),
+        }
     }
 }
 
@@ -1046,9 +1087,18 @@ mod external {
             };
 
             self.locked = Some(img); // keep alive just in case the image is removed mid-use?
-            ExternalImage {
-                uv: TexelRect::invalid(), // `RawData` does not use `uv`.
-                source: ExternalImageSource::RawData(&self.locked.as_ref().unwrap().pixels[..]),
+
+            match &**self.locked.as_ref().unwrap() {
+                ImageData::RawData { pixels, .. } => {
+                    ExternalImage {
+                        uv: TexelRect::invalid(), // `RawData` does not use `uv`.
+                        source: ExternalImageSource::RawData(&pixels[..]),
+                    }
+                }
+                ImageData::NativeTexture { uv, texture: id } => ExternalImage {
+                    uv: *uv,
+                    source: ExternalImageSource::NativeTexture(*id as _),
+                },
             }
         }
 
@@ -1207,7 +1257,7 @@ mod capture {
 
             self.images.insert(
                 data.id,
-                Image(Arc::new(ImageData {
+                Image(Arc::new(ImageData::RawData {
                     size: data.size,
                     pixels: data.pixels.clone(),
                     descriptor: ImageDescriptor::new(

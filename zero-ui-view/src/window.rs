@@ -34,7 +34,7 @@ use zero_ui_view_api::{Key, KeyCode, KeyState};
 
 use crate::{
     extensions::{
-        BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
+        self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
@@ -59,6 +59,7 @@ pub(crate) struct Window {
     window: GWindow,
     renderer: Option<Renderer>,
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
+    external_images: extensions::ExternalImages,
     capture_mode: bool,
 
     pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
@@ -271,6 +272,8 @@ impl Window {
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
+        let mut external_images = extensions::ExternalImages::default();
+
         let mut api = sender.create_api();
         let document_id = api.add_document(device_size);
         let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
@@ -278,6 +281,7 @@ impl Window {
         renderer_exts.retain_mut(|(_, ext)| {
             ext.renderer_inited(&mut RendererInitedArgs {
                 renderer: &mut renderer,
+                external_images: &mut external_images,
                 api_sender: &sender,
                 api: &mut api,
                 document_id,
@@ -302,6 +306,7 @@ impl Window {
             capture_mode: cfg.capture_mode,
             renderer: Some(renderer),
             renderer_exts,
+            external_images,
             video_mode: cfg.video_mode,
             api,
             document_id,
@@ -1082,6 +1087,7 @@ impl Window {
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
+                external_images: &mut self.external_images,
             },
             &mut self.display_list_cache,
         );
@@ -1131,6 +1137,7 @@ impl Window {
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
                 api: &mut self.api,
+                external_images: &mut self.external_images,
             },
             frame.transforms,
             frame.floats,

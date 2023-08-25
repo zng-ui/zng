@@ -1095,6 +1095,7 @@ pub mod using_gl_texture {
 
                         // use zero_ui_view::webrender::webrender_api::*;
 
+                        // args.external_images.register_texture(uv, texture);
                         // let texture_img_key = args.api.generate_image_key();
 
                         // let txn = zero_ui_view::webrender::Transaction::new();
@@ -1108,7 +1109,7 @@ pub mod using_gl_texture {
                         //         flags: ImageDescriptorFlags::IS_OPAQUE,
                         //     },
                         //     ImageData::External(ExternalImageData {
-                        //         id: ExternalImageId(0), // need API for this
+                        //         id: ExternalImageId(0),
                         //         channel_index: 0,
                         //         image_type: ExternalImageType::TextureHandle(ImageBufferKind::Texture2D),
                         //     }),
