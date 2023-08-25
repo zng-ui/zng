@@ -12,10 +12,13 @@
 
 * Update to winit-29 when released.
     - Lots of breaking changes.
-* Implement OpenGL example.
-    - Overlay and texture image.
 * Implement automation/screen reader APIs.
 
 # WR Items
     - Touch events.
         - Use `Spacedesk` to generate touch events.
+
+# Extend-View
+
+* Implement OpenGL texture image example.
+    - `webrender_api::ExternalImageSource::NativeTexture`.

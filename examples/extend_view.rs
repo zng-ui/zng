@@ -927,12 +927,17 @@ pub mod using_gl_overlay {
         }
         impl CustomRenderer {
             pub fn load(_gl: &dyn gl::Gl) -> Self {
+                // let vao = gl.gen_vertex_arrays(1);
+
                 Self {
                     tasks: vec![],
                     unloaded_ok: false,
                 }
             }
             fn unload(mut self, _gl: &dyn gl::Gl) {
+                // gl.delete_vertex_arrays(&self.vao);
+
+                self.tasks.clear();
                 self.unloaded_ok = true;
             }
 
@@ -959,6 +964,8 @@ pub mod using_gl_overlay {
                 let gl_y = |max_y: Px| canvas_size.height - max_y;
 
                 for task in &self.tasks {
+                    // gl.bind_vertex_array(vao);
+
                     gl.enable(gl::SCISSOR_TEST);
                     gl.scissor(
                         task.area.origin.x.0,
@@ -966,8 +973,26 @@ pub mod using_gl_overlay {
                         task.area.size.width.0,
                         task.area.size.height.0,
                     );
-                    gl.clear_color(1.0, 1.0, 0.0, 1.0);
+                    gl.clear_color(0.0, 0.0, 0.0, 1.0);
                     gl.clear(gl::COLOR_BUFFER_BIT);
+
+                    if task.cursor.x >= Px(0)
+                        && task.cursor.y < task.area.width()
+                        && task.cursor.y >= Px(0)
+                        && task.cursor.y < task.area.height()
+                    {
+                        let r = task.cursor.x.0 as f32 / task.area.width().0 as f32;
+                        let b = task.cursor.y.0 as f32 / task.area.height().0 as f32;
+
+                        let x = task.area.origin.x + task.cursor.x - Px(30);
+                        let y = task.area.origin.y + task.cursor.y - Px(30);
+                        let cursor = PxRect::new(PxPoint::new(x, y), PxSize::splat(Px(60)));
+
+                        gl.enable(gl::SCISSOR_TEST);
+                        gl.scissor(cursor.origin.x.0, gl_y(cursor.max_y()).0, cursor.size.width.0, cursor.size.height.0);
+                        gl.clear_color(r, 1.0, b, 1.0);
+                        gl.clear(gl::COLOR_BUFFER_BIT);
+                    }
                 }
             }
         }
