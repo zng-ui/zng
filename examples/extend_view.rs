@@ -24,6 +24,7 @@ fn app_main() {
             // };
 
             title = "Extend-View Example";
+            width = 900;
 
             child = Stack! {
                 children_align = Align::CENTER;
@@ -77,8 +78,25 @@ fn app_main() {
                             },
                             Container! {
                                 size = 30.vmin_pct();
-                                hue_rotate = 180.deg();
+                                hue_rotate = 180.deg(); // no effect
                                 child = using_gl_overlay::app_side::custom_render_node();
+                            },
+                        ]
+                    },
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        children_align = Align::CENTER;
+                        spacing = 5;
+                        children = ui_vec![
+                            Text!("Using GL Texture"),
+                            Container! {
+                                size = 30.vmin_pct();
+                                child = using_gl_texture::app_side::custom_render_node();
+                            },
+                            Container! {
+                                size = 30.vmin_pct();
+                                hue_rotate = 180.deg();
+                                child = using_gl_texture::app_side::custom_render_node();
                             },
                         ]
                     },
@@ -1020,6 +1038,98 @@ pub mod using_gl_overlay {
 
         pub fn extension_name() -> ApiExtensionName {
             ApiExtensionName::new("zero-ui.examples.extend_renderer.using_gl_overlay").unwrap()
+        }
+    }
+}
+
+/// Demo view extension custom renderer, integrated by drawing to a texture uses as an image.
+pub mod using_gl_texture {
+    /// App-process stuff, nodes.
+    pub mod app_side {
+        use zero_ui::{
+            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
+            prelude::UiNode,
+        };
+
+        /// Node that sends external display item and updates.
+        pub fn custom_render_node() -> impl UiNode {
+            crate::using_display_items::app_side::custom_ext_node(extension_id)
+        }
+
+        pub fn extension_id() -> ApiExtensionId {
+            VIEW_PROCESS
+                .extension_id(super::api::extension_name())
+                .ok()
+                .flatten()
+                .unwrap_or(ApiExtensionId::INVALID)
+        }
+    }
+
+    /// View-process stuff, the actual extension.
+    pub mod view_side {
+        use zero_ui::core::app::view_process::ApiExtensionId;
+        use zero_ui_view::extensions::{RenderItemArgs, RendererExtension, ViewExtensions};
+
+        pub fn extend(exts: &mut ViewExtensions) {
+            exts.renderer(super::api::extension_name(), CustomExtension::new);
+        }
+
+        struct CustomExtension {
+            // id of this extension, for tracing.
+            _id: ApiExtensionId,
+        }
+        impl CustomExtension {
+            fn new(id: ApiExtensionId) -> Self {
+                Self { _id: id }
+            }
+        }
+        impl RendererExtension for CustomExtension {
+            fn is_config_only(&self) -> bool {
+                false // retain the extension after renderer creation.
+            }
+
+            fn render_push(&mut self, args: &mut RenderItemArgs) {
+                match args.payload.deserialize::<super::api::RenderPayload>() {
+                    Ok(_p) => {
+                        // !!: TODO load an image and use it as OpenGL texture.
+
+                        // use zero_ui_view::webrender::webrender_api::*;
+
+                        // let texture_img_key = args.api.generate_image_key();
+
+                        // let txn = zero_ui_view::webrender::Transaction::new();
+                        // txn.add_image(
+                        //     texture_img_key,
+                        //     ImageDescriptor {
+                        //         format: ImageFormat::BGRA8,
+                        //         size: p.size.cast().cast_unit(),
+                        //         stride: None,
+                        //         offset: 0,
+                        //         flags: ImageDescriptorFlags::IS_OPAQUE,
+                        //     },
+                        //     ImageData::External(ExternalImageData {
+                        //         id: ExternalImageId(0), // need API for this
+                        //         channel_index: 0,
+                        //         image_type: ExternalImageType::TextureHandle(ImageBufferKind::Texture2D),
+                        //     }),
+                        //     None,
+                        // );
+
+                        // args.list.push_image(common, bounds, image_rendering, alpha_type, key, color)
+                    }
+                    Err(e) => tracing::error!("invalid display item, {e}"),
+                }
+            }
+        }
+    }
+
+    pub mod api {
+        use zero_ui::core::app::view_process::ApiExtensionName;
+
+        pub use crate::using_display_items::api::*;
+
+        pub fn extension_name() -> ApiExtensionName {
+            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_gl_texture").unwrap()
         }
     }
 }
