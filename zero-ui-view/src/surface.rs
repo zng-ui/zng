@@ -435,16 +435,34 @@ impl Surface {
 
     /// Calls the render extension command.
     pub fn render_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
+        let mut redraw = false;
+
+        let mut r = None;
+
         for (id, ext) in &mut self.renderer_exts {
             if *id == extension_id {
-                return ext.command(&mut RendererCommandArgs {
+                r = Some(ext.command(&mut RendererCommandArgs {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    redraw: &mut redraw,
+                }));
+                break;
+            }
+        }
+
+        if redraw {
+            let size = self.size.to_px(self.scale_factor);
+            for (_, ext) in &mut self.renderer_exts {
+                ext.redraw(&mut RedrawArgs {
+                    scale_factor: self.scale_factor,
+                    size,
+                    gl: &**self.context.gl(),
                 });
             }
         }
-        ApiExtensionPayload::unknown_extension(extension_id)
+
+        r.unwrap_or_else(|| ApiExtensionPayload::unknown_extension(extension_id))
     }
 }
 impl Drop for Surface {

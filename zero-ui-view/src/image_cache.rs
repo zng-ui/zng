@@ -849,7 +849,7 @@ pub(crate) enum ImageData {
     },
     NativeTexture {
         uv: zero_ui_view_api::webrender_api::units::TexelRect,
-        texture: gleam::gl::GLint,
+        texture: gleam::gl::GLuint,
     },
 }
 impl ImageData {
@@ -1068,17 +1068,15 @@ mod external {
     ///
     /// This is only safe if use with [`ImageUseMap`].
     pub(crate) struct WrImageCache {
-        locked: Option<Arc<ImageData>>,
+        locked: Vec<Arc<ImageData>>,
     }
     impl WrImageCache {
         pub fn new_boxed() -> Box<dyn ExternalImageHandler> {
-            Box::new(WrImageCache { locked: None })
+            Box::new(WrImageCache { locked: vec![] })
         }
     }
     impl ExternalImageHandler for WrImageCache {
         fn lock(&mut self, key: ExternalImageId, _channel_index: u8) -> ExternalImage {
-            debug_assert!(self.locked.is_none());
-
             // SAFETY: this is safe because the Arc is kept alive in `ImageUseMap`.
             let img = unsafe {
                 let ptr = key.0 as *const ImageData;
@@ -1086,9 +1084,9 @@ mod external {
                 Arc::<ImageData>::from_raw(ptr)
             };
 
-            self.locked = Some(img); // keep alive just in case the image is removed mid-use?
+            self.locked.push(img); // keep alive in case the image is removed mid-use
 
-            match &**self.locked.as_ref().unwrap() {
+            match &**self.locked.last().unwrap() {
                 ImageData::RawData { pixels, .. } => {
                     ExternalImage {
                         uv: TexelRect::invalid(), // `RawData` does not use `uv`.
@@ -1097,13 +1095,17 @@ mod external {
                 }
                 ImageData::NativeTexture { uv, texture: id } => ExternalImage {
                     uv: *uv,
-                    source: ExternalImageSource::NativeTexture(*id as _),
+                    source: ExternalImageSource::NativeTexture(*id),
                 },
             }
         }
 
-        fn unlock(&mut self, _key: ExternalImageId, _channel_index: u8) {
-            self.locked = None;
+        fn unlock(&mut self, key: ExternalImageId, _channel_index: u8) {
+            if let Some(i) = self.locked.iter().position(|d| ExternalImageId(Arc::as_ptr(d) as _) == key) {
+                self.locked.swap_remove(i);
+            } else {
+                debug_assert!(false);
+            }
         }
     }
 

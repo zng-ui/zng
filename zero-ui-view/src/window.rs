@@ -1345,11 +1345,18 @@ impl Window {
     pub fn render_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
         for (key, ext) in &mut self.renderer_exts {
             if *key == extension_id {
-                return ext.command(&mut RendererCommandArgs {
+                let mut redraw = false;
+                let r = ext.command(&mut RendererCommandArgs {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    redraw: &mut redraw,
                 });
+                if redraw {
+                    self.window.request_redraw();
+                }
+
+                return r;
             }
         }
         ApiExtensionPayload::unknown_extension(extension_id)

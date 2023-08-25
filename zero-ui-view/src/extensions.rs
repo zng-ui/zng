@@ -413,7 +413,7 @@ impl ExternalImages {
     /// only releases the external image entry.
     ///
     /// [`unregister`]: Self::unregister
-    pub fn register_texture(&mut self, uv: TexelRect, texture: gleam::gl::GLint) -> ExternalImageId {
+    pub fn register_texture(&mut self, uv: TexelRect, texture: gleam::gl::GLuint) -> ExternalImageId {
         self.register(crate::image_cache::ImageData::NativeTexture { uv, texture })
     }
 
@@ -480,6 +480,11 @@ pub struct RendererCommandArgs<'a> {
 
     /// The command request.
     pub request: ApiExtensionPayload,
+
+    /// Redraw flag.
+    ///
+    /// If set to `true` the window is guaranteed to redraw the frame.
+    pub redraw: &'a mut bool,
 }
 
 /// View extensions register.
