@@ -426,16 +426,14 @@ impl ExternalImages {
     /// [`unregister`]: Self::unregister
     pub fn register_image(
         &mut self,
-        size: PxSize,
-        pixels: zero_ui_view_api::IpcBytes,
         descriptor: zero_ui_view_api::webrender_api::ImageDescriptor,
-        ppi: Option<zero_ui_view_api::ImagePpi>,
+        pixels: zero_ui_view_api::IpcBytes,
     ) -> ExternalImageId {
         self.register(crate::image_cache::ImageData::RawData {
-            size,
+            size: descriptor.size.cast().cast_unit(), // not used
             pixels,
             descriptor,
-            ppi,
+            ppi: None,
         })
     }
 
