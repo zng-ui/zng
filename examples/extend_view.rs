@@ -975,7 +975,8 @@ pub mod using_gl_overlay {
                     );
                     gl.clear_color(0.0, 0.0, 0.0, 1.0);
                     gl.clear(gl::COLOR_BUFFER_BIT);
-
+                }
+                for task in &self.tasks {
                     if task.cursor.x >= Px(0)
                         && task.cursor.y < task.area.width()
                         && task.cursor.y >= Px(0)
@@ -984,13 +985,13 @@ pub mod using_gl_overlay {
                         let r = task.cursor.x.0 as f32 / task.area.width().0 as f32;
                         let b = task.cursor.y.0 as f32 / task.area.height().0 as f32;
 
-                        let x = task.area.origin.x + task.cursor.x - Px(30);
-                        let y = task.area.origin.y + task.cursor.y - Px(30);
-                        let cursor = PxRect::new(PxPoint::new(x, y), PxSize::splat(Px(60)));
+                        let x = task.area.origin.x + task.cursor.x - Px(50);
+                        let y = task.area.origin.y + task.cursor.y - Px(50);
+                        let cursor = PxRect::new(PxPoint::new(x, y), PxSize::splat(Px(100)));
 
                         gl.enable(gl::SCISSOR_TEST);
                         gl.scissor(cursor.origin.x.0, gl_y(cursor.max_y()).0, cursor.size.width.0, cursor.size.height.0);
-                        gl.clear_color(r, 1.0, b, 1.0);
+                        gl.clear_color(r, 0.5, b, 1.0);
                         gl.clear(gl::COLOR_BUFFER_BIT);
                     }
                 }
