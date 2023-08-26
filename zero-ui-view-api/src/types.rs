@@ -2485,14 +2485,11 @@ pub struct WindowChanged {
     /// Window new position, is `None` if the window position did not change.
     pub position: Option<DipPoint>,
 
-    /// Window new monitor and its scale factor.
+    /// Window new monitor.
     ///
     /// The window's monitor change when it is moved enough so that most of the
     /// client area is in the new monitor screen.
-    ///
-    /// Note that the window's scale factor can also change by system settings, that change
-    /// generates an [`Event::ScaleFactorChanged`] event only.
-    pub monitor: Option<(MonitorId, f32)>,
+    pub monitor: Option<MonitorId>,
 
     /// The window new size, is `None` if the window size did not change.
     pub size: Option<DipSize>,
@@ -2527,12 +2524,12 @@ impl WindowChanged {
     }
 
     /// Create an event that represents window parent monitor change.
-    pub fn monitor_changed(window: WindowId, monitor: MonitorId, scale_factor: f32, cause: EventCause) -> Self {
+    pub fn monitor_changed(window: WindowId, monitor: MonitorId, cause: EventCause) -> Self {
         WindowChanged {
             window,
             state: None,
             position: None,
-            monitor: Some((monitor, scale_factor)),
+            monitor: Some(monitor),
             size: None,
             frame_wait_id: None,
             cause,

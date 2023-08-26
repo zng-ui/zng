@@ -122,14 +122,11 @@ event_args! {
         /// New window position if it was moved.
         pub position: Option<DipPoint>,
 
-        /// New window monitor and its scale factor.
+        /// New window monitor.
         ///
         /// The window's monitor change when it is moved enough so that most of the
         /// client area is in the new monitor screen.
-        ///
-        /// Note that the window's scale factor can also change by system settings, that change
-        /// generates an [`RAW_SCALE_FACTOR_CHANGED_EVENT`] only.
-        pub monitor: Option<(MonitorId, Factor)>,
+        pub monitor: Option<MonitorId>,
 
         /// New window size if it was resized.
         pub size: Option<DipSize>,

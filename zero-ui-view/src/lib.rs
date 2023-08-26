@@ -744,12 +744,7 @@ impl App {
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
 
-                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
-                        id,
-                        m_id,
-                        self.windows[i].scale_factor(),
-                        EventCause::System,
-                    )));
+                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
 
                 let wait_id = Some(self.resize_frame_wait_id_gen.incr());
@@ -833,12 +828,7 @@ impl App {
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
 
-                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
-                        id,
-                        m_id,
-                        self.windows[i].scale_factor(),
-                        EventCause::System,
-                    )));
+                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
             }
             WindowEvent::CloseRequested => {
@@ -1069,16 +1059,14 @@ impl App {
                     self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
                         id,
                         monitor,
-                        scale_factor as f32,
                         EventCause::System,
                     )));
-                } else {
-                    self.notify(Event::ScaleFactorChanged {
-                        monitor,
-                        windows: vec![id],
-                        scale_factor: scale_factor as f32,
-                    });
                 }
+                self.notify(Event::ScaleFactorChanged {
+                    monitor,
+                    windows: vec![id],
+                    scale_factor: scale_factor as f32,
+                });
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
             WindowEvent::Ime(_) => {
@@ -1619,9 +1607,8 @@ impl Api for App {
                 change.size = w.resized();
                 change.position = w.moved();
                 if let Some(handle) = w.monitor_change() {
-                    let scale_factor = w.scale_factor();
                     let monitor = self.monitor_handle_to_id(&handle);
-                    change.monitor = Some((monitor, scale_factor));
+                    change.monitor = Some(monitor);
                 }
 
                 let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(change)));

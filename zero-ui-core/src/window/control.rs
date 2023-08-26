@@ -437,10 +437,13 @@ impl HeadedCtrl {
                 let mut pos_change = None;
                 let mut size_change = None;
 
-                if let Some((monitor, _)) = args.monitor {
+                if let Some(monitor) = args.monitor {
                     if self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true) {
                         self.vars.0.actual_monitor.set(Some(monitor));
                         self.monitor = MONITORS.monitor(monitor);
+                        if let Some(m) = &self.monitor {
+                            self.vars.0.scale_factor.set(m.scale_factor().get());
+                        }
                         UPDATES.layout_window(WINDOW.id());
                     }
                 }
@@ -669,6 +672,8 @@ impl HeadedCtrl {
     /// First layout, opens the window.
     fn layout_init(&mut self) {
         self.monitor = Some(self.vars.monitor().get().select_fallback());
+        let m = self.monitor.as_ref().unwrap();
+        self.vars.0.scale_factor.set(m.scale_factor().get());
 
         // await icon load for up to 1s.
         if let Some(icon) = &self.icon {
@@ -683,7 +688,6 @@ impl HeadedCtrl {
             return;
         }
 
-        let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
         let screen_rect = m.px_rect();
@@ -882,6 +886,8 @@ impl HeadedCtrl {
     fn layout_respawn(&mut self) {
         if self.monitor.is_none() {
             self.monitor = Some(self.vars.monitor().get().select_fallback());
+            let m = self.monitor.as_ref().unwrap();
+            self.vars.0.scale_factor.set(m.scale_factor().get());
         }
 
         self.layout_update(Arc::default());

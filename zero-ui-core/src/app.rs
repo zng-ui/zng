@@ -1143,7 +1143,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RAW_CURSOR_LEFT_EVENT.new_update(args), observer);
             }
             Event::WindowChanged(c) => {
-                let monitor_id = c.monitor.map(|(id, f)| (VIEW_PROCESS.monitor_id(id), crate::units::Factor(f)));
+                let monitor_id = c.monitor.map(|id| VIEW_PROCESS.monitor_id(id));
                 let args = RawWindowChangedArgs::now(
                     window_id(c.window),
                     c.state,

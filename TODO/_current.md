@@ -16,10 +16,13 @@
 
 # Touch Events
 
-* `WINDOW.vars().scale_factor()` does not update on monitor change.
-* Sometimes the window stops all interaction after touch.
-    - Is still "responding", but events don't work.
-    - Close button does not work.
+* Implement `TOUCH` service and events.
+    - Track fingers in vars only.
+    - And simple gestures like tap.
+* Integrate with `GESTURES`.
+    - Tap with click.
+    - Complex gestures (pinch, etc.) here too?
+        - Because of the name "gestures"?
 
 ```log
 // Log of tab and a drag.
