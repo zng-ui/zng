@@ -2474,6 +2474,8 @@ pub struct EventFrameRendered {
 /// [`Event::WindowChanged`] payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowChanged {
+    // note that this payload is handled by `Event::coalesce`, add new fields there too.
+    //
     /// Window that has changed state.
     pub window: WindowId,
 
@@ -3044,6 +3046,10 @@ impl Event {
 
                 if n_change.position.is_some() {
                     change.position = n_change.position;
+                }
+
+                if n_change.monitor.is_some() {
+                    change.monitor = n_change.monitor;
                 }
 
                 if n_change.size.is_some() {

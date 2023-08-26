@@ -31,7 +31,7 @@ use crate::{
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, WindowChangedArgs,
-    WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT,
+    WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
     TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
 };
 
@@ -440,7 +440,7 @@ impl HeadedCtrl {
                 if let Some((monitor, _)) = args.monitor {
                     if self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true) {
                         self.vars.0.actual_monitor.set(Some(monitor));
-                        self.monitor = None;
+                        self.monitor = MONITORS.monitor(monitor);
                         UPDATES.layout_window(WINDOW.id());
                     }
                 }
