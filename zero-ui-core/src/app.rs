@@ -28,6 +28,7 @@ use crate::{
     keyboard::KeyboardManager,
     mouse::MouseManager,
     text::FontManager,
+    touch::TouchManager,
     window::{WindowId, WindowManager},
 };
 
@@ -815,12 +816,15 @@ impl App {
     /// * [`FsWatcherManager`]
     /// * [`ConfigManager`]
     /// * [`L10nManager`]
+    /// * [`MouseManager`]
+    /// * [`TouchManager`]
     /// * [`KeyboardManager`]
     /// * [`GestureManager`]
     /// * [`WindowManager`]
     /// * [`FontManager`]
     /// * [`FocusManager`]
     /// * [`ImageManager`]
+    /// * [`ClipboardManager`]
     /// * [`UndoManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<impl AppExtension> {
@@ -829,6 +833,7 @@ impl App {
             .extend(ConfigManager::default())
             .extend(L10nManager::default())
             .extend(MouseManager::default())
+            .extend(TouchManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
             .extend(WindowManager::default())
@@ -867,6 +872,7 @@ impl App {
     /// * [`ConfigManager`]
     /// * [`L10nManager`]
     /// * [`MouseManager`]
+    /// * [`TouchManager`]
     /// * [`KeyboardManager`]
     /// * [`GestureManager`]
     /// * [`WindowManager`]
@@ -882,6 +888,7 @@ impl App {
             .extend(ConfigManager::default())
             .extend(L10nManager::default())
             .extend(MouseManager::default())
+            .extend(TouchManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
             .extend(WindowManager::default())
@@ -1211,12 +1218,21 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id), pressure, stage);
                 self.notify_event(RAW_TOUCHPAD_PRESSURE_EVENT.new_update(args), observer);
             }
-            Event::AxisMotion(w_id, d_id, axis, value) => {
+            Event::AxisMotion {
+                window: w_id,
+                device: d_id,
+                axis,
+                value,
+            } => {
                 let args = RawAxisMotionArgs::now(window_id(w_id), self.device_id(d_id), axis, value);
                 self.notify_event(RAW_AXIS_MOTION_EVENT.new_update(args), observer);
             }
-            Event::Touch(w_id, d_id, phase, pos, force, finger_id) => {
-                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id), phase, pos, force, finger_id);
+            Event::Touch {
+                window: w_id,
+                device: d_id,
+                touches,
+            } => {
+                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id), touches);
                 self.notify_event(RAW_TOUCH_EVENT.new_update(args), observer);
             }
             Event::ScaleFactorChanged {

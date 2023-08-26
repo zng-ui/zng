@@ -131,6 +131,11 @@ pub struct AxisId(pub u32);
 #[serde(transparent)]
 pub struct ButtonId(pub u32);
 
+/// Identifier for a continuous touch contact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct TouchId(pub u64);
+
 /// Identifier of a frame or frame update.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, bytemuck::NoUninit)]
 #[repr(C)]
@@ -2763,9 +2768,26 @@ pub enum Event {
         stage: i64,
     },
     /// Motion on some analog axis. May report data redundant to other, more specific events.
-    AxisMotion(WindowId, DeviceId, AxisId, f64),
+    AxisMotion {
+        /// Window that was focused when the motion was realized.
+        window: WindowId,
+        /// Analog device.
+        device: DeviceId,
+        /// Axis.
+        axis: AxisId,
+        /// Motion value.
+        value: f64,
+    },
     /// Touch event has been received.
-    Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<TouchForce>, u64),
+    Touch {
+        /// Window that was touched.
+        window: WindowId,
+        /// Touch device.
+        device: DeviceId,
+
+        /// Coalesced touch updates, never empty.
+        touches: Vec<TouchUpdate>,
+    },
     /// The monitor’s scale factor has changed.
     ScaleFactorChanged {
         /// Monitor that has changed.
@@ -3033,6 +3055,18 @@ impl Event {
                 *delta_y += n_delta_y;
             }
 
+            // touch
+            (
+                Touch { window, device, touches },
+                Touch {
+                    window: n_window,
+                    device: n_device,
+                    touches: mut n_touches,
+                },
+            ) if *window == n_window && *device == n_device => {
+                touches.append(&mut n_touches);
+            }
+
             // window changed.
             (WindowChanged(change), WindowChanged(n_change))
                 if change.window == n_change.window && change.cause == n_change.cause && change.frame_wait_id.is_none() =>
@@ -3107,6 +3141,23 @@ impl Event {
         }
         Ok(())
     }
+}
+
+/// Identify a new touch contact or a contact update.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct TouchUpdate {
+    /// Identify a continuous touch contact or *finger*.
+    ///
+    /// Multiple points of contact can happen in the same device at the same time,
+    /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
+    /// on the same device, after a touch is ended an ID may be reused.
+    pub touch: TouchId,
+    /// Touch phase for the `id`.
+    pub phase: TouchPhase,
+    /// Touch center, relative to the window top-left in device independent pixels.
+    pub location: DipPoint,
+    /// Touch pressure force and angle.
+    pub force: Option<TouchForce>,
 }
 
 /// Cause of a window state change.

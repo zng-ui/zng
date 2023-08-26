@@ -9,6 +9,7 @@ use crate::{
     event::*,
     keyboard::{ModifiersState, KEYBOARD, MODIFIERS_CHANGED_EVENT},
     timer::{DeadlineVar, TIMERS},
+    touch::TouchPhase,
     units::*,
     var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
@@ -17,7 +18,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU32, time::*};
 
-pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase};
+pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig};
 
 event_args! {
     /// [`MOUSE_MOVE_EVENT`] arguments.

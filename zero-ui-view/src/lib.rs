@@ -1012,19 +1012,26 @@ impl App {
             WindowEvent::AxisMotion { device_id, axis, value } => {
                 linux_modal_dialog_bail!();
                 let d_id = self.device_id(device_id);
-                self.notify(Event::AxisMotion(id, d_id, AxisId(axis), value));
+                self.notify(Event::AxisMotion {
+                    window: id,
+                    device: d_id,
+                    axis: AxisId(axis),
+                    value,
+                });
             }
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
                 let location = t.location.to_px().to_dip(scale_factor);
-                self.notify(Event::Touch(
-                    id,
-                    d_id,
-                    util::winit_touch_phase_to_zui(t.phase),
-                    location,
-                    t.force.map(util::winit_force_to_zui),
-                    t.id,
-                ));
+                self.notify(Event::Touch {
+                    window: id,
+                    device: d_id,
+                    touches: vec![TouchUpdate {
+                        phase: util::winit_touch_phase_to_zui(t.phase),
+                        location,
+                        force: t.force.map(util::winit_force_to_zui),
+                        touch: TouchId(t.id),
+                    }],
+                });
             }
             WindowEvent::TouchpadMagnify { .. } => {
                 linux_modal_dialog_bail!();

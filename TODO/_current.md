@@ -17,12 +17,39 @@
 # Touch Events
 
 * Implement `TOUCH` service and events.
-    - Track fingers in vars only.
-    - And simple gestures like tap.
+    - Copy `MOUSE` patterns.
+* `TOUCH_DOWN/MOVE/UP`.
+* `TOUCH_ENTER/LEAVE`.
+* `TAP_EVENT`.            
+* Touch capture like mouse capture?
+
 * Integrate with `GESTURES`.
-    - Tap with click.
-    - Complex gestures (pinch, etc.) here too?
-        - Because of the name "gestures"?
+    - `CLICK_EVENT` from `TAP_EVENT`.
+    - Basic gestures:
+        - Pinch:
+            - Two fingers, move closer together or a farther apart.
+        - Rotate:
+            - Two finger, move around each other.
+        - Pan or drag:
+            - One finger, press, move.
+        - All 3 can happen at the same time.
+            - Same event?
+        - Gestures can be ambiguous?
+           - `TOUCH_DOWN` in a button widget can be the start of a `TAP_EVENT` or of a pan gesture.
+           - If the button moves with the pan gesture the `TOUCH_UP` still completes the tap?
+           - Test what browsers do in this case.
+    - Inertia:
+        - A pan/drag can be "thrown".
+            - One finger, press, move, release "while moving".
+            - Pan continues for a time.
+            - User controls velocity to some extent.
+    - Tension:
+        - Gestures can "push" against a constraint.
+        - Pan scroll has visual feedback when it can't scroll a direction anymore.
+            - Different from no feedback when you can never scroll in a direction.
+     
+
+    - `LONG_PRESS_EVENT` (from mouse too?).
 
 ```log
 // Log of tab and a drag.
@@ -46,4 +73,6 @@ Touch (Moved, (423dip, 243dip), Some(Normalized(0.5)), 26)
 Touch (Moved, (423dip, 243dip), Some(Normalized(0.5)), 26)
 Touch (Moved, (425dip, 247dip), Some(Normalized(0.5)), 26)
 Touch (Ended, (425dip, 247dip), Some(Normalized(0.5)), 26)
+
+// Can also have a Canceled phase.
 ```

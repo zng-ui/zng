@@ -28,9 +28,10 @@ use crate::{
     color::ColorScheme,
     event::*,
     keyboard::{Key, KeyCode, KeyRepeatConfig, KeyState},
-    mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig},
     render::FrameId,
     text::FontAntiAliasing,
+    touch::{TouchPhase, TouchUpdate},
     units::{DipPoint, DipSize, Factor, PxRect},
     window::{EventCause, MonitorId, WindowId},
 };
@@ -417,17 +418,8 @@ event_args! {
         /// Device that generated this event.
         pub device_id: DeviceId,
 
-        /// Touch phase.
-        pub phase: TouchPhase,
-
-        /// Touch center point.
-        pub position: DipPoint,
-
-        /// Touch force.
-        pub force: Option<TouchForce>,
-
-        /// Raw finger ID.
-        pub finger_id: u64,
+        /// Coalesced touch updates.
+        pub touches: Vec<TouchUpdate>,
 
         ..
 
