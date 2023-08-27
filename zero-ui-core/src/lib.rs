@@ -51,6 +51,7 @@ pub mod inspector;
 pub mod keyboard;
 pub mod l10n;
 pub mod mouse;
+pub mod pointer_capture;
 pub mod render;
 pub mod task;
 pub mod text;

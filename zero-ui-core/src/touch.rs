@@ -9,6 +9,7 @@ pub use zero_ui_view_api::{TouchForce, TouchId, TouchPhase, TouchUpdate};
 use crate::{
     app::{raw_events::*, *},
     event::*,
+    pointer_capture::CaptureInfo,
     units::*,
     widget_info::{HitTestInfo, InteractionPath},
     window::{WindowId, WINDOWS},
@@ -82,8 +83,9 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchMoveArgs::hits).
         pub target: InteractionPath,
 
-        /// TODO
-        pub capture: (),
+        /// Current touch capture.
+        pub capture: Option<CaptureInfo>,
+
         ..
 
         /// The [`target`] and [`capture`].
@@ -92,9 +94,9 @@ event_args! {
         /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_path(&self.target);
-            // if let Some(c) = &self.capture {
-            //     list.insert_path(&c.target);
-            // }
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
         }
     }
 
@@ -130,8 +132,8 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
         pub target: InteractionPath,
 
-        /// TODO
-        pub capture: (),
+        /// Current touch capture.
+        pub capture: Option<CaptureInfo>,
 
         ..
 
@@ -141,9 +143,9 @@ event_args! {
         /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_path(&self.target);
-            // if let Some(c) = &self.capture {
-            //     list.insert_path(&c.target);
-            // }
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
         }
     }
 }
@@ -193,7 +195,7 @@ impl TouchManager {
                 update.phase,
                 hits,
                 target,
-                (),
+                None, // TODO
             );
             TOUCH_INPUT_EVENT.notify(args);
         }
@@ -209,7 +211,7 @@ impl TouchManager {
                     .map(|t| t.interaction_path())
                     .unwrap_or_else(|| w.root().interaction_path());
 
-                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, touch, position, force, hits, target, ());
+                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, touch, position, force, hits, target, None);
                 TOUCH_MOVE_EVENT.notify(args);
             }
         }

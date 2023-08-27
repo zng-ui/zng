@@ -23,6 +23,13 @@
 * `TOUCH_ENTER/LEAVE`.
 * `TAP_EVENT`.            
 * Touch capture like mouse capture?
+    - Required, at least WPF does this.
+    - Can use the same types (only docs change).
+    - Can unify both in a `CAPTURE` service?
+        - Is deeply integrated with these events.
+        - Maybe a service with some crate visible accessors?
+        - Can only capture if mouse is down or touch is down.
+        - Can capture on press (this is the integrated part).
 
 * Integrate with `GESTURES`.
     - `CLICK_EVENT` from `TAP_EVENT`.

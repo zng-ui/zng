@@ -8,6 +8,7 @@ use crate::{
     crate_util::FxHashMap,
     event::*,
     keyboard::{ModifiersState, KEYBOARD, MODIFIERS_CHANGED_EVENT},
+    pointer_capture::{CaptureInfo, CaptureMode},
     timer::{DeadlineVar, TIMERS},
     touch::TouchPhase,
     units::*,
@@ -16,7 +17,7 @@ use crate::{
     widget_instance::WidgetId,
     window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS},
 };
-use std::{fmt, mem, num::NonZeroU32, time::*};
+use std::{mem, num::NonZeroU32, time::*};
 
 pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig};
 
@@ -224,29 +225,6 @@ event_args! {
             }
             if let Some(c) = &self.capture {
                 list.insert_path(&c.target);
-            }
-        }
-    }
-
-    /// [`MOUSE_CAPTURE_EVENT`] arguments.
-    pub struct MouseCaptureArgs {
-        /// Previous mouse capture target and mode.
-        pub prev_capture: Option<(WidgetPath, CaptureMode)>,
-        /// new mouse capture target and mode.
-        pub new_capture: Option<(WidgetPath, CaptureMode)>,
-
-        ..
-
-        /// The [`prev_capture`] and [`new_capture`] paths start with the current path.
-        ///
-        /// [`prev_capture`]: Self::prev_capture
-        /// [`new_capture`]: Self::new_capture
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            if let Some((p, _)) = &self.prev_capture {
-                list.insert_path(p);
-            }
-            if let Some((p, _)) = &self.new_capture {
-                list.insert_path(p);
             }
         }
     }
@@ -537,42 +515,6 @@ impl MouseClickArgs {
     }
 }
 
-impl MouseCaptureArgs {
-    /// If the same widget has mouse capture, but the widget path changed.
-    pub fn is_widget_move(&self) -> bool {
-        match (&self.prev_capture, &self.new_capture) {
-            (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.0 != new.0,
-            _ => false,
-        }
-    }
-
-    /// If the same widget has mouse capture, but the capture mode changed.
-    pub fn is_mode_change(&self) -> bool {
-        match (&self.prev_capture, &self.new_capture) {
-            (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.1 != new.1,
-            _ => false,
-        }
-    }
-
-    /// If the `widget_id` lost mouse capture with this update.
-    pub fn is_lost(&self, widget_id: WidgetId) -> bool {
-        match (&self.prev_capture, &self.new_capture) {
-            (None, _) => false,
-            (Some((path, _)), None) => path.widget_id() == widget_id,
-            (Some((prev_path, _)), Some((new_path, _))) => prev_path.widget_id() == widget_id && new_path.widget_id() != widget_id,
-        }
-    }
-
-    /// If the `widget_id` got mouse capture with this update.
-    pub fn is_got(&self, widget_id: WidgetId) -> bool {
-        match (&self.prev_capture, &self.new_capture) {
-            (_, None) => false,
-            (None, Some((path, _))) => path.widget_id() == widget_id,
-            (Some((prev_path, _)), Some((new_path, _))) => prev_path.widget_id() != widget_id && new_path.widget_id() == widget_id,
-        }
-    }
-}
-
 impl MouseWheelArgs {
     /// Swaps the delta axis if [`modifiers`] contains `SHIFT`.
     ///
@@ -676,9 +618,6 @@ event! {
 
     /// The top-most hovered widget changed or mouse capture changed.
     pub static MOUSE_HOVERED_EVENT: MouseHoverArgs;
-
-    /// Mouse capture changed event.
-    pub static MOUSE_CAPTURE_EVENT: MouseCaptureArgs;
 
     /// Mouse wheel scroll event.
     pub static MOUSE_WHEEL_EVENT: MouseWheelArgs;
@@ -1638,11 +1577,6 @@ impl MOUSE {
         MOUSE_SV.read().repeat_config.clone()
     }
 
-    /// Variable that gets the current capture target and mode.
-    pub fn current_capture(&self) -> ReadOnlyArcVar<Option<(WidgetPath, CaptureMode)>> {
-        MOUSE_SV.read().capture.read_only()
-    }
-
     /// Variable that gets current hovered window and cursor point over that window.
     pub fn position(&self) -> ReadOnlyArcVar<Option<(WindowId, DipPoint)>> {
         MOUSE_SV.read().position.read_only()
@@ -1652,44 +1586,10 @@ impl MOUSE {
     pub fn hovered(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
         MOUSE_SV.read().hovered.read_only()
     }
-
-    /// Set a widget to redirect all mouse events to.
-    ///
-    /// The capture will be set only if the pointer is currently pressed over the widget.
-    pub fn capture_widget(&self, widget_id: WidgetId) {
-        let mut m = MOUSE_SV.write();
-        m.capture_request = Some((widget_id, CaptureMode::Widget));
-        UPDATES.update(None);
-    }
-
-    /// Set a widget to be the root of a capture subtree.
-    ///
-    /// Mouse events targeting inside the subtree go to target normally. Mouse events outside
-    /// the capture root are redirected to the capture root.
-    ///
-    /// The capture will be set only if the pointer is currently pressed over the widget.
-    pub fn capture_subtree(&self, widget_id: WidgetId) {
-        let mut m = MOUSE_SV.write();
-        m.capture_request = Some((widget_id, CaptureMode::Subtree));
-        UPDATES.update(None);
-    }
-
-    /// Release the current mouse capture back to window.
-    ///
-    /// **Note:** The capture is released automatically when the mouse buttons are released
-    /// or when the window loses focus.
-    pub fn release_capture(&self) {
-        let mut m = MOUSE_SV.write();
-        m.release_requested = true;
-        UPDATES.update(None);
-    }
 }
 
 app_local! {
     static MOUSE_SV: MouseService = MouseService {
-        capture: var(None),
-        capture_request: None,
-        release_requested: false,
         multi_click_config: var(MultiClickConfig::default()),
         repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
         buttons: var(vec![]),
@@ -1698,96 +1598,9 @@ app_local! {
     };
 }
 struct MouseService {
-    capture: ArcVar<Option<(WidgetPath, CaptureMode)>>,
-    capture_request: Option<(WidgetId, CaptureMode)>,
-    release_requested: bool,
     multi_click_config: ArcVar<MultiClickConfig>,
     repeat_config: BoxedVar<ButtonRepeatConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
     hovered: ArcVar<Option<InteractionPath>>,
     position: ArcVar<Option<(WindowId, DipPoint)>>,
-}
-
-/// Mouse capture mode.
-#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum CaptureMode {
-    /// Mouse captured by the window only.
-    ///
-    /// Default behavior.
-    Window,
-    /// Mouse events inside the widget sub-tree permitted. Mouse events
-    /// outside of the widget redirected to the widget.
-    Subtree,
-
-    /// Mouse events redirected to the widget.
-    Widget,
-}
-impl fmt::Debug for CaptureMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "CaptureMode::")?;
-        }
-        match self {
-            CaptureMode::Window => write!(f, "Window"),
-            CaptureMode::Subtree => write!(f, "Subtree"),
-            CaptureMode::Widget => write!(f, "Widget"),
-        }
-    }
-}
-impl Default for CaptureMode {
-    /// [`CaptureMode::Window`]
-    fn default() -> Self {
-        CaptureMode::Window
-    }
-}
-impl_from_and_into_var! {
-    /// Convert `true` to [`CaptureMode::Widget`] and `false` to [`CaptureMode::Window`].
-    fn from(widget: bool) -> CaptureMode {
-        if widget {
-            CaptureMode::Widget
-        } else {
-            CaptureMode::Window
-        }
-    }
-}
-
-/// Information about mouse capture in a mouse event argument.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CaptureInfo {
-    /// Widget that is capturing all mouse events. The widget and all ancestors are [`ENABLED`].
-    ///
-    /// This is the window root widget for capture mode `Window`.
-    ///
-    /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
-    pub target: WidgetPath,
-    /// Capture mode, see [`allows`](Self::allows) for more details.
-    pub mode: CaptureMode,
-}
-impl CaptureInfo {
-    /// If the widget is allowed by the current capture.
-    ///
-    /// This method uses [`WINDOW`] and [`WIDGET`] to identify the widget context.
-    ///
-    /// | Mode           | Allows                                             |
-    /// |----------------|----------------------------------------------------|
-    /// | `Window`       | All widgets in the same window.                    |
-    /// | `Subtree`      | All widgets that have the `target` in their path.  |
-    /// | `Widget`       | Only the `target` widget.                          |
-    pub fn allows(&self) -> bool {
-        match self.mode {
-            CaptureMode::Window => self.target.window_id() == WINDOW.id(),
-            CaptureMode::Widget => self.target.widget_id() == WIDGET.id(),
-            CaptureMode::Subtree => {
-                let tree = WINDOW.info();
-                if let Some(wgt) = tree.get(WIDGET.id()) {
-                    for wgt in wgt.self_and_ancestors() {
-                        if wgt.id() == self.target.widget_id() {
-                            return true;
-                        }
-                    }
-                }
-                false
-            }
-        }
-    }
 }
