@@ -1021,13 +1021,13 @@ impl App {
             }
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
-                let location = t.location.to_px().to_dip(scale_factor);
+                let position = t.location.to_px().to_dip(scale_factor);
                 self.notify(Event::Touch {
                     window: id,
                     device: d_id,
                     touches: vec![TouchUpdate {
                         phase: util::winit_touch_phase_to_zui(t.phase),
-                        location,
+                        position,
                         force: t.force.map(util::winit_force_to_zui),
                         touch: TouchId(t.id),
                     }],

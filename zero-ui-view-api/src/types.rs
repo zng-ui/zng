@@ -3155,7 +3155,7 @@ pub struct TouchUpdate {
     /// Touch phase for the `id`.
     pub phase: TouchPhase,
     /// Touch center, relative to the window top-left in device independent pixels.
-    pub location: DipPoint,
+    pub position: DipPoint,
     /// Touch pressure force and angle.
     pub force: Option<TouchForce>,
 }
