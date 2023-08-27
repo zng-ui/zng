@@ -1275,3 +1275,21 @@ context_var! {
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
+
+#[property(CHILD_LAYOUT+100)]
+pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
+    let range = range.into_var();
+    let color = color.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&range).sub_var_render(&color);
+        }
+        UiNodeOp::Render { frame } => {
+            let l_txt = super::nodes::LayoutText::get();
+            let range = range.get();
+            let line_rect = l_txt.shaped_text.line(range.start.line).unwrap().rect(); //TODO: actual selection rect(s)
+            frame.push_color(line_rect, FrameValue::Value(color.get().into()));
+        }
+        _ => {}
+    })
+}
