@@ -43,11 +43,13 @@ pub struct TouchManager {}
 ///
 /// # Touch Capture
 ///
-/// TODO
+/// Touch capture is integrated with mouse capture in the [`POINTER_CAPTURE`] service.
 ///
 /// # Provider
 ///
 /// This service is provided by the [`TouchManager`] extension.
+/// 
+/// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct TOUCH;
 
 event_args! {

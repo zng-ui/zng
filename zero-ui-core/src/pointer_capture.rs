@@ -13,7 +13,15 @@ use crate::{
 
 /// Mouse and touch capture service.
 ///
-/// Mouse and touch events are redirected to the widget that holds capture when the widget is pressed.
+/// Mouse and touch is **captured** when mouse and touch events are redirected to a specific target. The user
+/// can still move the cursor or touch contact outside of the target but the widgets outside do not react to this.
+///
+/// You can request capture by calling [`capture_widget`](POINTER_CAPTURE::capture_widget) or
+/// [`capture_subtree`](POINTER_CAPTURE::capture_subtree) with a widget that was pressed by a mouse button or by touch. 
+/// The capture will last for as long as any of the mouse buttons or touch contacts are pressed, the widget is visible 
+/// and the window is focused.
+///
+/// Windows capture by default, this cannot be disabled. For other widgets this is optional.
 #[allow(non_camel_case_types)]
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
