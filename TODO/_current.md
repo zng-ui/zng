@@ -22,15 +22,6 @@
 * `TOUCH_DOWN/MOVE/UP`.
 * `TOUCH_ENTER/LEAVE`.
 * `TAP_EVENT`.            
-* Touch capture like mouse capture?
-    - Required, at least WPF does this.
-    - Can use the same types (only docs change).
-    - Can unify both in a `CAPTURE` service?
-        - Is deeply integrated with these events.
-            - Uses the same raw events.
-        - Can only capture if mouse is down or touch is down.
-        - Can capture on press (this is the integrated part).
-
 * Integrate with `GESTURES`.
     - `CLICK_EVENT` from `TAP_EVENT`.
     - Basic gestures:
@@ -55,9 +46,16 @@
         - Gestures can "push" against a constraint.
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
-     
-
     - `LONG_PRESS_EVENT` (from mouse too?).
+* Add event properties.
+    - `on_tap`, `on_touch_down`.
+* Review/add state properties.
+    - Review `is_pointer_pressed`.
+        - Is only for mouse with primary button now.
+        - Add touch, review what is a pressed touch.
+            - Say we press in a button then move and this causes a pan effect.
+            - Need to show pressed only if a tap will happen on touch-up.
+    - Add `is_mouse_pressed` and `is_touch_pressed`.
 
 ```log
 // Log of tab and a drag.

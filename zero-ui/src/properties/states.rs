@@ -81,7 +81,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
     )
 }
 
-/// If the pointer is pressed in the widget and the widget is [`ENABLED`].
+/// If the mouse pointer is pressed in the widget and the widget is [`ENABLED`].
 ///
 /// This is `true` when the mouse primary button started pressing in the widget
 /// and the pointer is over the widget and the primary button is still pressed and
