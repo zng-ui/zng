@@ -154,7 +154,7 @@ fn test_view_api_types() {
     test_config!(ButtonState::Pressed);
     test_config!(MouseButton::Left);
     test_config!("MouseButton::Other" => MouseButton::Other(564));
-    test_config!(TouchPhase::Started);
+    test_config!(TouchPhase::Start);
     test_config!(MouseScrollDelta::LineDelta(32.0, 34.0));
     test_config!(TouchForce::Calibrated {
         force: 5.0,

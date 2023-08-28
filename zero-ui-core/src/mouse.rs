@@ -266,7 +266,7 @@ event_args! {
 }
 
 impl MouseHoverArgs {
-    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
@@ -401,7 +401,7 @@ impl MouseHoverArgs {
 }
 
 impl MouseMoveArgs {
-    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
@@ -411,7 +411,7 @@ impl MouseMoveArgs {
 }
 
 impl MouseInputArgs {
-    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
+    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows

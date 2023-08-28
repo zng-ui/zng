@@ -19,9 +19,9 @@
 
 * Implement `TOUCH` service and events.
     - Copy `MOUSE` patterns.
-* `TOUCH_DOWN/MOVE/UP`.
 * `TOUCH_ENTER/LEAVE`.
-* `TAP_EVENT`.            
+* `TAP_EVENT`.
+    - Tap is a gesture.        
 * Integrate with `GESTURES`.
     - `CLICK_EVENT` from `TAP_EVENT`.
     - Basic gestures:
@@ -47,8 +47,8 @@
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
     - `LONG_PRESS_EVENT` (from mouse too?).
+
 * Add event properties.
-    - `on_tap`, `on_touch_down`.
 * Review/add state properties.
     - Review `is_pointer_pressed`.
         - Is only for mouse with primary button now.

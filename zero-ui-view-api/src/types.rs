@@ -263,13 +263,13 @@ pub enum MouseButton {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum TouchPhase {
     /// A finger touched the screen.
-    Started,
+    Start,
     /// A finger moved on the screen.
-    Moved,
+    Move,
     /// A finger was lifted from the screen.
-    Ended,
+    End,
     /// The system cancelled tracking for the touch.
-    Cancelled,
+    Cancel,
 }
 
 /// Describes a difference in the mouse scroll wheel state.

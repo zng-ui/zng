@@ -311,10 +311,10 @@ pub(crate) fn winit_mouse_wheel_delta_to_zui(w: winit::event::MouseScrollDelta) 
 
 pub(crate) fn winit_touch_phase_to_zui(w: winit::event::TouchPhase) -> TouchPhase {
     match w {
-        winit::event::TouchPhase::Started => TouchPhase::Started,
-        winit::event::TouchPhase::Moved => TouchPhase::Moved,
-        winit::event::TouchPhase::Ended => TouchPhase::Ended,
-        winit::event::TouchPhase::Cancelled => TouchPhase::Cancelled,
+        winit::event::TouchPhase::Started => TouchPhase::Start,
+        winit::event::TouchPhase::Moved => TouchPhase::Move,
+        winit::event::TouchPhase::Ended => TouchPhase::End,
+        winit::event::TouchPhase::Cancelled => TouchPhase::Cancel,
     }
 }
 

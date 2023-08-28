@@ -62,5 +62,6 @@ pub mod gesture;
 pub mod keyboard;
 pub mod mouse;
 pub mod pointer_capture;
+pub mod touch;
 pub mod widget;
 pub mod window;

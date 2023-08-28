@@ -93,7 +93,7 @@ impl AppExtension for PointerCaptureManager {
         } else if let Some(args) = RAW_TOUCH_EVENT.on(update) {
             for touch in &args.touches {
                 match touch.phase {
-                    TouchPhase::Started => {
+                    TouchPhase::Start => {
                         if self.touch_down.insert((args.window_id, args.device_id, touch.touch))
                             && self.touch_down.len() == 1
                             && self.mouse_down.is_empty()
@@ -101,7 +101,7 @@ impl AppExtension for PointerCaptureManager {
                             self.on_first_down(args.window_id, touch.position);
                         }
                     }
-                    TouchPhase::Ended | TouchPhase::Cancelled => {
+                    TouchPhase::End | TouchPhase::Cancel => {
                         if self.touch_down.remove(&(args.window_id, args.device_id, touch.touch))
                             && self.touch_down.is_empty()
                             && self.mouse_down.is_empty()
@@ -109,7 +109,7 @@ impl AppExtension for PointerCaptureManager {
                             self.on_last_up();
                         }
                     }
-                    TouchPhase::Moved => {}
+                    TouchPhase::Move => {}
                 }
             }
         } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
@@ -244,6 +244,10 @@ impl PointerCaptureManager {
 /// and the window is focused.
 ///
 /// Windows capture by default, this cannot be disabled. For other widgets this is optional.
+///
+/// # Provider
+///
+/// This service is provided by the [`PointerCaptureManager`] extension.
 #[allow(non_camel_case_types)]
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
