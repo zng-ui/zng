@@ -27,7 +27,7 @@
     - Can use the same types (only docs change).
     - Can unify both in a `CAPTURE` service?
         - Is deeply integrated with these events.
-        - Maybe a service with some crate visible accessors?
+            - Uses the same raw events.
         - Can only capture if mouse is down or touch is down.
         - Can capture on press (this is the integrated part).
 

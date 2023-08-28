@@ -48,7 +48,7 @@ pub struct TouchManager {}
 /// # Provider
 ///
 /// This service is provided by the [`TouchManager`] extension.
-/// 
+///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct TOUCH;
 

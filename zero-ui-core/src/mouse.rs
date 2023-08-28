@@ -646,7 +646,6 @@ struct ClickingInfo {
 /// * [`MOUSE_INPUT_EVENT`]
 /// * [`MOUSE_CLICK_EVENT`]
 /// * [`MOUSE_HOVERED_EVENT`]
-/// * [`MOUSE_CAPTURE_EVENT`]
 ///
 /// # Services
 ///
@@ -1530,11 +1529,11 @@ impl Default for ButtonRepeatConfig {
 /// # Mouse Capture
 ///
 /// Mouse capture is integrated with touch capture in the [`POINTER_CAPTURE`] service.
-/// 
+///
 /// # Provider
 ///
 /// This service is provided by the [`MouseManager`] extension.
-/// 
+///
 /// [`POINTER_CAPTURE`]: crate::pointer_capture::POINTER_CAPTURE
 pub struct MOUSE;
 impl MOUSE {

@@ -14,6 +14,7 @@ use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::fs_watcher::FsWatcherManager;
 use crate::image::ImageManager;
 use crate::l10n::L10nManager;
+use crate::pointer_capture::PointerCaptureManager;
 use crate::task::ui::UiTask;
 use crate::text::Txt;
 use crate::timer::TimersService;
@@ -816,6 +817,7 @@ impl App {
     /// * [`FsWatcherManager`]
     /// * [`ConfigManager`]
     /// * [`L10nManager`]
+    /// * [`PointerCaptureManager`]
     /// * [`MouseManager`]
     /// * [`TouchManager`]
     /// * [`KeyboardManager`]
@@ -832,6 +834,7 @@ impl App {
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .extend(L10nManager::default())
+            .extend(PointerCaptureManager::default())
             .extend(MouseManager::default())
             .extend(TouchManager::default())
             .extend(KeyboardManager::default())
@@ -871,6 +874,7 @@ impl App {
     /// * [`FsWatcherManager`]
     /// * [`ConfigManager`]
     /// * [`L10nManager`]
+    /// * [`PointerCaptureManager`]
     /// * [`MouseManager`]
     /// * [`TouchManager`]
     /// * [`KeyboardManager`]
@@ -887,6 +891,7 @@ impl App {
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .extend(L10nManager::default())
+            .extend(PointerCaptureManager::default())
             .extend(MouseManager::default())
             .extend(TouchManager::default())
             .extend(KeyboardManager::default())

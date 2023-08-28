@@ -2,14 +2,135 @@
 
 use std::fmt;
 
+use hashbrown::HashSet;
+
 use crate::{
+    app::{
+        raw_events::{RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_FOCUS_EVENT},
+        view_process::VIEW_PROCESS_INITED_EVENT,
+        AppExtension, DeviceId,
+    },
     app_local,
     context::{UPDATES, WIDGET, WINDOW},
-    event::{event, event_args},
+    event::{event, event_args, EventUpdate},
+    mouse::{ButtonState, MouseButton},
+    touch::{TouchId, TouchPhase},
     var::*,
-    widget_info::WidgetPath,
+    widget_info::{WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
+    window::{WindowId, WIDGET_INFO_CHANGED_EVENT},
 };
+
+/// Application extension that provides mouse and touch capture service.
+///
+/// # Events
+///
+/// Events this extension provides.
+///
+/// * [`POINTER_CAPTURE_EVENT`]
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [`POINTER_CAPTURE`]
+///
+/// # Default
+///
+/// This extension is included in the [default app], events provided by it
+/// are required by multiple other extensions.
+///
+/// [default app]: crate::app::App::default
+#[derive(Default)]
+pub struct PointerCaptureManager {
+    mouse_down: HashSet<(WindowId, DeviceId, MouseButton)>,
+    touch_down: HashSet<(WindowId, DeviceId, TouchId)>,
+}
+impl AppExtension for PointerCaptureManager {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
+            todo!()
+        } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
+            match args.state {
+                ButtonState::Pressed => {
+                    if self.mouse_down.insert((args.window_id, args.device_id, args.button))
+                        && self.mouse_down.len() == 1
+                        && self.touch_down.is_empty()
+                    {
+                        self.on_first_down();
+                    }
+                }
+                ButtonState::Released => {
+                    if self.mouse_down.remove(&(args.window_id, args.device_id, args.button))
+                        && self.mouse_down.is_empty()
+                        && self.touch_down.is_empty()
+                    {
+                        self.on_last_up();
+                    }
+                }
+            }
+        } else if let Some(args) = RAW_TOUCH_EVENT.on(update) {
+            for touch in &args.touches {
+                match touch.phase {
+                    TouchPhase::Started => {
+                        if self.touch_down.insert((args.window_id, args.device_id, touch.touch))
+                            && self.touch_down.len() == 1
+                            && self.mouse_down.is_empty()
+                        {
+                            self.on_first_down();
+                        }
+                    }
+                    TouchPhase::Ended | TouchPhase::Cancelled => {
+                        if self.touch_down.remove(&(args.window_id, args.device_id, touch.touch))
+                            && self.touch_down.is_empty()
+                            && self.mouse_down.is_empty()
+                        {
+                            self.on_last_up();
+                        }
+                    }
+                    TouchPhase::Moved => {}
+                }
+            }
+        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+            todo!("check if capturing");
+            self.continue_capture(&args.tree);
+        } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
+            self.remove_window(args.window_id);
+        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
+            if let Some(w) = args.prev_focus {
+                self.remove_window(w);
+            }
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
+            if args.is_respawn && (!self.mouse_down.is_empty() || !self.touch_down.is_empty()) {
+                self.mouse_down.clear();
+                self.touch_down.clear();
+                self.on_last_up();
+            }
+        }
+    }
+}
+impl PointerCaptureManager {
+    fn remove_window(&mut self, window_id: WindowId) {
+        if !self.mouse_down.is_empty() || !self.touch_down.is_empty() {
+            self.mouse_down.retain(|(w, _, _)| *w != window_id);
+            self.touch_down.retain(|(w, _, _)| *w != window_id);
+
+            if self.mouse_down.is_empty() && self.touch_down.is_empty() {
+                self.on_last_up();
+            }
+        }
+    }
+
+    fn on_first_down(&mut self) {
+        todo!()
+    }
+
+    fn on_last_up(&mut self) {
+        todo!()
+    }
+
+    fn continue_capture(&mut self, info: &WidgetInfoTree) {}
+}
 
 /// Mouse and touch capture service.
 ///
@@ -17,8 +138,8 @@ use crate::{
 /// can still move the cursor or touch contact outside of the target but the widgets outside do not react to this.
 ///
 /// You can request capture by calling [`capture_widget`](POINTER_CAPTURE::capture_widget) or
-/// [`capture_subtree`](POINTER_CAPTURE::capture_subtree) with a widget that was pressed by a mouse button or by touch. 
-/// The capture will last for as long as any of the mouse buttons or touch contacts are pressed, the widget is visible 
+/// [`capture_subtree`](POINTER_CAPTURE::capture_subtree) with a widget that was pressed by a mouse button or by touch.
+/// The capture will last for as long as any of the mouse buttons or touch contacts are pressed, the widget is visible
 /// and the window is focused.
 ///
 /// Windows capture by default, this cannot be disabled. For other widgets this is optional.
