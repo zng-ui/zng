@@ -10,7 +10,7 @@ impl Button {
         widget_set! {
             self;
             style_fn = STYLE_VAR;
-            capture_mouse = true;
+            capture_pointer = true;
         }
     }
 
@@ -37,7 +37,7 @@ impl Button {
         /// If pointer interaction with other widgets is blocked while the button is pressed.
         ///
         /// Enabled by default in this widget.
-        pub crate::properties::capture_mouse(mode: impl IntoVar<crate::core::mouse::CaptureMode>);
+        pub crate::properties::capture_pointer(mode: impl IntoVar<crate::core::pointer_capture::CaptureMode>);
     }
 }
 

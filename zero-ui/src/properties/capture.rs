@@ -1,5 +1,6 @@
 use crate::core::{
-    mouse::{CaptureMode, MOUSE, MOUSE_INPUT_EVENT},
+    mouse::MOUSE_INPUT_EVENT,
+    pointer_capture::{CaptureMode, POINTER_CAPTURE},
     task::parking_lot::Mutex,
     IdSet,
 };
@@ -7,27 +8,27 @@ use crate::prelude::new_property::*;
 
 use std::sync::Arc;
 
-/// Capture mouse for the widget on mouse down.
+/// Capture mouse and touch for the widget on press.
 ///
-/// The mouse is captured when the widget is pressed by a mouse button and the `mode` is [`Widget`] or [`Subtree`].
+/// The capture happens only if any mouse button or touch is pressed on the window and the `mode` is [`Widget`] or [`Subtree`].
 ///
-/// Mouse captures are released when all mouse buttons stop being pressed on the window.
-/// The capture is also released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
+/// Captures are released when all mouse buttons and touch contacts stop being pressed on the window.
+/// The capture is also released back to window if the `mode` changes to [`Window`].
 ///
 /// # Examples
 ///
 /// ```
 /// # fn main() { }
 /// # use zero_ui::prelude::new_widget::*;
-/// # use zero_ui::properties::capture_mouse;
+/// # use zero_ui::properties::capture_pointer;
 /// #[widget($crate::Button)]
 /// pub struct Button(Container);
 /// impl Button {
 ///     fn widget_intrinsic(&mut self) {
 ///         widget_set! {
 ///             self;
-///             // Mouse does not interact with other widgets when pressed in a button.
-///             capture_mouse = true; //true == CaptureMode::Widget;
+///             // Mouse does not interact with other widgets when pressed in the widget.
+///             capture_pointer = true; //true == CaptureMode::Widget;
 ///         }
 ///     }
 /// }
@@ -37,7 +38,7 @@ use std::sync::Arc;
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window
 #[property(CONTEXT, default(false))]
-pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
+pub fn capture_pointer(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     let mode = mode.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -50,10 +51,10 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 
                     match mode.get() {
                         CaptureMode::Widget => {
-                            MOUSE.capture_widget(widget_id);
+                            POINTER_CAPTURE.capture_widget(widget_id);
                         }
                         CaptureMode::Subtree => {
-                            MOUSE.capture_subtree(widget_id);
+                            POINTER_CAPTURE.capture_subtree(widget_id);
                         }
                         CaptureMode::Window => (),
                     }
@@ -65,13 +66,13 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                 let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
-                    if let Some((current, _)) = MOUSE.current_capture().get() {
-                        if current.widget_id() == widget_id {
+                    if let Some(current) = POINTER_CAPTURE.current_capture().get() {
+                        if current.target.widget_id() == widget_id {
                             // If mode updated and we are capturing the mouse:
                             match new_mode {
-                                CaptureMode::Widget => MOUSE.capture_widget(widget_id),
-                                CaptureMode::Subtree => MOUSE.capture_subtree(widget_id),
-                                CaptureMode::Window => MOUSE.release_capture(),
+                                CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
+                                CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
+                                CaptureMode::Window => POINTER_CAPTURE.release_capture(),
                             }
                         }
                     }
@@ -82,9 +83,9 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     })
 }
 
-/// Capture mouse for the widget on init.
+/// Capture mouse and touch for the widget on init.
 ///
-/// The mouse is captured only if any mouse button is pressed on the window and the `mode` is [`Widget`] or [`Subtree`].
+/// The capture happens only if any mouse button or touch is pressed on the window and the `mode` is [`Widget`] or [`Subtree`].
 ///
 /// Mouse captures are released when all mouse buttons stop being pressed on the window.
 /// The capture is also released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
@@ -93,7 +94,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window
 #[property(CONTEXT, default(false))]
-pub fn capture_mouse_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
+pub fn capture_pointer_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     let mode = mode.into_var();
     let mut capture = true;
 
@@ -108,10 +109,10 @@ pub fn capture_mouse_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>
 
                 match mode.get() {
                     CaptureMode::Widget => {
-                        MOUSE.capture_widget(widget_id);
+                        POINTER_CAPTURE.capture_widget(widget_id);
                     }
                     CaptureMode::Subtree => {
-                        MOUSE.capture_subtree(widget_id);
+                        POINTER_CAPTURE.capture_subtree(widget_id);
                     }
                     CaptureMode::Window => (),
                 }
@@ -122,13 +123,13 @@ pub fn capture_mouse_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMode>
                 let tree = WINDOW.info();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
-                    if let Some((current, _)) = MOUSE.current_capture().get() {
-                        if current.widget_id() == widget_id {
+                    if let Some(current) = POINTER_CAPTURE.current_capture().get() {
+                        if current.target.widget_id() == widget_id {
                             // If mode updated and we are capturing the mouse:
                             match new_mode {
-                                CaptureMode::Widget => MOUSE.capture_widget(widget_id),
-                                CaptureMode::Subtree => MOUSE.capture_subtree(widget_id),
-                                CaptureMode::Window => MOUSE.release_capture(),
+                                CaptureMode::Widget => POINTER_CAPTURE.capture_widget(widget_id),
+                                CaptureMode::Subtree => POINTER_CAPTURE.capture_subtree(widget_id),
+                                CaptureMode::Window => POINTER_CAPTURE.release_capture(),
                             }
                         }
                     }

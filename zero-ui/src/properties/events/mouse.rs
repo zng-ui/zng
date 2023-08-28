@@ -146,26 +146,6 @@ event_property! {
         filter: |args| args.is_disabled(WIDGET.id()),
     }
 
-    /// Widget acquired mouse capture.
-    pub fn got_mouse_capture {
-        event: MOUSE_CAPTURE_EVENT,
-        args: MouseCaptureArgs,
-        filter: |args| args.is_got(WIDGET.id()),
-    }
-
-    /// Widget lost mouse capture.
-    pub fn lost_mouse_capture {
-        event: MOUSE_CAPTURE_EVENT,
-        args: MouseCaptureArgs,
-        filter: |args| args.is_lost(WIDGET.id()),
-    }
-
-    /// Widget acquired or lost mouse capture.
-    pub fn mouse_capture_changed {
-        event: MOUSE_CAPTURE_EVENT,
-        args: MouseCaptureArgs,
-    }
-
     /// Mouse wheel scrolled while pointer is hovering widget and the widget is enabled.
     pub fn mouse_wheel {
         event: MOUSE_WHEEL_EVENT,

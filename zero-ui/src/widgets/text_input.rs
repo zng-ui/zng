@@ -22,7 +22,7 @@ impl TextInput {
             self;
 
             txt_editable = true;
-            capture_mouse = true;
+            capture_pointer = true;
             txt_align = Align::TOP_START;
             focusable = true;
             undo_scope = true;

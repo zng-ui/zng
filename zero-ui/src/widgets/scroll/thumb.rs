@@ -12,7 +12,7 @@ impl Thumb {
         widget_set! {
             self;
             crate::properties::background_color = rgba(200, 200, 200, 50.pct());
-            capture_mouse = true;
+            capture_pointer = true;
             crate::properties::click_mode = ClickMode::default(); // scrollbar sets to repeat
 
             when *#is_hovered {

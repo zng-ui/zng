@@ -33,11 +33,11 @@ impl SubMenuPopup {
 
             // Supports press-and-drag to click gesture:
             //
-            // - Sub-menu is `capture_mouse = true`.
+            // - Sub-menu is `capture_pointer = true`.
             // - Menu items set`click_mode = release`.
             //
             // So the user can press to open the menu, then drag over an item and release to click it.
-            capture_mouse_on_init = crate::core::mouse::CaptureMode::Subtree;
+            capture_pointer_on_init = crate::core::pointer_capture::CaptureMode::Subtree;
         }
 
         self.widget_builder().push_build_action(|wgt| {

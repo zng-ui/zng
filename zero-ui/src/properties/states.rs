@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::core::{mouse::*, timer::TIMERS};
+use crate::core::{mouse::*, pointer_capture::POINTER_CAPTURE_EVENT, timer::TIMERS};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget or a descendant and the widget is [`DISABLED`].
@@ -66,7 +66,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
                 None
             }
         },
-        MOUSE_CAPTURE_EVENT,
+        POINTER_CAPTURE_EVENT,
         false,
         |cap_args| {
             if cap_args.is_got(WIDGET.id()) {
@@ -125,7 +125,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
             }
             None
         },
-        MOUSE_CAPTURE_EVENT,
+        POINTER_CAPTURE_EVENT,
         false,
         |cap_args| {
             if cap_args.is_got(WIDGET.id()) {
@@ -182,7 +182,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
             }
             None
         },
-        MOUSE_CAPTURE_EVENT,
+        POINTER_CAPTURE_EVENT,
         false,
         |cap_args| {
             if cap_args.is_got(WIDGET.id()) {

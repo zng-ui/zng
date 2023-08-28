@@ -44,7 +44,7 @@ impl SubMenu {
             focusable = true;
             click_mode = ClickMode::press();
             focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
-            capture_mouse = true; // part of press-and-drag to click (see SubMenuPopup)
+            capture_pointer = true; // part of press-and-drag to click (see SubMenuPopup)
         }
 
         self.widget_builder().push_build_action(|wgt| {

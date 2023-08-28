@@ -999,12 +999,12 @@ impl ComboStyle {
 
                 // supports gesture of press-and-drag to select.
                 //
-                // - `Toggle!` inherits `capture_mouse = true` from `Button!`.
+                // - `Toggle!` inherits `capture_pointer = true` from `Button!`.
                 // - `ComboStyle!` sets `click_mode = press`.
                 // - `ComboStyle!` sets popup descendant `Button!` to `click_mode = release`.
                 //
                 // So the user can press to open the drop-down, then drag over an option and release to select it.
-                capture_mouse_on_init = crate::core::mouse::CaptureMode::Subtree;
+                capture_pointer_on_init = crate::core::pointer_capture::CaptureMode::Subtree;
 
                 #[easing(100.ms())]
                 opacity = 0.pct();
