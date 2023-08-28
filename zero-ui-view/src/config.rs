@@ -1,4 +1,4 @@
-use zero_ui_view_api::ColorScheme;
+use zero_ui_view_api::{ColorScheme, TouchConfig};
 
 use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig};
 
@@ -317,6 +317,10 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
 pub fn key_repeat_config() -> KeyRepeatConfig {
     tracing::error!("`key_repeat_config` not implemented for this OS, will use default");
     KeyRepeatConfig::default()
+}
+
+pub fn touch_config() -> TouchConfig {
+    TouchConfig::default()
 }
 
 #[cfg(windows)]

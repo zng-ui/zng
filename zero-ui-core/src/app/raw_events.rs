@@ -31,7 +31,7 @@ use crate::{
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig},
     render::FrameId,
     text::FontAntiAliasing,
-    touch::{TouchPhase, TouchUpdate},
+    touch::{TouchConfig, TouchPhase, TouchUpdate},
     units::{DipPoint, DipSize, Factor, PxRect},
     window::{EventCause, MonitorId, WindowId},
 };
@@ -574,6 +574,19 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`].
+    pub struct RawTouchConfigChangedArgs {
+        /// New config.
+        pub config: TouchConfig,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
     /// Arguments for the [`RAW_LOCALE_CONFIG_CHANGED_EVENT`].
     pub struct RawLocaleChangedArgs {
         /// New config.
@@ -707,6 +720,9 @@ event! {
 
     /// Change in system key repeat interval config.
     pub static RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT: RawKeyRepeatConfigChangedArgs;
+
+    /// Change in system touch config.
+    pub static RAW_TOUCH_CONFIG_CHANGED_EVENT: RawTouchConfigChangedArgs;
 
     /// Change in system locale config.
     pub static RAW_LOCALE_CONFIG_CHANGED_EVENT: RawLocaleChangedArgs;

@@ -17,6 +17,10 @@
 
 # Touch Events
 
+* Resources
+    - https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
+    - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
+
 * Implement `TOUCH` service and events.
     - Copy `MOUSE` patterns.
 * `TOUCH_ENTER/LEAVE`.

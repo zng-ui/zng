@@ -1,5 +1,5 @@
 //! Touch events, [`on_touch_move`](fn@on_touch_move), [`on_touch_tap`](fn@on_touch_tap),
-//! [`on_touch_down`](fn@on_touch_down) and more.
+//! [`on_touch_start`](fn@on_touch_start) and more.
 //!
 //! There events are low level and directly tied to touch inputs.
 //! Before using them review the [`gesture`](super::gesture) events, in particular the

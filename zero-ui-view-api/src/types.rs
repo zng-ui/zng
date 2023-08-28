@@ -2589,6 +2589,8 @@ pub enum Event {
         multi_click_config: MultiClickConfig,
         /// System keyboard pressed key repeat start delay config.
         key_repeat_config: KeyRepeatConfig,
+        /// System touch config.
+        touch_config: TouchConfig,
         /// System font anti-aliasing config.
         font_aa: FontAntiAliasing,
         /// System animations config.
@@ -2890,6 +2892,8 @@ pub enum Event {
     AnimationsConfigChanged(AnimationsConfig),
     /// System definition of pressed key repeat event changed.
     KeyRepeatConfigChanged(KeyRepeatConfig),
+    /// System touch config changed.
+    TouchConfigChanged(TouchConfig),
     /// System locale changed.
     LocaleChanged(LocaleConfig),
 
@@ -3123,6 +3127,10 @@ impl Event {
             }
             // double-click timeout.
             (MultiClickConfigChanged(config), MultiClickConfigChanged(n_config)) => {
+                *config = n_config;
+            }
+            // touch config.
+            (TouchConfigChanged(config), TouchConfigChanged(n_config)) => {
                 *config = n_config;
             }
             // animation enabled and caret speed.
@@ -3711,7 +3719,30 @@ impl Default for MultiClickConfig {
     fn default() -> Self {
         Self {
             time: Duration::from_millis(500),
-            area: DipSize::new(Dip::new(4), Dip::new(4)),
+            area: DipSize::splat(Dip::new(4)),
+        }
+    }
+}
+
+/// System settings needed to implementing touch gestures.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+pub struct TouchConfig {
+    /// Maximum (x, y) distance in pixels that a touch start and end must be to generate a touch click.
+    pub tap_area: DipSize,
+
+    /// Maximum (x, y) distance in pixels that a second tap must happen.
+    pub double_tap_area: DipSize,
+
+    /// Maximum time between start and end in the `tap_area` that generates a touch click.
+    pub max_tap_time: Duration,
+}
+impl Default for TouchConfig {
+    /// `1, 1`, `4, 4`, `300ms`.
+    fn default() -> Self {
+        Self {
+            tap_area: DipSize::splat(Dip::new(1)),
+            double_tap_area: DipSize::splat(Dip::new(4)),
+            max_tap_time: Duration::from_millis(300),
         }
     }
 }

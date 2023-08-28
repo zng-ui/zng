@@ -4,7 +4,7 @@
 
 use std::mem;
 
-pub use zero_ui_view_api::{TouchForce, TouchId, TouchPhase, TouchUpdate};
+pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
 
 use crate::{
     app::{raw_events::*, *},
@@ -56,10 +56,29 @@ pub struct TouchManager {}
 pub struct TOUCH;
 
 impl TOUCH {
-    /// All active touches.
-    pub fn touches(&self) -> ReadOnlyArcVar<Vec<(TouchId, DipPoint, Option<TouchForce>)>> {
-        todo!()
+    /// Read-only variable that tracks the system touch config.
+    ///
+    /// # Value Source
+    ///
+    /// The value comes from the operating system settings, the variable
+    /// updates with a new value if the system setting is changed.
+    ///
+    /// In headless apps the default is [`TouchConfig::default`] and does not change.
+    ///
+    /// Internally the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
+    /// this event to set this variable, if you really must.
+    pub fn touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
+        TOUCH_SV.read().touch_config.read_only()
     }
+}
+
+app_local! {
+    static TOUCH_SV: TouchService = TouchService {
+        touch_config: var(TouchConfig::default())
+    };
+}
+struct TouchService {
+    touch_config: ArcVar<TouchConfig>,
 }
 
 event_args! {
@@ -316,6 +335,10 @@ impl AppExtension for TouchManager {
             }
 
             self.on_move(args, pending_move);
+        } else if let Some(args) = RAW_TOUCH_CONFIG_CHANGED_EVENT.on(update) {
+            TOUCH_SV.read().touch_config.set(args.config);
+        } else if let Some(args) = view_process::VIEW_PROCESS_INITED_EVENT.on(update) {
+            TOUCH_SV.read().touch_config.set(args.touch_config);
         }
     }
 }

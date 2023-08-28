@@ -1372,6 +1372,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawKeyRepeatConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
+            Event::TouchConfigChanged(cfg) => {
+                let args = RawTouchConfigChangedArgs::now(cfg);
+                self.notify_event(RAW_TOUCH_CONFIG_CHANGED_EVENT.new_update(args), observer);
+            }
             Event::LocaleChanged(cfg) => {
                 let args = RawLocaleChangedArgs::now(cfg);
                 self.notify_event(RAW_LOCALE_CONFIG_CHANGED_EVENT.new_update(args), observer);
@@ -1474,6 +1478,7 @@ impl<E: AppExtension> RunningApp<E> {
                     available_monitors,
                     multi_click_config,
                     key_repeat_config,
+                    touch_config,
                     font_aa,
                     animations_config,
                     locale_config,
@@ -1500,6 +1505,7 @@ impl<E: AppExtension> RunningApp<E> {
                         monitors,
                         multi_click_config,
                         key_repeat_config,
+                        touch_config,
                         font_aa,
                         animations_config,
                         locale_config,

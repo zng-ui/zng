@@ -22,6 +22,7 @@ use crate::{
     mouse::MultiClickConfig,
     task::SignalOnce,
     text::FontAntiAliasing,
+    touch::TouchConfig,
     units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize},
     var::ResponderVar,
     window::{MonitorId, WindowId},
@@ -532,6 +533,9 @@ event_args! {
 
         /// System keyboard pressed repeat config.
         pub key_repeat_config: KeyRepeatConfig,
+
+        /// System touch config.
+        pub touch_config: TouchConfig,
 
         /// System font font-aliasing config.
         pub font_aa: FontAntiAliasing,

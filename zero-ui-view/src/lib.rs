@@ -1476,6 +1476,7 @@ impl Api for App {
             color_scheme: config::color_scheme_config(),
             multi_click_config: config::multi_click_config(),
             key_repeat_config: config::key_repeat_config(),
+            touch_config: config::touch_config(),
             font_aa: config::font_aa(),
             animations_config: config::animations_config(),
             locale_config: config::locale_config(),
