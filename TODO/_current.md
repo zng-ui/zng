@@ -21,13 +21,7 @@
     - https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
 
-* Implement `TOUCH` service and events.
-    - Copy `MOUSE` patterns.
-* `TOUCH_ENTER/LEAVE`.
-* `TAP_EVENT`.
-    - Tap is a gesture.        
 * Integrate with `GESTURES`.
-    - `CLICK_EVENT` from `TAP_EVENT`.
     - Basic gestures:
         - Pinch:
             - Two fingers, move closer together or a farther apart.
@@ -58,7 +52,9 @@
         - Is only for mouse with primary button now.
         - Add touch, review what is a pressed touch.
             - Say we press in a button then move and this causes a pan effect.
-            - Need to show pressed only if a tap will happen on touch-up.
+            - Need to show pressed only if a tap will happen on touch-up?
+                - Canceled by multiple causes.
+                - May need a "promise" var for the future tap, `ResonseVar<bool>`.
     - Add `is_mouse_pressed` and `is_touch_pressed`.
 
 ```log

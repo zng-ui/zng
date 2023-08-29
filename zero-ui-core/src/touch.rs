@@ -2,7 +2,7 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::mem;
+use std::{mem, time::Instant};
 
 pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
 
@@ -10,6 +10,7 @@ use crate::{
     app::{raw_events::*, *},
     context::*,
     event::*,
+    keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
     pointer_capture::{CaptureInfo, POINTER_CAPTURE},
     units::*,
     var::*,
@@ -40,7 +41,10 @@ use crate::{
 ///
 /// [default app]: crate::app::App::default
 #[derive(Default)]
-pub struct TouchManager {}
+pub struct TouchManager {
+    tap_start: Option<TapStart>,
+    modifiers: ModifiersState,
+}
 
 /// Touch service.
 ///
@@ -117,6 +121,9 @@ event_args! {
         /// Current touch capture.
         pub capture: Option<CaptureInfo>,
 
+        /// What modifier keys where pressed when this event happened.
+        pub modifiers: ModifiersState,
+
         ..
 
         /// The [`target`] and [`capture`].
@@ -166,6 +173,9 @@ event_args! {
         /// Current touch capture.
         pub capture: Option<CaptureInfo>,
 
+        /// What modifier keys where pressed when this event happened.
+        pub modifiers: ModifiersState,
+
         ..
 
         /// The [`target`] and [`capture`].
@@ -198,14 +208,6 @@ event_args! {
             /// Center of the touch in the window's content area.
             pub position: DipPoint,
 
-            /// Touch pressure force and angle.
-            pub force: Option<TouchForce>,
-
-            /// Touch phase.
-            ///
-            /// Does not include `Moved`.
-            pub phase: TouchPhase,
-
             /// Hit-test result for the touch point in the window.
             pub hits: HitTestInfo,
 
@@ -214,6 +216,9 @@ event_args! {
 
             /// Current touch capture.
             pub capture: Option<CaptureInfo>,
+
+            /// What modifier keys where pressed when this event happened.
+            pub modifiers: ModifiersState,
 
             ..
 
@@ -335,10 +340,16 @@ impl AppExtension for TouchManager {
             }
 
             self.on_move(args, pending_move);
+        } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
+            self.modifiers = args.modifiers;
         } else if let Some(args) = RAW_TOUCH_CONFIG_CHANGED_EVENT.on(update) {
             TOUCH_SV.read().touch_config.set(args.config);
         } else if let Some(args) = view_process::VIEW_PROCESS_INITED_EVENT.on(update) {
             TOUCH_SV.read().touch_config.set(args.touch_config);
+
+            if args.is_respawn {
+                self.tap_start = None;
+            }
         }
     }
 }
@@ -364,7 +375,15 @@ impl TouchManager {
                 hits,
                 target,
                 capture_info,
+                self.modifiers,
             );
+
+            if let Some(s) = self.tap_start.take() {
+                s.try_complete(&args, update);
+            } else {
+                self.tap_start = TapStart::try_start(&args, update);
+            }
+
             TOUCH_INPUT_EVENT.notify(args);
         }
     }
@@ -391,9 +410,103 @@ impl TouchManager {
                     hits,
                     target,
                     capture_info,
+                    self.modifiers,
                 );
+
+                if let Some(s) = &self.tap_start {
+                    if !s.retain(args.timestamp, args.window_id, args.device_id, touch, position) {
+                        self.tap_start = None;
+                    }
+                }
+
                 TOUCH_MOVE_EVENT.notify(args);
             }
+        }
+    }
+}
+
+struct TapStart {
+    window_id: WindowId,
+    device_id: DeviceId,
+    touch: TouchId,
+
+    timestamp: Instant,
+    pos: DipPoint,
+
+    propagation: EventPropagationHandle,
+}
+impl TapStart {
+    /// Returns `Some(_)` if args could be the start of a tap event.
+    fn try_start(args: &TouchInputArgs, update: &TouchUpdate) -> Option<Self> {
+        if let TouchPhase::Start = update.phase {
+            Some(Self {
+                window_id: args.window_id,
+                device_id: args.device_id,
+                touch: update.touch,
+                timestamp: args.timestamp,
+                pos: update.position,
+                propagation: args.propagation().clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Check if the tap is still possible after a touch move..
+    ///
+    /// Returns `true` if it is.
+    fn retain(&self, timestamp: Instant, window_id: WindowId, device_id: DeviceId, touch: TouchId, position: DipPoint) -> bool {
+        if self.propagation.is_stopped() {
+            // cancel, TOUCH_INPUT_EVENT handled.
+            return false;
+        }
+
+        let cfg = TOUCH_SV.read().touch_config.get();
+
+        if timestamp.duration_since(self.timestamp) > cfg.max_tap_time {
+            // cancel, timeout.
+            return false;
+        }
+
+        if window_id != self.window_id || device_id != self.device_id {
+            // cancel, not same source or target.
+            return false;
+        }
+
+        if touch != self.touch {
+            // cancel, multi-touch.
+            return false;
+        }
+
+        let dist = (position - self.pos).abs();
+        if dist.x > cfg.tap_area.width || dist.y > cfg.tap_area.height {
+            // cancel, moved too far
+            return false;
+        }
+
+        // retain
+        true
+    }
+
+    /// Complete or cancel the tap.
+    fn try_complete(self, args: &TouchInputArgs, update: &TouchUpdate) {
+        if !self.retain(args.timestamp, args.window_id, args.device_id, update.touch, update.position) {
+            return;
+        }
+
+        if let TouchPhase::End = update.phase {
+            TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
+                args.timestamp,
+                args.propagation().clone(),
+                self.window_id,
+                self.device_id,
+                self.touch,
+                update.position,
+                args.hits.clone(),
+                args.target.clone(),
+                args.capture.clone(),
+                args.modifiers,
+            ));
         }
     }
 }
