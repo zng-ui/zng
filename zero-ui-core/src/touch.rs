@@ -90,8 +90,8 @@ struct TouchService {
     touch_config: ArcVar<TouchConfig>,
 }
 
-/// Identify one touch move in [`TouchMoveArgs`].
-#[derive(Debug, Clone, PartialEq)]
+/// Identify the moves of one touch contact in [`TouchMoveArgs`].
+#[derive(Debug, Clone)]
 pub struct TouchMove {
     /// Identify a the touch contact or *finger*.
     ///
@@ -105,11 +105,22 @@ pub struct TouchMove {
     /// See [`TouchInputArgs::gesture_propagation`] for more details.
     pub gesture_propagation: EventPropagationHandle,
 
-    /// Center of the touch in the window's content area.
-    pub position: DipPoint,
+    /// Coalesced moves of the touch since last event.
+    ///
+    /// Last entry is the latest position.
+    pub moves: Vec<(DipPoint, Option<TouchForce>)>,
 
-    /// Touch pressure force and angle.
-    pub force: Option<TouchForce>,
+    /// Hit-test result for the latest touch point in the window.
+    pub hits: HitTestInfo,
+
+    /// Full path to the top-most hit in [`hits`](TouchMove::hits).
+    pub target: InteractionPath,
+}
+impl TouchMove {
+    /// Latest position.
+    pub fn position(&self) -> DipPoint {
+        self.moves.last().map(|(p, _)| *p).unwrap_or_else(DipPoint::zero)
+    }
 }
 
 event_args! {
@@ -121,16 +132,11 @@ event_args! {
         /// Id of device that generated all touches in this event.
         pub device_id: DeviceId,
 
-        /// Coalesced touch moves since last event.
+        /// All touch contacts that moved since last event.
         ///
-        /// The last move is the latest.
-        pub moves: Vec<TouchMove>,
-
-        /// Hit-test result for the latest touch point in the window.
-        pub hits: HitTestInfo,
-
-        /// Full path to the top-most hit in [`hits`](TouchMoveArgs::hits).
-        pub target: InteractionPath,
+        /// Note that if a touch contact did not move it will not be in the list, the touch may still be active
+        /// however, the [`TOUCH_INPUT_EVENT`] can be used to track touch start and end.
+        pub touches: Vec<TouchMove>,
 
         /// Current touch capture.
         pub capture: Option<CaptureInfo>,
@@ -140,12 +146,13 @@ event_args! {
 
         ..
 
-        /// The [`target`] and [`capture`].
+        /// Each [`TouchMove::target`] and [`capture`].
         ///
         /// [`target`]: Self::target
-        /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_path(&self.target);
+            for t in &self.touches {
+                list.insert_path(&t.target);
+            }
             if let Some(c) = &self.capture {
                 list.insert_path(&c.target);
             }
@@ -351,22 +358,27 @@ event! {
 impl AppExtension for TouchManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_TOUCH_EVENT.on(update) {
-            let mut pending_move = vec![];
+            let mut pending_move: Vec<TouchMove> = vec![];
 
             for u in &args.touches {
                 if let TouchPhase::Move = u.phase {
-                    pending_move.push(TouchMove {
-                        touch: u.touch,
-                        force: u.force,
-                        position: u.position,
-                        gesture_propagation: if let Some(handle) = self.gesture_handles.get(&u.touch) {
-                            handle.clone()
-                        } else {
-                            let weird = EventPropagationHandle::new();
-                            weird.stop();
-                            weird
-                        },
-                    });
+                    if let Some(e) = pending_move.iter_mut().find(|e| e.touch == u.touch) {
+                        e.moves.push((u.position, u.force));
+                    } else {
+                        pending_move.push(TouchMove {
+                            touch: u.touch,
+                            gesture_propagation: if let Some(handle) = self.gesture_handles.get(&u.touch) {
+                                handle.clone()
+                            } else {
+                                let weird = EventPropagationHandle::new();
+                                weird.stop();
+                                weird
+                            },
+                            moves: vec![(u.position, u.force)],
+                            hits: HitTestInfo::no_hits(args.window_id), // hit-test deferred
+                            target: InteractionPath::new(args.window_id, []),
+                        })
+                    }
                 } else {
                     self.on_move(args, mem::take(&mut pending_move));
                     self.on_input(args, u);
@@ -451,15 +463,18 @@ impl TouchManager {
         }
     }
 
-    fn on_move(&mut self, args: &RawTouchArgs, moves: Vec<TouchMove>) {
-        if let Some(u) = moves.last() {
+    fn on_move(&mut self, args: &RawTouchArgs, mut moves: Vec<TouchMove>) {
+        if !moves.is_empty() {
             if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-                let hits = w.root().hit_test(u.position.to_px(w.scale_factor().0));
-                let target = hits
-                    .target()
-                    .and_then(|t| w.get(t.widget_id))
-                    .map(|t| t.interaction_path())
-                    .unwrap_or_else(|| w.root().interaction_path());
+                for m in &mut moves {
+                    m.hits = w.root().hit_test(m.position().to_px(w.scale_factor().0));
+                    m.target = m
+                        .hits
+                        .target()
+                        .and_then(|t| w.get(t.widget_id))
+                        .map(|t| t.interaction_path())
+                        .unwrap_or_else(|| w.root().interaction_path());
+                }
 
                 let capture_info = POINTER_CAPTURE.current_capture_value();
 
@@ -472,8 +487,7 @@ impl TouchManager {
                     }
                 }
 
-                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, hits, target, capture_info, self.modifiers);
-
+                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
                 TOUCH_MOVE_EVENT.notify(args);
             }
         }
