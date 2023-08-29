@@ -62,6 +62,16 @@ fn example() -> impl UiNode {
         on_double_click = hn!(|_| println!("double click!"));
         on_triple_click = hn!(|_| println!("triple click!"));
         on_context_click = hn!(|_| println!("context click!"));
+        context_menu = ContextMenu!(ui_vec![
+            Button! {
+                child = Text!("Context Item 1");
+                on_click = hn!(|_| println!("context item 1 click!"));
+            },
+            Button! {
+                child = Text!("Context Item 2");
+                on_click = hn!(|_| println!("context item 2 click!"));
+            }
+        ]);
         child = Text!(t);
     }
 }

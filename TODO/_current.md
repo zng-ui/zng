@@ -20,6 +20,12 @@
 * Resources
     - https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
+    - https://api.flutter.dev/flutter/gestures/gestures-library.html
+
+* `gesture_propagation`:
+    - Both extensions and properties can implement this.
+    - Create property helper, only subscribes to touch move when gesture pending?
+    - Loosen-up touch tap area.
 
 * Integrate with `GESTURES`.
     - Basic gestures:
@@ -30,11 +36,6 @@
         - Pan or drag:
             - One finger, press, move.
         - All 3 can happen at the same time.
-            - Same event?
-        - Gestures can be ambiguous?
-           - `TOUCH_DOWN` in a button widget can be the start of a `TAP_EVENT` or of a pan gesture.
-           - If the button moves with the pan gesture the `TOUCH_UP` still completes the tap?
-           - Test what browsers do in this case.
     - Inertia:
         - A pan/drag can be "thrown".
             - One finger, press, move, release "while moving".
@@ -44,15 +45,14 @@
         - Gestures can "push" against a constraint.
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
-    - `LONG_PRESS_EVENT` (from mouse too?).
+    - Long press (from mouse too?).
 
 * Add event properties.
 * Review/add state properties.
     - Review `is_pointer_pressed`.
-        - Is only for mouse with primary button now.
+        - Is only for mouse with primary button currently.
         - Add touch, review what is a pressed touch.
-            - Say we press in a button then move and this causes a pan effect.
-            - Need to show pressed only if a tap will happen on touch-up?
+            - Need to show pressed only if a tap will happen on touch-end?
                 - Canceled by multiple causes.
                 - May need a "promise" var for the future tap, `ResonseVar<bool>`.
     - Add `is_mouse_pressed` and `is_touch_pressed`.
