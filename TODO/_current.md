@@ -23,9 +23,7 @@
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
 * `gesture_propagation`:
-    - Both extensions and properties can implement this.
     - Create property helper, only subscribes to touch move when gesture pending?
-    - Loosen-up touch tap area.
 
 * Integrate with `GESTURES`.
     - Basic gestures:
@@ -55,6 +53,10 @@
             - Need to show pressed only if a tap will happen on touch-end?
                 - Canceled by multiple causes.
                 - May need a "promise" var for the future tap, `ResonseVar<bool>`.
+            - Need a `MOUSE_HOVERED_EVENT` equivalent for touch?
+                - Can have more than one point at the same time.
+                - Not a performance requirement because touch move events only happen on contact.
+                - Good mirror to mouse API.
     - Add `is_mouse_pressed` and `is_touch_pressed`.
 
 ```log

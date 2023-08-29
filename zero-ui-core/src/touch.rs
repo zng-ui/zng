@@ -2,7 +2,7 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::{mem, time::Instant};
+use std::mem;
 
 use hashbrown::HashMap;
 pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
@@ -15,7 +15,7 @@ use crate::{
     pointer_capture::{CaptureInfo, POINTER_CAPTURE},
     units::*,
     var::*,
-    widget_info::{HitTestInfo, InteractionPath},
+    widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree},
     widget_instance::WidgetId,
     window::{WindowId, WINDOWS},
 };
@@ -442,7 +442,7 @@ impl TouchManager {
             );
 
             if let Some(s) = self.tap_start.take() {
-                s.try_complete(&args, update);
+                s.try_complete(&args, update, &w);
             } else {
                 self.tap_start = TapStart::try_start(&args, update);
             }
@@ -465,7 +465,7 @@ impl TouchManager {
 
                 if let Some(s) = &self.tap_start {
                     for m in &moves {
-                        if !s.retain(args.timestamp, args.window_id, args.device_id, m.touch, m.position) {
+                        if !s.retain(args.window_id, args.device_id, m.touch) {
                             self.tap_start = None;
                             break;
                         }
@@ -484,9 +484,7 @@ struct TapStart {
     window_id: WindowId,
     device_id: DeviceId,
     touch: TouchId,
-
-    timestamp: Instant,
-    pos: DipPoint,
+    target: WidgetId,
 
     propagation: EventPropagationHandle,
 }
@@ -498,8 +496,7 @@ impl TapStart {
                 window_id: args.window_id,
                 device_id: args.device_id,
                 touch: update.touch,
-                timestamp: args.timestamp,
-                pos: update.position,
+                target: args.target.widget_id(),
                 propagation: args.gesture_propagation.clone(),
             })
         } else {
@@ -510,16 +507,9 @@ impl TapStart {
     /// Check if the tap is still possible after a touch move..
     ///
     /// Returns `true` if it is.
-    fn retain(&self, timestamp: Instant, window_id: WindowId, device_id: DeviceId, touch: TouchId, position: DipPoint) -> bool {
+    fn retain(&self, window_id: WindowId, device_id: DeviceId, touch: TouchId) -> bool {
         if self.propagation.is_stopped() {
-            // cancel, TOUCH_INPUT_EVENT handled.
-            return false;
-        }
-
-        let cfg = TOUCH_SV.read().touch_config.get();
-
-        if timestamp.duration_since(self.timestamp) > cfg.max_tap_time {
-            // cancel, timeout.
+            // cancel, gesture opportunity handled.
             return false;
         }
 
@@ -533,21 +523,25 @@ impl TapStart {
             return false;
         }
 
-        let dist = (position - self.pos).abs();
-        if dist.x > cfg.tap_area.width || dist.y > cfg.tap_area.height {
-            // cancel, moved too far
-            return false;
-        }
-
         // retain
         true
     }
 
     /// Complete or cancel the tap.
-    fn try_complete(self, args: &TouchInputArgs, update: &TouchUpdate) {
-        if !self.retain(args.timestamp, args.window_id, args.device_id, update.touch, update.position) {
+    fn try_complete(self, args: &TouchInputArgs, update: &TouchUpdate, tree: &WidgetInfoTree) {
+        if !self.retain(args.window_id, args.device_id, update.touch) {
             return;
         }
+
+        match tree.get(self.target) {
+            Some(t) => {
+                if !t.hit_test(update.position.to_px(tree.scale_factor().0)).contains(self.target) {
+                    // cancel, touch did not end over target.
+                    return;
+                }
+            }
+            None => return,
+        };
 
         if let TouchPhase::End = update.phase {
             TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
