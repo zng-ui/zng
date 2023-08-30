@@ -25,7 +25,13 @@
 
 * Implement `TOUCHED_EVENT`.
     - Should work similar to `MOUSE_HOVERED_EVENT`, only with multiple pointers at the same time.
-    - Review mouse event, maybe can be abstracted for reuse in touch?
+    - Implement widget moving under touch point.
+    - Implement respawn cleanup.
+    - Implement all corner cases covered by mouse event.
+
+* Review order of touch events.
+    - TOUCHED must fire after TOUCH_INPUT.
+    - TOUCH_TAP must not be handled in preview.
 
 * Review/add state properties.
     - Review `is_pointer_pressed`.

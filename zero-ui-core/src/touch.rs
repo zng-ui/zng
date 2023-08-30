@@ -45,9 +45,13 @@ use crate::{
 /// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct TouchManager {
-    tap_start: Option<TapStart>,
     modifiers: ModifiersState,
-    gesture_handles: HashMap<TouchId, EventPropagationHandle>,
+    pressed: HashMap<TouchId, PressedInfo>,
+    tap_start: Option<TapStart>,
+}
+struct PressedInfo {
+    gesture_propagation: EventPropagationHandle,
+    target: InteractionPath,
 }
 
 /// Touch service.
@@ -150,7 +154,7 @@ event_args! {
 
         /// Each [`TouchMove::target`] and [`capture`].
         ///
-        /// [`target`]: Self::target
+        /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             for t in &self.touches {
                 list.insert_path(&t.target);
@@ -414,6 +418,141 @@ impl TouchTapArgs {
     }
 }
 
+impl TouchedArgs {
+    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    ///
+    /// [`capture`]: Self::capture
+    /// [`allows`]: CaptureInfo::allows
+    pub fn capture_allows(&self) -> bool {
+        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    }
+
+    /// Event caused by the touch position moving over/out of the widget bounds.
+    pub fn is_touch_move(&self) -> bool {
+        self.device_id.is_some()
+    }
+
+    /// Event caused by the widget moving under/out of the mouse position.
+    pub fn is_widget_move(&self) -> bool {
+        self.device_id.is_none()
+    }
+
+    /// Event caused by a touch capture change.
+    pub fn is_capture_change(&self) -> bool {
+        self.prev_capture != self.capture
+    }
+
+    /// Returns `true` if the [`WIDGET`] was not touched, but now is.
+    pub fn is_touch_enter(&self) -> bool {
+        !self.was_touched() && self.is_touched()
+    }
+
+    /// Returns `true` if the [`WIDGET`] was touched, but now isn't.
+    pub fn is_touch_leave(&self) -> bool {
+        self.was_touched() && !self.is_touched()
+    }
+
+    /// Returns `true` if the [`WIDGET`] was not touched or was disabled, but now is touched and enabled.
+    pub fn is_touch_enter_enabled(&self) -> bool {
+        (!self.was_touched() || self.was_disabled(WIDGET.id())) && self.is_touched() && self.is_enabled(WIDGET.id())
+    }
+
+    /// Returns `true` if the [`WIDGET`] was touched and enabled, but now is not touched or is disabled.
+    pub fn is_touch_leave_enabled(&self) -> bool {
+        self.was_touched() && self.was_enabled(WIDGET.id()) && (!self.is_touched() || self.is_disabled(WIDGET.id()))
+    }
+
+    /// Returns `true` if the [`WIDGET`] was not touched or was enabled, but now is touched and disabled.
+    pub fn is_touch_enter_disabled(&self) -> bool {
+        (!self.was_touched() || self.was_enabled(WIDGET.id())) && self.is_touched() && self.is_disabled(WIDGET.id())
+    }
+
+    /// Returns `true` if the [`WIDGET`] was touched and disabled, but now is not touched or is enabled.
+    pub fn is_touch_leave_disabled(&self) -> bool {
+        self.was_touched() && self.was_disabled(WIDGET.id()) && (!self.is_touched() || self.is_enabled(WIDGET.id()))
+    }
+
+    /// Returns `true` if the [`WIDGET`] is in [`prev_target`] and is allowed by the [`prev_capture`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    /// [`prev_capture`]: Self::prev_capture
+    pub fn was_touched(&self) -> bool {
+        if let Some(cap) = &self.prev_capture {
+            if !cap.allows() {
+                return false;
+            }
+        }
+
+        if let Some(t) = &self.prev_target {
+            return t.contains(WIDGET.id());
+        }
+
+        false
+    }
+
+    /// Returns `true` if the [`WIDGET`] is in [`target`] and is allowed by the current [`capture`].
+    ///
+    /// [`target`]: Self::target
+    /// [`capture`]: Self::capture
+    pub fn is_touched(&self) -> bool {
+        if let Some(cap) = &self.capture {
+            if !cap.allows() {
+                return false;
+            }
+        }
+
+        if let Some(t) = &self.target {
+            return t.contains(WIDGET.id());
+        }
+
+        false
+    }
+
+    /// Returns `true` if the widget was enabled in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    pub fn was_enabled(&self, widget_id: WidgetId) -> bool {
+        self.prev_target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget was disabled in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    pub fn was_disabled(&self, widget_id: WidgetId) -> bool {
+        self.prev_target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_disabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is enabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is disabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_disabled())
+            .unwrap_or(false)
+    }
+}
+
 event! {
     /// Touch contact moved.
     pub static TOUCH_MOVE_EVENT: TouchMoveArgs;
@@ -440,8 +579,8 @@ impl AppExtension for TouchManager {
                     } else {
                         pending_move.push(TouchMove {
                             touch: u.touch,
-                            gesture_propagation: if let Some(handle) = self.gesture_handles.get(&u.touch) {
-                                handle.clone()
+                            gesture_propagation: if let Some(i) = self.pressed.get(&u.touch) {
+                                i.gesture_propagation.clone()
                             } else {
                                 let weird = EventPropagationHandle::new();
                                 weird.stop();
@@ -487,14 +626,20 @@ impl TouchManager {
             let gesture_handle = match update.phase {
                 TouchPhase::Start => {
                     let handle = EventPropagationHandle::new();
-                    if let Some(weird) = self.gesture_handles.insert(update.touch, handle.clone()) {
-                        weird.stop();
+                    if let Some(weird) = self.pressed.insert(
+                        update.touch,
+                        PressedInfo {
+                            gesture_propagation: handle.clone(),
+                            target: target.clone(),
+                        },
+                    ) {
+                        weird.gesture_propagation.stop();
                     }
                     handle
                 }
                 TouchPhase::End => {
-                    if let Some(handle) = self.gesture_handles.remove(&update.touch) {
-                        handle
+                    if let Some(handle) = self.pressed.remove(&update.touch) {
+                        handle.gesture_propagation
                     } else {
                         let weird = EventPropagationHandle::new();
                         weird.stop();
@@ -503,8 +648,9 @@ impl TouchManager {
                 }
                 TouchPhase::Cancel => {
                     let handle = self
-                        .gesture_handles
+                        .pressed
                         .remove(&update.touch)
+                        .map(|i| i.gesture_propagation)
                         .unwrap_or_else(EventPropagationHandle::new);
                     handle.stop();
                     handle
@@ -532,7 +678,49 @@ impl TouchManager {
                 self.tap_start = TapStart::try_start(&args, update);
             }
 
+            if let Some(i) = self.pressed.get_mut(&args.touch) {
+                if i.target != args.target {
+                    let args = TouchedArgs::now(
+                        args.window_id,
+                        args.device_id,
+                        args.touch,
+                        args.gesture_propagation.clone(),
+                        args.position,
+                        args.force,
+                        args.phase,
+                        args.hits.clone(),
+                        i.target.clone(),
+                        args.target.clone(),
+                        args.capture.clone(),
+                        args.capture.clone(),
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
+            }
+
             TOUCH_INPUT_EVENT.notify(args);
+        } else {
+            // did not find window, cleanup touched
+            for u in &args.touches {
+                if let Some(i) = self.pressed.remove(&u.touch) {
+                    let capture = POINTER_CAPTURE.current_capture_value();
+                    let args = TouchedArgs::now(
+                        args.window_id,
+                        args.device_id,
+                        u.touch,
+                        i.gesture_propagation,
+                        u.position,
+                        u.force,
+                        u.phase,
+                        HitTestInfo::no_hits(args.window_id),
+                        Some(i.target),
+                        None,
+                        capture.clone(),
+                        capture,
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
+            }
         }
     }
 
@@ -556,6 +744,30 @@ impl TouchManager {
                         if !s.retain(args.window_id, args.device_id, m.touch) {
                             self.tap_start = None;
                             break;
+                        }
+                    }
+                }
+
+                for m in &moves {
+                    if let Some(i) = self.pressed.get_mut(&m.touch) {
+                        if i.target != m.target {
+                            let (position, force) = *m.moves.last().unwrap();
+                            let args = TouchedArgs::now(
+                                args.window_id,
+                                args.device_id,
+                                m.touch,
+                                m.gesture_propagation.clone(),
+                                position,
+                                force,
+                                TouchPhase::Move,
+                                m.hits.clone(),
+                                i.target.clone(),
+                                m.target.clone(),
+                                capture_info.clone(),
+                                capture_info.clone(),
+                            );
+                            i.target = m.target.clone();
+                            TOUCHED_EVENT.notify(args);
                         }
                     }
                 }

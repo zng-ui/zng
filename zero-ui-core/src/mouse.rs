@@ -97,25 +97,14 @@ event_args! {
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
 
-        /// Last [`target`] pressed by the [`button`] that is now [released].
-        ///
-        /// [`target`]: Self::target
-        /// [`button`]: Self::button
-        /// [released]: Self::state
-        pub prev_pressed: Option<InteractionPath>,
-
         ..
 
-        /// The [`target`], [`prev_pressed`] and [`capture`].
+        /// The [`target`], and [`capture`].
         ///
         /// [`target`]: Self::target
-        /// [`prev_pressed`]: Self::prev_pressed
         /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_path(&self.target);
-            if let Some(p) = &self.prev_pressed {
-                list.insert_path(p);
-            }
             if let Some(c) = &self.capture {
                 list.insert_path(&c.target);
             }
@@ -289,37 +278,37 @@ impl MouseHoverArgs {
         self.prev_capture != self.capture
     }
 
-    /// Returns `true` if the widget was not hovered, but now is.
+    /// Returns `true` if the [`WIDGET`] was not hovered, but now is.
     pub fn is_mouse_enter(&self) -> bool {
         !self.was_over() && self.is_over()
     }
 
-    /// Returns `true` if the widget was hovered, but now isn't.
+    /// Returns `true` if the [`WIDGET`] was hovered, but now isn't.
     pub fn is_mouse_leave(&self) -> bool {
         self.was_over() && !self.is_over()
     }
 
-    /// Returns `true` if the widget was not hovered or was disabled, but now is hovered and enabled.
+    /// Returns `true` if the [`WIDGET`] was not hovered or was disabled, but now is hovered and enabled.
     pub fn is_mouse_enter_enabled(&self) -> bool {
         (!self.was_over() || self.was_disabled(WIDGET.id())) && self.is_over() && self.is_enabled(WIDGET.id())
     }
 
-    /// Returns `true` if the widget as hovered and enabled, but now is not hovered or is disabled.
+    /// Returns `true` if the [`WIDGET`] was hovered and enabled, but now is not hovered or is disabled.
     pub fn is_mouse_leave_enabled(&self) -> bool {
         self.was_over() && self.was_enabled(WIDGET.id()) && (!self.is_over() || self.is_disabled(WIDGET.id()))
     }
 
-    /// Returns `true` if the widget was not hovered or was enabled, but now is hovered and disabled.
+    /// Returns `true` if the [`WIDGET`] was not hovered or was enabled, but now is hovered and disabled.
     pub fn is_mouse_enter_disabled(&self) -> bool {
         (!self.was_over() || self.was_enabled(WIDGET.id())) && self.is_over() && self.is_disabled(WIDGET.id())
     }
 
-    /// Returns `true` if the widget was hovered and disabled, but now is not hovered or is enabled.
+    /// Returns `true` if the [`WIDGET`] was hovered and disabled, but now is not hovered or is enabled.
     pub fn is_mouse_leave_disabled(&self) -> bool {
         self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
     }
 
-    /// Returns `true` if the widget is in [`prev_target`] and is allowed by the [`prev_capture`].
+    /// Returns `true` if the [`WIDGET`] is in [`prev_target`] and is allowed by the [`prev_capture`].
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
@@ -337,7 +326,7 @@ impl MouseHoverArgs {
         false
     }
 
-    /// Returns `true` if the widget is in [`target`] and is allowed by the current [`capture`].
+    /// Returns `true` if the [`WIDGET`] is in [`target`] and is allowed by the current [`capture`].
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
@@ -424,13 +413,6 @@ impl MouseInputArgs {
     /// [`target`]: Self::target
     pub fn is_over(&self, widget_id: WidgetId) -> bool {
         self.target.contains(widget_id)
-    }
-
-    /// If the `widget_id` is in the [`prev_pressed`].
-    ///
-    /// [`prev_pressed`]: Self::prev_pressed.
-    pub fn was_pressed(&self, widget_id: WidgetId) -> bool {
-        self.prev_pressed.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
     }
 
     /// If the `widget_id` is in the [`target`] is enabled.
@@ -749,8 +731,6 @@ impl MouseManager {
             repeat_count: 0,
         });
 
-        let prev_pressed = if entry.pressed { Some(entry.path.clone()) } else { None };
-
         if entry.path != wgt_path {
             let actual_change = entry.path.as_path() != wgt_path.as_path();
             // else only interactivity change mid-click
@@ -823,7 +803,6 @@ impl MouseManager {
             hits.clone(),
             wgt_path.clone(),
             capture_info,
-            prev_pressed,
         );
 
         // on_mouse_input
@@ -1052,7 +1031,6 @@ impl MouseManager {
                             ButtonState::Released,
                             HitTestInfo::no_hits(window_id),
                             path.clone(),
-                            None,
                             None,
                         );
                         MOUSE_INPUT_EVENT.notify(args);
