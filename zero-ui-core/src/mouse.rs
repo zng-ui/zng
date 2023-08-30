@@ -47,7 +47,7 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
         pub target: InteractionPath,
 
-        /// Current mouse capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         ..
@@ -94,7 +94,7 @@ event_args! {
         /// [`hits`]: Self::hits
         pub target: InteractionPath,
 
-        /// Current mouse capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         ..
@@ -192,10 +192,10 @@ event_args! {
         /// [`hits`]: MouseInputArgs::hits
         pub target: Option<InteractionPath>,
 
-        /// Previous mouse capture.
+        /// Previous pointer capture.
         pub prev_capture: Option<CaptureInfo>,
 
-        /// Current mouse capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         ..
@@ -273,7 +273,7 @@ impl MouseHoverArgs {
         self.device_id.is_none()
     }
 
-    /// Event caused by a mouse capture change.
+    /// Event caused by a pointer capture change.
     pub fn is_capture_change(&self) -> bool {
         self.prev_capture != self.capture
     }
@@ -598,7 +598,7 @@ event! {
     /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
     pub static MOUSE_CLICK_EVENT: MouseClickArgs;
 
-    /// The top-most hovered widget changed or mouse capture changed.
+    /// The top-most hovered widget changed or pointer capture changed.
     pub static MOUSE_HOVERED_EVENT: MouseHoverArgs;
 
     /// Mouse wheel scroll event.
@@ -698,7 +698,7 @@ impl MouseManager {
 
         let wgt_path = match wgt_path.unblocked() {
             Some(p) => p,
-            None => return,
+            None => return, // entire window blocked
         };
 
         match state {

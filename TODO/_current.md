@@ -22,22 +22,9 @@
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
-
-* Implement `TOUCHED_EVENT`.
-    - Should work similar to `MOUSE_HOVERED_EVENT`, only with multiple pointers at the same time.
-    - Implement widget moving under touch point.
-    - Implement respawn cleanup.
-    - Implement all corner cases covered by mouse event.
-
 * Review order of touch events.
     - TOUCHED must fire after TOUCH_INPUT.
     - TOUCH_TAP must not be handled in preview.
-
-* Review/add state properties.
-    - Review `is_pointer_pressed`.
-        - Is only for mouse with primary button currently.
-        - Add touch, after `TOUCHED_EVENT` is implemented.
-    - Add `is_mouse_pressed` and `is_touch_pressed`.
 
 * `gesture_propagation`:
     - Create property helper, only subscribes to touch move when gesture pending?

@@ -12,12 +12,12 @@ use crate::{
     context::*,
     event::*,
     keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
-    pointer_capture::{CaptureInfo, POINTER_CAPTURE},
+    pointer_capture::{CaptureInfo, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     units::*,
     var::*,
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree},
     widget_instance::WidgetId,
-    window::{WindowId, WINDOWS},
+    window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS},
 };
 
 /// Application extension that provides touch events and service.
@@ -52,6 +52,10 @@ pub struct TouchManager {
 struct PressedInfo {
     gesture_propagation: EventPropagationHandle,
     target: InteractionPath,
+    device_id: DeviceId,
+    position: DipPoint,
+    force: Option<TouchForce>,
+    hits: HitTestInfo,
 }
 
 /// Touch service.
@@ -144,7 +148,7 @@ event_args! {
         /// however, the [`TOUCH_INPUT_EVENT`] can be used to track touch start and end.
         pub touches: Vec<TouchMove>,
 
-        /// Current touch capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         /// What modifier keys where pressed when this event happened.
@@ -206,7 +210,7 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
         pub target: InteractionPath,
 
-        /// Current touch capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         /// What modifier keys where pressed when this event happened.
@@ -268,10 +272,10 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
         pub target: Option<InteractionPath>,
 
-        /// Previous touch capture.
+        /// Previous pointer capture.
         pub prev_capture: Option<CaptureInfo>,
 
-        /// Current touch capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         ..
@@ -318,7 +322,7 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
         pub target: InteractionPath,
 
-        /// Current touch capture.
+        /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
         /// What modifier keys where pressed when this event happened.
@@ -437,7 +441,7 @@ impl TouchedArgs {
         self.device_id.is_none()
     }
 
-    /// Event caused by a touch capture change.
+    /// Event caused by a pointer capture change.
     pub fn is_capture_change(&self) -> bool {
         self.prev_capture != self.capture
     }
@@ -569,7 +573,9 @@ event! {
 
 impl AppExtension for TouchManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = RAW_TOUCH_EVENT.on(update) {
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
+            self.continue_pressed(args.window_id);
+        } else if let Some(args) = RAW_TOUCH_EVENT.on(update) {
             let mut pending_move: Vec<TouchMove> = vec![];
 
             for u in &args.touches {
@@ -598,6 +604,8 @@ impl AppExtension for TouchManager {
             }
 
             self.on_move(args, pending_move);
+        } else if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
+            self.continue_pressed(args.window_id);
         } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;
         } else if let Some(args) = RAW_TOUCH_CONFIG_CHANGED_EVENT.on(update) {
@@ -607,6 +615,61 @@ impl AppExtension for TouchManager {
 
             if args.is_respawn {
                 self.tap_start = None;
+
+                for (touch, info) in self.pressed.drain() {
+                    let args = TouchInputArgs::now(
+                        info.target.window_id(),
+                        info.device_id,
+                        touch,
+                        info.gesture_propagation.clone(),
+                        DipPoint::splat(Dip::new(-1)),
+                        None,
+                        TouchPhase::Cancel,
+                        HitTestInfo::no_hits(info.target.window_id()),
+                        info.target.clone(),
+                        None,
+                        ModifiersState::empty(),
+                    );
+                    TOUCH_INPUT_EVENT.notify(args);
+
+                    let args = TouchedArgs::now(
+                        info.target.window_id(),
+                        info.device_id,
+                        touch,
+                        info.gesture_propagation,
+                        DipPoint::splat(Dip::new(-1)),
+                        None,
+                        TouchPhase::Cancel,
+                        HitTestInfo::no_hits(info.target.window_id()),
+                        info.target,
+                        None,
+                        None,
+                        None,
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
+            }
+        }
+    }
+
+    fn event(&mut self, update: &mut EventUpdate) {
+        if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+            for (touch, info) in &self.pressed {
+                let args = TouchedArgs::now(
+                    info.target.window_id(),
+                    info.device_id,
+                    *touch,
+                    info.gesture_propagation.clone(),
+                    info.position,
+                    info.force,
+                    TouchPhase::Move,
+                    info.hits.clone(),
+                    info.target.clone(),
+                    info.target.clone(),
+                    args.prev_capture.clone(),
+                    args.new_capture.clone(),
+                );
+                TOUCHED_EVENT.notify(args);
             }
         }
     }
@@ -621,6 +684,11 @@ impl TouchManager {
                 .map(|t| t.interaction_path())
                 .unwrap_or_else(|| w.root().interaction_path());
 
+            let target = match target.unblocked() {
+                Some(t) => t,
+                None => return, // entire window blocked
+            };
+
             let capture_info = POINTER_CAPTURE.current_capture_value();
 
             let gesture_handle = match update.phase {
@@ -631,6 +699,10 @@ impl TouchManager {
                         PressedInfo {
                             gesture_propagation: handle.clone(),
                             target: target.clone(),
+                            device_id: args.device_id,
+                            position: update.position,
+                            force: update.force,
+                            hits: hits.clone(),
                         },
                     ) {
                         weird.gesture_propagation.stop();
@@ -678,24 +750,30 @@ impl TouchManager {
                 self.tap_start = TapStart::try_start(&args, update);
             }
 
-            if let Some(i) = self.pressed.get_mut(&args.touch) {
-                if i.target != args.target {
-                    let args = TouchedArgs::now(
-                        args.window_id,
-                        args.device_id,
-                        args.touch,
-                        args.gesture_propagation.clone(),
-                        args.position,
-                        args.force,
-                        args.phase,
-                        args.hits.clone(),
-                        i.target.clone(),
-                        args.target.clone(),
-                        args.capture.clone(),
-                        args.capture.clone(),
-                    );
-                    TOUCHED_EVENT.notify(args);
-                }
+            {
+                // touched
+
+                let (prev_target, target) = match args.phase {
+                    TouchPhase::Start => (None, Some(args.target.clone())),
+                    TouchPhase::End | TouchPhase::Cancel => (Some(args.target.clone()), None),
+                    TouchPhase::Move => unreachable!(),
+                };
+
+                let args = TouchedArgs::now(
+                    args.window_id,
+                    args.device_id,
+                    args.touch,
+                    args.gesture_propagation.clone(),
+                    args.position,
+                    args.force,
+                    args.phase,
+                    args.hits.clone(),
+                    prev_target,
+                    target,
+                    args.capture.clone(),
+                    args.capture.clone(),
+                );
+                TOUCHED_EVENT.notify(args);
             }
 
             TOUCH_INPUT_EVENT.notify(args);
@@ -727,14 +805,22 @@ impl TouchManager {
     fn on_move(&mut self, args: &RawTouchArgs, mut moves: Vec<TouchMove>) {
         if !moves.is_empty() {
             if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
+                let mut window_blocked_remove = vec![];
                 for m in &mut moves {
                     m.hits = w.root().hit_test(m.position().to_px(w.scale_factor().0));
-                    m.target = m
+                    let target = m
                         .hits
                         .target()
                         .and_then(|t| w.get(t.widget_id))
                         .map(|t| t.interaction_path())
                         .unwrap_or_else(|| w.root().interaction_path());
+
+                    match target.unblocked() {
+                        Some(t) => m.target = t,
+                        None => {
+                            window_blocked_remove.push(m.touch);
+                        }
+                    }
                 }
 
                 let capture_info = POINTER_CAPTURE.current_capture_value();
@@ -748,10 +834,36 @@ impl TouchManager {
                     }
                 }
 
+                for touch in window_blocked_remove {
+                    let touch_move = moves.iter().position(|t| t.touch == touch).unwrap();
+                    moves.swap_remove(touch_move);
+
+                    if let Some(i) = self.pressed.remove(&touch) {
+                        i.gesture_propagation.stop();
+                        let args = TouchedArgs::now(
+                            args.window_id,
+                            args.device_id,
+                            touch,
+                            i.gesture_propagation,
+                            DipPoint::splat(Dip::new(-1)),
+                            None,
+                            TouchPhase::Cancel,
+                            HitTestInfo::no_hits(args.window_id),
+                            i.target,
+                            None,
+                            None,
+                            None,
+                        );
+                        TOUCHED_EVENT.notify(args);
+                    }
+                }
                 for m in &moves {
                     if let Some(i) = self.pressed.get_mut(&m.touch) {
+                        let (position, force) = *m.moves.last().unwrap();
+                        i.position = position;
+                        i.force = force;
+                        i.hits = m.hits.clone();
                         if i.target != m.target {
-                            let (position, force) = *m.moves.last().unwrap();
                             let args = TouchedArgs::now(
                                 args.window_id,
                                 args.device_id,
@@ -772,8 +884,81 @@ impl TouchManager {
                     }
                 }
 
-                let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
-                TOUCH_MOVE_EVENT.notify(args);
+                if !moves.is_empty() {
+                    let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
+                    TOUCH_MOVE_EVENT.notify(args);
+                }
+            }
+        }
+    }
+
+    fn continue_pressed(&mut self, window_id: WindowId) {
+        let mut tree = None;
+
+        let mut window_blocked_remove = vec![];
+
+        for (touch, info) in &mut self.pressed {
+            if info.target.window_id() != window_id {
+                continue;
+            }
+
+            let tree = tree.get_or_insert_with(|| WINDOWS.widget_tree(window_id).unwrap());
+            info.hits = tree.root().hit_test(info.position.to_px(tree.scale_factor().0));
+
+            let target = if let Some(t) = info.hits.target() {
+                tree.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
+                    tracing::error!("hits target `{}` not found", t.widget_id);
+                    tree.root().interaction_path()
+                })
+            } else {
+                tree.root().interaction_path()
+            }
+            .unblocked();
+
+            if let Some(target) = target {
+                if info.target != target {
+                    let capture = POINTER_CAPTURE.current_capture_value();
+                    let prev = mem::replace(&mut info.target, target.clone());
+
+                    let args = TouchedArgs::now(
+                        info.target.window_id(),
+                        None,
+                        *touch,
+                        info.gesture_propagation.clone(),
+                        info.position,
+                        info.force,
+                        TouchPhase::Move,
+                        info.hits.clone(),
+                        prev,
+                        target,
+                        capture.clone(),
+                        capture,
+                    );
+                    TOUCHED_EVENT.notify(args);
+                }
+            } else {
+                window_blocked_remove.push(*touch);
+            }
+        }
+
+        for touch in window_blocked_remove {
+            if let Some(i) = self.pressed.remove(&touch) {
+                i.gesture_propagation.stop();
+                let args = TouchedArgs::now(
+                    i.target.window_id(),
+                    None,
+                    touch,
+                    i.gesture_propagation,
+                    DipPoint::splat(Dip::new(-1)),
+                    None,
+                    TouchPhase::Cancel,
+                    HitTestInfo::no_hits(i.target.window_id()),
+                    i.target,
+                    None,
+                    None,
+                    None,
+                );
+                TOUCHED_EVENT.notify(args);
             }
         }
     }

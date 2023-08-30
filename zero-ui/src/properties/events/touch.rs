@@ -63,4 +63,30 @@ event_property! {
         args: TouchTapArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
     }
+
+    /// Touch contact is now over the widget or a descendant widget and the widget is enabled.
+    pub fn touch_enter {
+        event: TOUCHED_EVENT,
+        args: TouchedArgs,
+        filter: |args| args.is_touch_enter_enabled(),
+    }
+
+    /// Touch contact is no longer over the widget or any descendant widget and the widget is enabled.
+    pub fn touch_leave {
+        event: TOUCHED_EVENT,
+        args: TouchedArgs,
+        filter: |args| args.is_touch_leave_enabled(),
+    }
+
+    /// Touch contact entered or left the widget and descendant widgets area and the widget is enabled.
+    ///
+    /// You can use the [`is_touch_enter`] and [`is_touch_leave`] methods to determinate the state change.
+    ///
+    /// [`is_touch_enter`]: TouchedArgs::is_touch_enter
+    /// [`is_touch_leave`]: TouchedArgs::is_touch_leave
+    pub fn touched {
+        event: TOUCHED_EVENT,
+        args: TouchedArgs,
+        filter: |args| args.is_enabled(WIDGET.id()),
+    }
 }

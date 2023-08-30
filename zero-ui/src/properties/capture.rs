@@ -87,7 +87,7 @@ pub fn capture_pointer(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> i
 ///
 /// The capture happens only if any mouse button or touch is pressed on the window and the `mode` is [`Widget`] or [`Subtree`].
 ///
-/// Mouse captures are released when all mouse buttons stop being pressed on the window.
+/// Pointer captures are released when all mouse buttons stop being pressed on the window.
 /// The capture is also released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
 ///
 /// [`Widget`]: CaptureMode::Widget
