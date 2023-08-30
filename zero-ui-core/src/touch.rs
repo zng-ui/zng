@@ -99,7 +99,7 @@ struct TouchService {
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
 #[derive(Debug, Clone)]
 pub struct TouchMove {
-    /// Identify a the touch contact or *finger*.
+    /// Identify the touch contact or *finger*.
     ///
     /// Multiple points of contact can happen in the same device at the same time,
     /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
@@ -173,7 +173,7 @@ event_args! {
         /// Id of device that generated the event.
         pub device_id: DeviceId,
 
-        /// Identify a the touch contact or *finger*.
+        /// Identify the touch contact or *finger*.
         ///
         /// Multiple points of contact can happen in the same device at the same time,
         /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
@@ -234,7 +234,7 @@ event_args! {
         /// Id of device that generated the event.
         pub device_id: Option<DeviceId>,
 
-        /// Identify a the touch contact or *finger*.
+        /// Identify the touch contact or *finger*.
         ///
         /// Multiple points of contact can happen in the same device at the same time,
         /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
@@ -302,7 +302,7 @@ event_args! {
         /// Id of device that generated the event.
         pub device_id: DeviceId,
 
-        /// Identify a the touch contact or *finger*.
+        /// Identify the touch contact or *finger*.
         ///
         /// Multiple points of contact can happen in the same device at the same time,
         /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches

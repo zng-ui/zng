@@ -1286,9 +1286,23 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
         }
         UiNodeOp::Render { frame } => {
             let l_txt = super::nodes::LayoutText::get();
+            let r_txt = super::nodes::ResolvedText::get();
+            let r_txt = r_txt.text.text();
+
             let range = range.get();
-            let line_rect = l_txt.shaped_text.line(range.start.line).unwrap().rect(); //TODO: actual selection rect(s)
-            frame.push_color(line_rect, FrameValue::Value(color.get().into()));
+            let start_x = l_txt.shaped_text.caret_origin(range.start, r_txt).x;
+            let end_x = l_txt.shaped_text.caret_origin(range.end, r_txt).x;
+
+            if range.start.line == range.end.line {
+                let mut line_rect = l_txt.shaped_text.line(range.start.line).unwrap().rect();
+                line_rect.origin.x = start_x;
+                line_rect.size.width = end_x - line_rect.origin.x;
+
+                frame.push_color(line_rect, FrameValue::Value(color.get().into()));
+            } else {
+                //line_rect.size.width -= start_x - line_rect.origin.x;
+                //TODO: selection across multiple lines
+            }
         }
         _ => {}
     })
