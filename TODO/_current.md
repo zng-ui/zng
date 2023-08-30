@@ -22,9 +22,11 @@
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
-* Review order of touch events.
-    - TOUCHED must fire after TOUCH_INPUT.
-    - TOUCH_TAP must not be handled in preview.
+
+* Implement `TapMode`?
+    - Like `ClickMode`.
+    - We want the same gesture in combo box of clicking and dragging to the option.
+    - Maybe actually have a drag down gesture expand the combo?
 
 * `gesture_propagation`:
     - Create property helper, only subscribes to touch move when gesture pending?
@@ -50,9 +52,6 @@
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
     - Long press (from mouse too?).
-
-* Review event properties.
-    - All events should be covered.
 
 * Implement "Ripple!" visual.
     - Radial background overlay animation fired on every touch or click.

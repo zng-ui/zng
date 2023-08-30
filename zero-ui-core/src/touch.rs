@@ -653,7 +653,26 @@ impl AppExtension for TouchManager {
     }
 
     fn event(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+        if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
+            if let Some(s) = self.tap_start.take() {
+                if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
+                    s.try_complete(args, &w);
+                } else {
+                    self.tap_start = None;
+                }
+            } else {
+                self.tap_start = TapStart::try_start(args);
+            }
+        } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
+            if let Some(s) = &self.tap_start {
+                for t in &args.touches {
+                    if !s.retain(args.window_id, args.device_id, t.touch) {
+                        self.tap_start = None;
+                        break;
+                    }
+                }
+            }
+        } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
             for (touch, info) in &self.pressed {
                 let args = TouchedArgs::now(
                     info.target.window_id(),
@@ -744,13 +763,7 @@ impl TouchManager {
                 self.modifiers,
             );
 
-            if let Some(s) = self.tap_start.take() {
-                s.try_complete(&args, update, &w);
-            } else {
-                self.tap_start = TapStart::try_start(&args, update);
-            }
-
-            {
+            let touched_args = {
                 // touched
 
                 let (prev_target, target) = match args.phase {
@@ -759,7 +772,7 @@ impl TouchManager {
                     TouchPhase::Move => unreachable!(),
                 };
 
-                let args = TouchedArgs::now(
+                TouchedArgs::now(
                     args.window_id,
                     args.device_id,
                     args.touch,
@@ -772,11 +785,11 @@ impl TouchManager {
                     target,
                     args.capture.clone(),
                     args.capture.clone(),
-                );
-                TOUCHED_EVENT.notify(args);
-            }
+                )
+            };
 
             TOUCH_INPUT_EVENT.notify(args);
+            TOUCHED_EVENT.notify(touched_args);
         } else {
             // did not find window, cleanup touched
             for u in &args.touches {
@@ -825,14 +838,7 @@ impl TouchManager {
 
                 let capture_info = POINTER_CAPTURE.current_capture_value();
 
-                if let Some(s) = &self.tap_start {
-                    for m in &moves {
-                        if !s.retain(args.window_id, args.device_id, m.touch) {
-                            self.tap_start = None;
-                            break;
-                        }
-                    }
-                }
+                let mut touched_events = vec![];
 
                 for touch in window_blocked_remove {
                     let touch_move = moves.iter().position(|t| t.touch == touch).unwrap();
@@ -854,7 +860,7 @@ impl TouchManager {
                             None,
                             None,
                         );
-                        TOUCHED_EVENT.notify(args);
+                        touched_events.push(args);
                     }
                 }
                 for m in &moves {
@@ -879,7 +885,7 @@ impl TouchManager {
                                 capture_info.clone(),
                             );
                             i.target = m.target.clone();
-                            TOUCHED_EVENT.notify(args);
+                            touched_events.push(args);
                         }
                     }
                 }
@@ -887,6 +893,10 @@ impl TouchManager {
                 if !moves.is_empty() {
                     let args = TouchMoveArgs::now(args.window_id, args.device_id, moves, capture_info, self.modifiers);
                     TOUCH_MOVE_EVENT.notify(args);
+                }
+
+                for args in touched_events {
+                    TOUCHED_EVENT.notify(args);
                 }
             }
         }
@@ -974,12 +984,12 @@ struct TapStart {
 }
 impl TapStart {
     /// Returns `Some(_)` if args could be the start of a tap event.
-    fn try_start(args: &TouchInputArgs, update: &TouchUpdate) -> Option<Self> {
-        if let TouchPhase::Start = update.phase {
+    fn try_start(args: &TouchInputArgs) -> Option<Self> {
+        if let TouchPhase::Start = args.phase {
             Some(Self {
                 window_id: args.window_id,
                 device_id: args.device_id,
-                touch: update.touch,
+                touch: args.touch,
                 target: args.target.widget_id(),
                 propagation: args.gesture_propagation.clone(),
             })
@@ -1012,14 +1022,14 @@ impl TapStart {
     }
 
     /// Complete or cancel the tap.
-    fn try_complete(self, args: &TouchInputArgs, update: &TouchUpdate, tree: &WidgetInfoTree) {
-        if !self.retain(args.window_id, args.device_id, update.touch) {
+    fn try_complete(self, args: &TouchInputArgs, tree: &WidgetInfoTree) {
+        if !self.retain(args.window_id, args.device_id, args.touch) {
             return;
         }
 
         match tree.get(self.target) {
             Some(t) => {
-                if !t.hit_test(update.position.to_px(tree.scale_factor().0)).contains(self.target) {
+                if !t.hit_test(args.position.to_px(tree.scale_factor().0)).contains(self.target) {
                     // cancel, touch did not end over target.
                     return;
                 }
@@ -1027,14 +1037,14 @@ impl TapStart {
             None => return,
         };
 
-        if let TouchPhase::End = update.phase {
+        if let TouchPhase::End = args.phase {
             TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
                 args.timestamp,
                 args.propagation().clone(),
                 self.window_id,
                 self.device_id,
                 self.touch,
-                update.position,
+                args.position,
                 args.hits.clone(),
                 args.target.clone(),
                 args.capture.clone(),
