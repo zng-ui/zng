@@ -28,6 +28,8 @@ use crate::{
 ///
 /// * [`TOUCH_MOVE_EVENT`]
 /// * [`TOUCH_INPUT_EVENT`]
+/// * [`TOUCHED_EVENT`]
+/// * [`TOUCH_TAP_EVENT`]
 ///
 /// # Services
 ///
@@ -220,49 +222,117 @@ event_args! {
         }
     }
 
-        /// Arguments for [`TOUCH_TAP_EVENT`].
-        pub struct TouchTapArgs {
-            /// Id of window that received the event.
-            pub window_id: WindowId,
+    /// Arguments for [`TOUCHED_EVENT`].
+    pub struct TouchedArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
 
-            /// Id of device that generated the event.
-            pub device_id: DeviceId,
+        /// Id of device that generated the event.
+        pub device_id: Option<DeviceId>,
 
-            /// Identify a the touch contact or *finger*.
-            ///
-            /// Multiple points of contact can happen in the same device at the same time,
-            /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
-            /// on the same device, after a touch is ended an ID may be reused.
-            pub touch: TouchId,
+        /// Identify a the touch contact or *finger*.
+        ///
+        /// Multiple points of contact can happen in the same device at the same time,
+        /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
+        /// on the same device, after a touch is ended an ID may be reused.
+        pub touch: TouchId,
 
-            /// Center of the touch in the window's content area.
-            pub position: DipPoint,
+        /// Signals if a touch gesture observer consumed the [`touch`].
+        ///
+        /// The [`TOUCH_INPUT_EVENT`] and [`TOUCH_MOVE_EVENT`] have their own separate propagation handles, but
+        /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
+        /// gesture should be generated, multiple gestures can disambiguate using this `gesture_propagation` handle.
+        ///
+        /// [`touch`]: Self::touch
+        pub gesture_propagation: EventPropagationHandle,
 
-            /// Hit-test result for the touch point in the window.
-            pub hits: HitTestInfo,
+        /// Center of the touch in the window's content area.
+        pub position: DipPoint,
 
-            /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
-            pub target: InteractionPath,
+        /// Touch pressure force and angle.
+        pub force: Option<TouchForce>,
 
-            /// Current touch capture.
-            pub capture: Option<CaptureInfo>,
+        /// Touch phase that caused the contact gain or loss with the widget.
+        pub phase: TouchPhase,
 
-            /// What modifier keys where pressed when this event happened.
-            pub modifiers: ModifiersState,
+        /// Hit-test result for the touch point in the window.
+        pub hits: HitTestInfo,
 
-            ..
+        /// Previous top-most hit before the touch moved.
+        pub prev_target: Option<InteractionPath>,
 
-            /// The [`target`] and [`capture`].
-            ///
-            /// [`target`]: Self::target
-            /// [`capture`]: Self::capture
-            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-                list.insert_path(&self.target);
-                if let Some(c) = &self.capture {
-                    list.insert_path(&c.target);
-                }
+        /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
+        pub target: Option<InteractionPath>,
+
+        /// Previous touch capture.
+        pub prev_capture: Option<CaptureInfo>,
+
+        /// Current touch capture.
+        pub capture: Option<CaptureInfo>,
+
+        ..
+
+        /// The [`prev_target`], [`target`] and [`capture`].
+        ///
+        /// [`prev_target`]: Self::prev_target
+        /// [`target`]: Self::target
+        /// [`capture`]: Self::capture
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            if let Some(p) = &self.prev_target {
+                list.insert_path(p);
+            }
+            if let Some(p) = &self.target {
+                list.insert_path(p);
+            }
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
             }
         }
+    }
+
+    /// Arguments for [`TOUCH_TAP_EVENT`].
+    pub struct TouchTapArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+
+        /// Id of device that generated the event.
+        pub device_id: DeviceId,
+
+        /// Identify a the touch contact or *finger*.
+        ///
+        /// Multiple points of contact can happen in the same device at the same time,
+        /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
+        /// on the same device, after a touch is ended an ID may be reused.
+        pub touch: TouchId,
+
+        /// Center of the touch in the window's content area.
+        pub position: DipPoint,
+
+        /// Hit-test result for the touch point in the window.
+        pub hits: HitTestInfo,
+
+        /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
+        pub target: InteractionPath,
+
+        /// Current touch capture.
+        pub capture: Option<CaptureInfo>,
+
+        /// What modifier keys where pressed when this event happened.
+        pub modifiers: ModifiersState,
+
+        ..
+
+        /// The [`target`] and [`capture`].
+        ///
+        /// [`target`]: Self::target
+        /// [`capture`]: Self::capture
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target);
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
+        }
+    }
 }
 
 impl TouchMoveArgs {
@@ -350,6 +420,9 @@ event! {
 
     /// Touch contact started or ended.
     pub static TOUCH_INPUT_EVENT: TouchInputArgs;
+
+    /// Touch made first contact or lost contact with a widget.
+    pub static TOUCHED_EVENT: TouchedArgs;
 
     /// Touch tap.
     pub static TOUCH_TAP_EVENT: TouchTapArgs;

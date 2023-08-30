@@ -22,11 +22,21 @@
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
+
+* Implement `TOUCHED_EVENT`.
+    - Should work similar to `MOUSE_HOVERED_EVENT`, only with multiple pointers at the same time.
+    - Review mouse event, maybe can be abstracted for reuse in touch?
+
+* Review/add state properties.
+    - Review `is_pointer_pressed`.
+        - Is only for mouse with primary button currently.
+        - Add touch, after `TOUCHED_EVENT` is implemented.
+    - Add `is_mouse_pressed` and `is_touch_pressed`.
+
 * `gesture_propagation`:
     - Create property helper, only subscribes to touch move when gesture pending?
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
     - We must only start trying a gesture if the target widget path subscribes to it.
-
 * Implement gestures:
     - Double tap.
     - Context tap.
@@ -48,16 +58,8 @@
             - Different from no feedback when you can never scroll in a direction.
     - Long press (from mouse too?).
 
-* Add event properties.
-* Review/add state properties.
-    - Review `is_pointer_pressed`.
-        - Is only for mouse with primary button currently.
-        - Add touch, review what is a pressed touch.
-            - Need to show pressed only if a tap will happen on touch-end?
-                - Canceled by multiple causes.
-                - May need a "promise" var for the future tap, `ResonseVar<bool>`.
-            - Need a `MOUSE_HOVERED_EVENT` equivalent for touch?
-                - Can have more than one point at the same time.
-                - Not a performance requirement because touch move events only happen on contact.
-                - Good mirror to mouse API.
-    - Add `is_mouse_pressed` and `is_touch_pressed`.
+* Review event properties.
+    - All events should be covered.
+
+* Implement "Ripple!" visual.
+    - Radial background overlay animation fired on every touch or click.
