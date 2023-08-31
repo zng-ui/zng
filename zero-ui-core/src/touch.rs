@@ -1068,49 +1068,84 @@ impl TapStart {
     }
 }
 
-/// Transform computed from movement of two touch contact points.
-///
-/// When the full transform is applied in a widget the initial touch points in the widget stay
-/// aligned with the touch contact fingers.
-pub struct TouchTransform {
-    /// Movement of the two points together in the same direction.
-    pub translate: euclid::Vector2D<f32, Px>,
-    /// Movement of the two points apart of closer.
-    pub scale: Factor2d,
-    /// Movement of one point around the other.
-    pub rotate: AngleRadian,
-} // TODO, need a center too?
-impl TouchTransform {
-    /// Compute the transform from round pixels.
-    pub fn compute(a_start: PxPoint, a_moved: PxPoint, b_start: PxPoint, b_moved: PxPoint) -> Self {
-        Self::compute_f32(a_start.to_f32(), a_moved.to_f32(), b_start.to_f32(), b_moved.to_f32())
+/// Info useful for touch gestures computed from two touch points.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TouchLineInfo {
+    /// The two touch contact points.
+    pub touches: [euclid::Point2D<f32, Px>; 2],
+
+    /// Middle of the line between the two points.
+    pub center: euclid::Point2D<f32, Px>,
+
+    /// Average deviation from the two points to the center.
+    pub deviation: f32,
+
+    /// Average deviation from the two points.x to the center.x.
+    pub deviation_x: f32,
+
+    /// Average deviation from the two points.y to the center.y.
+    pub deviation_y: f32,
+}
+impl TouchLineInfo {
+    /// Compute the line info.
+    pub fn new_f32(touches: [euclid::Point2D<f32, Px>; 2]) -> Self {
+        let a = touches[0].to_vector();
+        let b = touches[1].to_vector();
+
+        let center = (a + b) / 2.0;
+
+        Self {
+            touches,
+            center: center.to_point(),
+            deviation: ((a - center).length() + (b - center).length()) / 2.0,
+            deviation_x: ((a.x - center.x).abs() + (b.x - center.x).abs()) / 2.0,
+            deviation_y: ((a.y - center.y).abs() + (b.y - center.y).abs()) / 2.0,
+        }
     }
 
-    /// Compute the transform from round device independent pixels.
-    pub fn compute_dip(a_start: DipPoint, a_moved: DipPoint, b_start: DipPoint, b_moved: DipPoint, scale_factor: Factor) -> Self {
-        Self::compute_f32(
-            a_start.to_f32().to_px(scale_factor.0),
-            a_moved.to_f32().to_px(scale_factor.0),
-            b_start.to_f32().to_px(scale_factor.0),
-            b_moved.to_f32().to_px(scale_factor.0),
-        )
+    /// Compute the line info, from round pixels.
+    pub fn new(touches: [PxPoint; 2]) -> Self {
+        Self::new_f32([touches[0].to_f32(), touches[1].to_f32()])
     }
 
-    /// Compute the transform from `f32` pixels.
-    pub fn compute_f32(
-        a_start: euclid::Point2D<f32, Px>,
-        a_moved: euclid::Point2D<f32, Px>,
-        b_start: euclid::Point2D<f32, Px>,
-        b_moved: euclid::Point2D<f32, Px>,
-    ) -> Self {
-        let a_dist = a_start.distance_to(a_moved).max(1.0);
-        let b_dist = b_start.distance_to(b_moved).max(1.0);
+    /// Compute the line info, from device independent pixels.
+    pub fn new_dip(touches: [DipPoint; 2], scale_factor: Factor) -> Self {
+        Self::new_f32([touches[0].to_f32().to_px(scale_factor.0), touches[1].to_f32().to_px(scale_factor.0)])
+    }
+}
+impl TouchLineInfo {
+    /// Computes the translation to transform from `self` to `other`.
+    pub fn translation(&self, other: &Self) -> euclid::Vector2D<f32, Px> {
+        other.center.to_vector() - self.center.to_vector()
+    }
 
-        let _scale_factor = b_dist / a_dist;
-
-
-
+    /// Computes the rotation to transform from `self` to `other`.
+    pub fn rotation(&self, _other: &Self) -> AngleRadian {
         todo!()
+    }
+
+    /// Computes the scale to transform from `self` to `other`.
+    pub fn scale(&self, _other: &Self) -> Factor {
+        todo!()
+    }
+
+    /// Computes the transform from `self` to `other`.
+    pub fn transform(&self, other: &Self, mode: TouchTransformMode) -> PxTransform {
+        let mut m = PxTransform::identity();
+
+        if mode.contains(TouchTransformMode::TRANSLATE_X) || mode.contains(TouchTransformMode::TRANSLATE_Y) {
+            let mut t = self.translation(other);
+            if !mode.contains(TouchTransformMode::TRANSLATE_X) {
+                t.x = 0.0;
+            } else if !mode.contains(TouchTransformMode::TRANSLATE_Y) {
+                t.y = 0.0;
+            }
+            m = m.then_translate(t);
+        }
+
+        // TODO
+
+        m
     }
 }
 
