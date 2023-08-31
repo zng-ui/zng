@@ -1156,6 +1156,13 @@ impl DipToPx for DipPoint {
         PxPoint::new(self.x.to_px(scale_factor), self.y.to_px(scale_factor))
     }
 }
+impl DipToPx for euclid::Point2D<f32, Dip> {
+    type AsPx = euclid::Point2D<f32, Px>;
+
+    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+        euclid::point2(self.x * scale_factor, self.y * scale_factor)
+    }
+}
 
 impl PxToDip for PxSize {
     type AsDip = DipSize;

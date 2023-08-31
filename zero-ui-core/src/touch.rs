@@ -1067,3 +1067,79 @@ impl TapStart {
         }
     }
 }
+
+/// Transform computed from movement of two touch contact points.
+///
+/// When the full transform is applied in a widget the initial touch points in the widget stay
+/// aligned with the touch contact fingers.
+pub struct TouchTransform {
+    /// Movement of the two points together in the same direction.
+    pub translate: euclid::Vector2D<f32, Px>,
+    /// Movement of the two points apart of closer.
+    pub scale: Factor2d,
+    /// Movement of one point around the other.
+    pub rotate: AngleRadian,
+} // TODO, need a center too?
+impl TouchTransform {
+    /// Compute the transform from round pixels.
+    pub fn compute(a_start: PxPoint, a_moved: PxPoint, b_start: PxPoint, b_moved: PxPoint) -> Self {
+        Self::compute_f32(a_start.to_f32(), a_moved.to_f32(), b_start.to_f32(), b_moved.to_f32())
+    }
+
+    /// Compute the transform from round device independent pixels.
+    pub fn compute_dip(a_start: DipPoint, a_moved: DipPoint, b_start: DipPoint, b_moved: DipPoint, scale_factor: Factor) -> Self {
+        Self::compute_f32(
+            a_start.to_f32().to_px(scale_factor.0),
+            a_moved.to_f32().to_px(scale_factor.0),
+            b_start.to_f32().to_px(scale_factor.0),
+            b_moved.to_f32().to_px(scale_factor.0),
+        )
+    }
+
+    /// Compute the transform from `f32` pixels.
+    pub fn compute_f32(
+        a_start: euclid::Point2D<f32, Px>,
+        a_moved: euclid::Point2D<f32, Px>,
+        b_start: euclid::Point2D<f32, Px>,
+        b_moved: euclid::Point2D<f32, Px>,
+    ) -> Self {
+        let a_dist = a_start.distance_to(a_moved).max(1.0);
+        let b_dist = b_start.distance_to(b_moved).max(1.0);
+
+        let _scale_factor = b_dist / a_dist;
+
+
+
+        todo!()
+    }
+}
+
+bitflags! {
+    /// Defines the different transforms that a [`TouchTransform`] can do to keep
+    /// two touch points in a widget aligned with the touch contacts.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct TouchTransformMode: u8 {
+        /// Translate in the X dimension.
+        const TRANSLATE_X = 0b0000_0001;
+        /// Translate in the y dimension.
+        const TRANSLATE_Y = 0b0000_0010;
+        /// Translate in both dimensions.
+        const TRANSLATE = Self::TRANSLATE_X.bits() | Self::TRANSLATE_Y.bits();
+
+        /// Scale in the X dimension.
+        const SCALE_X = 0b0000_0100;
+        /// Scale in the Y dimension.
+        const SCALE_Y = 0b0000_1000;
+        /// Scale in both dimension.
+        const SCALE = Self::SCALE_X.bits() | Self::SCALE_Y.bits();
+        /// Scale in both dimensions the same amount.
+        const SCALE_LOCKED = 0b0001_1100;
+
+        /// Rotate.
+        const ROTATE = 0b0010_0000;
+
+        /// Translate, scale-square and rotate.
+        const ALL = Self::TRANSLATE.bits()| Self::SCALE_LOCKED.bits() | Self::ROTATE.bits();
+    }
+}

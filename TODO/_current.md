@@ -18,9 +18,10 @@
 # Touch Events
 
 * Resources
-    - https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent
-    - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
-    - https://api.flutter.dev/flutter/gestures/gestures-library.html
+    - https://api.flutter.dev/flutter/gestures/ScaleUpdateDetails-class.html
+    - https://github.com/flutter/flutter/blob/master/packages/flutter/lib/src/gestures/scale.dart
+
+* Implement `TouchTransform`.
 
 * Implement `TapMode`?
     - Like `ClickMode`.
@@ -31,6 +32,9 @@
     - Create property helper, only subscribes to touch move when gesture pending?
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
     - OR, events that check `has_hooks` and `is_subscriber`.
+    - Setting a `on_touch_gesture` only in `when` still subscribes to the event always.
+        - Because we move the when resolver inside an event handler.
+        - Refactor `WidgetHandler` to signal when it is nil?
 
 * Implement gestures:
     - Double tap.
@@ -44,6 +48,10 @@
     - Pan or drag:
         - One finger, press, move.
     - All 3 can happen at the same time.
+        - Same event?
+        - TOUCH_TRANSFORM_EVENT.
+            - Tracks two points and computes a transform on demand for it.
+            - Transform can optionally include
     - Inertia:
         - A pan/drag can be "thrown".
             - One finger, press, move, release "while moving".
@@ -53,6 +61,8 @@
         - Gestures can "push" against a constraint.
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
+    - Pinning:
+        - One finger rotates around a fixed point.
     - Long press (from mouse too?).
     - Force press.
         - Normalized force is 0.5 (for touchscreens without force detection).
