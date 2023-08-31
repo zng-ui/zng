@@ -17,24 +17,24 @@
 
 # Touch Events
 
-* Resources
-    - https://api.flutter.dev/flutter/gestures/ScaleUpdateDetails-class.html
-    - https://github.com/flutter/flutter/blob/master/packages/flutter/lib/src/gestures/scale.dart
-
-* Implement `TouchTransform`.
+* Implement `TOUCH_TRANSFORM_EVENT`.
+    - Need to wait for the tap distance to clear to start the event?
 
 * Implement `TapMode`?
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
     - Maybe actually have a drag down gesture expand the combo?
 
-* `gesture_propagation`:
+* Gesture propagation:
     - Create property helper, only subscribes to touch move when gesture pending?
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
     - OR, events that check `has_hooks` and `is_subscriber`.
     - Setting a `on_touch_gesture` only in `when` still subscribes to the event always.
         - Because we move the when resolver inside an event handler.
         - Refactor `WidgetHandler` to signal when it is nil?
+    - CLICK_EVENT is just an aggregator that includes TOUCH_TAP_EVENT, but the gestures manager
+      must subscribe to it globally to work.
+        - Ideally we only include the subscribers of CLICK_EVENT in TOUCH_TAP_EVENT.
 
 * Implement gestures:
     - Double tap.
