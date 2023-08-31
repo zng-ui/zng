@@ -27,7 +27,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// This state property does not consider pointer capture, if the pointer is captured by the widget
 /// but is not actually over the widget this is `false`, use [`is_cap_hovered`] to include the captured state.
 ///
-/// The value is always `false` when the widget is not fully [`ENABLED`], use [`is_hovered_disabled`] to implement *disabled hovered* visuals.
+/// The value is always `false` when the widget is not [`ENABLED`], use [`is_hovered_disabled`] to implement *disabled hovered* visuals.
 ///
 /// [`is_cap_hovered`]: fn@is_cap_hovered
 /// [`ENABLED`]: Interactivity::ENABLED
@@ -47,7 +47,7 @@ pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 
 /// If the mouse pointer is over the widget, or is over a widget descendant, or is captured by the widget.
 ///
-/// The value is always `false` when the widget is not fully [`ENABLED`].
+/// The value is always `false` when the widget is not [`ENABLED`].
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
@@ -256,7 +256,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// This state property also does not consider where the touch started, if it started in a different widget
 /// and is not over this widget the widget is touched, use [`is_touched_from_start`] to ignore touched that move in.
 ///
-/// The value is always `false` when the widget is not fully [`ENABLED`].
+/// The value is always `false` when the widget is not [`ENABLED`].
 ///
 /// [`is_cap_touched`]: fn@is_cap_touched
 /// [`ENABLED`]: Interactivity::ENABLED
@@ -273,6 +273,15 @@ pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
     })
 }
 
+/// If a touch contact that started over the widget is over the widget and the widget is [`ENABLED`].
+///
+/// This state property does not consider pointer capture, if the pointer is captured by the widget
+/// but is not actually over the widget this is `false`, use [`is_cap_touched_from_start`] to include the captured state.
+///
+/// The value is always `false` when the widget is not [`ENABLED`].
+///
+/// [`ENABLED`]: Interactivity::ENABLED
+/// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
 pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let mut touches_started = HashSet::new();
@@ -300,7 +309,7 @@ pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> i
 
 /// If a touch contact point is over the widget, or is over a widget descendant, or is captured by the widget.
 ///
-/// The value is always `false` when the widget is not fully [`ENABLED`].
+/// The value is always `false` when the widget is not [`ENABLED`].
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
@@ -335,13 +344,62 @@ pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
     )
 }
 
-/// If [`is_mouse_pressed`] or [`is_touched`].
+/// If a touch contact point is over the widget, or is over a widget descendant, or is captured by the widget.
+///
+/// The value is always `false` when the widget is not [`ENABLED`].
+///
+/// [`ENABLED`]: Interactivity::ENABLED
+#[property(EVENT)]
+pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let mut touches_started = HashSet::new();
+    event_is_state2(
+        child,
+        state,
+        false,
+        TOUCHED_EVENT,
+        false,
+        move |hovered_args| {
+            if hovered_args.is_touch_enter_enabled() {
+                match hovered_args.phase {
+                    TouchPhase::Start => {
+                        touches_started.retain(|t: &EventPropagationHandle| !t.is_stopped()); // for touches released outside the widget.
+                        touches_started.insert(hovered_args.touch_propagation.clone());
+                        Some(true)
+                    }
+                    TouchPhase::Move => Some(touches_started.contains(&hovered_args.touch_propagation)),
+                    TouchPhase::End | TouchPhase::Cancel => Some(false), // weird
+                }
+            } else if hovered_args.is_touch_leave_enabled() {
+                if let TouchPhase::End | TouchPhase::Cancel = hovered_args.phase {
+                    touches_started.remove(&hovered_args.touch_propagation);
+                }
+                Some(false)
+            } else {
+                None
+            }
+        },
+        POINTER_CAPTURE_EVENT,
+        false,
+        |cap_args| {
+            if cap_args.is_got(WIDGET.id()) {
+                Some(true)
+            } else if cap_args.is_lost(WIDGET.id()) {
+                Some(false)
+            } else {
+                None
+            }
+        },
+        |hovered, captured| Some(hovered || captured),
+    )
+}
+
+/// If [`is_mouse_pressed`] or [`is_touched_from_start`].
 ///
 /// Note that [`is_mouse_pressed`] and [`is_touched`] do not consider pointer capture, use [`is_cap_pointer_pressed`] to
 /// include the captured state.
 ///
 /// [`is_mouse_pressed`]: fn@is_mouse_pressed
-/// [`is_touched`]: fn@is_touched
+/// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(EVENT)]
 pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
@@ -349,19 +407,19 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
     let child = is_mouse_pressed(child, pressed.clone());
 
     let touched = state_var();
-    let child = is_touched(child, touched.clone());
+    let child = is_touched_from_start(child, touched.clone());
 
     bind_is_state(child, merge_var!(pressed, touched, |&p, &t| p || t), state)
 }
 
-/// If [`is_mouse_pressed`], [`is_touched`] or [`is_shortcut_pressed`].
+/// If [`is_mouse_pressed`], [`is_touched_from_start`] or [`is_shortcut_pressed`].
 ///
 /// Note that [`is_mouse_pressed`] and [`is_touched`] do not consider pointer capture, use [`is_cap_pressed`] to
 /// include the captured state.
 ///
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
 /// [`is_mouse_pressed`]: fn@is_mouse_pressed
-/// [`is_touched`]: fn@is_touched
+/// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 /// [`is_cap_pressed`]: fn@is_cap_pressed
 #[property(EVENT)]
@@ -370,7 +428,7 @@ pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
     let child = is_mouse_pressed(child, pressed.clone());
 
     let touched = state_var();
-    let child = is_touched(child, touched.clone());
+    let child = is_touched_from_start(child, touched.clone());
 
     let shortcut_pressed = state_var();
     let child = is_shortcut_pressed(child, shortcut_pressed.clone());
@@ -382,25 +440,25 @@ pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
     )
 }
 
-/// If [`is_cap_mouse_pressed`] or [`is_cap_touched`].
+/// If [`is_cap_mouse_pressed`] or [`is_cap_touched_from_start`].
 ///
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
-/// [`is_cap_touched`]: fn@is_cap_touched
+/// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
 pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let pressed = state_var();
     let child = is_cap_mouse_pressed(child, pressed.clone());
 
     let touched = state_var();
-    let child = is_cap_touched(child, touched.clone());
+    let child = is_cap_touched_from_start(child, touched.clone());
 
     bind_is_state(child, merge_var!(pressed, touched, |&p, &t| p || t), state)
 }
 
-/// If [`is_cap_mouse_pressed`], [`is_cap_touched`] or [`is_shortcut_pressed`].
+/// If [`is_cap_mouse_pressed`], [`is_cap_touched_from_start`] or [`is_shortcut_pressed`].
 ///
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
-/// [`is_cap_touched`]: fn@is_cap_touched
+/// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 #[property(EVENT)]
 pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
@@ -408,7 +466,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
     let child = is_cap_mouse_pressed(child, pressed.clone());
 
     let touched = state_var();
-    let child = is_cap_touched(child, touched.clone());
+    let child = is_cap_touched_from_start(child, touched.clone());
 
     let shortcut_pressed = state_var();
     let child = is_shortcut_pressed(child, pressed.clone());

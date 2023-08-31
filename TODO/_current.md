@@ -23,8 +23,7 @@
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
 
-* `is_touched_from_start`.
-    - Finish it, use in `is_pressed`.
+* Tap event send for touches started outside of a button.
 
 * Implement `TapMode`?
     - Like `ClickMode`.
