@@ -50,7 +50,7 @@ pub struct TouchManager {
     tap_start: Option<TapStart>,
 }
 struct PressedInfo {
-    gesture_propagation: EventPropagationHandle,
+    touch_propagation: EventPropagationHandle,
     target: InteractionPath,
     device_id: DeviceId,
     position: DipPoint,
@@ -112,8 +112,8 @@ pub struct TouchMove {
 
     /// Handle across the lifetime of `touch`.
     ///
-    /// See [`TouchInputArgs::gesture_propagation`] for more details.
-    pub gesture_propagation: EventPropagationHandle,
+    /// See [`TouchInputArgs::touch_propagation`] for more details.
+    pub touch_propagation: EventPropagationHandle,
 
     /// Coalesced moves of the touch since last event.
     ///
@@ -184,14 +184,18 @@ event_args! {
         /// on the same device, after a touch is ended an ID may be reused.
         pub touch: TouchId,
 
-        /// Signals if a touch gesture observer consumed the [`touch`].
+        /// Propagation handle for the [`touch`] lifetime.
         ///
         /// The [`TOUCH_INPUT_EVENT`] and [`TOUCH_MOVE_EVENT`] have their own separate propagation handles, but
         /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
-        /// gesture should be generated, multiple gestures can disambiguate using this `gesture_propagation` handle.
+        /// gesture should be generated, multiple gestures can disambiguate using this `touch_propagation` handle.
+        ///
+        /// The propagation handle always signals *stopped* after the touch ends. Handles are unique while at least one
+        /// clone of it remains, this makes this a better unique identifier of a touch contact than [`TouchId`] that may be reused
+        /// by the system as soon as a new touch contact is made.
         ///
         /// [`touch`]: Self::touch
-        pub gesture_propagation: EventPropagationHandle,
+        pub touch_propagation: EventPropagationHandle,
 
         /// Center of the touch in the window's content area.
         pub position: DipPoint,
@@ -245,14 +249,18 @@ event_args! {
         /// on the same device, after a touch is ended an ID may be reused.
         pub touch: TouchId,
 
-        /// Signals if a touch gesture observer consumed the [`touch`].
+        /// Propagation handle for the [`touch`] lifetime.
         ///
         /// The [`TOUCH_INPUT_EVENT`] and [`TOUCH_MOVE_EVENT`] have their own separate propagation handles, but
         /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
-        /// gesture should be generated, multiple gestures can disambiguate using this `gesture_propagation` handle.
+        /// gesture should be generated, multiple gestures can disambiguate using this `touch_propagation` handle.
+        ///
+        /// The propagation handle always signals *stopped* after the touch ends. Handles are unique while at least one
+        /// clone of it remains, this makes this a better unique identifier of a touch contact than [`TouchId`] that may be reused
+        /// by the system as soon as a new touch contact is made.
         ///
         /// [`touch`]: Self::touch
-        pub gesture_propagation: EventPropagationHandle,
+        pub touch_propagation: EventPropagationHandle,
 
         /// Center of the touch in the window's content area.
         pub position: DipPoint,
@@ -585,8 +593,8 @@ impl AppExtension for TouchManager {
                     } else {
                         pending_move.push(TouchMove {
                             touch: u.touch,
-                            gesture_propagation: if let Some(i) = self.pressed.get(&u.touch) {
-                                i.gesture_propagation.clone()
+                            touch_propagation: if let Some(i) = self.pressed.get(&u.touch) {
+                                i.touch_propagation.clone()
                             } else {
                                 let weird = EventPropagationHandle::new();
                                 weird.stop();
@@ -621,7 +629,7 @@ impl AppExtension for TouchManager {
                         info.target.window_id(),
                         info.device_id,
                         touch,
-                        info.gesture_propagation.clone(),
+                        info.touch_propagation.clone(),
                         DipPoint::splat(Dip::new(-1)),
                         None,
                         TouchPhase::Cancel,
@@ -636,7 +644,7 @@ impl AppExtension for TouchManager {
                         info.target.window_id(),
                         info.device_id,
                         touch,
-                        info.gesture_propagation,
+                        info.touch_propagation,
                         DipPoint::splat(Dip::new(-1)),
                         None,
                         TouchPhase::Cancel,
@@ -678,7 +686,7 @@ impl AppExtension for TouchManager {
                     info.target.window_id(),
                     info.device_id,
                     *touch,
-                    info.gesture_propagation.clone(),
+                    info.touch_propagation.clone(),
                     info.position,
                     info.force,
                     TouchPhase::Move,
@@ -716,7 +724,7 @@ impl TouchManager {
                     if let Some(weird) = self.pressed.insert(
                         update.touch,
                         PressedInfo {
-                            gesture_propagation: handle.clone(),
+                            touch_propagation: handle.clone(),
                             target: target.clone(),
                             device_id: args.device_id,
                             position: update.position,
@@ -724,13 +732,13 @@ impl TouchManager {
                             hits: hits.clone(),
                         },
                     ) {
-                        weird.gesture_propagation.stop();
+                        weird.touch_propagation.stop();
                     }
                     handle
                 }
                 TouchPhase::End => {
                     if let Some(handle) = self.pressed.remove(&update.touch) {
-                        handle.gesture_propagation
+                        handle.touch_propagation
                     } else {
                         let weird = EventPropagationHandle::new();
                         weird.stop();
@@ -741,7 +749,7 @@ impl TouchManager {
                     let handle = self
                         .pressed
                         .remove(&update.touch)
-                        .map(|i| i.gesture_propagation)
+                        .map(|i| i.touch_propagation)
                         .unwrap_or_else(EventPropagationHandle::new);
                     handle.stop();
                     handle
@@ -776,7 +784,7 @@ impl TouchManager {
                     args.window_id,
                     args.device_id,
                     args.touch,
-                    args.gesture_propagation.clone(),
+                    args.touch_propagation.clone(),
                     args.position,
                     args.force,
                     args.phase,
@@ -799,7 +807,7 @@ impl TouchManager {
                         args.window_id,
                         args.device_id,
                         u.touch,
-                        i.gesture_propagation,
+                        i.touch_propagation,
                         u.position,
                         u.force,
                         u.phase,
@@ -845,12 +853,12 @@ impl TouchManager {
                     moves.swap_remove(touch_move);
 
                     if let Some(i) = self.pressed.remove(&touch) {
-                        i.gesture_propagation.stop();
+                        i.touch_propagation.stop();
                         let args = TouchedArgs::now(
                             args.window_id,
                             args.device_id,
                             touch,
-                            i.gesture_propagation,
+                            i.touch_propagation,
                             DipPoint::splat(Dip::new(-1)),
                             None,
                             TouchPhase::Cancel,
@@ -874,7 +882,7 @@ impl TouchManager {
                                 args.window_id,
                                 args.device_id,
                                 m.touch,
-                                m.gesture_propagation.clone(),
+                                m.touch_propagation.clone(),
                                 position,
                                 force,
                                 TouchPhase::Move,
@@ -934,7 +942,7 @@ impl TouchManager {
                         info.target.window_id(),
                         None,
                         *touch,
-                        info.gesture_propagation.clone(),
+                        info.touch_propagation.clone(),
                         info.position,
                         info.force,
                         TouchPhase::Move,
@@ -953,12 +961,12 @@ impl TouchManager {
 
         for touch in window_blocked_remove {
             if let Some(i) = self.pressed.remove(&touch) {
-                i.gesture_propagation.stop();
+                i.touch_propagation.stop();
                 let args = TouchedArgs::now(
                     i.target.window_id(),
                     None,
                     touch,
-                    i.gesture_propagation,
+                    i.touch_propagation,
                     DipPoint::splat(Dip::new(-1)),
                     None,
                     TouchPhase::Cancel,
@@ -991,7 +999,7 @@ impl TapStart {
                 device_id: args.device_id,
                 touch: args.touch,
                 target: args.target.widget_id(),
-                propagation: args.gesture_propagation.clone(),
+                propagation: args.touch_propagation.clone(),
             })
         } else {
             None
@@ -1038,6 +1046,8 @@ impl TapStart {
         };
 
         if let TouchPhase::End = args.phase {
+            self.propagation.stop(); // touch_propagation always is stopped after touch end.
+
             TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
                 args.timestamp,
                 args.propagation().clone(),
@@ -1050,6 +1060,8 @@ impl TapStart {
                 args.capture.clone(),
                 args.modifiers,
             ));
+        } else if let TouchPhase::Cancel = args.phase {
+            self.propagation.stop();
         }
     }
 }

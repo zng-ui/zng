@@ -23,6 +23,9 @@
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
 
+* `is_touched_from_start`.
+    - Finish it, use in `is_pressed`.
+
 * Implement `TapMode`?
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
@@ -32,6 +35,11 @@
     - Create property helper, only subscribes to touch move when gesture pending?
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
     - We must only start trying a gesture if the target widget path subscribes to it.
+        - Can use `Event::is_subscriber` for this.
+    - The `TOUCH_TAP_EVENT` cannot check subscribers because `CLICK_EVENT` proxies it.
+        - This is an exception too the rule?
+        - If we implement a TOUCH_PAN_EVENT who is to say a future app-extension would not want this event?
+
 * Implement gestures:
     - Double tap.
     - Context tap.
@@ -52,6 +60,9 @@
         - Pan scroll has visual feedback when it can't scroll a direction anymore.
             - Different from no feedback when you can never scroll in a direction.
     - Long press (from mouse too?).
+    - Force press.
+        - Normalized force is 0.5 (for touchscreens without force detection).
+        - This gesture exceeds this force.
 
 * Implement "Ripple!" visual.
     - Radial background overlay animation fired on every touch or click.
