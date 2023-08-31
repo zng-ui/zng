@@ -353,6 +353,13 @@ impl<A: EventArgs> Event<A> {
     {
         EVENTS_SV.write().sender(*self)
     }
+
+    /// Returns `true` if any app level callback is registered for this event.
+    ///
+    /// This includes [`AnyEvent::hook`], [`Event::on_pre_event`], [`Event::on_event`] and [`Event::receiver`].
+    pub fn has_hooks(&self) -> bool {
+        self.as_any().has_hooks()
+    }
 }
 impl<A: EventArgs> Clone for Event<A> {
     fn clone(&self) -> Self {
@@ -438,6 +445,13 @@ impl AnyEvent {
         for sub in self.local.read().widget_subs.keys() {
             visit(*sub);
         }
+    }
+
+    /// Returns `true` if any app level callback is registered for this event.
+    ///
+    /// This includes [`AnyEvent::hook`], [`Event::on_pre_event`], [`Event::on_event`] and [`Event::receiver`].
+    pub fn has_hooks(&self) -> bool {
+        !self.local.read().hooks.is_empty()
     }
 
     fn on_update(&self, update: &mut EventUpdate) {

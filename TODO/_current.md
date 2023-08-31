@@ -22,9 +22,6 @@
     - https://searchfox.org/mozilla-central/source/gfx/layers/apz/src/GestureEventListener.cpp#233
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
-
-* Touch drag release in the window background causes the title bar to not be interactive anymore.
-
 * Implement `TapMode`?
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
@@ -35,9 +32,8 @@
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
     - We must only start trying a gesture if the target widget path subscribes to it.
         - Can use `Event::is_subscriber` for this.
-    - The `TOUCH_TAP_EVENT` cannot check subscribers because `CLICK_EVENT` proxies it.
-        - This is an exception too the rule?
-        - If we implement a TOUCH_PAN_EVENT who is to say a future app-extension would not want this event?
+        - And `Event::has_hooks`.
+    - Refactor `TOUCH_TAP_EVENT` to use this.
 
 * Implement gestures:
     - Double tap.
@@ -65,3 +61,7 @@
 
 * Implement "Ripple!" visual.
     - Radial background overlay animation fired on every touch or click.
+
+* Touch drag release in the window background causes the title bar to not be interactive anymore.
+    - Sometimes can't recreate, but it has happened multiple times already.
+    - Maybe only when window is between screens only?
