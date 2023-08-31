@@ -1070,7 +1070,7 @@ impl TapStart {
 
 /// Info useful for touch gestures computed from two touch points.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct TouchLineInfo {
+pub struct Touch2Info {
     /// The two touch contact points.
     pub touches: [euclid::Point2D<f32, Px>; 2],
 
@@ -1078,28 +1078,41 @@ pub struct TouchLineInfo {
     pub center: euclid::Point2D<f32, Px>,
 
     /// Average deviation from the two points to the center.
+    ///
+    /// Min 1.0
     pub deviation: f32,
 
     /// Average deviation from the two points.x to the center.x.
+    ///
+    /// Min 1.0
     pub deviation_x: f32,
 
     /// Average deviation from the two points.y to the center.y.
+    ///
+    /// Min 1.0
     pub deviation_y: f32,
+
+    /// Angle of the line.
+    pub angle: AngleRadian,
 }
-impl TouchLineInfo {
+impl Touch2Info {
     /// Compute the line info.
     pub fn new_f32(touches: [euclid::Point2D<f32, Px>; 2]) -> Self {
         let a = touches[0].to_vector();
         let b = touches[1].to_vector();
 
         let center = (a + b) / 2.0;
+        let deviation = ((a - center).length() + (b - center).length()) / 2.0;
+        let deviation_x = ((a.x - center.x).abs() + (b.x - center.x).abs()) / 2.0;
+        let deviation_y = ((a.y - center.y).abs() + (b.y - center.y).abs()) / 2.0;
 
         Self {
             touches,
             center: center.to_point(),
-            deviation: ((a - center).length() + (b - center).length()) / 2.0,
-            deviation_x: ((a.x - center.x).abs() + (b.x - center.x).abs()) / 2.0,
-            deviation_y: ((a.y - center.y).abs() + (b.y - center.y).abs()) / 2.0,
+            deviation: deviation.max(1.0),
+            deviation_x: deviation_x.max(1.0),
+            deviation_y: deviation_y.max(1.0),
+            angle: AngleRadian((a.x - b.x).atan2(a.y - b.y)),
         }
     }
 
@@ -1113,37 +1126,71 @@ impl TouchLineInfo {
         Self::new_f32([touches[0].to_f32().to_px(scale_factor.0), touches[1].to_f32().to_px(scale_factor.0)])
     }
 }
-impl TouchLineInfo {
+impl Touch2Info {
     /// Computes the translation to transform from `self` to `other`.
     pub fn translation(&self, other: &Self) -> euclid::Vector2D<f32, Px> {
         other.center.to_vector() - self.center.to_vector()
     }
 
+    /// Computes the translation-x to transform from `self` to `other`.
+    pub fn translation_x(&self, other: &Self) -> f32 {
+        other.center.x - self.center.x
+    }
+
+    /// Computes the translation-y to transform from `self` to `other`.
+    pub fn translation_y(&self, other: &Self) -> f32 {
+        other.center.y - self.center.y
+    }
+
     /// Computes the rotation to transform from `self` to `other`.
-    pub fn rotation(&self, _other: &Self) -> AngleRadian {
-        todo!()
+    pub fn rotation(&self, other: &Self) -> AngleRadian {
+        other.angle - self.angle
     }
 
     /// Computes the scale to transform from `self` to `other`.
-    pub fn scale(&self, _other: &Self) -> Factor {
-        todo!()
+    pub fn scale(&self, other: &Self) -> Factor {
+        Factor(other.deviation / self.deviation)
+    }
+
+    /// Computes the scale-y to transform from `self` to `other`.
+    pub fn scale_x(&self, other: &Self) -> Factor {
+        Factor(other.deviation_x / self.deviation_x)
+    }
+
+    /// Computes the scale-y to transform from `self` to `other`.
+    pub fn scale_y(&self, other: &Self) -> Factor {
+        Factor(other.deviation_y / self.deviation_y)
     }
 
     /// Computes the transform from `self` to `other`.
     pub fn transform(&self, other: &Self, mode: TouchTransformMode) -> PxTransform {
         let mut m = PxTransform::identity();
 
-        if mode.contains(TouchTransformMode::TRANSLATE_X) || mode.contains(TouchTransformMode::TRANSLATE_Y) {
-            let mut t = self.translation(other);
-            if !mode.contains(TouchTransformMode::TRANSLATE_X) {
-                t.x = 0.0;
-            } else if !mode.contains(TouchTransformMode::TRANSLATE_Y) {
-                t.y = 0.0;
-            }
+        if mode.contains(TouchTransformMode::TRANSLATE) {
+            m = m.then_translate(self.translation(other));
+        } else if mode.contains(TouchTransformMode::TRANSLATE_X) {
+            let t = euclid::vec2(self.translation_x(other), 0.0);
+            m = m.then_translate(t);
+        } else if mode.contains(TouchTransformMode::TRANSLATE_Y) {
+            let t = euclid::vec2(0.0, self.translation_y(other));
             m = m.then_translate(t);
         }
 
-        // TODO
+        if mode.contains(TouchTransformMode::SCALE) {
+            let s = self.scale(other).0;
+            m = m.then(&PxTransform::scale(s, s));
+        } else if mode.contains(TouchTransformMode::SCALE_X) {
+            let s = self.scale_x(other);
+            m = m.then(&PxTransform::scale(s.0, 1.0))
+        } else if mode.contains(TouchTransformMode::SCALE_Y) {
+            let s = self.scale_y(other);
+            m = m.then(&PxTransform::scale(1.0, s.0))
+        }
+
+        if mode.contains(TouchTransformMode::ROTATE) {
+            let a = self.rotation(other);
+            m = m.then(&PxTransform::rotation(0.0, 0.0, a.layout()));
+        }
 
         m
     }
@@ -1166,15 +1213,13 @@ bitflags! {
         const SCALE_X = 0b0000_0100;
         /// Scale in the Y dimension.
         const SCALE_Y = 0b0000_1000;
-        /// Scale in both dimension.
-        const SCALE = Self::SCALE_X.bits() | Self::SCALE_Y.bits();
         /// Scale in both dimensions the same amount.
-        const SCALE_LOCKED = 0b0001_1100;
+        const SCALE = 0b0001_1100;
 
         /// Rotate.
         const ROTATE = 0b0010_0000;
 
         /// Translate, scale-square and rotate.
-        const ALL = Self::TRANSLATE.bits()| Self::SCALE_LOCKED.bits() | Self::ROTATE.bits();
+        const ALL = Self::TRANSLATE.bits()| Self::SCALE.bits() | Self::ROTATE.bits();
     }
 }
