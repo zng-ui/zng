@@ -127,6 +127,17 @@ impl WidgetPath {
             })
         }
     }
+
+    /// Gets a path to the `widget_id` of this path.
+    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<WidgetPath>> {
+        if self.widget_id() == widget_id {
+            Some(Cow::Borrowed(self))
+        } else {
+            let i = self.path.iter().position(|&id| id == widget_id)?;
+            let path = Self::new(self.window_id, Arc::new(self.path[..=i].to_vec()));
+            Some(Cow::Owned(path))
+        }
+    }
 }
 
 /// Represents a [`WidgetPath`] with extra [`Interactivity`] for each widget.
@@ -404,6 +415,20 @@ impl InteractionPath {
                 blocked: self.blocked,
                 disabled: self.disabled,
             })
+        }
+    }
+
+    /// Gets a sub-path up to `widget_id` (inclusive), or `None` if the widget is not in the path.
+    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<InteractionPath>> {
+        if widget_id == self.widget_id() {
+            Some(Cow::Borrowed(self))
+        } else {
+            let path = self.path.sub_path(widget_id)?;
+            Some(Cow::Owned(Self {
+                path: path.into_owned(),
+                blocked: self.blocked,
+                disabled: self.disabled,
+            }))
         }
     }
 }

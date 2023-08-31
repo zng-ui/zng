@@ -1048,18 +1048,20 @@ impl TapStart {
         if let TouchPhase::End = args.phase {
             self.propagation.stop(); // touch_propagation always is stopped after touch end.
 
-            TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
-                args.timestamp,
-                args.propagation().clone(),
-                self.window_id,
-                self.device_id,
-                self.touch,
-                args.position,
-                args.hits.clone(),
-                args.target.clone(),
-                args.capture.clone(),
-                args.modifiers,
-            ));
+            if let Some(target) = args.target.sub_path(self.target) {
+                TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
+                    args.timestamp,
+                    args.propagation().clone(),
+                    self.window_id,
+                    self.device_id,
+                    self.touch,
+                    args.position,
+                    args.hits.clone(),
+                    target.into_owned(),
+                    args.capture.clone(),
+                    args.modifiers,
+                ));
+            }
         } else if let TouchPhase::Cancel = args.phase {
             self.propagation.stop();
         }

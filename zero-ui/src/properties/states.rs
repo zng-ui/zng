@@ -259,6 +259,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// The value is always `false` when the widget is not [`ENABLED`].
 ///
 /// [`is_cap_touched`]: fn@is_cap_touched
+/// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
@@ -395,7 +396,7 @@ pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) 
 
 /// If [`is_mouse_pressed`] or [`is_touched_from_start`].
 ///
-/// Note that [`is_mouse_pressed`] and [`is_touched`] do not consider pointer capture, use [`is_cap_pointer_pressed`] to
+/// Note that [`is_mouse_pressed`] and [`is_touched_from_start`] do not consider pointer capture, use [`is_cap_pointer_pressed`] to
 /// include the captured state.
 ///
 /// [`is_mouse_pressed`]: fn@is_mouse_pressed
@@ -414,7 +415,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 
 /// If [`is_mouse_pressed`], [`is_touched_from_start`] or [`is_shortcut_pressed`].
 ///
-/// Note that [`is_mouse_pressed`] and [`is_touched`] do not consider pointer capture, use [`is_cap_pressed`] to
+/// Note that [`is_mouse_pressed`] and [`is_touched_from_start`] do not consider pointer capture, use [`is_cap_pressed`] to
 /// include the captured state.
 ///
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration

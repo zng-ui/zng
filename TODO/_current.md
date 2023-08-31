@@ -23,7 +23,7 @@
     - https://api.flutter.dev/flutter/gestures/gestures-library.html
 
 
-* Tap event send for touches started outside of a button.
+* Touch drag release in the window background causes the title bar to not be interactive anymore.
 
 * Implement `TapMode`?
     - Like `ClickMode`.
