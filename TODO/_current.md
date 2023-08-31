@@ -30,14 +30,13 @@
 * `gesture_propagation`:
     - Create property helper, only subscribes to touch move when gesture pending?
     - OR, a `GESTURES.register_gesture` or with a boxed trait.
-    - We must only start trying a gesture if the target widget path subscribes to it.
-        - Can use `Event::is_subscriber` for this.
-        - And `Event::has_hooks`.
-    - Refactor `TOUCH_TAP_EVENT` to use this.
+    - OR, events that check `has_hooks` and `is_subscriber`.
 
 * Implement gestures:
     - Double tap.
+        - This gesture exists across two touch lifetimes, how is the `touch_propagation` handled in this case?
     - Context tap.
+        - Long press?
     - Pinch:
         - Two fingers, move closer together or a farther apart.
     - Rotate:

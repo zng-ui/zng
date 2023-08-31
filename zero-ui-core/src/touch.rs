@@ -190,6 +190,11 @@ event_args! {
         /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
         /// gesture should be generated, multiple gestures can disambiguate using this `touch_propagation` handle.
         ///
+        /// As an example, [`TOUCH_TAP_EVENT`] only tries to match the gesture if it has subscribers, and only notifies
+        /// if by the time the gesture completes the `touch_propagation` was not stopped. Touch gesture events or event properties
+        /// must stop touch propagation as soon as they commit to a gesture, a *pan* gesture for example, must stop as soon as
+        /// it starts scrolling, otherwise the user may accidentally scroll and tap a button at the same time.
+        ///
         /// The propagation handle always signals *stopped* after the touch ends. Handles are unique while at least one
         /// clone of it remains, this makes this a better unique identifier of a touch contact than [`TouchId`] that may be reused
         /// by the system as soon as a new touch contact is made.
@@ -249,17 +254,9 @@ event_args! {
         /// on the same device, after a touch is ended an ID may be reused.
         pub touch: TouchId,
 
-        /// Propagation handle for the [`touch`] lifetime.
+        /// Handle across the lifetime of `touch`.
         ///
-        /// The [`TOUCH_INPUT_EVENT`] and [`TOUCH_MOVE_EVENT`] have their own separate propagation handles, but
-        /// touch gesture events aggregate all these events to produce a single *gesture event*, usually only a single
-        /// gesture should be generated, multiple gestures can disambiguate using this `touch_propagation` handle.
-        ///
-        /// The propagation handle always signals *stopped* after the touch ends. Handles are unique while at least one
-        /// clone of it remains, this makes this a better unique identifier of a touch contact than [`TouchId`] that may be reused
-        /// by the system as soon as a new touch contact is made.
-        ///
-        /// [`touch`]: Self::touch
+        /// See [`TouchInputArgs::touch_propagation`] for more details.
         pub touch_propagation: EventPropagationHandle,
 
         /// Center of the touch in the window's content area.
@@ -576,6 +573,9 @@ event! {
     pub static TOUCHED_EVENT: TouchedArgs;
 
     /// Touch tap.
+    ///
+    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
+    /// touched path or app level hooks.
     pub static TOUCH_TAP_EVENT: TouchTapArgs;
 }
 
@@ -668,7 +668,7 @@ impl AppExtension for TouchManager {
                 } else {
                     self.tap_start = None;
                 }
-            } else {
+            } else if TOUCH_TAP_EVENT.has_hooks() || args.target.widgets_path().iter().any(|w| TOUCH_TAP_EVENT.is_subscriber(*w)) {
                 self.tap_start = TapStart::try_start(args);
             }
         } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {

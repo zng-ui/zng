@@ -937,6 +937,11 @@ event! {
 #[derive(Default)]
 pub struct GestureManager {}
 impl AppExtension for GestureManager {
+    fn init(&mut self) {
+        // touch gesture event, only notifies if has hooks or subscribers.
+        TOUCH_TAP_EVENT.as_any().hook(|_| true).perm();
+    }
+
     fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
