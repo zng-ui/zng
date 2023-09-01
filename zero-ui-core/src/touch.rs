@@ -30,6 +30,7 @@ use crate::{
 /// * [`TOUCH_INPUT_EVENT`]
 /// * [`TOUCHED_EVENT`]
 /// * [`TOUCH_TAP_EVENT`]
+/// * [`TOUCH_TRANSFORM_EVENT`]
 ///
 /// # Services
 ///
@@ -346,6 +347,49 @@ event_args! {
             }
         }
     }
+
+    /// Arguments for [`TOUCH_TRANSFORM_EVENT`].
+    pub struct TouchTransformArgs {
+        /// Id of window that received the touch events.
+        pub window_id: WindowId,
+
+        /// Id of the device that generated the touch events.
+        pub device_id: DeviceId,
+
+        /// Info collected when the second touch point started.
+        pub first_info: Touch2Info,
+
+        /// Latest update of the two points.
+        pub latest_info: Touch2Info,
+
+        /// Gesture phase.
+        pub phase: TouchPhase,
+
+        /// Hit-test result for the first touch point in the window.
+        pub hits: HitTestInfo,
+
+        /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
+        pub target: InteractionPath,
+
+        /// Current pointer capture.
+        pub capture: Option<CaptureInfo>,
+
+        /// What modifier keys where pressed when this event happened.
+        pub modifiers: ModifiersState,
+
+        ..
+
+        /// The [`target`] and [`capture`].
+        ///
+        /// [`target`]: Self::target
+        /// [`capture`]: Self::capture
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target);
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
+        }
+    }
 }
 
 impl TouchMoveArgs {
@@ -388,14 +432,14 @@ impl TouchInputArgs {
         matches!(self.phase, TouchPhase::Start)
     }
 
-    /// If the [`phase`] is start.
+    /// If the [`phase`] is end.
     ///
     /// [`phase`]: Self::phase
     pub fn is_touch_end(&self) -> bool {
         matches!(self.phase, TouchPhase::End)
     }
 
-    /// If the [`phase`] is start.
+    /// If the [`phase`] is cancel.
     ///
     /// [`phase`]: Self::phase
     pub fn is_touch_cancel(&self) -> bool {
@@ -562,6 +606,124 @@ impl TouchedArgs {
     }
 }
 
+impl TouchTransformArgs {
+    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
+    ///
+    /// [`capture`]: Self::capture
+    /// [`allows`]: CaptureInfo::allows
+    pub fn capture_allows(&self) -> bool {
+        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    }
+
+    /// If the `widget_id` is in the [`target`] is enabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+    }
+
+    /// If the `widget_id` is in the [`target`] is disabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+
+    /// Computes the translation to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn translation(&self) -> euclid::Vector2D<f32, Px> {
+        self.first_info.translation(&self.latest_info)
+    }
+
+    /// Computes the translation-x to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn translation_x(&self) -> f32 {
+        self.first_info.translation_x(&self.latest_info)
+    }
+
+    /// Computes the translation-y to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn translation_y(&self) -> f32 {
+        self.first_info.translation_y(&self.latest_info)
+    }
+
+    /// Computes the rotation to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn rotation(&self) -> AngleRadian {
+        self.first_info.rotation(&self.latest_info)
+    }
+
+    /// Computes the scale to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn scale(&self) -> Factor {
+        self.first_info.scale(&self.latest_info)
+    }
+
+    /// Computes the scale-y to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn scale_x(&self) -> Factor {
+        self.first_info.scale_x(&self.latest_info)
+    }
+
+    /// Computes the scale-y to transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn scale_y(&self) -> Factor {
+        self.first_info.scale_y(&self.latest_info)
+    }
+
+    /// Computes the transform from [`first_info`] to [`latest_info`].
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn transform(&self, mode: TouchTransformMode) -> PxTransform {
+        self.first_info.transform(&self.latest_info, mode)
+    }
+
+    /// If the [`phase`] is start.
+    ///
+    /// Note that the [`latest_info`] may already be different from [`first_info`] if the gesture
+    /// detector awaited to disambiguate before starting the gesture.
+    ///
+    /// [`phase`]: Self::phase
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn is_start(&self) -> bool {
+        matches!(self.phase, TouchPhase::Start)
+    }
+
+    /// If the [`phase`] is end.
+    ///
+    /// Any transform already applied must be committed.
+    ///
+    /// [`phase`]: Self::phase
+    pub fn is_end(&self) -> bool {
+        matches!(self.phase, TouchPhase::End)
+    }
+
+    /// If the [`phase`] is cancel.
+    ///
+    /// Any transform already applied must be undone.
+    ///
+    /// [`phase`]: Self::phase
+    pub fn is_cancel(&self) -> bool {
+        matches!(self.phase, TouchPhase::Cancel)
+    }
+}
+
 event! {
     /// Touch contact moved.
     pub static TOUCH_MOVE_EVENT: TouchMoveArgs;
@@ -577,6 +739,12 @@ event! {
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
     pub static TOUCH_TAP_EVENT: TouchTapArgs;
+
+    /// Double touch transform.
+    ///
+    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
+    /// touched path or app level hooks.
+    pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs;
 }
 
 impl AppExtension for TouchManager {
