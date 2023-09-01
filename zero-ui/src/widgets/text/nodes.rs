@@ -1,6 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{borrow::Cow, fmt, sync::Arc};
+use std::{borrow::Cow, fmt, ops, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
@@ -42,6 +42,9 @@ pub struct CaretInfo {
     /// This is the insertion offset on the text, it can be the text length.
     pub index: Option<CaretIndex>,
 
+    /// Second index that defines the start or end of a selection range.
+    pub selection_index: Option<CaretIndex>,
+
     /// Value incremented by one every time the `index` is set.
     ///
     /// This is used to signal interaction with the `index` value by [`TextEditOp`]
@@ -80,6 +83,16 @@ impl CaretInfo {
             self.index = Some(CaretIndex { index, line: 0 });
         }
         self.index_version = self.index_version.wrapping_add(1);
+    }
+
+    pub fn selection_range(&self) -> Option<ops::Range<CaretIndex>> {
+        let a = self.index?;
+        let b = self.selection_index?;
+        if a.index < b.index {
+            Some(a..b)
+        } else {
+            Some(b..a)
+        }
     }
 }
 
@@ -389,6 +402,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 caret: Mutex::new(CaretInfo {
                     opacity: caret_opacity,
                     index: None,
+                    selection_index: None,
                     index_version: 0,
                     used_retained_x: false,
                 }),

@@ -1,7 +1,6 @@
 # TextInput
 
 * Implement selection.
-    - Implement `txt_highlight` first.
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.

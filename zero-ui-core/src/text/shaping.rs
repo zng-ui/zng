@@ -1518,6 +1518,38 @@ impl ShapedText {
             None
         }
     }
+
+    /// Yields rects of the text encompassed by `range`
+    pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, txt: &str) -> impl Iterator<Item = PxRect> {
+        let start_x = self.caret_origin(range.start, txt).x;
+        let end_x = self.caret_origin(range.end, txt).x;
+        let mut rects = vec![];
+
+        if range.start.line == range.end.line {
+            let mut line_rect = self.line(range.start.line).unwrap().rect();
+            line_rect.origin.x = start_x;
+            line_rect.size.width = end_x - line_rect.origin.x;
+
+            rects.push(line_rect);
+        } else {
+            let mut line_rect = self.line(range.start.line).unwrap().rect();
+            let x_diff = start_x - line_rect.origin.x;
+            line_rect.origin.x = start_x;
+            line_rect.size.width -= x_diff;
+            rects.push(line_rect);
+
+            for line in (range.start.line + 1)..range.end.line {
+                line_rect = self.line(line).unwrap().rect();
+                rects.push(line_rect);
+            }
+
+            line_rect = self.line(range.end.line).unwrap().rect();
+            line_rect.size.width = end_x - line_rect.origin.x;
+            rects.push(line_rect);
+        }
+
+        rects.into_iter()
+    }
 }
 
 struct ColoredGlyphsIter<'a, G>
