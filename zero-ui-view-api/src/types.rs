@@ -3727,22 +3727,35 @@ impl Default for MultiClickConfig {
 /// System settings needed to implementing touch gestures.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
 pub struct TouchConfig {
-    /// Maximum (x, y) distance in pixels that a touch start and end must be to generate a touch click.
+    /// Maximum (x, y) distance between a touch start and end that generates a touch click.
+    ///
+    /// Area can be disregarded if the touch is not ambiguous. This usually defines the initial lag
+    /// for a single finger drag gesture.
     pub tap_area: DipSize,
 
-    /// Maximum (x, y) distance in pixels that a second tap must happen.
+    /// Maximum (x, y) distance that a subsequent touch click is linked with the previous one as a double click.
     pub double_tap_area: DipSize,
 
     /// Maximum time between start and end in the `tap_area` that generates a touch click.
+    ///
+    /// Time can be disregarded if the touch is not ambiguous. This usually defines the *long press* delay.
     pub max_tap_time: Duration,
+
+    /// Minimum velocity that can be considered a fling gesture, in dip per seconds.
+    pub min_fling_velocity: Dip,
+
+    /// Fling velocity ceiling, in dip per seconds.
+    pub max_fling_velocity: Dip,
 }
 impl Default for TouchConfig {
-    /// `1, 1`, `4, 4`, `300ms`.
+    /// `8, 8`, `28, 28`, `300ms`, `50`, `8000`.
     fn default() -> Self {
         Self {
-            tap_area: DipSize::splat(Dip::new(1)),
-            double_tap_area: DipSize::splat(Dip::new(4)),
+            tap_area: DipSize::splat(Dip::new(8)),
+            double_tap_area: DipSize::splat(Dip::new(28)),
             max_tap_time: Duration::from_millis(300),
+            min_fling_velocity: Dip::new(50),
+            max_fling_velocity: Dip::new(8000),
         }
     }
 }
