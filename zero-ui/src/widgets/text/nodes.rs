@@ -85,6 +85,10 @@ impl CaretInfo {
         self.index_version = self.index_version.wrapping_add(1);
     }
 
+    /// Gets the selection range if both [`index`] and [`selection_index`] are set.
+    ///
+    /// [`index`]: Self::index
+    /// [`selection_index`]: Self::selection_index
     pub fn selection_range(&self) -> Option<ops::Range<CaretIndex>> {
         let a = self.index?;
         let b = self.selection_index?;

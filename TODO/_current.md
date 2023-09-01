@@ -1,8 +1,10 @@
 # TextInput
 
 * Implement selection.
+    - Use `CaretInfo::selection_range`.
     - Input replaces selection.
         - Char input, paste, IME
+    - Double-click causes selection that grows by word.
     - Impl cut & copy.
 
 * Implement IME.
