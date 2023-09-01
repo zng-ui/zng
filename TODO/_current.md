@@ -19,6 +19,11 @@
 
 * Implement `TOUCH_TRANSFORM_EVENT`.
     - Need to wait for the tap distance to clear to start the event?
+        - No, because its two fingers.
+* Implement `TOUCH_PAN_EVENT`.
+    - One finger translate.
+    - Needs to wait for the tap distance.
+    - Can we integrate this in the transform event?
 
 * Implement `TapMode`?
     - Like `ClickMode`.
