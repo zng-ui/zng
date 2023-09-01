@@ -18,9 +18,12 @@
 
 # Touch Events
 
-* Implement `TOUCH_TRANSFORM_EVENT`.
-    - Need to wait for the tap distance to clear to start the event?
-        - No, because its two fingers.
+* Use `TOUCH_TRANSFORM_EVENT`.
+    - Event property.
+    - Property that applies the transform on the widget?
+    - Hit-test ok?
+        - Should it be the center or the first touch?
+        - If we capture touch (correct usage should probably capture) it is done on the first touch.
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.

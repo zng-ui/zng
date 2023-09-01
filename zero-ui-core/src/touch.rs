@@ -49,6 +49,7 @@ pub struct TouchManager {
     modifiers: ModifiersState,
     pressed: HashMap<TouchId, PressedInfo>,
     tap_gesture: TapGesture,
+    transform_gesture: TransformGesture,
 }
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
@@ -360,15 +361,16 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Info collected when the second touch point started.
-        pub first_info: Touch2Info,
+        pub first_info: TouchTransformInfo,
 
         /// Latest update of the two points.
-        pub latest_info: Touch2Info,
+        pub latest_info: TouchTransformInfo,
 
         /// Gesture phase.
         pub phase: TouchPhase,
 
-        /// Hit-test result for the first touch point in the window.
+        /// Hit-test result for the center point between the first position of the two touches in the window
+        /// when the gesture started.
         pub hits: HitTestInfo,
 
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
@@ -794,6 +796,7 @@ impl AppExtension for TouchManager {
 
             if args.is_respawn {
                 self.tap_gesture.clear();
+                self.transform_gesture.clear();
 
                 for (touch, info) in self.pressed.drain() {
                     let args = TouchInputArgs::now(
@@ -834,8 +837,10 @@ impl AppExtension for TouchManager {
     fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
             self.tap_gesture.on_input(args);
+            self.transform_gesture.on_input(args);
         } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
             self.tap_gesture.on_move(args);
+            self.transform_gesture.on_move(args);
         } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
             for (touch, info) in &self.pressed {
                 let args = TouchedArgs::now(
@@ -1297,7 +1302,7 @@ impl TapGesture {
 
 /// Info useful for touch gestures computed from two touch points.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Touch2Info {
+pub struct TouchTransformInfo {
     /// The two touch contact points.
     pub touches: [euclid::Point2D<f32, Px>; 2],
 
@@ -1322,7 +1327,7 @@ pub struct Touch2Info {
     /// Angle of the line.
     pub angle: AngleRadian,
 }
-impl Touch2Info {
+impl TouchTransformInfo {
     /// Compute the line info.
     pub fn new_f32(touches: [euclid::Point2D<f32, Px>; 2]) -> Self {
         let a = touches[0].to_vector();
@@ -1353,7 +1358,7 @@ impl Touch2Info {
         Self::new_f32([touches[0].to_f32().to_px(scale_factor.0), touches[1].to_f32().to_px(scale_factor.0)])
     }
 }
-impl Touch2Info {
+impl TouchTransformInfo {
     /// Computes the translation to transform from `self` to `other`.
     pub fn translation(&self, other: &Self) -> euclid::Vector2D<f32, Px> {
         other.center.to_vector() - self.center.to_vector()
@@ -1448,5 +1453,299 @@ bitflags! {
 
         /// Translate, scale-square and rotate.
         const ALL = Self::TRANSLATE.bits()| Self::SCALE.bits() | Self::ROTATE.bits();
+    }
+}
+
+#[derive(Default)]
+enum TransformGesture {
+    #[default]
+    NoTouch,
+
+    OneTouch {
+        window_id: WindowId,
+        device_id: DeviceId,
+        position: DipPoint,
+        handle: EventPropagationHandle,
+    },
+
+    TwoTouches {
+        window_id: WindowId,
+        device_id: DeviceId,
+        start_position: [DipPoint; 2],
+        position: [DipPoint; 2],
+        handle: [EventPropagationHandle; 2],
+        scale_factor: Factor,
+    },
+
+    Started {
+        window_id: WindowId,
+        device_id: DeviceId,
+        position: [DipPoint; 2],
+        scale_factor: Factor,
+        handle: [EventPropagationHandle; 2],
+        first_info: TouchTransformInfo,
+        hits: HitTestInfo,
+        target: InteractionPath,
+    },
+}
+impl TransformGesture {
+    fn on_input(&mut self, args: &TouchInputArgs) {
+        match mem::take(self) {
+            Self::NoTouch => {
+                if TouchPhase::Start == args.phase && !args.touch_propagation.is_stopped() {
+                    *self = Self::OneTouch {
+                        window_id: args.window_id,
+                        device_id: args.device_id,
+                        position: args.position,
+                        handle: args.touch_propagation.clone(),
+                    }
+                }
+            }
+            Self::OneTouch {
+                window_id,
+                device_id,
+                position,
+                handle,
+            } => {
+                if TouchPhase::Start == args.phase
+                    && window_id == args.window_id
+                    && device_id == args.device_id
+                    && !args.touch_propagation.is_stopped()
+                    && !handle.is_stopped()
+                    && handle != args.touch_propagation
+                {
+                    if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
+                        *self = Self::TwoTouches {
+                            window_id: args.window_id,
+                            device_id: args.device_id,
+                            start_position: [position, args.position],
+                            position: [position, args.position],
+                            handle: [handle, args.touch_propagation.clone()],
+                            scale_factor: w.scale_factor(),
+                        }
+                    }
+                }
+            }
+            Self::TwoTouches { .. } => {
+                // cancel before start
+            }
+            started => {
+                if TouchPhase::End == args.phase {
+                    if let Self::Started {
+                        window_id,
+                        device_id,
+                        mut position,
+                        scale_factor,
+                        handle,
+                        first_info,
+                        hits,
+                        target,
+                    } = started
+                    {
+                        if let Some(i) = handle.iter().position(|h| h == &args.touch_propagation) {
+                            position[i] = args.position;
+                        } else {
+                            self.clear();
+                            return;
+                        }
+
+                        let latest_info = TouchTransformInfo::new_dip(position, scale_factor);
+                        let capture = POINTER_CAPTURE.current_capture_value();
+
+                        let args = TouchTransformArgs::now(
+                            window_id,
+                            device_id,
+                            first_info,
+                            latest_info,
+                            TouchPhase::End,
+                            hits,
+                            target,
+                            capture,
+                            args.modifiers,
+                        );
+                        TOUCH_TRANSFORM_EVENT.notify(args);
+                    } else {
+                        unreachable!()
+                    }
+                } else {
+                    *self = started;
+                    self.clear();
+                }
+            }
+        }
+    }
+
+    fn on_move(&mut self, args: &TouchMoveArgs) {
+        match self {
+            Self::NoTouch => {}
+            Self::OneTouch { position, handle, .. } => {
+                if handle.is_stopped() {
+                    *self = Self::NoTouch;
+                } else {
+                    for t in &args.touches {
+                        if handle == &t.touch_propagation {
+                            *position = t.position();
+                        } else {
+                            *self = Self::NoTouch;
+                            break;
+                        }
+                    }
+                }
+            }
+            Self::TwoTouches {
+                start_position,
+                position,
+                handle,
+                scale_factor,
+                window_id,
+                device_id,
+            } => {
+                if handle[0].is_stopped() || handle[1].is_stopped() {
+                    *self = Self::NoTouch;
+                } else {
+                    let mut any_moved = false;
+                    for t in &args.touches {
+                        if let Some(i) = handle.iter().position(|h| h == &t.touch_propagation) {
+                            position[i] = t.position();
+                            any_moved = true;
+                        } else {
+                            *self = Self::NoTouch;
+                            return;
+                        }
+                    }
+
+                    if any_moved {
+                        let first_info = TouchTransformInfo::new_dip(*start_position, *scale_factor);
+                        let latest_info = TouchTransformInfo::new_dip(*position, *scale_factor);
+
+                        let start = {
+                            let translation = first_info.translation(&latest_info);
+                            translation.x > 0.0 && translation.y > 0.0
+                        } || {
+                            let scale = first_info.scale(&latest_info);
+                            scale.0 != 1.0
+                        } || {
+                            let rotate = first_info.rotation(&latest_info);
+                            rotate.0 != 0.0
+                        };
+
+                        if start {
+                            if let Ok(w) = WINDOWS.widget_tree(*window_id) {
+                                let hits = w.root().hit_test(first_info.center.cast());
+                                let target = hits
+                                    .target()
+                                    .and_then(|t| w.get(t.widget_id))
+                                    .map(|t| t.interaction_path())
+                                    .unwrap_or_else(|| w.root().interaction_path());
+
+                                let target = match target.unblocked() {
+                                    Some(t) => t,
+                                    None => {
+                                        *self = Self::NoTouch;
+                                        return; // entire window blocked
+                                    }
+                                };
+                                let capture = POINTER_CAPTURE.current_capture_value();
+
+                                for h in handle.iter() {
+                                    // takeover the gesture.
+                                    h.stop();
+                                }
+
+                                let args = TouchTransformArgs::now(
+                                    *window_id,
+                                    *device_id,
+                                    first_info.clone(),
+                                    latest_info,
+                                    TouchPhase::Start,
+                                    hits.clone(),
+                                    target.clone(),
+                                    capture,
+                                    args.modifiers,
+                                );
+                                TOUCH_TRANSFORM_EVENT.notify(args);
+
+                                *self = Self::Started {
+                                    window_id: *window_id,
+                                    device_id: *device_id,
+                                    position: *position,
+                                    scale_factor: *scale_factor,
+                                    handle: handle.clone(),
+                                    first_info,
+                                    hits,
+                                    target,
+                                };
+                            } else {
+                                *self = Self::NoTouch;
+                            }
+                        }
+                    }
+                }
+            }
+            Self::Started {
+                window_id,
+                device_id,
+                position,
+                scale_factor,
+                handle,
+                first_info,
+                hits,
+                target,
+            } => {
+                let mut any_moved = false;
+                for t in &args.touches {
+                    if let Some(i) = handle.iter().position(|h| h == &t.touch_propagation) {
+                        position[i] = t.position();
+                        any_moved = true;
+                    } else {
+                        self.clear();
+                        return;
+                    }
+                }
+
+                if any_moved {
+                    let latest_info = TouchTransformInfo::new_dip(*position, *scale_factor);
+                    let capture = POINTER_CAPTURE.current_capture_value();
+
+                    let args = TouchTransformArgs::now(
+                        *window_id,
+                        *device_id,
+                        first_info.clone(),
+                        latest_info,
+                        TouchPhase::Move,
+                        hits.clone(),
+                        target.clone(),
+                        capture,
+                        args.modifiers,
+                    );
+                    TOUCH_TRANSFORM_EVENT.notify(args);
+                }
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        if let Self::Started {
+            window_id,
+            device_id,
+            first_info,
+            hits,
+            target,
+            ..
+        } = mem::take(self)
+        {
+            let args = TouchTransformArgs::now(
+                window_id,
+                device_id,
+                first_info.clone(),
+                first_info,
+                TouchPhase::Cancel,
+                hits,
+                target,
+                None,
+                ModifiersState::empty(),
+            );
+            TOUCH_TRANSFORM_EVENT.notify(args);
+        }
     }
 }
