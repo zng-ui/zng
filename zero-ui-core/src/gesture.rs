@@ -168,7 +168,7 @@ impl From<TouchTapArgs> for ClickArgs {
                 position: args.position,
                 hits: args.hits,
             },
-            NonZeroU32::new(1).unwrap(),
+            args.tap_count,
             false,
             args.modifiers,
             args.target,

@@ -3734,12 +3734,17 @@ pub struct TouchConfig {
     pub tap_area: DipSize,
 
     /// Maximum (x, y) distance that a subsequent touch click is linked with the previous one as a double click.
+    ///
+    /// Area can be disregarded if the touch is not ambiguous.
     pub double_tap_area: DipSize,
 
     /// Maximum time between start and end in the `tap_area` that generates a touch click.
     ///
     /// Time can be disregarded if the touch is not ambiguous. This usually defines the *long press* delay.
-    pub max_tap_time: Duration,
+    pub tap_max_time: Duration,
+
+    /// Maximum time between taps that generates a double click.
+    pub double_tap_max_time: Duration,
 
     /// Minimum velocity that can be considered a fling gesture, in dip per seconds.
     pub min_fling_velocity: Dip,
@@ -3748,12 +3753,12 @@ pub struct TouchConfig {
     pub max_fling_velocity: Dip,
 }
 impl Default for TouchConfig {
-    /// `8, 8`, `28, 28`, `300ms`, `50`, `8000`.
     fn default() -> Self {
         Self {
             tap_area: DipSize::splat(Dip::new(8)),
             double_tap_area: DipSize::splat(Dip::new(28)),
-            max_tap_time: Duration::from_millis(300),
+            tap_max_time: Duration::from_millis(300),
+            double_tap_max_time: Duration::from_millis(500),
             min_fling_velocity: Dip::new(50),
             max_fling_velocity: Dip::new(8000),
         }

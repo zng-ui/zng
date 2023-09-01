@@ -2,7 +2,7 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::mem;
+use std::{mem, num::NonZeroU32, time::Instant};
 
 use hashbrown::HashMap;
 pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
@@ -15,7 +15,7 @@ use crate::{
     pointer_capture::{CaptureInfo, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     units::*,
     var::*,
-    widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree},
+    widget_info::{HitTestInfo, InteractionPath},
     widget_instance::WidgetId,
     window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS},
 };
@@ -48,7 +48,7 @@ use crate::{
 pub struct TouchManager {
     modifiers: ModifiersState,
     pressed: HashMap<TouchId, PressedInfo>,
-    tap_start: Option<TapStart>,
+    tap_gesture: TapGesture,
 }
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
@@ -333,6 +333,9 @@ event_args! {
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
+
+        /// Count of taps within the double-tap interval. Number `1` is single tap, `2` is double tap, etc.
+        pub tap_count: NonZeroU32,
 
         ..
 
@@ -790,7 +793,7 @@ impl AppExtension for TouchManager {
             TOUCH_SV.read().touch_config.set(args.touch_config);
 
             if args.is_respawn {
-                self.tap_start = None;
+                self.tap_gesture.clear();
 
                 for (touch, info) in self.pressed.drain() {
                     let args = TouchInputArgs::now(
@@ -830,24 +833,9 @@ impl AppExtension for TouchManager {
 
     fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-            if let Some(s) = self.tap_start.take() {
-                if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-                    s.try_complete(args, &w);
-                } else {
-                    self.tap_start = None;
-                }
-            } else if TOUCH_TAP_EVENT.has_hooks() || args.target.widgets_path().iter().any(|w| TOUCH_TAP_EVENT.is_subscriber(*w)) {
-                self.tap_start = TapStart::try_start(args);
-            }
+            self.tap_gesture.on_input(args);
         } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
-            if let Some(s) = &self.tap_start {
-                for t in &args.touches {
-                    if !s.retain(args.window_id, args.device_id, t.touch) {
-                        self.tap_start = None;
-                        break;
-                    }
-                }
-            }
+            self.tap_gesture.on_move(args);
         } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
             for (touch, info) in &self.pressed {
                 let args = TouchedArgs::now(
@@ -1150,7 +1138,14 @@ impl TouchManager {
     }
 }
 
-struct TapStart {
+struct PendingDoubleTap {
+    window_id: WindowId,
+    device_id: DeviceId,
+    target: WidgetId,
+    count: NonZeroU32,
+    timestamp: Instant,
+}
+struct PendingTap {
     window_id: WindowId,
     device_id: DeviceId,
     touch: TouchId,
@@ -1158,22 +1153,7 @@ struct TapStart {
 
     propagation: EventPropagationHandle,
 }
-impl TapStart {
-    /// Returns `Some(_)` if args could be the start of a tap event.
-    fn try_start(args: &TouchInputArgs) -> Option<Self> {
-        if let TouchPhase::Start = args.phase {
-            Some(Self {
-                window_id: args.window_id,
-                device_id: args.device_id,
-                touch: args.touch,
-                target: args.target.widget_id(),
-                propagation: args.touch_propagation.clone(),
-            })
-        } else {
-            None
-        }
-    }
-
+impl PendingTap {
     /// Check if the tap is still possible after a touch move..
     ///
     /// Returns `true` if it is.
@@ -1196,43 +1176,122 @@ impl TapStart {
         // retain
         true
     }
+}
 
-    /// Complete or cancel the tap.
-    fn try_complete(self, args: &TouchInputArgs, tree: &WidgetInfoTree) {
-        if !self.retain(args.window_id, args.device_id, args.touch) {
-            return;
-        }
-
-        match tree.get(self.target) {
-            Some(t) => {
-                if !t.hit_test(args.position.to_px(tree.scale_factor().0)).contains(self.target) {
-                    // cancel, touch did not end over target.
-                    return;
+#[derive(Default)]
+struct TapGesture {
+    pending_double: Option<PendingDoubleTap>,
+    pending: Option<PendingTap>,
+}
+impl TapGesture {
+    fn on_input(&mut self, args: &TouchInputArgs) {
+        match args.phase {
+            TouchPhase::Start => {
+                if self.pending.is_some() {
+                    self.pending = None;
+                    self.pending_double = None;
+                } else if TOUCH_TAP_EVENT.has_hooks() || args.target.widgets_path().iter().any(|w| TOUCH_TAP_EVENT.is_subscriber(*w)) {
+                    self.pending = Some(PendingTap {
+                        window_id: args.window_id,
+                        device_id: args.device_id,
+                        touch: args.touch,
+                        target: args.target.widget_id(),
+                        propagation: args.touch_propagation.clone(),
+                    });
                 }
             }
-            None => return,
-        };
+            TouchPhase::End => {
+                let pending_double = self.pending_double.take();
 
-        if let TouchPhase::End = args.phase {
-            self.propagation.stop(); // touch_propagation always is stopped after touch end.
+                if let Some(p) = self.pending.take() {
+                    if !p.retain(args.window_id, args.device_id, args.touch) {
+                        return;
+                    }
 
-            if let Some(target) = args.target.sub_path(self.target) {
-                TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
-                    args.timestamp,
-                    args.propagation().clone(),
-                    self.window_id,
-                    self.device_id,
-                    self.touch,
-                    args.position,
-                    args.hits.clone(),
-                    target.into_owned(),
-                    args.capture.clone(),
-                    args.modifiers,
-                ));
+                    p.propagation.stop(); // touch_propagation always is stopped after touch end.
+
+                    let tree = if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
+                        w
+                    } else {
+                        return;
+                    };
+
+                    match tree.get(p.target) {
+                        Some(t) => {
+                            if !t.hit_test(args.position.to_px(tree.scale_factor().0)).contains(p.target) {
+                                // cancel, touch did not end over target.
+                                return;
+                            }
+                        }
+                        None => return,
+                    }
+
+                    if let Some(target) = args.target.sub_path(p.target) {
+                        let tap_count = if let Some(double) = pending_double {
+                            let cfg = TOUCH.touch_config().get();
+                            if double.window_id == p.window_id
+                                && double.device_id == p.device_id
+                                && double.target == p.target
+                                && double.timestamp.elapsed() <= cfg.double_tap_max_time
+                            {
+                                NonZeroU32::new(double.count.get() + 1).unwrap()
+                            } else {
+                                NonZeroU32::new(1).unwrap()
+                            }
+                        } else {
+                            NonZeroU32::new(1).unwrap()
+                        };
+
+                        self.pending_double = Some(PendingDoubleTap {
+                            window_id: args.window_id,
+                            device_id: args.device_id,
+                            target: p.target,
+                            count: tap_count,
+                            timestamp: args.timestamp,
+                        });
+
+                        TOUCH_TAP_EVENT.notify(TouchTapArgs::new(
+                            args.timestamp,
+                            args.propagation().clone(),
+                            p.window_id,
+                            p.device_id,
+                            p.touch,
+                            args.position,
+                            args.hits.clone(),
+                            target.into_owned(),
+                            args.capture.clone(),
+                            args.modifiers,
+                            tap_count,
+                        ));
+                    }
+                }
             }
-        } else if let TouchPhase::Cancel = args.phase {
-            self.propagation.stop();
+            TouchPhase::Cancel => {
+                if let Some(p) = self.pending.take() {
+                    p.propagation.stop();
+                }
+                self.pending = None;
+                self.pending_double = None;
+            }
+            TouchPhase::Move => unreachable!(),
         }
+    }
+
+    fn on_move(&mut self, args: &TouchMoveArgs) {
+        if let Some(p) = &self.pending {
+            for t in &args.touches {
+                if !p.retain(args.window_id, args.device_id, t.touch) {
+                    self.pending = None;
+                    self.pending_double = None;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.pending = None;
+        self.pending_double = None;
     }
 }
 

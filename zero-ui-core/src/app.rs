@@ -2441,6 +2441,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 
 /// App events.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zero_ui_view_api::Event),

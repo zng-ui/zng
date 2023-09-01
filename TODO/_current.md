@@ -43,10 +43,9 @@
         - Ideally we only include the subscribers of CLICK_EVENT in TOUCH_TAP_EVENT.
 
 * Implement gestures:
-    - Double tap.
-        - This gesture exists across two touch lifetimes, how is the `touch_propagation` handled in this case?
     - Context tap.
         - Long press?
+        - CLICK_EVENT has interest in these, but if we always generate then it will conflict with pan?
     - Pinch:
         - Two fingers, move closer together or a farther apart.
     - Rotate:
