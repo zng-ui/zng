@@ -1455,6 +1455,15 @@ bitflags! {
         const ALL = Self::TRANSLATE.bits()| Self::SCALE.bits() | Self::ROTATE.bits();
     }
 }
+impl_from_and_into_var! {
+    fn from(all_or_empty: bool) -> TouchTransformMode {
+        if all_or_empty {
+            TouchTransformMode::ALL
+        } else {
+            TouchTransformMode::empty()
+        }
+    }
+}
 
 #[derive(Default)]
 enum TransformGesture {
@@ -1492,7 +1501,11 @@ impl TransformGesture {
     fn on_input(&mut self, args: &TouchInputArgs) {
         match mem::take(self) {
             Self::NoTouch => {
-                if TouchPhase::Start == args.phase && !args.touch_propagation.is_stopped() {
+                if TouchPhase::Start == args.phase
+                    && !args.touch_propagation.is_stopped()
+                    && (TOUCH_TRANSFORM_EVENT.has_hooks()
+                        || args.target.widgets_path().iter().any(|w| TOUCH_TRANSFORM_EVENT.is_subscriber(*w)))
+                {
                     *self = Self::OneTouch {
                         window_id: args.window_id,
                         device_id: args.device_id,

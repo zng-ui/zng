@@ -89,4 +89,11 @@ event_property! {
         args: TouchedArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
     }
+
+    /// Touch gesture to translate, scale or rotate happened over this widget.
+    pub fn touch_transform {
+        event: TOUCH_TRANSFORM_EVENT,
+        args: TouchTransformArgs,
+        filter: |args| args.is_enabled(WIDGET.id()),
+    }
 }

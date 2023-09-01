@@ -16,14 +16,20 @@
     - Lots of breaking changes.
 * Implement automation/screen reader APIs.
 
+# Events
+
+* Mouse and touch event properties do not check `capture_allows`?
+
 # Touch Events
 
 * Use `TOUCH_TRANSFORM_EVENT`.
-    - Event property.
-    - Property that applies the transform on the widget?
+    - Add `touch_transform` example.
     - Hit-test ok?
         - Should it be the center or the first touch?
         - If we capture touch (correct usage should probably capture) it is done on the first touch.
+        - We check the subscribers using the first touch target.
+        - We allow for the first touch to move.
+        - WPF only does gestures if the widget has capture.
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.
