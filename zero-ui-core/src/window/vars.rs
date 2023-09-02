@@ -36,6 +36,7 @@ pub(super) struct WindowVarsData {
     font_size: ArcVar<Length>,
 
     pub(super) actual_position: ArcVar<DipPoint>,
+    pub(super) global_position: ArcVar<PxPoint>,
     pub(super) actual_monitor: ArcVar<Option<MonitorId>>,
     pub(super) actual_size: ArcVar<DipSize>,
 
@@ -91,13 +92,14 @@ impl WindowVars {
             focus_indicator: var(None),
 
             position: var(Point::default()),
-            monitor: var(MonitorQuery::Primary),
+            monitor: var(MonitorQuery::default()),
             video_mode: var(VideoMode::default()),
             size: var(Size::new(800, 600)),
 
             font_size: var(11.pt()),
 
             actual_position: var(DipPoint::zero()),
+            global_position: var(PxPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
 
@@ -211,7 +213,7 @@ impl WindowVars {
     ///
     /// The query selects the monitor to which the [`position`] and [`size`] is relative to.
     ///
-    /// It evaluate once on startup and then once every time the variable updates. You can track
+    /// It evaluate once when the window opens and then once every time the variable updates. You can track
     /// what the current monitor is by using [`actual_monitor`].
     ///
     /// # Behavior After Open
@@ -261,6 +263,16 @@ impl WindowVars {
     /// [monitor]: Self::actual_monitor
     pub fn actual_position(&self) -> ReadOnlyArcVar<DipPoint> {
         self.0.actual_position.read_only()
+    }
+
+    /// Window actual position on the virtual screen that encompasses all monitors.
+    ///
+    /// This is a read-only variable that tracks the computed position of the window, it updates every
+    /// time the window moves.
+    ///
+    /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
+    pub fn global_position(&self) -> ReadOnlyArcVar<PxPoint> {
+        self.0.global_position.read_only()
     }
 
     /// Window *restore* state.

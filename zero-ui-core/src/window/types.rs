@@ -669,7 +669,10 @@ event_args! {
         pub state: Option<(WindowState, WindowState)>,
 
         /// New window position if it was moved.
-        pub position: Option<DipPoint>,
+        ///
+        /// The values are `(global_position, actual_position)` where the global position is
+        /// in the virtual space that encompasses all monitors and actual position is in the monitor space.
+        pub position: Option<(PxPoint, DipPoint)>,
 
         /// New window size if it was resized.
         pub size: Option<DipSize>,

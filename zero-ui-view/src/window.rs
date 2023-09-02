@@ -39,7 +39,7 @@ use crate::{
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
+    util::{CursorToWinit, DipToWinit, PxToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -72,7 +72,7 @@ pub(crate) struct Window {
 
     state: WindowStateAll,
 
-    prev_pos: PxPoint,
+    prev_pos: PxPoint, // in the global space
     prev_size: PxSize,
 
     prev_monitor: Option<MonitorHandle>,
@@ -130,24 +130,66 @@ impl Window {
         let mut s = cfg.state;
         s.clamp_size();
 
+        let mut monitor = window_target.primary_monitor();
+        let mut monitor_is_primary = true;
+        for m in window_target.available_monitors() {
+            let pos = m.position();
+            let size = m.size();
+            let rect = PxRect::new(pos.to_px(), size.to_px());
+
+            if rect.contains(s.global_position) {
+                let m = Some(m);
+                monitor_is_primary = m == monitor;
+                monitor = m;
+                break;
+            }
+        }
+        let monitor = monitor;
+        let monitor_is_primary = monitor_is_primary;
+
         if let WindowState::Normal = s.state {
             winit = winit
                 .with_min_inner_size(s.min_size.to_winit())
                 .with_max_inner_size(s.max_size.to_winit())
                 .with_inner_size(s.restore_rect.size.to_winit());
 
-            #[cfg(target_os = "linux")]
-            if cfg.default_position {
-                // default X11 position is outer zero.
-                winit = winit.with_position(DipPoint::new(Dip::new(120), Dip::new(80)).to_winit());
+            if let Some(m) = monitor {
+                if cfg.default_position {
+                    if (cfg!(windows) && !monitor_is_primary) || cfg!(target_os = "linux") {
+                        // default Windows position is in the primary only.
+                        // default X11 position is outer zero.
+
+                        let mut pos = m.position();
+                        pos.x += 120;
+                        pos.y += 80;
+                        winit = winit.with_position(pos);
+                    }
+                } else {
+                    let mut pos_in_monitor = s.restore_rect.origin.to_px(m.scale_factor() as _);
+
+                    let monitor_size = m.size();
+                    if pos_in_monitor.x.0 > monitor_size.width as _ {
+                        pos_in_monitor.x.0 = 120;
+                    }
+                    if pos_in_monitor.y.0 > monitor_size.height as _ {
+                        pos_in_monitor.y.0 = 80;
+                    }
+
+                    let mut pos = m.position();
+                    pos.x += pos_in_monitor.x.0;
+                    pos.y += pos_in_monitor.y.0;
+
+                    winit = winit.with_position(pos);
+                }
             }
-        } else if cfg.default_position {
-            if let Some(screen) = window_target.primary_monitor() {
-                // fallback to center.
-                let screen_size = screen.size().to_px().to_dip(screen.scale_factor() as f32);
-                s.restore_rect.origin.x = (screen_size.width - s.restore_rect.size.width) / 2.0;
-                s.restore_rect.origin.y = (screen_size.height - s.restore_rect.size.height) / 2.0;
-            }
+        } else if let Some(m) = monitor {
+            // fallback to center.
+            let screen_size = m.size().to_px().to_dip(m.scale_factor() as f32);
+            s.restore_rect.origin.x = (screen_size.width - s.restore_rect.size.width) / 2.0;
+            s.restore_rect.origin.y = (screen_size.height - s.restore_rect.size.height) / 2.0;
+
+            // place on monitor
+            winit = winit.with_position(m.position());
         }
 
         winit = winit
@@ -339,9 +381,16 @@ impl Window {
             win.set_always_on_top(true);
         }
 
+        win.state.global_position = win.window.inner_position().unwrap_or_default().to_px();
+        let monitor_offset = if let Some(m) = win.window.current_monitor() {
+            m.position().to_px().to_vector()
+        } else {
+            PxVector::zero()
+        };
+
         if win.state.state == WindowState::Normal && cfg.default_position {
             // system position.
-            win.state.restore_rect.origin = win.window.inner_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
+            win.state.restore_rect.origin = (win.state.global_position - monitor_offset).to_dip(win.scale_factor());
         }
 
         #[cfg(windows)]
@@ -351,6 +400,13 @@ impl Window {
 
         win.set_cursor(cfg.cursor);
         win.set_taskbar_visible(cfg.taskbar_visible);
+
+        #[cfg(windows)]
+        if win.state.state == WindowState::Maximized {
+            // window does not open maximized without this.
+            win.window.set_maximized(true);
+        }
+
         win
     }
 
@@ -527,8 +583,8 @@ impl Window {
         }
     }
 
-    /// Returns `Some(new_pos)` if the window position is different from the previous call to this function.
-    pub fn moved(&mut self) -> Option<DipPoint> {
+    /// Returns `Some((new_global_pos, new_pos))` if the window position is different from the previous call to this function.
+    pub fn moved(&mut self) -> Option<(PxPoint, DipPoint)> {
         if !self.visible {
             return None;
         }
@@ -537,7 +593,13 @@ impl Window {
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
 
-            Some(new_pos.to_dip(self.scale_factor()))
+            let monitor_offset = if let Some(m) = self.window.current_monitor() {
+                m.position().to_px().to_vector()
+            } else {
+                PxVector::zero()
+            };
+
+            Some((new_pos, (new_pos - monitor_offset).to_dip(self.scale_factor())))
         } else {
             None
         }
@@ -621,8 +683,8 @@ impl Window {
                     szDevice: [0; 32],
                 };
                 if unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFOEXW as *mut MONITORINFO) } != 0 {
-                    left_top.x.0 -= monitor_info.monitorInfo.rcWork.left;
-                    left_top.y.0 -= monitor_info.monitorInfo.rcWork.top;
+                    left_top.x.0 += monitor_info.monitorInfo.rcWork.left;
+                    left_top.y.0 += monitor_info.monitorInfo.rcWork.top;
                 }
 
                 // placement includes the non-client area.
@@ -734,6 +796,8 @@ impl Window {
     fn probe_state(&self) -> WindowStateAll {
         let mut state = self.state.clone();
 
+        state.global_position = self.window.inner_position().unwrap().to_px();
+
         if self.is_minimized() {
             state.state = WindowState::Minimized;
         } else if let Some(h) = self.window.fullscreen() {
@@ -748,8 +812,14 @@ impl Window {
 
             let scale_factor = self.scale_factor();
 
+            let monitor_offset = if let Some(monitor) = self.window.current_monitor() {
+                monitor.position().to_px().to_vector()
+            } else {
+                PxVector::zero()
+            };
+
             state.restore_rect = DipRect::new(
-                self.window.inner_position().unwrap().to_px().to_dip(scale_factor),
+                (state.global_position - monitor_offset).to_dip(scale_factor),
                 self.window.inner_size().to_px().to_dip(scale_factor),
             );
         }
@@ -918,10 +988,16 @@ impl Window {
     }
 
     fn set_inner_position(&self, pos: DipPoint) {
+        let monitor_offset = if let Some(m) = self.window.current_monitor() {
+            m.position().to_px().to_vector()
+        } else {
+            PxVector::zero()
+        };
+
         let outer_pos = self.window.outer_position().unwrap_or_default();
         let inner_pos = self.window.inner_position().unwrap_or_default();
-        let inner_offset = PxVector::new(Px(outer_pos.x - inner_pos.x), Px(outer_pos.y - inner_pos.y)).to_dip(self.scale_factor());
-        let pos = pos + inner_offset;
+        let inner_offset = PxVector::new(Px(outer_pos.x - inner_pos.x), Px(outer_pos.y - inner_pos.y));
+        let pos = pos.to_px(self.scale_factor()) + monitor_offset + inner_offset;
         self.window.set_outer_position(pos.to_winit());
     }
 
@@ -983,7 +1059,6 @@ impl Window {
         self.state = new_state;
 
         if self.state.state == WindowState::Normal {
-            self.set_inner_position(self.state.restore_rect.origin);
             self.window.set_inner_size(self.state.restore_rect.size.to_winit());
 
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));

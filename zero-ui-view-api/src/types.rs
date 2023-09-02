@@ -2487,8 +2487,8 @@ pub struct WindowChanged {
     /// Window new state, is `None` if the window state did not change.
     pub state: Option<WindowStateAll>,
 
-    /// Window new position, is `None` if the window position did not change.
-    pub position: Option<DipPoint>,
+    /// Window new global position in the monitor, is `None` if the window position did not change.
+    pub position: Option<(PxPoint, DipPoint)>,
 
     /// Window new monitor.
     ///
@@ -2516,11 +2516,11 @@ pub struct WindowChanged {
 }
 impl WindowChanged {
     /// Create an event that represents window move.
-    pub fn moved(window: WindowId, position: DipPoint, cause: EventCause) -> Self {
+    pub fn moved(window: WindowId, global_position: PxPoint, position: DipPoint, cause: EventCause) -> Self {
         WindowChanged {
             window,
             state: None,
-            position: Some(position),
+            position: Some((global_position, position)),
             monitor: None,
             size: None,
             frame_wait_id: None,
@@ -3495,6 +3495,11 @@ impl WindowRequest {
 pub struct WindowStateAll {
     /// The window state.
     pub state: WindowState,
+
+    /// Position across monitors.
+    ///
+    /// This is mostly used to find a monitor to resolve the `restore_rect` in.
+    pub global_position: PxPoint,
 
     /// Position and size of the window in the `Normal` state.
     ///

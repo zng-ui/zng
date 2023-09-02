@@ -163,6 +163,13 @@ impl PxToWinit for PxSize {
         winit::dpi::PhysicalSize::new(self.width.0 as _, self.height.0 as _)
     }
 }
+impl PxToWinit for PxPoint {
+    type AsWinit = winit::dpi::PhysicalPosition<i32>;
+
+    fn to_winit(self) -> Self::AsWinit {
+        winit::dpi::PhysicalPosition::new(self.x.0, self.y.0)
+    }
+}
 
 impl DipToWinit for DipPoint {
     type AsWinit = winit::dpi::LogicalPosition<f32>;

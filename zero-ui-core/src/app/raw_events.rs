@@ -32,7 +32,7 @@ use crate::{
     render::FrameId,
     text::FontAntiAliasing,
     touch::{TouchConfig, TouchPhase, TouchUpdate},
-    units::{DipPoint, DipSize, Factor, PxRect},
+    units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
     window::{EventCause, MonitorId, WindowId},
 };
 
@@ -121,7 +121,9 @@ event_args! {
         pub state: Option<WindowStateAll>,
 
         /// New window position if it was moved.
-        pub position: Option<DipPoint>,
+        ///
+        /// The values are `(global_position, position_in_monitor)`.
+        pub position: Option<(PxPoint, DipPoint)>,
 
         /// New window monitor.
         ///

@@ -813,7 +813,7 @@ impl App {
                 }
             }
             WindowEvent::Moved(_) => {
-                let p = if let Some(p) = self.windows[i].moved() {
+                let (global_position, position) = if let Some(p) = self.windows[i].moved() {
                     p
                 } else {
                     return;
@@ -823,7 +823,12 @@ impl App {
                     self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
                 }
 
-                self.notify(Event::WindowChanged(WindowChanged::moved(id, p, EventCause::System)));
+                self.notify(Event::WindowChanged(WindowChanged::moved(
+                    id,
+                    global_position,
+                    position,
+                    EventCause::System,
+                )));
 
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
@@ -1516,6 +1521,7 @@ impl Api for App {
                 color_scheme: ColorScheme::Light,
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
+                    global_position: PxPoint::zero(),
                     restore_rect: DipRect::from_size(config.state.restore_rect.size),
                     restore_state: WindowState::Fullscreen,
                     min_size: DipSize::zero(),

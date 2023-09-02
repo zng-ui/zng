@@ -1,12 +1,13 @@
 use std::{fmt, sync::Arc};
 
-use super::VideoMode;
+use super::{VideoMode, WINDOW_Ext, WINDOWS};
 use crate::{
     app::{
         raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT},
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
     app_local,
+    context::WINDOW,
     crate_util::{fx_map_new, FxHashMap},
     event::{event, AnyEventArgs, EventUpdate},
     event_args,
@@ -367,13 +368,22 @@ impl MonitorInfo {
 }
 
 /// A *selector* that returns a [`MonitorInfo`].
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum MonitorQuery {
+    /// The parent window monitor, or `Primary` if the window has no parent.
+    ///
+    /// Note that the window is not moved automatically if the parent window is moved to another monitor, only
+    /// after the query variable updates.
+    ///
+    /// This is the default value.
+    #[default]
+    ParentOrPrimary,
+
     /// The primary monitor, if there is any monitor.
     Primary,
     /// Custom query closure.
     ///
-    /// If the closure returns `None` the primary monitor is used, if there is any.
+    /// If the closure returns `None` the `ParentOrPrimary` query is used, if there is any.
     #[allow(clippy::type_complexity)]
     Query(Arc<dyn Fn() -> Option<MonitorInfo> + Send + Sync>),
 }
@@ -386,6 +396,7 @@ impl MonitorQuery {
     /// Runs the query.
     pub fn select(&self) -> Option<MonitorInfo> {
         match self {
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q(),
         }
@@ -394,10 +405,24 @@ impl MonitorQuery {
     /// Runs the query, fallback to `Primary` and [`MonitorInfo::fallback`]
     pub fn select_fallback(&self) -> MonitorInfo {
         match self {
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q().or_else(Self::primary_query),
         }
         .unwrap_or_else(MonitorInfo::fallback)
+    }
+
+    fn parent_or_primary_query() -> Option<MonitorInfo> {
+        if let Some(parent) = WINDOW.vars().parent().get() {
+            if let Ok(w) = WINDOWS.vars(parent) {
+                return if let Some(monitor) = w.actual_monitor().get() {
+                    MONITORS.monitor(monitor)
+                } else {
+                    w.monitor().get().select()
+                };
+            }
+        }
+        MONITORS.primary_monitor()
     }
 
     fn primary_query() -> Option<MonitorInfo> {
@@ -408,12 +433,6 @@ impl PartialEq for MonitorQuery {
     /// Returns `true` only if both are [`MonitorQuery::Primary`].
     fn eq(&self, other: &Self) -> bool {
         matches!((self, other), (Self::Primary, Self::Primary))
-    }
-}
-impl Default for MonitorQuery {
-    /// Returns [`MonitorQuery::Primary`].
-    fn default() -> Self {
-        Self::Primary
     }
 }
 impl fmt::Debug for MonitorQuery {
