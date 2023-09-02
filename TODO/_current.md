@@ -23,6 +23,11 @@
 # Multi-screen
 
 * Child window does not open in the same monitor as the parent.
+    - We don't set the parent window in winit.
+    - We expect the system to position the child window.
+* Review window example in second monitor.
+    - Restore makes the window disappear.
+* `layout_init` uses scale_factor from monitor query, not from parent monitor when window has parent.
 
 # Touch Events
 

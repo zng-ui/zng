@@ -357,7 +357,7 @@ fn open_touch_example() -> impl UiNode {
                 WINDOWS.open_id(example_id, async_clmv!(is_open, {
                     Window! {
                         title = "Transform Example - Touch";
-                        state = WindowState::Maximized;
+                        // state = WindowState::Maximized;
                         parent;
                         child = touch_example();
                         on_close = hn_once!(|_| is_open.set(false));

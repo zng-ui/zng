@@ -727,7 +727,7 @@ impl HeadedCtrl {
 
         // Layout initial position in the monitor space.
         let mut system_pos = false;
-        let position = match self.start_position {
+        let mut position = match self.start_position {
             StartPosition::Default => {
                 let pos = self.vars.position().get();
                 if pos.x.is_default() || pos.y.is_default() {
@@ -765,6 +765,24 @@ impl HeadedCtrl {
                 ) + parent_rect.origin.to_vector()
             }
         };
+
+        if system_pos {
+            if let Some(parent) = self.vars.parent().get() {
+                if let Ok(w) = WINDOWS.vars(parent) {
+                    if let Some(parent_monitor) = w.actual_monitor().get() {
+                        if let Some(m) = MONITORS.monitor(parent_monitor) {
+                            if !m.is_primary().get() {
+                                // system default position is always in the primary monitor,
+                                // move the window to be in the same monitor as the parent.
+
+                                position = m.position().get() + PxVector::splat(Px(40));
+                                system_pos = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // send view window request:
 
