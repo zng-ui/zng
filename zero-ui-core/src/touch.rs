@@ -1344,7 +1344,7 @@ impl TouchTransformInfo {
             deviation: deviation.max(1.0),
             deviation_x: deviation_x.max(1.0),
             deviation_y: deviation_y.max(1.0),
-            angle: AngleRadian((a.x - b.x).atan2(a.y - b.y)),
+            angle: AngleRadian((a.y - b.y).atan2(a.x - b.x)),
         }
     }
 

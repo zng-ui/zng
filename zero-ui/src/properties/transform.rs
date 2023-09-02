@@ -1,6 +1,6 @@
 //! Transform properties, [`scale`](fn@scale), [`rotate`](fn@rotate), [`transform`](fn@transform) and more.
 
-use zero_ui_core::touch::{TouchTransformMode, TOUCH_TRANSFORM_EVENT};
+use crate::core::touch::{TouchPhase, TouchTransformMode, TOUCH_TRANSFORM_EVENT};
 
 use crate::prelude::new_property::*;
 
@@ -346,6 +346,7 @@ context_var! {
 pub fn touch_transform(child: impl UiNode, mode: impl IntoVar<TouchTransformMode>) -> impl UiNode {
     let mode = mode.into_var();
     let mut handle = EventHandle::dummy();
+    let mut transform_committed = PxTransform::identity();
     let mut transform = PxTransform::identity();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -363,10 +364,21 @@ pub fn touch_transform(child: impl UiNode, mode: impl IntoVar<TouchTransformMode
                     return;
                 }
 
-                let t = args.transform(mode.get());
+                let t = transform_committed.then(&args.transform(mode.get()));
                 if transform != t {
                     transform = t;
                     WIDGET.render_update();
+                }
+
+                match args.phase {
+                    TouchPhase::Start | TouchPhase::Move => {}
+                    TouchPhase::End => {
+                        transform_committed = transform;
+                    }
+                    TouchPhase::Cancel => {
+                        transform = transform_committed;
+                        WIDGET.render_update();
+                    }
                 }
             }
         }

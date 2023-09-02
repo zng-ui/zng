@@ -20,10 +20,16 @@
 
 * Mouse and touch event properties do not check `capture_allows`?
 
+# Multi-screen
+
+* Child window does not open in the same monitor as the parent.
+
 # Touch Events
 
 * Use `TOUCH_TRANSFORM_EVENT`.
-    - Add `touch_transform` example.
+    - Rotate origin.
+    - Scale origin.
+        - Only when translate enabled?
     - Hit-test ok?
         - Should it be the center or the first touch?
         - If we capture touch (correct usage should probably capture) it is done on the first touch.
