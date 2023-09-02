@@ -2487,7 +2487,9 @@ pub struct WindowChanged {
     /// Window new state, is `None` if the window state did not change.
     pub state: Option<WindowStateAll>,
 
-    /// Window new global position in the monitor, is `None` if the window position did not change.
+    /// Window new global position, is `None` if the window position did not change.
+    ///
+    /// The values are the global position and the position in the monitor.
     pub position: Option<(PxPoint, DipPoint)>,
 
     /// Window new monitor.
@@ -4029,8 +4031,8 @@ pub struct WindowOpenData {
 
     /// Final top-left offset of the window (excluding outer chrome).
     ///
-    /// The position is relative to the monitor.
-    pub position: DipPoint,
+    /// The values are the global position and the position in the monitor.
+    pub position: (PxPoint, DipPoint),
     /// Final dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
 

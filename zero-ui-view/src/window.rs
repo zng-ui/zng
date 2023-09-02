@@ -1395,12 +1395,16 @@ impl Window {
         )
     }
 
-    pub fn inner_position(&self) -> DipPoint {
-        self.window
-            .inner_position()
-            .unwrap_or_default()
-            .to_logical(self.window.scale_factor())
-            .to_dip()
+    /// (global_position, monitor_position)
+    pub fn inner_position(&self) -> (PxPoint, DipPoint) {
+        let global_pos = self.window.inner_position().unwrap_or_default().to_px();
+        let monitor_offset = if let Some(m) = self.window.current_monitor() {
+            m.position().to_px().to_vector()
+        } else {
+            PxVector::zero()
+        };
+
+        (global_pos, (global_pos - monitor_offset).to_dip(self.scale_factor()))
     }
 
     pub fn size(&self) -> DipSize {

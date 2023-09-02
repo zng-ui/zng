@@ -576,7 +576,8 @@ impl HeadedCtrl {
                 self.actual_state = Some(args.data.state.state);
                 self.vars.0.restore_state.set(args.data.state.restore_state);
                 self.vars.0.restore_rect.set(args.data.state.restore_rect);
-                self.vars.0.actual_position.set(args.data.position);
+                self.vars.0.global_position.set(args.data.position.0);
+                self.vars.0.actual_position.set(args.data.position.1);
                 self.vars.0.actual_size.set(args.data.size);
                 self.vars.0.actual_monitor.set(args.data.monitor);
                 self.vars.0.scale_factor.set(args.data.scale_factor);

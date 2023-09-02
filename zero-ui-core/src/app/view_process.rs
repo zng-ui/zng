@@ -23,7 +23,7 @@ use crate::{
     task::SignalOnce,
     text::FontAntiAliasing,
     touch::TouchConfig,
-    units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize},
+    units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize},
     var::ResponderVar,
     window::{MonitorId, WindowId},
 };
@@ -584,8 +584,8 @@ pub struct WindowOpenData {
 
     /// Final top-left offset of the window (excluding outer chrome).
     ///
-    /// The position is relative to the monitor.
-    pub position: DipPoint,
+    /// The values are the global position and the position in the monitor.
+    pub position: (PxPoint, DipPoint),
     /// Final dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
 

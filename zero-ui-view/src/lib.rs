@@ -1515,7 +1515,7 @@ impl Api for App {
                 pipeline_id: data.pipeline_id,
                 render_mode: data.render_mode,
                 monitor: None,
-                position: DipPoint::zero(),
+                position: (PxPoint::zero(), DipPoint::zero()),
                 size: config.state.restore_rect.size,
                 scale_factor: 1.0,
                 color_scheme: ColorScheme::Light,
