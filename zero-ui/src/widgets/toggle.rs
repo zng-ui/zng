@@ -1,5 +1,6 @@
 //! Toggle widget, properties and commands.
 
+use std::ops;
 use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use task::parking_lot::Mutex;
@@ -631,7 +632,7 @@ impl Selector {
     /// Represents the "radio" selection of a single item.
     pub fn single<T>(selection: impl IntoVar<T>) -> Self
     where
-        T: VarValue + PartialEq,
+        T: VarValue,
     {
         struct SingleSel<T, S> {
             selection: S,
@@ -639,7 +640,7 @@ impl Selector {
         }
         impl<T, S> SelectorImpl for SingleSel<T, S>
         where
-            T: VarValue + PartialEq,
+            T: VarValue,
             S: Var<T>,
         {
             fn subscribe(&self) {
@@ -680,7 +681,7 @@ impl Selector {
     /// Represents the "radio" selection of a single item that is optional.
     pub fn single_opt<T>(selection: impl IntoVar<Option<T>>) -> Self
     where
-        T: VarValue + PartialEq,
+        T: VarValue,
     {
         struct SingleOptSel<T, S> {
             selection: S,
@@ -688,7 +689,7 @@ impl Selector {
         }
         impl<T, S> SelectorImpl for SingleOptSel<T, S>
         where
-            T: VarValue + PartialEq,
+            T: VarValue,
             S: Var<Option<T>>,
         {
             fn subscribe(&self) {
@@ -754,6 +755,69 @@ impl Selector {
             }
         }
         Self::new(SingleOptSel {
+            selection: selection.into_var(),
+            _type: PhantomData,
+        })
+    }
+
+    /// Represents the "check list" selection of bitflags.
+    pub fn bitflags<T>(selection: impl IntoVar<T>) -> Self
+    where
+        T: VarValue + ops::BitOr<Output = T> + ops::BitAnd<Output = T> + ops::Not<Output = T>,
+    {
+        struct BitflagsSel<T, S> {
+            selection: S,
+            _type: PhantomData<T>,
+        }
+        impl<T, S> SelectorImpl for BitflagsSel<T, S>
+        where
+            T: VarValue + ops::BitOr<Output = T> + ops::BitAnd<Output = T> + ops::Not<Output = T>,
+            S: Var<T>,
+        {
+            fn subscribe(&self) {
+                WIDGET.sub_var(&self.selection);
+            }
+
+            fn select(&mut self, value: Box<dyn Any>) -> Result<(), SelectorError> {
+                match value.downcast::<T>() {
+                    Ok(value) => self
+                        .selection
+                        .modify(move |m| {
+                            let value = *value;
+                            let new = m.as_ref().clone() | value;
+                            if m.as_ref() != &new {
+                                m.set(new);
+                            }
+                        })
+                        .map_err(|_| SelectorError::ReadOnly),
+                    Err(_) => Err(SelectorError::WrongType),
+                }
+            }
+
+            fn deselect(&mut self, value: &dyn Any) -> Result<(), SelectorError> {
+                match value.downcast_ref::<T>() {
+                    Some(value) => self
+                        .selection
+                        .modify(clmv!(value, |m| {
+                            let new = m.as_ref().clone() & !value;
+                            if m.as_ref() != &new {
+                                m.set(new);
+                            }
+                        }))
+                        .map_err(|_| SelectorError::ReadOnly),
+                    None => Err(SelectorError::WrongType),
+                }
+            }
+
+            fn is_selected(&self, value: &dyn Any) -> bool {
+                match value.downcast_ref::<T>() {
+                    Some(value) => &(self.selection.get() & value.clone()) == value,
+                    None => false,
+                }
+            }
+        }
+
+        Self::new(BitflagsSel {
             selection: selection.into_var(),
             _type: PhantomData,
         })
