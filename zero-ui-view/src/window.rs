@@ -198,13 +198,7 @@ impl Window {
             // so that there is no white frame when it's opening.
             //
             // unless its "kiosk" mode.
-            .with_visible(cfg.kiosk);
-
-        winit = match s.state {
-            WindowState::Normal | WindowState::Minimized => winit,
-            WindowState::Maximized => winit.with_maximized(true),
-            WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(Some(Fullscreen::Borderless(None))),
-        };
+            .with_visible(cfg.kiosk || matches!(s.state, WindowState::Exclusive));
 
         let mut render_mode = cfg.render_mode;
         if !cfg!(software) && render_mode == RenderMode::Software {
@@ -381,6 +375,21 @@ impl Window {
             win.set_always_on_top(true);
         }
 
+        win.set_cursor(cfg.cursor);
+        win.set_taskbar_visible(cfg.taskbar_visible);
+
+        // settings these in the builder causes flickering
+        match win.state.state {
+            WindowState::Normal | WindowState::Minimized => {}
+            WindowState::Maximized => win.window.set_maximized(true),
+            WindowState::Fullscreen => win.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+            WindowState::Exclusive => win.window.set_fullscreen(Some(if let Some(mode) = win.video_mode() {
+                Fullscreen::Exclusive(mode)
+            } else {
+                Fullscreen::Borderless(None)
+            })),
+        }
+
         win.state.global_position = win.window.inner_position().unwrap_or_default().to_px();
         let monitor_offset = if let Some(m) = win.window.current_monitor() {
             m.position().to_px().to_vector()
@@ -391,20 +400,6 @@ impl Window {
         if win.state.state == WindowState::Normal && cfg.default_position {
             // system position.
             win.state.restore_rect.origin = (win.state.global_position - monitor_offset).to_dip(win.scale_factor());
-        }
-
-        #[cfg(windows)]
-        if win.state.state != WindowState::Normal {
-            win.windows_set_restore();
-        }
-
-        win.set_cursor(cfg.cursor);
-        win.set_taskbar_visible(cfg.taskbar_visible);
-
-        #[cfg(windows)]
-        if win.state.state == WindowState::Maximized {
-            // window does not open maximized without this.
-            win.window.set_maximized(true);
         }
 
         win
