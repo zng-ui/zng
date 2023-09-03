@@ -1355,8 +1355,6 @@ impl Window {
             self.context.make_current();
             let size = self.window.inner_size();
             self.context.resize(size);
-
-            let size = self.window.inner_size();
             txn.set_document_view(PxRect::from_size(size.to_px()).to_wr_device());
         }
     }
