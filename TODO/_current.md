@@ -22,16 +22,17 @@
 
 # Touch Events
 
-* Use `TOUCH_TRANSFORM_EVENT`.
-    - Rotate origin.
-    - Scale origin.
-        - Only when translate enabled?
-    - Hit-test ok?
-        - Should it be the center or the first touch?
-        - If we capture touch (correct usage should probably capture) it is done on the first touch.
-        - We check the subscribers using the first touch target.
-        - We allow for the first touch to move.
-        - WPF only does gestures if the widget has capture.
+* Window stops being interactive (including close button) sporadically.
+    - Maybe only after dragging window to second monitor.
+    - Maybe only after a touch shows the mouse cursor.
+    - Maybe when the mouse is moved while touching?
+
+* Review `TOUCH_TRANSFORM_EVENT` hit-test.
+    - Should it be the center or the first touch?
+    - If we capture touch (correct usage should probably capture) it is done on the first touch.
+    - We check the subscribers using the first touch target.
+    - We allow for the first touch to move.
+    - WPF only does gestures if the widget has capture.
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.
@@ -87,9 +88,9 @@
 * Implement "Ripple!" visual.
     - Radial background overlay animation fired on every touch or click.
 
-* Touch drag release in the window background causes the title bar to not be interactive anymore.
-    - Sometimes can't recreate, but it has happened multiple times already.
-    - Maybe only when window is between screens only?
+* Improve `touch_transform`.
+    - Contextual origin.
+    - Config persistence.
 
 # Exclusive Video Mode
 

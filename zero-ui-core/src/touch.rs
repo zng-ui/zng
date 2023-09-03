@@ -2,7 +2,7 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::{mem, num::NonZeroU32, time::Instant};
+use std::{mem, num::NonZeroU32, ops, time::Instant};
 
 use hashbrown::HashMap;
 pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
@@ -634,6 +634,22 @@ impl TouchTransformArgs {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 
+    /// Gets the the [`first_info`] and [`latest_info`] in the [`WIDGET`] inner bounds space.
+    ///
+    /// [`first_info`]: Self::first_info
+    /// [`latest_info`]: Self::latest_info
+    pub fn local_info(&self) -> [TouchTransformInfo; 2] {
+        let mut first = self.first_info.clone();
+        let mut latest = self.latest_info.clone();
+
+        let offset = WIDGET.bounds().inner_offset();
+
+        first -= offset;
+        latest -= offset;
+
+        [first, latest]
+    }
+
     /// Computes the translation to transform from [`first_info`] to [`latest_info`].
     ///
     /// [`first_info`]: Self::first_info
@@ -696,6 +712,25 @@ impl TouchTransformArgs {
     /// [`latest_info`]: Self::latest_info
     pub fn transform(&self, mode: TouchTransformMode) -> PxTransform {
         self.first_info.transform(&self.latest_info, mode)
+    }
+
+    /// Computes the transform between the [`local_info`] values, rotates and scales around the latest center.
+    ///
+    /// [`local_info`]: Self::local_info
+    pub fn local_transform(&self, mode: TouchTransformMode) -> PxTransform {
+        let [first, latest] = self.local_info();
+
+        let mut r = first.transform(&latest, mode);
+
+        if mode.contains(TouchTransformMode::ROTATE)
+            || mode.contains(TouchTransformMode::SCALE_X)
+            || mode.contains(TouchTransformMode::SCALE_Y)
+        {
+            let c = latest.center.to_vector();
+            r = PxTransform::Offset(-c).then(&r).then_translate(c);
+        }
+
+        r
     }
 
     /// If the [`phase`] is start.
@@ -1425,6 +1460,62 @@ impl TouchTransformInfo {
         }
 
         m
+    }
+}
+impl ops::AddAssign<euclid::Vector2D<f32, Px>> for TouchTransformInfo {
+    fn add_assign(&mut self, rhs: euclid::Vector2D<f32, Px>) {
+        self.touches[0] += rhs;
+        self.touches[1] += rhs;
+        self.center += rhs;
+    }
+}
+impl ops::Add<euclid::Vector2D<f32, Px>> for TouchTransformInfo {
+    type Output = Self;
+
+    fn add(mut self, rhs: euclid::Vector2D<f32, Px>) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign<PxVector> for TouchTransformInfo {
+    fn add_assign(&mut self, rhs: PxVector) {
+        *self += rhs.cast::<f32>();
+    }
+}
+impl ops::Add<PxVector> for TouchTransformInfo {
+    type Output = Self;
+
+    fn add(mut self, rhs: PxVector) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+impl ops::SubAssign<euclid::Vector2D<f32, Px>> for TouchTransformInfo {
+    fn sub_assign(&mut self, rhs: euclid::Vector2D<f32, Px>) {
+        self.touches[0] -= rhs;
+        self.touches[1] -= rhs;
+        self.center -= rhs;
+    }
+}
+impl ops::Sub<euclid::Vector2D<f32, Px>> for TouchTransformInfo {
+    type Output = Self;
+
+    fn sub(mut self, rhs: euclid::Vector2D<f32, Px>) -> Self::Output {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign<PxVector> for TouchTransformInfo {
+    fn sub_assign(&mut self, rhs: PxVector) {
+        *self -= rhs.cast::<f32>();
+    }
+}
+impl ops::Sub<PxVector> for TouchTransformInfo {
+    type Output = Self;
+
+    fn sub(mut self, rhs: PxVector) -> Self::Output {
+        self -= rhs;
+        self
     }
 }
 

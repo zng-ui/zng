@@ -364,7 +364,7 @@ pub fn touch_transform(child: impl UiNode, mode: impl IntoVar<TouchTransformMode
                     return;
                 }
 
-                let t = transform_committed.then(&args.transform(mode.get()));
+                let t = transform_committed.then(&args.local_transform(mode.get()));
                 if transform != t {
                     transform = t;
                     WIDGET.render_update();
