@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::app::EXIT_CMD;
-use zero_ui::core::units::{DipPoint, DipSize};
+use zero_ui::core::units::{DipPoint, DipSize, Factor};
 use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
 
@@ -29,7 +29,10 @@ async fn main_window() -> WindowRoot {
     let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
-        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
+        window_vars.scale_factor(),
+        move |p: &DipPoint, s: &DipSize, f: &Factor| { 
+            formatx!("Window Example - position: {p:.0?}, size: {s:.0?}, factor: {f:?}") 
+        }
     );
 
     let background = var(colors::BLACK);
@@ -358,9 +361,43 @@ fn state() -> impl UiNode {
             separator(),
             state_btn(WindowState::Fullscreen),
             state_btn(WindowState::Exclusive),
-            Text!("TODO video mode"),
+            exclusive_mode(),
         ],
     )
+}
+
+fn exclusive_mode() -> impl UiNode {
+    Toggle! {
+        style_fn = toggle::ComboStyle!();
+
+        tooltip = Tip!(Text!("Exclusive video mode"));
+
+        child = Text! {
+            txt = WINDOW.vars().video_mode().map_to_text();
+            txt_align = Align::CENTER;
+            padding = 2;
+        };
+        checked_popup = wgt_fn!(|_| {
+            let vars = WINDOW.vars();
+            let selected_opt = vars.video_mode();
+            let default_opt = zero_ui::core::window::VideoMode::MAX;
+            let opts = vars.video_modes().get();
+            popup::Popup! {
+                child = Scroll! {
+                    mode = ScrollMode::VERTICAL;
+                    child = Stack! {
+                        toggle::selector = toggle::Selector::single(selected_opt);
+                        direction = StackDirection::top_to_bottom();
+                        children = [default_opt].into_iter().chain(opts).map(|o| Toggle! {
+                            child = Text!(formatx!("{o}"));
+                            value = o;
+                        })
+                        .collect::<UiNodeVec>();
+                    }
+                };
+            }
+        });
+    }
 }
 
 fn visibility() -> impl UiNode {

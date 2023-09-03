@@ -247,6 +247,18 @@ impl WindowVars {
         self.0.actual_monitor.read_only()
     }
 
+    /// Available video modes in the current monitor.
+    pub fn video_modes(&self) -> BoxedVar<Vec<VideoMode>> {
+        self.0
+            .actual_monitor
+            .flat_map(|&m| {
+                m.and_then(|m| super::MONITORS.monitor(m))
+                    .unwrap_or_else(super::MonitorInfo::fallback)
+                    .video_modes()
+            })
+            .boxed()
+    }
+
     /// Current scale factor of the current monitor hosting the window.
     pub fn scale_factor(&self) -> ReadOnlyArcVar<Factor> {
         self.0.scale_factor.read_only()

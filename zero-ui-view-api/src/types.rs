@@ -3700,10 +3700,30 @@ pub struct VideoMode {
 }
 impl Default for VideoMode {
     fn default() -> Self {
-        Self {
-            size: PxSize::new(Px::MAX, Px::MAX),
-            bit_depth: u16::MAX,
-            refresh_rate: u32::MAX,
+        Self::MAX
+    }
+}
+impl VideoMode {
+    /// Default value, matches with the largest size, greatest bit-depth and refresh rate.
+    pub const MAX: VideoMode = VideoMode {
+        size: PxSize::new(Px::MAX, Px::MAX),
+        bit_depth: u16::MAX,
+        refresh_rate: u32::MAX,
+    };
+}
+impl fmt::Display for VideoMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if *self == Self::MAX {
+            write!(f, "MAX")
+        } else {
+            write!(
+                f,
+                "{}x{}, {}, {}hz",
+                self.size.width.0,
+                self.size.height.0,
+                self.bit_depth,
+                (self.refresh_rate as f32 * 0.001).round()
+            )
         }
     }
 }
