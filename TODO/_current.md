@@ -20,12 +20,6 @@
 
 * Mouse and touch event properties do not check `capture_allows`?
 
-# Multi-screen
-
-* Review window example in second monitor.
-    - Full-screen exclusive has wrong `scale_factor`.
-    - After exiting fullscreen from child window the parent also has wrong factor (in second monitor).
-
 # Touch Events
 
 * Use `TOUCH_TRANSFORM_EVENT`.
@@ -96,3 +90,9 @@
 * Touch drag release in the window background causes the title bar to not be interactive anymore.
     - Sometimes can't recreate, but it has happened multiple times already.
     - Maybe only when window is between screens only?
+
+# Exclusive Video Mode
+
+* How is the scale factor selected for exclusive?
+* Settings to a smaller size (800x600) causes background clipping.
+* Also test in non-primary monitor.
