@@ -609,12 +609,23 @@ impl Window {
         let new_size = self.window.inner_size().to_px();
         if self.prev_size != new_size {
             #[cfg(windows)]
-            if self.state.state == WindowState::Maximized && self.window.current_monitor() != self.window.primary_monitor() {
+            if matches!(self.state.state, WindowState::Maximized | WindowState::Fullscreen)
+                && self.window.current_monitor() != self.window.primary_monitor()
+            {
                 // workaround issue when opening a window maximized in a non-primary monitor
                 // causes it to use the maximized style, but not the size.
 
-                self.window.set_maximized(false);
-                self.window.set_maximized(true);
+                match self.state.state {
+                    WindowState::Maximized => {
+                        self.window.set_maximized(false);
+                        self.window.set_maximized(true);
+                    }
+                    WindowState::Fullscreen => {
+                        self.window.set_fullscreen(None);
+                        self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    }
+                    _ => unreachable!(),
+                }
 
                 let new_size = self.window.inner_size().to_px();
                 return if self.prev_size != new_size {

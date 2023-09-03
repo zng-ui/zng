@@ -24,6 +24,7 @@
 
 * Review window example in second monitor.
     - Full-screen exclusive has wrong `scale_factor`.
+    - After exiting fullscreen from child window the parent also has wrong factor (in second monitor).
 
 # Touch Events
 
