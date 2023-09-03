@@ -22,7 +22,6 @@
 
 # Multi-screen
 
-* Child window opened maximized in a non-primary monitor gets maximized style but not maximized size.
 * Review window example in second monitor.
     - Full-screen exclusive has wrong `scale_factor`.
 

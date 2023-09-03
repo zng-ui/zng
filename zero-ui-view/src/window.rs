@@ -608,6 +608,25 @@ impl Window {
 
         let new_size = self.window.inner_size().to_px();
         if self.prev_size != new_size {
+            #[cfg(windows)]
+            if self.state.state == WindowState::Maximized && self.window.current_monitor() != self.window.primary_monitor() {
+                // workaround issue when opening a window maximized in a non-primary monitor
+                // causes it to use the maximized style, but not the size.
+
+                self.window.set_maximized(false);
+                self.window.set_maximized(true);
+
+                let new_size = self.window.inner_size().to_px();
+                return if self.prev_size != new_size {
+                    self.prev_size = new_size;
+                    self.resized = true;
+
+                    Some(new_size.to_dip(self.scale_factor()))
+                } else {
+                    None
+                };
+            }
+
             self.prev_size = new_size;
             self.resized = true;
 
