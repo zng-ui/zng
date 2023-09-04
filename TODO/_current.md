@@ -27,16 +27,10 @@
     - Maybe only after a touch shows the mouse cursor.
     - Maybe when the mouse is moved while touching?
 
-* Review `TOUCH_TRANSFORM_EVENT` hit-test.
-    - Should it be the center or the first touch?
-    - If we capture touch (correct usage should probably capture) it is done on the first touch.
-    - We check the subscribers using the first touch target.
-    - We allow for the first touch to move.
-    - WPF only does gestures if the widget has capture.
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.
-    - Can we integrate this in the transform event?
+    - Can we integrate this in the TOUCH_TRANSFORM_EVENT.
 
 * Implement `TapMode`?
     - Like `ClickMode`.

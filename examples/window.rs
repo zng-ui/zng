@@ -30,9 +30,7 @@ async fn main_window() -> WindowRoot {
         window_vars.actual_position(),
         window_vars.actual_size(),
         window_vars.scale_factor(),
-        move |p: &DipPoint, s: &DipSize, f: &Factor| { 
-            formatx!("Window Example - position: {p:.0?}, size: {s:.0?}, factor: {f:?}") 
-        }
+        move |p: &DipPoint, s: &DipSize, f: &Factor| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}, factor: {f:?}") }
     );
 
     let background = var(colors::BLACK);
@@ -360,8 +358,17 @@ fn state() -> impl UiNode {
             state_btn(WindowState::Maximized),
             separator(),
             state_btn(WindowState::Fullscreen),
-            state_btn(WindowState::Exclusive),
-            exclusive_mode(),
+            Stack! {
+                direction = StackDirection::top_to_bottom();
+                children = ui_vec![
+                    Toggle! {
+                        child = Text!("Exclusive");
+                        value = WindowState::Exclusive;
+                        corner_radius = (4, 4, 0, 0);
+                    },
+                    exclusive_mode(),
+                ]
+            }
         ],
     )
 }
@@ -369,6 +376,7 @@ fn state() -> impl UiNode {
 fn exclusive_mode() -> impl UiNode {
     Toggle! {
         style_fn = toggle::ComboStyle!();
+        corner_radius = (0, 0, 4, 4);
 
         tooltip = Tip!(Text!("Exclusive video mode"));
 
@@ -383,6 +391,7 @@ fn exclusive_mode() -> impl UiNode {
             let default_opt = zero_ui::core::window::VideoMode::MAX;
             let opts = vars.video_modes().get();
             popup::Popup! {
+                max_height = 80.vh_pct();
                 child = Scroll! {
                     mode = ScrollMode::VERTICAL;
                     child = Stack! {
