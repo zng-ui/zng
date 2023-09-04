@@ -22,11 +22,6 @@
 
 # Touch Events
 
-* Window stops being interactive (including close button) sporadically.
-    - Maybe only after dragging window to second monitor.
-    - Maybe only after a touch shows the mouse cursor.
-    - Maybe when the mouse is moved while touching?
-
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.
