@@ -79,7 +79,7 @@ impl PressedInfo {
                 self.velocity_samples[3].1.cast(),
             ];
             let velocity_at = |i: usize| {
-                let prev = i - 1;
+                let prev = i + 1;
 
                 let prev_t = self.velocity_samples[prev].0;
                 let t = self.velocity_samples[i].0;
@@ -899,7 +899,7 @@ impl AppExtension for TouchManager {
                         info.touch_propagation.clone(),
                         DipPoint::splat(Dip::new(-1)),
                         None,
-                        DipVector::zero(), // !!:
+                        DipVector::zero(),
                         TouchPhase::Cancel,
                         HitTestInfo::no_hits(info.target.window_id()),
                         info.target.clone(),
@@ -1129,10 +1129,11 @@ impl TouchManager {
                         touched_events.push(args);
                     }
                 }
-                for m in &moves {
+                for m in &mut moves {
                     if let Some(i) = self.pressed.get_mut(&m.touch) {
                         let (position, force) = *m.moves.last().unwrap();
                         i.push_velocity_sample(args.timestamp, position);
+                        m.velocity = i.velocity();
                         i.position = position;
                         i.force = force;
                         i.hits = m.hits.clone();

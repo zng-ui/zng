@@ -1027,16 +1027,28 @@ impl App {
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
                 let position = t.location.to_px().to_dip(scale_factor);
-                self.notify(Event::Touch {
-                    window: id,
-                    device: d_id,
-                    touches: vec![TouchUpdate {
-                        phase: util::winit_touch_phase_to_zui(t.phase),
-                        position,
-                        force: t.force.map(util::winit_force_to_zui),
-                        touch: TouchId(t.id),
-                    }],
-                });
+
+                let notify = match t.phase {
+                    winit::event::TouchPhase::Moved => self.windows[i].touch_moved(position, d_id, t.id),
+                    winit::event::TouchPhase::Started => true,
+                    winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
+                        self.windows[i].touch_end(d_id, t.id);
+                        true
+                    }
+                };
+
+                if notify {
+                    self.notify(Event::Touch {
+                        window: id,
+                        device: d_id,
+                        touches: vec![TouchUpdate {
+                            phase: util::winit_touch_phase_to_zui(t.phase),
+                            position,
+                            force: t.force.map(util::winit_force_to_zui),
+                            touch: TouchId(t.id),
+                        }],
+                    });
+                }
             }
             WindowEvent::TouchpadMagnify { .. } => {
                 linux_modal_dialog_bail!();

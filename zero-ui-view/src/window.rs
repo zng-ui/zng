@@ -91,6 +91,8 @@ pub(crate) struct Window {
     cursor_device: DeviceId,
     cursor_over: bool,
 
+    touch_pos: Vec<((DeviceId, u64), DipPoint)>,
+
     focused: Option<bool>,
 
     render_mode: RenderMode,
@@ -359,6 +361,7 @@ impl Window {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             cursor_pos: DipPoint::zero(),
+            touch_pos: vec![],
             cursor_device: DeviceId::INVALID,
             cursor_over: false,
             clear_color: None,
@@ -451,6 +454,25 @@ impl Window {
         }
 
         moved && self.cursor_over
+    }
+
+    /// Returns `true` if the touch actually moved.
+    pub fn touch_moved(&mut self, pos: DipPoint, device: DeviceId, touch: u64) -> bool {
+        if let Some(p) = self.touch_pos.iter_mut().find(|p| p.0 == (device, touch)) {
+            let moved = p.1 != pos;
+            p.1 = pos;
+            moved
+        } else {
+            self.touch_pos.push(((device, touch), pos));
+            true
+        }
+    }
+
+    /// Clear touch position.
+    pub fn touch_end(&mut self, device: DeviceId, touch: u64) {
+        if let Some(i) = self.touch_pos.iter().position(|p| p.0 == (device, touch)) {
+            self.touch_pos.swap_remove(i);
+        }
     }
 
     #[cfg(windows)]
