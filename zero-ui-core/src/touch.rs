@@ -78,29 +78,28 @@ impl PressedInfo {
                 self.velocity_samples[2].1.cast(),
                 self.velocity_samples[3].1.cast(),
             ];
-            let velocity_at = |i: usize| {
-                let prev = i + 1;
+            let velocity_at = |end_i: usize| {
+                let start_i = end_i - 1;
 
-                let prev_t = self.velocity_samples[prev].0;
-                let t = self.velocity_samples[i].0;
+                let start_t = self.velocity_samples[start_i].0;
+                let end_t = self.velocity_samples[end_i].0;
 
-                let prev_s = samples[prev];
-                let s = samples[i];
+                let start_s = samples[start_i];
+                let end_s = samples[end_i];
 
-                let delta = (prev_t - t).as_micros() as f64;
+                let delta = (end_t - start_t).as_micros() as f64;
 
                 if delta > 0.0 {
-                    (prev_s - s) / delta
+                    (end_s - start_s) * 1000.0 / delta / 1000.0
                 } else {
                     euclid::vec2(0.0, 0.0)
                 }
             };
 
-            let v2 = velocity_at(2) * 0.05;
-            let v1 = velocity_at(1) * 0.35;
-            let v0 = velocity_at(0) * 0.6;
-
-            let v = v0 + v1 + v2;
+            let v23 = velocity_at(3) * 0.6;
+            let v12 = velocity_at(2) * 0.35;
+            let v01 = velocity_at(1) * 0.05;
+            let v = v23 + v12 + v01;
 
             v.cast::<f32>().cast()
         }
