@@ -22,6 +22,11 @@
 
 # Touch Events
 
+* Implement velocity animation helper.
+    - Method(s) in the args with velocity.
+    - Returns a target value and time for linear interp.
+
+
 * Implement `TOUCH_PAN_EVENT`.
     - One finger translate.
     - Needs to wait for the tap distance.

@@ -2,7 +2,12 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::{mem, num::NonZeroU32, ops, time::Instant};
+use std::{
+    mem,
+    num::NonZeroU32,
+    ops,
+    time::{Duration, Instant},
+};
 
 use hashbrown::HashMap;
 pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
@@ -62,6 +67,13 @@ struct PressedInfo {
 }
 impl PressedInfo {
     fn push_velocity_sample(&mut self, timestamp: Instant, position: DipPoint) {
+        if let Some(last) = self.velocity_samples.last_mut() {
+            if timestamp.duration_since(last.0) < 1.ms() {
+                last.1 = position;
+                return;
+            }
+        }
+
         if self.velocity_samples.len() == 4 {
             self.velocity_samples.remove(0);
         }
@@ -87,10 +99,10 @@ impl PressedInfo {
                 let start_s = samples[start_i];
                 let end_s = samples[end_i];
 
-                let delta = (end_t - start_t).as_micros() as f64;
+                let delta = (end_t - start_t).as_secs_f64();
 
                 if delta > 0.0 {
-                    (end_s - start_s) * 1000.0 / delta / 1000.0
+                    (end_s - start_s) / delta
                 } else {
                     euclid::vec2(0.0, 0.0)
                 }
@@ -263,7 +275,10 @@ event_args! {
 
         /// Velocity in device independent pixels per second.
         ///
-        /// This is always zero on `Start` and `Cancel` and is the last move velocity for `End`.
+        /// This is always zero on `Start` and `Cancel` and is the last move velocity for `End`. Note that
+        /// the velocity value can be less than [`min_fling_velocity`].
+        ///
+        /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
         pub velocity: DipVector,
 
         /// Touch phase.
@@ -505,6 +520,48 @@ impl TouchInputArgs {
     /// [`phase`]: Self::phase
     pub fn is_touch_cancel(&self) -> bool {
         matches!(self.phase, TouchPhase::Cancel)
+    }
+
+    /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
+    /// [`velocity.x`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    ///
+    /// Friction is in dip/s².
+    ///
+    /// To animate a point using these values:
+    ///
+    /// * Compute the final point by adding the vector offset to the current point.
+    /// * Animate using the duration linear interpolation.
+    ///
+    /// [`velocity.x`]: Self::velocity
+    /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
+    pub fn inertia_x(&self, friction: Dip) -> (Dip, Duration) {
+        Self::inertia(self.velocity.x, friction)
+    }
+
+    /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
+    /// [`velocity.y`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    ///
+    /// Friction is in dip/s².
+    ///
+    /// [`velocity.y`]: Self::velocity
+    /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
+    pub fn inertia_y(&self, friction: Dip) -> (Dip, Duration) {
+        Self::inertia(self.velocity.y, friction)
+    }
+
+    fn inertia(velocity: Dip, friction: Dip) -> (Dip, Duration) {
+        let cfg = TOUCH.touch_config().get();
+        if velocity < cfg.min_fling_velocity || friction >= velocity {
+            (Dip::new(0), Duration::ZERO)
+        } else {
+            let velocity = velocity.max(cfg.max_fling_velocity).to_f32();
+            let friction = friction.to_f32();
+
+            let time = velocity / friction;
+            let offset = (velocity * time) - (0.5 * friction * time * time);
+
+            (Dip::from(offset), time.secs())
+        }
     }
 }
 
