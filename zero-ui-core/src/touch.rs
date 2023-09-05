@@ -58,6 +58,53 @@ struct PressedInfo {
     position: DipPoint,
     force: Option<TouchForce>,
     hits: HitTestInfo,
+    velocity_samples: Vec<(Instant, DipPoint)>,
+}
+impl PressedInfo {
+    fn push_velocity_sample(&mut self, timestamp: Instant, position: DipPoint) {
+        if self.velocity_samples.len() == 4 {
+            self.velocity_samples.remove(0);
+        }
+        self.velocity_samples.push((timestamp, position));
+    }
+
+    fn velocity(&self) -> DipVector {
+        if self.velocity_samples.len() < 4 {
+            DipVector::zero()
+        } else {
+            let samples = [
+                self.velocity_samples[0].1.cast::<f64>(),
+                self.velocity_samples[1].1.cast(),
+                self.velocity_samples[2].1.cast(),
+                self.velocity_samples[3].1.cast(),
+            ];
+            let velocity_at = |i: usize| {
+                let prev = i - 1;
+
+                let prev_t = self.velocity_samples[prev].0;
+                let t = self.velocity_samples[i].0;
+
+                let prev_s = samples[prev];
+                let s = samples[i];
+
+                let delta = (prev_t - t).as_micros() as f64;
+
+                if delta > 0.0 {
+                    (prev_s - s) / delta
+                } else {
+                    euclid::vec2(0.0, 0.0)
+                }
+            };
+
+            let v2 = velocity_at(2) * 0.05;
+            let v1 = velocity_at(1) * 0.35;
+            let v0 = velocity_at(0) * 0.6;
+
+            let v = v0 + v1 + v2;
+
+            v.cast::<f32>().cast()
+        }
+    }
 }
 
 /// Touch service.
@@ -121,6 +168,11 @@ pub struct TouchMove {
     ///
     /// Last entry is the latest position.
     pub moves: Vec<(DipPoint, Option<TouchForce>)>,
+
+    /// Velocity in device independent pixels per second.
+    ///
+    /// The velocity is computed from the 4 non-coalesced move events. If is zero before the fourth event.
+    pub velocity: DipVector,
 
     /// Hit-test result for the latest touch point in the window.
     pub hits: HitTestInfo,
@@ -209,6 +261,11 @@ event_args! {
 
         /// Touch pressure force and angle.
         pub force: Option<TouchForce>,
+
+        /// Velocity in device independent pixels per second.
+        ///
+        /// This is always zero on `Start` and `Cancel` and is the last move velocity for `End`.
+        pub velocity: DipVector,
 
         /// Touch phase.
         ///
@@ -809,6 +866,7 @@ impl AppExtension for TouchManager {
                                 weird
                             },
                             moves: vec![(u.position, u.force)],
+                            velocity: DipVector::zero(),
                             hits: HitTestInfo::no_hits(args.window_id), // hit-test deferred
                             target: InteractionPath::new(args.window_id, []),
                         })
@@ -841,6 +899,7 @@ impl AppExtension for TouchManager {
                         info.touch_propagation.clone(),
                         DipPoint::splat(Dip::new(-1)),
                         None,
+                        DipVector::zero(), // !!:
                         TouchPhase::Cancel,
                         HitTestInfo::no_hits(info.target.window_id()),
                         info.target.clone(),
@@ -914,7 +973,7 @@ impl TouchManager {
 
             let capture_info = POINTER_CAPTURE.current_capture_value();
 
-            let gesture_handle = match update.phase {
+            let (gesture_handle, velocity) = match update.phase {
                 TouchPhase::Start => {
                     let handle = EventPropagationHandle::new();
                     if let Some(weird) = self.pressed.insert(
@@ -926,19 +985,21 @@ impl TouchManager {
                             position: update.position,
                             force: update.force,
                             hits: hits.clone(),
+                            velocity_samples: vec![], // skip input (will only have velocity after 4 moves)
                         },
                     ) {
                         weird.touch_propagation.stop();
                     }
-                    handle
+                    (handle, DipVector::zero())
                 }
                 TouchPhase::End => {
                     if let Some(handle) = self.pressed.remove(&update.touch) {
-                        handle.touch_propagation
+                        let vel = handle.velocity();
+                        (handle.touch_propagation, vel)
                     } else {
                         let weird = EventPropagationHandle::new();
                         weird.stop();
-                        weird
+                        (weird, DipVector::zero())
                     }
                 }
                 TouchPhase::Cancel => {
@@ -948,7 +1009,7 @@ impl TouchManager {
                         .map(|i| i.touch_propagation)
                         .unwrap_or_else(EventPropagationHandle::new);
                     handle.stop();
-                    handle
+                    (handle, DipVector::zero())
                 }
                 TouchPhase::Move => unreachable!(),
             };
@@ -960,6 +1021,7 @@ impl TouchManager {
                 gesture_handle,
                 update.position,
                 update.force,
+                velocity,
                 update.phase,
                 hits,
                 target,
@@ -1070,6 +1132,7 @@ impl TouchManager {
                 for m in &moves {
                     if let Some(i) = self.pressed.get_mut(&m.touch) {
                         let (position, force) = *m.moves.last().unwrap();
+                        i.push_velocity_sample(args.timestamp, position);
                         i.position = position;
                         i.force = force;
                         i.hits = m.hits.clone();

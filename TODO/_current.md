@@ -30,7 +30,7 @@
 * Implement `TapMode`?
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
-    - Maybe actually have a drag down gesture expand the combo?
+    - Maybe use the swipe/fling gesture?
 
 * Gesture propagation:
     - Create property helper, only subscribes to touch move when gesture pending?
