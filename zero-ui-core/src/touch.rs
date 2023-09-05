@@ -437,6 +437,14 @@ event_args! {
         /// Latest update of the two points.
         pub latest_info: TouchTransformInfo,
 
+        /// Velocity of the `latest_info` touch points.
+        pub velocity: [PxVector; 2],
+
+        /// Scale factor used in the computed pixel values.
+        ///
+        /// This is the window's scale factor when the first touch started.
+        pub scale_factor: Factor,
+
         /// Gesture phase.
         pub phase: TouchPhase,
 
@@ -551,16 +559,19 @@ impl TouchInputArgs {
 
     fn inertia(velocity: Dip, friction: Dip) -> (Dip, Duration) {
         let cfg = TOUCH.touch_config().get();
+        let signal = if velocity >= Dip::new(0) { Dip::new(1) } else { Dip::new(-1) };
+        let velocity = velocity.abs();
+
         if velocity < cfg.min_fling_velocity || friction >= velocity {
             (Dip::new(0), Duration::ZERO)
         } else {
-            let velocity = velocity.max(cfg.max_fling_velocity).to_f32();
+            let velocity = velocity.min(cfg.max_fling_velocity).to_f32();
             let friction = friction.to_f32();
 
             let time = velocity / friction;
             let offset = (velocity * time) - (0.5 * friction * time * time);
 
-            (Dip::from(offset), time.secs())
+            (Dip::from(offset) * signal, time.secs())
         }
     }
 }
@@ -846,6 +857,33 @@ impl TouchTransformArgs {
         r
     }
 
+    /// Average velocity.
+    pub fn translation_velocity(&self) -> PxVector {
+        (self.velocity[0] + self.velocity[1]) / Px(2)
+    }
+
+    /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
+    /// [`translation_velocity().x`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    ///
+    /// Friction is in dip/s².
+    ///
+    /// [`translation_velocity().x`]: Self::translation_velocity
+    /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
+    pub fn translation_inertia_x(&self, friction: Dip) -> (Px, Duration) {
+        self.inertia((self.velocity[0].x + self.velocity[1].x) / Px(2), friction)
+    }
+
+    /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
+    /// [`translation_velocity().y`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    ///
+    /// Friction is in dip/s².
+    ///
+    /// [`translation_velocity().y`]: Self::translation_velocity
+    /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
+    pub fn translation_inertia_y(&self, friction: Dip) -> (Px, Duration) {
+        self.inertia((self.velocity[0].y + self.velocity[1].y) / Px(2), friction)
+    }
+
     /// If the [`phase`] is start.
     ///
     /// Note that the [`latest_info`] may already be different from [`first_info`] if the gesture
@@ -874,6 +912,28 @@ impl TouchTransformArgs {
     /// [`phase`]: Self::phase
     pub fn is_cancel(&self) -> bool {
         matches!(self.phase, TouchPhase::Cancel)
+    }
+
+    fn inertia(&self, velocity: Px, friction: Dip) -> (Px, Duration) {
+        let friction = friction.to_px(self.scale_factor.0);
+        let cfg = TOUCH.touch_config().get();
+        let min_fling_velocity = cfg.min_fling_velocity.to_px(self.scale_factor.0);
+
+        let signal = if velocity >= Px(0) { Px(1) } else { Px(-1) };
+        let velocity = velocity.abs();
+
+        if velocity < min_fling_velocity || friction >= velocity {
+            (Px(0), Duration::ZERO)
+        } else {
+            let max_fling_velocity = cfg.max_fling_velocity.to_px(self.scale_factor.0);
+            let velocity = velocity.min(max_fling_velocity).0 as f32;
+            let friction = friction.0 as f32;
+
+            let time = velocity / friction;
+            let offset = (velocity * time) - (0.5 * friction * time * time);
+
+            (Px(offset.round() as _) * signal, time.secs())
+        }
     }
 }
 
@@ -1701,6 +1761,7 @@ enum TransformGesture {
         window_id: WindowId,
         device_id: DeviceId,
         position: [DipPoint; 2],
+        velocity: [DipVector; 2],
         scale_factor: Factor,
         handle: [EventPropagationHandle; 2],
         first_info: TouchTransformInfo,
@@ -1759,6 +1820,7 @@ impl TransformGesture {
                         window_id,
                         device_id,
                         mut position,
+                        velocity,
                         scale_factor,
                         handle,
                         first_info,
@@ -1776,11 +1838,15 @@ impl TransformGesture {
                         let latest_info = TouchTransformInfo::new_dip(position, scale_factor);
                         let capture = POINTER_CAPTURE.current_capture_value();
 
+                        let velocity = [velocity[0].to_px(scale_factor.0), velocity[1].to_px(scale_factor.0)];
+
                         let args = TouchTransformArgs::now(
                             window_id,
                             device_id,
                             first_info,
                             latest_info,
+                            velocity,
+                            scale_factor,
                             TouchPhase::End,
                             hits,
                             target,
@@ -1881,6 +1947,8 @@ impl TransformGesture {
                                     *device_id,
                                     first_info.clone(),
                                     latest_info,
+                                    [PxVector::zero(); 2],
+                                    *scale_factor,
                                     TouchPhase::Start,
                                     hits.clone(),
                                     target.clone(),
@@ -1893,6 +1961,7 @@ impl TransformGesture {
                                     window_id: *window_id,
                                     device_id: *device_id,
                                     position: *position,
+                                    velocity: [DipVector::zero(); 2],
                                     scale_factor: *scale_factor,
                                     handle: handle.clone(),
                                     first_info,
@@ -1911,6 +1980,7 @@ impl TransformGesture {
                 device_id,
                 position,
                 scale_factor,
+                velocity,
                 handle,
                 first_info,
                 hits,
@@ -1920,6 +1990,7 @@ impl TransformGesture {
                 for t in &args.touches {
                     if let Some(i) = handle.iter().position(|h| h == &t.touch_propagation) {
                         position[i] = t.position();
+                        velocity[i] = t.velocity;
                         any_moved = true;
                     } else {
                         self.clear();
@@ -1931,11 +2002,15 @@ impl TransformGesture {
                     let latest_info = TouchTransformInfo::new_dip(*position, *scale_factor);
                     let capture = POINTER_CAPTURE.current_capture_value();
 
+                    let velocity = [velocity[0].to_px(scale_factor.0), velocity[1].to_px(scale_factor.0)];
+
                     let args = TouchTransformArgs::now(
                         *window_id,
                         *device_id,
                         first_info.clone(),
                         latest_info,
+                        velocity,
+                        *scale_factor,
                         TouchPhase::Move,
                         hits.clone(),
                         target.clone(),
@@ -1955,6 +2030,7 @@ impl TransformGesture {
             first_info,
             hits,
             target,
+            scale_factor,
             ..
         } = mem::take(self)
         {
@@ -1963,6 +2039,8 @@ impl TransformGesture {
                 device_id,
                 first_info.clone(),
                 first_info,
+                [PxVector::zero(); 2],
+                scale_factor,
                 TouchPhase::Cancel,
                 hits,
                 target,
