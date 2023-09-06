@@ -32,12 +32,6 @@
     - Method(s) in the args with velocity.
     - Returns a target value and time for linear interp.
 
-
-* Implement `TOUCH_PAN_EVENT`.
-    - One finger translate.
-    - Needs to wait for the tap distance.
-    - Can we integrate this in the TOUCH_TRANSFORM_EVENT.
-
 * Implement `TapMode`?
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
@@ -58,17 +52,6 @@
     - Context tap.
         - Long press?
         - CLICK_EVENT has interest in these, but if we always generate then it will conflict with pan?
-    - Pinch:
-        - Two fingers, move closer together or a farther apart.
-    - Rotate:
-        - Two finger, move around each other.
-    - Pan or drag:
-        - One finger, press, move.
-    - All 3 can happen at the same time.
-        - Same event?
-        - TOUCH_TRANSFORM_EVENT.
-            - Tracks two points and computes a transform on demand for it.
-            - Transform can optionally include
     - Inertia:
         - A pan/drag can be "thrown".
             - One finger, press, move, release "while moving".
@@ -80,7 +63,6 @@
             - Different from no feedback when you can never scroll in a direction.
     - Pinning:
         - One finger rotates around a fixed point.
-    - Long press (from mouse too?).
     - Force press.
         - Normalized force is 0.5 (for touchscreens without force detection).
         - This gesture exceeds this force.
