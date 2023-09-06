@@ -1725,6 +1725,30 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
     })
 }
 
+/// An Ui node that renders the text selection background.
+///
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
+pub fn render_selection(child: impl UiNode) -> impl UiNode {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&SELECTION_COLOR_VAR);
+        }
+        UiNodeOp::Render { frame } => {
+            let r_txt = super::nodes::ResolvedText::get();
+
+            if let Some(range) = r_txt.caret.lock().selection_range() {
+                let l_txt = super::nodes::LayoutText::get();
+                let r_txt = r_txt.text.text();
+
+                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                    frame.push_color(line_rect, FrameValue::Value(SELECTION_COLOR_VAR.get().into()));
+                }
+            };
+        }
+        _ => {}
+    })
+}
+
 /// An UI node that renders the parent [`LayoutText`].
 ///
 /// This node renders the text only, decorators are rendered by other nodes.

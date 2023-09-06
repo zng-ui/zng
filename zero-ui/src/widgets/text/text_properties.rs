@@ -1078,6 +1078,9 @@ context_var! {
 
     /// Caret color, inherits from [`FONT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
+
+    /// Selection background color.
+    pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(30.pct());
 }
 
 /// Enable text selection, copy, caret and input; and makes the widget focusable.
@@ -1113,6 +1116,12 @@ pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 #[property(CONTEXT, default(CARET_COLOR_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
+}
+
+/// Sets the [`SELECTION_COLOR_VAR`].
+#[property(CONTEXT, default(SELECTION_COLOR_VAR), widget_impl(TextEditMix<P>))]
+pub fn selection_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(child, SELECTION_COLOR_VAR, color)
 }
 
 /// Gets the caret char index, if the text is editable.
@@ -1280,9 +1289,10 @@ pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacin
 pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
     let range = range.into_var();
     let color = color.into_var();
+    let color_key = FrameValueKey::new_unique();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_render(&range).sub_var_render(&color);
+            WIDGET.sub_var_render(&range).sub_var_render_update(&color);
         }
         UiNodeOp::Render { frame } => {
             let l_txt = super::nodes::LayoutText::get();
@@ -1290,7 +1300,12 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
             let r_txt = r_txt.text.text();
 
             for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {
-                frame.push_color(line_rect, FrameValue::Value(color.get().into()));
+                frame.push_color(line_rect, color_key.bind_var(&color, |c| (*c).into()));
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            if let Some(color_update) = color_key.update_var(&color, |c| (*c).into()) {
+                update.update_color(color_update)
             }
         }
         _ => {}

@@ -1,10 +1,16 @@
 # TextInput
 
 * Implement selection.
-    - Use `CaretInfo::selection_range`.
+    - Mouse:
+        - Press and drag selection.
+        - Double-click causes selection that grows by word.
+        - Triple-click and Quadruple-click?
+    - Keyboard:
+        - Holding shift and pressing the arrow keys.
+    - Touch:
+        - Research how it works.
     - Input replaces selection.
         - Char input, paste, IME
-    - Double-click causes selection that grows by word.
     - Impl cut & copy.
 
 * Implement IME.

@@ -102,6 +102,7 @@ impl Text {
             let child = nodes::render_overlines(child);
             let child = nodes::render_strikethroughs(child);
             let child = nodes::render_underlines(child);
+            let child = nodes::render_selection(child);
             wgt.set_child(child.boxed());
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
