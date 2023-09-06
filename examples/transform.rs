@@ -134,6 +134,7 @@ fn transform3d_examples() -> impl UiNode {
 }
 
 fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
+    let parent_is_hovered = var(false);
     Container! {
         child = Container! {
             #[easing(300.ms())]
@@ -142,14 +143,16 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
-            when *#is_hovered {
+            when *#is_hovered || *#{parent_is_hovered.clone()} {
                 transform = Transform::identity();
             }
         };
+        is_hovered = parent_is_hovered;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
 fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) -> impl UiNode {
+    let parent_is_hovered = var(false);
     Container! {
         child = Container! {
             #[easing(300.ms())]
@@ -158,11 +161,12 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
-            when *#is_hovered {
+            when *#is_hovered || *#{parent_is_hovered.clone()} {
                 transform = Transform::identity();
             }
         };
 
+        is_hovered = parent_is_hovered;
         perspective = 400;
         perspective_origin = origin;
         transform_style = TransformStyle::Preserve3D;
@@ -170,6 +174,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
     }
 }
 fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
+    let parent_is_hovered = var(false);
     Container! {
         child = Container! {
             #[easing(300.ms())]
@@ -180,10 +185,11 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
-            when *#is_hovered {
+            when *#is_hovered || *#{parent_is_hovered.clone()} {
                 transform = Transform::identity();
             }
         };
+        is_hovered = parent_is_hovered;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
@@ -191,11 +197,12 @@ fn transformed_sampler(
     label: impl Into<Txt>,
     sampler: impl Fn(&animation::Transition<AngleRadian>, EasingStep) -> AngleRadian + Send + Sync + 'static,
 ) -> impl UiNode {
+    let parent_is_hovered = var(false);
     Container! {
         child = {
             let is_hovered = var(false);
             Container! {
-                rotate = is_hovered
+                rotate = merge_var!(is_hovered.clone(), parent_is_hovered.clone(), |h, ph| *h || *ph)
                     .map(|&hovered| if !hovered { 20.deg() } else { (360 - 20).deg() }.into())
                     .easing_with(300.ms(), easing::linear, sampler);
 
@@ -206,6 +213,7 @@ fn transformed_sampler(
                 is_hovered;
             }
         };
+        is_hovered = parent_is_hovered;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
