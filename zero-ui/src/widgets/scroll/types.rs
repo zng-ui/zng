@@ -24,14 +24,17 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
     pub struct ScrollMode: u8 {
-        /// Content is not scrollable.
+        /// Content size is constrained by the viewport and is not scrollable.
         const NONE = 0;
-        /// Content can be any height.
+        /// Content can be any height and scrolls vertically if overflow height.
         const VERTICAL = 0b01;
-        /// Content can be any width.
+        /// Content can be any width and scrolls horizontally if overflow width.
         const HORIZONTAL = 0b10;
-        /// Content can be any size.
-        const ALL = 0b11;
+        /// Content can be any size and scrolls if overflow.
+        const PAN = 0b11;
+        /// Content can be any size and scrolls if overflow (`PAN`) and also can be scaled
+        /// up and down by zoom commands and gestures.
+        const ZOOM = 0b111;
     }
 }
 impl_from_and_into_var! {
@@ -41,7 +44,7 @@ impl_from_and_into_var! {
     /// [`NONE`]: ScrollMode::NONE
     fn from(all: bool) -> ScrollMode {
         if all {
-            ScrollMode::ALL
+            ScrollMode::PAN
         } else {
             ScrollMode::NONE
         }
@@ -59,6 +62,14 @@ context_var! {
     /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
     /// scrollable content can modify it to scroll the parent.
     pub static SCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
+
+    /// Extra vertical offset requested that could not be fulfilled because [`SCROLL_VERTICAL_OFFSET_VAR`]
+    /// is already at `0.fct()` or `1.fct()`.
+    pub static OVERSCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
+
+    /// Extra horizontal offset requested that could not be fulfilled because [`SCROLL_HORIZONTAL_OFFSET_VAR`]
+    /// is already at `0.fct()` or `1.fct()`.
+    pub static OVERSCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
 
     /// Ratio of the scroll parent viewport height to its content.
     ///
@@ -214,10 +225,14 @@ impl SCROLL {
     }
 
     /// Offset the vertical position by the given pixel `amount`.
+    ///
+    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
     pub fn scroll_vertical(&self, amount: ScrollFrom) {
         self.scroll_vertical_clamp(amount, f32::MIN, f32::MAX);
     }
     /// Offset the vertical position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+    ///
+    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
     pub fn scroll_vertical_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
@@ -246,11 +261,75 @@ impl SCROLL {
         }
     }
 
+    /// Applies the `amount` delta to the [`SCROLL_VERTICAL_OFFSET_VAR`] without smooth scrolling and
+    /// updates the [`OVERSCROLL_VERTICAL_OFFSET_VAR`] if it changes.
+    pub fn touch_scroll_vertical(&self, amount: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+
+        let max_scroll = content - viewport;
+        if max_scroll <= Px(0) {
+            return;
+        }
+
+        let amount = amount.0 as f32 / max_scroll.0 as f32;
+
+        let current = SCROLL_VERTICAL_OFFSET_VAR.get();
+        let mut next = current + amount.fct();
+        let mut overscroll = 0.fct();
+        if next > 1.fct() {
+            overscroll = next - 1.fct();
+            next = 1.fct();
+        } else if next < 0.fct() {
+            overscroll = next;
+            next = 0.fct();
+        }
+
+        let _ = SCROLL_VERTICAL_OFFSET_VAR.set(next);
+        if OVERSCROLL_VERTICAL_OFFSET_VAR.get() != overscroll {
+            let _ = OVERSCROLL_VERTICAL_OFFSET_VAR.set(overscroll);
+        }
+    }
+
+    /// Applies the `amount` delta to the [`SCROLL_HORIZONTAL_OFFSET_VAR`] without smooth scrolling and
+    /// updates the [`OVERSCROLL_HORIZONTAL_OFFSET_VAR`] if it changes.
+    pub fn touch_scroll_horizontal(&self, amount: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+
+        let max_scroll = content - viewport;
+        if max_scroll <= Px(0) {
+            return;
+        }
+
+        let amount = amount.0 as f32 / max_scroll.0 as f32;
+
+        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+        let mut next = current + amount.fct();
+        let mut overscroll = 0.fct();
+        if next > 1.fct() {
+            overscroll = next - 1.fct();
+            next = 1.fct();
+        } else if next < 0.fct() {
+            overscroll = next;
+            next = 0.fct();
+        }
+
+        let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
+        if OVERSCROLL_HORIZONTAL_OFFSET_VAR.get() != overscroll {
+            let _ = OVERSCROLL_HORIZONTAL_OFFSET_VAR.set(overscroll);
+        }
+    }
+
     /// Offset the horizontal position by the given pixel `amount`.
+    ///
+    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
     pub fn scroll_horizontal(&self, amount: ScrollFrom) {
         self.scroll_horizontal_clamp(amount, f32::MIN, f32::MAX)
     }
     /// Offset the horizontal position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+    ///
+    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
     pub fn scroll_horizontal_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;

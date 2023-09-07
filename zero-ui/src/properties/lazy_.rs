@@ -34,7 +34,7 @@ pub enum LazyMode {
         /// even if it is not actually in the viewport due to horizontal offset, and if `deinit` is flagged only the placeholder
         /// height is enforced, the width can be different from the actual.
         ///
-        /// If set to [`ScrollMode::NONE`] this value is ignored, behaving like [`ScrollMode::ALL`].
+        /// If set to [`ScrollMode::NONE`] this value is ignored, behaving like [`ScrollMode::PAN`].
         intersect: ScrollMode,
     },
 }
@@ -52,7 +52,7 @@ impl LazyMode {
         Self::Enabled {
             placeholder,
             deinit: true,
-            intersect: ScrollMode::ALL,
+            intersect: ScrollMode::PAN,
         }
     }
 
@@ -99,7 +99,7 @@ impl LazyMode {
         Self::Enabled {
             placeholder,
             deinit: false,
-            intersect: ScrollMode::ALL,
+            intersect: ScrollMode::PAN,
         }
     }
 
@@ -142,7 +142,7 @@ impl LazyMode {
             LazyMode::Enabled { intersect, .. } => {
                 let m = *intersect;
                 if m.is_empty() {
-                    ScrollMode::ALL
+                    ScrollMode::PAN
                 } else {
                     m
                 }
@@ -252,7 +252,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                         actual_inline.last = lazy_inline.last;
                         actual_inline.last_wrapped = lazy_inline.last_wrapped;
 
-                        intersect_mode = ScrollMode::ALL;
+                        intersect_mode = ScrollMode::PAN;
                     } else {
                         tracing::debug!(target: "lazy", "widget `{}` measure inlined, but lazy did not inline", WIDGET.id());
                     }
@@ -264,7 +264,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                     intersect_mode = mode.with(|s| s.unwrap_intersect());
                 }
 
-                if intersect_mode == ScrollMode::ALL {
+                if intersect_mode == ScrollMode::PAN {
                     if lazy_size != actual_size {
                         tracing::debug!(
                             target: "lazy",
@@ -319,7 +319,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                     if !lazy_inlined {
                         tracing::debug!(target: "lazy", "widget `{}` inlined, but lazy did not inline", WIDGET.id());
                     } else {
-                        intersect_mode = ScrollMode::ALL;
+                        intersect_mode = ScrollMode::PAN;
                     }
                 } else {
                     if lazy_inlined {
@@ -329,7 +329,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                     intersect_mode = mode.with(|s| s.unwrap_intersect());
                 }
 
-                if intersect_mode == ScrollMode::ALL {
+                if intersect_mode == ScrollMode::PAN {
                     if lazy_size != actual_size {
                         tracing::debug!(
                             target: "lazy",

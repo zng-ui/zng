@@ -6,6 +6,7 @@ use crate::prelude::new_widget::*;
 use crate::core::{
     focus::FOCUS_CHANGED_EVENT,
     mouse::{MouseScrollDelta, MOUSE_WHEEL_EVENT},
+    touch::{TouchPhase, TOUCH_TRANSFORM_EVENT},
 };
 
 use super::commands::*;
@@ -628,6 +629,45 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             SCROLL.scroll_vertical(ScrollFrom::Rendered(diff.y));
                             SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff.x));
                         }
+                    }
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Create a node that implements scroll by touch gestures for the widget.
+pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
+    let mut applied_offset = PxVector::zero();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&TOUCH_TRANSFORM_EVENT);
+        }
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            if let Some(args) = TOUCH_TRANSFORM_EVENT.on_unhandled(update) {
+                let new_offset = args.translation().cast::<Px>();
+                let delta = new_offset - applied_offset;
+                applied_offset = new_offset;
+
+                if delta.y != Px(0) {
+                    SCROLL.touch_scroll_vertical(-delta.y);
+                }
+                if delta.x != Px(0) {
+                    SCROLL.touch_scroll_horizontal(-delta.x);
+                }
+
+                match args.phase {
+                    TouchPhase::Start => {}
+                    TouchPhase::Move => {}
+                    TouchPhase::End => {
+                        // TODO inertia
+                        applied_offset = PxVector::zero();
+                    }
+                    TouchPhase::Cancel => {
+                        applied_offset = PxVector::zero();
                     }
                 }
             }

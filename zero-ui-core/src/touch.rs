@@ -1524,17 +1524,17 @@ pub struct TouchTransformInfo {
     /// Middle of the line between the two points.
     pub center: euclid::Point2D<f32, Px>,
 
-    /// Average deviation from the two points to the center.
+    /// Deviation from the points to the center.
     ///
     /// Min 1.0
     pub deviation: f32,
 
-    /// Average deviation from the two points.x to the center.x.
+    /// Deviation from the points.x to the center.x.
     ///
     /// Min 1.0
     pub deviation_x: f32,
 
-    /// Average deviation from the two points.y to the center.y.
+    /// Deviation from the points.y to the center.y.
     ///
     /// Min 1.0
     pub deviation_y: f32,
@@ -1549,9 +1549,9 @@ impl TouchTransformInfo {
         let b = touches[1].to_vector();
 
         let center = (a + b) / 2.0;
-        let deviation = ((a - center).length() + (b - center).length()) / 2.0;
-        let deviation_x = ((a.x - center.x).abs() + (b.x - center.x).abs()) / 2.0;
-        let deviation_y = ((a.y - center.y).abs() + (b.y - center.y).abs()) / 2.0;
+        let deviation = (a - center).length();
+        let deviation_x = (a.x - center.x).abs();
+        let deviation_y = (a.y - center.y).abs();
 
         Self {
             touches,

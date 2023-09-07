@@ -23,7 +23,7 @@ pub struct Scroll(ScrollUinitsMix<ScrollbarFnMix<Container>>);
 /// Scroll mode.
 ///
 /// By default scrolls in both dimensions.
-#[property(CONTEXT, capture, default(ScrollMode::ALL), widget_impl(Scroll))]
+#[property(CONTEXT, capture, default(ScrollMode::PAN), widget_impl(Scroll))]
 pub fn mode(mode: impl IntoVar<ScrollMode>) {}
 
 impl Scroll {
@@ -68,7 +68,7 @@ pub struct ScrollUinitsMix<P>(P);
 pub struct ScrollbarFnMix<P>(P);
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::ALL);
+    let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::PAN);
 
     let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
@@ -81,6 +81,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
         let child = nodes::scroll_to_edge_commands_node(child);
+        let child = nodes::scroll_touch_node(child);
         nodes::scroll_wheel_node(child)
     });
 
