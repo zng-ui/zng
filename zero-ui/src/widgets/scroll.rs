@@ -8,6 +8,7 @@ pub mod scrollbar;
 pub mod thumb;
 
 mod scroll_properties;
+pub mod overscroll;
 pub use scroll_properties::*;
 
 mod types;
@@ -35,6 +36,7 @@ impl Scroll {
             focusable = true;
             focus_scope = true;
             focus_scope_behavior = crate::core::focus::FocusScopeOnFocus::FirstDescendant;
+            foreground = overscroll::over_scroll_node();
         }
         self.widget_builder().push_build_action(on_build);
     }

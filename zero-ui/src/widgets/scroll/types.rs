@@ -38,13 +38,13 @@ bitflags! {
     }
 }
 impl_from_and_into_var! {
-    /// Returns [`ALL`] for `true` and [`NONE`] for `false`.
+    /// Returns [`ZOOM`] for `true` and [`NONE`] for `false`.
     ///
-    /// [`ALL`]: ScrollMode::ALL
+    /// [`ZOOM`]: ScrollMode::ZOOM
     /// [`NONE`]: ScrollMode::NONE
-    fn from(all: bool) -> ScrollMode {
-        if all {
-            ScrollMode::PAN
+    fn from(zoom: bool) -> ScrollMode {
+        if zoom {
+            ScrollMode::ZOOM
         } else {
             ScrollMode::NONE
         }
@@ -286,8 +286,8 @@ impl SCROLL {
         }
 
         let _ = SCROLL_VERTICAL_OFFSET_VAR.set(next);
-        if OVERSCROLL_VERTICAL_OFFSET_VAR.get() != overscroll {
-            let _ = OVERSCROLL_VERTICAL_OFFSET_VAR.set(overscroll);
+        if overscroll != 0.fct() {
+            let _ = OVERSCROLL_VERTICAL_OFFSET_VAR.modify(move |o| *o.to_mut() += overscroll);
         }
     }
 
@@ -316,8 +316,8 @@ impl SCROLL {
         }
 
         let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
-        if OVERSCROLL_HORIZONTAL_OFFSET_VAR.get() != overscroll {
-            let _ = OVERSCROLL_HORIZONTAL_OFFSET_VAR.set(overscroll);
+        if overscroll != 0.fct() {
+            let _ = OVERSCROLL_HORIZONTAL_OFFSET_VAR.modify(move |o| *o.to_mut() += overscroll);
         }
     }
 

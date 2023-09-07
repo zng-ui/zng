@@ -26,6 +26,15 @@
 
 * Mouse and touch event properties do not check `capture_allows`?
 
+# Scroll
+
+* Implement over-scroll indicator.
+* Implement `ScrollMode::ZOOM`.
+    - Touch gesture.
+    - Scroll wheel zoom.
+    - Commands.
+* Implement touch scroll inertia.
+
 # Touch Events
 
 * Implement velocity animation helper.
