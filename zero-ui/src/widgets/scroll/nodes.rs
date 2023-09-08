@@ -666,9 +666,15 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                     TouchPhase::End => {
                         // TODO inertia
                         applied_offset = PxVector::zero();
+
+                        SCROLL.clear_overscroll_vertical();
+                        SCROLL.clear_overscroll_horizontal();
                     }
                     TouchPhase::Cancel => {
                         applied_offset = PxVector::zero();
+
+                        SCROLL.clear_overscroll_vertical();
+                        SCROLL.clear_overscroll_horizontal();
                     }
                 }
             }

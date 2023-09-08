@@ -28,8 +28,6 @@
 
 # Scroll
 
-* Implement over-scroll indicator.
-    - Animation release.
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
@@ -42,17 +40,6 @@
     - Like `ClickMode`.
     - We want the same gesture in combo box of clicking and dragging to the option.
     - Maybe use the swipe/fling gesture?
-
-* Gesture propagation:
-    - Create property helper, only subscribes to touch move when gesture pending?
-    - OR, a `GESTURES.register_gesture` or with a boxed trait.
-    - OR, events that check `has_hooks` and `is_subscriber`.
-    - Setting a `on_touch_gesture` only in `when` still subscribes to the event always.
-        - Because we move the when resolver inside an event handler.
-        - Refactor `WidgetHandler` to signal when it is nil?
-    - CLICK_EVENT is just an aggregator that includes TOUCH_TAP_EVENT, but the gestures manager
-      must subscribe to it globally to work.
-        - Ideally we only include the subscribers of CLICK_EVENT in TOUCH_TAP_EVENT.
 
 * Implement gestures:
     - Context tap.

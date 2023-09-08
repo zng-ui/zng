@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc, time::Duration};
+use std::{fmt, mem, sync::Arc, time::Duration};
 
 use crate::core::{
     context::{context_local, with_context_local_init, StaticStateId, WIDGET},
@@ -114,6 +114,9 @@ struct ScrollConfig {
 
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
+
+    overscroll_horizontal: Mutex<AnimationHandle>,
+    overscroll_vertical: Mutex<AnimationHandle>,
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -122,6 +125,8 @@ impl Default for ScrollConfig {
             horizontal: Default::default(),
             vertical: Default::default(),
             rendered: Atomic::new(RenderedOffsets { h: 0.fct(), v: 0.fct() }),
+            overscroll_horizontal: Default::default(),
+            overscroll_vertical: Default::default(),
         }
     }
 }
@@ -287,7 +292,13 @@ impl SCROLL {
 
         let _ = SCROLL_VERTICAL_OFFSET_VAR.set(next);
         if overscroll != 0.fct() {
-            let _ = OVERSCROLL_VERTICAL_OFFSET_VAR.modify(move |o| *o.to_mut() += overscroll);
+            let new_handle = Self::increment_overscroll(OVERSCROLL_VERTICAL_OFFSET_VAR, overscroll);
+
+            let config = SCROLL_CONFIG.get();
+            let mut handle = config.overscroll_vertical.lock();
+            mem::replace(&mut *handle, new_handle).stop();
+        } else {
+            self.clear_overscroll_vertical();
         }
     }
 
@@ -317,7 +328,62 @@ impl SCROLL {
 
         let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
         if overscroll != 0.fct() {
-            let _ = OVERSCROLL_HORIZONTAL_OFFSET_VAR.modify(move |o| *o.to_mut() += overscroll);
+            let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
+
+            let config = SCROLL_CONFIG.get();
+            let mut handle = config.overscroll_horizontal.lock();
+            mem::replace(&mut *handle, new_handle).stop();
+        } else {
+            self.clear_overscroll_horizontal();
+        }
+    }
+
+    fn increment_overscroll(overscroll: ContextVar<Factor>, delta: Factor) -> AnimationHandle {
+        enum State {
+            Increment,
+            ClearDelay,
+            Clear(Transition<Factor>),
+        }
+        let mut state = State::Increment;
+        overscroll.animate(move |a, o| match &mut state {
+            State::Increment => {
+                // set the increment and start delay to animation.
+                *o.to_mut() += delta;
+
+                a.sleep(300.ms());
+                state = State::ClearDelay;
+            }
+            State::ClearDelay => {
+                a.restart();
+                let t = Transition::new(**o, 0.fct());
+                state = State::Clear(t);
+            }
+            State::Clear(t) => {
+                let step = easing::linear(a.elapsed_stop(300.ms()));
+                o.set(t.sample(step));
+            }
+        })
+    }
+
+    /// Quick ease [`OVERSCROLL_VERTICAL_OFFSET_VAR`] to zero.
+    pub fn clear_overscroll_vertical(&self) {
+        if OVERSCROLL_VERTICAL_OFFSET_VAR.get() != 0.fct() {
+            let new_handle = OVERSCROLL_VERTICAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
+
+            let config = SCROLL_CONFIG.get();
+            let mut handle = config.overscroll_vertical.lock();
+            mem::replace(&mut *handle, new_handle).stop();
+        }
+    }
+
+    /// Quick ease [`OVERSCROLL_HORIZONTAL_OFFSET_VAR`] to zero.
+    pub fn clear_overscroll_horizontal(&self) {
+        if OVERSCROLL_HORIZONTAL_OFFSET_VAR.get() != 0.fct() {
+            let new_handle = OVERSCROLL_HORIZONTAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
+
+            let config = SCROLL_CONFIG.get();
+            let mut handle = config.overscroll_horizontal.lock();
+            mem::replace(&mut *handle, new_handle).stop();
         }
     }
 

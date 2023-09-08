@@ -97,6 +97,12 @@ impl Drop for AnimationHandleData {
 #[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
 pub struct AnimationHandle(crate_util::Handle<AnimationHandleData>);
+impl Default for AnimationHandle {
+    /// `dummy`.
+    fn default() -> Self {
+        Self::dummy()
+    }
+}
 impl AnimationHandle {
     pub(super) fn new() -> (crate_util::HandleOwner<AnimationHandleData>, Self) {
         let (owner, handle) = crate_util::Handle::new(AnimationHandleData::default());
