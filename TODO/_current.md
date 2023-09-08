@@ -29,7 +29,6 @@
 # Scroll
 
 * Implement over-scroll indicator.
-    - Fade-in.
     - Animation release.
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
@@ -38,10 +37,6 @@
     - Commands.
 
 # Touch Events
-
-* Implement velocity animation helper.
-    - Method(s) in the args with velocity.
-    - Returns a target value and time for linear interp.
 
 * Implement `TapMode`?
     - Like `ClickMode`.
@@ -63,15 +58,6 @@
     - Context tap.
         - Long press?
         - CLICK_EVENT has interest in these, but if we always generate then it will conflict with pan?
-    - Inertia:
-        - A pan/drag can be "thrown".
-            - One finger, press, move, release "while moving".
-            - Pan continues for a time.
-            - User controls velocity to some extent.
-    - Tension:
-        - Gestures can "push" against a constraint.
-        - Pan scroll has visual feedback when it can't scroll a direction anymore.
-            - Different from no feedback when you can never scroll in a direction.
     - Pinning:
         - One finger rotates around a fixed point.
     - Force press.

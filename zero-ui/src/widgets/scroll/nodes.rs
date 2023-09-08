@@ -841,9 +841,8 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Render { frame } => {
             c.render(frame);
 
-            frame.with_auto_hit_test(false, |frame| {
-                let color = OVERSCROLL_COLOR_VAR.get().into();
-                let stops = [
+            let stops = |color| {
+                [
                     RenderGradientStop { offset: 0.0, color },
                     RenderGradientStop { offset: 0.99, color },
                     RenderGradientStop {
@@ -854,9 +853,15 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                             c
                         },
                     },
-                ];
+                ]
+            };
 
+            frame.with_auto_hit_test(false, |frame| {
                 if !v_rect.size.is_empty() {
+                    let mut color: RenderColor = OVERSCROLL_COLOR_VAR.get().into();
+                    color.a *= (OVERSCROLL_VERTICAL_OFFSET_VAR.get().abs().0 * 10.0).min(1.0);
+                    let stops = stops(color);
+
                     let mut radius = v_rect.size;
                     radius.width = v_radius_w;
                     frame.push_radial_gradient(
@@ -870,6 +875,10 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                     );
                 }
                 if !h_rect.size.is_empty() {
+                    let mut color: RenderColor = OVERSCROLL_COLOR_VAR.get().into();
+                    color.a *= (OVERSCROLL_HORIZONTAL_OFFSET_VAR.get().abs().0 * 10.0).min(1.0);
+                    let stops = stops(color);
+
                     let mut radius = h_rect.size;
                     radius.height = h_radius_h;
                     frame.push_radial_gradient(
