@@ -87,6 +87,12 @@ impl fmt::Debug for GradientRadiusBase {
 pub struct GradientRadius {
     /// How the base length is calculated. The base length is the `100.pct()` length.
     pub base: GradientRadiusBase,
+
+    /// If the gradient is circular or elliptical.
+    ///
+    /// If `true` the radius is the same in both dimensions, if `false` the radius can be different.
+    pub circle: bool,
+
     /// The length of the rendered gradient stops.
     pub radii: Size,
 }
@@ -105,138 +111,136 @@ impl Default for GradientRadius {
     }
 }
 impl GradientRadius {
-    /// Circle radius relative from center to the closest edge.
-    pub fn closest_side(radius: impl Into<Length>) -> Self {
-        Self {
-            base: GradientRadiusBase::ClosestSide,
-            radii: Size::splat(radius),
-        }
-    }
-
-    /// Circle radius relative from center to the closest corner.
-    pub fn closest_corner(radius: impl Into<Length>) -> Self {
-        Self {
-            base: GradientRadiusBase::ClosestCorner,
-            radii: Size::splat(radius),
-        }
-    }
-
-    /// Circle radius relative from center to the farthest edge.
-    pub fn farthest_side(radius: impl Into<Length>) -> Self {
-        Self {
-            base: GradientRadiusBase::FarthestSide,
-            radii: Size::splat(radius),
-        }
-    }
-
-    /// Circle radius relative from center to the farthest corner.
-    pub fn farthest_corner(radius: impl Into<Length>) -> Self {
-        Self {
-            base: GradientRadiusBase::FarthestCorner,
-            radii: Size::splat(radius),
-        }
-    }
-
     /// Ellipse radii relative from center to the closest edge.
-    pub fn closest_side_ell(radius: impl Into<Size>) -> Self {
+    pub fn closest_side(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::ClosestSide,
+            circle: false,
             radii: radius.into(),
         }
     }
 
     /// Ellipse radii relative from center to the closest corner.
-    pub fn closest_corner_ell(radius: impl Into<Size>) -> Self {
+    pub fn closest_corner(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::ClosestCorner,
+            circle: false,
             radii: radius.into(),
         }
     }
 
     /// Ellipse radii relative from center to the farthest edge.
-    pub fn farthest_side_ell(radius: impl Into<Size>) -> Self {
+    pub fn farthest_side(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::FarthestSide,
+            circle: false,
             radii: radius.into(),
         }
     }
 
     /// Ellipse radii relative from center to the farthest corner.
-    pub fn farthest_corner_ell(radius: impl Into<Size>) -> Self {
+    pub fn farthest_corner(radius: impl Into<Size>) -> Self {
         Self {
             base: GradientRadiusBase::FarthestCorner,
+            circle: false,
             radii: radius.into(),
         }
+    }
+
+    /// Enable circular radius.
+    pub fn circle(mut self) -> Self {
+        self.circle = true;
+        self
     }
 
     /// Compute the radius in the current [`LAYOUT`] context.
     pub fn layout(&self, center: PxPoint) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
 
-        let length = match self.base {
-            GradientRadiusBase::ClosestSide => center
-                .x
-                .min(center.y)
-                .min(size.width - center.x)
-                .min(size.height - center.y)
-                .max(Px(0)),
-            GradientRadiusBase::ClosestCorner => {
-                let center = center.to_vector();
-                let square_len = center
-                    .square_length()
-                    .min((center - PxVector::new(size.width, Px(0))).square_length())
-                    .min((center - size.to_vector()).square_length())
-                    .min((center - PxVector::new(Px(0), size.height)).square_length())
-                    .max(Px(0));
-                Px((square_len.0 as f32).sqrt().round() as _)
+        let min_sides = || {
+            PxSize::new(
+                center.x.min(size.width - center.x).max(Px(0)),
+                center.y.min(size.height - center.y).max(Px(0)),
+            )
+        };
+        let max_sides = || {
+            PxSize::new(
+                center.x.max(size.width - center.x).max(Px(0)),
+                center.y.max(size.height - center.y).max(Px(0)),
+            )
+        };
+
+        let base_size = match self.base {
+            GradientRadiusBase::ClosestSide => {
+                let min = min_sides();
+                if self.circle {
+                    PxSize::splat(min.width.min(min.height))
+                } else {
+                    min
+                }
             }
-            GradientRadiusBase::FarthestSide => center
-                .x
-                .max(center.y)
-                .max(size.width - center.x)
-                .max(size.height - center.y)
-                .max(Px(0)),
+            GradientRadiusBase::ClosestCorner => {
+                let min = min_sides();
+                if self.circle {
+                    let s = min.cast::<f32>();
+                    let l = s.width.hypot(s.height);
+                    PxSize::splat(Px(l as _))
+                } else {
+                    // preserve aspect-ratio of ClosestSide
+                    let s = std::f32::consts::FRAC_1_SQRT_2 * 2.0;
+                    PxSize::new(min.width * s, min.height * s)
+                }
+            }
+            GradientRadiusBase::FarthestSide => {
+                let max = max_sides();
+                if self.circle {
+                    PxSize::splat(max.width.max(max.height))
+                } else {
+                    max
+                }
+            }
             GradientRadiusBase::FarthestCorner => {
-                let center = center.to_vector();
-                let square_len = center
-                    .square_length()
-                    .max((center - PxVector::new(size.width, Px(0))).square_length())
-                    .max((center - size.to_vector()).square_length())
-                    .max((center - PxVector::new(Px(0), size.height)).square_length())
-                    .max(Px(0));
-                Px((square_len.0 as f32).sqrt().round() as _)
+                let max = max_sides();
+                if self.circle {
+                    let s = max.cast::<f32>();
+                    let l = s.width.hypot(s.height);
+                    PxSize::splat(Px(l as _))
+                } else {
+                    let s = std::f32::consts::FRAC_1_SQRT_2 * 2.0;
+                    PxSize::new(max.width * s, max.height * s)
+                }
             }
         };
 
-        LAYOUT.with_constraints(PxConstraints2d::new_exact(length, length), || {
-            self.radii.layout_dft(PxSize::splat(length))
-        })
+        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(base_size), || self.radii.layout_dft(base_size))
     }
 }
 impl_from_and_into_var! {
-    /// Circle fill the base radius.
+    /// Ellipse fill the base radius.
     fn from(base: GradientRadiusBase) -> GradientRadius {
         GradientRadius {
             base,
+            circle: false,
             radii: Size::fill()
         }
     }
 
-    /// From [`GradientRadiusBase`] and circle radius.
+    /// Ellipse [`GradientRadiusBase`] and ellipse radius.
     fn from<B: Into<GradientRadiusBase>, R: Into<Length>>((base, radius): (B, R)) -> GradientRadius {
         GradientRadius {
             base: base.into(),
+            circle: false,
             radii: Size::splat(radius)
         }
     }
 
-    /// Circle [`GradientRadius::farthest_corner`].
+    /// Ellipse [`GradientRadius::farthest_corner`].
     fn from(radius: Length) -> GradientRadius {
         GradientRadius::farthest_corner(radius)
     }
-    /// Circle [`GradientRadius::farthest_corner_ell`].
+    /// Ellipse [`GradientRadius::farthest_corner`].
     fn from(radii: Size) -> GradientRadius {
-        GradientRadius::farthest_corner_ell(radii)
+        GradientRadius::farthest_corner(radii)
     }
 
     /// Conversion to [`Length::Relative`] and to radius.

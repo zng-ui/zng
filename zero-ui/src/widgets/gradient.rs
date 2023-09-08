@@ -29,7 +29,7 @@ pub fn linear_gradient<A: IntoVar<LinearGradientAxis>, S: IntoVar<GradientStops>
     gradient(stops).linear(axis)
 }
 
-/// Starts building a radial gradient with the axis and color stops.
+/// Starts building a radial gradient with the radius and color stops.
 ///
 /// Returns a node that is also a builder that can be used to refine the gradient definition.
 pub fn radial_gradient<C, R, S>(center: C, radius: R, stops: S) -> RadialGradient<S::Var, C::Var, R::Var, LocalVar<ExtendMode>>
@@ -41,7 +41,7 @@ where
     gradient(stops).radial(center, radius)
 }
 
-/// Starts building a conic gradient with the axis and color stops.
+/// Starts building a conic gradient with the angle and color stops.
 ///
 /// Returns a node that is also a builder that can be used to refine the gradient definition.
 pub fn conic_gradient<C, A, S>(center: C, angle: A, stops: S) -> ConicGradient<S::Var, C::Var, A::Var, LocalVar<ExtendMode>>

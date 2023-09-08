@@ -8,7 +8,6 @@ pub mod scrollbar;
 pub mod thumb;
 
 mod scroll_properties;
-pub mod overscroll;
 pub use scroll_properties::*;
 
 mod types;
@@ -36,7 +35,6 @@ impl Scroll {
             focusable = true;
             focus_scope = true;
             focus_scope_behavior = crate::core::focus::FocusScopeOnFocus::FirstDescendant;
-            foreground = overscroll::over_scroll_node();
         }
         self.widget_builder().push_build_action(on_build);
     }
@@ -75,7 +73,8 @@ fn on_build(wgt: &mut WidgetBuilding) {
     let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
     wgt.push_intrinsic(NestGroup::CHILD_CONTEXT, "scroll_node", |child| {
-        scroll_node(child, mode, clip_to_viewport)
+        let child = scroll_node(child, mode, clip_to_viewport);
+        nodes::overscroll_node(child)
     });
 
     wgt.push_intrinsic(NestGroup::EVENT, "commands", |child| {
@@ -100,7 +99,10 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = SCROLL.config_node(child);
 
         let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
-        with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
+        let child = with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
+
+        let child = with_context_var(child, OVERSCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
+        with_context_var(child, OVERSCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
     });
 }
 

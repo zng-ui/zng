@@ -29,11 +29,13 @@
 # Scroll
 
 * Implement over-scroll indicator.
+    - Fade-in.
+    - Animation release.
+* Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
     - Scroll wheel zoom.
     - Commands.
-* Implement touch scroll inertia.
 
 # Touch Events
 

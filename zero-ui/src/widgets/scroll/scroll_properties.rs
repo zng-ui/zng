@@ -79,6 +79,9 @@ context_var! {
     ///
     /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
     pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
+
+    /// Color of the overscroll indicator.
+    pub static OVERSCROLL_COLOR_VAR: Rgba = colors::GRAY.with_alpha(50.pct());
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
@@ -231,6 +234,15 @@ pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<Scro
 #[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR), widget_impl(Scroll))]
 pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
+}
+
+/// Color of the overscroll indicator.
+///
+/// The overscroll indicator appears when touch scroll tries to scroll past an edge in a dimension
+/// that can scroll.
+#[property(CONTEXT, default(OVERSCROLL_COLOR_VAR), widget_impl(Scroll))]
+pub fn overscroll_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(child, OVERSCROLL_COLOR_VAR, color)
 }
 
 /// Arguments for scrollbar widget functions.

@@ -5,6 +5,7 @@ use crate::prelude::new_widget::*;
 
 use crate::core::{
     focus::FOCUS_CHANGED_EVENT,
+    gradient::{ExtendMode, RenderGradientStop},
     mouse::{MouseScrollDelta, MOUSE_WHEEL_EVENT},
     touch::{TouchPhase, TOUCH_TRANSFORM_EVENT},
 };
@@ -763,6 +764,123 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                 }
                 if o.x != Px(0) {
                     SCROLL.scroll_horizontal(ScrollFrom::VarTarget(o.x));
+                }
+            });
+        }
+        _ => {}
+    })
+}
+
+/// Overscroll visual indicator.
+pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
+    let mut v_rect = PxRect::zero();
+    let mut v_center = PxPoint::zero();
+    let mut v_radius_w = Px(0);
+
+    let mut h_rect = PxRect::zero();
+    let mut h_center = PxPoint::zero();
+    let mut h_radius_h = Px(0);
+
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var_layout(&OVERSCROLL_VERTICAL_OFFSET_VAR)
+                .sub_var_layout(&OVERSCROLL_HORIZONTAL_OFFSET_VAR);
+        }
+        UiNodeOp::Layout { final_size, wl } => {
+            *final_size = c.layout(wl);
+
+            let mut new_v_rect = PxRect::zero();
+            let v = OVERSCROLL_VERTICAL_OFFSET_VAR.get();
+            if v < 0.fct() {
+                // overscroll top
+                new_v_rect.size = *final_size;
+                new_v_rect.size.height *= v.abs().min(0.1.fct());
+                v_center.y = Px(0);
+            } else if v > 0.fct() {
+                // overscroll bottom
+                new_v_rect.size = *final_size;
+                new_v_rect.size.height *= v.abs().min(0.1.fct());
+                new_v_rect.origin.y = final_size.height - new_v_rect.size.height;
+                v_center.y = new_v_rect.size.height;
+            }
+
+            let mut new_h_rect = PxRect::zero();
+            let h = OVERSCROLL_HORIZONTAL_OFFSET_VAR.get();
+            if h < 0.fct() {
+                // overscroll left
+                new_h_rect.size = *final_size;
+                new_h_rect.size.width *= h.abs().min(0.1.fct());
+                h_center.x = Px(0);
+            } else if h > 0.fct() {
+                // overscroll right
+                new_h_rect.size = *final_size;
+                new_h_rect.size.width *= h.abs().min(0.1.fct());
+                new_h_rect.origin.x = final_size.width - new_h_rect.size.width;
+                h_center.x = new_h_rect.size.width;
+            }
+
+            if new_v_rect != v_rect {
+                v_rect = new_v_rect;
+                // 50%
+                v_center.x = v_rect.size.width / Px(2);
+                // 110%
+                let radius = v_center.x;
+                v_radius_w = radius + radius * 0.1;
+
+                WIDGET.render();
+            }
+            if new_h_rect != h_rect {
+                h_rect = new_h_rect;
+                h_center.y = h_rect.size.height / Px(2);
+                let radius = h_center.y;
+                h_radius_h = radius + radius * 0.1;
+                WIDGET.render();
+            }
+        }
+        UiNodeOp::Render { frame } => {
+            c.render(frame);
+
+            frame.with_auto_hit_test(false, |frame| {
+                let color = OVERSCROLL_COLOR_VAR.get().into();
+                let stops = [
+                    RenderGradientStop { offset: 0.0, color },
+                    RenderGradientStop { offset: 0.99, color },
+                    RenderGradientStop {
+                        offset: 1.0,
+                        color: {
+                            let mut c = color;
+                            c.a = 0.0;
+                            c
+                        },
+                    },
+                ];
+
+                if !v_rect.size.is_empty() {
+                    let mut radius = v_rect.size;
+                    radius.width = v_radius_w;
+                    frame.push_radial_gradient(
+                        v_rect,
+                        v_center,
+                        radius,
+                        &stops,
+                        ExtendMode::Clamp.into(),
+                        v_rect.size,
+                        PxSize::zero(),
+                    );
+                }
+                if !h_rect.size.is_empty() {
+                    let mut radius = h_rect.size;
+                    radius.height = h_radius_h;
+                    frame.push_radial_gradient(
+                        h_rect,
+                        h_center,
+                        radius,
+                        &stops,
+                        ExtendMode::Clamp.into(),
+                        h_rect.size,
+                        PxSize::zero(),
+                    );
                 }
             });
         }
