@@ -72,10 +72,14 @@ fn on_build(wgt: &mut WidgetBuilding) {
 
     let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
-    wgt.push_intrinsic(NestGroup::CHILD_CONTEXT, "scroll_node", |child| {
-        let child = scroll_node(child, mode, clip_to_viewport);
-        nodes::overscroll_node(child)
-    });
+    wgt.push_intrinsic(
+        NestGroup::CHILD_CONTEXT,
+        "scroll_node",
+        clmv!(mode, |child| {
+            let child = scroll_node(child, mode, clip_to_viewport);
+            nodes::overscroll_node(child)
+        }),
+    );
 
     wgt.push_intrinsic(NestGroup::EVENT, "commands", |child| {
         let child = nodes::scroll_to_node(child);
@@ -86,7 +90,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         nodes::scroll_wheel_node(child)
     });
 
-    wgt.push_intrinsic(NestGroup::CONTEXT, "context", |child| {
+    wgt.push_intrinsic(NestGroup::CONTEXT, "context", move |child| {
         let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
         let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
 
@@ -104,7 +108,9 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = with_context_var(child, OVERSCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
         let child = with_context_var(child, OVERSCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
 
-        with_context_var(child, SCROLL_SCALE_VAR, var(1.fct()))
+        let child = with_context_var(child, SCROLL_SCALE_VAR, var(1.fct()));
+
+        with_context_var(child, SCROLL_MODE_VAR, mode)
     });
 }
 

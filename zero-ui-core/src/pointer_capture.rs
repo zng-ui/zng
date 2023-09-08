@@ -53,7 +53,7 @@ pub struct PointerCaptureManager {
     capture: Option<CaptureInfo>,
 }
 impl AppExtension for PointerCaptureManager {
-    fn event_preview(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if let Some(c) = &self.capture {
                 if c.target.window_id() == args.window_id {

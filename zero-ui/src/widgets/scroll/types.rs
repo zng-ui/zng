@@ -96,6 +96,9 @@ context_var! {
     /// Zoom scaling of the parent scroll.
     pub(super) static SCROLL_SCALE_VAR: Factor = 1.fct();
 
+    /// Scroll mode.
+    pub(super) static SCROLL_MODE_VAR: ScrollMode = ScrollMode::empty();
+
 }
 
 context_local! {
@@ -195,6 +198,11 @@ impl SCROLL {
             id: WIDGET.try_id(),
             ..Default::default()
         })
+    }
+
+    /// Scroll mode of the parent scroll.
+    pub fn mode(&self) -> ReadOnlyContextVar<ScrollMode> {
+        SCROLL_MODE_VAR.read_only()
     }
 
     /// Vertical offset of the parent scroll.
@@ -587,19 +595,26 @@ impl SCROLL {
 
     /// Scroll the [`WIDGET`] into view.
     ///
-    /// This requests [`commands::scroll_to`] for the contextual widget.
+    /// This requests [`commands::scroll_to_info`] for the contextual widget.
     pub fn scroll_to(&self, mode: impl Into<super::commands::ScrollToMode>) {
         commands::scroll_to_info(&WIDGET.info(), mode.into())
     }
 
+    /// Scroll the [`WIDGET`] into view and adjusts the zoom scale.
+    ///
+    /// This rquests [`commands::scroll_to_info_zoom`] for the contextual widget.
+    pub fn scroll_to_zoom(&self, mode: impl Into<super::commands::ScrollToMode>, zoom: impl Into<Factor>) {
+        commands::scroll_to_info_zoom(&WIDGET.info(), mode.into(), zoom.into())
+    }
+
     /// Returns `true` if the content can be scaled and the current scale is less than the max.
     pub fn can_zoom_in(&self) -> bool {
-        todo!()
+        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() < super::MAX_SCALE_VAR.get()
     }
 
     /// Returns `true` if the content can be scaled and the current scale is more than the min.
     pub fn can_zoom_out(&self) -> bool {
-        todo!()
+        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > super::MIN_SCALE_VAR.get()
     }
 }
 

@@ -2,6 +2,7 @@ use crate::core::{
     mouse::MOUSE_INPUT_EVENT,
     pointer_capture::{CaptureMode, POINTER_CAPTURE},
     task::parking_lot::Mutex,
+    touch::TOUCH_INPUT_EVENT,
     IdSet,
 };
 use crate::prelude::new_property::*;
@@ -42,22 +43,27 @@ pub fn capture_pointer(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> i
     let mode = mode.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_event(&MOUSE_INPUT_EVENT).sub_var(&mode);
+            WIDGET.sub_event(&MOUSE_INPUT_EVENT).sub_event(&TOUCH_INPUT_EVENT).sub_var(&mode);
         }
         UiNodeOp::Event { update } => {
+            let mut capture = false;
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                if args.is_mouse_down() {
-                    let widget_id = WIDGET.id();
+                capture = args.is_mouse_down();
+            } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
+                capture = args.is_touch_start();
+            }
 
-                    match mode.get() {
-                        CaptureMode::Widget => {
-                            POINTER_CAPTURE.capture_widget(widget_id);
-                        }
-                        CaptureMode::Subtree => {
-                            POINTER_CAPTURE.capture_subtree(widget_id);
-                        }
-                        CaptureMode::Window => (),
+            if capture {
+                let widget_id = WIDGET.id();
+
+                match mode.get() {
+                    CaptureMode::Widget => {
+                        POINTER_CAPTURE.capture_widget(widget_id);
                     }
+                    CaptureMode::Subtree => {
+                        POINTER_CAPTURE.capture_subtree(widget_id);
+                    }
+                    CaptureMode::Window => (),
                 }
             }
         }
