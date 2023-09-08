@@ -102,7 +102,9 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
 
         let child = with_context_var(child, OVERSCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
-        with_context_var(child, OVERSCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
+        let child = with_context_var(child, OVERSCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
+
+        with_context_var(child, SCROLL_SCALE_VAR, var(1.fct()))
     });
 }
 

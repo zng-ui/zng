@@ -54,13 +54,11 @@ impl_from_and_into_var! {
 context_var! {
     /// Vertical offset of the parent scroll.
     ///
-    /// The value is a percentage of `content.height - viewport.height`. This variable is usually read-write,
-    /// scrollable content can modify it to scroll the parent.
+    /// The value is a percentage of `content.height - viewport.height`.
     pub(super) static SCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
     /// Horizontal offset of the parent scroll.
     ///
-    /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
-    /// scrollable content can modify it to scroll the parent.
+    /// The value is a percentage of `content.width - viewport.width`.
     pub(super) static SCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
 
     /// Extra vertical offset requested that could not be fulfilled because [`SCROLL_VERTICAL_OFFSET_VAR`]
@@ -91,7 +89,12 @@ context_var! {
     pub(super) static SCROLL_VIEWPORT_SIZE_VAR: PxSize = PxSize::zero();
 
     /// Latest computed content size of the parent scroll.
+    ///
+    /// The size is scaled if zoom is set.
     pub(super) static SCROLL_CONTENT_SIZE_VAR: PxSize = PxSize::zero();
+
+    /// Zoom scaling of the parent scroll.
+    pub(super) static SCROLL_SCALE_VAR: Factor = 1.fct();
 
 }
 
@@ -594,6 +597,7 @@ impl SCROLL {
         todo!()
     }
 
+    /// Returns `true` if the content can be scaled and the current scale is more than the min.
     pub fn can_zoom_out(&self) -> bool {
         todo!()
     }

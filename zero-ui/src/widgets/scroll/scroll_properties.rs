@@ -209,6 +209,8 @@ pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
 }
 
 /// Smooth scrolling config.
+///
+/// Defines the easing animation applied to scroll offset and zoom value changes.
 #[property(CONTEXT, default(SMOOTH_SCROLLING_VAR), widget_impl(Scroll))]
 pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
     with_context_var(child, SMOOTH_SCROLLING_VAR, config)

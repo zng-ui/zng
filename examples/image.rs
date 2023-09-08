@@ -461,8 +461,8 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-        y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        x = zero_ui::widgets::scroll::SCROLL.horizontal_offset().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        y = zero_ui::widgets::scroll::SCROLL.vertical_offset().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
         zero_ui::core::widget_base::can_auto_hide = false;
         max_size = (1.vw(), 1.vh());
         child_align = Align::CENTER;

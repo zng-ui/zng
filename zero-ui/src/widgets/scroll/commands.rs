@@ -165,7 +165,8 @@ command! {
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
-    /// Represents the action of scrolling until a child widget is fully visible.
+    /// Represents the action of scrolling until a child widget is fully visible, the command can
+    /// also adjust the zoom scale.
     ///
     /// # Metadata
     ///
@@ -178,6 +179,25 @@ command! {
     ///
     /// You can use the [`scroll_to`] function to invoke this command in all parent scrolls automatically.
     pub static SCROLL_TO_CMD;
+
+    /// Represents the **zoom in** action.
+    pub static ZOOM_IN_CMD = {
+        name: "Zoom In",
+        shortcut: shortcut!(CTRL+'+'),
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+    };
+
+    /// Represents the **zoom out** action.
+    pub static ZOOM_OUT_CMD = {
+        name: "Zoom Out",
+        shortcut: shortcut!(CTRL+'-'),
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+    };
+
+    /// Represents the **reset zoom** action.
+    pub static ZOOM_RESET_CMD = {
+        name: "Reset Zoom",
+    };
 }
 
 /// Parameters for the scroll and page commands.
@@ -250,6 +270,13 @@ pub struct ScrollToRequest {
 
     /// How much the scroll position will change to showcase the target widget.
     pub mode: ScrollToMode,
+
+    /// Optional zoom scale target.
+    ///
+    /// If set the offsets and scale will animate so that the `mode`
+    /// is fullfilled when this zoom factor is reached. If not set the scroll will happen in
+    /// the current zoom scale.
+    pub zoom: Option<Factor>,
 }
 impl ScrollToRequest {
     /// Pack the request into a command parameter.
@@ -265,6 +292,7 @@ impl ScrollToRequest {
             p.downcast_ref::<WidgetId>().map(|id| ScrollToRequest {
                 widget_id: *id,
                 mode: ScrollToMode::default(),
+                zoom: None,
             })
         }
     }
@@ -287,7 +315,8 @@ impl_from_and_into_var! {
     fn from(widget_id: WidgetId) -> ScrollToRequest {
         ScrollToRequest {
             widget_id,
-            mode: ScrollToMode::default()
+            mode: ScrollToMode::default(),
+            zoom: None,
         }
     }
 }
@@ -374,13 +403,12 @@ impl IntoValue<Option<ScrollToMode>> for ScrollToMode {}
 ///
 /// [`is_scroll`]: WidgetInfoExt::is_scroll
 pub fn scroll_to(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>) {
-    let target = target.into();
-    for w in crate::core::window::WINDOWS.widget_trees() {
-        if let Some(target) = w.get(target) {
-            scroll_to_info(&target, mode.into());
-            break;
-        }
-    }
+    scroll_to_impl(target.into(), mode.into(), None)
+}
+
+/// Like [`scroll_to`], but also adjusts the zoom scale.
+pub fn scroll_to_zoom(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>, zoom: impl Into<Factor>) {
+    scroll_to_impl(target.into(), mode.into(), Some(zoom.into()))
 }
 
 /// Scroll all parent [`is_scroll`] widgets of `target` so that it becomes visible.
@@ -389,13 +417,31 @@ pub fn scroll_to(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>) {
 ///
 /// [`is_scroll`]: WidgetInfoExt::is_scroll
 pub fn scroll_to_info(target: &crate::core::widget_info::WidgetInfo, mode: impl Into<ScrollToMode>) {
+    scroll_to_info_impl(target, mode.into(), None)
+}
+
+/// Like [`scroll_to_info`], but also adjusts the zoom scale.
+pub fn scroll_to_info_zoom(target: &crate::core::widget_info::WidgetInfo, mode: impl Into<ScrollToMode>, zoom: impl Into<Factor>) {
+    scroll_to_info_impl(target, mode.into(), Some(zoom.into()))
+}
+
+fn scroll_to_impl(target: WidgetId, mode: ScrollToMode, zoom: Option<Factor>) {
+    for w in crate::core::window::WINDOWS.widget_trees() {
+        if let Some(target) = w.get(target) {
+            scroll_to_info_impl(&target, mode, zoom);
+            break;
+        }
+    }
+}
+
+fn scroll_to_info_impl(target: &crate::core::widget_info::WidgetInfo, mode: ScrollToMode, zoom: Option<Factor>) {
     let mut t = target.id();
-    let mode = mode.into();
     for a in target.ancestors() {
         if a.is_scroll() {
             SCROLL_TO_CMD.scoped(a.id()).notify_param(ScrollToRequest {
                 widget_id: t,
                 mode: mode.clone(),
+                zoom,
             });
             t = a.id();
         }

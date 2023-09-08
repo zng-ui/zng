@@ -28,11 +28,13 @@
 
 # Scroll
 
+* Click in thumb drag and release outside thumb causes it to stay pressed.
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
     - Scroll wheel zoom.
     - Commands.
+    - Scroll-to-fill.
 
 # Touch Events
 
