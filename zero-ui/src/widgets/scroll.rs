@@ -22,8 +22,8 @@ pub struct Scroll(ScrollUinitsMix<ScrollbarFnMix<Container>>);
 
 /// Scroll mode.
 ///
-/// By default scrolls in both dimensions.
-#[property(CONTEXT, capture, default(ScrollMode::PAN), widget_impl(Scroll))]
+/// Is [`ScrollMode::ZOOM`] by default.
+#[property(CONTEXT, capture, default(ScrollMode::ZOOM), widget_impl(Scroll))]
 pub fn mode(mode: impl IntoVar<ScrollMode>) {}
 
 impl Scroll {

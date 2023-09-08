@@ -82,6 +82,12 @@ context_var! {
 
     /// Color of the overscroll indicator.
     pub static OVERSCROLL_COLOR_VAR: Rgba = colors::GRAY.with_alpha(50.pct());
+
+    /// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
+    pub static MIN_SCALE_VAR: Factor = 10.pct();
+
+    /// Maximum scale allowed when [`ScrollMode::ZOOM`] is enabled.
+    pub static MAX_SCALE_VAR: Factor = 500.pct();
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
@@ -245,6 +251,18 @@ pub fn overscroll_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     with_context_var(child, OVERSCROLL_COLOR_VAR, color)
 }
 
+/// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
+#[property(CONTEXT, default(MIN_SCALE_VAR), widget_impl(Scroll))]
+pub fn min_scale(child: impl UiNode, min: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, MIN_SCALE_VAR, min)
+}
+
+/// Maximum scale allowed when [`ScrollMode::ZOOM`] is enabled.
+#[property(CONTEXT, default(MAX_SCALE_VAR), widget_impl(Scroll))]
+pub fn max_scale(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, MAX_SCALE_VAR, max)
+}
+
 /// Arguments for scrollbar widget functions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScrollBarArgs {
@@ -259,7 +277,10 @@ impl ScrollBarArgs {
 
     /// Gets the context variable that gets and sets the offset for the orientation.
     ///
-    /// See [`SCROLL_VERTICAL_OFFSET_VAR`] and [`SCROLL_HORIZONTAL_OFFSET_VAR`] for more details.
+    /// See [`SCROLL.vertical_offset`] and [`SCROLL.horizontal_offset`] for more details.
+    ///
+    /// [`SCROLL.vertical_offset`]: SCROLL::vertical_offset
+    /// [`SCROLL.horizontal_offset`]: SCROLL::horizontal_offset
     pub fn offset(&self) -> ContextVar<Factor> {
         use scrollbar::Orientation::*;
 

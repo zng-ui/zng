@@ -654,10 +654,10 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                 applied_offset = new_offset;
 
                 if delta.y != Px(0) {
-                    SCROLL.touch_scroll_vertical(-delta.y);
+                    SCROLL.scroll_vertical_touch(-delta.y);
                 }
                 if delta.x != Px(0) {
-                    SCROLL.touch_scroll_horizontal(-delta.x);
+                    SCROLL.scroll_horizontal_touch(-delta.x);
                 }
 
                 match args.phase {
@@ -667,14 +667,14 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                         // TODO inertia
                         applied_offset = PxVector::zero();
 
-                        SCROLL.clear_overscroll_vertical();
-                        SCROLL.clear_overscroll_horizontal();
+                        SCROLL.clear_vertical_overscroll();
+                        SCROLL.clear_horizontal_overscroll();
                     }
                     TouchPhase::Cancel => {
                         applied_offset = PxVector::zero();
 
-                        SCROLL.clear_overscroll_vertical();
-                        SCROLL.clear_overscroll_horizontal();
+                        SCROLL.clear_vertical_overscroll();
+                        SCROLL.clear_horizontal_overscroll();
                     }
                 }
             }
@@ -753,6 +753,13 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                     }
 
                     WIDGET.layout();
+                } else if let Some(delta) = args.zoom_delta() {
+                    let (_x, _y) = match delta {
+                        MouseScrollDelta::LineDelta(x, y) => {
+                            (HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct(), VERTICAL_WHEEL_UNIT_VAR.get() * y.fct())
+                        }
+                        MouseScrollDelta::PixelDelta(x, y) => (x.px(), y.px()),
+                    };
                 }
             }
         }

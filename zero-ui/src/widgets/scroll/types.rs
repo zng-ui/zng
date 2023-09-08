@@ -56,20 +56,20 @@ context_var! {
     ///
     /// The value is a percentage of `content.height - viewport.height`. This variable is usually read-write,
     /// scrollable content can modify it to scroll the parent.
-    pub static SCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
+    pub(super) static SCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
     /// Horizontal offset of the parent scroll.
     ///
     /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
     /// scrollable content can modify it to scroll the parent.
-    pub static SCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
+    pub(super) static SCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
 
     /// Extra vertical offset requested that could not be fulfilled because [`SCROLL_VERTICAL_OFFSET_VAR`]
     /// is already at `0.fct()` or `1.fct()`.
-    pub static OVERSCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
+    pub(super) static OVERSCROLL_VERTICAL_OFFSET_VAR: Factor = 0.fct();
 
     /// Extra horizontal offset requested that could not be fulfilled because [`SCROLL_HORIZONTAL_OFFSET_VAR`]
     /// is already at `0.fct()` or `1.fct()`.
-    pub static OVERSCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
+    pub(super) static OVERSCROLL_HORIZONTAL_OFFSET_VAR: Factor = 0.fct();
 
     /// Ratio of the scroll parent viewport height to its content.
     ///
@@ -131,23 +131,23 @@ impl Default for ScrollConfig {
     }
 }
 
-/// Defines a scroll diff and to what value source it is applied.
+/// Defines a scroll delta and to what value source it is applied.
 ///
 /// Scrolling can get out of sync depending on what moment and source the current scroll is read,
 /// the offset vars can be multiple frames ahead as update cycles have higher priority than render,
 /// some scrolling operations also target the value the smooth scrolling animation is animating too,
-/// this enum lets you specify from what scroll offset a diff must be computed.
+/// this enum lets you specify from what scroll offset a delta must be computed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ScrollFrom {
     /// Scroll amount added to the offset var current value, if smooth scrolling is enabled this
     /// can be a partial value different from `VarTarget`.
     ///
-    /// Operations that compute a scroll diff from the offset var must use this variant otherwise they
+    /// Operations that compute a scroll delta from the offset var must use this variant otherwise they
     /// will overshoot.
     Var(Px),
     /// Scroll amount added to the value the offset var is animating too.
     ///
-    /// Operations that accumulate a diff (line-up/down) must use this variant otherwise they will
+    /// Operations that accumulate a delta (line-up/down) must use this variant otherwise they will
     /// undershoot.
     ///
     /// This is the same as `Var` if smooth scrolling is disabled.
@@ -162,8 +162,6 @@ pub enum ScrollFrom {
 }
 
 /// Controls the parent scroll.
-///
-/// Also see [`SCROLL_VERTICAL_OFFSET_VAR`] and [`SCROLL_HORIZONTAL_OFFSET_VAR`] for controlling the scroll offset.
 pub struct SCROLL;
 impl SCROLL {
     /// Gets the ID of the scroll ancestor represented by the [`SCROLL`].
@@ -194,6 +192,38 @@ impl SCROLL {
             id: WIDGET.try_id(),
             ..Default::default()
         })
+    }
+
+    /// Vertical offset of the parent scroll.
+    ///
+    /// The value is a percentage of `content.height - viewport.height`. This variable is usually read-write,
+    /// scrollable content can modify it to scroll the parent.
+    pub fn vertical_offset(&self) -> ReadOnlyContextVar<Factor> {
+        SCROLL_VERTICAL_OFFSET_VAR.read_only()
+    }
+
+    /// Horizontal offset of the parent scroll.
+    ///
+    /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
+    /// scrollable content can modify it to scroll the parent.
+    pub fn horizontal_offset(&self) -> ReadOnlyContextVar<Factor> {
+        SCROLL_HORIZONTAL_OFFSET_VAR.read_only()
+    }
+
+    /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
+    /// is already at `0.fct()` or `1.fct()`.
+    ///
+    /// [`vertical_offset`]: Self::vertical_offset
+    pub fn vertical_overscroll(&self) -> ReadOnlyContextVar<Factor> {
+        OVERSCROLL_VERTICAL_OFFSET_VAR.read_only()
+    }
+
+    /// Extra horizontal offset requested that could not be fulfilled because [`horizontal_offset`]
+    /// is already at `0.fct()` or `1.fct()`.
+    ///
+    /// [`horizontal_offset`]: Self::horizontal_offset
+    pub fn horizontal_overscroll(&self) -> ReadOnlyContextVar<Factor> {
+        OVERSCROLL_HORIZONTAL_OFFSET_VAR.read_only()
     }
 
     /// Ratio of the scroll parent viewport height to its content.
@@ -229,16 +259,17 @@ impl SCROLL {
         SCROLL_CONTENT_SIZE_VAR.read_only()
     }
 
-    /// Offset the vertical position by the given pixel `amount`.
+    /// Applies the `delta` to the vertical offset.
     ///
-    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
-    pub fn scroll_vertical(&self, amount: ScrollFrom) {
-        self.scroll_vertical_clamp(amount, f32::MIN, f32::MAX);
+    /// If smooth scrolling is enabled it is used to update the offset.
+    pub fn scroll_vertical(&self, delta: ScrollFrom) {
+        self.scroll_vertical_clamp(delta, f32::MIN, f32::MAX);
     }
-    /// Offset the vertical position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+
+    /// Applies the `delta` to the vertical offset, but clamps the final offset by the inclusive `min` and `max`.
     ///
-    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
-    pub fn scroll_vertical_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
+    /// If smooth scrolling is enabled it is used to update the offset.
+    pub fn scroll_vertical_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -248,7 +279,7 @@ impl SCROLL {
             return;
         }
 
-        match amount {
+        match delta {
             ScrollFrom::Var(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 let f = SCROLL_VERTICAL_OFFSET_VAR.get();
@@ -266,9 +297,11 @@ impl SCROLL {
         }
     }
 
-    /// Applies the `amount` delta to the [`SCROLL_VERTICAL_OFFSET_VAR`] without smooth scrolling and
-    /// updates the [`OVERSCROLL_VERTICAL_OFFSET_VAR`] if it changes.
-    pub fn touch_scroll_vertical(&self, amount: Px) {
+    /// Applies the `delta` to the vertical offset without smooth scrolling and
+    /// updates the vertical overscroll if it changes.
+    ///
+    /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
+    pub fn scroll_vertical_touch(&self, delta: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -277,10 +310,10 @@ impl SCROLL {
             return;
         }
 
-        let amount = amount.0 as f32 / max_scroll.0 as f32;
+        let delta = delta.0 as f32 / max_scroll.0 as f32;
 
         let current = SCROLL_VERTICAL_OFFSET_VAR.get();
-        let mut next = current + amount.fct();
+        let mut next = current + delta.fct();
         let mut overscroll = 0.fct();
         if next > 1.fct() {
             overscroll = next - 1.fct();
@@ -298,43 +331,7 @@ impl SCROLL {
             let mut handle = config.overscroll_vertical.lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
-            self.clear_overscroll_vertical();
-        }
-    }
-
-    /// Applies the `amount` delta to the [`SCROLL_HORIZONTAL_OFFSET_VAR`] without smooth scrolling and
-    /// updates the [`OVERSCROLL_HORIZONTAL_OFFSET_VAR`] if it changes.
-    pub fn touch_scroll_horizontal(&self, amount: Px) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        let max_scroll = content - viewport;
-        if max_scroll <= Px(0) {
-            return;
-        }
-
-        let amount = amount.0 as f32 / max_scroll.0 as f32;
-
-        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-        let mut next = current + amount.fct();
-        let mut overscroll = 0.fct();
-        if next > 1.fct() {
-            overscroll = next - 1.fct();
-            next = 1.fct();
-        } else if next < 0.fct() {
-            overscroll = next;
-            next = 0.fct();
-        }
-
-        let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
-        if overscroll != 0.fct() {
-            let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
-
-            let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_horizontal.lock();
-            mem::replace(&mut *handle, new_handle).stop();
-        } else {
-            self.clear_overscroll_horizontal();
+            self.clear_vertical_overscroll();
         }
     }
 
@@ -365,8 +362,8 @@ impl SCROLL {
         })
     }
 
-    /// Quick ease [`OVERSCROLL_VERTICAL_OFFSET_VAR`] to zero.
-    pub fn clear_overscroll_vertical(&self) {
+    /// Quick ease vertical overscroll to zero.
+    pub fn clear_vertical_overscroll(&self) {
         if OVERSCROLL_VERTICAL_OFFSET_VAR.get() != 0.fct() {
             let new_handle = OVERSCROLL_VERTICAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
@@ -376,8 +373,8 @@ impl SCROLL {
         }
     }
 
-    /// Quick ease [`OVERSCROLL_HORIZONTAL_OFFSET_VAR`] to zero.
-    pub fn clear_overscroll_horizontal(&self) {
+    /// Quick ease horizontal overscroll to zero.
+    pub fn clear_horizontal_overscroll(&self) {
         if OVERSCROLL_HORIZONTAL_OFFSET_VAR.get() != 0.fct() {
             let new_handle = OVERSCROLL_HORIZONTAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
@@ -387,16 +384,17 @@ impl SCROLL {
         }
     }
 
-    /// Offset the horizontal position by the given pixel `amount`.
+    /// Applies the `delta` to the horizontal offset.
     ///
     /// If smooth scrolling is enabled the chase animation is created or updated by this call.
-    pub fn scroll_horizontal(&self, amount: ScrollFrom) {
-        self.scroll_horizontal_clamp(amount, f32::MIN, f32::MAX)
+    pub fn scroll_horizontal(&self, delta: ScrollFrom) {
+        self.scroll_horizontal_clamp(delta, f32::MIN, f32::MAX)
     }
-    /// Offset the horizontal position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+
+    /// Applies the `delta` to the horizontal offset, but clamps the final offset by the inclusive `min` and `max`.
     ///
-    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
-    pub fn scroll_horizontal_clamp(&self, amount: ScrollFrom, min: f32, max: f32) {
+    /// If smooth scrolling is enabled it is used to update the offset.
+    pub fn scroll_horizontal_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -406,7 +404,7 @@ impl SCROLL {
             return;
         }
 
-        match amount {
+        match delta {
             ScrollFrom::Var(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 let f = SCROLL_HORIZONTAL_OFFSET_VAR.get();
@@ -424,7 +422,45 @@ impl SCROLL {
         }
     }
 
-    /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to a new offset derived from the last set offset, blending into the active smooth
+    /// Applies the `delta` to the horizontal offset without smooth scrolling and
+    /// updates the horizontal overscroll if it changes.
+    ///
+    /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
+    pub fn scroll_horizontal_touch(&self, amount: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+
+        let max_scroll = content - viewport;
+        if max_scroll <= Px(0) {
+            return;
+        }
+
+        let amount = amount.0 as f32 / max_scroll.0 as f32;
+
+        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+        let mut next = current + amount.fct();
+        let mut overscroll = 0.fct();
+        if next > 1.fct() {
+            overscroll = next - 1.fct();
+            next = 1.fct();
+        } else if next < 0.fct() {
+            overscroll = next;
+            next = 0.fct();
+        }
+
+        let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
+        if overscroll != 0.fct() {
+            let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
+
+            let config = SCROLL_CONFIG.get();
+            let mut handle = config.overscroll_horizontal.lock();
+            mem::replace(&mut *handle, new_handle).stop();
+        } else {
+            self.clear_horizontal_overscroll();
+        }
+    }
+
+    /// Set the vertical offset to a new offset derived from the last, blending into the active smooth
     /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
     pub fn chase_vertical(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         #[cfg(dyn_closure)]
@@ -459,7 +495,7 @@ impl SCROLL {
         }
     }
 
-    /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to a new offset derived from the last set offset, blending into the active smooth
+    /// Set the horizontal offset to a new offset derived from the last set offset, blending into the active smooth
     /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
     pub fn chase_horizontal(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         #[cfg(dyn_closure)]
@@ -551,6 +587,15 @@ impl SCROLL {
     /// This requests [`commands::scroll_to`] for the contextual widget.
     pub fn scroll_to(&self, mode: impl Into<super::commands::ScrollToMode>) {
         commands::scroll_to_info(&WIDGET.info(), mode.into())
+    }
+
+    /// Returns `true` if the content can be scaled and the current scale is less than the max.
+    pub fn can_zoom_in(&self) -> bool {
+        todo!()
+    }
+
+    pub fn can_zoom_out(&self) -> bool {
+        todo!()
     }
 }
 
