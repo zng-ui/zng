@@ -33,6 +33,7 @@
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
     - Scroll wheel zoom.
+        - Focus on cursor?
     - Commands.
     - Scroll-to-fill.
 

@@ -204,11 +204,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             culling_rect.min.x -= auto_hide_extra.left;
             let culling_rect = frame.transform().outer_transformed(culling_rect).unwrap_or(culling_rect).to_rect();
 
-            let mut transform = PxTransform::from(content_offset);
-            if content_scale != 1.fct() {
-                transform = transform.then(&PxTransform::scale(content_scale.0, content_scale.0));
-            }
-
+            let transform = if content_scale != 1.fct() {
+                PxTransform::scale(content_scale.0, content_scale.0).then_translate(content_offset.cast())
+            } else {
+                content_offset.into()
+            };
             frame.push_reference_frame(binding_key.into(), binding_key.bind(transform, true), true, false, |frame| {
                 frame.with_auto_hide_rect(culling_rect, |frame| {
                     child.render(frame);
@@ -218,10 +218,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         UiNodeOp::RenderUpdate { update } => {
             scroll_info.set_viewport_transform(*update.transform());
 
-            let mut transform = PxTransform::from(content_offset);
-            if content_scale != 1.fct() {
-                transform = transform.then(&PxTransform::scale(content_scale.0, content_scale.0));
-            }
+            let transform = if content_scale != 1.fct() {
+                PxTransform::scale(content_scale.0, content_scale.0).then_translate(content_offset.cast())
+            } else {
+                content_offset.into()
+            };
             update.with_transform(binding_key.update(transform, true), false, |update| {
                 child.render_update(update);
             });
