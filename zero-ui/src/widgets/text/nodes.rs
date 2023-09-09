@@ -94,8 +94,10 @@ impl CaretInfo {
         let b = self.selection_index?;
         if a.index < b.index {
             Some(a..b)
-        } else {
+        } else if a.index > b.index {
             Some(b..a)
+        } else {
+            None
         }
     }
 }
@@ -1220,32 +1222,56 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::ArrowRight => {
-                                if args.modifiers.is_only_ctrl() {
+                                let mut modifiers = args.modifiers;
+                                let has_shift = modifiers.take_shift();
+                                if modifiers.is_only_ctrl() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::next_word().call();
+                                        if has_shift {
+                                            TextSelectOp::select_next_word()
+                                        } else {
+                                            TextSelectOp::next_word()
+                                        }
+                                        .call();
                                     });
-                                } else if args.modifiers.is_empty() {
+                                } else if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::next().call();
+                                        if has_shift {
+                                            TextSelectOp::select_next()
+                                        } else {
+                                            TextSelectOp::next()
+                                        }
+                                        .call();
                                     });
                                 }
                             }
                             Key::ArrowLeft => {
-                                if args.modifiers.is_only_ctrl() {
+                                let mut modifiers = args.modifiers;
+                                let has_shift = modifiers.take_shift();
+                                if modifiers.is_only_ctrl() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::prev_word().call();
+                                        if has_shift {
+                                            TextSelectOp::select_prev_word()
+                                        } else {
+                                            TextSelectOp::prev_word()
+                                        }
+                                        .call();
                                     });
-                                } else if args.modifiers.is_empty() {
+                                } else if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::prev().call();
+                                        if has_shift {
+                                            TextSelectOp::select_prev()
+                                        } else {
+                                            TextSelectOp::prev()
+                                        }
+                                        .call();
                                     });
                                 }
                             }

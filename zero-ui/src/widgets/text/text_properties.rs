@@ -1080,7 +1080,7 @@ context_var! {
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
     /// Selection background color.
-    pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(30.pct());
+    pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(10.pct());
 }
 
 /// Enable text selection, copy, caret and input; and makes the widget focusable.

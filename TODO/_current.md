@@ -9,6 +9,7 @@
         - Holding shift and pressing the arrow keys.
     - Touch:
         - Research how it works.
+    - Draw selection for line break.
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.

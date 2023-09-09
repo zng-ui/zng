@@ -560,60 +560,60 @@ impl TextSelectOp {
         }
     }
 
-    /// Clear selection and move the caret on the next insert index.
+    /// Clear selection and move the caret to the next insert index.
     ///
     /// This is the `Right` key operation.
     pub fn next() -> Self {
-        Self::new(|| {
-            let ctx = ResolvedText::get();
-            let mut c = ctx.caret.lock();
-            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
-            caret.index = ctx.text.next_insert_index(caret.index);
-            c.index = Some(caret);
-            c.used_retained_x = false;
-        })
+        Self::new(|| next_prev(true, SegmentedText::next_insert_index))
+    }
+
+    /// Extend or shrink selection by moving the caret to the next insert index.
+    ///
+    /// This is the `SHIFT+Right` key operation.
+    pub fn select_next() -> Self {
+        Self::new(|| next_prev(false, SegmentedText::next_insert_index))
     }
 
     /// Clear selection and move the caret to the previous insert index.
     ///
     /// This is the `Left` key operation.
     pub fn prev() -> Self {
-        Self::new(|| {
-            let ctx = ResolvedText::get();
-            let mut c = ctx.caret.lock();
-            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
-            caret.index = ctx.text.prev_insert_index(caret.index);
-            c.index = Some(caret);
-            c.used_retained_x = false;
-        })
+        Self::new(|| next_prev(true, SegmentedText::prev_insert_index))
+    }
+
+    /// Extend or shrink selection by moving the caret to the previous insert index.
+    ///
+    /// This is the `SHIFT+Left` key operation.
+    pub fn select_prev() -> Self {
+        Self::new(|| next_prev(false, SegmentedText::prev_insert_index))
     }
 
     /// Clear selection and move the caret to the next word insert index.
     ///
     /// This is the `CTRL+Right` shortcut operation.
     pub fn next_word() -> Self {
-        Self::new(|| {
-            let ctx = ResolvedText::get();
-            let mut c = ctx.caret.lock();
-            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
-            caret.index = ctx.text.next_word_index(caret.index);
-            c.index = Some(caret);
-            c.used_retained_x = false;
-        })
+        Self::new(|| next_prev(true, SegmentedText::next_word_index))
+    }
+
+    /// Extend or shrink selection by moving the caret to the next word insert index.
+    ///
+    /// This is the `CTRL+SHIFT+Right` shortcut operation.
+    pub fn select_next_word() -> Self {
+        Self::new(|| next_prev(false, SegmentedText::next_word_index))
     }
 
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn prev_word() -> Self {
-        Self::new(|| {
-            let ctx = ResolvedText::get();
-            let mut c = ctx.caret.lock();
-            let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
-            caret.index = ctx.text.prev_word_index(caret.index);
-            c.index = Some(caret);
-            c.used_retained_x = false;
-        })
+        Self::new(|| next_prev(true, SegmentedText::prev_word_index))
+    }
+
+    /// Extend or shrink selection by moving the caret to the previous word insert index.
+    ///
+    /// This is the `CTRL+SHIFT+Left` shortcut operation.
+    pub fn select_prev_word() -> Self {
+        Self::new(|| next_prev(false, SegmentedText::prev_word_index))
     }
 
     /// Clear selection and move the caret in the nearest insert index on the previous line.
@@ -752,6 +752,20 @@ impl TextSelectOp {
     }
 }
 
+fn next_prev(clear_selection: bool, insert_index_fn: fn(&SegmentedText, usize) -> usize) {
+    let ctx = ResolvedText::get();
+    let mut c = ctx.caret.lock();
+    let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(caret);
+    }
+    caret.index = insert_index_fn(&ctx.text, caret.index);
+    c.index = Some(caret);
+    c.used_retained_x = false;
+}
+
 fn line_up_down(diff: i8) {
     let diff = diff as isize;
     let resolved = ResolvedText::get();
@@ -786,6 +800,7 @@ fn line_up_down(diff: i8) {
 
     if caret_index.is_none() {
         *caret_index = Some(CaretIndex::ZERO);
+        caret.selection_index = None;
     }
 }
 
@@ -822,5 +837,6 @@ fn page_up_down(diff: i8) {
 
     if caret_index.is_none() {
         *caret_index = Some(CaretIndex::ZERO);
+        caret.selection_index = None;
     }
 }
