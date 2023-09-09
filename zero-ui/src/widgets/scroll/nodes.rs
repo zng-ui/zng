@@ -23,6 +23,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
     let mut viewport_size = PxSize::zero();
     let mut viewport_unit = PxSize::zero();
     let mut content_offset = PxVector::zero();
+    let mut content_scale = 1.fct();
     let mut auto_hide_extra = PxSideOffsets::zero();
     let mut last_render_offset = PxVector::zero();
     let scroll_info = ScrollInfo::default();
@@ -54,7 +55,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 && viewport_unit.height > Px(0)
                 && constraints.max_size() == Some(viewport_unit); // that is not just min size.
 
-            let ct_size = LAYOUT.with_constraints(
+            let mut content_size = LAYOUT.with_constraints(
                 {
                     let mut c = constraints;
                     c = c.with_min_size(viewport_unit);
@@ -75,7 +76,13 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
             );
 
-            *desired_size = constraints.fill_size_or(ct_size);
+            if mode.contains(ScrollMode::ZOOM) {
+                let scale = SCROLL_SCALE_VAR.get();
+                content_size.width *= scale;
+                content_size.height *= scale;
+            }
+
+            *desired_size = constraints.fill_size_or(content_size);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let mode = mode.get();
@@ -87,7 +94,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 && vp_unit.height > Px(0)
                 && constraints.max_size() == Some(vp_unit); // that is not just min size.
 
-            let ct_size = LAYOUT.with_constraints(
+            let mut content_size = LAYOUT.with_constraints(
                 {
                     let mut c = constraints;
                     c = c.with_min_size(vp_unit);
@@ -110,8 +117,15 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                     }
                 },
             );
+            if mode.contains(ScrollMode::ZOOM) {
+                content_scale = SCROLL_SCALE_VAR.get();
+                content_size.width *= content_scale;
+                content_size.height *= content_scale;
+            } else {
+                content_scale = 1.fct();
+            }
 
-            let vp_size = constraints.fill_size_or(ct_size);
+            let vp_size = constraints.fill_size_or(content_size);
             if viewport_size != vp_size {
                 viewport_size = vp_size;
                 SCROLL_VIEWPORT_SIZE_VAR.set(vp_size).unwrap();
@@ -130,7 +144,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             scroll_info.set_viewport_size(vp_size);
 
-            let mut content_size = ct_size;
             if !mode.contains(ScrollMode::VERTICAL) {
                 content_size.height = vp_size.height;
             }
@@ -191,22 +204,25 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             culling_rect.min.x -= auto_hide_extra.left;
             let culling_rect = frame.transform().outer_transformed(culling_rect).unwrap_or(culling_rect).to_rect();
 
-            frame.push_reference_frame(
-                binding_key.into(),
-                binding_key.bind(content_offset.into(), true),
-                true,
-                false,
-                |frame| {
-                    frame.with_auto_hide_rect(culling_rect, |frame| {
-                        child.render(frame);
-                    });
-                },
-            );
+            let mut transform = PxTransform::from(content_offset);
+            if content_scale != 1.fct() {
+                transform = transform.then(&PxTransform::scale(content_scale.0, content_scale.0));
+            }
+
+            frame.push_reference_frame(binding_key.into(), binding_key.bind(transform, true), true, false, |frame| {
+                frame.with_auto_hide_rect(culling_rect, |frame| {
+                    child.render(frame);
+                });
+            });
         }
         UiNodeOp::RenderUpdate { update } => {
             scroll_info.set_viewport_transform(*update.transform());
 
-            update.with_transform(binding_key.update(content_offset.into(), true), false, |update| {
+            let mut transform = PxTransform::from(content_offset);
+            if content_scale != 1.fct() {
+                transform = transform.then(&PxTransform::scale(content_scale.0, content_scale.0));
+            }
+            update.with_transform(binding_key.update(transform, true), false, |update| {
                 child.render_update(update);
             });
         }
