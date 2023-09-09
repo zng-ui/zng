@@ -92,12 +92,12 @@ impl CaretInfo {
     pub fn selection_range(&self) -> Option<ops::Range<CaretIndex>> {
         let a = self.index?;
         let b = self.selection_index?;
-        if a.index < b.index {
-            Some(a..b)
-        } else if a.index > b.index {
-            Some(b..a)
-        } else {
-            None
+
+        use std::cmp::Ordering;
+        match a.index.cmp(&b.index) {
+            Ordering::Less => Some(a..b),
+            Ordering::Equal => None,
+            Ordering::Greater => Some(b..a),
         }
     }
 }
