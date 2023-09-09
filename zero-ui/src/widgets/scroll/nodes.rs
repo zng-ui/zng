@@ -543,12 +543,12 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = ZOOM_IN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_in, |_| {
                     let delta = ZOOM_WHEEL_UNIT_VAR.get();
-                    SCROLL.chase_zoom(|f| f - delta);
+                    SCROLL.chase_zoom(|f| f + delta);
                 });
             } else if let Some(args) = ZOOM_OUT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_out, |_| {
                     let delta = ZOOM_WHEEL_UNIT_VAR.get();
-                    SCROLL.chase_zoom(|f| f + delta);
+                    SCROLL.chase_zoom(|f| f - delta);
                 });
             } else if let Some(args) = ZOOM_RESET_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_reset, |_| {
@@ -845,9 +845,9 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                         }
                     };
 
-                    let apply = if delta < 0.fct() {
+                    let apply = if delta > 0.fct() {
                         SCROLL.can_zoom_in()
-                    } else if delta > 0.fct() {
+                    } else if delta < 0.fct() {
                         SCROLL.can_zoom_out()
                     } else {
                         false
