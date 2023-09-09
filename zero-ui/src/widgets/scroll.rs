@@ -18,7 +18,7 @@ pub use thumb::Thumb;
 
 /// A single content container that can be larger on the inside.
 #[widget($crate::widgets::Scroll)]
-pub struct Scroll(ScrollUinitsMix<ScrollbarFnMix<Container>>);
+pub struct Scroll(ScrollUnitsMix<ScrollbarFnMix<Container>>);
 
 /// Scroll mode.
 ///
@@ -61,14 +61,14 @@ pub fn clip_to_viewport(clip: impl IntoVar<bool>) {}
 
 /// Properties that define scroll units.
 #[widget_mixin]
-pub struct ScrollUinitsMix<P>(P);
+pub struct ScrollUnitsMix<P>(P);
 
 /// Properties that defines the scrollbar widget used in scrolls.
 #[widget_mixin]
 pub struct ScrollbarFnMix<P>(P);
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::PAN);
+    let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::ZOOM);
 
     let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
@@ -87,6 +87,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = nodes::page_commands_node(child);
         let child = nodes::scroll_to_edge_commands_node(child);
         let child = nodes::scroll_touch_node(child);
+        let child = nodes::zoom_commands_node(child);
         nodes::scroll_wheel_node(child)
     });
 

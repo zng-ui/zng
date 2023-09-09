@@ -32,7 +32,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             WIDGET
                 .sub_var_layout(&mode)
                 .sub_var_layout(&SCROLL_VERTICAL_OFFSET_VAR)
-                .sub_var_layout(&SCROLL_HORIZONTAL_OFFSET_VAR);
+                .sub_var_layout(&SCROLL_HORIZONTAL_OFFSET_VAR)
+                .sub_var_layout(&SCROLL_SCALE_VAR);
         }
         UiNodeOp::Info { info } => {
             info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
@@ -491,6 +492,58 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
+/// Create a node that implements [`ZOOM_IN_CMD`], [`ZOOM_OUT_CMD`],
+/// and [`ZOOM_RESET_CMD`] scoped on the widget.
+pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
+    let mut zoom_in = CommandHandle::dummy();
+    let mut zoom_out = CommandHandle::dummy();
+    let mut zoom_reset = CommandHandle::dummy();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            let scope = WIDGET.id();
+
+            zoom_in = ZOOM_IN_CMD.scoped(scope).subscribe(SCROLL.can_zoom_in());
+            zoom_out = ZOOM_OUT_CMD.scoped(scope).subscribe(SCROLL.can_zoom_out());
+            zoom_reset = ZOOM_RESET_CMD.scoped(scope).subscribe(SCROLL.zoom_scale().get() != 1.fct());
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            zoom_in = CommandHandle::dummy();
+            zoom_out = CommandHandle::dummy();
+            zoom_reset = CommandHandle::dummy();
+        }
+        UiNodeOp::Layout { .. } => {
+            zoom_in.set_enabled(SCROLL.can_zoom_in());
+            zoom_out.set_enabled(SCROLL.can_zoom_out());
+            zoom_reset.set_enabled(SCROLL.zoom_scale().get() != 1.fct());
+        }
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            let scope = WIDGET.id();
+
+            if let Some(args) = ZOOM_IN_CMD.scoped(scope).on(update) {
+                args.handle_enabled(&zoom_in, |_| {
+                    let delta = ZOOM_WHEEL_UNIT_VAR.get();
+                    SCROLL.chase_zoom(|f| f - delta);
+                });
+            } else if let Some(args) = ZOOM_OUT_CMD.scoped(scope).on(update) {
+                args.handle_enabled(&zoom_out, |_| {
+                    let delta = ZOOM_WHEEL_UNIT_VAR.get();
+                    SCROLL.chase_zoom(|f| f + delta);
+                });
+            } else if let Some(args) = ZOOM_RESET_CMD.scoped(scope).on(update) {
+                args.handle_enabled(&zoom_reset, |_| {
+                    SCROLL.chase_zoom(|_| 1.fct());
+                });
+            }
+        }
+        _ => {}
+    })
+}
+
 /// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     let mut _handle = CommandHandle::dummy();
@@ -754,12 +807,39 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
                     WIDGET.layout();
                 } else if let Some(delta) = args.zoom_delta() {
-                    let (_x, _y) = match delta {
+                    if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
+                        return;
+                    }
+
+                    let delta = match delta {
                         MouseScrollDelta::LineDelta(x, y) => {
-                            (HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct(), VERTICAL_WHEEL_UNIT_VAR.get() * y.fct())
+                            if y.abs() > x.abs() {
+                                ZOOM_WHEEL_UNIT_VAR.get() * y.fct()
+                            } else {
+                                ZOOM_WHEEL_UNIT_VAR.get() * x.fct()
+                            }
                         }
-                        MouseScrollDelta::PixelDelta(x, y) => (x.px(), y.px()),
+                        MouseScrollDelta::PixelDelta(x, y) => {
+                            if y.abs() > x.abs() {
+                                // 1% per "pixel".
+                                0.001.fct() * y.fct()
+                            } else {
+                                0.001.fct() * x.fct()
+                            }
+                        }
                     };
+
+                    let apply = if delta < 0.fct() {
+                        SCROLL.can_zoom_in()
+                    } else if delta > 0.fct() {
+                        SCROLL.can_zoom_out()
+                    } else {
+                        false
+                    };
+
+                    if apply {
+                        SCROLL.chase_zoom(|f| f + delta);
+                    }
                 }
             }
         }

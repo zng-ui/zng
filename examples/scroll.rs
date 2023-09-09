@@ -93,7 +93,15 @@ fn commands() -> impl UiNode {
                 scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                 scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
             ]
-        )
+        ),
+        SubMenu!(
+            "Zoom",
+            ui_vec![
+                CmdButton!(ZOOM_IN_CMD.scoped(scope)),
+                CmdButton!(ZOOM_OUT_CMD.scoped(scope)),
+                CmdButton!(ZOOM_RESET_CMD.scoped(scope)),
+            ]
+        ),
     ])
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {

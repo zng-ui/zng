@@ -46,6 +46,11 @@ context_var! {
     /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
     pub static VERTICAL_WHEEL_UNIT_VAR: Length = 60;
 
+    /// Scale delta added or removed from the zoom scale by [`MouseScrollDelta::LineDelta`] used in zoom operations.
+    ///
+    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    pub static ZOOM_WHEEL_UNIT_VAR: Factor = 10.pct();
+
     /// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
@@ -128,13 +133,19 @@ pub fn scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarA
     h_scrollbar_fn(child, wgt_fn)
 }
 
+/// Widget function for the little square in the corner that joins the two scrollbars when both are visible.
+#[property(CONTEXT, default(SCROLLBAR_JOINER_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
+pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    with_context_var(child, SCROLLBAR_JOINER_FN_VAR, wgt_fn)
+}
+
 /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
 ///
 /// Relative lengths are relative to the viewport height.
 ///
 /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
 /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
-#[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_LINE_UNIT_VAR, unit)
 }
@@ -145,7 +156,7 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
 /// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
-#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_LINE_UNIT_VAR, unit)
 }
@@ -156,14 +167,14 @@ pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_line_unit`]: fn@h_line_unit
 /// [`v_line_unit`]: fn@v_line_unit
-#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR, VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR, VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_line_unit(child, horizontal);
     v_line_unit(child, vertical)
 }
 
 /// Scroll unit multiplier used when alternate scrolling.
-#[property(CONTEXT, default(ALT_FACTOR_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(ALT_FACTOR_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
     with_context_var(child, ALT_FACTOR_VAR, factor)
 }
@@ -174,7 +185,7 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// [`PAGE_UP_CMD`]: crate::widgets::scroll::commands::PAGE_UP_CMD
 /// [`PAGE_DOWN_CMD`]: crate::widgets::scroll::commands::PAGE_DOWN_CMD
-#[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_PAGE_UNIT_VAR, unit)
 }
@@ -185,7 +196,7 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
 /// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
-#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_PAGE_UNIT_VAR, unit)
 }
@@ -196,14 +207,56 @@ pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_page_unit`]: fn@h_page_unit
 /// [`v_page_unit`]: fn@v_page_unit
-#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR, VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR, VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_page_unit(child, horizontal);
     v_page_unit(child, vertical)
 }
 
+/// Horizontal offset added when the mouse wheel is scrolling by lines.
+///
+/// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***x*** value to determinate the scroll delta.
+///
+/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+#[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
+pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, HORIZONTAL_WHEEL_UNIT_VAR, unit)
+}
+
+/// Vertical offset added when the mouse wheel is scrolling by lines.
+///
+/// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***y*** value to determinate the scroll delta.
+///
+/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+#[property(CONTEXT, default(VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
+pub fn v_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, VERTICAL_WHEEL_UNIT_VAR, unit)
+}
+
+/// Horizontal and vertical offsets used when mouse wheel scrolling.
+///
+/// This property sets the [`h_wheel_unit`] and [`v_wheel_unit`].
+///
+/// [`h_wheel_unit`]: fn@h_wheel_unit
+/// [`v_page_unit`]: fn@v_page_unit
+#[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR, VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
+pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+    let child = h_wheel_unit(child, horizontal);
+    v_wheel_unit(child, vertical)
+}
+
+/// Scale delta added when the mouse wheel is zooming by lines.
+///
+/// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] value to determinate the scale delta.
+///
+/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+#[property(CONTEXT, default(ZOOM_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
+pub fn zoom_wheel_unit(child: impl UiNode, unit: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, ZOOM_WHEEL_UNIT_VAR, unit)
+}
+
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
-#[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR), widget_impl(super::ScrollUinitsMix<P>))]
+#[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
 }

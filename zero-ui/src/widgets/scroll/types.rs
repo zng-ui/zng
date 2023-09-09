@@ -117,6 +117,7 @@ struct ScrollConfig {
     id: Option<WidgetId>,
     horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
     vertical: Mutex<Option<ChaseAnimation<Factor>>>,
+    zoom: Mutex<Option<ChaseAnimation<Factor>>>,
 
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
@@ -130,6 +131,7 @@ impl Default for ScrollConfig {
             id: Default::default(),
             horizontal: Default::default(),
             vertical: Default::default(),
+            zoom: Default::default(),
             rendered: Atomic::new(RenderedOffsets { h: 0.fct(), v: 0.fct() }),
             overscroll_horizontal: Default::default(),
             overscroll_vertical: Default::default(),
@@ -219,6 +221,11 @@ impl SCROLL {
     /// scrollable content can modify it to scroll the parent.
     pub fn horizontal_offset(&self) -> ReadOnlyContextVar<Factor> {
         SCROLL_HORIZONTAL_OFFSET_VAR.read_only()
+    }
+
+    /// Zoom scale factor.
+    pub fn zoom_scale(&self) -> ReadOnlyContextVar<Factor> {
+        SCROLL_SCALE_VAR.read_only()
     }
 
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
@@ -478,23 +485,23 @@ impl SCROLL {
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
         self.chase_vertical_impl(modify_offset);
     }
-    fn chase_vertical_impl(&self, new_offset: impl FnOnce(Factor) -> Factor) {
+    fn chase_vertical_impl(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         let smooth = SMOOTH_SCROLLING_VAR.get();
         let config = SCROLL_CONFIG.get();
         let mut vertical = config.vertical.lock();
         match &mut *vertical {
             Some(t) => {
                 if smooth.is_disabled() {
-                    let t = new_offset(*t.target()).clamp_range();
+                    let t = modify_offset(*t.target()).clamp_range();
                     let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
                     *vertical = None;
                 } else {
                     let easing = smooth.easing.clone();
-                    t.modify(|f| *f = new_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
+                    t.modify(|f| *f = modify_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
                 }
             }
             None => {
-                let t = new_offset(SCROLL_VERTICAL_OFFSET_VAR.get()).clamp_range();
+                let t = modify_offset(SCROLL_VERTICAL_OFFSET_VAR.get()).clamp_range();
                 if smooth.is_disabled() {
                     let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
                 } else {
@@ -513,29 +520,72 @@ impl SCROLL {
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
         self.chase_horizontal_impl(modify_offset);
     }
-    fn chase_horizontal_impl(&self, new_offset: impl FnOnce(Factor) -> Factor) {
+    fn chase_horizontal_impl(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         let smooth = SMOOTH_SCROLLING_VAR.get();
         let config = SCROLL_CONFIG.get();
         let mut horizontal = config.horizontal.lock();
         match &mut *horizontal {
             Some(t) => {
                 if smooth.is_disabled() {
-                    let t = new_offset(*t.target()).clamp_range();
+                    let t = modify_offset(*t.target()).clamp_range();
                     let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
                     *horizontal = None;
                 } else {
                     let easing = smooth.easing.clone();
-                    t.modify(|f| *f = new_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
+                    t.modify(|f| *f = modify_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
                 }
             }
             None => {
-                let t = new_offset(SCROLL_HORIZONTAL_OFFSET_VAR.get()).clamp_range();
+                let t = modify_offset(SCROLL_HORIZONTAL_OFFSET_VAR.get()).clamp_range();
                 if smooth.is_disabled() {
                     let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
                 } else {
                     let easing = smooth.easing.clone();
                     let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase(t, smooth.duration, move |t| easing(t));
                     *horizontal = Some(anim);
+                }
+            }
+        }
+    }
+
+    /// Set the zoom scale to a new scale derived from the last set scale, blending into the active
+    /// smooth scaling chase animation, or starting a new or, or just setting the var if smooth scrolling is disabled.
+    pub fn chase_zoom(&self, modify_scale: impl FnOnce(Factor) -> Factor) {
+        #[cfg(dyn_closure)]
+        let modify_scale: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_scale);
+        self.chase_zoom_impl(modify_scale);
+    }
+    fn chase_zoom_impl(&self, modify_scale: impl FnOnce(Factor) -> Factor) {
+        if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
+            return;
+        }
+
+        let smooth = SMOOTH_SCROLLING_VAR.get();
+        let config = SCROLL_CONFIG.get();
+        let mut zoom = config.zoom.lock();
+
+        let min = super::MIN_SCALE_VAR.get();
+        let max = super::MAX_SCALE_VAR.get();
+
+        match &mut *zoom {
+            Some(t) => {
+                if smooth.is_disabled() {
+                    let next = modify_scale(*t.target()).max(min).min(max);
+                    let _ = SCROLL_SCALE_VAR.set(next);
+                    *zoom = None;
+                } else {
+                    let easing = smooth.easing.clone();
+                    t.modify(|f| *f = modify_scale(*f).max(min).min(max), smooth.duration, move |t| easing(t));
+                }
+            }
+            None => {
+                let t = modify_scale(SCROLL_SCALE_VAR.get()).max(min).min(max);
+                if smooth.is_disabled() {
+                    let _ = SCROLL_SCALE_VAR.set(t);
+                } else {
+                    let easing = smooth.easing.clone();
+                    let anim = SCROLL_SCALE_VAR.chase(t, smooth.duration, move |t| easing(t));
+                    *zoom = Some(anim);
                 }
             }
         }
