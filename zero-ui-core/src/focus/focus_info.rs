@@ -730,8 +730,17 @@ impl WidgetFocusInfo {
             None
         } else if self.is_scope() {
             // if we are a normal scope, try for an inner ALT scope descendant first.
-            self.inner_alt_scope()
+            let r = self.inner_alt_scope();
+            if r.is_some() {
+                return r;
+            }
+            if let Some(scope) = self.scope() {
+                // search sibling ALT scope.
+                return scope.inner_alt_scope_skip(self);
+            }
+            None
         } else if let Some(scope) = self.scope() {
+            // search sibling ALT scope.
             scope.inner_alt_scope_skip(self)
         } else {
             // we reached root, no ALT found.

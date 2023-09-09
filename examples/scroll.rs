@@ -63,46 +63,49 @@ fn commands() -> impl UiNode {
     let scope = WidgetId::named("scroll");
     use menu::CmdButton;
 
-    Menu!(ui_vec![
-        SubMenu!(
-            "Scroll",
-            ui_vec![
-                CmdButton!(SCROLL_UP_CMD.scoped(scope)),
-                CmdButton!(SCROLL_DOWN_CMD.scoped(scope)),
-                CmdButton!(SCROLL_LEFT_CMD.scoped(scope)),
-                CmdButton!(SCROLL_RIGHT_CMD.scoped(scope)),
-            ]
-        ),
-        SubMenu!(
-            "Page",
-            ui_vec![
-                CmdButton!(PAGE_UP_CMD.scoped(scope)),
-                CmdButton!(PAGE_DOWN_CMD.scoped(scope)),
-                CmdButton!(PAGE_LEFT_CMD.scoped(scope)),
-                CmdButton!(PAGE_RIGHT_CMD.scoped(scope)),
-            ]
-        ),
-        SubMenu!(
-            "Scroll to",
-            ui_vec![
-                CmdButton!(SCROLL_TO_TOP_CMD.scoped(scope)),
-                CmdButton!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
-                CmdButton!(SCROLL_TO_LEFTMOST_CMD.scoped(scope)),
-                CmdButton!(SCROLL_TO_RIGHTMOST_CMD.scoped(scope)),
-                Hr!(),
-                scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
-                scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
-            ]
-        ),
-        SubMenu!(
-            "Zoom",
-            ui_vec![
-                CmdButton!(ZOOM_IN_CMD.scoped(scope)),
-                CmdButton!(ZOOM_OUT_CMD.scoped(scope)),
-                CmdButton!(ZOOM_RESET_CMD.scoped(scope)),
-            ]
-        ),
-    ])
+    Menu! {
+        id = "menu";
+        children = ui_vec![
+            SubMenu!(
+                "Scroll",
+                ui_vec![
+                    CmdButton!(SCROLL_UP_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_DOWN_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_LEFT_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_RIGHT_CMD.scoped(scope)),
+                ]
+            ),
+            SubMenu!(
+                "Page",
+                ui_vec![
+                    CmdButton!(PAGE_UP_CMD.scoped(scope)),
+                    CmdButton!(PAGE_DOWN_CMD.scoped(scope)),
+                    CmdButton!(PAGE_LEFT_CMD.scoped(scope)),
+                    CmdButton!(PAGE_RIGHT_CMD.scoped(scope)),
+                ]
+            ),
+            SubMenu!(
+                "Scroll to",
+                ui_vec![
+                    CmdButton!(SCROLL_TO_TOP_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_TO_LEFTMOST_CMD.scoped(scope)),
+                    CmdButton!(SCROLL_TO_RIGHTMOST_CMD.scoped(scope)),
+                    Hr!(),
+                    scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
+                    scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
+                ]
+            ),
+            SubMenu!(
+                "Zoom",
+                ui_vec![
+                    CmdButton!(ZOOM_IN_CMD.scoped(scope)),
+                    CmdButton!(ZOOM_OUT_CMD.scoped(scope)),
+                    CmdButton!(ZOOM_RESET_CMD.scoped(scope)),
+                ]
+            ),
+        ];
+    }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     use zero_ui::widgets::scroll::commands;
