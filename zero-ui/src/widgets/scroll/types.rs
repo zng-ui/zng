@@ -110,6 +110,7 @@ context_local! {
 struct RenderedOffsets {
     h: Factor,
     v: Factor,
+    z: Factor,
 }
 
 #[derive(Debug)]
@@ -132,7 +133,11 @@ impl Default for ScrollConfig {
             horizontal: Default::default(),
             vertical: Default::default(),
             zoom: Default::default(),
-            rendered: Atomic::new(RenderedOffsets { h: 0.fct(), v: 0.fct() }),
+            rendered: Atomic::new(RenderedOffsets {
+                h: 0.fct(),
+                v: 0.fct(),
+                z: 0.fct(),
+            }),
             overscroll_horizontal: Default::default(),
             overscroll_vertical: Default::default(),
         }
@@ -193,7 +198,8 @@ impl SCROLL {
             if let UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } = op {
                 let h = SCROLL_HORIZONTAL_OFFSET_VAR.get();
                 let v = SCROLL_VERTICAL_OFFSET_VAR.get();
-                SCROLL_CONFIG.get().rendered.store(RenderedOffsets { h, v }, Ordering::Relaxed);
+                let z = SCROLL_SCALE_VAR.get();
+                SCROLL_CONFIG.get().rendered.store(RenderedOffsets { h, v, z }, Ordering::Relaxed);
             }
         });
         with_context_local_init(child, &SCROLL_CONFIG, || ScrollConfig {
@@ -226,6 +232,21 @@ impl SCROLL {
     /// Zoom scale factor.
     pub fn zoom_scale(&self) -> ReadOnlyContextVar<Factor> {
         SCROLL_SCALE_VAR.read_only()
+    }
+
+    /// Latest rendered vertical offset.
+    pub fn rendered_vertical_offset(&self) -> Factor {
+        SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).v
+    }
+
+    /// Latest rendered horizontal offset.
+    pub fn rendered_horizontal_offset(&self) -> Factor {
+        SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h
+    }
+
+    /// Latest rendered zoom scale factor.
+    pub fn rendered_zoom_scale(&self) -> Factor {
+        SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).z
     }
 
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]

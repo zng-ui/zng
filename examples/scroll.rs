@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use zero_ui::prelude::units::FactorPercent;
 use zero_ui::prelude::*;
 use zero_ui::widgets::icon::CommandIconExt;
 use zero_ui::widgets::scroll::commands::ScrollToMode;
@@ -102,6 +103,9 @@ fn commands() -> impl UiNode {
                     CmdButton!(ZOOM_IN_CMD.scoped(scope)),
                     CmdButton!(ZOOM_OUT_CMD.scoped(scope)),
                     CmdButton!(ZOOM_RESET_CMD.scoped(scope)),
+                    Hr!(),
+                    scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 200.pct()),
+                    scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 50.pct()),
                 ]
             ),
         ];
@@ -113,10 +117,23 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" });
+        child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
             cmd.notify_param(commands::ScrollToRequest { widget_id: target, mode: mode.clone(), zoom: None, });
+        });
+    }
+}
+fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
+    use zero_ui::widgets::scroll::commands;
+
+    let scroll = WidgetId::named("scroll");
+    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
+    Button! {
+        child = Text!("Scroll To {} (minimal) at {}", target, zoom);
+        enabled = cmd.is_enabled();
+        on_click = hn!(|_| {
+            cmd.notify_param(commands::ScrollToRequest { widget_id: target, mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), });
         });
     }
 }

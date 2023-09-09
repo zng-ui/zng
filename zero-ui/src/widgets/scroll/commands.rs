@@ -197,6 +197,8 @@ command! {
     /// Represents the **reset zoom** action.
     pub static ZOOM_RESET_CMD = {
         name: "Reset Zoom",
+        shortcut: shortcut!(CTRL+'0'),
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 }
 

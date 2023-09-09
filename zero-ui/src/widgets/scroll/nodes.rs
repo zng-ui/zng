@@ -596,7 +596,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     }
                                 }
 
-                                scroll_to = Some((target.bounds_info(), mode));
+                                scroll_to = Some((target.bounds_info(), mode, None));
                                 WIDGET.layout();
                             }
                         }
@@ -618,7 +618,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 let mode = request.mode;
 
                                 // will scroll on the next arrange.
-                                scroll_to = Some((bounds, mode));
+                                scroll_to = Some((bounds, mode, request.zoom));
                                 scroll_to_from_cmd = true;
                                 WIDGET.layout();
 
@@ -632,12 +632,17 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            if let Some((bounds, mode)) = scroll_to.take() {
+            if let Some((bounds, mode, zoom)) = scroll_to.take() {
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
                     let target_bounds = bounds.inner_bounds();
+
+                    if let Some(zoom) = zoom {
+                        SCROLL.chase_zoom(|_| zoom);
+                    }
+
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());

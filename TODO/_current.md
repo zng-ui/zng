@@ -35,6 +35,7 @@
     - Scroll wheel zoom.
         - Focus on cursor?
     - Commands.
+        - Scroll to.
     - Scroll-to-fill.
 
 # Touch Events
