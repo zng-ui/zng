@@ -278,6 +278,9 @@ pub struct ScrollToRequest {
     /// If set the offsets and scale will animate so that the `mode`
     /// is fullfilled when this zoom factor is reached. If not set the scroll will happen in
     /// the current zoom scale.
+    ///
+    /// Note that the viewport size can change due to a scrollbar visibility changing, this size
+    /// change is not accounted for when calculating minimals.
     pub zoom: Option<Factor>,
 }
 impl ScrollToRequest {

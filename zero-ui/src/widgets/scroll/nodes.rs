@@ -638,87 +638,111 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
-                if let Some(viewport_bounds) = us.viewport() {
-                    let target_bounds = bounds.inner_bounds();
 
-                    let scale_transform = if let Some(zoom) = zoom {
-                        SCROLL.chase_zoom(|_| zoom);
-                        1.fct() / SCROLL.rendered_zoom_scale() * zoom
-                    } else {
-                        1.fct()
-                    };
+                if let Some(scroll_info) = us.scroll_info() {
+                    let mut target_bounds = bounds.inner_bounds();
+                    // remove viewport transform
+                    target_bounds = scroll_info
+                        .viewport_transform()
+                        .inverse()
+                        .and_then(|t| t.outer_transformed(target_bounds.to_box2d()))
+                        .map(|b| b.to_rect())
+                        .unwrap_or(target_bounds);
+
+                    let target_bounds_in_content = target_bounds;
+
+                    // remove offset
+                    let rendered_offset = SCROLL.rendered_offset_px();
+                    target_bounds.origin += rendered_offset;
+
+                    // replace scale
+                    let rendered_scale = SCROLL.rendered_zoom_scale();
+                    if let Some(s) = zoom {
+                        target_bounds.origin /= rendered_scale;
+                        target_bounds.origin *= s;
+                        target_bounds.size /= rendered_scale;
+                        target_bounds.size *= s;
+                    }
+                    // target bounds is in the content space at future scale
+
+                    let viewport_size = scroll_info.viewport_size();
+
+                    let mut offset = PxVector::zero();
 
                     match mode {
                         ScrollToMode::Minimal { margin } => {
+                            // add minimal margin
                             let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());
-                            let mut target_bounds = target_bounds;
-
-                            let mut origin_in_viewport = target_bounds.origin - viewport_bounds.origin.to_vector();
-                            origin_in_viewport *= scale_transform;
-
-                            let max_scroll_diff = viewport_bounds.size.to_vector() * SCROLL.rendered_offset();
-
-                            target_bounds.origin = viewport_bounds.origin + origin_in_viewport.to_vector() - max_scroll_diff;
-                            target_bounds.size *= scale_transform;
-
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
                             target_bounds.size.width += margin.horizontal();
                             target_bounds.size.height += margin.vertical();
+                            let target_bounds = target_bounds;
 
-                            if target_bounds.size.width < viewport_bounds.size.width {
-                                if target_bounds.origin.x < viewport_bounds.origin.x {
-                                    let diff = target_bounds.origin.x - viewport_bounds.origin.x;
-                                    SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
-                                } else if target_bounds.max_x() > viewport_bounds.max_x() {
-                                    let diff = target_bounds.max_x() - viewport_bounds.max_x();
-                                    SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
+                            // vertical scroll
+                            if target_bounds.size.height < viewport_size.height {
+                                if target_bounds_in_content.origin.y < Px(0) {
+                                    // scroll up
+                                    offset.y = target_bounds.origin.y;
+                                } else if target_bounds_in_content.origin.y > viewport_size.height {
+                                    // scroll down
+                                    offset.y = target_bounds.max_y() - viewport_size.height;
                                 }
                             } else {
-                                let target_center_x = (target_bounds.size.width / Px(2)) + target_bounds.origin.x;
-                                let viewport_center_x = (target_bounds.size.width / Px(2)) + viewport_bounds.origin.x;
+                                // center
+                                offset.y = viewport_size.height / Px(2) - target_bounds.center().y;
+                            };
 
-                                let diff = target_center_x - viewport_center_x;
-                                SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
-                            }
-                            if target_bounds.size.height < viewport_bounds.size.height {
-                                if target_bounds.origin.y < viewport_bounds.origin.y {
-                                    let diff = target_bounds.origin.y - viewport_bounds.origin.y;
-                                    SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
-                                } else if target_bounds.max_y() > viewport_bounds.max_y() {
-                                    let diff = target_bounds.max_y() - viewport_bounds.max_y();
-                                    SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
+                            // horizontal scroll
+                            if target_bounds.size.width < viewport_size.width {
+                                if target_bounds_in_content.origin.x < Px(0) {
+                                    // scroll left
+                                    offset.x = target_bounds.origin.x;
+                                } else if target_bounds_in_content.origin.x > viewport_size.width {
+                                    // scroll right
+                                    offset.x = target_bounds.max_x() - viewport_size.width;
                                 }
                             } else {
-                                let target_center_y = (target_bounds.size.height / Px(2)) + target_bounds.origin.y;
-                                let viewport_center_y = (target_bounds.size.height / Px(2)) + viewport_bounds.origin.y;
-
-                                let diff = target_center_y - viewport_center_y;
-                                SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
-                            }
+                                // center
+                                offset.x = viewport_size.width / Px(2) - target_bounds.center().x;
+                            };
                         }
                         ScrollToMode::Center {
                             widget_point,
                             scroll_point,
                         } => {
+                            // find the two points
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || {
                                 widget_point.layout_dft(default)
                             });
+                            let default = (viewport_size / Px(2)).to_vector().to_point();
+                            let scroll_point =
+                                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_size), || scroll_point.layout_dft(default));
 
-                            let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scroll_point = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_bounds.size), || {
-                                scroll_point.layout_dft(default)
-                            });
-
-                            let widget_point = widget_point + target_bounds.origin.to_vector();
-                            let scroll_point = scroll_point + viewport_bounds.origin.to_vector();
-
-                            let diff = widget_point - scroll_point;
-
-                            SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff.y, scale_transform));
-                            SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff.x, scale_transform));
+                            offset = (widget_point + target_bounds.origin.to_vector()) - scroll_point;
                         }
+                    }
+
+                    // scroll range
+                    let mut content_size = SCROLL.content_size().get();
+                    if let Some(scale) = zoom {
+                        content_size /= rendered_scale;
+                        content_size *= scale;
+                    }
+                    let max_scroll = content_size - viewport_size;
+
+                    // apply
+                    if let Some(scale) = zoom {
+                        SCROLL.chase_zoom(|_| scale);
+                    }
+                    if offset.y != Px(0) && max_scroll.height > Px(0) {
+                        let offset_y = offset.y.0 as f32 / max_scroll.height.0 as f32;
+                        SCROLL.chase_vertical(|_| offset_y.fct());
+                    }
+                    if offset.x != Px(0) && max_scroll.width > Px(0) {
+                        let offset_x = offset.x.0 as f32 / max_scroll.width.0 as f32;
+                        SCROLL.chase_horizontal(|_| offset_x.fct());
                     }
                 }
             }
