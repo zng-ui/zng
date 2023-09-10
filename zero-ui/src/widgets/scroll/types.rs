@@ -150,7 +150,7 @@ impl Default for ScrollConfig {
 /// the offset vars can be multiple frames ahead as update cycles have higher priority than render,
 /// some scrolling operations also target the value the smooth scrolling animation is animating too,
 /// this enum lets you specify from what scroll offset a delta must be computed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ScrollFrom {
     /// Scroll amount added to the offset var current value, if smooth scrolling is enabled this
     /// can be a partial value different from `VarTarget`.
@@ -172,6 +172,14 @@ pub enum ScrollFrom {
     /// Operations that compute a scroll offset from widget bounds info must use this variant otherwise they
     /// will overshoot.
     Rendered(Px),
+
+    /// Scroll amount computed from `Rendered`, but at an anticipated future zoom scale.
+    ///
+    /// The [`Factor`] value transforms the current scale to the future scale, that is `1.fct() / SCROLL.rendered_zoom_scale() * future`, the
+    /// [`Px`] value must already be transformed.
+    ///
+    /// Note that the future zoom is not set automatically, it must be set in the same update cycle as the scroll request.
+    FutureScale(Px, Factor),
 }
 
 /// Controls the parent scroll.
@@ -234,19 +242,23 @@ impl SCROLL {
         SCROLL_SCALE_VAR.read_only()
     }
 
-    /// Latest rendered vertical offset.
-    pub fn rendered_vertical_offset(&self) -> Factor {
-        SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).v
-    }
-
-    /// Latest rendered horizontal offset.
-    pub fn rendered_horizontal_offset(&self) -> Factor {
-        SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h
+    /// Latest rendered offset.
+    pub fn rendered_offset(&self) -> Factor2d {
+        let cfg = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed);
+        Factor2d::new(cfg.h, cfg.v)
     }
 
     /// Latest rendered zoom scale factor.
     pub fn rendered_zoom_scale(&self) -> Factor {
         SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).z
+    }
+
+    /// Latest rendered offset in pixels.
+    pub fn rendered_offset_px(&self) -> PxVector {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
+        let content = SCROLL_CONTENT_SIZE_VAR.get();
+        let max_scroll = content - viewport;
+        max_scroll.to_vector() * self.rendered_offset()
     }
 
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
@@ -310,7 +322,11 @@ impl SCROLL {
     /// If smooth scrolling is enabled it is used to update the offset.
     pub fn scroll_vertical_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+        let mut content = SCROLL_CONTENT_SIZE_VAR.get().height;
+
+        if let ScrollFrom::FutureScale(_, s) = delta {
+            content *= s;
+        }
 
         let max_scroll = content - viewport;
 
@@ -328,7 +344,7 @@ impl SCROLL {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 SCROLL.chase_vertical(|f| (f.0 + amount).clamp(min, max).fct());
             }
-            ScrollFrom::Rendered(a) => {
+            ScrollFrom::Rendered(a) | ScrollFrom::FutureScale(a, _) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).v;
                 SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
@@ -435,7 +451,11 @@ impl SCROLL {
     /// If smooth scrolling is enabled it is used to update the offset.
     pub fn scroll_horizontal_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+        let mut content = SCROLL_CONTENT_SIZE_VAR.get().width;
+
+        if let ScrollFrom::FutureScale(_, s) = delta {
+            content *= s;
+        }
 
         let max_scroll = content - viewport;
 
@@ -453,7 +473,7 @@ impl SCROLL {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 SCROLL.chase_horizontal(|f| (f.0 + amount).clamp(min, max).fct());
             }
-            ScrollFrom::Rendered(a) => {
+            ScrollFrom::Rendered(a) | ScrollFrom::FutureScale(a, _) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
                 let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h;
                 SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());

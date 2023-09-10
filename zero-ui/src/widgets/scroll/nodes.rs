@@ -581,23 +581,25 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     if (scroll_to.is_none() || !scroll_to_from_cmd) && path.contains(self_id) && path.widget_id() != self_id {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
-                            let tree = WINDOW.info();
-                            if let Some(mut target) = tree.get(path.widget_id()) {
-                                for a in target.ancestors() {
-                                    if a.is_scroll() {
-                                        if a.id() == self_id {
-                                            break;
-                                        } else {
-                                            // actually focus move inside an inner scroll,
-                                            // the inner-most scroll scrolls to the target,
-                                            // the outer scrolls scroll to the child scroll.
-                                            target = a;
+                            if SCROLL.can_scroll_vertical() || SCROLL.can_scroll_horizontal() {
+                                let tree = WINDOW.info();
+                                if let Some(mut target) = tree.get(path.widget_id()) {
+                                    for a in target.ancestors() {
+                                        if a.is_scroll() {
+                                            if a.id() == self_id {
+                                                break;
+                                            } else {
+                                                // actually focus move inside an inner scroll,
+                                                // the inner-most scroll scrolls to the target,
+                                                // the outer scrolls scroll to the child scroll.
+                                                target = a;
+                                            }
                                         }
                                     }
-                                }
 
-                                scroll_to = Some((target.bounds_info(), mode, None));
-                                WIDGET.layout();
+                                    scroll_to = Some((target.bounds_info(), mode, None));
+                                    WIDGET.layout();
+                                }
                             }
                         }
                     }
@@ -639,14 +641,26 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 if let Some(viewport_bounds) = us.viewport() {
                     let target_bounds = bounds.inner_bounds();
 
-                    if let Some(zoom) = zoom {
+                    let scale_transform = if let Some(zoom) = zoom {
                         SCROLL.chase_zoom(|_| zoom);
-                    }
+                        1.fct() / SCROLL.rendered_zoom_scale() * zoom
+                    } else {
+                        1.fct()
+                    };
 
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());
                             let mut target_bounds = target_bounds;
+
+                            let mut origin_in_viewport = target_bounds.origin - viewport_bounds.origin.to_vector();
+                            origin_in_viewport *= scale_transform;
+
+                            let max_scroll_diff = viewport_bounds.size.to_vector() * SCROLL.rendered_offset();
+
+                            target_bounds.origin = viewport_bounds.origin + origin_in_viewport.to_vector() - max_scroll_diff;
+                            target_bounds.size *= scale_transform;
+
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
                             target_bounds.size.width += margin.horizontal();
@@ -655,32 +669,32 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             if target_bounds.size.width < viewport_bounds.size.width {
                                 if target_bounds.origin.x < viewport_bounds.origin.x {
                                     let diff = target_bounds.origin.x - viewport_bounds.origin.x;
-                                    SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
+                                    SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
                                 } else if target_bounds.max_x() > viewport_bounds.max_x() {
                                     let diff = target_bounds.max_x() - viewport_bounds.max_x();
-                                    SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
+                                    SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
                                 }
                             } else {
                                 let target_center_x = (target_bounds.size.width / Px(2)) + target_bounds.origin.x;
                                 let viewport_center_x = (target_bounds.size.width / Px(2)) + viewport_bounds.origin.x;
 
                                 let diff = target_center_x - viewport_center_x;
-                                SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff));
+                                SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff, scale_transform));
                             }
                             if target_bounds.size.height < viewport_bounds.size.height {
                                 if target_bounds.origin.y < viewport_bounds.origin.y {
                                     let diff = target_bounds.origin.y - viewport_bounds.origin.y;
-                                    SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
+                                    SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
                                 } else if target_bounds.max_y() > viewport_bounds.max_y() {
                                     let diff = target_bounds.max_y() - viewport_bounds.max_y();
-                                    SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
+                                    SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
                                 }
                             } else {
                                 let target_center_y = (target_bounds.size.height / Px(2)) + target_bounds.origin.y;
                                 let viewport_center_y = (target_bounds.size.height / Px(2)) + viewport_bounds.origin.y;
 
                                 let diff = target_center_y - viewport_center_y;
-                                SCROLL.scroll_vertical(ScrollFrom::Rendered(diff));
+                                SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff, scale_transform));
                             }
                         }
                         ScrollToMode::Center {
@@ -702,8 +716,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                             let diff = widget_point - scroll_point;
 
-                            SCROLL.scroll_vertical(ScrollFrom::Rendered(diff.y));
-                            SCROLL.scroll_horizontal(ScrollFrom::Rendered(diff.x));
+                            SCROLL.scroll_vertical(ScrollFrom::FutureScale(diff.y, scale_transform));
+                            SCROLL.scroll_horizontal(ScrollFrom::FutureScale(diff.x, scale_transform));
                         }
                     }
                 }
