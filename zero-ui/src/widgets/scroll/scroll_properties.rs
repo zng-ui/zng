@@ -89,10 +89,26 @@ context_var! {
     pub static OVERSCROLL_COLOR_VAR: Rgba = colors::GRAY.with_alpha(50.pct());
 
     /// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
-    pub static MIN_SCALE_VAR: Factor = 10.pct();
+    pub static MIN_ZOOM_VAR: Factor = 10.pct();
 
     /// Maximum scale allowed when [`ScrollMode::ZOOM`] is enabled.
-    pub static MAX_SCALE_VAR: Factor = 500.pct();
+    pub static MAX_ZOOM_VAR: Factor = 500.pct();
+
+    /// Center point of zoom scaling done using the mouse scroll wheel.
+    ///
+    /// Relative values are resolved in the viewport space. The scroll offsets so that the point in the
+    /// viewport and content stays as close as possible after the scale change.
+    ///
+    /// The default value ([`Length::Default`]) is the cursor position.
+    pub static ZOOM_WHEEL_ORIGIN_VAR: Point = Point::default();
+
+    /// Center point of zoom scaling done using the touch *pinch* gesture.
+    ///
+    /// Relative values are resolved in the viewport space. The scroll offsets so that the point in the
+    /// viewport and content stays as close as possible after the scale change.
+    ///
+    /// The default value ([`Length::Default`]) is center point between the two touch contact points.
+    pub static ZOOM_TOUCH_ORIGIN_VAR: Point = Point::default();
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
@@ -109,12 +125,16 @@ fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
 }
 
 /// Vertical scrollbar function for all scroll widget descendants.
+///
+/// This property sets the [`VERTICAL_SCROLLBAR_FN_VAR`].
 #[property(CONTEXT, default(VERTICAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
 pub fn v_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, VERTICAL_SCROLLBAR_FN_VAR, wgt_fn)
 }
 
 /// Horizontal scrollbar function for all scroll widget descendants.
+///
+/// This property sets the [`HORIZONTAL_SCROLLBAR_FN_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
 pub fn h_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_SCROLLBAR_FN_VAR, wgt_fn)
@@ -134,6 +154,8 @@ pub fn scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarA
 }
 
 /// Widget function for the little square in the corner that joins the two scrollbars when both are visible.
+///
+/// This property sets the [`SCROLLBAR_JOINER_FN_VAR`].
 #[property(CONTEXT, default(SCROLLBAR_JOINER_FN_VAR), widget_impl(super::ScrollbarFnMix<P>))]
 pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     with_context_var(child, SCROLLBAR_JOINER_FN_VAR, wgt_fn)
@@ -145,6 +167,8 @@ pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>
 ///
 /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
 /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
+///  
+/// This property sets the [`VERTICAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_LINE_UNIT_VAR, unit)
@@ -156,6 +180,8 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
 /// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
+///
+/// This property sets the [`HORIZONTAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_LINE_UNIT_VAR, unit)
@@ -174,6 +200,8 @@ pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 }
 
 /// Scroll unit multiplier used when alternate scrolling.
+///
+/// This property sets the [`ALT_FACTOR_VAR`].
 #[property(CONTEXT, default(ALT_FACTOR_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
     with_context_var(child, ALT_FACTOR_VAR, factor)
@@ -185,6 +213,8 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// [`PAGE_UP_CMD`]: crate::widgets::scroll::commands::PAGE_UP_CMD
 /// [`PAGE_DOWN_CMD`]: crate::widgets::scroll::commands::PAGE_DOWN_CMD
+///
+/// This property sets the [`VERTICAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_PAGE_UNIT_VAR, unit)
@@ -196,6 +226,8 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
 /// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
+///
+/// This property sets the [`HORIZONTAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_PAGE_UNIT_VAR, unit)
@@ -218,6 +250,8 @@ pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***x*** value to determinate the scroll delta.
 ///
 /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+///
+/// This property sets the [`HORIZONTAL_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_WHEEL_UNIT_VAR, unit)
@@ -228,6 +262,8 @@ pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***y*** value to determinate the scroll delta.
 ///
 /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+///
+/// This property sets the [`VERTICAL_WHEEL_UNIT_VAR`]`.
 #[property(CONTEXT, default(VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn v_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_WHEEL_UNIT_VAR, unit)
@@ -238,7 +274,7 @@ pub fn v_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 /// This property sets the [`h_wheel_unit`] and [`v_wheel_unit`].
 ///
 /// [`h_wheel_unit`]: fn@h_wheel_unit
-/// [`v_page_unit`]: fn@v_page_unit
+/// [`v_wheel_unit`]: fn@v_wheel_unit
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR, VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_wheel_unit(child, horizontal);
@@ -250,12 +286,16 @@ pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertica
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] value to determinate the scale delta.
 ///
 /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+///
+/// This property sets the [`ZOOM_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(ZOOM_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn zoom_wheel_unit(child: impl UiNode, unit: impl IntoVar<Factor>) -> impl UiNode {
     with_context_var(child, ZOOM_WHEEL_UNIT_VAR, unit)
 }
 
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
+///
+/// This property sets the [`DEFINE_VIEWPORT_UNIT_VAR`].
 #[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
@@ -264,6 +304,8 @@ pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
 /// Smooth scrolling config.
 ///
 /// Defines the easing animation applied to scroll offset and zoom value changes.
+///
+/// This property sets the [`SMOOTH_SCROLLING_VAR`].
 #[property(CONTEXT, default(SMOOTH_SCROLLING_VAR), widget_impl(Scroll))]
 pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
     with_context_var(child, SMOOTH_SCROLLING_VAR, config)
@@ -277,6 +319,8 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 /// happen in the same event cycle.
 ///
 /// [`SCROLL_TO_CMD`]: crate::widgets::scroll::commands::SCROLL_TO_CMD
+///
+/// This property sets the [`SCROLL_TO_FOCUSED_MODE_VAR`].
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR), widget_impl(Scroll))]
 pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<ScrollToMode>>) -> impl UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
@@ -292,6 +336,8 @@ pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<Scro
 /// requests, if there is no other widget requesting render.
 ///
 /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
+///
+/// This property sets the [`AUTO_HIDE_EXTRA_VAR`].
 #[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR), widget_impl(Scroll))]
 pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
@@ -301,21 +347,66 @@ pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> 
 ///
 /// The overscroll indicator appears when touch scroll tries to scroll past an edge in a dimension
 /// that can scroll.
+///
+/// This property sets the [`OVERSCROLL_COLOR_VAR`].
 #[property(CONTEXT, default(OVERSCROLL_COLOR_VAR), widget_impl(Scroll))]
 pub fn overscroll_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, OVERSCROLL_COLOR_VAR, color)
 }
 
 /// Minimum scale allowed when [`ScrollMode::ZOOM`] is enabled.
-#[property(CONTEXT, default(MIN_SCALE_VAR), widget_impl(Scroll))]
-pub fn min_scale(child: impl UiNode, min: impl IntoVar<Factor>) -> impl UiNode {
-    with_context_var(child, MIN_SCALE_VAR, min)
+///
+/// This property sets the [`MIN_ZOOM_VAR`].
+#[property(CONTEXT, default(MIN_ZOOM_VAR), widget_impl(Scroll))]
+pub fn min_zoom(child: impl UiNode, min: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, MIN_ZOOM_VAR, min)
 }
 
 /// Maximum scale allowed when [`ScrollMode::ZOOM`] is enabled.
-#[property(CONTEXT, default(MAX_SCALE_VAR), widget_impl(Scroll))]
-pub fn max_scale(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
-    with_context_var(child, MAX_SCALE_VAR, max)
+///
+/// This property sets the [`MAX_ZOOM_VAR`].
+#[property(CONTEXT, default(MAX_ZOOM_VAR), widget_impl(Scroll))]
+pub fn max_zoom(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, MAX_ZOOM_VAR, max)
+}
+
+/// Center point of zoom scaling done using the mouse scroll wheel.
+///
+/// Relative values are resolved in the viewport space. The scroll offsets so that the point in the
+/// viewport and content stays as close as possible after the scale change.
+///
+/// The default value ([`Length::Default`]) is the cursor position.
+///
+/// This property sets the [`ZOOM_WHEEL_ORIGIN_VAR`]
+#[property(CONTEXT, default(ZOOM_WHEEL_ORIGIN_VAR), widget_impl(Scroll))]
+pub fn zoom_wheel_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+    with_context_var(child, ZOOM_WHEEL_ORIGIN_VAR, origin)
+}
+
+/// Center point of zoom scaling done using the touch *pinch* gesture.
+///
+/// Relative values are resolved in the viewport space. The scroll offsets so that the point in the
+/// viewport and content stays as close as possible after the scale change.
+///
+/// The default value ([`Length::Default`]) is center point between the two touch contact points.
+///
+/// This property sets the [`ZOOM_TOUCH_ORIGIN_VAR`].
+#[property(CONTEXT, default(ZOOM_TOUCH_ORIGIN_VAR), widget_impl(Scroll))]
+pub fn zoom_touch_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+    with_context_var(child, ZOOM_TOUCH_ORIGIN_VAR, origin)
+}
+
+/// Center point of zoom scaling done using mouse scroll wheel and touch gesture.
+///
+/// This property sets both [`zoom_wheel_origin`] and [`zoom_touch_origin`] to the same point.
+///
+/// [`zoom_wheel_origin`]: fn@zoom_wheel_origin
+/// [`zoom_touch_origin`]: fn@zoom_touch_origin
+#[property(CONTEXT, default(Point::default()), widget_impl(Scroll))]
+pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+    let origin = origin.into_var();
+    let child = zoom_wheel_origin(child, origin.clone());
+    zoom_touch_origin(child, origin)
 }
 
 /// Arguments for scrollbar widget functions.

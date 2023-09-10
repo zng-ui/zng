@@ -634,7 +634,11 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            if let Some((bounds, mode, zoom)) = scroll_to.take() {
+            if let Some((bounds, mode, mut zoom)) = scroll_to.take() {
+                if let Some(s) = &mut zoom {
+                    *s = s.clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
+                }
+
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
@@ -799,6 +803,9 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements scroll-wheel handling for the widget.
 pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     let mut offset = Vector::zero();
+    let mut scale_delta = 0.fct();
+    let mut scale_position = DipPoint::zero();
+
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&MOUSE_WHEEL_EVENT);
@@ -898,7 +905,9 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                     };
 
                     if apply {
-                        SCROLL.chase_zoom(|f| f + delta);
+                        scale_delta += delta;
+                        scale_position = args.position;
+                        WIDGET.layout();
                     }
                 }
             }
@@ -906,19 +915,40 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
+            if offset != Vector::zero() {
+                let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
 
-            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
-                let o = offset.layout_dft(viewport.to_vector());
-                offset = Vector::zero();
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
+                    let o = offset.layout_dft(viewport.to_vector());
+                    offset = Vector::zero();
 
-                if o.y != Px(0) {
-                    SCROLL.scroll_vertical(ScrollFrom::VarTarget(o.y));
-                }
-                if o.x != Px(0) {
-                    SCROLL.scroll_horizontal(ScrollFrom::VarTarget(o.x));
-                }
-            });
+                    if o.y != Px(0) {
+                        SCROLL.scroll_vertical(ScrollFrom::VarTarget(o.y));
+                    }
+                    if o.x != Px(0) {
+                        SCROLL.scroll_horizontal(ScrollFrom::VarTarget(o.x));
+                    }
+                });
+            }
+
+            if scale_delta != 0.fct() {
+                let scroll_info = WIDGET.info().scroll_info().unwrap();
+                let default = scale_position.to_px(LAYOUT.scale_factor().0);
+                let default = scroll_info
+                    .viewport_transform()
+                    .inverse()
+                    .and_then(|t| t.transform_point(default))
+                    .unwrap_or(default);
+
+                let center = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(scroll_info.viewport_size()), || {
+                    ZOOM_WHEEL_ORIGIN_VAR.layout_dft(default)
+                });
+
+                println!("!!: TODO, {center:?}");
+
+                SCROLL.chase_zoom(|f| f + scale_delta);
+                scale_delta = 0.fct();
+            }
         }
         _ => {}
     })

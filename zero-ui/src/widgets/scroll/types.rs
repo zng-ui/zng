@@ -589,8 +589,8 @@ impl SCROLL {
         let config = SCROLL_CONFIG.get();
         let mut zoom = config.zoom.lock();
 
-        let min = super::MIN_SCALE_VAR.get();
-        let max = super::MAX_SCALE_VAR.get();
+        let min = super::MIN_ZOOM_VAR.get();
+        let max = super::MAX_ZOOM_VAR.get();
 
         match &mut *zoom {
             Some(t) => {
@@ -684,12 +684,12 @@ impl SCROLL {
 
     /// Returns `true` if the content can be scaled and the current scale is less than the max.
     pub fn can_zoom_in(&self) -> bool {
-        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() < super::MAX_SCALE_VAR.get()
+        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() < super::MAX_ZOOM_VAR.get()
     }
 
     /// Returns `true` if the content can be scaled and the current scale is more than the min.
     pub fn can_zoom_out(&self) -> bool {
-        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > super::MIN_SCALE_VAR.get()
+        SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > super::MIN_ZOOM_VAR.get()
     }
 }
 
