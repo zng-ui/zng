@@ -685,7 +685,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                     // remove offset
                     let rendered_offset = SCROLL.rendered_content().origin.to_vector();
-                    target_bounds.origin += rendered_offset;
+                    target_bounds.origin -= rendered_offset;
 
                     // replace scale
                     let rendered_scale = SCROLL.rendered_zoom_scale();

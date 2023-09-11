@@ -252,7 +252,7 @@ impl SCROLL {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
         let content = SCROLL_CONTENT_SIZE_VAR.get();
         let max_scroll = content - viewport;
-        let offset = max_scroll.to_vector() * self.rendered_offset();
+        let offset = max_scroll.to_vector() * -self.rendered_offset();
         PxRect::new(offset.to_point(), content)
     }
 

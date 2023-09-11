@@ -181,7 +181,7 @@ command! {
     pub static SCROLL_TO_CMD;
 
     /// Represents the **zoom in** action.
-    /// 
+    ///
     /// # Parameter
     ///
     /// This commands accepts an optional [`Point`] parameter that defines the origin of the

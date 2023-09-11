@@ -949,6 +949,16 @@ impl ops::DivAssign<Factor2d> for DipRect {
     }
 }
 
+impl ops::Neg for Factor2d {
+    type Output = Self;
+
+    fn neg(mut self) -> Self::Output {
+        self.x = -self.x;
+        self.y = -self.y;
+        self
+    }
+}
+
 /// Scale factor applied to margins.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FactorSideOffsets {
