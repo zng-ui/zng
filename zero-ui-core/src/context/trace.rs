@@ -71,7 +71,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
         let r = match span.metadata().name() {
-            "property" | "constructor" => {
+            "property" | "intrinsic" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
 
@@ -98,7 +98,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                     self.widgets_stack.lock().push(p);
                 }
 
-                if let Some(p) = ctx.node_parent.replace("new".to_owned()) {
+                if let Some(p) = ctx.node_parent.replace(String::new()) {
                     self.node_parents_stack.lock().push(p);
                 }
 
@@ -349,14 +349,16 @@ impl fmt::Display for UpdateContext {
             write!(f, "//{w}")?;
         }
         if let Some((id, name)) = &self.widget {
-            write!(f, "/../{id}({name})")?;
+            write!(f, "/../{name}#{id}")?;
         }
         if let Some(p) = &self.node_parent {
-            write!(f, "//{p}")?;
+            if !p.is_empty() {
+                write!(f, "//{p}")?;
+            }
         }
         if let Some(t) = &self.tag {
             if !t.is_empty() {
-                write!(f, "/{t}")?;
+                write!(f, "//{t}")?;
             }
         }
         Ok(())
