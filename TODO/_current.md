@@ -29,12 +29,11 @@
 
 # Scroll
 
+* After scale down the content is not aligned.
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
-    - Scroll wheel zoom center point.
-    - Scroll commands center point parameter.
-    - Scroll-to-fill/fit.
+* Scroll-to-fill/fit.
 
 # Touch Events
 

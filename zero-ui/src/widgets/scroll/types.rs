@@ -632,20 +632,26 @@ impl SCROLL {
         }
 
         let content = SCROLL.rendered_content();
-        let mut center_in_content = center_in_viewport + content.origin.to_vector();
+        let mut center_in_content = -content.origin + center_in_viewport.to_vector();
+        let mut content_size = content.size;
+
+        let f = SCROLL.rendered_zoom_scale();
+        center_in_content /= f;
+        content_size /= f;
 
         SCROLL.chase_zoom(|f| {
-            center_in_content /= f;
             let s = modify_scale(f);
             center_in_content *= s;
+            content_size *= s;
             s
         });
 
         let viewport_size = SCROLL_VIEWPORT_SIZE_VAR.get();
 
         // scroll so that new center_in_content is at the same center_in_viewport
-        let max_scroll = content.size - viewport_size;
+        let max_scroll = content_size - viewport_size;
         let offset = center_in_content - center_in_viewport;
+
         if offset.y != Px(0) && max_scroll.height > Px(0) {
             let offset_y = offset.y.0 as f32 / max_scroll.height.0 as f32;
             SCROLL.chase_vertical(|_| offset_y.fct());
