@@ -56,7 +56,7 @@ where
 {
     /// Send an event update.
     pub fn send(&self, args: A) -> Result<(), AppDisconnected<A>> {
-        UpdatesTrace::log_event(self.event);
+        UpdatesTrace::log_event(self.event.as_any());
 
         let event = self.event;
         let msg = EventUpdateMsg {

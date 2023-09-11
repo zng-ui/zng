@@ -1809,10 +1809,14 @@ impl UPDATES {
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
     pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
         UpdatesTrace::log_update();
+        self.update_internal(target.into())
+    }
+    /// Implements `update` without `log_update`.
+    pub(crate) fn update_internal(&self, target: Option<WidgetId>) -> &UPDATES {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();
-        if let Some(id) = target.into() {
+        if let Some(id) = target {
             u.update_widgets.search_widget(id);
         }
         self

@@ -317,7 +317,10 @@ impl<T: VarValue> ArcWhenVar<T> {
 
                 if update {
                     drop(data);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, false, args.tags_vec()));
+                    VARS.schedule_update(
+                        ArcWhenVar::apply_update(rc_when, false, args.tags_vec()),
+                        std::any::type_name::<T>(),
+                    );
                 }
 
                 true
@@ -333,7 +336,10 @@ impl<T: VarValue> ArcWhenVar<T> {
                 let data = rc_when.w.lock();
                 if data.active == i {
                     drop(data);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.update(), args.tags_vec()));
+                    VARS.schedule_update(
+                        ArcWhenVar::apply_update(rc_when, args.update(), args.tags_vec()),
+                        std::any::type_name::<T>(),
+                    );
                 }
                 true
             } else {

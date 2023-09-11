@@ -127,7 +127,7 @@ impl<T: VarValue> ArcMergeVar<T> {
                                 data_mut.inputs[i] = args.value().clone_boxed();
 
                                 drop(data);
-                                VARS.schedule_update(ArcMergeVar::update_merge(rc_merge));
+                                VARS.schedule_update(ArcMergeVar::update_merge(rc_merge), std::any::type_name::<T>());
                             }
                             true
                         } else {

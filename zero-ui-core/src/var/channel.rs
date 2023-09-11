@@ -182,7 +182,7 @@ where
     /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
     /// value is sent before the app can process then, only the last value shows as an update in the UI thread.
     pub fn send(&self, new_value: T) -> Result<(), AppDisconnected<T>> {
-        UpdatesTrace::log_var::<T>();
+        UpdatesTrace::log_var(std::any::type_name::<T>());
         self.sender.send(new_value).map_err(AppDisconnected::from)?;
         let _ = self.wake.send_var();
         Ok(())

@@ -2,7 +2,12 @@ use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_view_api::AnimationsConfig;
 
-use crate::{app::LoopTimer, context::app_local, context_local, units::Factor};
+use crate::{
+    app::LoopTimer,
+    context::{app_local, UpdatesTrace},
+    context_local,
+    units::Factor,
+};
 
 use super::{
     animation::{Animations, ModifyInfo},
@@ -226,7 +231,9 @@ impl VARS {
         animation::VARS_ANIMATION_CTRL_CTX.with_context_value(Box::new(controller), animate)
     }
 
-    pub(super) fn schedule_update(&self, update: VarUpdateFn) {
+    pub(super) fn schedule_update(&self, update: VarUpdateFn, type_name: &'static str) {
+        UpdatesTrace::log_var(type_name);
+
         let vars = VARS_SV.read();
         let curr_modify = match VARS_MODIFY_CTX.get_clone() {
             Some(current) => current, // override set by modify and animation closures.

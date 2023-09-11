@@ -1,4 +1,4 @@
-use crate::context::{app_local, UPDATES};
+use crate::context::{app_local, UpdatesTrace, UPDATES};
 
 use super::*;
 
@@ -46,6 +46,7 @@ pub struct EVENTS;
 impl EVENTS {
     /// Schedules the raw event update.
     pub fn notify(&self, update: EventUpdate) {
+        UpdatesTrace::log_event(update.event);
         EVENTS_SV.write().updates.get_mut().push(update);
         UPDATES.send_awake();
     }

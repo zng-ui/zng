@@ -579,7 +579,7 @@ impl CommandHandle {
                     return;
                 }
 
-                UpdatesTrace::log_var::<bool>();
+                UpdatesTrace::log_var(std::any::type_name::<bool>());
 
                 let mut write = command.local.write();
                 match command.scope {

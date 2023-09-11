@@ -9,8 +9,7 @@ use tracing::span;
 
 use crate::{
     app::AppExtension,
-    event::{Event, EventArgs},
-    var::VarValue,
+    event::AnyEvent,
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::WindowId,
 };
@@ -172,9 +171,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         };
 
         let ctx = self.context.lock().clone();
-        if ctx.app_extension.is_none() {
-            return;
-        }
+        // if ctx.app_extension.is_none() {
+        //     return;
+        // }
 
         let entry = UpdateTrace { ctx, action };
         self.trace.lock().push(entry);
@@ -280,16 +279,16 @@ impl UpdatesTrace {
     }
 
     /// Log a var update request.
-    pub fn log_var<T: VarValue>() {
+    pub fn log_var(type_name: &str) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
-            { kind = "update var", type_name = pretty_type_name::pretty_type_name::<T>() }
+            { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
         );
     }
 
     /// Log an event update request.
-    pub fn log_event<A: EventArgs>(event: Event<A>) {
+    pub fn log_event(event: AnyEvent) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
@@ -347,13 +346,13 @@ impl fmt::Display for UpdateContext {
             write!(f, "<unknown>")?;
         }
         if let Some(w) = self.window_id {
-            write!(f, "/{w}")?;
+            write!(f, "//{w}")?;
         }
         if let Some((id, name)) = &self.widget {
-            write!(f, "/{name}#{id}")?;
+            write!(f, "/../{id}({name})")?;
         }
         if let Some(p) = &self.node_parent {
-            write!(f, "/{p}")?;
+            write!(f, "//{p}")?;
         }
         if let Some(t) = &self.tag {
             if !t.is_empty() {

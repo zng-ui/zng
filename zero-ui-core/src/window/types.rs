@@ -113,7 +113,7 @@ impl fmt::Display for WindowId {
         if !name.is_empty() {
             write!(f, "{name}")
         } else {
-            write!(f, "WindowId({})", self.sequential())
+            write!(f, "WinId({})", self.sequential())
         }
     }
 }

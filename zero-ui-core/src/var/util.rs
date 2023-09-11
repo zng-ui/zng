@@ -341,7 +341,7 @@ impl<T: VarValue> VarData<T> {
                 meta.hooks = hooks;
             }
 
-            UPDATES.update(None);
+            UPDATES.update_internal(None);
         }
     }
 }

@@ -60,62 +60,65 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
     fn modify_impl(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
-        VARS.schedule_update(Box::new(move || {
-            let mut data = me.0.write();
-            let data = &mut *data;
+        VARS.schedule_update(
+            Box::new(move || {
+                let mut data = me.0.write();
+                let data = &mut *data;
 
-            match data {
-                Data::Source { source, hooks, .. } => {
-                    let (notify, new_value, update, tags) = source.with(|val| {
-                        let mut vm = VarModify::new(val);
-                        modify(&mut vm);
-                        vm.finish()
-                    });
-                    let value = new_value.unwrap_or_else(|| source.get());
-                    if notify {
-                        let hook_args = VarHookArgs::new(&value, update, &tags);
-                        hooks.retain(|h| h.call(&hook_args));
-                        UPDATES.update(None);
+                match data {
+                    Data::Source { source, hooks, .. } => {
+                        let (notify, new_value, update, tags) = source.with(|val| {
+                            let mut vm = VarModify::new(val);
+                            modify(&mut vm);
+                            vm.finish()
+                        });
+                        let value = new_value.unwrap_or_else(|| source.get());
+                        if notify {
+                            let hook_args = VarHookArgs::new(&value, update, &tags);
+                            hooks.retain(|h| h.call(&hook_args));
+                            UPDATES.update_internal(None);
+                        }
+                        *data = Data::Owned {
+                            value,
+                            last_update: if notify { VARS.update_id() } else { source.last_update() },
+                            hooks: mem::take(hooks),
+                            animation: VARS.current_modify(),
+                        };
                     }
-                    *data = Data::Owned {
+                    Data::Owned {
                         value,
-                        last_update: if notify { VARS.update_id() } else { source.last_update() },
-                        hooks: mem::take(hooks),
-                        animation: VARS.current_modify(),
-                    };
-                }
-                Data::Owned {
-                    value,
-                    last_update,
-                    hooks,
-                    animation,
-                } => {
-                    {
-                        let curr_anim = VARS.current_modify();
-                        if curr_anim.importance() < animation.importance() {
-                            return;
+                        last_update,
+                        hooks,
+                        animation,
+                    } => {
+                        {
+                            let curr_anim = VARS.current_modify();
+                            if curr_anim.importance() < animation.importance() {
+                                return;
+                            }
+                            *animation = curr_anim;
                         }
-                        *animation = curr_anim;
-                    }
 
-                    let (notify, new_value, update, tags) = {
-                        let mut vm = VarModify::new(value);
-                        modify(&mut vm);
-                        vm.finish()
-                    };
+                        let (notify, new_value, update, tags) = {
+                            let mut vm = VarModify::new(value);
+                            modify(&mut vm);
+                            vm.finish()
+                        };
 
-                    if notify {
-                        if let Some(nv) = new_value {
-                            *value = nv;
+                        if notify {
+                            if let Some(nv) = new_value {
+                                *value = nv;
+                            }
+                            *last_update = VARS.update_id();
+                            let hook_args = VarHookArgs::new(value, update, &tags);
+                            hooks.retain(|h| h.call(&hook_args));
+                            UPDATES.update_internal(None);
                         }
-                        *last_update = VARS.update_id();
-                        let hook_args = VarHookArgs::new(value, update, &tags);
-                        hooks.retain(|h| h.call(&hook_args));
-                        UPDATES.update(None);
                     }
                 }
-            }
-        }));
+            }),
+            std::any::type_name::<T>(),
+        );
         Ok(())
     }
 
