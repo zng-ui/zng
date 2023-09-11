@@ -32,8 +32,8 @@
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
-    - Scroll wheel zoom.
-        - Center on cursor?
+    - Scroll wheel zoom center point.
+    - Scroll commands center point parameter.
     - Scroll-to-fill/fit.
 
 # Touch Events

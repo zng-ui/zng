@@ -516,6 +516,9 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
     let mut zoom_out = CommandHandle::dummy();
     let mut zoom_reset = CommandHandle::dummy();
 
+    let mut scale_delta = 0.fct();
+    let mut origin = Point::default();
+
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             let scope = WIDGET.id();
@@ -531,30 +534,55 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
             zoom_out = CommandHandle::dummy();
             zoom_reset = CommandHandle::dummy();
         }
-        UiNodeOp::Layout { .. } => {
-            zoom_in.set_enabled(SCROLL.can_zoom_in());
-            zoom_out.set_enabled(SCROLL.can_zoom_out());
-            zoom_reset.set_enabled(SCROLL.zoom_scale().get() != 1.fct());
-        }
         UiNodeOp::Event { update } => {
             child.event(update);
 
             let scope = WIDGET.id();
 
             if let Some(args) = ZOOM_IN_CMD.scoped(scope).on(update) {
-                args.handle_enabled(&zoom_in, |_| {
-                    let delta = ZOOM_WHEEL_UNIT_VAR.get();
-                    SCROLL.chase_zoom(|f| f + delta);
+                args.handle_enabled(&zoom_in, |args| {
+                    origin = args.param::<Point>().cloned().unwrap_or_default();
+                    scale_delta += ZOOM_WHEEL_UNIT_VAR.get();
+
+                    WIDGET.layout();
                 });
             } else if let Some(args) = ZOOM_OUT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_out, |_| {
-                    let delta = ZOOM_WHEEL_UNIT_VAR.get();
-                    SCROLL.chase_zoom(|f| f - delta);
+                    origin = args.param::<Point>().cloned().unwrap_or_default();
+                    scale_delta -= ZOOM_WHEEL_UNIT_VAR.get();
+
+                    WIDGET.layout();
                 });
             } else if let Some(args) = ZOOM_RESET_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_reset, |_| {
                     SCROLL.chase_zoom(|_| 1.fct());
+                    scale_delta = 0.fct();
                 });
+            }
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = child.layout(wl);
+
+            zoom_in.set_enabled(SCROLL.can_zoom_in());
+            zoom_out.set_enabled(SCROLL.can_zoom_out());
+            zoom_reset.set_enabled(SCROLL.zoom_scale().get() != 1.fct());
+
+            if scale_delta != 0.fct() {
+                let scroll_info = WIDGET.info().scroll_info().unwrap();
+                let viewport_size = scroll_info.viewport_size();
+
+                let default = PxPoint::new(
+                    Px(0),
+                    match LAYOUT.direction() {
+                        LayoutDirection::LTR => Px(0),
+                        LayoutDirection::RTL => viewport_size.width,
+                    },
+                );
+                let center_in_viewport =
+                    LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_size), || origin.layout_dft(default));
+
+                SCROLL.zoom(|f| f + scale_delta, center_in_viewport);
+                scale_delta = 0.fct();
             }
         }
         _ => {}
@@ -656,7 +684,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds_in_content = target_bounds;
 
                     // remove offset
-                    let rendered_offset = SCROLL.rendered_offset_px();
+                    let rendered_offset = SCROLL.rendered_content().origin.to_vector();
                     target_bounds.origin += rendered_offset;
 
                     // replace scale
@@ -940,13 +968,12 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                     .and_then(|t| t.transform_point(default))
                     .unwrap_or(default);
 
-                let center = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(scroll_info.viewport_size()), || {
+                let viewport_size = scroll_info.viewport_size();
+                let center_in_viewport = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_size), || {
                     ZOOM_WHEEL_ORIGIN_VAR.layout_dft(default)
                 });
 
-                println!("!!: TODO, {center:?}");
-
-                SCROLL.chase_zoom(|f| f + scale_delta);
+                SCROLL.zoom(|f| f + scale_delta, center_in_viewport);
                 scale_delta = 0.fct();
             }
         }

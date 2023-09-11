@@ -181,6 +181,14 @@ command! {
     pub static SCROLL_TO_CMD;
 
     /// Represents the **zoom in** action.
+    /// 
+    /// # Parameter
+    ///
+    /// This commands accepts an optional [`Point`] parameter that defines the origin of the
+    /// scale transform, relative values are resolved in the viewport space. The default value
+    /// is *top-start*.
+    ///
+    /// [`Point`]: crate::core::units::Point
     pub static ZOOM_IN_CMD = {
         name: "Zoom In",
         shortcut: shortcut!(CTRL+'+'),
@@ -188,6 +196,14 @@ command! {
     };
 
     /// Represents the **zoom out** action.
+    ///
+    /// # Parameter
+    ///
+    /// This commands accepts an optional [`Point`] parameter that defines the origin of the
+    /// scale transform, relative values are resolved in the viewport space. The default value
+    /// is *top-start*.
+    ///
+    /// [`Point`]: crate::core::units::Point
     pub static ZOOM_OUT_CMD = {
         name: "Zoom Out",
         shortcut: shortcut!(CTRL+'-'),

@@ -245,12 +245,15 @@ impl SCROLL {
         SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).z
     }
 
-    /// Latest rendered offset in pixels.
-    pub fn rendered_offset_px(&self) -> PxVector {
+    /// Latest rendered content offset and size.
+    ///
+    /// This is the content bounds, scaled and in the viewport space.
+    pub fn rendered_content(&self) -> PxRect {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
         let content = SCROLL_CONTENT_SIZE_VAR.get();
         let max_scroll = content - viewport;
-        max_scroll.to_vector() * self.rendered_offset()
+        let offset = max_scroll.to_vector() * self.rendered_offset();
+        PxRect::new(offset.to_point(), content)
     }
 
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
@@ -613,6 +616,43 @@ impl SCROLL {
                     *zoom = Some(anim);
                 }
             }
+        }
+    }
+
+    /// Zoom in or out keeping the `origin` point in the viewport aligned with the same point
+    /// in the content.
+    pub fn zoom(&self, modify_scale: impl FnOnce(Factor) -> Factor, origin: PxPoint) {
+        #[cfg(dyn_closure)]
+        let modify_scale: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_scale);
+        self.zoom_impl(modify_scale, origin);
+    }
+    fn zoom_impl(&self, modify_scale: impl FnOnce(Factor) -> Factor, center_in_viewport: PxPoint) {
+        if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
+            return;
+        }
+
+        let content = SCROLL.rendered_content();
+        let mut center_in_content = center_in_viewport + content.origin.to_vector();
+
+        SCROLL.chase_zoom(|f| {
+            center_in_content /= f;
+            let s = modify_scale(f);
+            center_in_content *= s;
+            s
+        });
+
+        let viewport_size = SCROLL_VIEWPORT_SIZE_VAR.get();
+
+        // scroll so that new center_in_content is at the same center_in_viewport
+        let max_scroll = content.size - viewport_size;
+        let offset = center_in_content - center_in_viewport;
+        if offset.y != Px(0) && max_scroll.height > Px(0) {
+            let offset_y = offset.y.0 as f32 / max_scroll.height.0 as f32;
+            SCROLL.chase_vertical(|_| offset_y.fct());
+        }
+        if offset.x != Px(0) && max_scroll.width > Px(0) {
+            let offset_x = offset.x.0 as f32 / max_scroll.width.0 as f32;
+            SCROLL.chase_horizontal(|_| offset_x.fct());
         }
     }
 
