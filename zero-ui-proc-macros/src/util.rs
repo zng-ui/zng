@@ -35,16 +35,7 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
 
 /// Returns `true` if the proc-macro is running in one of the rust-analyzer proc-macro servers.
 pub fn is_rust_analyzer() -> bool {
-    static IS: OnceCell<bool> = OnceCell::new();
-    *IS.get_or_init(|| {
-        // can be:
-        // .rustup\toolchains\nightly-foo\libexec\rust-analyzer-proc-macro-srv.exe
-        // .vscode\extensions\rust-lang.rust-analyzer-foo\server\rust-analyzer.exe
-        std::env::current_exe()
-            .ok()
-            .and_then(|e| e.file_name().map(|f| f.to_string_lossy().contains("rust-analyzer")))
-            .unwrap_or(false)
-    })
+    cfg!(rust_analyzer)
 }
 
 /// Return `$crate::core` where `$crate` is the zero-ui
