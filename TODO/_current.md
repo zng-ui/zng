@@ -30,8 +30,7 @@
 # Scroll
 
 * Implement touch scroll inertia.
-* Implement `ScrollMode::ZOOM`.
-    - Touch gesture.
+* Centering of touch scale does not look correct.
 
 # Touch Events
 

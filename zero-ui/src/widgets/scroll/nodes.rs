@@ -811,6 +811,13 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                     SCROLL.scroll_horizontal_touch(-delta.x);
                 }
 
+                if SCROLL.mode().get().contains(ScrollMode::ZOOM) {
+                    let f = args.scale();
+                    if f != 1.fct() {
+                        SCROLL.zoom_touch(args.phase, f);
+                    }
+                }
+
                 match args.phase {
                     TouchPhase::Start => {}
                     TouchPhase::Move => {}

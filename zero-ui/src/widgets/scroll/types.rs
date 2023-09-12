@@ -3,6 +3,7 @@ use std::{fmt, mem, sync::Arc, time::Duration};
 use crate::core::{
     context::{context_local, with_context_local_init, StaticStateId, WIDGET},
     task::parking_lot::Mutex,
+    touch::TouchPhase,
     units::*,
     var::{
         animation::{ChaseAnimation, *},
@@ -119,6 +120,7 @@ struct ScrollConfig {
     horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
     vertical: Mutex<Option<ChaseAnimation<Factor>>>,
     zoom: Mutex<Option<ChaseAnimation<Factor>>>,
+    touch_zoom_start: Atomic<Factor>,
 
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
@@ -133,6 +135,7 @@ impl Default for ScrollConfig {
             horizontal: Default::default(),
             vertical: Default::default(),
             zoom: Default::default(),
+            touch_zoom_start: Atomic::new(0.fct()),
             rendered: Atomic::new(RenderedOffsets {
                 h: 0.fct(),
                 v: 0.fct(),
@@ -472,7 +475,7 @@ impl SCROLL {
     /// updates the horizontal overscroll if it changes.
     ///
     /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
-    pub fn scroll_horizontal_touch(&self, amount: Px) {
+    pub fn scroll_horizontal_touch(&self, delta: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -481,10 +484,10 @@ impl SCROLL {
             return;
         }
 
-        let amount = amount.0 as f32 / max_scroll.0 as f32;
+        let delta = delta.0 as f32 / max_scroll.0 as f32;
 
         let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-        let mut next = current + amount.fct();
+        let mut next = current + delta.fct();
         let mut overscroll = 0.fct();
         if next > 1.fct() {
             overscroll = next - 1.fct();
@@ -504,6 +507,27 @@ impl SCROLL {
         } else {
             self.clear_horizontal_overscroll();
         }
+    }
+
+    /// Applies the `scale` to the current zoom scale without smooth scrolling and centered on the touch point.
+    pub fn zoom_touch(&self, phase: TouchPhase, scale: Factor) {
+        let cfg = SCROLL_CONFIG.get();
+
+        if let TouchPhase::Start = phase {
+            cfg.touch_zoom_start
+                .store(cfg.rendered.load(Ordering::Relaxed).z, Ordering::Relaxed);
+            *cfg.zoom.lock() = None;
+        }
+
+        let start = cfg.touch_zoom_start.load(Ordering::Relaxed);
+
+        let scale = start + (scale - 1.0.fct());
+
+        let min = super::MIN_ZOOM_VAR.get();
+        let max = super::MAX_ZOOM_VAR.get();
+        let scale = scale.clamp(min, max);
+
+        let _ = SCROLL_SCALE_VAR.set(scale);
     }
 
     /// Set the vertical offset to a new offset derived from the last, blending into the active smooth
@@ -598,16 +622,16 @@ impl SCROLL {
         match &mut *zoom {
             Some(t) => {
                 if smooth.is_disabled() {
-                    let next = modify_scale(*t.target()).max(min).min(max);
+                    let next = modify_scale(*t.target()).clamp(min, max);
                     let _ = SCROLL_SCALE_VAR.set(next);
                     *zoom = None;
                 } else {
                     let easing = smooth.easing.clone();
-                    t.modify(|f| *f = modify_scale(*f).max(min).min(max), smooth.duration, move |t| easing(t));
+                    t.modify(|f| *f = modify_scale(*f).clamp(min, max), smooth.duration, move |t| easing(t));
                 }
             }
             None => {
-                let t = modify_scale(SCROLL_SCALE_VAR.get()).max(min).min(max);
+                let t = modify_scale(SCROLL_SCALE_VAR.get()).clamp(min, max);
                 if smooth.is_disabled() {
                     let _ = SCROLL_SCALE_VAR.set(t);
                 } else {
