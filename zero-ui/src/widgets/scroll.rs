@@ -70,13 +70,14 @@ pub struct ScrollbarFnMix<P>(P);
 fn on_build(wgt: &mut WidgetBuilding) {
     let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::ZOOM);
 
+    let child_align = wgt.capture_var_or_else(property_id!(child_align), || Align::CENTER);
     let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
     wgt.push_intrinsic(
         NestGroup::CHILD_CONTEXT,
         "scroll_node",
         clmv!(mode, |child| {
-            let child = scroll_node(child, mode, clip_to_viewport);
+            let child = scroll_node(child, mode, child_align, clip_to_viewport);
             nodes::overscroll_node(child)
         }),
     );
@@ -115,7 +116,12 @@ fn on_build(wgt: &mut WidgetBuilding) {
     });
 }
 
-fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
+fn scroll_node(
+    child: impl UiNode,
+    mode: impl IntoVar<ScrollMode>,
+    child_align: impl IntoVar<Align>,
+    clip_to_viewport: impl IntoVar<bool>,
+) -> impl UiNode {
     // # Layout
     //
     // +-----------------+---+
@@ -127,7 +133,7 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
     // +-----------------+---+
     let children = ui_vec![
         clip_to_bounds(
-            nodes::viewport(child, mode.into_var()).instrument("viewport"),
+            nodes::viewport(child, mode.into_var(), child_align).instrument("viewport"),
             clip_to_viewport.into_var()
         ),
         nodes::v_scrollbar_presenter(),

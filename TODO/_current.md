@@ -29,7 +29,6 @@
 
 # Scroll
 
-* After scale down the content is not aligned.
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.

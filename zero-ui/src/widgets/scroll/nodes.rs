@@ -16,8 +16,9 @@ use super::scrollbar::Orientation;
 use super::types::*;
 
 /// The actual content presenter.
-pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
+pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align: impl IntoVar<Align>) -> impl UiNode {
     let mode = mode.into_var();
+    let child_align = child_align.into_var();
     let binding_key = FrameValueKey::new_unique();
 
     let mut viewport_size = PxSize::zero();
@@ -34,7 +35,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 .sub_var_layout(&mode)
                 .sub_var_layout(&SCROLL_VERTICAL_OFFSET_VAR)
                 .sub_var_layout(&SCROLL_HORIZONTAL_OFFSET_VAR)
-                .sub_var_layout(&SCROLL_SCALE_VAR);
+                .sub_var_layout(&SCROLL_SCALE_VAR)
+                .sub_var_layout(&child_align);
         }
         UiNodeOp::Info { info } => {
             info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
@@ -48,6 +50,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
 
             let mode = mode.get();
+            let child_align = child_align.get();
 
             let viewport_unit = constraints.fill_size();
             let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
@@ -57,13 +60,13 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             let mut content_size = LAYOUT.with_constraints(
                 {
-                    let mut c = constraints;
+                    let mut c = child_align.child_constraints(constraints);
                     c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y();
+                        c = c.with_unbounded_y().with_new_min_y(Px(0));
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x();
+                        c = c.with_unbounded_x().with_new_min_x(Px(0));
                     }
                     c
                 },
@@ -86,6 +89,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         }
         UiNodeOp::Layout { wl, final_size } => {
             let mode = mode.get();
+            let child_align = child_align.get();
 
             let constraints = LAYOUT.constraints();
             let vp_unit = constraints.fill_size();
@@ -96,13 +100,13 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             let mut content_size = LAYOUT.with_constraints(
                 {
-                    let mut c = constraints;
+                    let mut c = child_align.child_constraints(constraints);
                     c = c.with_min_size(vp_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y();
+                        c = c.with_unbounded_y().with_new_min_y(Px(0));
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x();
+                        c = c.with_unbounded_x().with_new_min_x(Px(0));
                     }
                     c
                 },
@@ -144,18 +148,22 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             scroll_info.set_viewport_size(vp_size);
 
-            if !mode.contains(ScrollMode::VERTICAL) {
-                content_size.height = vp_size.height;
-            }
-            if !mode.contains(ScrollMode::HORIZONTAL) {
-                content_size.width = vp_size.width;
-            }
+            let align_offset = child_align.child_offset(content_size, viewport_size, LAYOUT.direction());
 
             let mut ct_offset = PxVector::zero();
-            let v_offset = SCROLL_VERTICAL_OFFSET_VAR.get();
-            ct_offset.y = (viewport_size.height - content_size.height) * v_offset;
-            let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-            ct_offset.x = (viewport_size.width - content_size.width) * h_offset;
+
+            if mode.contains(ScrollMode::VERTICAL) && content_size.height > vp_size.height {
+                let v_offset = SCROLL_VERTICAL_OFFSET_VAR.get();
+                ct_offset.y = (viewport_size.height - content_size.height) * v_offset;
+            } else {
+                ct_offset.y = align_offset.y;
+            }
+            if mode.contains(ScrollMode::HORIZONTAL) && content_size.width > vp_size.width {
+                let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+                ct_offset.x = (viewport_size.width - content_size.width) * h_offset;
+            } else {
+                ct_offset.x = align_offset.x;
+            }
 
             if ct_offset != content_offset {
                 content_offset = ct_offset;

@@ -142,6 +142,31 @@ impl Align {
             .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 
+    /// Compute the offset for a given child size, parent size and layout direction.
+    ///
+    /// Note that this does not flag baseline offset, you can use [`Align::layout`] to cover all corner cases.
+    pub fn child_offset(self, child_size: PxSize, parent_size: PxSize, direction: LayoutDirection) -> PxVector {
+        let mut offset = PxVector::zero();
+        if !self.is_fill_x() {
+            let x = if self.x_rtl_aware && direction.is_rtl() {
+                self.x.flip().0
+            } else {
+                self.x.0
+            };
+
+            offset.x = (parent_size.width - child_size.width) * x;
+        }
+
+        let baseline = self.is_baseline();
+
+        if !self.is_fill_y() {
+            let y = if baseline { 1.0 } else { self.y.0 };
+
+            offset.y = (parent_size.height - child_size.height) * y;
+        }
+        offset
+    }
+
     /// Computes the size returned by [`layout`] for the given child size and constraints.
     ///
     /// [`layout`]: Self::layout
@@ -161,28 +186,11 @@ impl Align {
         let size = parent_constraints.fill_size().max(child_size);
         let size = parent_constraints.clamp_size(size);
 
-        let mut offset = PxVector::zero();
-        if !self.is_fill_x() {
-            let x = if self.x_rtl_aware && direction.is_rtl() {
-                self.x.flip().0
-            } else {
-                self.x.0
-            };
-
-            offset.x = (size.width - child_size.width) * x;
-        }
-
-        let baseline = self.is_baseline();
-
-        if !self.is_fill_y() {
-            let y = if baseline { 1.0 } else { self.y.0 };
-
-            offset.y = (size.height - child_size.height) * y;
-        }
+        let offset = self.child_offset(child_size, size, direction);
 
         wl.translate(offset);
 
-        if baseline {
+        if self.is_baseline() {
             wl.translate_baseline(true);
         }
 
