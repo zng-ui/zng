@@ -32,7 +32,6 @@
 * Implement touch scroll inertia.
 * Implement `ScrollMode::ZOOM`.
     - Touch gesture.
-* Scroll-to-fill/fit.
 
 # Touch Events
 

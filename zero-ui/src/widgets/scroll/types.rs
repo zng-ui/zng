@@ -723,7 +723,7 @@ impl SCROLL {
 
     /// Scroll the [`WIDGET`] into view and adjusts the zoom scale.
     ///
-    /// This rquests [`commands::scroll_to_info_zoom`] for the contextual widget.
+    /// This requests [`commands::scroll_to_info_zoom`] for the contextual widget.
     pub fn scroll_to_zoom(&self, mode: impl Into<super::commands::ScrollToMode>, zoom: impl Into<Factor>) {
         commands::scroll_to_info_zoom(&WIDGET.info(), mode.into(), zoom.into())
     }

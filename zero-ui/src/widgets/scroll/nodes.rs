@@ -698,9 +698,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     // replace scale
                     let rendered_scale = SCROLL.rendered_zoom_scale();
                     if let Some(s) = zoom {
-                        target_bounds.origin /= rendered_scale;
+                        let s = s / rendered_scale;
                         target_bounds.origin *= s;
-                        target_bounds.size /= rendered_scale;
                         target_bounds.size *= s;
                     }
                     // target bounds is in the content space at future scale
@@ -721,10 +720,10 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                             // vertical scroll
                             if target_bounds.size.height < viewport_size.height {
-                                if target_bounds_in_content.origin.y < Px(0) {
+                                if target_bounds.origin.y < Px(0) {
                                     // scroll up
                                     offset.y = target_bounds.origin.y;
-                                } else if target_bounds_in_content.origin.y > viewport_size.height {
+                                } else if target_bounds.origin.y > viewport_size.height {
                                     // scroll down
                                     offset.y = target_bounds.max_y() - viewport_size.height;
                                 }
@@ -767,8 +766,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     // scroll range
                     let mut content_size = SCROLL.content_size().get();
                     if let Some(scale) = zoom {
-                        content_size /= rendered_scale;
-                        content_size *= scale;
+                        content_size *= scale / rendered_scale;
                     }
                     let max_scroll = content_size - viewport_size;
 
