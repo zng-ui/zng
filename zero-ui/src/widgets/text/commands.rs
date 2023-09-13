@@ -616,32 +616,60 @@ impl TextSelectOp {
         Self::new(|| next_prev(false, SegmentedText::prev_word_index))
     }
 
-    /// Clear selection and move the caret in the nearest insert index on the previous line.
+    /// Clear selection and move the caret to the nearest insert index on the previous line.
     ///
     /// This is the `Up` key operation.
     pub fn line_up() -> Self {
-        Self::new(|| line_up_down(-1))
+        Self::new(|| line_up_down(true, -1))
     }
 
-    /// Clear selection and move the caret in the nearest insert index on the next line.
+    /// Extend or shrink selection by moving the caret to the nearest insert index on the previous line.
+    ///
+    /// This is the `SHIFT+Up` key operation.
+    pub fn select_line_up() -> Self {
+        Self::new(|| line_up_down(false, -1))
+    }
+
+    /// Clear selection and move the caret to the nearest insert index on the next line.
     ///
     /// This is the `Down` key operation.
     pub fn line_down() -> Self {
-        Self::new(|| line_up_down(1))
+        Self::new(|| line_up_down(true, 1))
+    }
+
+    /// Extend or shrink selection by moving the caret to the nearest insert index on the next line.
+    ///
+    /// This is the `SHIFT+Down` key operation.
+    pub fn select_line_down() -> Self {
+        Self::new(|| line_up_down(false, 1))
     }
 
     /// Clear selection and move the caret one viewport up.
     ///
     /// This is the `PageUp` key operation.
     pub fn page_up() -> Self {
-        Self::new(|| page_up_down(-1))
+        Self::new(|| page_up_down(true, -1))
+    }
+
+    /// Extend or shrink selection by moving the caret one viewport up.
+    ///
+    /// This is the `SHIFT+PageUp` key operation.
+    pub fn select_page_up() -> Self {
+        Self::new(|| page_up_down(false, -1))
     }
 
     /// Clear selection and move the caret one viewport down.
     ///
     /// This is the `PageDown` key operation.
     pub fn page_down() -> Self {
-        Self::new(|| page_up_down(1))
+        Self::new(|| page_up_down(true, 1))
+    }
+
+    /// Extend or shrink selection by moving the caret one viewport down.
+    ///
+    /// This is the `SHIFT+PageDown` key operation.
+    pub fn select_page_down() -> Self {
+        Self::new(|| page_up_down(false, 1))
     }
 
     /// Clear selection and move the caret to the start of the line.
@@ -755,30 +783,33 @@ impl TextSelectOp {
 fn next_prev(clear_selection: bool, insert_index_fn: fn(&SegmentedText, usize) -> usize) {
     let ctx = ResolvedText::get();
     let mut c = ctx.caret.lock();
-    let mut caret = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
         c.selection_index = None;
     } else if c.selection_index.is_none() {
-        c.selection_index = Some(caret);
+        c.selection_index = Some(i);
     }
-    caret.index = insert_index_fn(&ctx.text, caret.index);
-    c.index = Some(caret);
+    i.index = insert_index_fn(&ctx.text, i.index);
+    c.index = Some(i);
     c.used_retained_x = false;
 }
 
-fn line_up_down(diff: i8) {
+fn line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
-    let resolved = ResolvedText::get();
+    let ctx = ResolvedText::get();
     let layout = LayoutText::get();
 
-    let mut caret = resolved.caret.lock();
-    let caret = &mut *caret;
-    let caret_index = &mut caret.index;
+    let mut c = ctx.caret.lock();
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
+    }
 
-    caret.used_retained_x = true;
+    c.used_retained_x = true;
 
     if layout.caret_origin.is_some() {
-        let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
         let last_line = layout.shaped_text.lines_len().saturating_sub(1);
         let li = i.line;
         let next_li = li.saturating_add_signed(diff).min(last_line);
@@ -787,36 +818,39 @@ fn line_up_down(diff: i8) {
                 Some(l) => {
                     i.line = next_li;
                     i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.text.text()),
+                        Some(s) => s.nearest_char_index(layout.caret_retained_x, ctx.text.text()),
                         None => l.text_range().end,
                     }
                 }
                 None => i = CaretIndex::ZERO,
             };
-            i.index = resolved.text.snap_grapheme_boundary(i.index);
-            *caret_index = Some(i);
+            i.index = ctx.text.snap_grapheme_boundary(i.index);
+            c.index = Some(i);
         }
     }
 
-    if caret_index.is_none() {
-        *caret_index = Some(CaretIndex::ZERO);
-        caret.selection_index = None;
+    if c.index.is_none() {
+        c.index = Some(CaretIndex::ZERO);
+        c.selection_index = None;
     }
 }
 
-fn page_up_down(diff: i8) {
+fn page_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as i32;
     let resolved = ResolvedText::get();
     let layout = LayoutText::get();
 
-    let mut caret = resolved.caret.lock();
-    let caret = &mut *caret;
-    let caret_index = &mut caret.index;
+    let mut c = resolved.caret.lock();
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
+    }
 
     let page_y = layout.viewport.height * Px(diff);
-    caret.used_retained_x = true;
+    c.used_retained_x = true;
     if layout.caret_origin.is_some() {
-        let mut i = caret_index.unwrap_or(CaretIndex::ZERO);
         let li = i.line;
         if let Some(li) = layout.shaped_text.line(li) {
             let target_line_y = li.rect().origin.y + page_y;
@@ -831,12 +865,12 @@ fn page_up_down(diff: i8) {
                 None => i = CaretIndex::ZERO,
             };
             i.index = resolved.text.snap_grapheme_boundary(i.index);
-            *caret_index = Some(i);
+            c.index = Some(i);
         }
     }
 
-    if caret_index.is_none() {
-        *caret_index = Some(CaretIndex::ZERO);
-        caret.selection_index = None;
+    if c.index.is_none() {
+        c.index = Some(CaretIndex::ZERO);
+        c.selection_index = None;
     }
 }

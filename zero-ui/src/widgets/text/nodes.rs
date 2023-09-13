@@ -1224,23 +1224,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::ArrowRight => {
                                 let mut modifiers = args.modifiers;
                                 let has_shift = modifiers.take_shift();
-                                if modifiers.is_only_ctrl() {
+                                let has_ctrl = modifiers.take_ctrl();
+                                if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
                                         if has_shift {
-                                            TextSelectOp::select_next_word()
-                                        } else {
+                                            if has_ctrl {
+                                                TextSelectOp::select_next_word()
+                                            } else {
+                                                TextSelectOp::select_next()
+                                            }
+                                        } else if has_ctrl {
                                             TextSelectOp::next_word()
-                                        }
-                                        .call();
-                                    });
-                                } else if modifiers.is_empty() {
-                                    args.propagation().stop();
-
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            TextSelectOp::select_next()
                                         } else {
                                             TextSelectOp::next()
                                         }
@@ -1251,23 +1247,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::ArrowLeft => {
                                 let mut modifiers = args.modifiers;
                                 let has_shift = modifiers.take_shift();
-                                if modifiers.is_only_ctrl() {
+                                let has_ctrl = modifiers.take_ctrl();
+                                if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
                                         if has_shift {
-                                            TextSelectOp::select_prev_word()
-                                        } else {
+                                            if has_ctrl {
+                                                TextSelectOp::select_prev_word()
+                                            } else {
+                                                TextSelectOp::select_prev()
+                                            }
+                                        } else if has_ctrl {
                                             TextSelectOp::prev_word()
-                                        }
-                                        .call();
-                                    });
-                                } else if modifiers.is_empty() {
-                                    args.propagation().stop();
-
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            TextSelectOp::select_prev()
                                         } else {
                                             TextSelectOp::prev()
                                         }
@@ -1276,47 +1268,75 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::ArrowUp => {
-                                if args.modifiers.is_empty()
-                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
-                                {
-                                    args.propagation().stop();
+                                if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
+                                    let mut modifiers = args.modifiers;
+                                    let has_shift = modifiers.take_shift();
+                                    if modifiers.is_empty() {
+                                        args.propagation().stop();
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::line_up().call();
-                                    });
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            if has_shift {
+                                                TextSelectOp::select_line_up()
+                                            } else {
+                                                TextSelectOp::line_up()
+                                            }
+                                            .call();
+                                        });
+                                    }
                                 }
                             }
                             Key::ArrowDown => {
-                                if args.modifiers.is_empty()
-                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
-                                {
-                                    args.propagation().stop();
+                                if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
+                                    let mut modifiers = args.modifiers;
+                                    let has_shift = modifiers.take_shift();
+                                    if modifiers.is_empty() {
+                                        args.propagation().stop();
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::line_down().call();
-                                    });
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            if has_shift {
+                                                TextSelectOp::select_line_down()
+                                            } else {
+                                                TextSelectOp::line_down()
+                                            }
+                                            .call();
+                                        });
+                                    }
                                 }
                             }
                             Key::PageUp => {
-                                if args.modifiers.is_empty()
-                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
-                                {
-                                    args.propagation().stop();
+                                if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
+                                    let mut modifiers = args.modifiers;
+                                    let has_shift = modifiers.take_shift();
+                                    if modifiers.is_empty() {
+                                        args.propagation().stop();
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::page_up().call();
-                                    });
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            if has_shift {
+                                                TextSelectOp::select_page_up()
+                                            } else {
+                                                TextSelectOp::page_up()
+                                            }
+                                            .call();
+                                        });
+                                    }
                                 }
                             }
                             Key::PageDown => {
-                                if args.modifiers.is_empty()
-                                    && (ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1)
-                                {
-                                    args.propagation().stop();
+                                if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
+                                    let mut modifiers = args.modifiers;
+                                    let has_shift = modifiers.take_shift();
+                                    if modifiers.is_empty() {
+                                        args.propagation().stop();
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::page_down().call();
-                                    });
+                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                            if has_shift {
+                                                TextSelectOp::select_page_down()
+                                            } else {
+                                                TextSelectOp::page_down()
+                                            }
+                                            .call();
+                                        });
+                                    }
                                 }
                             }
                             Key::Home => {
