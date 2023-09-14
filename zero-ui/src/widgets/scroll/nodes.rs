@@ -55,31 +55,38 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let mode = mode.get();
             let child_align = child_align.get();
 
-            let viewport_unit = constraints.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
-                && viewport_unit.width > Px(0) // and has fill-size
-                && viewport_unit.height > Px(0)
-                && constraints.max_size() == Some(viewport_unit); // that is not just min size.
+            let vp_unit = constraints.fill_size();
+            let has_fill_size = vp_unit.width > Px(0) && vp_unit.height > Px(0) && constraints.max_size() == Some(vp_unit);
+            let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
+
+            let joiner_size = scroll_info().joiner_size();
+            let fill_size = vp_unit + joiner_size;
 
             let mut content_size = LAYOUT.with_constraints(
                 {
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y().with_new_min_y(viewport_unit.height);
+                        c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
                     } else {
-                        c = c.with_new_min_y(Px(0)).with_new_max_y(viewport_unit.height);
+                        c = c.with_new_min_y(Px(0));
+                        if has_fill_size {
+                            c = c.with_new_max_y(fill_size.height);
+                        }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(viewport_unit.width);
+                        c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
                     } else {
-                        c = c.with_new_min_x(Px(0)).with_new_max_x(viewport_unit.width);
+                        c = c.with_new_min_x(Px(0));
+                        if has_fill_size {
+                            c = c.with_new_max_x(fill_size.width);
+                        }
                     }
 
                     child_align.child_constraints(c)
                 },
                 || {
                     if define_vp_unit {
-                        LAYOUT.with_viewport(viewport_unit, || child.measure(wm))
+                        LAYOUT.with_viewport(vp_unit, || child.measure(wm))
                     } else {
                         child.measure(wm)
                     }
@@ -100,29 +107,33 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
 
             let constraints = LAYOUT.constraints();
             let vp_unit = constraints.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
-                && vp_unit.width > Px(0) // and has fill-size
-                && vp_unit.height > Px(0)
-                && constraints.max_size() == Some(vp_unit); // that is not just min size.
+
+            let has_fill_size = vp_unit.width > Px(0) && vp_unit.height > Px(0) && constraints.max_size() == Some(vp_unit);
+            let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
 
             let joiner_size = scroll_info().joiner_size();
+            let fill_size = vp_unit + joiner_size;
 
             let mut content_size = LAYOUT.with_constraints(
                 {
-                    let fill_size = vp_unit + joiner_size;
-
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
                         // Align::FILL forces the min-size, because we have infinite space in scrollable dimensions.
                         c = c.with_unbounded_y().with_new_min_y(fill_size.height);
                     } else {
                         // If not scrollable Align::FILL works like normal `Container!` widgets.
-                        c = c.with_new_min_y(Px(0)).with_new_max_y(fill_size.height);
+                        c = c.with_new_min_y(Px(0));
+                        if has_fill_size {
+                            c = c.with_new_max_y(fill_size.height);
+                        }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
                         c = c.with_unbounded_x().with_new_min_x(fill_size.width);
                     } else {
-                        c = c.with_new_min_x(Px(0)).with_new_max_x(fill_size.width);
+                        c = c.with_new_min_x(Px(0));
+                        if has_fill_size {
+                            c = c.with_new_max_x(fill_size.width);
+                        }
                     }
 
                     child_align.child_constraints(c)
