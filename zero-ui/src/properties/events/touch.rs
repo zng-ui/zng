@@ -9,45 +9,46 @@ use super::event_property;
 use crate::core::{context::WIDGET, touch::*};
 
 event_property! {
-    /// Touch contact moved over the widget.
+    /// Touch contact moved over the widget and cursor capture allows it.
     pub fn touch_move {
         event: TOUCH_MOVE_EVENT,
         args: TouchMoveArgs,
+        filter: |args| args.capture_allows(),
     }
 
-    /// Touch contact started or ended over the widget and the widget is enabled.
+    /// Touch contact started or ended over the widget, the widget is enabled and cursor capture allows it.
     pub fn touch_input {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Touch contact started or ended over the widget and the widget is disabled.
+    /// Touch contact started or ended over the widget, the widget is disabled and cursor capture allows it.
     pub fn disabled_touch_input {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.is_disabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Touch contact started over the widget and the widget is enabled.
+    /// Touch contact started over the widget, the widget is enabled and cursor capture allows it.
     pub fn touch_start {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_start() && args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_touch_start() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Touch contact ended over the widget and the widget is enabled.
+    /// Touch contact ended over the widget, the widget is enabled and cursor capture allows it.
     pub fn touch_end {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_end() && args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_touch_end() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Touch contact canceled over the widget and the widget is enabled.
+    /// Touch contact canceled over the widget, the widget is enabled and cursor capture allows it.
     pub fn touch_cancel {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_cancel() && args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_touch_cancel() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch tap on the widget and the widget is enabled.

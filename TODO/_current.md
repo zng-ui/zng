@@ -26,10 +26,6 @@
     - Lots of breaking changes.
 * Implement automation/screen reader APIs.
 
-# Events
-
-* Mouse and touch event properties do not check `capture_allows`?
-
 # Scroll
 
 * Implement touch scroll inertia.

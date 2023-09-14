@@ -9,38 +9,41 @@ use super::event_property;
 use crate::core::{context::WIDGET, mouse::*};
 
 event_property! {
-    /// Mouse cursor moved over the widget.
+    /// Mouse cursor moved over the widget and cursor capture allows it.
     pub fn mouse_move {
         event: MOUSE_MOVE_EVENT,
         args: MouseMoveArgs,
+        filter: |args| args.capture_allows(),
     }
 
-    /// Mouse button pressed or released while the cursor is over the widget and the widget is enabled.
+    /// Mouse button pressed or released while the cursor is over the widget, the widget is enabled and no cursor
+    /// capture blocks it.
     pub fn mouse_input {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse button pressed or release while the cursor is over the widget and the widget is disabled.
+    /// Mouse button pressed or release while the cursor is over the widget, the widget is disabled and no cursor
+    /// capture blocks it.
     pub fn disabled_mouse_input {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.is_disabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse button pressed while the cursor is over the widget and the widget is enabled.
+    /// Mouse button pressed while the cursor is over the widget, the widget is enabled and cursor capture allows it.
     pub fn mouse_down {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |args| args.is_mouse_down() && args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_mouse_down() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse button released while the cursor if over the widget and the widget is enabled.
+    /// Mouse button released while the cursor if over the widget, the widget is enabled and cursor capture allows it.
     pub fn mouse_up {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |args| args.is_mouse_up() && args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_mouse_up() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Mouse clicked on the widget with any button and including double+ clicks and the widget is enabled.
@@ -113,21 +116,21 @@ event_property! {
         filter: |args| args.is_primary() && args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse is now over the widget or a descendant widget and the widget is enabled.
+    /// Mouse is now over the widget or a descendant widget, the widget is enabled and cursor capture allows it.
     pub fn mouse_enter {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
         filter: |args| args.is_mouse_enter_enabled(),
     }
 
-    /// Mouse is no longer over the widget or any descendant widget and the widget is enabled.
+    /// Mouse is no longer over the widget or any descendant widget, the widget is enabled and cursor capture allows it.
     pub fn mouse_leave {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
         filter: |args| args.is_mouse_leave_enabled(),
     }
 
-    /// Mouse entered or left the widget and descendant widgets area and the widget is enabled.
+    /// Mouse entered or left the widget and descendant widgets area, the widget is enabled and cursor capture allows it.
     ///
     /// You can use the [`is_mouse_enter`] and [`is_mouse_leave`] methods to determinate the state change.
     ///
@@ -136,14 +139,14 @@ event_property! {
     pub fn mouse_hovered {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse entered or left the widget and descendant widgets area and the widget is disabled.
+    /// Mouse entered or left the widget and descendant widgets area, the widget is disabled and cursor capture allows it.
     pub fn disabled_mouse_hovered {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.is_disabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Mouse wheel scrolled while pointer is hovering widget and the widget is enabled.

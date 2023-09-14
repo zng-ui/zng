@@ -400,9 +400,6 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
         pub target: InteractionPath,
 
-        /// Current pointer capture.
-        pub capture: Option<CaptureInfo>,
-
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
@@ -411,15 +408,11 @@ event_args! {
 
         ..
 
-        /// The [`target`] and [`capture`].
+        /// The [`target`].
         ///
         /// [`target`]: Self::target
-        /// [`capture`]: Self::capture
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_path(&self.target);
-            if let Some(c) = &self.capture {
-                list.insert_path(&c.target);
-            }
         }
     }
 
@@ -577,14 +570,6 @@ impl TouchInputArgs {
 }
 
 impl TouchTapArgs {
-    /// If [`capture`] is `None` or [`allows`] the [`WIDGET`] to receive this event.
-    ///
-    /// [`capture`]: Self::capture
-    /// [`allows`]: CaptureInfo::allows
-    pub fn capture_allows(&self) -> bool {
-        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
-    }
-
     /// If the `widget_id` is in the [`target`] is enabled.
     ///
     /// [`target`]: Self::target
@@ -1479,7 +1464,6 @@ impl TapGesture {
                             args.position,
                             args.hits.clone(),
                             target.into_owned(),
-                            args.capture.clone(),
                             args.modifiers,
                             tap_count,
                         ));
