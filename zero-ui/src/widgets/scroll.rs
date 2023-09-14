@@ -41,6 +41,10 @@ impl Scroll {
 
     widget_impl! {
         /// Content alignment when it is smaller then the viewport.
+        ///
+        /// Note that because scrollable dimensions are unbounded [`Align::FILL`] is implemented
+        /// differently, instead of setting the maximum constraint it sets the minimum, other
+        /// alignments and non-scrollable dimensions are implemented like normal.
         pub child_align(align: impl IntoVar<Align>);
 
         /// Clip content to only be visible within the scroll bounds, including under scrollbars.

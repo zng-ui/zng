@@ -33,8 +33,6 @@
 # Scroll
 
 * Implement touch scroll inertia.
-* Fill forces min-size.
-    - Needs to work the same as `Container!`.
 
 # Touch Events
 
