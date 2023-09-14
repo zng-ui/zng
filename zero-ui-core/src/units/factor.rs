@@ -1,4 +1,5 @@
 use derive_more as dm;
+use zero_ui_view_api::webrender_api::euclid;
 
 use super::{
     about_eq, about_eq_hash, about_eq_ord, Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Px, PxPoint, PxRect, PxSideOffsets,
@@ -277,6 +278,35 @@ impl ops::DivAssign<Factor> for PxPoint {
     }
 }
 
+impl ops::Mul<Factor> for euclid::Point2D<f32, Px> {
+    type Output = euclid::Point2D<f32, Px>;
+
+    fn mul(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
+        self.x *= rhs;
+        self.y *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for euclid::Point2D<f32, Px> {
+    type Output = euclid::Point2D<f32, Px>;
+
+    fn div(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
+        self.x /= rhs;
+        self.y /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for euclid::Point2D<f32, Px> {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for euclid::Point2D<f32, Px> {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for DipPoint {
     type Output = DipPoint;
 
@@ -372,6 +402,35 @@ impl ops::MulAssign<Factor> for PxSize {
     }
 }
 impl ops::DivAssign<Factor> for PxSize {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for euclid::Size2D<f32, Px> {
+    type Output = euclid::Size2D<f32, Px>;
+
+    fn mul(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
+        self.width *= rhs;
+        self.height *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for euclid::Size2D<f32, Px> {
+    type Output = euclid::Size2D<f32, Px>;
+
+    fn div(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
+        self.width /= rhs;
+        self.height /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for euclid::Size2D<f32, Px> {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for euclid::Size2D<f32, Px> {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }

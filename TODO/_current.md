@@ -34,7 +34,6 @@
 
 * `scroll_to` does not work correctly when requested by text `line_up`
 * Implement touch scroll inertia.
-* Centering of touch scale does not look correct.
 
 # Touch Events
 

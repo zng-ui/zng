@@ -114,13 +114,24 @@ struct RenderedOffsets {
     z: Factor,
 }
 
+#[derive(Default, Debug)]
+enum ZoomState {
+    #[default]
+    None,
+    Chasing(ChaseAnimation<Factor>),
+    TouchStart {
+        start_factor: Factor,
+        start_center: euclid::Point2D<f32, Px>,
+        applied_offset: euclid::Vector2D<f32, Px>,
+    },
+}
+
 #[derive(Debug)]
 struct ScrollConfig {
     id: Option<WidgetId>,
     horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
     vertical: Mutex<Option<ChaseAnimation<Factor>>>,
-    zoom: Mutex<Option<ChaseAnimation<Factor>>>,
-    touch_zoom_start: Atomic<Factor>,
+    zoom: Mutex<ZoomState>,
 
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
@@ -135,7 +146,6 @@ impl Default for ScrollConfig {
             horizontal: Default::default(),
             vertical: Default::default(),
             zoom: Default::default(),
-            touch_zoom_start: Atomic::new(0.fct()),
             rendered: Atomic::new(RenderedOffsets {
                 h: 0.fct(),
                 v: 0.fct(),
@@ -509,27 +519,6 @@ impl SCROLL {
         }
     }
 
-    /// Applies the `scale` to the current zoom scale without smooth scrolling and centered on the touch point.
-    pub fn zoom_touch(&self, phase: TouchPhase, scale: Factor) {
-        let cfg = SCROLL_CONFIG.get();
-
-        if let TouchPhase::Start = phase {
-            cfg.touch_zoom_start
-                .store(cfg.rendered.load(Ordering::Relaxed).z, Ordering::Relaxed);
-            *cfg.zoom.lock() = None;
-        }
-
-        let start = cfg.touch_zoom_start.load(Ordering::Relaxed);
-
-        let scale = start + (scale - 1.0.fct());
-
-        let min = super::MIN_ZOOM_VAR.get();
-        let max = super::MAX_ZOOM_VAR.get();
-        let scale = scale.clamp(min, max);
-
-        let _ = SCROLL_SCALE_VAR.set(scale);
-    }
-
     /// Set the vertical offset to a new offset derived from the last, blending into the active smooth
     /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
     pub fn chase_vertical(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
@@ -620,24 +609,24 @@ impl SCROLL {
         let max = super::MAX_ZOOM_VAR.get();
 
         match &mut *zoom {
-            Some(t) => {
+            ZoomState::Chasing(t) => {
                 if smooth.is_disabled() {
                     let next = modify_scale(*t.target()).clamp(min, max);
                     let _ = SCROLL_SCALE_VAR.set(next);
-                    *zoom = None;
+                    *zoom = ZoomState::None;
                 } else {
                     let easing = smooth.easing.clone();
                     t.modify(|f| *f = modify_scale(*f).clamp(min, max), smooth.duration, move |t| easing(t));
                 }
             }
-            None => {
+            _ => {
                 let t = modify_scale(SCROLL_SCALE_VAR.get()).clamp(min, max);
                 if smooth.is_disabled() {
                     let _ = SCROLL_SCALE_VAR.set(t);
                 } else {
                     let easing = smooth.easing.clone();
                     let anim = SCROLL_SCALE_VAR.chase(t, smooth.duration, move |t| easing(t));
-                    *zoom = Some(anim);
+                    *zoom = ZoomState::Chasing(anim);
                 }
             }
         }
@@ -659,14 +648,13 @@ impl SCROLL {
         let mut center_in_content = -content.origin + center_in_viewport.to_vector();
         let mut content_size = content.size;
 
-        let f = SCROLL.rendered_zoom_scale();
-        center_in_content /= f;
-        content_size /= f;
+        let rendered_scale = SCROLL.rendered_zoom_scale();
 
         SCROLL.chase_zoom(|f| {
             let s = modify_scale(f);
-            center_in_content *= s;
-            content_size *= s;
+            let f = s / rendered_scale;
+            center_in_content *= f;
+            content_size *= f;
             s
         });
 
@@ -683,6 +671,89 @@ impl SCROLL {
         if offset.x != Px(0) && max_scroll.width > Px(0) {
             let offset_x = offset.x.0 as f32 / max_scroll.width.0 as f32;
             SCROLL.chase_horizontal(|_| offset_x.fct());
+        }
+    }
+
+    /// Applies the `scale` to the current zoom scale without smooth scrolling and centered on the touch point.
+    pub fn zoom_touch(&self, phase: TouchPhase, scale: Factor, center_in_viewport: euclid::Point2D<f32, Px>) {
+        if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
+            return;
+        }
+
+        let cfg = SCROLL_CONFIG.get();
+
+        let rendered_scale = SCROLL.rendered_zoom_scale();
+
+        let start_scale;
+        let start_center;
+
+        let mut cfg = cfg.zoom.lock();
+
+        if let TouchPhase::Start = phase {
+            start_scale = rendered_scale;
+            start_center = center_in_viewport;
+
+            *cfg = ZoomState::TouchStart {
+                start_factor: start_scale,
+                start_center: center_in_viewport,
+                applied_offset: euclid::vec2(0.0, 0.0),
+            };
+        } else if let ZoomState::TouchStart {
+            start_factor: scale,
+            start_center: center_in_viewport,
+            ..
+        } = &*cfg
+        {
+            start_scale = *scale;
+            start_center = *center_in_viewport;
+        } else {
+            // touch canceled or not started correctly.
+            return;
+        }
+
+        // applied translate offset
+        let applied_offset = if let ZoomState::TouchStart { applied_offset, .. } = &mut *cfg {
+            applied_offset
+        } else {
+            unreachable!()
+        };
+
+        let scale = start_scale + (scale - 1.0.fct());
+
+        let min = super::MIN_ZOOM_VAR.get();
+        let max = super::MAX_ZOOM_VAR.get();
+        let scale = scale.clamp(min, max);
+
+        let translate_offset = start_center - center_in_viewport;
+        let translate_delta = translate_offset - *applied_offset;
+        *applied_offset = translate_offset;
+
+        let content = SCROLL.rendered_content();
+        let mut center_in_content = -content.origin.cast::<f32>() + center_in_viewport.to_vector();
+        let mut content_size = content.size.cast::<f32>();
+
+        let scale_transform = scale / rendered_scale;
+
+        center_in_content *= scale_transform;
+        content_size *= scale_transform;
+
+        let viewport_size = SCROLL_VIEWPORT_SIZE_VAR.get().cast::<f32>();
+
+        // scroll so that new center_in_content is at the same center_in_viewport
+        let max_scroll = content_size - viewport_size;
+        let zoom_offset = center_in_content - center_in_viewport;
+
+        let offset = zoom_offset + translate_delta;
+
+        let _ = SCROLL_SCALE_VAR.set(scale);
+
+        if offset.y != 0.0 && max_scroll.height > 0.0 {
+            let offset_y = offset.y / max_scroll.height;
+            let _ = SCROLL_VERTICAL_OFFSET_VAR.set(offset_y.clamp(0.0, 1.0));
+        }
+        if offset.x != 0.0 && max_scroll.width > 0.0 {
+            let offset_x = offset.x / max_scroll.width;
+            let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(offset_x.clamp(0.0, 1.0));
         }
     }
 

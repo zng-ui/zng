@@ -800,21 +800,35 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
             child.event(update);
 
             if let Some(args) = TOUCH_TRANSFORM_EVENT.on_unhandled(update) {
-                let new_offset = args.translation().cast::<Px>();
-                let delta = new_offset - applied_offset;
-                applied_offset = new_offset;
-
-                if delta.y != Px(0) {
-                    SCROLL.scroll_vertical_touch(-delta.y);
-                }
-                if delta.x != Px(0) {
-                    SCROLL.scroll_horizontal_touch(-delta.x);
-                }
+                let mut pending_translate = true;
 
                 if SCROLL.mode().get().contains(ScrollMode::ZOOM) {
                     let f = args.scale();
                     if f != 1.fct() {
-                        SCROLL.zoom_touch(args.phase, f);
+                        let center = WIDGET
+                            .info()
+                            .scroll_info()
+                            .unwrap()
+                            .viewport_transform()
+                            .inverse()
+                            .and_then(|t| t.transform_point_f32(args.latest_info.center))
+                            .unwrap_or(args.latest_info.center);
+
+                        SCROLL.zoom_touch(args.phase, f, center);
+                        pending_translate = false;
+                    }
+                }
+
+                if pending_translate {
+                    let new_offset = args.translation().cast::<Px>();
+                    let delta = new_offset - applied_offset;
+                    applied_offset = new_offset;
+
+                    if delta.y != Px(0) {
+                        SCROLL.scroll_vertical_touch(-delta.y);
+                    }
+                    if delta.x != Px(0) {
+                        SCROLL.scroll_horizontal_touch(-delta.x);
                     }
                 }
 
