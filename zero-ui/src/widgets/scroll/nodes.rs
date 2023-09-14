@@ -99,7 +99,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                 && vp_unit.width > Px(0) // and has fill-size
                 && vp_unit.height > Px(0)
                 && constraints.max_size() == Some(vp_unit); // that is not just min size.
-                
+
             let joiner_size = scroll_info().joiner_size();
 
             let mut content_size = LAYOUT.with_constraints(
@@ -732,18 +732,22 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         ScrollToMode::Minimal { margin } => {
                             // add minimal margin
                             let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());
-                            target_bounds.origin.x -= margin.left;
-                            target_bounds.origin.y -= margin.top;
-                            target_bounds.size.width += margin.horizontal();
-                            target_bounds.size.height += margin.vertical();
-                            let target_bounds = target_bounds;
+                            let inflate_margin = |mut r: PxRect| {
+                                r.origin.x -= margin.left;
+                                r.origin.y -= margin.top;
+                                r.size.width += margin.horizontal();
+                                r.size.height += margin.vertical();
+                                r
+                            };
+                            let target_bounds = inflate_margin(target_bounds);
+                            let target_bounds_in_content = inflate_margin(target_bounds_in_content);
 
                             // vertical scroll
                             if target_bounds.size.height < viewport_size.height {
-                                if target_bounds.origin.y < Px(0) {
+                                if target_bounds_in_content.origin.y < Px(0) {
                                     // scroll up
                                     offset.y = target_bounds.origin.y;
-                                } else if target_bounds.origin.y > viewport_size.height {
+                                } else if target_bounds_in_content.max_y() > viewport_size.height {
                                     // scroll down
                                     offset.y = target_bounds.max_y() - viewport_size.height;
                                 }
@@ -757,7 +761,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 if target_bounds_in_content.origin.x < Px(0) {
                                     // scroll left
                                     offset.x = target_bounds.origin.x;
-                                } else if target_bounds_in_content.origin.x > viewport_size.width {
+                                } else if target_bounds_in_content.max_x() > viewport_size.width {
                                     // scroll right
                                     offset.x = target_bounds.max_x() - viewport_size.width;
                                 }
