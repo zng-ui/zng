@@ -32,8 +32,11 @@
 
 # Scroll
 
-* `scroll_to` does not work correctly when requested by text `line_up`
+* `scroll_to` does not work correctly when requested by text `line_up`.
+    - Never works correctly when target is above.
 * Implement touch scroll inertia.
+* Fill forces min-size.
+    - Needs to work the same as `Container!`.
 
 # Touch Events
 

@@ -141,11 +141,16 @@ fn scroll_node(
         nodes::scrollbar_joiner_presenter(),
     ];
 
+    let scroll_info = ScrollInfo::default();
+
     let mut viewport = PxSize::zero();
     let mut joiner = PxSize::zero();
     let spatial_id = SpatialFrameId::new_unique();
 
     match_node_list(children, move |children, op| match op {
+        UiNodeOp::Info { info } => {
+            info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
+        }
         UiNodeOp::Measure { wm, desired_size } => {
             let constraints = LAYOUT.constraints();
             *desired_size = if constraints.is_fill_max().all() {
@@ -177,23 +182,10 @@ fn scroll_node(
             // joiner
             let _ = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(joiner), || children.with_node(3, |n| n.layout(wl)));
 
+            scroll_info.set_joiner_size(joiner);
+
             // viewport
             let mut vp = LAYOUT.with_constraints(c.with_less_size(joiner), || children.with_node(0, |n| n.layout(wl)));
-
-            // arrange
-            let fs = vp + joiner;
-            let content_size = SCROLL_CONTENT_SIZE_VAR.get();
-
-            if content_size.height > fs.height {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(content_size.width > vp.width).unwrap();
-            } else if content_size.width > fs.width {
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(content_size.height > vp.height).unwrap();
-            } else {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
-            }
 
             // collapse scrollbars if they take more the 1/3 of the total area.
             if vp.width < joiner.width * 3.0.fct() {

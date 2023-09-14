@@ -27,7 +27,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
     let mut content_scale = 1.fct();
     let mut auto_hide_extra = PxSideOffsets::zero();
     let mut last_render_offset = PxVector::zero();
-    let scroll_info = ScrollInfo::default();
+    let mut scroll_info = None;
+    let mut scroll_info = move || {
+        scroll_info
+            .get_or_insert_with(|| WIDGET.info().meta().get_clone(&SCROLL_INFO_ID).unwrap())
+            .clone()
+    };
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -38,9 +43,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                 .sub_var_layout(&SCROLL_SCALE_VAR)
                 .sub_var_layout(&child_align);
         }
-        UiNodeOp::Info { info } => {
-            info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
-        }
+
         UiNodeOp::Measure { wm, desired_size } => {
             let constraints = LAYOUT.constraints();
             if constraints.is_fill_max().all() {
@@ -60,13 +63,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
 
             let mut content_size = LAYOUT.with_constraints(
                 {
-                    let mut c = child_align.child_constraints(constraints);
-                    c = c.with_min_size(viewport_unit);
+                    let mut c = child_align.child_constraints(constraints.with_new_min_size(viewport_unit));
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y().with_new_min_y(Px(0));
+                        c = c.with_unbounded_y();
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(Px(0));
+                        c = c.with_unbounded_x();
                     }
                     c
                 },
@@ -97,16 +99,17 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                 && vp_unit.width > Px(0) // and has fill-size
                 && vp_unit.height > Px(0)
                 && constraints.max_size() == Some(vp_unit); // that is not just min size.
+                
+            let joiner_size = scroll_info().joiner_size();
 
             let mut content_size = LAYOUT.with_constraints(
                 {
-                    let mut c = child_align.child_constraints(constraints);
-                    c = c.with_min_size(vp_unit);
+                    let mut c = child_align.child_constraints(constraints.with_new_min_size(vp_unit + joiner_size));
                     if mode.contains(ScrollMode::VERTICAL) {
-                        c = c.with_unbounded_y().with_new_min_y(Px(0));
+                        c = c.with_unbounded_y();
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(Px(0));
+                        c = c.with_unbounded_x();
                     }
                     c
                 },
@@ -146,7 +149,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             auto_hide_extra.bottom = auto_hide_extra.bottom.max(Px(0));
             auto_hide_extra.left = auto_hide_extra.left.max(Px(0));
 
-            scroll_info.set_viewport_size(vp_size);
+            scroll_info().set_viewport_size(vp_size);
 
             let align_offset = child_align.child_offset(content_size, viewport_size, LAYOUT.direction());
 
@@ -199,10 +202,27 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             SCROLL_HORIZONTAL_RATIO_VAR.set(h_ratio.fct()).unwrap();
             SCROLL_CONTENT_SIZE_VAR.set(content_size).unwrap();
 
+            let full_size = viewport_size + joiner_size;
+
+            if content_size.height > full_size.height {
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
+                    .set(content_size.width > viewport_size.width)
+                    .unwrap();
+            } else if content_size.width > full_size.width {
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
+                    .set(content_size.height > viewport_size.height)
+                    .unwrap();
+            } else {
+                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
+                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
+            }
+
             *final_size = viewport_size;
         }
         UiNodeOp::Render { frame } => {
-            scroll_info.set_viewport_transform(*frame.transform());
+            scroll_info().set_viewport_transform(*frame.transform());
             last_render_offset = content_offset;
 
             let mut culling_rect = PxBox::from_size(viewport_size);
@@ -224,7 +244,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             });
         }
         UiNodeOp::RenderUpdate { update } => {
-            scroll_info.set_viewport_transform(*update.transform());
+            scroll_info().set_viewport_transform(*update.transform());
 
             let transform = if content_scale != 1.fct() {
                 PxTransform::scale(content_scale.0, content_scale.0).then_translate(content_offset.cast())

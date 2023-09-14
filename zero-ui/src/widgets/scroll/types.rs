@@ -865,6 +865,7 @@ impl WidgetInfoExt for WidgetInfo {
 struct ScrollData {
     viewport_transform: PxTransform,
     viewport_size: PxSize,
+    joiner_size: PxSize,
 }
 
 /// Shared reference to the viewport bounds of a scroll.
@@ -889,12 +890,24 @@ impl ScrollInfo {
         self.0.lock().viewport_transform
     }
 
+    /// Gets the layout size of both scroll-bars.
+    ///
+    /// Joiner here is the corner joiner visual, it is sized by the width of the vertical bar and
+    /// height of the horizontal bar.
+    pub fn joiner_size(&self) -> PxSize {
+        self.0.lock().joiner_size
+    }
+
     pub(super) fn set_viewport_size(&self, size: PxSize) {
         self.0.lock().viewport_size = size;
     }
 
     pub(super) fn set_viewport_transform(&self, transform: PxTransform) {
         self.0.lock().viewport_transform = transform;
+    }
+
+    pub(super) fn set_joiner_size(&self, size: PxSize) {
+        self.0.lock().joiner_size = size;
     }
 }
 
