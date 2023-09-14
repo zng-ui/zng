@@ -32,20 +32,12 @@
 
 # Touch Events
 
-* Implement `TapMode`?
-    - Like `ClickMode`.
-    - We want the same gesture in combo box of clicking and dragging to the option.
+* We want the same gesture in combo box of clicking and dragging to the option.
     - Maybe use the swipe/fling gesture?
 
-* Implement gestures:
-    - Context tap.
-        - Long press?
-        - CLICK_EVENT has interest in these, but if we always generate then it will conflict with pan?
-    - Pinning:
-        - One finger rotates around a fixed point.
-    - Force press.
-        - Normalized force is 0.5 (for touchscreens without force detection).
-        - This gesture exceeds this force.
+* Swipe to dismiss.
+    - Widget is moved with transform, when touch is released the widget animates back into place or
+      out if the threshold for closing was crossed.
 
 * Implement "Ripple!" visual.
     - Radial background overlay animation fired on every touch or click.

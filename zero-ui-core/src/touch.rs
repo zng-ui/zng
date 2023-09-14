@@ -18,6 +18,7 @@ use crate::{
     event::*,
     keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
     pointer_capture::{CaptureInfo, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
+    timer::{DeadlineVar, TIMERS},
     units::*,
     var::*,
     widget_info::{HitTestInfo, InteractionPath},
@@ -36,6 +37,7 @@ use crate::{
 /// * [`TOUCHED_EVENT`]
 /// * [`TOUCH_TAP_EVENT`]
 /// * [`TOUCH_TRANSFORM_EVENT`]
+/// * [`TOUCH_LONG_PRESS_EVENT`]
 ///
 /// # Services
 ///
@@ -55,6 +57,7 @@ pub struct TouchManager {
     pressed: HashMap<TouchId, PressedInfo>,
     tap_gesture: TapGesture,
     transform_gesture: TransformGesture,
+    long_press_gesture: LongPressGesture,
 }
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
@@ -416,6 +419,46 @@ event_args! {
         }
     }
 
+        /// Arguments for [`TOUCH_LONG_PRESS_EVENT`].
+        pub struct TouchLongPressArgs {
+            /// Id of window that received the event.
+            pub window_id: WindowId,
+
+            /// Id of device that generated the event.
+            pub device_id: DeviceId,
+
+            /// Identify the touch contact or *finger*.
+            ///
+            /// Multiple points of contact can happen in the same device at the same time,
+            /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
+            /// on the same device, after a touch is ended an ID may be reused.
+            pub touch: TouchId,
+
+            /// Center of the touch in the window's content area.
+            pub position: DipPoint,
+
+            /// Hit-test result for the touch point in the window.
+            pub hits: HitTestInfo,
+
+            /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
+            pub target: InteractionPath,
+
+            /// What modifier keys where pressed when this touch started.
+            pub modifiers: ModifiersState,
+
+            /// Timestamp of when the touch started.
+            pub start_time: Instant,
+
+            ..
+
+            /// The [`target`].
+            ///
+            /// [`target`]: Self::target
+            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+                list.insert_path(&self.target);
+            }
+        }
+
     /// Arguments for [`TOUCH_TRANSFORM_EVENT`].
     pub struct TouchTransformArgs {
         /// Id of window that received the touch events.
@@ -570,6 +613,22 @@ impl TouchInputArgs {
 }
 
 impl TouchTapArgs {
+    /// If the `widget_id` is in the [`target`] is enabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+    }
+
+    /// If the `widget_id` is in the [`target`] is disabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+}
+
+impl TouchLongPressArgs {
     /// If the `widget_id` is in the [`target`] is enabled.
     ///
     /// [`target`]: Self::target
@@ -943,6 +1002,14 @@ event! {
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
     pub static TOUCH_TRANSFORM_EVENT: TouchTransformArgs;
+
+    /// Touch contact pressed without moving for more then the [`tap_max_time`].
+    ///
+    /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
+    /// touched path or app level hooks.
+    ///
+    /// [`tap_max_time`]: TouchConfig::tap_max_time
+    pub static TOUCH_LONG_PRESS_EVENT: TouchLongPressArgs;
 }
 
 impl AppExtension for TouchManager {
@@ -991,6 +1058,7 @@ impl AppExtension for TouchManager {
             if args.is_respawn {
                 self.tap_gesture.clear();
                 self.transform_gesture.clear();
+                self.long_press_gesture.clear();
 
                 for (touch, info) in self.pressed.drain() {
                     let args = TouchInputArgs::now(
@@ -1033,9 +1101,11 @@ impl AppExtension for TouchManager {
         if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
             self.tap_gesture.on_input(args);
             self.transform_gesture.on_input(args);
+            self.long_press_gesture.on_input(args);
         } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
             self.tap_gesture.on_move(args);
             self.transform_gesture.on_move(args);
+            self.long_press_gesture.on_move(args);
         } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
             for (touch, info) in &self.pressed {
                 let args = TouchedArgs::now(
@@ -1055,6 +1125,10 @@ impl AppExtension for TouchManager {
                 TOUCHED_EVENT.notify(args);
             }
         }
+    }
+
+    fn update_preview(&mut self) {
+        self.long_press_gesture.on_update();
     }
 }
 impl TouchManager {
@@ -1380,6 +1454,109 @@ impl PendingTap {
 
         // retain
         true
+    }
+}
+
+struct PendingLongPress {
+    window_id: WindowId,
+    device_id: DeviceId,
+    touch: TouchId,
+    target: WidgetId,
+    position: DipPoint,
+    start_time: Instant,
+    modifiers: ModifiersState,
+
+    propagation: EventPropagationHandle,
+
+    delay: DeadlineVar,
+    canceled: bool,
+}
+
+#[derive(Default)]
+struct LongPressGesture {
+    pending: Option<PendingLongPress>,
+}
+impl LongPressGesture {
+    fn on_input(&mut self, args: &TouchInputArgs) {
+        match args.phase {
+            TouchPhase::Start => {
+                if let Some(p) = &mut self.pending {
+                    // only valid if single touch contact, we use the `pending` presence to track this.
+                    p.canceled = true;
+                } else if TOUCH_LONG_PRESS_EVENT.has_hooks()
+                    || args.target.widgets_path().iter().any(|w| TOUCH_LONG_PRESS_EVENT.is_subscriber(*w))
+                {
+                    self.pending = Some(PendingLongPress {
+                        window_id: args.window_id,
+                        device_id: args.device_id,
+                        touch: args.touch,
+                        position: args.position,
+                        start_time: args.timestamp,
+                        modifiers: args.modifiers,
+                        target: args.target.widget_id(),
+                        propagation: args.touch_propagation.clone(),
+                        delay: TIMERS.deadline(TOUCH.touch_config().get().tap_max_time),
+                        canceled: false,
+                    });
+                }
+            }
+            TouchPhase::End | TouchPhase::Cancel => {
+                if let Some(p) = &self.pending {
+                    if args.touch_propagation == p.propagation {
+                        self.pending = None;
+                    }
+                }
+            }
+            TouchPhase::Move => unreachable!(),
+        }
+    }
+
+    fn on_move(&mut self, args: &TouchMoveArgs) {
+        if let Some(p) = &mut self.pending {
+            if !p.canceled && !p.propagation.is_stopped() {
+                for m in &args.touches {
+                    if p.propagation == m.touch_propagation {
+                        // !!: TODO, check if moved too far
+                    } else {
+                        p.canceled = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn on_update(&mut self) {
+        if let Some(p) = &mut self.pending {
+            if !p.canceled && !p.propagation.is_stopped() && p.delay.get().has_elapsed() {
+                if let Ok(w) = WINDOWS.widget_tree(p.window_id) {
+                    if let Some(w) = w.get(p.target) {
+                        let hits = w.hit_test(p.position.to_px(w.tree().scale_factor().0));
+                        if hits.contains(p.target) {
+                            p.propagation.stop();
+
+                            let args = TouchLongPressArgs::now(
+                                p.window_id,
+                                p.device_id,
+                                p.touch,
+                                p.position,
+                                hits,
+                                w.interaction_path(),
+                                p.modifiers,
+                                p.start_time,
+                            );
+                            TOUCH_LONG_PRESS_EVENT.notify(args);
+                            return;
+                        }
+                    }
+                }
+                p.canceled = true;
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.pending = None;
     }
 }
 

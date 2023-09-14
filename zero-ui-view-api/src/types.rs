@@ -3784,7 +3784,7 @@ impl Default for TouchConfig {
         Self {
             tap_area: DipSize::splat(Dip::new(8)),
             double_tap_area: DipSize::splat(Dip::new(28)),
-            tap_max_time: Duration::from_millis(300),
+            tap_max_time: Duration::from_millis(500),
             double_tap_max_time: Duration::from_millis(500),
             min_fling_velocity: Dip::new(50),
             max_fling_velocity: Dip::new(8000),

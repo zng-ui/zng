@@ -62,7 +62,7 @@ event_property! {
     pub fn disabled_touch_tap {
         event: TOUCH_TAP_EVENT,
         args: TouchTapArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// Touch contact is now over the widget or a descendant widget and the widget is enabled.
@@ -96,5 +96,21 @@ event_property! {
         event: TOUCH_TRANSFORM_EVENT,
         args: TouchTransformArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
+    }
+
+    /// Single touch contact was made and held in place for a duration of time (default 500ms) on
+    /// the widget and the widget is enabled.
+    pub fn touch_long_press {
+        event: TOUCH_LONG_PRESS_EVENT,
+        args: TouchLongPressArgs,
+        filter: |args| args.is_enabled(WIDGET.id()),
+    }
+
+    /// Single touch contact was made and held in place for a duration of time (default 500ms) on
+    /// the widget and the widget is disabled.
+    pub fn disabled_touch_long_press {
+        event: TOUCH_LONG_PRESS_EVENT,
+        args: TouchLongPressArgs,
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 }
