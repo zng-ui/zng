@@ -1340,32 +1340,48 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                             Key::Home => {
-                                if args.modifiers.is_only_ctrl() {
+                                let mut modifiers = args.modifiers;
+                                let has_shift = modifiers.take_shift();
+                                let has_ctrl = modifiers.take_ctrl();
+                                if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::text_start().call();
-                                    });
-                                } else if args.modifiers.is_empty() {
-                                    args.propagation().stop();
-
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::line_start().call();
+                                        if has_shift {
+                                            if has_ctrl {
+                                                TextSelectOp::select_text_start()
+                                            } else {
+                                                TextSelectOp::select_line_start()
+                                            }
+                                        } else if has_ctrl {
+                                            TextSelectOp::text_start()
+                                        } else {
+                                            TextSelectOp::line_start()
+                                        }
+                                        .call();
                                     });
                                 }
                             }
                             Key::End => {
-                                if args.modifiers.is_only_ctrl() {
+                                let mut modifiers = args.modifiers;
+                                let has_shift = modifiers.take_shift();
+                                let has_ctrl = modifiers.take_ctrl();
+                                if modifiers.is_empty() {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::text_end().call();
-                                    });
-                                } else if args.modifiers.is_empty() {
-                                    args.propagation().stop();
-
-                                    LayoutText::call_select_op(&mut txt.txt, || {
-                                        TextSelectOp::line_end().call();
+                                        if has_shift {
+                                            if has_ctrl {
+                                                TextSelectOp::select_text_end()
+                                            } else {
+                                                TextSelectOp::select_line_end()
+                                            }
+                                        } else if has_ctrl {
+                                            TextSelectOp::text_end()
+                                        } else {
+                                            TextSelectOp::line_end()
+                                        }
+                                        .call();
                                     });
                                 }
                             }

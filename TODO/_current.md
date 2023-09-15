@@ -5,8 +5,6 @@
         - Press and drag selection.
         - Double-click causes selection that grows by word.
         - Triple-click and Quadruple-click?
-    - Keyboard:
-        - Holding shift and `Home` or `End`
     - Touch:
         - Research how it works.
     - Clear selection on typing and clicking (when not holding shift).

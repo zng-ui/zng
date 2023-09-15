@@ -676,62 +676,56 @@ impl TextSelectOp {
     ///
     /// This is the `Home` key operation.
     pub fn line_start() -> Self {
-        Self::new(|| {
-            let resolved = ResolvedText::get();
-            let layout = LayoutText::get();
+        Self::new(|| line_start_end(true, |li| li.text_range().start))
+    }
 
-            let mut caret = resolved.caret.lock();
-            if let Some(i) = &mut caret.index {
-                if let Some(li) = layout.shaped_text.line(i.line) {
-                    i.index = li.text_range().start;
-                    caret.used_retained_x = false;
-                }
-            }
-        })
+    /// Extend or shrink selection by moving the caret to the start of the line.
+    ///
+    /// This is the `SHIFT+Home` key operation.
+    pub fn select_line_start() -> Self {
+        Self::new(|| line_start_end(false, |li| li.text_range().start))
     }
 
     /// Clear selection and move the caret to the end of the line (before the line-break if any).
     ///
     /// This is the `End` key operation.
     pub fn line_end() -> Self {
-        Self::new(|| {
-            let resolved = ResolvedText::get();
-            let layout = LayoutText::get();
+        Self::new(|| line_start_end(true, |li| li.text_caret_range().end))
+    }
 
-            let mut caret = resolved.caret.lock();
-            if let Some(i) = &mut caret.index {
-                if let Some(li) = layout.shaped_text.line(i.line) {
-                    i.index = li.text_caret_range().end;
-                    caret.used_retained_x = false;
-                }
-            }
-        })
+    /// Extend or shrink selection by moving the caret to the end of the line (before the line-break if any).
+    ///
+    /// This is the `SHIFT+End` key operation.
+    pub fn select_line_end() -> Self {
+        Self::new(|| line_start_end(false, |li| li.text_caret_range().end))
     }
 
     /// Clear selection and move the caret to the text start.
     ///
     /// This is the `CTRL+Home` shortcut operation.
     pub fn text_start() -> Self {
-        Self::new(|| {
-            let resolved = ResolvedText::get();
-            let mut caret = resolved.caret.lock();
-            caret.set_index(CaretIndex::ZERO);
-            caret.used_retained_x = false;
-        })
+        Self::new(|| text_start_end(true, |_| 0))
+    }
+
+    /// Extend or shrink selection by moving the caret to the text start.
+    ///
+    /// This is the `CTRL+SHIFT+Home` shortcut operation.
+    pub fn select_text_start() -> Self {
+        Self::new(|| text_start_end(false, |_| 0))
     }
 
     /// Clear selection and move the caret to the text end.
     ///
     /// This is the `CTRL+End` shortcut operation.
     pub fn text_end() -> Self {
-        Self::new(|| {
-            let resolved = ResolvedText::get();
-            let mut c = CaretIndex::ZERO;
-            c.index = resolved.text.text().len();
-            let mut caret = resolved.caret.lock();
-            caret.set_index(c);
-            caret.used_retained_x = false;
-        })
+        Self::new(|| text_start_end(true, |s| s.len()))
+    }
+
+    /// Extend or shrink selection by moving the caret to the text end.
+    ///
+    /// This is the `CTRL+SHIFT+End` shortcut operation.
+    pub fn select_text_end() -> Self {
+        Self::new(|| text_start_end(false, |s| s.len()))
     }
 
     /// Clear selection and move the caret to the insert point nearest to the `window_point`.
@@ -873,4 +867,40 @@ fn page_up_down(clear_selection: bool, diff: i8) {
         c.index = Some(CaretIndex::ZERO);
         c.selection_index = None;
     }
+}
+
+fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize) {
+    let resolved = ResolvedText::get();
+    let layout = LayoutText::get();
+
+    let mut c = resolved.caret.lock();
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
+    }
+
+    if let Some(li) = layout.shaped_text.line(i.line) {
+        i.index = index(li);
+        c.index = Some(i);
+        c.used_retained_x = false;
+    }
+}
+
+fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
+    let resolved = ResolvedText::get();
+
+    let mut c = resolved.caret.lock();
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
+    }
+
+    i.index = index(resolved.text.text());
+
+    c.set_index(i);
+    c.used_retained_x = false;
 }
