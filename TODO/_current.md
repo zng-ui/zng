@@ -30,8 +30,6 @@
 
 # Touch Events
 
-* ContextMenu does not close for touch outside.
-
 * We want the same gesture in combo box of clicking and dragging to the option.
     - Maybe use the swipe/fling gesture?
 

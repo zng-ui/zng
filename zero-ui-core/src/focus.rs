@@ -94,6 +94,7 @@ use crate::{
     event::*,
     mouse::MOUSE_INPUT_EVENT,
     render::FrameId,
+    touch::TOUCH_INPUT_EVENT,
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
@@ -379,7 +380,8 @@ event! {
 ///
 /// This extension requires the [`WINDOWS`] service.
 ///
-/// This extension listens to the [`MOUSE_INPUT_EVENT`], [`SHORTCUT_EVENT`] [`WINDOW_FOCUS_CHANGED_EVENT`] and [`WIDGET_INFO_CHANGED_EVENT`].
+/// This extension listens to the [`MOUSE_INPUT_EVENT`], [`TOUCH_INPUT_EVENT`], [`SHORTCUT_EVENT`],
+/// [`WINDOW_FOCUS_CHANGED_EVENT`] and [`WIDGET_INFO_CHANGED_EVENT`].
 ///
 /// To work properly it should be added to the app after the windows manager extension.
 ///
@@ -464,6 +466,11 @@ impl AppExtension for FocusManager {
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
             if args.is_mouse_down() {
                 // click
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
+            }
+        } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
+            if args.is_touch_start() {
+                // start
                 request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
             }
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
