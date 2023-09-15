@@ -948,7 +948,7 @@ impl App {
                 }
 
                 if self.windows[i].cursor_moved(p, d_id) || is_after_cursor_enter {
-                    self.notify(Event::CursorMoved {
+                    self.notify(Event::MouseMoved {
                         window: id,
                         device: d_id,
                         coalesced_pos: vec![],
@@ -960,7 +960,7 @@ impl App {
                 linux_modal_dialog_bail!();
                 if self.windows[i].cursor_entered() {
                     let d_id = self.device_id(device_id);
-                    self.notify(Event::CursorEntered { window: id, device: d_id });
+                    self.notify(Event::MouseEntered { window: id, device: d_id });
                     self.cursor_entered_expect_move.push(id);
                 }
             }
@@ -968,7 +968,7 @@ impl App {
                 linux_modal_dialog_bail!();
                 if self.windows[i].cursor_left() {
                     let d_id = self.device_id(device_id);
-                    self.notify(Event::CursorLeft { window: id, device: d_id });
+                    self.notify(Event::MouseLeft { window: id, device: d_id });
 
                     // unlikely but possible?
                     if let Some(i) = self.cursor_entered_expect_move.iter().position(|&w| w == id) {
@@ -1300,7 +1300,7 @@ impl App {
         for window_id in self.cursor_entered_expect_move.drain(..) {
             if let Some(w) = self.windows.iter().find(|w| w.id() == window_id) {
                 let (position, device) = w.last_cursor_pos();
-                moves.push(Event::CursorMoved {
+                moves.push(Event::MouseMoved {
                     window: w.id(),
                     device,
                     coalesced_pos: vec![],

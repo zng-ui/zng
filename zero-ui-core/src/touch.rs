@@ -58,6 +58,7 @@ pub struct TouchManager {
     tap_gesture: TapGesture,
     transform_gesture: TransformGesture,
     long_press_gesture: LongPressGesture,
+    mouse_touch: Option<TouchId>,
 }
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
@@ -157,6 +158,13 @@ impl TOUCH {
     pub fn positions(&self) -> ReadOnlyArcVar<Vec<TouchPosition>> {
         TOUCH_SV.read().positions.read_only()
     }
+
+    /// Test mode, generates touch events for a single touch contact from raw mouse events.
+    ///
+    /// Is disabled by default.
+    pub fn touch_from_mouse_events(&self) -> ArcVar<bool> {
+        TOUCH_SV.read().touch_from_mouse_events.clone()
+    }
 }
 
 /// Active touch positions.
@@ -183,11 +191,13 @@ app_local! {
     static TOUCH_SV: TouchService = TouchService {
         touch_config: var(TouchConfig::default()),
         positions: var(vec![]),
+        touch_from_mouse_events: var(false),
     };
 }
 struct TouchService {
     touch_config: ArcVar<TouchConfig>,
     positions: ArcVar<Vec<TouchPosition>>,
+    touch_from_mouse_events: ArcVar<bool>,
 }
 
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
@@ -1120,6 +1130,70 @@ impl AppExtension for TouchManager {
                         None,
                     );
                     TOUCHED_EVENT.notify(args);
+                }
+            }
+        } else if TOUCH_SV.read().touch_from_mouse_events.get() {
+            use super::mouse::*;
+
+            if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+                if let Some(id) = self.mouse_touch {
+                    args.propagation().stop();
+
+                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                        args.window_id,
+                        args.device_id,
+                        vec![TouchUpdate {
+                            touch: id,
+                            phase: TouchPhase::End,
+                            position: args.position,
+                            force: None,
+                        }],
+                    ));
+                }
+            } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                if args.button == super::mouse::MouseButton::Left {
+                    args.propagation().stop();
+
+                    let phase = match args.state {
+                        ButtonState::Pressed => {
+                            if self.mouse_touch.is_some() {
+                                return;
+                            }
+                            self.mouse_touch = Some(TouchId(u64::MAX));
+                            TouchPhase::Start
+                        }
+                        ButtonState::Released => {
+                            if self.mouse_touch.is_none() {
+                                return;
+                            }
+                            self.mouse_touch = None;
+                            TouchPhase::End
+                        }
+                    };
+
+                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                        args.window_id,
+                        args.device_id.unwrap_or(DeviceId::new_unique()),
+                        vec![TouchUpdate {
+                            touch: TouchId(u64::MAX),
+                            phase,
+                            position: args.position,
+                            force: None,
+                        }],
+                    ));
+                }
+            } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update) {
+                if let Some(id) = self.mouse_touch.take() {
+                    RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
+                        args.window_id,
+                        args.device_id,
+                        vec![TouchUpdate {
+                            touch: id,
+                            phase: TouchPhase::Cancel,
+                            position: DipPoint::zero(),
+                            force: None,
+                        }],
+                    ))
                 }
             }
         }

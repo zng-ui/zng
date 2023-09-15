@@ -1131,28 +1131,28 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         match ev {
-            Event::CursorMoved {
+            Event::MouseMoved {
                 window: w_id,
                 device: d_id,
                 coalesced_pos,
                 position,
             } => {
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
-                self.notify_event(RAW_CURSOR_MOVED_EVENT.new_update(args), observer);
+                let args = RawMouseMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
+                self.notify_event(RAW_MOUSE_MOVED_EVENT.new_update(args), observer);
             }
-            Event::CursorEntered {
+            Event::MouseEntered {
                 window: w_id,
                 device: d_id,
             } => {
-                let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
-                self.notify_event(RAW_CURSOR_ENTERED_EVENT.new_update(args), observer);
+                let args = RawMouseArgs::now(window_id(w_id), self.device_id(d_id));
+                self.notify_event(RAW_MOUSE_ENTERED_EVENT.new_update(args), observer);
             }
-            Event::CursorLeft {
+            Event::MouseLeft {
                 window: w_id,
                 device: d_id,
             } => {
-                let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
-                self.notify_event(RAW_CURSOR_LEFT_EVENT.new_update(args), observer);
+                let args = RawMouseArgs::now(window_id(w_id), self.device_id(d_id));
+                self.notify_event(RAW_MOUSE_LEFT_EVENT.new_update(args), observer);
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|id| VIEW_PROCESS.monitor_id(id));

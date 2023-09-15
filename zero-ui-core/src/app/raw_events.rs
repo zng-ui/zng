@@ -284,20 +284,20 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_CURSOR_MOVED_EVENT`].
-    pub struct RawCursorMovedArgs {
-        /// Window the cursor was moved over.
+    /// Arguments for the [`RAW_MOUSE_MOVED_EVENT`].
+    pub struct RawMouseMovedArgs {
+        /// Window the mouse was moved over.
         pub window_id: WindowId,
 
         /// Device that generated this event.
         pub device_id: DeviceId,
 
-        /// Positions of the cursor in between the previous event and this one.
+        /// Positions of the mouse in between the previous event and this one.
         ///
-        /// Cursor move events can be coalesced, i.e. multiple cursor moves packed into a single event.
+        /// Mouse move events can be coalesced, i.e. multiple mouse moves packed into a single event.
         pub coalesced_pos: Vec<DipPoint>,
 
-        /// Position of the cursor over the window, (0, 0) is the top-left.
+        /// Position of the mouse over the window, (0, 0) is the top-left.
         pub position: DipPoint,
 
         ..
@@ -308,9 +308,9 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_CURSOR_ENTERED_EVENT`] and [`RAW_CURSOR_LEFT_EVENT`].
-    pub struct RawCursorArgs {
-        /// Window the cursor entered or left.
+    /// Arguments for the [`RAW_MOUSE_ENTERED_EVENT`] and [`RAW_MOUSE_LEFT_EVENT`].
+    pub struct RawMouseArgs {
+        /// Window the mouse entered or left.
         pub window_id: WindowId,
 
         /// Device that generated this event.
@@ -326,7 +326,7 @@ event_args! {
 
     /// Arguments for the [`RAW_MOUSE_WHEEL_EVENT`].
     pub struct RawMouseWheelArgs {
-        /// Window that is hovered by the cursor.
+        /// Window that is hovered by the mouse.
         pub window_id: WindowId,
 
         /// Device that generated this event.
@@ -348,7 +348,7 @@ event_args! {
 
     /// Arguments for the [`RAW_MOUSE_INPUT_EVENT`].
     pub struct RawMouseInputArgs {
-        /// Window that is hovered by the cursor.
+        /// Window that is hovered by the mouse.
         pub window_id: WindowId,
 
         /// Device that generated this event.
@@ -671,22 +671,22 @@ event! {
     /// The file is the last one that emitted a [`RAW_HOVERED_FILE_EVENT`].
     pub static RAW_HOVERED_FILE_CANCELLED_EVENT: RawHoveredFileCancelledArgs;
 
-    /// Cursor pointer moved over a window.
-    pub static RAW_CURSOR_MOVED_EVENT: RawCursorMovedArgs;
+    /// Mouse pointer moved over a window.
+    pub static RAW_MOUSE_MOVED_EVENT: RawMouseMovedArgs;
 
-    /// Cursor pointer started hovering a window.
-    pub static RAW_CURSOR_ENTERED_EVENT: RawCursorArgs;
+    /// Mouse pointer started hovering a window.
+    pub static RAW_MOUSE_ENTERED_EVENT: RawMouseArgs;
 
-    /// Cursor pointer stopped hovering a window.
-    pub static RAW_CURSOR_LEFT_EVENT: RawCursorArgs;
+    /// Mouse pointer stopped hovering a window.
+    pub static RAW_MOUSE_LEFT_EVENT: RawMouseArgs;
 
-    /// Mouse wheel scrolled when the cursor was over a window.
+    /// Mouse wheel scrolled when the mouse was over a window.
     pub static RAW_MOUSE_WHEEL_EVENT: RawMouseWheelArgs;
 
-    /// Mouse button was pressed or released when the cursor was over a window.
+    /// Mouse button was pressed or released when the mouse was over a window.
     pub static RAW_MOUSE_INPUT_EVENT: RawMouseInputArgs;
 
-    /// Touchpad touched when the cursor was over a window.
+    /// Touchpad touched when the mouse was over a window.
     pub static RAW_TOUCHPAD_PRESSURE_EVENT: RawTouchpadPressureArgs;
 
     /// Motion on some analog axis send to a window.

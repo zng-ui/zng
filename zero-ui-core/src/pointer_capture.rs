@@ -7,7 +7,7 @@ use hashbrown::{HashMap, HashSet};
 use crate::{
     app::{
         raw_events::{
-            RAW_CURSOR_MOVED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT,
+            RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT,
             RAW_WINDOW_FOCUS_EVENT,
         },
         view_process::VIEW_PROCESS_INITED_EVENT,
@@ -63,7 +63,7 @@ impl AppExtension for PointerCaptureManager {
                     // else will receive close event.
                 }
             }
-        } else if let Some(args) = RAW_CURSOR_MOVED_EVENT.on(update) {
+        } else if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
             self.mouse_position.insert((args.window_id, args.device_id), args.position);
         } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
             match args.state {

@@ -2708,10 +2708,10 @@ pub enum Event {
         /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
         text: String,
     },
-    /// The cursor has moved on the window.
+    /// The mouse cursor has moved on the window.
     ///
     /// This event can be coalesced, i.e. multiple cursor moves packed into the same event.
-    CursorMoved {
+    MouseMoved {
         /// Window that received the cursor move.
         window: WindowId,
         /// Device that generated the cursor move.
@@ -2724,15 +2724,15 @@ pub enum Event {
         position: DipPoint,
     },
 
-    /// The cursor has entered the window.
-    CursorEntered {
+    /// The mouse cursor has entered the window.
+    MouseEntered {
         /// Window that now is hovered by the cursor.
         window: WindowId,
         /// Device that generated the cursor move event.
         device: DeviceId,
     },
-    /// The cursor has left the window.
-    CursorLeft {
+    /// The mouse cursor has left the window.
+    MouseLeft {
         /// Window that is no longer hovered by the cursor.
         window: WindowId,
         /// Device that generated the cursor move event.
@@ -2965,13 +2965,13 @@ impl Event {
 
         match (self, other) {
             (
-                CursorMoved {
+                MouseMoved {
                     window,
                     device,
                     coalesced_pos,
                     position,
                 },
-                CursorMoved {
+                MouseMoved {
                     window: n_window,
                     device: n_device,
                     coalesced_pos: n_coal_pos,

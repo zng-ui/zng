@@ -1067,7 +1067,7 @@ impl AppExtension for MouseManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             self.continue_hovered(args.window_id);
-        } else if let Some(args) = RAW_CURSOR_MOVED_EVENT.on(update) {
+        } else if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
             self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position);
         } else if let Some(args) = RAW_MOUSE_WHEEL_EVENT.on(update) {
             self.on_scroll(args.window_id, args.device_id, args.delta, args.phase);
@@ -1075,7 +1075,7 @@ impl AppExtension for MouseManager {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button);
         } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;
-        } else if let Some(args) = RAW_CURSOR_LEFT_EVENT.on(update) {
+        } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update) {
             self.on_cursor_left_window(args.window_id, args.device_id);
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if let Some(window_id) = args.prev_focus {
