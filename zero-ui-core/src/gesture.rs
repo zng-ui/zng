@@ -236,7 +236,7 @@ impl ClickArgs {
         self.click_count.get() == 1
             && match &self.source {
                 ClickArgsSource::Mouse { button, .. } => *button == MouseButton::Right,
-                ClickArgsSource::Touch { is_tap, .. } => *is_tap,
+                ClickArgsSource::Touch { is_tap, .. } => !*is_tap,
                 ClickArgsSource::Shortcut { kind, .. } => *kind == ShortcutClick::Context,
             }
     }
@@ -978,6 +978,11 @@ impl AppExtension for GestureManager {
             GESTURES_SV.write().on_key_input(args);
         } else if let Some(args) = TOUCH_TAP_EVENT.on(update) {
             // Generate click events from taps.
+            if !args.propagation().is_stopped() {
+                CLICK_EVENT.notify(args.clone().into());
+            }
+        } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on(update) {
+            // Generate click events from touch long press.
             if !args.propagation().is_stopped() {
                 CLICK_EVENT.notify(args.clone().into());
             }

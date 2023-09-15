@@ -1516,7 +1516,12 @@ impl LongPressGesture {
             if !p.canceled && !p.propagation.is_stopped() {
                 for m in &args.touches {
                     if p.propagation == m.touch_propagation {
-                        // !!: TODO, check if moved too far
+                        let dist = p.position - m.position().to_vector();
+                        let max = TOUCH.touch_config().get().tap_area;
+                        if dist.x.abs() > max.width || dist.y.abs() > max.height {
+                            p.canceled = true;
+                            break;
+                        }
                     } else {
                         p.canceled = true;
                         break;
