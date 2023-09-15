@@ -13,3 +13,5 @@
     - "Sliver" widgets may change size due to scrolling.
 
 * Scroll-to-fill/fit.
+
+* Mouse grab/pan property.

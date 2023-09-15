@@ -1074,7 +1074,7 @@ impl AppExtension for TouchManager {
                             velocity: DipVector::zero(),
                             hits: HitTestInfo::no_hits(args.window_id), // hit-test deferred
                             target: InteractionPath::new(args.window_id, []),
-                        })
+                        });
                     }
                 } else {
                     self.on_move(args, mem::take(&mut pending_move));
@@ -1144,7 +1144,7 @@ impl AppExtension for TouchManager {
                         args.device_id,
                         vec![TouchUpdate {
                             touch: id,
-                            phase: TouchPhase::End,
+                            phase: TouchPhase::Move,
                             position: args.position,
                             force: None,
                         }],
