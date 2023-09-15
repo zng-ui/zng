@@ -885,11 +885,26 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                     TouchPhase::Start => {}
                     TouchPhase::Move => {}
                     TouchPhase::End => {
-                        // TODO inertia
                         applied_offset = PxVector::zero();
 
-                        SCROLL.clear_vertical_overscroll();
-                        SCROLL.clear_horizontal_overscroll();
+                        let friction = Dip::new(5000);
+                        let mode = SCROLL.mode().get();
+                        if mode.contains(ScrollMode::VERTICAL) {
+                            let (delta, duration) = args.translation_inertia_y(friction);
+                            if delta != Px(0) {
+                                SCROLL.scroll_vertical_touch_inertia(delta, duration);
+                            } else {
+                                SCROLL.clear_vertical_overscroll();
+                            }
+                        }
+                        if mode.contains(ScrollMode::HORIZONTAL) {
+                            let (delta, duration) = args.translation_inertia_x(friction);
+                            if delta != Px(0) {
+                                SCROLL.scroll_horizontal_touch_inertia(delta, duration);
+                            } else {
+                                SCROLL.clear_horizontal_overscroll();
+                            }
+                        }
                     }
                     TouchPhase::Cancel => {
                         applied_offset = PxVector::zero();

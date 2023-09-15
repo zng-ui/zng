@@ -136,8 +136,8 @@ struct ScrollConfig {
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
 
-    overscroll_horizontal: Mutex<AnimationHandle>,
-    overscroll_vertical: Mutex<AnimationHandle>,
+    scroll_horizontal: Mutex<AnimationHandle>,
+    scroll_vertical: Mutex<AnimationHandle>,
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -151,8 +151,8 @@ impl Default for ScrollConfig {
                 v: 0.fct(),
                 z: 0.fct(),
             }),
-            overscroll_horizontal: Default::default(),
-            overscroll_vertical: Default::default(),
+            scroll_horizontal: Default::default(),
+            scroll_vertical: Default::default(),
         }
     }
 }
@@ -387,7 +387,7 @@ impl SCROLL {
             let new_handle = Self::increment_overscroll(OVERSCROLL_VERTICAL_OFFSET_VAR, overscroll);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_vertical.lock();
+            let mut handle = config.scroll_vertical.lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
             self.clear_vertical_overscroll();
@@ -427,7 +427,7 @@ impl SCROLL {
             let new_handle = OVERSCROLL_VERTICAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_vertical.lock();
+            let mut handle = config.scroll_vertical.lock();
             mem::replace(&mut *handle, new_handle).stop();
         }
     }
@@ -438,7 +438,7 @@ impl SCROLL {
             let new_handle = OVERSCROLL_HORIZONTAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_horizontal.lock();
+            let mut handle = config.scroll_horizontal.lock();
             mem::replace(&mut *handle, new_handle).stop();
         }
     }
@@ -512,11 +512,78 @@ impl SCROLL {
             let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_horizontal.lock();
+            let mut handle = config.scroll_horizontal.lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
             self.clear_horizontal_overscroll();
         }
+    }
+
+    /// Animates to `delta` over `duration`.
+    pub fn scroll_vertical_touch_inertia(&self, delta: Px, duration: Duration) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+
+        let max_scroll = content - viewport;
+        if max_scroll <= Px(0) {
+            return;
+        }
+
+        let delta = delta.0 as f32 / max_scroll.0 as f32;
+
+        let current = SCROLL_VERTICAL_OFFSET_VAR.get();
+        let mut next = current + delta.fct();
+        let mut overscroll = 0.fct();
+        if next > 1.fct() {
+            overscroll = next - 1.fct();
+            next = 1.fct();
+        } else if next < 0.fct() {
+            overscroll = next;
+            next = 0.fct();
+        }
+
+        let cfg = SCROLL_CONFIG.get();
+        *cfg.scroll_vertical.lock() = if overscroll != 0.fct() {
+            let duration = duration * (next - overscroll);
+            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing::quad)
+            // TODO,
+            // * adjust duration,
+            // * create animation that sets the overscroll after it ends.
+        } else {
+            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing::quad)
+        };
+    }
+
+    /// Animates to `delta` over `duration`.
+    pub fn scroll_horizontal_touch_inertia(&self, delta: Px, duration: Duration) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+
+        let max_scroll = content - viewport;
+        if max_scroll <= Px(0) {
+            return;
+        }
+
+        let delta = delta.0 as f32 / max_scroll.0 as f32;
+
+        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+        let mut next = current + delta.fct();
+        let mut overscroll = 0.fct();
+        if next > 1.fct() {
+            overscroll = next - 1.fct();
+            next = 1.fct();
+        } else if next < 0.fct() {
+            overscroll = next;
+            next = 0.fct();
+        }
+
+        let cfg = SCROLL_CONFIG.get();
+        *cfg.scroll_horizontal.lock() = if overscroll != 0.fct() {
+            let duration = duration * (next - overscroll);
+            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing::quad)
+        } else {
+            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing::quad)
+        };
     }
 
     /// Set the vertical offset to a new offset derived from the last, blending into the active smooth

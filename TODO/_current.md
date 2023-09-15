@@ -27,22 +27,9 @@
 # Scroll
 
 * Implement touch scroll inertia.
-
-# Touch Events
-
-* We want the same gesture in combo box of clicking and dragging to the option.
-    - Maybe use the swipe/fling gesture?
-
-* Swipe to dismiss.
-    - Widget is moved with transform, when touch is released the widget animates back into place or
-      out if the threshold for closing was crossed.
-
-* Implement "Ripple!" visual.
-    - Radial background overlay animation fired on every touch or click.
-
-* Improve `touch_transform`.
-    - Contextual origin.
-    - Config persistence.
+    - Overflow from inertia.
+* Implement test mode that generates touch events from mouse.
+    - Setup for testing touch inertia is too slow.
 
 # Exclusive Video Mode
 
