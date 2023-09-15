@@ -30,9 +30,7 @@
 
 # Touch Events
 
-* Context menu opens at the mouse cursor position on long press.
-    - It also does not close on tap out.
-    - Issue is probably in `LAYERS`.
+* ContextMenu does not close for touch outside.
 
 * We want the same gesture in combo box of clicking and dragging to the option.
     - Maybe use the swipe/fling gesture?

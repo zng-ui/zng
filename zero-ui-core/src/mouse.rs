@@ -853,7 +853,11 @@ impl MouseManager {
 
             self.pos = position;
 
-            MOUSE_SV.read().position.set(self.pos_window.map(|id| (id, self.pos)));
+            MOUSE_SV.read().position.set(self.pos_window.map(|id| MousePosition {
+                window_id: id,
+                position,
+                timestamp: Instant::now(),
+            }));
 
             // mouse_move data
             let frame_info = match WINDOWS.widget_tree(window_id) {
@@ -1387,7 +1391,7 @@ impl MOUSE {
     }
 
     /// Variable that gets current hovered window and cursor point over that window.
-    pub fn position(&self) -> ReadOnlyArcVar<Option<(WindowId, DipPoint)>> {
+    pub fn position(&self) -> ReadOnlyArcVar<Option<MousePosition>> {
         MOUSE_SV.read().position.read_only()
     }
 
@@ -1395,6 +1399,21 @@ impl MOUSE {
     pub fn hovered(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
         MOUSE_SV.read().hovered.read_only()
     }
+}
+
+/// Mouse cursor position.
+///
+/// Tracked in [`MOUSE.position`].
+///
+/// [`MOUSE.position`]: MOUSE::position
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MousePosition {
+    /// Window the mouse is hovering.
+    pub window_id: WindowId,
+    /// Mouse position in the window.
+    pub position: DipPoint,
+    /// Timestamp of the mouse move.
+    pub timestamp: Instant,
 }
 
 app_local! {
@@ -1411,5 +1430,5 @@ struct MouseService {
     repeat_config: BoxedVar<ButtonRepeatConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
     hovered: ArcVar<Option<InteractionPath>>,
-    position: ArcVar<Option<(WindowId, DipPoint)>>,
+    position: ArcVar<Option<MousePosition>>,
 }

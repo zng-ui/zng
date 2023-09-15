@@ -1,6 +1,6 @@
 //! Window layers.
 
-use crate::core::{mouse::MOUSE, task::parking_lot::Mutex, units::DipToPx, window::WIDGET_INFO_CHANGED_EVENT};
+use crate::core::{mouse::MOUSE, task::parking_lot::Mutex, touch::TOUCH, units::DipToPx, window::WIDGET_INFO_CHANGED_EVENT};
 use crate::prelude::new_property::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -135,9 +135,9 @@ impl LAYERS {
                     interactivity = mode.with(|m| m.interactivity);
                     _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
 
-                    if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor(_))) {
+                    if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor { .. })) {
                         mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
-                    } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce(_))) {
+                    } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce { .. })) {
                         cursor_once_pending = true;
                     }
                 });
@@ -195,13 +195,13 @@ impl LAYERS {
                             interactivity = mode.interactivity;
                             WIDGET.update_info();
                         }
-                        if matches!(&mode.transform, AnchorTransform::Cursor(_)) {
+                        if matches!(&mode.transform, AnchorTransform::Cursor { .. }) {
                             if mouse_pos_handle.is_none() {
                                 mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
                             }
                             cursor_once_pending = false;
                         } else {
-                            cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce(_));
+                            cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce { .. });
                             mouse_pos_handle = None;
                         }
                         WIDGET.layout().render();
@@ -288,19 +288,54 @@ impl LAYERS {
                             }
                         });
 
-                        if let Some((p, update)) = match &mode.transform {
-                            AnchorTransform::Cursor(p) => Some((p, true)),
-                            AnchorTransform::CursorOnce(p) => Some((p, mem::take(&mut cursor_once_pending))),
+                        if let Some((p, include_touch, update)) = match &mode.transform {
+                            AnchorTransform::Cursor { offset, include_touch } => Some((offset, include_touch, true)),
+                            AnchorTransform::CursorOnce { offset, include_touch } => {
+                                Some((offset, include_touch, mem::take(&mut cursor_once_pending)))
+                            }
                             _ => None,
                         } {
                             // cursor transform mode, only visible if cursor over window
                             const NO_POS_X: Px = Px::MIN;
                             if update {
-                                if let Some(pos) = MOUSE
-                                    .position()
-                                    .get()
-                                    .and_then(|(w_id, pos)| if w_id == WINDOW.id() { Some(pos) } else { None })
-                                {
+                                let pos = if *include_touch {
+                                    let oldest_touch = TOUCH.positions().with(|p| p.iter().min_by_key(|p| p.start_time).cloned());
+                                    match (oldest_touch, MOUSE.position().get()) {
+                                        (Some(t), Some(m)) => {
+                                            let window_id = WINDOW.id();
+                                            if t.window_id == window_id && m.window_id == window_id {
+                                                Some(if t.update_time > m.timestamp { t.position } else { m.position })
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                        (Some(t), None) => {
+                                            if t.window_id == WINDOW.id() {
+                                                Some(t.position)
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                        (None, Some(m)) => {
+                                            if m.window_id == WINDOW.id() {
+                                                Some(m.position)
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                        _ => None,
+                                    }
+                                } else if let Some(p) = MOUSE.position().get() {
+                                    if p.window_id == WINDOW.id() {
+                                        Some(p.position)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+
+                                if let Some(pos) = pos {
                                     let fct = LAYOUT.scale_factor().0;
                                     let (cursor_size, cursor_spot) =
                                         WINDOW.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
@@ -410,7 +445,7 @@ impl LAYERS {
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
-                            AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
+                            AnchorTransform::Cursor { .. } | AnchorTransform::CursorOnce { .. } => {
                                 let offset = offset.0 - offset.1;
 
                                 push_reference_frame(PxTransform::from(offset), true);
@@ -459,7 +494,7 @@ impl LAYERS {
                                 let offset = place_in_window - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
-                            AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
+                            AnchorTransform::Cursor { .. } | AnchorTransform::CursorOnce { .. } => {
                                 let offset = offset.0 - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
@@ -934,13 +969,31 @@ pub enum AnchorTransform {
     OuterTransform,
 
     /// The layer widget is translated on the first layout to be at the cursor position.
-    ///
-    /// The anchor offset place point is resolved in the cursor icon size (approximate).
-    CursorOnce(AnchorOffset),
+    CursorOnce {
+        /// The anchor offset place point is resolved in the cursor icon size (approximate).
+        offset: AnchorOffset,
+        /// If the latest touch position counts as a cursor.
+        ///
+        /// If `true` the latest position between mouse move and touch start or move is used, if `false`
+        /// only the latest mouse position is used. Only active touch points count, that is touch start or
+        /// move events only.
+        include_touch: bool,
+    },
     /// The layer widget is translated to follow the cursor position.
     ///
     /// The anchor offset place point is resolved in the cursor icon size (approximate).
-    Cursor(AnchorOffset),
+    Cursor {
+        /// The anchor offset place point is resolved in the cursor icon size (approximate), or in touch point pixel
+        /// for touch positions.
+        offset: AnchorOffset,
+
+        /// If the latest touch position counts as a cursor.
+        ///
+        /// If `true` the latest position between mouse move and touch start or move is used, if `false`
+        /// only the latest mouse position is used. Only active touch points count, that is touch start or
+        /// move events only. In case multiple touches are active only the first one counts.
+        include_touch: bool,
+    },
 }
 impl_from_and_into_var! {
     /// `InnerOffset`.
@@ -1051,7 +1104,10 @@ impl AnchorMode {
     /// Mode where the widget behaves like a tooltip anchored to the cursor.
     pub fn tooltip() -> Self {
         AnchorMode {
-            transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
+            transform: AnchorTransform::CursorOnce {
+                offset: AnchorOffset::out_bottom_in_left(),
+                include_touch: true,
+            },
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,
             viewport_bound: true,
@@ -1064,7 +1120,10 @@ impl AnchorMode {
     /// Mode where the widget behaves like a context-menu anchored to the cursor.
     pub fn context_menu() -> Self {
         AnchorMode {
-            transform: AnchorTransform::CursorOnce(AnchorOffset::in_top_left()),
+            transform: AnchorTransform::CursorOnce {
+                offset: AnchorOffset::in_top_left(),
+                include_touch: true,
+            },
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,
             viewport_bound: true,

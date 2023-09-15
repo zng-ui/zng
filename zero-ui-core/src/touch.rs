@@ -152,15 +152,42 @@ impl TOUCH {
     pub fn touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
         TOUCH_SV.read().touch_config.read_only()
     }
+
+    /// Variable that tracks all current active touches.
+    pub fn positions(&self) -> ReadOnlyArcVar<Vec<TouchPosition>> {
+        TOUCH_SV.read().positions.read_only()
+    }
+}
+
+/// Active touch positions.
+///
+/// Tracked in [`TOUCH.positions`].
+///
+/// [`TOUCH.positions`]: TOUCH::positions
+#[derive(Debug, Clone, PartialEq)]
+pub struct TouchPosition {
+    /// Touched window.
+    pub window_id: WindowId,
+    /// Unique ID of the touch, among other active touches.
+    pub touch: TouchId,
+    /// Latest touch contact position.
+    pub position: DipPoint,
+
+    /// Touch start timestamp.
+    pub start_time: Instant,
+    /// Latest move timestamp.
+    pub update_time: Instant,
 }
 
 app_local! {
     static TOUCH_SV: TouchService = TouchService {
-        touch_config: var(TouchConfig::default())
+        touch_config: var(TouchConfig::default()),
+        positions: var(vec![]),
     };
 }
 struct TouchService {
     touch_config: ArcVar<TouchConfig>,
+    positions: ArcVar<Vec<TouchPosition>>,
 }
 
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
@@ -1059,6 +1086,7 @@ impl AppExtension for TouchManager {
                 self.tap_gesture.clear();
                 self.transform_gesture.clear();
                 self.long_press_gesture.clear();
+                TOUCH_SV.read().positions.set(vec![]);
 
                 for (touch, info) in self.pressed.drain() {
                     let args = TouchInputArgs::now(
@@ -1189,6 +1217,33 @@ impl TouchManager {
                 TouchPhase::Move => unreachable!(),
             };
 
+            match update.phase {
+                TouchPhase::Start => {
+                    let pos_info = TouchPosition {
+                        window_id: args.window_id,
+                        touch: update.touch,
+                        position: update.position,
+                        start_time: args.timestamp,
+                        update_time: args.timestamp,
+                    };
+                    TOUCH_SV.read().positions.modify(move |p| {
+                        let p = p.to_mut();
+                        if let Some(weird) = p.iter().position(|p| p.touch == pos_info.touch) {
+                            p.remove(weird);
+                        }
+                        p.push(pos_info);
+                    });
+                }
+                _ => {
+                    let touch = update.touch;
+                    TOUCH_SV.read().positions.modify(move |p| {
+                        if let Some(i) = p.iter().position(|p| p.touch == touch) {
+                            p.to_mut().remove(i);
+                        }
+                    });
+                }
+            }
+
             let args = TouchInputArgs::now(
                 args.window_id,
                 args.device_id,
@@ -1258,6 +1313,25 @@ impl TouchManager {
 
     fn on_move(&mut self, args: &RawTouchArgs, mut moves: Vec<TouchMove>) {
         if !moves.is_empty() {
+            let position_updates: Vec<_> = moves
+                .iter()
+                .map(|m| TouchPosition {
+                    window_id: args.window_id,
+                    touch: m.touch,
+                    position: m.position(),
+                    start_time: args.timestamp, // ignored
+                    update_time: args.timestamp,
+                })
+                .collect();
+            TOUCH_SV.read().positions.modify(move |p| {
+                for mut update in position_updates {
+                    if let Some(i) = p.iter().position(|p| p.touch == update.touch) {
+                        update.start_time = p[i].start_time;
+                        p.to_mut()[i] = update;
+                    }
+                }
+            });
+
             if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
                 let mut window_blocked_remove = vec![];
                 for m in &mut moves {
