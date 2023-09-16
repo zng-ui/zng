@@ -944,25 +944,27 @@ impl TouchTransformArgs {
     }
 
     /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
-    /// [`translation_velocity().x`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    /// [`translation_velocity().x`] and `deceleration`. Returns 0 if velocity less than [`min_fling_velocity`].
     ///
-    /// Friction is in dips decelerated per second.
+    /// Deceleration is in dip/s, a good value is 1000. The recommended animation easing function
+    /// is `|t| easing::ease_out(easing::quad, t)`.
     ///
     /// [`translation_velocity().x`]: Self::translation_velocity
     /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
-    pub fn translation_inertia_x(&self, friction: Dip) -> (Px, Duration) {
-        self.inertia((self.velocity[0].x + self.velocity[1].x) / Px(2), friction)
+    pub fn translation_inertia_x(&self, deceleration: Dip) -> (Px, Duration) {
+        self.inertia((self.velocity[0].x + self.velocity[1].x) / Px(2), deceleration)
     }
 
     /// Compute the final offset and duration for a *fling* animation that simulates inertia movement from the
-    /// [`translation_velocity().y`] and `friction`. Returns 0 if velocity less than [`min_fling_velocity`].
+    /// [`translation_velocity().y`] and `deceleration`. Returns 0 if velocity less than [`min_fling_velocity`].
     ///
-    /// Friction is in dips decelerated per second.
+    /// Deceleration is in dip/s, a good value is 1000. The recommended animation easing function is
+    /// `|t| easing::ease_out(easing::quad, t)`.
     ///
     /// [`translation_velocity().y`]: Self::translation_velocity
     /// [`min_fling_velocity`]: TouchConfig::min_fling_velocity
-    pub fn translation_inertia_y(&self, friction: Dip) -> (Px, Duration) {
-        self.inertia((self.velocity[0].y + self.velocity[1].y) / Px(2), friction)
+    pub fn translation_inertia_y(&self, deceleration: Dip) -> (Px, Duration) {
+        self.inertia((self.velocity[0].y + self.velocity[1].y) / Px(2), deceleration)
     }
 
     /// If the [`phase`] is start.
@@ -995,8 +997,8 @@ impl TouchTransformArgs {
         matches!(self.phase, TouchPhase::Cancel)
     }
 
-    fn inertia(&self, velocity: Px, friction: Dip) -> (Px, Duration) {
-        let friction = friction.to_px(self.scale_factor.0);
+    fn inertia(&self, velocity: Px, deceleration: Dip) -> (Px, Duration) {
+        let friction = deceleration.to_px(self.scale_factor.0);
         let cfg = TOUCH.touch_config().get();
         let min_fling_velocity = cfg.min_fling_velocity.to_px(self.scale_factor.0);
 
@@ -1011,8 +1013,7 @@ impl TouchTransformArgs {
             let friction = friction.0 as f32;
 
             let time = velocity / friction;
-            let offset = (velocity * time) - (friction * time);
-
+            let offset = 0.5 * friction * time * time;
             (Px(offset.round() as _) * signal, time.secs())
         }
     }

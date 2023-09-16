@@ -1404,7 +1404,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if modifiers.is_empty() {
                             args.propagation().stop();
 
-                            let click_count = if let Some(info) = &mut selection_mouse_down {
+                            let _click_count = if let Some(info) = &mut selection_mouse_down {
                                 let cfg = MOUSE.multi_click_config().get();
 
                                 let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {

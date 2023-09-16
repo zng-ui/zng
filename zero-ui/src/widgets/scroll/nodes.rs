@@ -887,22 +887,21 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                     TouchPhase::End => {
                         applied_offset = PxVector::zero();
 
-                        let friction = Dip::new(5000);
+                        let friction = Dip::new(1000);
                         let mode = SCROLL.mode().get();
                         if mode.contains(ScrollMode::VERTICAL) {
                             let (delta, duration) = args.translation_inertia_y(friction);
-                            // if delta != Px(0) {
-                            //     SCROLL.scroll_vertical_touch_inertia(delta, duration);
-                            // } else {
-                            // }
+
+                            if delta != Px(0) {
+                                SCROLL.scroll_vertical_touch_inertia(-delta, duration);
+                            }
                             SCROLL.clear_vertical_overscroll();
                         }
                         if mode.contains(ScrollMode::HORIZONTAL) {
                             let (delta, duration) = args.translation_inertia_x(friction);
-                            // if delta != Px(0) {
-                            //     SCROLL.scroll_horizontal_touch_inertia(delta, duration);
-                            // } else {
-                            // }
+                            if delta != Px(0) {
+                                SCROLL.scroll_horizontal_touch_inertia(-delta, duration);
+                            }
                             SCROLL.clear_horizontal_overscroll();
                         }
                     }

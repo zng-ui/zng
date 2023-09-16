@@ -15,3 +15,6 @@
 * Scroll-to-fill/fit.
 
 * Mouse grab/pan property.
+
+* Overscroll config.
+    - See https://drafts.csswg.org/css-overscroll/

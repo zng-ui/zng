@@ -136,8 +136,11 @@ struct ScrollConfig {
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
 
-    scroll_horizontal: Mutex<AnimationHandle>,
-    scroll_vertical: Mutex<AnimationHandle>,
+    overscroll_horizontal: Mutex<AnimationHandle>,
+    overscroll_vertical: Mutex<AnimationHandle>,
+
+    inertia_horizontal: Mutex<AnimationHandle>,
+    inertia_vertical: Mutex<AnimationHandle>,
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -151,8 +154,10 @@ impl Default for ScrollConfig {
                 v: 0.fct(),
                 z: 0.fct(),
             }),
-            scroll_horizontal: Default::default(),
-            scroll_vertical: Default::default(),
+            overscroll_horizontal: Default::default(),
+            overscroll_vertical: Default::default(),
+            inertia_horizontal: Default::default(),
+            inertia_vertical: Default::default(),
         }
     }
 }
@@ -401,7 +406,7 @@ impl SCROLL {
             let new_handle = Self::increment_overscroll(OVERSCROLL_VERTICAL_OFFSET_VAR, overscroll);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.scroll_vertical.lock();
+            let mut handle = config.overscroll_vertical.lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
             self.clear_vertical_overscroll();
@@ -419,7 +424,7 @@ impl SCROLL {
             State::Increment => {
                 // set the increment and start delay to animation.
                 *o.to_mut() += delta;
-                *o.to_mut() = (*o).clamp(-1.fct(), 1.fct());
+                *o.to_mut() = (*o).clamp((-1).fct(), 1.fct());
 
                 a.sleep(300.ms());
                 state = State::ClearDelay;
@@ -442,7 +447,7 @@ impl SCROLL {
             let new_handle = OVERSCROLL_VERTICAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.scroll_vertical.lock();
+            let mut handle = config.overscroll_vertical.lock();
             mem::replace(&mut *handle, new_handle).stop();
         }
     }
@@ -453,7 +458,7 @@ impl SCROLL {
             let new_handle = OVERSCROLL_HORIZONTAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.scroll_horizontal.lock();
+            let mut handle = config.overscroll_horizontal.lock();
             mem::replace(&mut *handle, new_handle).stop();
         }
     }
@@ -535,7 +540,7 @@ impl SCROLL {
             let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.scroll_horizontal.lock();
+            let mut handle = config.overscroll_horizontal.lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
             self.clear_horizontal_overscroll();
@@ -560,20 +565,52 @@ impl SCROLL {
         if next > 1.fct() {
             overscroll = next - 1.fct();
             next = 1.fct();
+
+            let overscroll_px = overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
         } else if next < 0.fct() {
             overscroll = next;
             next = 0.fct();
+
+            let overscroll_px = -overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
         let cfg = SCROLL_CONFIG.get();
-        *cfg.scroll_vertical.lock() = if overscroll != 0.fct() {
-            let duration = duration * (next - overscroll);
-            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing::quad)
-            // TODO,
-            // * adjust duration,
-            // * create animation that sets the overscroll after it ends.
+        let easing = |t| easing::ease_out(easing::quad, t);
+        *cfg.inertia_vertical.lock() = if overscroll != 0.fct() {
+            let transition = animation::Transition::new(current, next + overscroll);
+
+            let overscroll_var = OVERSCROLL_VERTICAL_OFFSET_VAR.actual_var();
+            let overscroll_tr = animation::Transition::new(overscroll, 0.fct());
+            let mut is_inertia_anim = true;
+
+            SCROLL_VERTICAL_OFFSET_VAR.animate(move |animation, value| {
+                if is_inertia_anim {
+                    // inertia ease animation
+                    let step = easing(animation.elapsed(duration));
+                    let v = transition.sample(step);
+
+                    if v < 0.fct() || v > 1.fct() {
+                        // follows the easing curve until cap, cuts out to overscroll indicator.
+                        value.set(v.clamp_range());
+                        animation.restart();
+                        is_inertia_anim = false;
+                        let _ = overscroll_var.set(overscroll_tr.from);
+                    } else {
+                        value.set(v);
+                    }
+                } else {
+                    // overscroll clear ease animation
+                    let step = easing::linear(animation.elapsed_stop(300.ms()));
+                    let v = overscroll_tr.sample(step);
+                    let _ = overscroll_var.set(v);
+                }
+            })
         } else {
-            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing::quad)
+            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing)
         };
     }
 
@@ -595,17 +632,52 @@ impl SCROLL {
         if next > 1.fct() {
             overscroll = next - 1.fct();
             next = 1.fct();
+
+            let overscroll_px = overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
         } else if next < 0.fct() {
             overscroll = next;
             next = 0.fct();
+
+            let overscroll_px = -overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
         let cfg = SCROLL_CONFIG.get();
-        *cfg.scroll_horizontal.lock() = if overscroll != 0.fct() {
-            let duration = duration * (next - overscroll);
-            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing::quad)
+        let easing = |t| easing::ease_out(easing::quad, t);
+        *cfg.inertia_horizontal.lock() = if overscroll != 0.fct() {
+            let transition = animation::Transition::new(current, next + overscroll);
+
+            let overscroll_var = OVERSCROLL_HORIZONTAL_OFFSET_VAR.actual_var();
+            let overscroll_tr = animation::Transition::new(overscroll, 0.fct());
+            let mut is_inertia_anim = true;
+
+            SCROLL_HORIZONTAL_OFFSET_VAR.animate(move |animation, value| {
+                if is_inertia_anim {
+                    // inertia ease animation
+                    let step = easing(animation.elapsed(duration));
+                    let v = transition.sample(step);
+
+                    if v < 0.fct() || v > 1.fct() {
+                        // follows the easing curve until cap, cuts out to overscroll indicator.
+                        value.set(v.clamp_range());
+                        animation.restart();
+                        is_inertia_anim = false;
+                        let _ = overscroll_var.set(overscroll_tr.from);
+                    } else {
+                        value.set(v);
+                    }
+                } else {
+                    // overscroll clear ease animation
+                    let step = easing::linear(animation.elapsed_stop(300.ms()));
+                    let v = overscroll_tr.sample(step);
+                    let _ = overscroll_var.set(v);
+                }
+            })
         } else {
-            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing::quad)
+            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing)
         };
     }
 

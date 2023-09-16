@@ -27,13 +27,6 @@
     - Lots of breaking changes.
 * Implement automation/screen reader APIs.
 
-# Scroll
-
-* Implement touch scroll inertia.
-    - Overflow from inertia.
-* Implement test mode that generates touch events from mouse.
-    - Setup for testing touch inertia is too slow.
-
 # Exclusive Video Mode
 
 * How is the scale factor selected for exclusive?
