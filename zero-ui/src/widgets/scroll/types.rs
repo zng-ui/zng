@@ -272,6 +272,9 @@ impl SCROLL {
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
     /// is already at `0.fct()` or `1.fct()`.
     ///
+    /// The factor is between in the `-1.0..=1.0` range and represents the overscroll offset in pixels divided
+    /// by the viewport width.
+    ///
     /// [`vertical_offset`]: Self::vertical_offset
     pub fn vertical_overscroll(&self) -> ReadOnlyContextVar<Factor> {
         OVERSCROLL_VERTICAL_OFFSET_VAR.read_only()
@@ -279,6 +282,9 @@ impl SCROLL {
 
     /// Extra horizontal offset requested that could not be fulfilled because [`horizontal_offset`]
     /// is already at `0.fct()` or `1.fct()`.
+    ///
+    /// The factor is between in the `-1.0..=1.0` range and represents the overscroll offset in pixels divided
+    /// by the viewport width.
     ///
     /// [`horizontal_offset`]: Self::horizontal_offset
     pub fn horizontal_overscroll(&self) -> ReadOnlyContextVar<Factor> {
@@ -377,9 +383,17 @@ impl SCROLL {
         if next > 1.fct() {
             overscroll = next - 1.fct();
             next = 1.fct();
+
+            let overscroll_px = overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
         } else if next < 0.fct() {
             overscroll = next;
             next = 0.fct();
+
+            let overscroll_px = -overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
         let _ = SCROLL_VERTICAL_OFFSET_VAR.set(next);
@@ -405,6 +419,7 @@ impl SCROLL {
             State::Increment => {
                 // set the increment and start delay to animation.
                 *o.to_mut() += delta;
+                *o.to_mut() = (*o).clamp(-1.fct(), 1.fct());
 
                 a.sleep(300.ms());
                 state = State::ClearDelay;
@@ -502,9 +517,17 @@ impl SCROLL {
         if next > 1.fct() {
             overscroll = next - 1.fct();
             next = 1.fct();
+
+            let overscroll_px = overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
         } else if next < 0.fct() {
             overscroll = next;
             next = 0.fct();
+
+            let overscroll_px = -overscroll * content.0.fct();
+            let overscroll_max = viewport.0.fct();
+            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
         let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);

@@ -891,19 +891,19 @@ pub fn scroll_touch_node(child: impl UiNode) -> impl UiNode {
                         let mode = SCROLL.mode().get();
                         if mode.contains(ScrollMode::VERTICAL) {
                             let (delta, duration) = args.translation_inertia_y(friction);
-                            if delta != Px(0) {
-                                SCROLL.scroll_vertical_touch_inertia(delta, duration);
-                            } else {
-                                SCROLL.clear_vertical_overscroll();
-                            }
+                            // if delta != Px(0) {
+                            //     SCROLL.scroll_vertical_touch_inertia(delta, duration);
+                            // } else {
+                            // }
+                            SCROLL.clear_vertical_overscroll();
                         }
                         if mode.contains(ScrollMode::HORIZONTAL) {
                             let (delta, duration) = args.translation_inertia_x(friction);
-                            if delta != Px(0) {
-                                SCROLL.scroll_horizontal_touch_inertia(delta, duration);
-                            } else {
-                                SCROLL.clear_horizontal_overscroll();
-                            }
+                            // if delta != Px(0) {
+                            //     SCROLL.scroll_horizontal_touch_inertia(delta, duration);
+                            // } else {
+                            // }
+                            SCROLL.clear_horizontal_overscroll();
                         }
                     }
                     TouchPhase::Cancel => {
@@ -1096,12 +1096,12 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
             if v < 0.fct() {
                 // overscroll top
                 new_v_rect.size = *final_size;
-                new_v_rect.size.height *= v.abs().min(0.1.fct());
+                new_v_rect.size.height *= v.abs() / 10.fct();
                 v_center.y = Px(0);
             } else if v > 0.fct() {
                 // overscroll bottom
                 new_v_rect.size = *final_size;
-                new_v_rect.size.height *= v.abs().min(0.1.fct());
+                new_v_rect.size.height *= v.abs() / 10.fct();
                 new_v_rect.origin.y = final_size.height - new_v_rect.size.height;
                 v_center.y = new_v_rect.size.height;
             }
@@ -1111,12 +1111,12 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
             if h < 0.fct() {
                 // overscroll left
                 new_h_rect.size = *final_size;
-                new_h_rect.size.width *= h.abs().min(0.1.fct());
+                new_h_rect.size.width *= h.abs() / 10.fct();
                 h_center.x = Px(0);
             } else if h > 0.fct() {
                 // overscroll right
                 new_h_rect.size = *final_size;
-                new_h_rect.size.width *= h.abs().min(0.1.fct());
+                new_h_rect.size.width *= h.abs() / 10.fct();
                 new_h_rect.origin.x = final_size.width - new_h_rect.size.width;
                 h_center.x = new_h_rect.size.width;
             }
@@ -1160,7 +1160,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
             frame.with_auto_hit_test(false, |frame| {
                 if !v_rect.size.is_empty() {
                     let mut color: RenderColor = OVERSCROLL_COLOR_VAR.get().into();
-                    color.a *= (OVERSCROLL_VERTICAL_OFFSET_VAR.get().abs().0 * 10.0).min(1.0);
+                    color.a *= (OVERSCROLL_VERTICAL_OFFSET_VAR.get().abs().0).min(1.0);
                     let stops = stops(color);
 
                     let mut radius = v_rect.size;
@@ -1177,7 +1177,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                 }
                 if !h_rect.size.is_empty() {
                     let mut color: RenderColor = OVERSCROLL_COLOR_VAR.get().into();
-                    color.a *= (OVERSCROLL_HORIZONTAL_OFFSET_VAR.get().abs().0 * 10.0).min(1.0);
+                    color.a *= (OVERSCROLL_HORIZONTAL_OFFSET_VAR.get().abs().0).min(1.0);
                     let stops = stops(color);
 
                     let mut radius = h_rect.size;
