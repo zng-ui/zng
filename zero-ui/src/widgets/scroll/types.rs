@@ -129,35 +129,28 @@ enum ZoomState {
 #[derive(Debug)]
 struct ScrollConfig {
     id: Option<WidgetId>,
-    horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
-    vertical: Mutex<Option<ChaseAnimation<Factor>>>,
+    chase: [Mutex<Option<ChaseAnimation<Factor>>>; 2], // [horizontal, vertical]
     zoom: Mutex<ZoomState>,
 
     // last rendered horizontal, vertical offsets.
     rendered: Atomic<RenderedOffsets>,
 
-    overscroll_horizontal: Mutex<AnimationHandle>,
-    overscroll_vertical: Mutex<AnimationHandle>,
-
-    inertia_horizontal: Mutex<AnimationHandle>,
-    inertia_vertical: Mutex<AnimationHandle>,
+    overscroll: [Mutex<AnimationHandle>; 2],
+    inertia: [Mutex<AnimationHandle>; 2],
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
         Self {
             id: Default::default(),
-            horizontal: Default::default(),
-            vertical: Default::default(),
+            chase: Default::default(),
             zoom: Default::default(),
             rendered: Atomic::new(RenderedOffsets {
                 h: 0.fct(),
                 v: 0.fct(),
                 z: 0.fct(),
             }),
-            overscroll_horizontal: Default::default(),
-            overscroll_vertical: Default::default(),
-            inertia_horizontal: Default::default(),
-            inertia_vertical: Default::default(),
+            overscroll: Default::default(),
+            inertia: Default::default(),
         }
     }
 }
@@ -336,12 +329,29 @@ impl SCROLL {
         self.scroll_vertical_clamp(delta, f32::MIN, f32::MAX);
     }
 
+    /// Applies the `delta` to the horizontal offset.
+    ///
+    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
+    pub fn scroll_horizontal(&self, delta: ScrollFrom) {
+        self.scroll_horizontal_clamp(delta, f32::MIN, f32::MAX)
+    }
+
     /// Applies the `delta` to the vertical offset, but clamps the final offset by the inclusive `min` and `max`.
     ///
     /// If smooth scrolling is enabled it is used to update the offset.
     pub fn scroll_vertical_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+        self.scroll_clamp(true, SCROLL_VERTICAL_OFFSET_VAR, delta, min, max)
+    }
+
+    /// Applies the `delta` to the horizontal offset, but clamps the final offset by the inclusive `min` and `max`.
+    ///
+    /// If smooth scrolling is enabled it is used to update the offset.
+    pub fn scroll_horizontal_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
+        self.scroll_clamp(false, SCROLL_HORIZONTAL_OFFSET_VAR, delta, min, max)
+    }
+    fn scroll_clamp(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, delta: ScrollFrom, min: f32, max: f32) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
 
@@ -352,17 +362,17 @@ impl SCROLL {
         match delta {
             ScrollFrom::Var(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_VERTICAL_OFFSET_VAR.get();
-                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+                let f = scroll_offset_var.get();
+                SCROLL.chase(vertical, scroll_offset_var, |_| (f.0 + amount).clamp(min, max).fct());
             }
             ScrollFrom::VarTarget(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
-                SCROLL.chase_vertical(|f| (f.0 + amount).clamp(min, max).fct());
+                SCROLL.chase(vertical, scroll_offset_var, |f| (f.0 + amount).clamp(min, max).fct());
             }
             ScrollFrom::Rendered(a) => {
                 let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).v;
-                SCROLL.chase_vertical(|_| (f.0 + amount).clamp(min, max).fct());
+                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h;
+                SCROLL.chase(vertical, scroll_offset_var, |_| (f.0 + amount).clamp(min, max).fct());
             }
         }
     }
@@ -372,8 +382,20 @@ impl SCROLL {
     ///
     /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
     pub fn scroll_vertical_touch(&self, delta: Px) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+        self.scroll_touch(true, SCROLL_VERTICAL_OFFSET_VAR, OVERSCROLL_VERTICAL_OFFSET_VAR, delta)
+    }
+
+    /// Applies the `delta` to the horizontal offset without smooth scrolling and
+    /// updates the horizontal overscroll if it changes.
+    ///
+    /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
+    pub fn scroll_horizontal_touch(&self, delta: Px) {
+        self.scroll_touch(false, SCROLL_HORIZONTAL_OFFSET_VAR, OVERSCROLL_HORIZONTAL_OFFSET_VAR, delta)
+    }
+
+    fn scroll_touch(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, overscroll_offset_var: ContextVar<Factor>, delta: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
         if max_scroll <= Px(0) {
@@ -382,7 +404,7 @@ impl SCROLL {
 
         let delta = delta.0 as f32 / max_scroll.0 as f32;
 
-        let current = SCROLL_VERTICAL_OFFSET_VAR.get();
+        let current = scroll_offset_var.get();
         let mut next = current + delta.fct();
         let mut overscroll = 0.fct();
         if next > 1.fct() {
@@ -401,19 +423,19 @@ impl SCROLL {
             overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
-        let _ = SCROLL_VERTICAL_OFFSET_VAR.set(next);
+        let _ = scroll_offset_var.set(next);
         if overscroll != 0.fct() {
-            let new_handle = Self::increment_overscroll(OVERSCROLL_VERTICAL_OFFSET_VAR, overscroll);
+            let new_handle = self.increment_overscroll(overscroll_offset_var, overscroll);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_vertical.lock();
+            let mut handle = config.overscroll[vertical as usize].lock();
             mem::replace(&mut *handle, new_handle).stop();
         } else {
-            self.clear_vertical_overscroll();
+            self.clear_horizontal_overscroll();
         }
     }
 
-    fn increment_overscroll(overscroll: ContextVar<Factor>, delta: Factor) -> AnimationHandle {
+    fn increment_overscroll(&self, overscroll: ContextVar<Factor>, delta: Factor) -> AnimationHandle {
         enum State {
             Increment,
             ClearDelay,
@@ -443,181 +465,50 @@ impl SCROLL {
 
     /// Quick ease vertical overscroll to zero.
     pub fn clear_vertical_overscroll(&self) {
-        if OVERSCROLL_VERTICAL_OFFSET_VAR.get() != 0.fct() {
-            let new_handle = OVERSCROLL_VERTICAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
-
-            let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_vertical.lock();
-            mem::replace(&mut *handle, new_handle).stop();
-        }
+        self.clear_overscroll(true, OVERSCROLL_VERTICAL_OFFSET_VAR)
     }
 
     /// Quick ease horizontal overscroll to zero.
     pub fn clear_horizontal_overscroll(&self) {
-        if OVERSCROLL_HORIZONTAL_OFFSET_VAR.get() != 0.fct() {
-            let new_handle = OVERSCROLL_HORIZONTAL_OFFSET_VAR.ease(0.fct(), 100.ms(), easing::linear);
+        self.clear_overscroll(false, OVERSCROLL_HORIZONTAL_OFFSET_VAR)
+    }
+
+    fn clear_overscroll(&self, vertical: bool, overscroll_offset_var: ContextVar<Factor>) {
+        if overscroll_offset_var.get() != 0.fct() {
+            let new_handle = overscroll_offset_var.ease(0.fct(), 100.ms(), easing::linear);
 
             let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_horizontal.lock();
+            let mut handle = config.overscroll[vertical as usize].lock();
             mem::replace(&mut *handle, new_handle).stop();
-        }
-    }
-
-    /// Applies the `delta` to the horizontal offset.
-    ///
-    /// If smooth scrolling is enabled the chase animation is created or updated by this call.
-    pub fn scroll_horizontal(&self, delta: ScrollFrom) {
-        self.scroll_horizontal_clamp(delta, f32::MIN, f32::MAX)
-    }
-
-    /// Applies the `delta` to the horizontal offset, but clamps the final offset by the inclusive `min` and `max`.
-    ///
-    /// If smooth scrolling is enabled it is used to update the offset.
-    pub fn scroll_horizontal_clamp(&self, delta: ScrollFrom, min: f32, max: f32) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        let max_scroll = content - viewport;
-
-        if max_scroll <= Px(0) {
-            return;
-        }
-
-        match delta {
-            ScrollFrom::Var(a) => {
-                let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-                SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());
-            }
-            ScrollFrom::VarTarget(a) => {
-                let amount = a.0 as f32 / max_scroll.0 as f32;
-                SCROLL.chase_horizontal(|f| (f.0 + amount).clamp(min, max).fct());
-            }
-            ScrollFrom::Rendered(a) => {
-                let amount = a.0 as f32 / max_scroll.0 as f32;
-                let f = SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).h;
-                SCROLL.chase_horizontal(|_| (f.0 + amount).clamp(min, max).fct());
-            }
-        }
-    }
-
-    /// Applies the `delta` to the horizontal offset without smooth scrolling and
-    /// updates the horizontal overscroll if it changes.
-    ///
-    /// This method is used to implement touch gesture scrolling, the delta is always [`ScrollFrom::Var`].
-    pub fn scroll_horizontal_touch(&self, delta: Px) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        let max_scroll = content - viewport;
-        if max_scroll <= Px(0) {
-            return;
-        }
-
-        let delta = delta.0 as f32 / max_scroll.0 as f32;
-
-        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-        let mut next = current + delta.fct();
-        let mut overscroll = 0.fct();
-        if next > 1.fct() {
-            overscroll = next - 1.fct();
-            next = 1.fct();
-
-            let overscroll_px = overscroll * content.0.fct();
-            let overscroll_max = viewport.0.fct();
-            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
-        } else if next < 0.fct() {
-            overscroll = next;
-            next = 0.fct();
-
-            let overscroll_px = -overscroll * content.0.fct();
-            let overscroll_max = viewport.0.fct();
-            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
-        }
-
-        let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(next);
-        if overscroll != 0.fct() {
-            let new_handle = Self::increment_overscroll(OVERSCROLL_HORIZONTAL_OFFSET_VAR, overscroll);
-
-            let config = SCROLL_CONFIG.get();
-            let mut handle = config.overscroll_horizontal.lock();
-            mem::replace(&mut *handle, new_handle).stop();
-        } else {
-            self.clear_horizontal_overscroll();
         }
     }
 
     /// Animates to `delta` over `duration`.
     pub fn scroll_vertical_touch_inertia(&self, delta: Px, duration: Duration) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
-
-        let max_scroll = content - viewport;
-        if max_scroll <= Px(0) {
-            return;
-        }
-
-        let delta = delta.0 as f32 / max_scroll.0 as f32;
-
-        let current = SCROLL_VERTICAL_OFFSET_VAR.get();
-        let mut next = current + delta.fct();
-        let mut overscroll = 0.fct();
-        if next > 1.fct() {
-            overscroll = next - 1.fct();
-            next = 1.fct();
-
-            let overscroll_px = overscroll * content.0.fct();
-            let overscroll_max = viewport.0.fct();
-            overscroll = overscroll_px.min(overscroll_max) / overscroll_max;
-        } else if next < 0.fct() {
-            overscroll = next;
-            next = 0.fct();
-
-            let overscroll_px = -overscroll * content.0.fct();
-            let overscroll_max = viewport.0.fct();
-            overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
-        }
-
-        let cfg = SCROLL_CONFIG.get();
-        let easing = |t| easing::ease_out(easing::quad, t);
-        *cfg.inertia_vertical.lock() = if overscroll != 0.fct() {
-            let transition = animation::Transition::new(current, next + overscroll);
-
-            let overscroll_var = OVERSCROLL_VERTICAL_OFFSET_VAR.actual_var();
-            let overscroll_tr = animation::Transition::new(overscroll, 0.fct());
-            let mut is_inertia_anim = true;
-
-            SCROLL_VERTICAL_OFFSET_VAR.animate(move |animation, value| {
-                if is_inertia_anim {
-                    // inertia ease animation
-                    let step = easing(animation.elapsed(duration));
-                    let v = transition.sample(step);
-
-                    if v < 0.fct() || v > 1.fct() {
-                        // follows the easing curve until cap, cuts out to overscroll indicator.
-                        value.set(v.clamp_range());
-                        animation.restart();
-                        is_inertia_anim = false;
-                        let _ = overscroll_var.set(overscroll_tr.from);
-                    } else {
-                        value.set(v);
-                    }
-                } else {
-                    // overscroll clear ease animation
-                    let step = easing::linear(animation.elapsed_stop(300.ms()));
-                    let v = overscroll_tr.sample(step);
-                    let _ = overscroll_var.set(v);
-                }
-            })
-        } else {
-            SCROLL_VERTICAL_OFFSET_VAR.ease(next, duration, easing)
-        };
+        self.scroll_touch_inertia(true, SCROLL_VERTICAL_OFFSET_VAR, OVERSCROLL_VERTICAL_OFFSET_VAR, delta, duration)
     }
 
     /// Animates to `delta` over `duration`.
     pub fn scroll_horizontal_touch_inertia(&self, delta: Px, duration: Duration) {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+        self.scroll_touch_inertia(
+            false,
+            SCROLL_HORIZONTAL_OFFSET_VAR,
+            OVERSCROLL_HORIZONTAL_OFFSET_VAR,
+            delta,
+            duration,
+        )
+    }
+
+    fn scroll_touch_inertia(
+        &self,
+        vertical: bool,
+        scroll_offset_var: ContextVar<Factor>,
+        overscroll_offset_var: ContextVar<Factor>,
+        delta: Px,
+        duration: Duration,
+    ) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
+        let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
         if max_scroll <= Px(0) {
@@ -626,7 +517,7 @@ impl SCROLL {
 
         let delta = delta.0 as f32 / max_scroll.0 as f32;
 
-        let current = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+        let current = scroll_offset_var.get();
         let mut next = current + delta.fct();
         let mut overscroll = 0.fct();
         if next > 1.fct() {
@@ -647,14 +538,14 @@ impl SCROLL {
 
         let cfg = SCROLL_CONFIG.get();
         let easing = |t| easing::ease_out(easing::quad, t);
-        *cfg.inertia_horizontal.lock() = if overscroll != 0.fct() {
+        *cfg.inertia[vertical as usize].lock() = if overscroll != 0.fct() {
             let transition = animation::Transition::new(current, next + overscroll);
 
-            let overscroll_var = OVERSCROLL_HORIZONTAL_OFFSET_VAR.actual_var();
+            let overscroll_var = overscroll_offset_var.actual_var();
             let overscroll_tr = animation::Transition::new(overscroll, 0.fct());
             let mut is_inertia_anim = true;
 
-            SCROLL_HORIZONTAL_OFFSET_VAR.animate(move |animation, value| {
+            scroll_offset_var.animate(move |animation, value| {
                 if is_inertia_anim {
                     // inertia ease animation
                     let step = easing(animation.elapsed(duration));
@@ -677,7 +568,7 @@ impl SCROLL {
                 }
             })
         } else {
-            SCROLL_HORIZONTAL_OFFSET_VAR.ease(next, duration, easing)
+            scroll_offset_var.ease(next, duration, easing)
         };
     }
 
@@ -686,34 +577,7 @@ impl SCROLL {
     pub fn chase_vertical(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         #[cfg(dyn_closure)]
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
-        self.chase_vertical_impl(modify_offset);
-    }
-    fn chase_vertical_impl(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
-        let smooth = SMOOTH_SCROLLING_VAR.get();
-        let config = SCROLL_CONFIG.get();
-        let mut vertical = config.vertical.lock();
-        match &mut *vertical {
-            Some(t) => {
-                if smooth.is_disabled() {
-                    let t = modify_offset(*t.target()).clamp_range();
-                    let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
-                    *vertical = None;
-                } else {
-                    let easing = smooth.easing.clone();
-                    t.modify(|f| *f = modify_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
-                }
-            }
-            None => {
-                let t = modify_offset(SCROLL_VERTICAL_OFFSET_VAR.get()).clamp_range();
-                if smooth.is_disabled() {
-                    let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
-                } else {
-                    let easing = smooth.easing.clone();
-                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase(t, smooth.duration, move |t| easing(t));
-                    *vertical = Some(anim);
-                }
-            }
-        }
+        self.chase(true, SCROLL_VERTICAL_OFFSET_VAR, modify_offset);
     }
 
     /// Set the horizontal offset to a new offset derived from the last set offset, blending into the active smooth
@@ -721,31 +585,32 @@ impl SCROLL {
     pub fn chase_horizontal(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
         #[cfg(dyn_closure)]
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
-        self.chase_horizontal_impl(modify_offset);
+        self.chase(false, SCROLL_HORIZONTAL_OFFSET_VAR, modify_offset);
     }
-    fn chase_horizontal_impl(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
+
+    fn chase(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, modify_offset: impl FnOnce(Factor) -> Factor) {
         let smooth = SMOOTH_SCROLLING_VAR.get();
         let config = SCROLL_CONFIG.get();
-        let mut horizontal = config.horizontal.lock();
-        match &mut *horizontal {
+        let mut chase = config.chase[vertical as usize].lock();
+        match &mut *chase {
             Some(t) => {
                 if smooth.is_disabled() {
                     let t = modify_offset(*t.target()).clamp_range();
-                    let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
-                    *horizontal = None;
+                    let _ = scroll_offset_var.set(t);
+                    *chase = None;
                 } else {
                     let easing = smooth.easing.clone();
                     t.modify(|f| *f = modify_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
                 }
             }
             None => {
-                let t = modify_offset(SCROLL_HORIZONTAL_OFFSET_VAR.get()).clamp_range();
+                let t = modify_offset(scroll_offset_var.get()).clamp_range();
                 if smooth.is_disabled() {
-                    let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
+                    let _ = scroll_offset_var.set(t);
                 } else {
                     let easing = smooth.easing.clone();
-                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase(t, smooth.duration, move |t| easing(t));
-                    *horizontal = Some(anim);
+                    let anim = scroll_offset_var.chase(t, smooth.duration, move |t| easing(t));
+                    *chase = Some(anim);
                 }
             }
         }
