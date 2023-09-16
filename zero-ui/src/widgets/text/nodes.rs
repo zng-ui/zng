@@ -1,6 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{borrow::Cow, fmt, ops, sync::Arc};
+use std::{borrow::Cow, fmt, ops, sync::Arc, time::Instant};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
@@ -11,8 +11,12 @@ use super::{
 };
 use crate::{
     core::{
+        clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
         focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
-        keyboard::{KeyState, KEYBOARD, KEY_INPUT_EVENT},
+        keyboard::{Key, KeyState, KEYBOARD, KEY_INPUT_EVENT},
+        mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+        pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
+        task::parking_lot::Mutex,
         text::*,
         window::WindowLoadingHandle,
     },
@@ -20,12 +24,6 @@ use crate::{
         new_widget::*,
         scroll::{commands::ScrollToMode, SCROLL},
     },
-};
-use zero_ui::core::{
-    clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD},
-    keyboard::Key,
-    mouse::MOUSE_INPUT_EVENT,
-    task::parking_lot::Mutex,
 };
 
 /// Represents the caret position at the [`ResolvedText`] level.
@@ -1145,6 +1143,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     // Use `EditData::get` to access.
     let mut edit_data = None;
 
+    // Used by selection by pointer (mouse or touch)
+    let mut selection_move_handles = EventHandles::dummy();
+    struct SelectionMouseDown {
+        position: DipPoint,
+        timestamp: Instant,
+        count: u8,
+    }
+    let mut selection_mouse_down = None::<SelectionMouseDown>;
+
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -1390,9 +1397,72 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                     if args.is_primary() && args.is_mouse_down() {
+                        let mut modifiers = args.modifiers;
+                        let has_shift = modifiers.take_shift();
+                        // let has_ctrl = modifiers.take_ctrl();
+
+                        if modifiers.is_empty() {
+                            args.propagation().stop();
+
+                            let click_count = if let Some(info) = &mut selection_mouse_down {
+                                let cfg = MOUSE.multi_click_config().get();
+
+                                let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {
+                                    let dist = (info.position.to_vector() - args.position.to_vector()).abs();
+                                    let area = cfg.area;
+                                    dist.x <= area.width && dist.y <= area.height
+                                };
+
+                                if double_allowed {
+                                    info.timestamp = args.timestamp;
+                                    info.count += 1;
+                                    info.count = info.count.min(4);
+                                } else {
+                                    *info = SelectionMouseDown {
+                                        position: args.position,
+                                        timestamp: args.timestamp,
+                                        count: 1,
+                                    };
+                                }
+
+                                info.count
+                            } else {
+                                selection_mouse_down = Some(SelectionMouseDown {
+                                    position: args.position,
+                                    timestamp: args.timestamp,
+                                    count: 1,
+                                });
+                                1
+                            };
+
+                            LayoutText::call_select_op(&mut txt.txt, || {
+                                if has_shift {
+                                    TextSelectOp::select_nearest_to(args.position)
+                                } else {
+                                    TextSelectOp::nearest_to(args.position)
+                                }
+                                .call();
+                            });
+
+                            let id = WIDGET.id();
+                            selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
+                            selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
+                            POINTER_CAPTURE.capture_widget(id);
+                        }
+                    } else {
+                        selection_move_handles.clear();
+                    }
+                } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
+                    if !selection_move_handles.is_dummy() {
+                        args.propagation().stop();
+
                         LayoutText::call_select_op(&mut txt.txt, || {
-                            TextSelectOp::nearest_to(args.position).call();
+                            TextSelectOp::select_nearest_to(args.position).call();
                         });
+                    }
+                } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+                    if args.is_lost(WIDGET.id()) {
+                        selection_move_handles.clear();
                     }
                 } else if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(op) = args.param::<TextSelectOp>() {

@@ -733,39 +733,16 @@ impl TextSelectOp {
     /// This is the mouse primary button down operation.
     pub fn nearest_to(window_point: DipPoint) -> Self {
         Self::new(move || {
-            let resolved = ResolvedText::get();
-            let layout = LayoutText::get();
+            nearest_to(true, window_point);
+        })
+    }
 
-            let mut caret = resolved.caret.lock();
-            let caret = &mut *caret;
-
-            caret.used_retained_x = false;
-
-            //if there was at least one layout
-            let info = layout.render_info.lock();
-            if let Some(pos) = info
-                .transform
-                .inverse()
-                .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
-            {
-                //if has rendered
-                let mut i = match layout.shaped_text.nearest_line(pos.y) {
-                    Some(l) => CaretIndex {
-                        line: l.index(),
-                        index: match l.nearest_seg(pos.x) {
-                            Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
-                            None => l.text_range().end,
-                        },
-                    },
-                    None => CaretIndex::ZERO,
-                };
-                i.index = resolved.text.snap_grapheme_boundary(i.index);
-                caret.set_index(i);
-            }
-
-            if caret.index.is_none() {
-                caret.set_index(CaretIndex::ZERO);
-            }
+    /// Extend or shrink selection by moving the caret to the insert point nearest to the `window_point`.
+    ///
+    /// This is the mouse primary button down when holding SHIFT operation.
+    pub fn select_nearest_to(window_point: DipPoint) -> Self {
+        Self::new(move || {
+            nearest_to(false, window_point);
         })
     }
 
@@ -903,4 +880,47 @@ fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
 
     c.set_index(i);
     c.used_retained_x = false;
+}
+
+fn nearest_to(clear_selection: bool, window_point: euclid::Point2D<Dip, Dip>) {
+    let resolved = ResolvedText::get();
+    let layout = LayoutText::get();
+
+    let mut c = resolved.caret.lock();
+    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+
+    if clear_selection {
+        c.selection_index = None;
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
+    }
+
+    c.used_retained_x = false;
+
+    //if there was at least one layout
+    let info = layout.render_info.lock();
+    if let Some(pos) = info
+        .transform
+        .inverse()
+        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
+    {
+        //if has rendered
+        i = match layout.shaped_text.nearest_line(pos.y) {
+            Some(l) => CaretIndex {
+                line: l.index(),
+                index: match l.nearest_seg(pos.x) {
+                    Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
+                    None => l.text_range().end,
+                },
+            },
+            None => CaretIndex::ZERO,
+        };
+        i.index = resolved.text.snap_grapheme_boundary(i.index);
+        c.set_index(i);
+    }
+
+    if c.index.is_none() {
+        c.set_index(CaretIndex::ZERO);
+        c.selection_index = None;
+    }
 }
