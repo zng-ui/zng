@@ -38,6 +38,14 @@ async fn main_window() -> WindowRoot {
     Window! {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
+        foreground = Text! {
+            txt = title.clone();
+            visibility = window_vars.state().map(|s| s.is_fullscreen().into());
+            align = Align::TOP;
+            background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+            padding = 4;
+            corner_radius = (0, 0, 5, 5);
+        };
         title;
         on_state_changed = hn!(|args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
