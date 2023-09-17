@@ -25,4 +25,18 @@
 
 * Update to winit-29 when released.
     - Lots of breaking changes.
+
 * Implement automation/screen reader APIs.
+    - https://github.com/AccessKit/accesskit
+    - https://github.com/AccessKit/accesskit/blob/main/platforms/winit/examples/simple.rs
+    - This crate works, tested Windows winit.
+    - Need to think on how we add all of the info and action events to the view-API.
+        - `accesskit` (public?) in the `zero-ui-view-api` and `accesskit_winit` in the `zero-ui-view`.
+        - Have the info as display-items in each frame?
+            - Maybe quick to implement, but not efficient.
+        - Access-kit info tree is very similar to our own.
+            - There is info that does not change much.
+            - There is position of nodes that change a lot.
+    - Chrome only provides access info if it detects a screen reader running.
+        - https://www.chromium.org/developers/accessibility/windows-accessibility/
+        - Note: Chrome doesn't enable accessibility for the main web area by default unless it detects a screen reader or other advanced assistive technology. To override this, run chrome.exe with the --force-renderer-accessibility flag.
