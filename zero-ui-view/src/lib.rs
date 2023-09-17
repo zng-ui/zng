@@ -1091,6 +1091,10 @@ impl App {
                     windows: vec![id],
                     scale_factor: scale_factor as f32,
                 });
+
+                if let Some(size) = self.windows[i].resized() {
+                    self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, None)));
+                }
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
             WindowEvent::Ime(_) => {

@@ -29,6 +29,4 @@
 
 # Exclusive Video Mode
 
-* How is the scale factor selected for exclusive?
-* Settings to a smaller size (800x600) causes background clipping.
 * Also test in non-primary monitor.

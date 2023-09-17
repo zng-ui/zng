@@ -73,7 +73,7 @@ pub(crate) struct Window {
     state: WindowStateAll,
 
     prev_pos: PxPoint, // in the global space
-    prev_size: PxSize,
+    prev_size: DipSize,
 
     prev_monitor: Option<MonitorHandle>,
 
@@ -335,7 +335,7 @@ impl Window {
             id,
             image_use: ImageUseMap::default(),
             prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
-            prev_size: winit_window.inner_size().to_px(),
+            prev_size: winit_window.inner_size().to_px().to_dip(winit_window.scale_factor() as f32),
             prev_monitor: winit_window.current_monitor(),
             state: s,
             kiosk: cfg.kiosk,
@@ -628,7 +628,7 @@ impl Window {
             return None;
         }
 
-        let new_size = self.window.inner_size().to_px();
+        let new_size = self.window.inner_size().to_px().to_dip(self.scale_factor());
         if self.prev_size != new_size {
             #[cfg(windows)]
             if matches!(self.state.state, WindowState::Maximized | WindowState::Fullscreen)
@@ -649,12 +649,12 @@ impl Window {
                     _ => unreachable!(),
                 }
 
-                let new_size = self.window.inner_size().to_px();
+                let new_size = self.window.inner_size().to_px().to_dip(self.scale_factor());
                 return if self.prev_size != new_size {
                     self.prev_size = new_size;
                     self.resized = true;
 
-                    Some(new_size.to_dip(self.scale_factor()))
+                    Some(new_size)
                 } else {
                     None
                 };
@@ -663,7 +663,7 @@ impl Window {
             self.prev_size = new_size;
             self.resized = true;
 
-            Some(new_size.to_dip(self.scale_factor()))
+            Some(new_size)
         } else {
             None
         }
