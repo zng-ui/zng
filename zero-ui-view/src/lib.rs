@@ -1195,29 +1195,21 @@ impl App {
     fn refresh_monitors(&mut self) {
         let mut monitors = Vec::with_capacity(self.monitors.len());
 
-        let mut added_check = false; // set to `true` if a new id is generated.
-        let mut removed_check = self.monitors.len(); // `-=1` every existing reused `id`.
+        let mut changed = false;
 
         let window_target = unsafe { &*self.window_target };
 
-        for handle in window_target.available_monitors() {
-            let id = self
-                .monitors
-                .iter()
-                .find_map(|(id, h)| {
-                    if h == &handle {
-                        removed_check = removed_check.checked_sub(1).unwrap();
-                        Some(*id)
-                    } else {
-                        added_check = true;
-                        None
-                    }
-                })
-                .unwrap_or_else(|| self.monitor_id_gen.incr());
-            monitors.push((id, handle))
+        for (fresh_handle, (id, handle)) in window_target.available_monitors().zip(&self.monitors) {
+            let id = if &fresh_handle == handle {
+                *id
+            } else {
+                changed = true;
+                self.monitor_id_gen.incr()
+            };
+            monitors.push((id, fresh_handle))
         }
 
-        if added_check || removed_check > 1 {
+        if dbg!(changed) {
             self.monitors = monitors;
 
             let monitors = self.available_monitors();
