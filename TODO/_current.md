@@ -29,4 +29,7 @@
 
 # Exclusive Video Mode
 
-* Also test in non-primary monitor.
+* Entering exclusive mode of different VideMode in the secondary screen causes the
+  monitors to refresh (`MONITORS_CHANGED_EVENT`), this causes the monitor query to
+  run again and select the primary monitor for the now exclusive window, this causes
+  the scale_factor of the primary monitor to be used.
