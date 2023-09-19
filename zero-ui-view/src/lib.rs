@@ -1904,7 +1904,7 @@ impl Api for App {
     #[cfg(not(windows))]
     fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
         match data {
-            Cclipboard::lipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
+            clipboard::ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
             clipboard::ClipboardData::Image(id) => {
                 self.arboard()?;
                 if let Some(img) = self.image_cache.get(id) {
