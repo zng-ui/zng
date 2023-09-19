@@ -8,7 +8,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use zero_ui_view_api::LocaleConfig;
+use zero_ui_view_api::config::LocaleConfig;
 
 use super::{L10nArgument, L10nSource, Lang, LangMap, LangResource, LangResourceStatus, Langs, SwapL10nSource};
 use crate::{

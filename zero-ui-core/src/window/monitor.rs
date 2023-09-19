@@ -263,7 +263,7 @@ impl fmt::Debug for MonitorInfo {
 }
 impl MonitorInfo {
     /// New from a [`zero_ui_view_api::MonitorInfo`].
-    fn from_gen(id: MonitorId, info: zero_ui_view_api::MonitorInfo) -> Self {
+    fn from_gen(id: MonitorId, info: zero_ui_view_api::window::MonitorInfo) -> Self {
         MonitorInfo {
             id,
             is_primary: var(info.is_primary),
@@ -278,7 +278,7 @@ impl MonitorInfo {
 
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
     /// returns if any value changed.
-    fn update(&self, info: zero_ui_view_api::MonitorInfo) -> bool {
+    fn update(&self, info: zero_ui_view_api::window::MonitorInfo) -> bool {
         fn check_set<T: VarValue + PartialEq>(var: &impl Var<T>, value: T) -> bool {
             let ne = var.with(|v| v != &value);
             var.set(value).unwrap();

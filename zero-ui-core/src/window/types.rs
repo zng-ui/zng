@@ -1198,7 +1198,7 @@ impl RendererDebug {
             .flatten()
     }
 
-    pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, zero_ui_view_api::ApiExtensionPayload)>) {
+    pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, zero_ui_view_api::api_extension::ApiExtensionPayload)>) {
         if !self.is_empty() {
             if let Some(id) = self.extension_id() {
                 exts.push((id, crate::app::view_process::ApiExtensionPayload::serialize(self).unwrap()));

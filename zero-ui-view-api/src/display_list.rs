@@ -1,3 +1,5 @@
+//! Frame builder types.
+
 use std::{
     cell::Cell,
     mem,
@@ -8,7 +10,11 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
-use crate::{units::*, ApiExtensionId, ApiExtensionPayload, FrameId};
+use crate::{
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    units::*,
+    window::FrameId,
+};
 
 /// Represents a builder for display items that will be rendered in the view process.
 #[derive(Debug)]

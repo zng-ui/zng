@@ -12,7 +12,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use zero_ui_view_api::IpcBytes;
+use zero_ui_view_api::ipc::IpcBytes;
 
 use crate::{
     app::{

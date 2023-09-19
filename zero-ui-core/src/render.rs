@@ -19,10 +19,16 @@ use std::{marker::PhantomData, mem, sync::Arc};
 
 use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
+    api_extension::ApiExtensionPayload,
+    display_list::{DisplayList, NinePatchSource, ReuseStart},
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
-    ApiExtensionPayload, DisplayList, NinePatchSource, ReuseStart,
+};
+pub use zero_ui_view_api::{
+    display_list::{DisplayListBuilder, FilterOp, FrameValue, FrameValueUpdate, ReuseRange},
+    webrender_api,
+    window::FrameId,
+    window::RenderMode,
 };
 
 /// A text font.
@@ -2893,13 +2899,13 @@ impl<T> FrameValueKey<T> {
     }
 
     /// To view key.
-    pub fn to_wr(self) -> zero_ui_view_api::FrameValueKey<T> {
+    pub fn to_wr(self) -> zero_ui_view_api::display_list::FrameValueKey<T> {
         Self::to_wr_child(self, u32::MAX)
     }
 
     /// To view key with an extra `index` modifier.
-    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::FrameValueKey<T> {
-        zero_ui_view_api::FrameValueKey::new(((self.id.get() as u64) << 32) | child_index as u64)
+    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::display_list::FrameValueKey<T> {
+        zero_ui_view_api::display_list::FrameValueKey::new(((self.id.get() as u64) << 32) | child_index as u64)
     }
 
     /// Create a binding with this key.

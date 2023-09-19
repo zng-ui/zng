@@ -138,7 +138,22 @@ pub use gleam;
 
 use webrender::api::*;
 use window::Window;
-use zero_ui_view_api::{units::*, *};
+use zero_ui_view_api::{
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    config::ColorScheme,
+    dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
+    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
+    ipc::{IpcBytes, IpcBytesReceiver},
+    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    mouse::ButtonId,
+    touch::{TouchId, TouchUpdate},
+    units::*,
+    window::{
+        CursorIcon, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
+        MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest, WindowState, WindowStateAll,
+    },
+    Inited, *,
+};
 
 use rustc_hash::FxHashMap;
 
@@ -197,7 +212,7 @@ pub fn init_extended(ext: fn() -> ViewExtensions) {
 
         config.assert_version(false);
 
-        let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
+        let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");
 
         if config.headless {
             App::run_headless(c, ext());
@@ -279,7 +294,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
     let config = ViewConfig::wait_same_process();
     config.assert_version(true);
 
-    let c = connect_view_process(config.server_name).expect("failed to connect to app in same process");
+    let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
     if config.headless {
         App::run_headless(c, ext());
@@ -341,8 +356,8 @@ pub(crate) struct App {
     app_sender: AppEventSender,
     request_recv: flume::Receiver<RequestEvent>,
 
-    response_sender: ResponseSender,
-    event_sender: EventSender,
+    response_sender: ipc::ResponseSender,
+    event_sender: ipc::EventSender,
     image_cache: ImageCache,
 
     gen: ViewProcessGen,
@@ -404,7 +419,7 @@ impl App {
         util::unregister_raw_input();
     }
 
-    pub fn run_headless(c: ViewChannels, ext: ViewExtensions) {
+    pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headless view-process");
 
         gl::warmup();
@@ -492,7 +507,7 @@ impl App {
         }
     }
 
-    pub fn run_headed(c: ViewChannels, ext: ViewExtensions) {
+    pub fn run_headed(c: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
 
         gl::warmup();
@@ -603,8 +618,8 @@ impl App {
 
     fn new(
         app_sender: AppEventSender,
-        response_sender: ResponseSender,
-        event_sender: EventSender,
+        response_sender: ipc::ResponseSender,
+        event_sender: ipc::EventSender,
         request_recv: flume::Receiver<RequestEvent>,
         mut ext: ViewExtensions,
     ) -> Self {
@@ -645,11 +660,11 @@ impl App {
         }
     }
 
-    fn start_receiving(&mut self, mut request_recv: RequestReceiver) {
+    fn start_receiving(&mut self, mut request_recv: ipc::RequestReceiver) {
         let app_sender = self.app_sender.clone();
         thread::spawn(move || {
             while let Ok(r) = request_recv.recv() {
-                if let Err(Disconnected) = app_sender.request(r) {
+                if let Err(ipc::Disconnected) = app_sender.request(r) {
                     break;
                 }
             }
@@ -1453,7 +1468,7 @@ impl App {
     }
 
     #[cfg(not(windows))]
-    fn arboard(&mut self) -> Result<&mut arboard::Clipboard, ClipboardError> {
+    fn arboard(&mut self) -> Result<&mut arboard::Clipboard, clipboard::ClipboardError> {
         if self.arboard.is_none() {
             match arboard::Clipboard::new() {
                 Ok(c) => self.arboard = Some(c),
@@ -1482,7 +1497,7 @@ impl Api for App {
         }
 
         let available_monitors = self.available_monitors();
-        self.notify(Event::Inited {
+        self.notify(Event::Inited(Inited {
             generation: gen,
             is_respawn,
             available_monitors,
@@ -1494,7 +1509,7 @@ impl Api for App {
             animations_config: config::animations_config(),
             locale_config: config::locale_config(),
             extensions: self.exts.api_extensions(),
-        });
+        }));
     }
 
     fn exit(&mut self) {
@@ -1790,61 +1805,61 @@ impl Api for App {
     }
 
     #[cfg(windows)]
-    fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError> {
+    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
         match data_type {
-            ClipboardType::Text => {
+            clipboard::ClipboardType::Text => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 clipboard_win::get(clipboard_win::formats::Unicode)
                     .map_err(util::clipboard_win_to_clip)
-                    .map(ClipboardData::Text)
+                    .map(clipboard::ClipboardData::Text)
             }
-            ClipboardType::Image => {
+            clipboard::ClipboardType::Image => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
 
                 let id = self.image_cache.add(ImageRequest {
-                    format: ImageDataFormat::FileExtension("bmp".to_owned()),
+                    format: image::ImageDataFormat::FileExtension("bmp".to_owned()),
                     data: IpcBytes::from_vec(bitmap),
                     max_decoded_len: u64::MAX,
                     downscale: None,
                     mask: None,
                 });
-                Ok(ClipboardData::Image(id))
+                Ok(clipboard::ClipboardData::Image(id))
             }
-            ClipboardType::FileList => {
+            clipboard::ClipboardType::FileList => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 clipboard_win::get(clipboard_win::formats::FileList)
                     .map_err(util::clipboard_win_to_clip)
-                    .map(ClipboardData::FileList)
+                    .map(clipboard::ClipboardData::FileList)
             }
-            ClipboardType::Extension(_) => Err(ClipboardError::NotSupported),
+            clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
     #[cfg(windows)]
-    fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError> {
+    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
         match data {
-            ClipboardData::Text(t) => {
+            clipboard::ClipboardData::Text(t) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 clipboard_win::set(clipboard_win::formats::Unicode, t).map_err(util::clipboard_win_to_clip)
             }
-            ClipboardData::Image(id) => {
+            clipboard::ClipboardData::Image(id) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
-                    img.encode(image::ImageFormat::Bmp, &mut bmp)
-                        .map_err(|e| ClipboardError::Other(format!("{e:?}")))?;
+                    img.encode(::image::ImageFormat::Bmp, &mut bmp)
+                        .map_err(|e| clipboard::ClipboardError::Other(format!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
-                    Err(ClipboardError::Other("image not found".to_owned()))
+                    Err(clipboard::ClipboardError::Other("image not found".to_owned()))
                 }
             }
-            ClipboardData::FileList(l) => {
+            clipboard::ClipboardData::FileList(l) => {
                 use clipboard_win::Setter;
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
 
@@ -1854,7 +1869,7 @@ impl Api for App {
                     .write_clipboard(&strs)
                     .map_err(util::clipboard_win_to_clip)
             }
-            ClipboardData::Extension { .. } => Err(ClipboardError::NotSupported),
+            clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -1984,27 +1999,27 @@ pub(crate) enum AppEventSender {
 }
 impl AppEventSender {
     /// Send an event.
-    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
+    fn send(&self, ev: AppEvent) -> Result<(), ipc::Disconnected> {
         match self {
-            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| Disconnected),
-            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| Disconnected),
+            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::Disconnected),
         }
     }
 
     /// Send a request.
-    fn request(&self, req: Request) -> Result<(), Disconnected> {
+    fn request(&self, req: Request) -> Result<(), ipc::Disconnected> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| Disconnected),
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }
 
     /// Send a frame-ready.
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected> {
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::Disconnected> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected),
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }

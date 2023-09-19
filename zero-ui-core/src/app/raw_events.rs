@@ -17,7 +17,7 @@
 
 use std::path::PathBuf;
 
-use zero_ui_view_api::FrameWaitId;
+use zero_ui_view_api::window::FrameWaitId;
 
 use super::{
     raw_device_events::AxisId,

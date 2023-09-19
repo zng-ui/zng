@@ -10,7 +10,7 @@ use glutin::{
 };
 use rustc_hash::FxHashSet;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
-use zero_ui_view_api::{RenderMode, WindowId};
+use zero_ui_view_api::window::{RenderMode, WindowId};
 
 use raw_window_handle::*;
 

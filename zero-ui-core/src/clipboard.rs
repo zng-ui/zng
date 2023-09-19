@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 use zero_ui_view_api::ViewProcessOffline;
 
+use zero_ui_view_api::clipboard as clipboard_api;
+
 use crate::{
     app::{
         view_process::{IpcBytes, ViewClipboard, VIEW_PROCESS},
@@ -69,15 +71,15 @@ impl CLIPBOARD {
 
     fn get<T>(
         &self,
-        getter: impl FnOnce(&ViewClipboard) -> Result<Result<T, zero_ui_view_api::ClipboardError>, ViewProcessOffline>,
+        getter: impl FnOnce(&ViewClipboard) -> Result<Result<T, clipboard_api::ClipboardError>, ViewProcessOffline>,
     ) -> Result<Option<T>, ClipboardError> {
         let r = self.view().and_then(|v| match getter(v) {
             Ok(r) => match r {
                 Ok(r) => Ok(Some(r)),
                 Err(e) => match e {
-                    zero_ui_view_api::ClipboardError::NotFound => Ok(None),
-                    zero_ui_view_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
-                    zero_ui_view_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                    clipboard_api::ClipboardError::NotFound => Ok(None),
+                    clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
+                    clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
                 },
             },
             Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
@@ -90,15 +92,15 @@ impl CLIPBOARD {
 
     fn set(
         &self,
-        setter: impl FnOnce(&ViewClipboard) -> Result<Result<(), zero_ui_view_api::ClipboardError>, ViewProcessOffline>,
+        setter: impl FnOnce(&ViewClipboard) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
     ) -> Result<(), ClipboardError> {
         let r = self.view().and_then(|v| match setter(v) {
             Ok(r) => match r {
                 Ok(()) => Ok(()),
                 Err(e) => match e {
-                    zero_ui_view_api::ClipboardError::NotFound => Err(ClipboardError::Other("not found error in set operation".to_owned())),
-                    zero_ui_view_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
-                    zero_ui_view_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                    clipboard_api::ClipboardError::NotFound => Err(ClipboardError::Other("not found error in set operation".to_owned())),
+                    clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
+                    clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
                 },
             },
             Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),

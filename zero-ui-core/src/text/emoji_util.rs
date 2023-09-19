@@ -464,10 +464,10 @@ impl_from_and_into_var! {
         FontColorPalette::Index(index)
     }
 
-    fn from(color_scheme: zero_ui_view_api::ColorScheme) -> FontColorPalette {
+    fn from(color_scheme: crate::color::ColorScheme) -> FontColorPalette {
         match color_scheme {
-            zero_ui_view_api::ColorScheme::Light => FontColorPalette::Light,
-            zero_ui_view_api::ColorScheme::Dark => FontColorPalette::Dark,
+            crate::color::ColorScheme::Light => FontColorPalette::Light,
+            crate::color::ColorScheme::Dark => FontColorPalette::Dark,
         }
     }
 }

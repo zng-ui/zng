@@ -14,7 +14,7 @@ use crate::{
 };
 
 use zero_ui_view_api::webrender_api::euclid;
-pub use zero_ui_view_api::{AxisId, ButtonId};
+pub use zero_ui_view_api::{mouse::ButtonId, AxisId};
 
 event_args! {
     /// Arguments for [`DEVICE_ADDED_EVENT`] and [`DEVICE_REMOVED_EVENT`].

@@ -14,7 +14,7 @@ pub use vars::*;
 
 mod service;
 pub use service::*;
-use zero_ui_view_api::ImageMaskMode;
+use zero_ui_view_api::image::ImageMaskMode;
 
 use std::future::Future;
 

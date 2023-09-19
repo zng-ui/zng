@@ -17,7 +17,10 @@ use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
 
-pub use zero_ui_view_api::{Key, KeyCode, KeyRepeatConfig, KeyState, NativeKeyCode};
+pub use zero_ui_view_api::{
+    config::KeyRepeatConfig,
+    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+};
 
 event_args! {
     /// Arguments for [`KEY_INPUT_EVENT`].

@@ -19,7 +19,10 @@ use crate::{
 };
 use std::{mem, num::NonZeroU32, time::*};
 
-pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig};
+pub use zero_ui_view_api::{
+    config::MultiClickConfig,
+    mouse::{ButtonState, MouseButton, MouseScrollDelta},
+};
 
 event_args! {
     /// [`MOUSE_MOVE_EVENT`] arguments.

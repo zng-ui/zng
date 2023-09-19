@@ -24,13 +24,22 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, Event, FocusIndicator,
-    FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, ImageMaskMode, RenderMode, VideoMode,
-    ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    config::ColorScheme,
+    display_list::DisplayListCache,
+    image::{ImageId, ImageLoadedData, ImageMaskMode},
+    units::*,
+    window::{
+        CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
+        WindowRequest, WindowState, WindowStateAll,
+    },
+    DeviceId, Event, ViewProcessGen,
 };
 
+use zero_ui_view_api::dialog as dlg_api;
+
 #[cfg(windows)]
-use zero_ui_view_api::{Key, KeyCode, KeyState};
+use zero_ui_view_api::keyboard::{Key, KeyCode, KeyState};
 
 use crate::{
     extensions::{
@@ -1486,33 +1495,33 @@ impl Window {
         ApiExtensionPayload::unknown_extension(extension_id)
     }
 
-    fn enter_dialog(&self, id: zero_ui_view_api::DialogId, event_sender: &AppEventSender) -> bool {
+    fn enter_dialog(&self, id: dlg_api::DialogId, event_sender: &AppEventSender) -> bool {
         let already_open = self.modal_dialog_active.swap(true, Ordering::Acquire);
         if already_open {
             let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
                 id,
-                zero_ui_view_api::MsgDialogResponse::Error("dialog already open".to_owned()),
+                dlg_api::MsgDialogResponse::Error("dialog already open".to_owned()),
             )));
         }
         already_open
     }
 
     /// Shows a native message dialog.
-    pub(crate) fn message_dialog(&self, dialog: zero_ui_view_api::MsgDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
+    pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
         }
 
         let dlg = rfd::AsyncMessageDialog::new()
             .set_level(match dialog.icon {
-                zero_ui_view_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
-                zero_ui_view_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
-                zero_ui_view_api::MsgDialogIcon::Error => rfd::MessageLevel::Error,
+                dlg_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
+                dlg_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
+                dlg_api::MsgDialogIcon::Error => rfd::MessageLevel::Error,
             })
             .set_buttons(match dialog.buttons {
-                zero_ui_view_api::MsgDialogButtons::Ok => rfd::MessageButtons::Ok,
-                zero_ui_view_api::MsgDialogButtons::OkCancel => rfd::MessageButtons::OkCancel,
-                zero_ui_view_api::MsgDialogButtons::YesNo => rfd::MessageButtons::YesNo,
+                dlg_api::MsgDialogButtons::Ok => rfd::MessageButtons::Ok,
+                dlg_api::MsgDialogButtons::OkCancel => rfd::MessageButtons::OkCancel,
+                dlg_api::MsgDialogButtons::YesNo => rfd::MessageButtons::YesNo,
             })
             .set_title(&dialog.title)
             .set_description(&dialog.message)
@@ -1523,19 +1532,19 @@ impl Window {
             let r = dlg.show().await;
 
             let r = match dialog.buttons {
-                zero_ui_view_api::MsgDialogButtons::Ok => zero_ui_view_api::MsgDialogResponse::Ok,
-                zero_ui_view_api::MsgDialogButtons::OkCancel => {
+                dlg_api::MsgDialogButtons::Ok => dlg_api::MsgDialogResponse::Ok,
+                dlg_api::MsgDialogButtons::OkCancel => {
                     if r {
-                        zero_ui_view_api::MsgDialogResponse::Ok
+                        dlg_api::MsgDialogResponse::Ok
                     } else {
-                        zero_ui_view_api::MsgDialogResponse::Cancel
+                        dlg_api::MsgDialogResponse::Cancel
                     }
                 }
-                zero_ui_view_api::MsgDialogButtons::YesNo => {
+                dlg_api::MsgDialogButtons::YesNo => {
                     if r {
-                        zero_ui_view_api::MsgDialogResponse::Yes
+                        dlg_api::MsgDialogResponse::Yes
                     } else {
-                        zero_ui_view_api::MsgDialogResponse::No
+                        dlg_api::MsgDialogResponse::No
                     }
                 }
             };
@@ -1545,7 +1554,7 @@ impl Window {
     }
 
     /// Shows a native file dialog.
-    pub(crate) fn file_dialog(&self, dialog: zero_ui_view_api::FileDialog, id: zero_ui_view_api::DialogId, event_sender: AppEventSender) {
+    pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
         }
@@ -1562,17 +1571,17 @@ impl Window {
         let modal_dialog_active = self.modal_dialog_active.clone();
         Self::run_dialog(async move {
             let selection: Vec<_> = match dialog.kind {
-                zero_ui_view_api::FileDialogKind::OpenFile => dlg.pick_file().await.into_iter().map(Into::into).collect(),
-                zero_ui_view_api::FileDialogKind::OpenFiles => dlg.pick_files().await.into_iter().flatten().map(Into::into).collect(),
-                zero_ui_view_api::FileDialogKind::SelectFolder => dlg.pick_folder().await.into_iter().map(Into::into).collect(),
-                zero_ui_view_api::FileDialogKind::SelectFolders => dlg.pick_folders().await.into_iter().flatten().map(Into::into).collect(),
-                zero_ui_view_api::FileDialogKind::SaveFile => dlg.save_file().await.into_iter().map(Into::into).collect(),
+                dlg_api::FileDialogKind::OpenFile => dlg.pick_file().await.into_iter().map(Into::into).collect(),
+                dlg_api::FileDialogKind::OpenFiles => dlg.pick_files().await.into_iter().flatten().map(Into::into).collect(),
+                dlg_api::FileDialogKind::SelectFolder => dlg.pick_folder().await.into_iter().map(Into::into).collect(),
+                dlg_api::FileDialogKind::SelectFolders => dlg.pick_folders().await.into_iter().flatten().map(Into::into).collect(),
+                dlg_api::FileDialogKind::SaveFile => dlg.save_file().await.into_iter().map(Into::into).collect(),
             };
 
             let r = if selection.is_empty() {
-                zero_ui_view_api::FileDialogResponse::Cancel
+                dlg_api::FileDialogResponse::Cancel
             } else {
-                zero_ui_view_api::FileDialogResponse::Selected(selection)
+                dlg_api::FileDialogResponse::Selected(selection)
             };
 
             modal_dialog_active.store(false, Ordering::Release);

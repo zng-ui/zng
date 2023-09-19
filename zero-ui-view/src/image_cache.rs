@@ -3,8 +3,10 @@ use std::{fmt, sync::Arc};
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
 use zero_ui_view_api::{
+    image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
+    ipc::{IpcBytes, IpcBytesReceiver},
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
+    Event,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -1186,8 +1188,11 @@ mod capture {
         Renderer,
     };
     use zero_ui_view_api::{
+        image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
+        ipc::IpcBytes,
         units::{PxRect, PxToWr, WrToPx},
-        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, WindowId,
+        window::{FrameId, WindowId},
+        Event,
     };
 
     use crate::{

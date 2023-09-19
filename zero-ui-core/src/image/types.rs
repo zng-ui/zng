@@ -231,7 +231,7 @@ impl Img {
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn pixels(&self) -> Option<zero_ui_view_api::IpcBytes> {
+    pub fn pixels(&self) -> Option<zero_ui_view_api::ipc::IpcBytes> {
         self.view.get().and_then(|v| v.pixels())
     }
 
@@ -266,7 +266,7 @@ impl Img {
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: String) -> std::result::Result<zero_ui_view_api::IpcBytes, EncodeError> {
+    pub async fn encode(&self, format: String) -> std::result::Result<zero_ui_view_api::ipc::IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
             Err(EncodeError::Encode(e.into()))

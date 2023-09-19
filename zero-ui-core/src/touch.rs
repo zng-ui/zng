@@ -10,7 +10,10 @@ use std::{
 };
 
 use hashbrown::HashMap;
-pub use zero_ui_view_api::{TouchConfig, TouchForce, TouchId, TouchPhase, TouchUpdate};
+pub use zero_ui_view_api::{
+    config::TouchConfig,
+    touch::{TouchForce, TouchId, TouchPhase, TouchUpdate},
+};
 
 use crate::{
     app::{raw_events::*, *},

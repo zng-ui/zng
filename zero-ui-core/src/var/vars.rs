@@ -1,6 +1,6 @@
 use std::{mem, thread::ThreadId, time::Duration};
 
-use zero_ui_view_api::AnimationsConfig;
+use zero_ui_view_api::config::AnimationsConfig;
 
 use crate::{
     app::LoopTimer,

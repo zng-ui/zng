@@ -1,6 +1,6 @@
-use zero_ui_view_api::{ColorScheme, TouchConfig};
-
-use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig};
+use zero_ui_view_api::config::{
+    AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+};
 
 /// Create a hidden window that listens to Windows config change events.
 #[cfg(windows)]

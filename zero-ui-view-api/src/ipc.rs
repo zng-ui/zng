@@ -1,3 +1,5 @@
+//! IPC types.
+
 use std::{fmt, ops::Deref, time::Duration};
 
 use crate::{AnyResult, Event, Request, Response};

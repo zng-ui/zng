@@ -29,6 +29,7 @@
 * Implement automation/screen reader APIs.
     - https://github.com/AccessKit/accesskit
     - https://github.com/AccessKit/accesskit/blob/main/platforms/winit/examples/simple.rs
+    - https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/ARIA_Techniques
     - This crate works, tested Windows winit.
     - Need to think on how we add all of the info and action events to the view-API.
         - `accesskit` (public?) in the `zero-ui-view-api` and `accesskit_winit` in the `zero-ui-view`.

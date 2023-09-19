@@ -9,20 +9,10 @@
 //! The [`VERSION`] of this crate must match exactly in both *App-Process* and *View-Process*, otherwise a runtime
 //! panic error is generated.
 //!
-//! # `webrender_api`
-//!
-//! You must use the `webrender_api` that is re-exported as the [`webrender_api`] module. This is because Mozilla
-//! does not follow the crate versioning and publishing conventions, so we depend on `webrender` as a git submodule.
-//! The *version* re-exported is, usually, the latest commit that was included in the latest Firefox stable release and
-//! breaking changes are tracked by the `zero-ui-vp-api` crate version.
-//!
 
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-use std::fmt;
-
-use units::{DipSize, Px, PxRect};
 #[doc(inline)]
 pub use webrender_api;
 
@@ -33,16 +23,22 @@ use serde::{Deserialize, Serialize};
 /// validated during run-time, causing a panic if the versions don't match.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod analog;
+pub mod api_extension;
+pub mod clipboard;
+pub mod config;
+pub mod dialog;
+pub mod display_list;
+pub mod image;
+pub mod ipc;
+pub mod keyboard;
+pub mod mouse;
+pub mod touch;
 pub mod units;
+pub mod window;
 
 mod types;
 pub use types::*;
-
-mod display_list;
-pub use display_list::*;
-
-mod ipc;
-pub use ipc::*;
 
 mod app_process;
 pub use app_process::*;
@@ -50,7 +46,16 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
+use std::fmt;
 use webrender_api::{FontInstanceKey, FontKey, ImageKey};
+
+use api_extension::{ApiExtensionId, ApiExtensionPayload};
+use clipboard::{ClipboardData, ClipboardError};
+use dialog::DialogId;
+use image::{ImageId, ImageMaskMode, ImageRequest};
+use ipc::{IpcBytes, IpcBytesReceiver};
+use units::{DipSize, Px, PxRect};
+use window::WindowId;
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -63,7 +68,7 @@ impl Request {
     }
 
     /// Returns `true` if the request represents a new frame or frame update for the window with the same wait ID.
-    pub fn is_frame(&self, window_id: WindowId, wait_id: Option<FrameWaitId>) -> bool {
+    pub fn is_frame(&self, window_id: WindowId, wait_id: Option<window::FrameWaitId>) -> bool {
         match &self.0 {
             RequestData::render { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
             RequestData::render_update { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
@@ -265,7 +270,7 @@ declare_api! {
     ///
     /// Sends an [`Event::WindowOpened`] once the window, context and renderer have finished initializing or a
     /// [`Event::WindowOrHeadlessOpenError`] if it failed.
-    pub fn open_window(&mut self, request: WindowRequest);
+    pub fn open_window(&mut self, request: window::WindowRequest);
 
     /// Open a headless surface.
     ///
@@ -274,7 +279,7 @@ declare_api! {
     ///
     /// Sends an [`Event::HeadlessOpened`] once the context and renderer have finished initializing or a
     /// [`Event::WindowOrHeadlessOpenError`] if it failed.
-    pub fn open_headless(&mut self, request: HeadlessRequest);
+    pub fn open_headless(&mut self, request: window::HeadlessRequest);
 
     /// Close the window or headless surface.
     ///
@@ -303,7 +308,7 @@ declare_api! {
     pub fn bring_to_top(&mut self, id: WindowId);
 
     /// Set the window state, position, size.
-    pub fn set_state(&mut self, id: WindowId, state: WindowStateAll);
+    pub fn set_state(&mut self, id: WindowId, state: window::WindowStateAll);
 
     /// Set the headless surface or document area size (viewport size).
     pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32);
@@ -312,11 +317,11 @@ declare_api! {
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
 
     /// Set the window cursor icon and visibility.
-    pub fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>);
+    pub fn set_cursor(&mut self, id: WindowId, icon: Option<window::CursorIcon>);
 
     /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
     /// if canceled by setting to `None`.
-    pub fn set_focus_indicator(&mut self, id: WindowId, indicator: Option<FocusIndicator>);
+    pub fn set_focus_indicator(&mut self, id: WindowId, indicator: Option<window::FocusIndicator>);
 
     /// Brings the window to the front and sets input focus.
     ///
@@ -446,26 +451,26 @@ declare_api! {
     pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId;
 
     /// Set the video mode used when the window is in exclusive fullscreen.
-    pub fn set_video_mode(&mut self, id: WindowId, mode: VideoMode);
+    pub fn set_video_mode(&mut self, id: WindowId, mode: window::VideoMode);
 
     ///  Render a new frame.
-    pub fn render(&mut self, id: WindowId, frame: FrameRequest);
+    pub fn render(&mut self, id: WindowId, frame: window::FrameRequest);
 
     /// Update the current frame and re-render it.
-    pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
+    pub fn render_update(&mut self, id: WindowId, frame: window::FrameUpdateRequest);
 
     /// Shows a native message dialog for the window.
     ///
     /// Returns an ID that identifies the response event.
-    pub fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId;
+    pub fn message_dialog(&mut self, id: WindowId, dialog: dialog::MsgDialog) -> DialogId;
 
     /// Shows a native file/folder picker for the window.
     ///
     /// Returns the ID that identifies the response event.
-    pub fn file_dialog(&mut self, id: WindowId, dialog: FileDialog) -> DialogId;
+    pub fn file_dialog(&mut self, id: WindowId, dialog: dialog::FileDialog) -> DialogId;
 
     /// Get the clipboard content that matches the `data_type`.
-    pub  fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError>;
+    pub  fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<ClipboardData, ClipboardError>;
 
     /// Set the clipboard content.
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;

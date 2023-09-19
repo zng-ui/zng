@@ -45,7 +45,7 @@ event! {
     pub static FONT_CHANGED_EVENT: FontChangedArgs;
 }
 
-pub use zero_ui_view_api::FontAntiAliasing;
+pub use zero_ui_view_api::config::FontAntiAliasing;
 
 event_args! {
     /// [`FONT_CHANGED_EVENT`] arguments.

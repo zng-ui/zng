@@ -16,7 +16,7 @@ pub struct ViewConfig {
     /// Name of the initial channel used in [`connect_view_process`] to setup the connections to the
     /// client app-process.
     ///
-    /// [`connect_view_process`]: crate::connect_view_process
+    /// [`connect_view_process`]: crate::ipc::connect_view_process
     pub server_name: String,
 
     /// If the server should consider all window requests, headless window requests.

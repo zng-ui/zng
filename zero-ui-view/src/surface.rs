@@ -11,8 +11,12 @@ use webrender::{
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, ApiExtensionId, ApiExtensionPayload, DisplayListCache, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest,
-    HeadlessRequest, ImageId, ImageLoadedData, ImageMaskMode, RenderMode, ViewProcessGen, WindowId,
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    display_list::DisplayListCache,
+    image::{ImageId, ImageLoadedData, ImageMaskMode},
+    units::*,
+    window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
+    ViewProcessGen,
 };
 
 use crate::{

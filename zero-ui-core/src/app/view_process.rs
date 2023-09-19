@@ -7,12 +7,17 @@ use std::{
 };
 
 pub use zero_ui_view_api::{
-    self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
-    ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FileDialog, FileDialogKind, FileDialogResponse,
-    FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
-    ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
-    MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline,
-    WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
+    self,
+    api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
+    config::{AnimationsConfig, ColorScheme, LocaleConfig},
+    dialog::{FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse},
+    image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest},
+    ipc::{bytes_channel, IpcBytes, IpcBytesReceiver, IpcBytesSender},
+    window::{
+        CursorIcon, FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
+        MonitorInfo, RenderMode, VideoMode, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
+    },
+    Event, EventCause, ViewProcessGen, ViewProcessOffline,
 };
 
 use crate::{
@@ -29,11 +34,14 @@ use crate::{
 };
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zero_ui_view_api::{
+    clipboard::{ClipboardData, ClipboardError, ClipboardType},
+    config::KeyRepeatConfig,
+    image::{ImageId, ImageLoadedData},
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    ClipboardData, ClipboardError, ClipboardType, Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig,
-    MonitorId as ApiMonitorId,
+    window::MonitorId as ApiMonitorId,
+    Controller, DeviceId as ApiDeviceId,
 };
 
 use super::{App, AppId};
@@ -56,8 +64,8 @@ struct ViewProcessService {
 
     pending_frames: usize,
 
-    message_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<MsgDialogResponse>)>,
-    file_dialogs: Vec<(zero_ui_view_api::DialogId, ResponderVar<FileDialogResponse>)>,
+    message_dialogs: Vec<(zero_ui_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
+    file_dialogs: Vec<(zero_ui_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -288,13 +296,17 @@ impl VIEW_PROCESS {
         });
     }
 
-    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
+    pub(crate) fn on_window_opened(
+        &self,
+        window_id: WindowId,
+        data: zero_ui_view_api::window::WindowOpenData,
+    ) -> (ViewWindow, WindowOpenData) {
         let mut app = self.write();
         let _ = app.check_generation();
 
         let win = ViewWindow(Arc::new(ViewWindowData {
             app_id: App::current_id().unwrap(),
-            id: zero_ui_view_api::WindowId::from_raw(window_id.get()),
+            id: ApiWindowId::from_raw(window_id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
@@ -324,13 +336,17 @@ impl VIEW_PROCESS {
         me.process.handle_inited(gen);
     }
 
-    pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
+    pub(crate) fn on_headless_opened(
+        &self,
+        id: WindowId,
+        data: zero_ui_view_api::window::HeadlessOpenData,
+    ) -> (ViewHeadless, HeadlessOpenData) {
         let mut app = self.write();
         let _ = app.check_generation();
 
         let surf = ViewHeadless(Arc::new(ViewWindowData {
             app_id: App::current_id().unwrap(),
-            id: zero_ui_view_api::WindowId::from_raw(id.get()),
+            id: ApiWindowId::from_raw(id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
@@ -473,7 +489,7 @@ impl VIEW_PROCESS {
         })
     }
 
-    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::DialogId, response: MsgDialogResponse) {
+    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::dialog::DialogId, response: MsgDialogResponse) {
         let mut app = self.write();
         if let Some(i) = app.message_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.message_dialogs.swap_remove(i);
@@ -481,7 +497,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(crate) fn on_file_dlg_response(&self, id: zero_ui_view_api::DialogId, response: FileDialogResponse) {
+    pub(crate) fn on_file_dlg_response(&self, id: zero_ui_view_api::dialog::DialogId, response: FileDialogResponse) {
         let mut app = self.write();
         if let Some(i) = app.file_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.file_dialogs.swap_remove(i);
@@ -599,7 +615,7 @@ pub struct WindowOpenData {
     pub color_scheme: ColorScheme,
 }
 impl WindowOpenData {
-    fn new(data: zero_ui_view_api::WindowOpenData, map_monitor: impl FnOnce(zero_ui_view_api::MonitorId) -> MonitorId) -> Self {
+    fn new(data: zero_ui_view_api::window::WindowOpenData, map_monitor: impl FnOnce(ApiMonitorId) -> MonitorId) -> Self {
         WindowOpenData {
             state: data.state,
             monitor: data.monitor.map(map_monitor),

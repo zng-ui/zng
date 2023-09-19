@@ -6,6 +6,7 @@ pub mod raw_events;
 pub mod view_process;
 
 pub use intrinsic::*;
+use zero_ui_view_api::Inited;
 
 use crate::clipboard::ClipboardManager;
 use crate::config::ConfigManager;
@@ -1045,7 +1046,7 @@ struct RunningApp<E: AppExtension> {
     loop_monitor: LoopMonitor,
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
-    pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
+    pending_view_frame_events: Vec<zero_ui_view_api::window::EventFrameRendered>,
     pending: ContextUpdates,
 
     // cleans on drop
@@ -1126,7 +1127,7 @@ impl<E: AppExtension> RunningApp<E> {
         use raw_events::*;
         use zero_ui_view_api::Event;
 
-        fn window_id(id: zero_ui_view_api::WindowId) -> WindowId {
+        fn window_id(id: zero_ui_view_api::window::WindowId) -> WindowId {
             WindowId::from_raw(id.get())
         }
 
@@ -1420,13 +1421,13 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited { .. } | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            Event::Inited(Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }
     }
 
     /// Process a [`Event::FrameRendered`] event.
-    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::EventFrameRendered, observer: &mut O) {
-        debug_assert!(ev.window != zero_ui_view_api::WindowId::INVALID);
+    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::window::EventFrameRendered, observer: &mut O) {
+        debug_assert!(ev.window != zero_ui_view_api::window::WindowId::INVALID);
         let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| VIEW_PROCESS.on_frame_image(img));
@@ -1451,7 +1452,7 @@ impl<E: AppExtension> RunningApp<E> {
         match ev {
             AppEvent::ViewEvent(ev) => match ev {
                 zero_ui_view_api::Event::FrameRendered(ev) => {
-                    if ev.window == zero_ui_view_api::WindowId::INVALID {
+                    if ev.window == zero_ui_view_api::window::WindowId::INVALID {
                         tracing::error!("ignored rendered event for invalid window id, {ev:?}");
                         return;
                     }
@@ -1472,7 +1473,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.pending_view_frame_events.push(ev);
                 }
-                zero_ui_view_api::Event::Inited {
+                zero_ui_view_api::Event::Inited(Inited {
                     generation,
                     is_respawn,
                     available_monitors,
@@ -1484,7 +1485,7 @@ impl<E: AppExtension> RunningApp<E> {
                     locale_config,
                     color_scheme,
                     extensions,
-                } => {
+                }) => {
                     // notify immediately.
                     if is_respawn {
                         VIEW_PROCESS.on_respawed(generation);

@@ -2,9 +2,14 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
+use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::{
-    units::*, ButtonState, ColorScheme, CursorIcon, Key, KeyCode, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, NativeKeyCode,
-    TouchForce, TouchPhase, VideoMode,
+    config::ColorScheme,
+    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta},
+    touch::{TouchForce, TouchPhase},
+    units::*,
+    window::{CursorIcon, MonitorInfo, VideoMode},
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -685,19 +690,19 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
 }
 
 #[cfg(not(windows))]
-pub(crate) fn arboard_to_clip(e: arboard::Error) -> zero_ui_view_api::ClipboardError {
+pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardError {
     match e {
-        arboard::Error::ContentNotAvailable => zero_ui_view_api::ClipboardError::NotFound,
-        arboard::Error::ClipboardNotSupported => zero_ui_view_api::ClipboardError::NotSupported,
-        e => zero_ui_view_api::ClipboardError::Other(format!("{e:?}")),
+        arboard::Error::ContentNotAvailable => clipboard_api::ClipboardError::NotFound,
+        arboard::Error::ClipboardNotSupported => clipboard_api::ClipboardError::NotSupported,
+        e => clipboard_api::ClipboardError::Other(format!("{e:?}")),
     }
 }
 
 #[cfg(windows)]
-pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> zero_ui_view_api::ClipboardError {
+pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_api::ClipboardError {
     if e == clipboard_win::SystemError::unimplemented() {
-        zero_ui_view_api::ClipboardError::NotSupported
+        clipboard_api::ClipboardError::NotSupported
     } else {
-        zero_ui_view_api::ClipboardError::Other(format!("{e:?}"))
+        clipboard_api::ClipboardError::Other(format!("{e:?}"))
     }
 }
