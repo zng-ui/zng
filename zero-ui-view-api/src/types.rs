@@ -177,6 +177,8 @@ pub enum Event {
     /// when maximized, this can be trivially observed with this event.
     ///
     /// The [`EventCause`] can be used to identify a state change initiated by the app.
+    /// 
+    /// [`EventCause`]: crate::window::EventCause
     WindowChanged(WindowChanged),
 
     /// A file has been dropped into the window.
