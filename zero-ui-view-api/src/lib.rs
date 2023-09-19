@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 /// validated during run-time, causing a panic if the versions don't match.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod access;
 pub mod analog;
 pub mod api_extension;
 pub mod clipboard;
