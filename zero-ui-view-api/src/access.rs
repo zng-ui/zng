@@ -5,6 +5,11 @@ use std::num::NonZeroU32;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
+use crate::{
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    units::{DipRect, DipVector},
+};
+
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -428,5 +433,81 @@ bitflags! {
 }
 
 /// Identifies an accessibility widget node.
+///
+/// Note IDs are defined by the app-process, usually they are the `WidgetId`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AccessNodeId(usize);
+pub struct AccessNodeId(pub u64);
+
+/// Accessibility command.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum AccessCommand {
+    /// Run the default action given the widget role.
+    ///
+    /// Usually this is the same as a *click*.
+    Default,
+
+    /// Enter focus on the widget.
+    Focus,
+    /// Escape focus from widget.
+    Blur,
+
+    /// Expand the widget.
+    Expand,
+    /// Collapse the widget.
+    Collapse,
+
+    /// Increment by one step.
+    Increment,
+    /// Decrement by one step.
+    Decrement,
+
+    /// Show widget's tooltip.
+    ShowToolTip,
+    /// Hide widget's tooltip.
+    HideToolTip,
+
+    /// Insert the text.
+    ReplaceSelectedText(String),
+
+    /// Scroll up.
+    ScrollUp,
+    /// Scroll down.
+    ScrollDown,
+    /// Scroll left.
+    ScrollLeft,
+    /// Scroll right.
+    ScrollRight,
+
+    /// Scroll until the widget is fully visible.
+    ScrollIntoView(AccessNodeId),
+    /// Scroll until the rectangle is fully visible.
+    ScrollIntoViewRect(DipRect),
+
+    /// Set the horizontal and vertical scroll offset.
+    SetScrollOffset(DipVector),
+
+    /// Set the text selection.
+    ///
+    /// The two *points* are defined by the widget and string byte char index. The
+    /// start can be before or after (textually). The byte index must be at the start of
+    /// a grapheme and UTF-8 char.
+    SelectText {
+        /// Selection start.
+        start: (AccessNodeId, usize),
+        /// Selection end, where the caret is positioned.
+        caret: (AccessNodeId, usize),
+    },
+
+    /// Sets this widget as the starting point for the next TAB navigation.
+    /// 
+    /// If the user presses TAB the focus will move to the next logical focusable after this widget,
+    /// but this widget will not be focused by this request.
+    SetNextTabStart(AccessNodeId),
+
+    /// Show widget's context menu.
+    ShowContextMenu,
+
+    /// Custom command.
+    Custom(ApiExtensionId, ApiExtensionPayload),
+}
