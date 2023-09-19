@@ -689,15 +689,6 @@ impl Event {
     }
 }
 
-/// Cause of a window state change.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EventCause {
-    /// Operating system or end-user affected the window.
-    System,
-    /// App affected the window.
-    App,
-}
-
 /// The View-Process disconnected or has not finished initializing, try again after the *inited* event.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct ViewProcessOffline;

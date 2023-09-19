@@ -11,7 +11,6 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
     units::{Dip, DipPoint, DipRect, DipSize, Px, PxPoint, PxSize, PxToDip, PxTransform},
-    EventCause,
 };
 
 crate::declare_id! {
@@ -895,4 +894,13 @@ impl FrameId {
     pub fn update(self) -> u32 {
         self.1
     }
+}
+
+/// Cause of a window state change.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EventCause {
+    /// Operating system or end-user affected the window.
+    System,
+    /// App affected the window.
+    App,
 }

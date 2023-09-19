@@ -14,10 +14,10 @@ pub use zero_ui_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{bytes_channel, IpcBytes, IpcBytesReceiver, IpcBytesSender},
     window::{
-        CursorIcon, FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-        MonitorInfo, RenderMode, VideoMode, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
+        CursorIcon, EventCause, FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
+        HeadlessRequest, MonitorInfo, RenderMode, VideoMode, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
     },
-    Event, EventCause, ViewProcessGen, ViewProcessOffline,
+    Event, ViewProcessGen, ViewProcessOffline,
 };
 
 use crate::{

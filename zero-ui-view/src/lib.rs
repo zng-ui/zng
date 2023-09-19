@@ -149,8 +149,9 @@ use zero_ui_view_api::{
     touch::{TouchId, TouchUpdate},
     units::*,
     window::{
-        CursorIcon, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-        MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest, WindowState, WindowStateAll,
+        CursorIcon, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
+        HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest, WindowState,
+        WindowStateAll,
     },
     Inited, *,
 };
