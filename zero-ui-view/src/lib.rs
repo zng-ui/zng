@@ -1875,17 +1875,17 @@ impl Api for App {
     }
 
     #[cfg(not(windows))]
-    fn read_clipboard(&mut self, data_type: ClipboardType) -> Result<ClipboardData, ClipboardError> {
+    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
         match data_type {
-            ClipboardType::Text => self.arboard()?.get_text().map_err(util::arboard_to_clip).map(ClipboardData::Text),
-            ClipboardType::Image => {
+            clipboard::ClipboardType::Text => self.arboard()?.get_text().map_err(util::arboard_to_clip).map(clipboard::ClipboardData::Text),
+            clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();
                 for rgba in data.chunks_exact_mut(4) {
                     rgba.swap(0, 2); // to bgra
                 }
-                let id = self.image_cache.add(ImageRequest {
-                    format: ImageDataFormat::Bgra8 {
+                let id = self.image_cache.add(image::ImageRequest {
+                    format: image::ImageDataFormat::Bgra8 {
                         size: PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         ppi: None,
                     },
@@ -1894,18 +1894,18 @@ impl Api for App {
                     downscale: None,
                     mask: None,
                 });
-                Ok(ClipboardData::Image(id))
+                Ok(clipboard::ClipboardData::Image(id))
             }
-            ClipboardType::FileList => Err(ClipboardError::NotSupported),
-            ClipboardType::Extension(_) => Err(ClipboardError::NotSupported),
+            clipboard::ClipboardType::FileList => Err(clipboard::ClipboardError::NotSupported),
+            clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
     #[cfg(not(windows))]
-    fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError> {
+    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
         match data {
-            ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
-            ClipboardData::Image(id) => {
+            Cclipboard::lipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
+            clipboard::ClipboardData::Image(id) => {
                 self.arboard()?;
                 if let Some(img) = self.image_cache.get(id) {
                     let size = img.size();
@@ -1921,11 +1921,11 @@ impl Api for App {
                     });
                     Ok(())
                 } else {
-                    Err(ClipboardError::Other("image not found".to_owned()))
+                    Err(clipboard::ClipboardError::Other("image not found".to_owned()))
                 }
             }
-            ClipboardData::FileList(_) => Err(ClipboardError::NotSupported),
-            ClipboardData::Extension { .. } => Err(ClipboardError::NotSupported),
+            clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
+            clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
