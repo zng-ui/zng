@@ -746,6 +746,20 @@ impl TextSelectOp {
         })
     }
 
+    /// Replace selection with the word nearest to the `window_point`
+    ///
+    /// This is the mouse primary button double click.
+    pub fn select_word_nearest_to(window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(true, window_point))
+    }
+
+    /// Replace selection with the line nearest to the `window_point`
+    ///
+    /// This is the mouse primary button triple click.
+    pub fn select_line_nearest_to(window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(false, window_point))
+    }
+
     pub(super) fn call(self) {
         (self.op.lock())();
     }
@@ -882,7 +896,7 @@ fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
     c.used_retained_x = false;
 }
 
-fn nearest_to(clear_selection: bool, window_point: euclid::Point2D<Dip, Dip>) {
+fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     let resolved = ResolvedText::get();
     let layout = LayoutText::get();
 
@@ -917,6 +931,45 @@ fn nearest_to(clear_selection: bool, window_point: euclid::Point2D<Dip, Dip>) {
         };
         i.index = resolved.text.snap_grapheme_boundary(i.index);
         c.set_index(i);
+    }
+
+    if c.index.is_none() {
+        c.set_index(CaretIndex::ZERO);
+        c.selection_index = None;
+    }
+}
+
+fn select_line_word_nearest_to(select_word: bool, window_point: DipPoint) {
+    let resolved = ResolvedText::get();
+    let layout = LayoutText::get();
+
+    let mut c = resolved.caret.lock();
+
+    //if there was at least one layout
+    let info = layout.render_info.lock();
+    if let Some(pos) = info
+        .transform
+        .inverse()
+        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
+    {
+        //if has rendered
+        if let Some(l) = layout.shaped_text.nearest_line(pos.y) {
+            let range = if select_word {
+                l.nearest_seg(pos.x).map(|seg| seg.text_range()).unwrap_or_else(|| l.text_range())
+            } else {
+                //TODO: Select entire line even when wrapped?
+                l.text_caret_range()
+            };
+            c.selection_index = Some(CaretIndex {
+                line: l.index(),
+                index: range.start,
+            });
+            c.index = Some(CaretIndex {
+                line: l.index(),
+                index: range.end,
+            });
+            return;
+        };
     }
 
     if c.index.is_none() {

@@ -1404,7 +1404,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if modifiers.is_empty() {
                             args.propagation().stop();
 
-                            let _click_count = if let Some(info) = &mut selection_mouse_down {
+                            let click_count = if let Some(info) = &mut selection_mouse_down {
                                 let cfg = MOUSE.multi_click_config().get();
 
                                 let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {
@@ -1436,10 +1436,32 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             };
 
                             LayoutText::call_select_op(&mut txt.txt, || {
-                                if has_shift {
-                                    TextSelectOp::select_nearest_to(args.position)
-                                } else {
-                                    TextSelectOp::nearest_to(args.position)
+                                match click_count {
+                                    1 => {
+                                        if has_shift {
+                                            TextSelectOp::select_nearest_to(args.position)
+                                        } else {
+                                            TextSelectOp::nearest_to(args.position)
+                                        }
+                                    }
+                                    2 => {
+                                        if has_shift {
+                                            return; //TODO
+                                        } else {
+                                            TextSelectOp::select_word_nearest_to(args.position)
+                                        }
+                                    }
+                                    3 => {
+                                        if has_shift {
+                                            return; //TODO
+                                        } else {
+                                            TextSelectOp::select_line_nearest_to(args.position)
+                                        }
+                                    }
+                                    4 => {
+                                        return; //TODO
+                                    }
+                                    _ => unreachable!(),
                                 }
                                 .call();
                             });

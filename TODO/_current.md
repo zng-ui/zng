@@ -1,9 +1,12 @@
 # TextInput
 
+* Bug with `text_caret_range`
+    - `.end` can be wrong if the function is called for the last line and the line is empty?
 * Implement selection.
     - Mouse:
         - Double-click causes selection that grows by word.
             - Conflict with normal press drag?
+            - Prevent double-click from selecting the line break segment?
         - Triple-click and Quadruple-click?
     - Touch:
         - Research how it works.
