@@ -87,7 +87,10 @@ use commands::FocusCommands;
 mod tests;
 
 use crate::{
-    app::AppExtension,
+    app::{
+        access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT},
+        AppExtension,
+    },
     app_local,
     context::*,
     crate_util::{IdEntry, IdMap},
@@ -431,6 +434,15 @@ impl AppExtension for FocusManager {
                 }
             }
             focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
+        } else if let Some(args) = ACCESS_FOCUS_EVENT.on(update) {
+            let is_focused = FOCUS.is_focused(args.widget_id).get();
+            if args.focus {
+                if !is_focused {
+                    FOCUS.focus_widget(args.widget_id, false);
+                }
+            } else if is_focused {
+                FOCUS.focus_exit();
+            }
         } else {
             self.commands.as_mut().unwrap().event_preview(update);
         }
@@ -473,6 +485,9 @@ impl AppExtension for FocusManager {
                 // start
                 request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
             }
+        } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
+            // click
+            request = Some(FocusRequest::direct_or_exit(args.widget_id, false));
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_SV.write();

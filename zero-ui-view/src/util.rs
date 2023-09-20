@@ -720,18 +720,19 @@ pub(crate) fn accesskit_to_event(
         window: window_id,
         target,
         command: match request.action {
-            Action::Default => AccessCommand::Default,
-            Action::Focus => AccessCommand::Focus,
-            Action::Blur => AccessCommand::Blur,
-            Action::Collapse => AccessCommand::Collapse,
-            Action::Expand => AccessCommand::Expand,
-            Action::CustomAction => return None, // Figure out pattern to extract ApiExtension from data
-            Action::Decrement => AccessCommand::Decrement,
-            Action::Increment => AccessCommand::Increment,
-            Action::HideTooltip => AccessCommand::HideToolTip,
-            Action::ShowTooltip => AccessCommand::ShowToolTip,
-            Action::InvalidateTree => return None,      // TODO
-            Action::LoadInlineTextBoxes => return None, // TODO
+            Action::Default => AccessCommand::Click(true),
+            Action::ShowContextMenu => AccessCommand::Click(false),
+            Action::Focus => AccessCommand::Focus(true),
+            Action::Blur => AccessCommand::Focus(false),
+            Action::Collapse => AccessCommand::SetExpanded(false),
+            Action::Expand => AccessCommand::SetExpanded(true),
+            Action::CustomAction => return None,
+            Action::Decrement => AccessCommand::Increment(-1),
+            Action::Increment => AccessCommand::Increment(1),
+            Action::HideTooltip => AccessCommand::SetToolTipVis(false),
+            Action::ShowTooltip => AccessCommand::SetToolTipVis(true),
+            Action::InvalidateTree => return None,
+            Action::LoadInlineTextBoxes => return None,
             Action::ReplaceSelectedText => {
                 if let Some(accesskit::ActionData::Value(s)) = request.data {
                     AccessCommand::ReplaceSelectedText(s.to_string())
@@ -739,15 +740,34 @@ pub(crate) fn accesskit_to_event(
                     AccessCommand::ReplaceSelectedText(String::new())
                 }
             }
-            Action::ScrollBackward => AccessCommand::ScrollUp,
-            Action::ScrollDown => AccessCommand::ScrollDown,
-            Action::ScrollForward => AccessCommand::ScrollDown,
-            Action::ScrollLeft => AccessCommand::ScrollLeft,
-            Action::ScrollRight => AccessCommand::ScrollRight,
-            Action::ScrollUp => AccessCommand::ScrollUp,
-            Action::ScrollIntoView => return None, // TODO dip or px?
-            Action::ScrollToPoint => return None,
-            Action::SetScrollOffset => return None, // TODO, value range
+            Action::ScrollBackward => AccessCommand::Scroll(ScrollCommand::PageUp),
+            Action::ScrollForward => AccessCommand::Scroll(ScrollCommand::PageDown),
+
+            Action::ScrollDown => AccessCommand::Scroll(ScrollCommand::PageDown),
+            Action::ScrollLeft => AccessCommand::Scroll(ScrollCommand::PageLeft),
+            Action::ScrollRight => AccessCommand::Scroll(ScrollCommand::PageRight),
+            Action::ScrollUp => AccessCommand::Scroll(ScrollCommand::PageUp),
+            Action::ScrollIntoView => {
+                if let Some(accesskit::ActionData::ScrollTargetRect(_r)) = request.data {
+                    return None; // TODO, figure out units
+                } else {
+                    AccessCommand::Scroll(ScrollCommand::ScrollTo)
+                }
+            }
+            Action::ScrollToPoint => {
+                if let Some(accesskit::ActionData::ScrollToPoint(_p)) = request.data {
+                    return None; // TODO, units
+                } else {
+                    return None;
+                }
+            }
+            Action::SetScrollOffset => {
+                if let Some(accesskit::ActionData::SetScrollOffset(_o)) = request.data {
+                    return None; // TODO, value range
+                } else {
+                    return None;
+                }
+            }
             Action::SetTextSelection => {
                 if let Some(accesskit::ActionData::SetTextSelection(s)) = request.data {
                     AccessCommand::SelectText {
@@ -760,11 +780,10 @@ pub(crate) fn accesskit_to_event(
             }
             Action::SetSequentialFocusNavigationStartingPoint => AccessCommand::SetNextTabStart,
             Action::SetValue => match request.data {
-                Some(accesskit::ActionData::Value(s)) => AccessCommand::SetValueString(s.to_string()),
-                Some(accesskit::ActionData::NumericValue(n)) => AccessCommand::SetValueNumber(n),
+                Some(accesskit::ActionData::Value(s)) => AccessCommand::SetString(s.to_string()),
+                Some(accesskit::ActionData::NumericValue(n)) => AccessCommand::SetNumber(n),
                 _ => return None,
             },
-            Action::ShowContextMenu => AccessCommand::ShowContextMenu,
         },
     })
 }

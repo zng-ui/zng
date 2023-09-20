@@ -1519,7 +1519,7 @@ impl ShapedText {
         }
     }
 
-    /// Yields rects of the text encompassed by `range`
+    /// Yields rectangles of the text encompassed by `range`.
     pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, txt: &str) -> impl Iterator<Item = PxRect> {
         let start_x = self.caret_origin(range.start, txt).x;
         let end_x = self.caret_origin(range.end, txt).x;

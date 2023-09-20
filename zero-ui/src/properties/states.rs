@@ -198,7 +198,7 @@ pub fn is_cap_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> im
     )
 }
 
-/// If the widget was clicked by shortcut and the [`shortcut_pressed_duration`] has not elapsed.
+/// If the widget was clicked by shortcut or accessibility event and the [`shortcut_pressed_duration`] has not elapsed.
 ///
 /// [`shortcut_pressed_duration`]: GESTURES::shortcut_pressed_duration
 #[property(EVENT)]
@@ -216,7 +216,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = CLICK_EVENT.on(update) {
-                if args.shortcut().is_some() && args.is_enabled(WIDGET.id()) {
+                if (args.is_from_keyboard() || args.is_from_access()) && args.is_enabled(WIDGET.id()) {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.

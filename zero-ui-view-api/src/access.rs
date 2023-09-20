@@ -5,10 +5,7 @@ use std::num::NonZeroU32;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    api_extension::{ApiExtensionId, ApiExtensionPayload},
-    units::{DipRect, DipVector},
-};
+use crate::units::{DipRect, DipVector};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -439,57 +436,45 @@ bitflags! {
 pub struct AccessNodeId(pub u64);
 
 /// Accessibility command.
+///
+/// The command must run in the context of the target widow and widget, see [`Event::AccessCommand`] for more details.
+///
+/// [`Event::AccessCommand`]: crate::Event::AccessCommand
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AccessCommand {
-    /// Run the default action given the widget role.
+    /// Run the click action on the widget.
     ///
-    /// Usually this is the same as a *click*.
-    Default,
+    /// If `true` run the primary (default) action, if `false` run the context action.
+    Click(bool),
 
-    /// Enter focus on the widget.
-    Focus,
-    /// Escape focus from widget.
-    Blur,
+    /// Focus or escape focus on the widget.
+    ///
+    /// If `true` the widget is focused, if `false` and the widget is already focused does ESC.
+    Focus(bool),
 
-    /// Expand the widget.
-    Expand,
-    /// Collapse the widget.
-    Collapse,
+    /// Sets this widget as the starting point for the next TAB navigation.
+    ///
+    /// If the user presses TAB the focus will move to the next logical focusable after this widget,
+    /// but this widget will not be focused by this request.
+    SetNextTabStart,
 
-    /// Increment by one step.
-    Increment,
-    /// Decrement by one step.
-    Decrement,
+    /// Expand or collapse the widget content.
+    SetExpanded(bool),
 
-    /// Show widget's tooltip.
-    ShowToolTip,
-    /// Hide widget's tooltip.
-    HideToolTip,
+    /// Increment by steps.
+    ///
+    /// Associated value is usually is -1 or 1.
+    Increment(i8),
+
+    /// Show or hide the widget's tooltip.
+    SetToolTipVis(bool),
+
+    /// Scroll command.
+    Scroll(ScrollCommand),
 
     /// Insert the text.
     ReplaceSelectedText(String),
-
-    /// Scroll page up.
-    ///
-    /// If the scroll only scroll horizontally this is the same as `ScrollLeft`.
-    ScrollUp,
-    /// Scroll page down.
-    ///
-    /// If the scroll only scroll horizontally this is the same as `ScrollRight`.
-    ScrollDown,
-    /// Scroll page left.
-    ScrollLeft,
-    /// Scroll page right.
-    ScrollRight,
-
-    /// Scroll until the widget is fully visible.
-    ScrollIntoView,
-    /// Scroll until the rectangle (in the widget space) is fully visible.
-    ScrollIntoViewRect(DipRect),
-
-    /// Set the horizontal and vertical scroll offset.
-    SetScrollOffset(DipVector),
 
     /// Set the text selection.
     ///
@@ -503,23 +488,38 @@ pub enum AccessCommand {
         caret: (AccessNodeId, usize),
     },
 
-    /// Sets this widget as the starting point for the next TAB navigation.
+    /// Replace the value of the control with the specified value and
+    /// reset the selection, if applicable.
+    SetString(String),
+
+    /// Replace the value of the control with the specified value and
+    /// reset the selection, if applicable.
+    SetNumber(f64),
+}
+
+/// Accessibility scroll command.
+///
+/// The command must run in the context of the target widow and widget, see [`AccessCommand::Scroll`] for more details.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ScrollCommand {
+    /// Scroll page up.
     ///
-    /// If the user presses TAB the focus will move to the next logical focusable after this widget,
-    /// but this widget will not be focused by this request.
-    SetNextTabStart,
+    /// If the scroll-box only scrolls horizontally this is the same as `ScrollLeft`.
+    PageUp,
+    /// Scroll page down.
+    ///
+    /// If the scroll-box only scrolls horizontally this is the same as `ScrollRight`.
+    PageDown,
+    /// Scroll page left.
+    PageLeft,
+    /// Scroll page right.
+    PageRight,
 
-    /// Show widget's context menu.
-    ShowContextMenu,
+    /// Scroll until the widget is fully visible.
+    ScrollTo,
+    /// Scroll until the rectangle (in the widget space) is fully visible.
+    ScrollToRect(DipRect),
 
-    /// Replace the value of the control with the specified value and
-    /// reset the selection, if applicable.
-    SetValueString(String),
-
-    /// Replace the value of the control with the specified value and
-    /// reset the selection, if applicable.
-    SetValueNumber(f64),
-
-    /// Custom command.
-    Custom(ApiExtensionId, ApiExtensionPayload),
+    /// Set the horizontal and vertical scroll offset.
+    SetScrollOffset(DipVector),
 }

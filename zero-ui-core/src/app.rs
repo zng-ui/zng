@@ -1,5 +1,6 @@
 //! App startup and app extension API.
 
+pub mod access;
 mod intrinsic;
 pub mod raw_device_events;
 pub mod raw_events;
@@ -1342,9 +1343,9 @@ impl<E: AppExtension> RunningApp<E> {
                 target: wgt_id,
                 command,
             } => {
-                let win_id = window_id(win_id);
-                let wgt_id = WidgetId::from_raw(wgt_id.0);
-                tracing::info!("TODO access command {:?}", (win_id, wgt_id, command));
+                if let Some(update) = access::on_access_command(window_id(win_id), WidgetId::from_raw(wgt_id.0), command) {
+                    self.notify_event(update, observer);
+                }
             }
 
             // native dialog responses
