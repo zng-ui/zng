@@ -107,6 +107,8 @@ pub(crate) struct Window {
     render_mode: RenderMode,
 
     modal_dialog_active: Arc<AtomicBool>,
+
+    access: accesskit_winit::Adapter,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -316,7 +318,7 @@ impl Window {
         opts.blob_image_handler = Some(Box::new(blobs));
 
         let (mut renderer, sender) =
-            webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
+            webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender.clone()), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let mut external_images = extensions::ExternalImages::default();
@@ -339,6 +341,9 @@ impl Window {
         });
 
         drop(wr_scope);
+
+        let access =
+            accesskit_winit::Adapter::with_action_handler(&winit_window, Default::default, Box::new(AccessSender { id, event_sender }));
 
         let mut win = Self {
             id,
@@ -377,6 +382,7 @@ impl Window {
             focused: None,
             modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
+            access,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1533,20 +1539,20 @@ impl Window {
 
             let r = match dialog.buttons {
                 dlg_api::MsgDialogButtons::Ok => dlg_api::MsgDialogResponse::Ok,
-                dlg_api::MsgDialogButtons::OkCancel => {
-                    if r {
-                        dlg_api::MsgDialogResponse::Ok
-                    } else {
-                        dlg_api::MsgDialogResponse::Cancel
-                    }
-                }
-                dlg_api::MsgDialogButtons::YesNo => {
-                    if r {
-                        dlg_api::MsgDialogResponse::Yes
-                    } else {
-                        dlg_api::MsgDialogResponse::No
-                    }
-                }
+                dlg_api::MsgDialogButtons::OkCancel => match r {
+                    rfd::MessageDialogResult::Yes => dlg_api::MsgDialogResponse::Ok,
+                    rfd::MessageDialogResult::No => dlg_api::MsgDialogResponse::Cancel,
+                    rfd::MessageDialogResult::Ok => dlg_api::MsgDialogResponse::Ok,
+                    rfd::MessageDialogResult::Cancel => dlg_api::MsgDialogResponse::Cancel,
+                    rfd::MessageDialogResult::Custom(_) => dlg_api::MsgDialogResponse::Cancel,
+                },
+                dlg_api::MsgDialogButtons::YesNo => match r {
+                    rfd::MessageDialogResult::Yes => dlg_api::MsgDialogResponse::Yes,
+                    rfd::MessageDialogResult::No => dlg_api::MsgDialogResponse::No,
+                    rfd::MessageDialogResult::Ok => dlg_api::MsgDialogResponse::Yes,
+                    rfd::MessageDialogResult::Cancel => dlg_api::MsgDialogResponse::No,
+                    rfd::MessageDialogResult::Custom(_) => dlg_api::MsgDialogResponse::No,
+                },
             };
             modal_dialog_active.store(false, Ordering::Release);
             let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(id, r)));
@@ -1608,6 +1614,11 @@ impl Window {
             }
         });
     }
+
+    /// Pump the accessibility adapter.
+    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
+        let _must_use_why = self.access.on_event(&self.window, event);
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {
@@ -1632,4 +1643,16 @@ pub(crate) struct FrameReadyResult {
     pub frame_id: FrameId,
     pub image: Option<ImageLoadedData>,
     pub first_frame: bool,
+}
+
+struct AccessSender {
+    id: WindowId,
+    event_sender: AppEventSender,
+}
+impl accesskit::ActionHandler for AccessSender {
+    fn do_action(&self, request: accesskit::ActionRequest) {
+        if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
+            let _ = self.event_sender.send(AppEvent::Notify(ev));
+        }
+    }
 }

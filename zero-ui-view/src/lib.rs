@@ -681,6 +681,8 @@ impl App {
 
         let _s = tracing::trace_span!("on_window_event", ?event).entered();
 
+        self.windows[i].pump_access(&event);
+
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
 
@@ -1877,7 +1879,11 @@ impl Api for App {
     #[cfg(not(windows))]
     fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
         match data_type {
-            clipboard::ClipboardType::Text => self.arboard()?.get_text().map_err(util::arboard_to_clip).map(clipboard::ClipboardData::Text),
+            clipboard::ClipboardType::Text => self
+                .arboard()?
+                .get_text()
+                .map_err(util::arboard_to_clip)
+                .map(clipboard::ClipboardData::Text),
             clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();

@@ -1,6 +1,7 @@
 //! General event types.
 
 use crate::{
+    access::{AccessCommand, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
@@ -177,7 +178,7 @@ pub enum Event {
     /// when maximized, this can be trivially observed with this event.
     ///
     /// The [`EventCause`] can be used to identify a state change initiated by the app.
-    /// 
+    ///
     /// [`EventCause`]: crate::window::EventCause
     WindowChanged(WindowChanged),
 
@@ -491,6 +492,16 @@ pub enum Event {
     MsgDialogResponse(DialogId, MsgDialogResponse),
     /// User responded to a native file dialog.
     FileDialogResponse(DialogId, FileDialogResponse),
+
+    /// Accessibility command.
+    AccessCommand {
+        /// Window that had pixels copied.
+        window: WindowId,
+        /// Target widget.
+        target: AccessNodeId,
+        /// Command.
+        command: AccessCommand,
+    },
 
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),

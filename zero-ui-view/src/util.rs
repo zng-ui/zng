@@ -706,3 +706,65 @@ pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_
         clipboard_api::ClipboardError::Other(format!("{e:?}"))
     }
 }
+
+pub(crate) fn accesskit_to_event(
+    window_id: zero_ui_view_api::window::WindowId,
+    request: accesskit::ActionRequest,
+) -> Option<zero_ui_view_api::Event> {
+    use accesskit::Action;
+    use zero_ui_view_api::access::*;
+
+    let target = AccessNodeId(request.target.0.get() as u64);
+
+    Some(zero_ui_view_api::Event::AccessCommand {
+        window: window_id,
+        target,
+        command: match request.action {
+            Action::Default => AccessCommand::Default,
+            Action::Focus => AccessCommand::Focus,
+            Action::Blur => AccessCommand::Blur,
+            Action::Collapse => AccessCommand::Collapse,
+            Action::Expand => AccessCommand::Expand,
+            Action::CustomAction => return None, // Figure out pattern to extract ApiExtension from data
+            Action::Decrement => AccessCommand::Decrement,
+            Action::Increment => AccessCommand::Increment,
+            Action::HideTooltip => AccessCommand::HideToolTip,
+            Action::ShowTooltip => AccessCommand::ShowToolTip,
+            Action::InvalidateTree => return None,      // TODO
+            Action::LoadInlineTextBoxes => return None, // TODO
+            Action::ReplaceSelectedText => {
+                if let Some(accesskit::ActionData::Value(s)) = request.data {
+                    AccessCommand::ReplaceSelectedText(s.to_string())
+                } else {
+                    AccessCommand::ReplaceSelectedText(String::new())
+                }
+            }
+            Action::ScrollBackward => AccessCommand::ScrollUp,
+            Action::ScrollDown => AccessCommand::ScrollDown,
+            Action::ScrollForward => AccessCommand::ScrollDown,
+            Action::ScrollLeft => AccessCommand::ScrollLeft,
+            Action::ScrollRight => AccessCommand::ScrollRight,
+            Action::ScrollUp => AccessCommand::ScrollUp,
+            Action::ScrollIntoView => return None, // TODO dip or px?
+            Action::ScrollToPoint => return None,
+            Action::SetScrollOffset => return None, // TODO, value range
+            Action::SetTextSelection => {
+                if let Some(accesskit::ActionData::SetTextSelection(s)) = request.data {
+                    AccessCommand::SelectText {
+                        start: (AccessNodeId(s.anchor.node.0.get() as u64), s.anchor.character_index),
+                        caret: (AccessNodeId(s.focus.node.0.get() as u64), s.focus.character_index),
+                    }
+                } else {
+                    return None;
+                }
+            }
+            Action::SetSequentialFocusNavigationStartingPoint => AccessCommand::SetNextTabStart,
+            Action::SetValue => match request.data {
+                Some(accesskit::ActionData::Value(s)) => AccessCommand::SetValueString(s.to_string()),
+                Some(accesskit::ActionData::NumericValue(n)) => AccessCommand::SetValueNumber(n),
+                _ => return None,
+            },
+            Action::ShowContextMenu => AccessCommand::ShowContextMenu,
+        },
+    })
+}

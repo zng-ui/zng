@@ -1337,6 +1337,16 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             }
 
+            Event::AccessCommand {
+                window: win_id,
+                target: wgt_id,
+                command,
+            } => {
+                let win_id = window_id(win_id);
+                let wgt_id = WidgetId::from_raw(wgt_id.0);
+                tracing::info!("TODO access command {:?}", (win_id, wgt_id, command));
+            }
+
             // native dialog responses
             Event::MsgDialogResponse(id, response) => {
                 VIEW_PROCESS.on_message_dlg_response(id, response);

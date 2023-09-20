@@ -470,18 +470,22 @@ pub enum AccessCommand {
     /// Insert the text.
     ReplaceSelectedText(String),
 
-    /// Scroll up.
+    /// Scroll page up.
+    ///
+    /// If the scroll only scroll horizontally this is the same as `ScrollLeft`.
     ScrollUp,
-    /// Scroll down.
+    /// Scroll page down.
+    ///
+    /// If the scroll only scroll horizontally this is the same as `ScrollRight`.
     ScrollDown,
-    /// Scroll left.
+    /// Scroll page left.
     ScrollLeft,
-    /// Scroll right.
+    /// Scroll page right.
     ScrollRight,
 
     /// Scroll until the widget is fully visible.
-    ScrollIntoView(AccessNodeId),
-    /// Scroll until the rectangle is fully visible.
+    ScrollIntoView,
+    /// Scroll until the rectangle (in the widget space) is fully visible.
     ScrollIntoViewRect(DipRect),
 
     /// Set the horizontal and vertical scroll offset.
@@ -500,13 +504,21 @@ pub enum AccessCommand {
     },
 
     /// Sets this widget as the starting point for the next TAB navigation.
-    /// 
+    ///
     /// If the user presses TAB the focus will move to the next logical focusable after this widget,
     /// but this widget will not be focused by this request.
-    SetNextTabStart(AccessNodeId),
+    SetNextTabStart,
 
     /// Show widget's context menu.
     ShowContextMenu,
+
+    /// Replace the value of the control with the specified value and
+    /// reset the selection, if applicable.
+    SetValueString(String),
+
+    /// Replace the value of the control with the specified value and
+    /// reset the selection, if applicable.
+    SetValueNumber(f64),
 
     /// Custom command.
     Custom(ApiExtensionId, ApiExtensionPayload),
