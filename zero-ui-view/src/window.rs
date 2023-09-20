@@ -342,8 +342,21 @@ impl Window {
 
         drop(wr_scope);
 
-        let access =
-            accesskit_winit::Adapter::with_action_handler(&winit_window, Default::default, Box::new(AccessSender { id, event_sender }));
+        let access = accesskit_winit::Adapter::with_action_handler(
+            &winit_window,
+            || {
+                // TODO
+                // load a fake root
+                let root_id = accesskit::NodeId(std::num::NonZeroU128::new(1).unwrap());
+                let root = accesskit::NodeBuilder::new(accesskit::Role::Application).build(&mut accesskit::NodeClassSet::new());
+                accesskit::TreeUpdate {
+                    nodes: vec![(root_id, root)],
+                    tree: Some(accesskit::Tree::new(root_id)),
+                    focus: None,
+                }
+            },
+            Box::new(AccessSender { id, event_sender }),
+        );
 
         let mut win = Self {
             id,
