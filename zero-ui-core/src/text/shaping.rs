@@ -2559,8 +2559,7 @@ impl<'a> ShapedLine<'a> {
         start..end
     }
 
-    /// Gets the text range of the actual line, excluding the line break
-    /// to keep [`end`] in the same line.
+    /// Gets the text range of the actual line, excluding the line break at the end.
     pub fn actual_text_caret_range(&self) -> ops::Range<usize> {
         let start = self.actual_line_start().text_range().start;
         let end = self.actual_line_end().text_caret_range().end;

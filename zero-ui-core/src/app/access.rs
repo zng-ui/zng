@@ -11,6 +11,11 @@ use crate::{
     window::WindowId,
 };
 
+pub(super) fn on_access_init(window_id: WindowId) -> EventUpdate {
+    let args = AccessInitArgs::now(window_id);
+    ACCESS_INIT_EVENT.new_update(args)
+}
+
 pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCommand) -> Option<EventUpdate> {
     match command {
         AccessCommand::Click(primary) => {
@@ -70,6 +75,19 @@ pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, comman
 }
 
 event_args! {
+    /// Arguments for the [`ACCESS_INIT_EVENT`].
+    pub struct AccessInitArgs {
+        /// Target window.
+        pub window_id: WindowId,
+
+        ..
+
+        /// Event is broadcast.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
     /// Arguments for the [`ACCESS_CLICK_EVENT`].
     pub struct AccessClickArgs {
         /// Target window.
@@ -262,6 +280,9 @@ impl AccessClickArgs {
 }
 
 event! {
+    /// Accessibility info was requested for the first time in a window.
+    pub static ACCESS_INIT_EVENT: AccessInitArgs;
+
     /// Run the primary or context click action.
     pub static ACCESS_CLICK_EVENT: AccessClickArgs;
 

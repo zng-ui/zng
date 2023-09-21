@@ -460,6 +460,9 @@ declare_api! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, id: WindowId, frame: window::FrameUpdateRequest);
 
+    /// Update the window's accessibility info tree.
+    pub fn access_update(&mut self, id: WindowId, update: access::AccessTreeUpdate);
+
     /// Shows a native message dialog for the window.
     ///
     /// Returns an ID that identifies the response event.

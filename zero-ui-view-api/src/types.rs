@@ -493,6 +493,12 @@ pub enum Event {
     /// User responded to a native file dialog.
     FileDialogResponse(DialogId, FileDialogResponse),
 
+    /// Accessibility info tree was requested for the first time on a window.
+    AccessInit {
+        /// Window that received the first accessibility request.
+        window: WindowId,
+    },
+
     /// Accessibility command.
     AccessCommand {
         /// Window that had pixels copied.

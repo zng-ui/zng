@@ -1785,6 +1785,12 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
     }
 
+    fn access_update(&mut self, id: WindowId, update: access::AccessTreeUpdate) {
+        if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
+            s.access_update(update);
+        }
+    }
+
     fn message_dialog(&mut self, id: WindowId, dialog: MsgDialog) -> DialogId {
         let r_id = self.dialog_id_gen.incr();
         if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {

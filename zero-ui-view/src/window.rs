@@ -343,9 +343,15 @@ impl Window {
         drop(wr_scope);
 
         let access_tree = cfg.access_tree;
+        let mut first = Some((event_sender.clone(), id));
         let access = accesskit_winit::Adapter::with_action_handler(
             &winit_window,
-            move || crate::util::access_tree_to_update(access_tree),
+            move || {
+                if let Some((first, window_id)) = first.take() {
+                    let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
+                }
+                crate::util::access_tree_to_kit_update(access_tree)
+            },
             Box::new(AccessSender { id, event_sender }),
         );
 
@@ -1622,6 +1628,11 @@ impl Window {
     /// Pump the accessibility adapter.
     pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
         let _must_use_why = self.access.on_event(&self.window, event);
+    }
+
+    /// Update the accessibility info.
+    pub fn access_update(&mut self, _update: zero_ui_view_api::access::AccessTreeUpdate) {
+        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(_update))
     }
 }
 impl Drop for Window {

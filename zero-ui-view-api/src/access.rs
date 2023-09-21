@@ -251,8 +251,6 @@ pub enum AccessState {
     Orientation(Orientation),
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
     Placeholder(String),
-    /// If the toggle button is pressed.
-    Pressed,
     /// Indicates that the widget is not editable, but is otherwise operable.
     ReadOnly,
     /// Indicates that user input is required on the widget before a form may be submitted.
@@ -318,9 +316,9 @@ pub enum AccessState {
     LabelledBy(Vec<AccessNodeId>),
     /// Identifies widget(s) in order to define a visual, functional, or contextual relationship between a parent and its child
     /// widgets when the tree hierarchy cannot be used to represent the relationship.
-    Owns,
+    Owns(Vec<AccessNodeId>),
     /// Defines the widget's number or position in the current set of list items or tree items when not all items are present in the tree.
-    PosInSet,
+    PosInSet(usize),
     /// Defines the total number of rows in a [`Table`], [`Grid`], or [`TreeGrid`] when not all rows are present in tree.
     ///
     /// The value `0` indicates that not all rows are in the widget and the application cannot determinate the exact number.
@@ -328,7 +326,7 @@ pub enum AccessState {
     /// [`Table`]: AccessRole::Table
     /// [`Grid`]: AccessRole::Grid
     /// [`TreeGrid`]: AccessRole::TreeGrid
-    RowCount,
+    RowCount(usize),
     /// Defines an widget's row index in the parent table or grid.
     RowIndex(usize),
     /// Defines the number of rows spanned by the widget in the parent table or grid.
@@ -647,6 +645,20 @@ impl ops::Deref for AccessTree {
         &self.0
     }
 }
+impl From<AccessTree> for Vec<AccessNode> {
+    fn from(value: AccessTree) -> Self {
+        value.0
+    }
+}
+impl IntoIterator for AccessTree {
+    type Item = AccessNode;
+
+    type IntoIter = std::vec::IntoIter<AccessNode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 /// Reference an access node in a tree.
 pub struct AccessNodeRef<'a> {
@@ -705,4 +717,17 @@ impl<'a> ops::Deref for AccessNodeRef<'a> {
     fn deref(&self) -> &Self::Target {
         &self.tree[self.index]
     }
+}
+
+/// Update for accessibility info tree for a window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessTreeUpdate {
+    /// Full tree replacement.
+    pub tree: Option<AccessTree>,
+
+    /// Node updates.
+    pub updates: Vec<AccessNode>,
+
+    /// Focused widget changed.
+    pub focused: Option<AccessNodeId>,
 }

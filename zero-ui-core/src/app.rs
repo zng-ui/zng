@@ -1338,6 +1338,9 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             }
 
+            Event::AccessInit { window: w_id } => {
+                self.notify_event(access::on_access_init(window_id(w_id)), observer);
+            }
             Event::AccessCommand {
                 window: win_id,
                 target: wgt_id,

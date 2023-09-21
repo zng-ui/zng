@@ -2,7 +2,7 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
-use zero_ui_view_api::access::AccessTree;
+use zero_ui_view_api::access::{AccessNodeId, AccessTree};
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::{
     config::ColorScheme,
@@ -789,12 +789,10 @@ pub(crate) fn accesskit_to_event(
     })
 }
 
-pub(crate) fn access_tree_to_update(tree: AccessTree) -> accesskit::TreeUpdate {
-    let root = tree.root();
-    let root_id = accesskit::NodeId(std::num::NonZeroU128::new(root.id.0 as _).unwrap());
-    let role = access_role_to_kit(root.role);
+pub(crate) fn access_tree_to_kit_update(tree: AccessTree) -> accesskit::TreeUpdate {
+    let mut class_set = accesskit::NodeClassSet::new();
+    let (root_id, root) = access_node_to_kit(tree.root(), &mut class_set); // TODO, other nodes
 
-    let root = accesskit::NodeBuilder::new(role).build(&mut accesskit::NodeClassSet::new());
     accesskit::TreeUpdate {
         nodes: vec![(root_id, root)],
         tree: Some(accesskit::Tree::new(root_id)),
@@ -802,6 +800,209 @@ pub(crate) fn access_tree_to_update(tree: AccessTree) -> accesskit::TreeUpdate {
     }
 
     // TODO
+}
+
+pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
+    accesskit::TreeUpdate {
+        nodes: vec![], // TODO
+        tree: None,
+        focus: update.focused.map(access_id_to_kit),
+    }
+}
+
+fn access_node_to_kit(
+    node: zero_ui_view_api::access::AccessNodeRef,
+    class_set: &mut accesskit::NodeClassSet,
+) -> (accesskit::NodeId, accesskit::Node) {
+    let node_id = access_id_to_kit(node.id);
+    let node_role = access_role_to_kit(node.role);
+    let mut builder = accesskit::NodeBuilder::new(node_role);
+
+    // add actions
+    for cmd in &node.commands {
+        use zero_ui_view_api::access::AccessCommandName::*;
+
+        match cmd {
+            Click => {
+                builder.add_action(accesskit::Action::Default);
+                builder.add_action(accesskit::Action::ShowContextMenu); // TODO, what if it does not?
+            }
+            Focus => {
+                builder.add_action(accesskit::Action::Focus);
+                builder.add_action(accesskit::Action::Blur);
+            }
+            SetNextTabStart => {
+                builder.add_action(accesskit::Action::SetSequentialFocusNavigationStartingPoint);
+            }
+            SetExpanded => {
+                builder.add_action(accesskit::Action::Expand);
+                builder.add_action(accesskit::Action::Collapse);
+            }
+            Increment => {
+                builder.add_action(accesskit::Action::Increment);
+            }
+            SetToolTipVis => {
+                builder.add_action(accesskit::Action::ShowTooltip);
+                builder.add_action(accesskit::Action::HideTooltip);
+            }
+            Scroll => {
+                // TODO, what is can't scroll up?
+                builder.add_action(accesskit::Action::ScrollBackward);
+                builder.add_action(accesskit::Action::ScrollUp);
+                builder.add_action(accesskit::Action::ScrollLeft);
+                builder.add_action(accesskit::Action::ScrollForward);
+                builder.add_action(accesskit::Action::ScrollDown);
+                builder.add_action(accesskit::Action::ScrollRight);
+                builder.add_action(accesskit::Action::ScrollIntoView);
+                builder.add_action(accesskit::Action::ScrollToPoint);
+            }
+            ReplaceSelectedText => {
+                builder.add_action(accesskit::Action::ReplaceSelectedText);
+            }
+            SelectText => {
+                builder.add_action(accesskit::Action::SetTextSelection);
+            }
+            SetString => {
+                builder.add_action(accesskit::Action::SetValue);
+            }
+            SetNumber => {
+                builder.add_action(accesskit::Action::SetValue);
+            }
+            _ => todo!(),
+        }
+    }
+
+    for state in &node.state {
+        use zero_ui_view_api::access::{self, AccessState::*};
+
+        match state {
+            AutoComplete(s) => builder.set_auto_complete(
+                if *s == access::AutoComplete::BOTH {
+                    "both"
+                } else if *s == access::AutoComplete::INLINE {
+                    "inline"
+                } else if *s == access::AutoComplete::LIST {
+                    "list"
+                } else {
+                    "none"
+                }
+                .to_owned()
+                .into_boxed_str(),
+            ),
+            Checked(b) => builder.set_checked_state(match b {
+                Some(true) => accesskit::CheckedState::True,
+                Some(false) => accesskit::CheckedState::False,
+                None => accesskit::CheckedState::Mixed,
+            }),
+            CurrentPage => builder.set_aria_current(accesskit::AriaCurrent::Page),
+            CurrentStep => builder.set_aria_current(accesskit::AriaCurrent::Step),
+            CurrentLocation => builder.set_aria_current(accesskit::AriaCurrent::Location),
+            CurrentDate => builder.set_aria_current(accesskit::AriaCurrent::Date),
+            CurrentTime => builder.set_aria_current(accesskit::AriaCurrent::Time),
+            CurrentItem => builder.set_aria_current(accesskit::AriaCurrent::True),
+            Disabled => builder.set_disabled(),
+            ErrorMessage(id) => builder.set_error_message(access_id_to_kit(*id)),
+            Expanded(b) => builder.set_expanded(*b),
+            HasPopup(pop) => match pop {
+                access::Popup::Menu => builder.set_has_popup(accesskit::HasPopup::Menu),
+                access::Popup::ListBox => builder.set_has_popup(accesskit::HasPopup::Listbox),
+                access::Popup::Tree => builder.set_has_popup(accesskit::HasPopup::Tree),
+                access::Popup::Grid => builder.set_has_popup(accesskit::HasPopup::Grid),
+                access::Popup::Dialog => builder.set_has_popup(accesskit::HasPopup::Dialog),
+            },
+            Invalid => builder.set_invalid(accesskit::Invalid::True),
+            InvalidGrammar => builder.set_invalid(accesskit::Invalid::Grammar),
+            InvalidSpelling => builder.set_invalid(accesskit::Invalid::Spelling),
+            Label(s) => builder.set_name(s.clone().into_boxed_str()),
+            Level(n) => builder.set_hierarchical_level(n.get() as usize),
+            Modal => builder.set_modal(),
+            MultiLine => builder.set_multiline(),
+            MultiSelectable => builder.set_multiselectable(),
+            Orientation(o) => match o {
+                access::Orientation::Horizontal => builder.set_orientation(accesskit::Orientation::Horizontal),
+                access::Orientation::Vertical => builder.set_orientation(accesskit::Orientation::Vertical),
+            },
+            Placeholder(p) => builder.set_placeholder(p.clone().into_boxed_str()),
+            ReadOnly => builder.set_read_only(),
+            Required => builder.set_required(),
+            Selected => builder.set_selected(true),
+            Sort(o) => match o {
+                access::SortDirection::Ascending => builder.set_sort_direction(accesskit::SortDirection::Ascending),
+                access::SortDirection::Descending => builder.set_sort_direction(accesskit::SortDirection::Descending),
+            },
+            ValueMax(m) => builder.set_max_numeric_value(*m),
+            ValueMin(m) => builder.set_min_numeric_value(*m),
+            ValueNow(v) => builder.set_numeric_value(*v),
+            ValueText(v) => builder.set_value(v.clone().into_boxed_str()),
+            Live {
+                indicator,
+                changes,
+                atomic,
+                busy,
+            } => {
+                builder.set_live(match indicator {
+                    access::LiveIndicator::Assertive => accesskit::Live::Assertive,
+                    access::LiveIndicator::OnlyIfFocused => accesskit::Live::Off,
+                    access::LiveIndicator::Polite => accesskit::Live::Polite,
+                });
+                builder.set_live_relevant({
+                    if *changes == access::LiveChange::ALL {
+                        "all".to_owned()
+                    } else {
+                        let mut s = String::new();
+                        if changes.contains(access::LiveChange::ADD) {
+                            s.push_str("additions ");
+                        }
+                        if changes.contains(access::LiveChange::REMOVE) {
+                            s.push_str("removals ");
+                        }
+                        if changes.contains(access::LiveChange::TEXT) {
+                            s.push_str("text ");
+                        }
+                        if !s.is_empty() {
+                            let _last_char = s.pop();
+                            debug_assert_eq!(Some(' '), _last_char);
+                        }
+
+                        s
+                    }
+                    .into_boxed_str()
+                });
+                if *atomic {
+                    builder.set_live_atomic();
+                }
+                if *busy {
+                    builder.set_busy();
+                }
+            }
+            ActiveDescendant(id) => builder.set_active_descendant(access_id_to_kit(*id)),
+            ColCount(c) => builder.set_table_column_count(*c),
+            ColIndex(i) => builder.set_table_column_index(*i),
+            ColSpan(s) => builder.set_table_cell_column_span(*s),
+            Controls(ids) => builder.set_controls(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
+            DescribedBy(ids) => builder.set_described_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
+            Details(ids) => builder.set_details(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
+            FlowTo(id) => builder.set_flow_to(vec![access_id_to_kit(*id)]),
+            LabelledBy(ids) => builder.set_labelled_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
+            Owns(ids) => {
+                for id in ids {
+                    builder.push_indirect_child(access_id_to_kit(*id));
+                }
+            }
+            PosInSet(p) => builder.set_position_in_set(*p),
+            RowCount(c) => builder.set_table_row_count(*c),
+            RowIndex(i) => builder.set_table_row_index(*i),
+            RowSpan(s) => builder.set_table_cell_row_span(*s),
+            SetSize(s) => builder.set_size_of_set(*s),
+            _ => {}
+        }
+    }
+
+    (node_id, builder.build(class_set))
+}
+
+fn access_id_to_kit(id: AccessNodeId) -> accesskit::NodeId {
+    accesskit::NodeId(std::num::NonZeroU128::new(id.0 as _).unwrap())
 }
 
 fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::Role {

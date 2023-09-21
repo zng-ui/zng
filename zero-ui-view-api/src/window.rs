@@ -454,6 +454,12 @@ pub struct WindowRequest {
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// Initial accessibility info tree.
+    ///
+    /// This can be just the root node empty to lazy init, the [`Event::AccessInit`] event is send to the window
+    /// if any accessibility service requests the tree, after the init the window should assume that accessibility
+    /// info is required for the lifetime of the window and updates must be send.
+    ///
+    /// [`Event::AccessInit`]: crate::Event::AccessInit
     pub access_tree: AccessTree,
 }
 impl WindowRequest {
