@@ -1,8 +1,10 @@
 # TextInput
-
-* Hold delete pressed, eventually panic happens.
-    - Option::unwrap in `highlight_rects`.
 * Implement selection.
+    - Text edit/text change must use selection.
+        - Delete selection.
+        - Replace selection when typing starts.
+    - Arrow keys must use selection.
+        - Does not move caret, moves from the end-point in the direction.
     - Mouse:
         - Double-click causes selection that grows by word.
             - Conflict with normal press drag?
