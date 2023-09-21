@@ -965,7 +965,7 @@ pub struct CaretIndex {
     pub index: usize,
     /// Line index in the shaped text.
     ///
-    /// Note that this counts wrap lines, this value is used disambiguate
+    /// Note that this counts wrap lines, this value is used to disambiguate
     /// between the *end* of a wrap and the *start* of the next, the text
     /// it-self does not have any line break but visually the user interacts
     /// with two lines.

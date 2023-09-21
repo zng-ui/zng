@@ -1,7 +1,7 @@
 # TextInput
 
-* Bug with `text_caret_range`
-    - `.end` can be wrong if the function is called for the last line and the line is empty?
+* Hold delete pressed, eventually panic happens.
+    - Option::unwrap in `highlight_rects`.
 * Implement selection.
     - Mouse:
         - Double-click causes selection that grows by word.

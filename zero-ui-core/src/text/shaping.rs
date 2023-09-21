@@ -957,7 +957,7 @@ impl ShapedText {
 
     /// Gets the line by index.
     pub fn line(&self, line_idx: usize) -> Option<ShapedLine> {
-        if self.lines.0.len() <= line_idx {
+        if line_idx >= self.lines.0.len() {
             None
         } else {
             self.lines.iter_segs_skip(line_idx).next().map(move |(w, r)| ShapedLine {
@@ -2472,7 +2472,7 @@ impl<'a> ShapedLine<'a> {
             self.text.segments.0[prev_line.iter()]
                 .last()
                 .map(|s| !matches!(s.text.kind, TextSegmentKind::LineBreak))
-                .unwrap_or(true)
+                .unwrap() // only last line can be empty
         }
     }
 
@@ -2488,7 +2488,29 @@ impl<'a> ShapedLine<'a> {
                 .segments()
                 .last()
                 .map(|s| !matches!(s.text.kind, TextSegmentKind::LineBreak))
-                .unwrap_or(false)
+                .unwrap() // only last line can be empty
+    }
+
+    /// Returns the line or first previous line that is not [`started_by_wrap`].
+    ///
+    /// [`started_by_wrap`]: Self::started_by_wrap
+    pub fn actual_line_start(&self) -> Self {
+        let mut r = *self;
+        while r.started_by_wrap() {
+            r = r.text.line(r.index - 1).unwrap();
+        }
+        r
+    }
+
+    /// Returns the line or first next line that is not [`ended_by_wrap`].
+    ///
+    /// [`ended_by_wrap`]: Self::ended_by_wrap
+    pub fn actual_line_end(&self) -> Self {
+        let mut r = *self;
+        while r.ended_by_wrap() {
+            r = r.text.line(r.index + 1).unwrap();
+        }
+        r
     }
 
     /// Get the text bytes range of this line in the original text.
@@ -2498,7 +2520,7 @@ impl<'a> ShapedLine<'a> {
         let end = self.seg_range.end();
         let end = if end == 0 { 0 } else { self.text.segments.0[end - 1].text.end };
 
-        IndexRange(start, end).iter()
+        start..end
     }
 
     /// Get the text bytes range of this line in the original text, excluding the line break
@@ -2511,6 +2533,8 @@ impl<'a> ShapedLine<'a> {
         let end = self.seg_range.end();
         let end = if end == 0 {
             0
+        } else if self.seg_range.start() == end {
+            start
         } else {
             let seg = &self.text.segments.0[end - 1];
             if !matches!(seg.text.kind, TextSegmentKind::LineBreak) {
@@ -2525,7 +2549,22 @@ impl<'a> ShapedLine<'a> {
             }
         };
 
-        IndexRange(start, end).iter()
+        start..end
+    }
+
+    /// Gets the text range of the actual line, joining shaped lines that are started by wrap.
+    pub fn actual_text_range(&self) -> ops::Range<usize> {
+        let start = self.actual_line_start().text_range().start;
+        let end = self.actual_line_end().text_range().end;
+        start..end
+    }
+
+    /// Gets the text range of the actual line, excluding the line break
+    /// to keep [`end`] in the same line.
+    pub fn actual_text_caret_range(&self) -> ops::Range<usize> {
+        let start = self.actual_line_start().text_range().start;
+        let end = self.actual_line_end().text_caret_range().end;
+        start..end
     }
 
     /// Select the string represented by this line.

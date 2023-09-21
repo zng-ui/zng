@@ -957,8 +957,7 @@ fn select_line_word_nearest_to(select_word: bool, window_point: DipPoint) {
             let range = if select_word {
                 l.nearest_seg(pos.x).map(|seg| seg.text_range()).unwrap_or_else(|| l.text_range())
             } else {
-                //TODO: Select entire line even when wrapped?
-                l.text_caret_range()
+                l.actual_text_caret_range()
             };
             c.selection_index = Some(CaretIndex {
                 line: l.index(),

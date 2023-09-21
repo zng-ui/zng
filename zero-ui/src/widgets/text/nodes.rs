@@ -1072,6 +1072,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let caret = &mut *caret;
                     if let Some(index) = &mut caret.index {
                         *index = txt.shaped_text.snap_caret_line(*index);
+                        if let Some(sel) = &mut caret.selection_index {
+                            *sel = txt.shaped_text.snap_caret_line(*sel);
+                        }
                         let p = txt.shaped_text.caret_origin(*index, resolved_text.text.text());
                         if !caret.used_retained_x {
                             txt.caret_retained_x = p.x;
