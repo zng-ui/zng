@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use webrender_api::{ColorF, Epoch, PipelineId, RenderReasons};
 
 use crate::{
+    access::AccessTree,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
@@ -451,6 +452,9 @@ pub struct WindowRequest {
 
     /// Config for renderer extensions.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
+
+    /// Initial accessibility info tree.
+    pub access_tree: AccessTree,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

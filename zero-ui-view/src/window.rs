@@ -342,19 +342,10 @@ impl Window {
 
         drop(wr_scope);
 
+        let access_tree = cfg.access_tree;
         let access = accesskit_winit::Adapter::with_action_handler(
             &winit_window,
-            || {
-                // TODO
-                // load a fake root
-                let root_id = accesskit::NodeId(std::num::NonZeroU128::new(1).unwrap());
-                let root = accesskit::NodeBuilder::new(accesskit::Role::Application).build(&mut accesskit::NodeClassSet::new());
-                accesskit::TreeUpdate {
-                    nodes: vec![(root_id, root)],
-                    tree: Some(accesskit::Tree::new(root_id)),
-                    focus: None,
-                }
-            },
+            move || crate::util::access_tree_to_update(access_tree),
             Box::new(AccessSender { id, event_sender }),
         );
 

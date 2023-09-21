@@ -228,6 +228,13 @@ impl WidgetInfoTree {
         self.0.lookup.len()
     }
 
+    /// Collect full accessibility tree info form view-process.
+    pub fn collect_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
+        use zero_ui_view_api::access::*;
+
+        AccessTree::new(AccessNode::new(AccessNodeId(self.root().id().get()), AccessRole::Application))
+    }
+
     fn bounds_changed(&self) {
         self.0.frame.write().stats_update.bounds_updated += 1;
     }

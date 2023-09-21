@@ -602,8 +602,22 @@ pub struct AccessNode {
     /// See [`AccessTree::push`] for more details.
     pub descendants_count: u32,
 }
+impl AccessNode {
+    /// New leaf node.
+    pub fn new(id: AccessNodeId, role: AccessRole) -> Self {
+        Self {
+            id,
+            role,
+            commands: vec![],
+            state: vec![],
+            children_count: 0,
+            descendants_count: 0,
+        }
+    }
+}
 
 /// Accessibility info tree for a window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessTree(Vec<AccessNode>);
 impl AccessTree {
     /// New tree with root node.

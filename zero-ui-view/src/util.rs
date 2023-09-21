@@ -2,6 +2,7 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
+use zero_ui_view_api::access::AccessTree;
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::{
     config::ColorScheme,
@@ -786,4 +787,94 @@ pub(crate) fn accesskit_to_event(
             },
         },
     })
+}
+
+pub(crate) fn access_tree_to_update(tree: AccessTree) -> accesskit::TreeUpdate {
+    let root = tree.root();
+    let root_id = accesskit::NodeId(std::num::NonZeroU128::new(root.id.0 as _).unwrap());
+    let role = access_role_to_kit(root.role);
+
+    let root = accesskit::NodeBuilder::new(role).build(&mut accesskit::NodeClassSet::new());
+    accesskit::TreeUpdate {
+        nodes: vec![(root_id, root)],
+        tree: Some(accesskit::Tree::new(root_id)),
+        focus: None,
+    }
+
+    // TODO
+}
+
+fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::Role {
+    use accesskit::Role;
+    use zero_ui_view_api::access::AccessRole::*;
+    match role {
+        Button => Role::Button,
+        CheckBox => Role::CheckBox,
+        GridCell => Role::Cell,
+        Link => Role::Link,
+        MenuItem => Role::MenuItem,
+        MenuItemCheckBox => Role::MenuItemCheckBox,
+        MenuItemRadio => Role::MenuItemRadio,
+        Option => Role::ListBoxOption,
+        ProgressBar => Role::ProgressIndicator,
+        Radio => Role::RadioButton,
+        ScrollBar => Role::ScrollBar,
+        SearchBox => Role::SearchBox,
+        Slider => Role::Slider,
+        SpinButton => Role::SpinButton,
+        Switch => Role::Switch,
+        Tab => Role::Tab,
+        TabPanel => Role::TabPanel,
+        TextBox => Role::TextField,
+        TreeItem => Role::TreeItem,
+        ComboBox => Role::TextFieldWithComboBox,
+        Grid => Role::Grid,
+        ListBox => Role::ListBox,
+        Menu => Role::Menu,
+        MenuBar => Role::MenuBar,
+        RadioGroup => Role::RadioGroup,
+        TabList => Role::TabList,
+        Tree => Role::Tree,
+        TreeGrid => Role::TreeGrid,
+        Application => Role::Application,
+        Article => Role::Article,
+        Cell => Role::Cell,
+        ColumnHeader => Role::ColumnHeader,
+        Definition => Role::Definition,
+        Document => Role::Document,
+        Feed => Role::Feed,
+        Figure => Role::Figure,
+        Group => Role::Group,
+        Heading => Role::Heading,
+        Img => Role::Image,
+        List => Role::List,
+        ListItem => Role::ListItem,
+        Math => Role::Math,
+        Note => Role::Note,
+        Presentation => Role::Presentation,
+        Row => Role::Row,
+        RowGroup => Role::RowGroup,
+        RowHeader => Role::RowHeader,
+        Separator => Role::Splitter,
+        Table => Role::Table,
+        Term => Role::Term,
+        ToolBar => Role::Toolbar,
+        ToolTip => Role::Tooltip,
+        Banner => Role::Banner,
+        Complementary => Role::Complementary,
+        ContentInfo => Role::ContentInfo,
+        Form => Role::Form,
+        Main => Role::Main,
+        Navigation => Role::Navigation,
+        Region => Role::Region,
+        Search => Role::Search,
+        Alert => Role::Alert,
+        Log => Role::Log,
+        Marquee => Role::Marquee,
+        Status => Role::Status,
+        Timer => Role::Timer,
+        AlertDialog => Role::AlertDialog,
+        Dialog => Role::Dialog,
+        _ => Role::Unknown,
+    }
 }
