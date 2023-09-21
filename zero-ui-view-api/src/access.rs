@@ -1,6 +1,6 @@
 //! Accessibility and automation types.
 
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, ops};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -496,6 +496,64 @@ pub enum AccessCommand {
     /// reset the selection, if applicable.
     SetNumber(f64),
 }
+impl AccessCommand {
+    /// Gets the command discriminant without associated data.
+    pub fn name(&self) -> AccessCommandName {
+        match self {
+            AccessCommand::Click(_) => AccessCommandName::Click,
+            AccessCommand::Focus(_) => AccessCommandName::Focus,
+            AccessCommand::SetNextTabStart => AccessCommandName::SetNextTabStart,
+            AccessCommand::SetExpanded(_) => AccessCommandName::SetExpanded,
+            AccessCommand::Increment(_) => AccessCommandName::Increment,
+            AccessCommand::SetToolTipVis(_) => AccessCommandName::SetToolTipVis,
+            AccessCommand::Scroll(_) => AccessCommandName::Scroll,
+            AccessCommand::ReplaceSelectedText(_) => AccessCommandName::ReplaceSelectedText,
+            AccessCommand::SelectText { .. } => AccessCommandName::SelectText,
+            AccessCommand::SetString(_) => AccessCommandName::SetString,
+            AccessCommand::SetNumber(_) => AccessCommandName::SetNumber,
+        }
+    }
+}
+
+/// Accessibility command without associated data.
+///
+/// See [`AccessCommand::name`] for more details.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum AccessCommandName {
+    /// [`AccessCommand::Click`]
+    Click,
+
+    /// [`AccessCommand::Focus`]
+    Focus,
+
+    /// [`AccessCommand::SetNextTabStart`]
+    SetNextTabStart,
+
+    /// [`AccessCommand::SetExpanded`]
+    SetExpanded,
+
+    /// [`AccessCommand::Increment`]
+    Increment,
+
+    /// [`AccessCommand::SetToolTipVis`]
+    SetToolTipVis,
+
+    /// [`AccessCommand::Scroll`]
+    Scroll,
+
+    /// [`AccessCommand::ReplaceSelectedText`]
+    ReplaceSelectedText,
+
+    /// [`AccessCommand::SelectText`]
+    SelectText,
+
+    /// [`AccessCommand::SetString`]
+    SetString,
+
+    /// [`AccessCommand::SetNumber`]
+    SetNumber,
+}
 
 /// Accessibility scroll command.
 ///
@@ -522,4 +580,115 @@ pub enum ScrollCommand {
 
     /// Set the horizontal and vertical scroll offset.
     SetScrollOffset(DipVector),
+}
+
+/// Represents a widget in the access info tree.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessNode {
+    /// Widget ID.
+    pub id: AccessNodeId,
+    /// Accessibility role.
+    pub role: AccessRole,
+    /// Commands the widget supports.
+    pub commands: Vec<AccessCommandName>,
+    /// Accessibility state.
+    pub state: Vec<AccessState>,
+    /// Number of children.
+    ///
+    /// See [`AccessTree::push`] for more details.
+    pub children_count: u32,
+    /// Number of descendants.
+    ///
+    /// See [`AccessTree::push`] for more details.
+    pub descendants_count: u32,
+}
+
+/// Accessibility info tree for a window.
+pub struct AccessTree(Vec<AccessNode>);
+impl AccessTree {
+    /// New tree with root node.
+    pub fn new(root: AccessNode) -> Self {
+        let mut s = Self(vec![]);
+        s.push(root);
+        s
+    }
+
+    /// Pushes a node on the tree.
+    ///
+    /// If `children_count` is not zero the children must be pushed immediately after, each child
+    /// pushes their children immediately after too. A tree `(a(a.a, a.b, a.c), b)` pushes `[a, a.a, a.b, a.c, b]`.
+    pub fn push(&mut self, node: AccessNode) {
+        self.0.push(node);
+    }
+
+    /// Root node.
+    pub fn root(&self) -> AccessNodeRef {
+        AccessNodeRef { tree: self, index: 0 }
+    }
+}
+impl ops::Deref for AccessTree {
+    type Target = [AccessNode];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Reference an access node in a tree.
+pub struct AccessNodeRef<'a> {
+    tree: &'a AccessTree,
+    index: usize,
+}
+impl<'a> AccessNodeRef<'a> {
+    /// iterate over all descendant nodes.
+    pub fn descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+        let range = self.index..(self.index + self.descendants_count as usize);
+        let tree = self.tree;
+        range.map(move |i| AccessNodeRef { tree, index: i })
+    }
+
+    /// Iterate over children nodes.
+    pub fn children(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+        struct ChildrenIter<'a> {
+            tree: &'a AccessTree,
+            count: usize,
+            index: usize,
+        }
+        impl<'a> Iterator for ChildrenIter<'a> {
+            type Item = AccessNodeRef<'a>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.count > 0 {
+                    let item = AccessNodeRef {
+                        tree: self.tree,
+                        index: self.index,
+                    };
+                    self.count -= 1;
+
+                    self.index += item.descendants_count as usize;
+
+                    Some(item)
+                } else {
+                    None
+                }
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.count, Some(self.count))
+            }
+        }
+        impl<'a> ExactSizeIterator for ChildrenIter<'a> {}
+        ChildrenIter {
+            tree: self.tree,
+            count: self.children_count as usize,
+            index: self.index + 1,
+        }
+    }
+}
+impl<'a> ops::Deref for AccessNodeRef<'a> {
+    type Target = AccessNode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tree[self.index]
+    }
 }
