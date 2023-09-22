@@ -67,6 +67,8 @@ pub(super) struct WindowVarsData {
     pub(super) render_mode: ArcVar<RenderMode>,
 
     renderer_debug: ArcVar<RendererDebug>,
+
+    pub(super) access_enabled: ArcVar<bool>,
 }
 
 /// Controls properties of an open window using variables.
@@ -139,6 +141,8 @@ impl WindowVars {
             render_mode: var(default_render_mode),
 
             renderer_debug: var(RendererDebug::disabled()),
+
+            access_enabled: var(false),
         });
         Self(vars)
     }
@@ -625,6 +629,14 @@ impl WindowVars {
     /// Renderer debug flags and profiler UI.
     pub fn renderer_debug(&self) -> ArcVar<RendererDebug> {
         self.0.renderer_debug.clone()
+    }
+
+    /// If an accessibility service has requested info from this window.
+    ///
+    /// This is set to `true` on the first request and is never disabled after, when enabled accessibility info
+    /// is collected from the info tree and send to the view-process.
+    pub fn access_enabled(&self) -> ReadOnlyArcVar<bool> {
+        self.0.access_enabled.read_only()
     }
 }
 impl PartialEq for WindowVars {

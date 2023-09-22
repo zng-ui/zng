@@ -34,7 +34,10 @@
     - Lots of breaking changes.
 
 * Implement automation/screen reader APIs.
-    - Implement `accesskit` from API info.
-    - Implement some flag for "access_enabled".
-        - Handle `ACCESS_INIT_EVENT`.
+    - Add access info to info tree.
+        - Some are cheap, like role, are there any that are excessive?
+        - Track invalidations?
+        - We only send changes to view-process.
     - Implement access API info from info tree.
+        - Figure out units, transforms.
+    - Review !!: TODO

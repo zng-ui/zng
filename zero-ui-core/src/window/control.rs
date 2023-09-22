@@ -4,6 +4,7 @@ use std::{mem, sync::Arc};
 
 use crate::{
     app::{
+        access::ACCESS_INITED_EVENT,
         raw_events::{
             RawWindowFocusArgs, RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT,
             RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
@@ -626,6 +627,15 @@ impl HeadedCtrl {
 
                 UPDATES.layout_window(w_id).render_window(w_id);
             }
+        } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
+            if args.window_id == WINDOW.id() {
+                self.vars.0.access_enabled.set(true);
+                UPDATES.update_info_window(args.window_id);
+                // !!: TODO, keep a list of widget already send to the view-process?
+                // - Keep a flag in the info?
+                // - We want to only send parent node that has children change and node that has property change.
+                // - What about "live"?
+            }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
@@ -651,7 +661,14 @@ impl HeadedCtrl {
 
     #[must_use]
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
-        self.content.info(info_widgets)
+        let info = self.content.info(info_widgets);
+        if let (Some(info), Some(view)) = (&info, &self.window) {
+            if self.vars.0.access_enabled.get() {
+                // !!: TODO
+                let _ = (info, view);
+            }
+        }
+        info
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
