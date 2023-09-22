@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use webrender_api::{ColorF, Epoch, PipelineId, RenderReasons};
 
 use crate::{
-    access::AccessTree,
+    access::AccessNodeId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
@@ -453,14 +453,14 @@ pub struct WindowRequest {
     /// Config for renderer extensions.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
-    /// Initial accessibility info tree.
+    /// Initial accessibility info tree root widget.
     ///
-    /// This can be just the root node empty to lazy init, the [`Event::AccessInit`] event is send to the window
-    /// if any accessibility service requests the tree, after the init the window should assume that accessibility
-    /// info is required for the lifetime of the window and updates must be send.
+    /// This is used to declare a placeholder node on the first request for accessibility info, the [`Event::AccessInit`] event
+    /// is send to the window if any accessibility service requests the tree, the window must send the full info at that moment,
+    /// after the init the window should assume that accessibility info is required for the lifetime of the window and updates must be send.
     ///
     /// [`Event::AccessInit`]: crate::Event::AccessInit
-    pub access_tree: AccessTree,
+    pub access_root: AccessNodeId,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

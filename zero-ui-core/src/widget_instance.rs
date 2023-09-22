@@ -158,6 +158,9 @@ impl_from_and_into_var! {
     fn from(name: Txt) -> WidgetId {
         WidgetId::named(name)
     }
+    fn from(id: WidgetId) -> zero_ui_view_api::access::AccessNodeId {
+        zero_ui_view_api::access::AccessNodeId(id.get())
+    }
 }
 impl crate::var::IntoVar<Option<WidgetId>> for WidgetId {
     type Var = crate::var::LocalVar<Option<WidgetId>>;

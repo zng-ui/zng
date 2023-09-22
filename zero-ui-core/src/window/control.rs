@@ -800,7 +800,7 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-            access_tree: WINDOW.info().collect_access_tree(),
+            access_root: self.content.root_ctx.id().into(),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -917,7 +917,7 @@ impl HeadedCtrl {
             focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
 
-            access_tree: WINDOW.info().collect_access_tree(),
+            access_root: self.content.root_ctx.id().into(),
 
             extensions: {
                 let mut exts = vec![];

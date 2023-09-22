@@ -757,6 +757,11 @@ impl ViewWindow {
         Ok(())
     }
 
+    /// Update the window's accessibility info tree.
+    pub fn access_update(&self, update: zero_ui_view_api::access::AccessTreeUpdate) -> Result<()> {
+        self.0.call(|id, p| p.access_update(id, update))
+    }
+
     /// Drop `self`.
     pub fn close(self) {
         drop(self)

@@ -342,7 +342,7 @@ impl Window {
 
         drop(wr_scope);
 
-        let access_tree = cfg.access_tree;
+        let access_root = cfg.access_root;
         let mut first = Some((event_sender.clone(), id));
         let access = accesskit_winit::Adapter::with_action_handler(
             &winit_window,
@@ -350,7 +350,7 @@ impl Window {
                 if let Some((first, window_id)) = first.take() {
                     let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
                 }
-                crate::util::access_tree_to_kit_update(access_tree)
+                crate::util::access_tree_init(access_root)
             },
             Box::new(AccessSender { id, event_sender }),
         );

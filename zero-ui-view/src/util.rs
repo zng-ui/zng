@@ -2,7 +2,7 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
-use zero_ui_view_api::access::{AccessNodeId, AccessTree};
+use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::{
     config::ColorScheme,
@@ -789,24 +789,29 @@ pub(crate) fn accesskit_to_event(
     })
 }
 
-pub(crate) fn access_tree_to_kit_update(tree: AccessTree) -> accesskit::TreeUpdate {
-    let mut class_set = accesskit::NodeClassSet::new();
-
-    let (root_id, root_node) = access_node_to_kit(tree.root(), &mut class_set);
-    let mut nodes: Vec<_> = tree.root().descendants().map(|n| access_node_to_kit(n, &mut class_set)).collect();
-    nodes.push((root_id, root_node));
+pub(crate) fn access_tree_init(root_id: AccessNodeId) -> accesskit::TreeUpdate {
+    let root_id = access_id_to_kit(root_id);
+    let mut classes = accesskit::NodeClassSet::new();
+    let root = accesskit::NodeBuilder::new(accesskit::Role::Application).build(&mut classes);
 
     accesskit::TreeUpdate {
-        nodes,
+        nodes: vec![(root_id, root)],
         tree: Some(accesskit::Tree::new(root_id)),
-        focus: None, // TODO
+        focus: Some(root_id),
     }
 }
 
 pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
+    let mut class_set = accesskit::NodeClassSet::new();
+    let mut nodes = Vec::with_capacity(update.updates.iter().map(|t| t.len()).sum());
+
+    for update in update.updates {
+        access_node_to_kit(update.root(), &mut class_set, &mut nodes);
+    }
+
     accesskit::TreeUpdate {
-        nodes: vec![], // TODO
-        tree: None,
+        nodes,
+        tree: update.full_root.map(|id| accesskit::Tree::new(access_id_to_kit(id))),
         focus: update.focused.map(access_id_to_kit),
     }
 }
@@ -814,7 +819,8 @@ pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::Access
 fn access_node_to_kit(
     node: zero_ui_view_api::access::AccessNodeRef,
     class_set: &mut accesskit::NodeClassSet,
-) -> (accesskit::NodeId, accesskit::Node) {
+    output: &mut Vec<(accesskit::NodeId, accesskit::Node)>,
+) -> accesskit::NodeId {
     let node_id = access_id_to_kit(node.id);
     let node_role = access_role_to_kit(node.role);
     let mut builder = accesskit::NodeBuilder::new(node_role);
@@ -873,6 +879,7 @@ fn access_node_to_kit(
         }
     }
 
+    // add state
     for state in &node.state {
         use zero_ui_view_api::access::{self, AccessState::*};
 
@@ -999,7 +1006,14 @@ fn access_node_to_kit(
         }
     }
 
-    (node_id, builder.build(class_set))
+    // add descendants
+    for child in node.children() {
+        let child_id = access_node_to_kit(child, class_set, output);
+        builder.push_child(child_id);
+    }
+    let node = builder.build(class_set);
+    output.push((node_id, node));
+    node_id
 }
 
 fn access_id_to_kit(id: AccessNodeId) -> accesskit::NodeId {
