@@ -474,6 +474,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
+            false,
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
@@ -608,6 +609,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
+            false,
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
@@ -730,6 +732,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
+            false,
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),

@@ -75,7 +75,7 @@ pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, comman
 }
 
 event_args! {
-    /// Arguments for the [`ACCESS_INIT_EVENT`].
+    /// Arguments for the [`ACCESS_INITED_EVENT`].
     pub struct AccessInitedArgs {
         /// Target window.
         pub window_id: WindowId,

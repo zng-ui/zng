@@ -116,6 +116,7 @@ impl WidgetInfoTreeStatsUpdate {
 pub struct WidgetInfoTree(Arc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
+    access_enabled: bool,
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
@@ -146,6 +147,7 @@ impl WidgetInfoTree {
         WidgetInfoBuilder::new(
             Arc::default(),
             window_id,
+            false,
             root_id,
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
@@ -157,6 +159,13 @@ impl WidgetInfoTree {
     /// Statistics abound the info tree.
     pub fn stats(&self) -> WidgetInfoTreeStats {
         self.0.frame.read().stats.clone()
+    }
+
+    /// If this tree contains accessibility information.
+    ///
+    /// If `true` accessibility is enabled for the window and will stay enabled for its lifetime.
+    pub fn access_enabled(&self) -> bool {
+        self.0.access_enabled
     }
 
     /// Scale factor of the last rendered frame.

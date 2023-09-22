@@ -663,8 +663,8 @@ impl HeadedCtrl {
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         let info = self.content.info(info_widgets);
         if let (Some(info), Some(view)) = (&info, &self.window) {
-            if self.vars.0.access_enabled.get() {
-                // !!: TODO
+            if info.access_enabled() {
+                // !!: TODO, collect access update for view-process.
                 let _ = (info, view);
             }
         }
@@ -1595,6 +1595,7 @@ impl ContentCtrl {
             let mut info = WidgetInfoBuilder::new(
                 info_widgets,
                 win_id,
+                self.vars.0.access_enabled.get(),
                 self.root_ctx.id(),
                 self.root_ctx.bounds(),
                 self.root_ctx.border(),

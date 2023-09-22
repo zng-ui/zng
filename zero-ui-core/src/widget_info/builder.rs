@@ -9,6 +9,8 @@ use crate::{
     text::TextSegmentKind,
 };
 
+pub use zero_ui_view_api::access::{AccessRole, AccessState};
+
 use super::*;
 
 /// Tag for the [`WidgetInfo::meta`] state-map.
@@ -20,6 +22,7 @@ pub enum WidgetInfoMeta {}
 pub struct WidgetInfoBuilder {
     info_widgets: Arc<InfoUpdates>,
     window_id: WindowId,
+    access_enabled: bool,
 
     node: tree::NodeId,
     widget_id: WidgetId,
@@ -40,6 +43,7 @@ impl WidgetInfoBuilder {
     pub fn new(
         info_widgets: Arc<InfoUpdates>,
         window_id: WindowId,
+        access_enabled: bool,
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: WidgetBorderInfo,
@@ -61,6 +65,7 @@ impl WidgetInfoBuilder {
         WidgetInfoBuilder {
             info_widgets,
             window_id,
+            access_enabled,
             node: root_node,
             tree,
             interactivity_filters: vec![],
@@ -75,6 +80,13 @@ impl WidgetInfoBuilder {
 
     fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<WidgetInfoData> {
         self.tree.index_mut(id)
+    }
+
+    /// If accessibility info must be collected for this window.
+    ///
+    /// If this is `true` it will remain true for the lifetime of the window.
+    pub fn access_enabled(&self) -> bool {
+        self.access_enabled
     }
 
     /// Current widget id.
@@ -205,6 +217,22 @@ impl WidgetInfoBuilder {
         before_count..self.tree.index(self.node).children_count()
     }
 
+    /// Set the accessibility role of the widget if [`access_enabled`].
+    ///
+    /// [`access_enabled`]: fn@Self::access_enabled
+    pub fn set_access_role(&mut self, role: AccessRole) {
+        // !!: TODO
+        let _ = role;
+    }
+
+    /// Push the accessibility state if [`access_enabled`].
+    ///
+    /// [`access_enabled`]: fn@Self::access_enabled
+    pub fn push_access_state(&mut self, state: AccessState) {
+        // !!: TODO
+        let _ = state;
+    }
+
     /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
     ///
     /// [`parallel_fold`]: Self::parallel_fold
@@ -223,6 +251,7 @@ impl WidgetInfoBuilder {
         ParallelBuilder(Some(Self {
             info_widgets: self.info_widgets.clone(),
             window_id: self.window_id,
+            access_enabled: self.access_enabled,
             widget_id: self.widget_id,
             meta: self.meta.clone(),
             node: tree.root().id(),
@@ -302,6 +331,7 @@ impl WidgetInfoBuilder {
 
         WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
+            access_enabled: self.access_enabled,
             lookup,
             interactivity_filters: self.interactivity_filters,
             build_meta: Arc::new(mem::take(&mut self.build_meta.lock())),

@@ -36,8 +36,14 @@
 * Implement automation/screen reader APIs.
     - Add access info to info tree.
         - Some are cheap, like role, are there any that are excessive?
+            - Even role is one byte per node, or much more if we use the meta dictionary.
+            - On the other hand, if we only enable access on demand and use meta we don't add any cost.
+            - Property name is `access_role`, all properties with `access` prefix.
         - Track invalidations?
         - We only send changes to view-process.
+    - Some state like
     - Implement access API info from info tree.
         - Figure out units, transforms.
     - Review !!: TODO
+    - Implement way to enabled accessibility from code.
+        - Some programmatic service may be interested in these values too.

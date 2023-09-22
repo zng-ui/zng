@@ -105,6 +105,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
     let mut builder = WidgetInfoBuilder::new(
         Arc::default(),
         WindowId::named("w"),
+        false,
         WidgetId::named("w"),
         WidgetBoundsInfo::new_test(
             PxRect::from_size(PxSize::new(Px(800), Px(600))),

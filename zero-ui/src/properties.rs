@@ -1,5 +1,7 @@
 //! Common widget properties.
 
+pub mod access;
+
 pub mod inspector;
 
 mod layout;
