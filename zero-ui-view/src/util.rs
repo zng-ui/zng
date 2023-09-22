@@ -791,15 +791,16 @@ pub(crate) fn accesskit_to_event(
 
 pub(crate) fn access_tree_to_kit_update(tree: AccessTree) -> accesskit::TreeUpdate {
     let mut class_set = accesskit::NodeClassSet::new();
-    let (root_id, root) = access_node_to_kit(tree.root(), &mut class_set); // TODO, other nodes
+
+    let (root_id, root_node) = access_node_to_kit(tree.root(), &mut class_set);
+    let mut nodes: Vec<_> = tree.root().descendants().map(|n| access_node_to_kit(n, &mut class_set)).collect();
+    nodes.push((root_id, root_node));
 
     accesskit::TreeUpdate {
-        nodes: vec![(root_id, root)],
+        nodes,
         tree: Some(accesskit::Tree::new(root_id)),
-        focus: None,
+        focus: None, // TODO
     }
-
-    // TODO
 }
 
 pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
@@ -868,7 +869,7 @@ fn access_node_to_kit(
             SetNumber => {
                 builder.add_action(accesskit::Action::SetValue);
             }
-            _ => todo!(),
+            _ => {}
         }
     }
 
