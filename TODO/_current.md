@@ -39,6 +39,8 @@
             - Even role is one byte per node, or much more if we use the meta dictionary.
             - On the other hand, if we only enable access on demand and use meta we don't add any cost.
             - Property name is `access_role`, all properties with `access` prefix.
+            - Only accept other metadata if the `access_role` is set?
+                - Firefox has role=generic in some entries in the access tree.
         - Track invalidations?
         - We only send changes to view-process.
     - Some state like
