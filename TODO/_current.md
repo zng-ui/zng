@@ -9,6 +9,7 @@
         - Double-click causes selection that grows by word.
             - Conflict with normal press drag?
             - Prevent double-click from selecting the line break segment?
+            - When a selection already exists, double-clicking to the left of it is incorrect
         - Triple-click and Quadruple-click?
     - Touch:
         - Research how it works.

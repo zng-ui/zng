@@ -746,18 +746,18 @@ impl TextSelectOp {
         })
     }
 
-    /// Replace selection with the word nearest to the `window_point`
+    /// Replace or extend selection with the word nearest to the `window_point`
     ///
     /// This is the mouse primary button double click.
-    pub fn select_word_nearest_to(window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(true, window_point))
+    pub fn select_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(replace_selection, true, window_point))
     }
 
-    /// Replace selection with the line nearest to the `window_point`
+    /// Replace or extend selection with the line nearest to the `window_point`
     ///
     /// This is the mouse primary button triple click.
-    pub fn select_line_nearest_to(window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(false, window_point))
+    pub fn select_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(replace_selection, false, window_point))
     }
 
     pub(super) fn call(self) {
@@ -939,7 +939,7 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     }
 }
 
-fn select_line_word_nearest_to(select_word: bool, window_point: DipPoint) {
+fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
     let resolved = ResolvedText::get();
     let layout = LayoutText::get();
 
@@ -959,10 +959,13 @@ fn select_line_word_nearest_to(select_word: bool, window_point: DipPoint) {
             } else {
                 l.actual_text_caret_range()
             };
-            c.selection_index = Some(CaretIndex {
-                line: l.index(),
-                index: range.start,
-            });
+
+            if replace_selection {
+                c.selection_index = Some(CaretIndex {
+                    line: l.index(),
+                    index: range.start,
+                });
+            }
             c.index = Some(CaretIndex {
                 line: l.index(),
                 index: range.end,
