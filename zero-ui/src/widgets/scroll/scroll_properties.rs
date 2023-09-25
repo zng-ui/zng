@@ -471,19 +471,25 @@ impl ScrollBarArgs {
 /// [`cursor`]: fn@crate::properties::cursor
 #[property(LAYOUT, default(false), widget_impl(Scroll))]
 pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    use crate::core::mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
+    use crate::core::{
+        mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+        pointer_capture::POINTER_CAPTURE,
+    };
 
     let enabled = enabled.into_var();
     let mut mouse_input = EventHandle::dummy();
 
     struct Dragging {
         _mouse_move: EventHandle,
-        start: DipPoint,
+        start: PxPoint,
+        applied_offset: PxVector,
+        factor: Factor,
     }
     let mut dragging = None;
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
+            WIDGET.sub_var(&enabled);
             if enabled.get() {
                 mouse_input = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
             }
@@ -509,18 +515,33 @@ pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
                 if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                     if args.is_primary() {
                         if args.is_mouse_down() {
+                            let id = WIDGET.id();
+                            POINTER_CAPTURE.capture_widget(id);
+                            let factor = WINDOW.info().scale_factor();
                             dragging = Some(Dragging {
-                                _mouse_move: MOUSE_MOVE_EVENT.subscribe(WIDGET.id()),
-                                start: args.position,
+                                _mouse_move: MOUSE_MOVE_EVENT.subscribe(id),
+                                start: args.position.to_px(factor.0),
+                                applied_offset: PxVector::zero(),
+                                factor,
                             });
                         } else {
                             dragging = None;
+                            SCROLL.clear_vertical_overscroll();
+                            SCROLL.clear_horizontal_overscroll();
                         }
                     }
-                } else if let Some(d) = &dragging {
+                } else if let Some(d) = &mut dragging {
                     if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                        let delta = d.start - args.position;
-                        println!("!!: {delta:?}");
+                        let offset = d.start - args.position.to_px(d.factor.0);
+                        let delta = d.applied_offset - offset;
+                        d.applied_offset = offset;
+
+                        if delta.y != Px(0) {
+                            SCROLL.scroll_vertical_touch(-delta.y);
+                        }
+                        if delta.x != Px(0) {
+                            SCROLL.scroll_horizontal_touch(-delta.x);
+                        }
                     }
                 }
             }

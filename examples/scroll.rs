@@ -34,7 +34,15 @@ fn app_main() {
                     colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                 );
                 smooth_scrolling = smooth_scrolling.map_into();
+
                 mouse_pan;
+                when *#mouse_pan {
+                    cursor = CursorIcon::Grab;
+                }
+                when *#mouse_pan && *#is_pressed {
+                    cursor = CursorIcon::Grabbing;
+                }
+
                 child = Stack!{
                     direction = StackDirection::top_to_bottom();
                     children_align = Align::LEFT;

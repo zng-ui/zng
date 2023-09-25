@@ -14,8 +14,6 @@
 
 * Scroll-to-fill/fit.
 
-* Mouse grab/pan property.
-
 * Auto-scrolling after middle click.
 
 * Overscroll config.
