@@ -460,3 +460,71 @@ impl ScrollBarArgs {
         }
     }
 }
+
+/// Scroll by grabbing and dragging the content with the mouse primary button.
+///
+/// This is not enabled by default. Note that couch pan is always enabled, this property implements
+/// a similar behavior for the mouse pointer.
+///
+/// See also [`cursor`] property, usually when pan is enabled a grab
+///
+/// [`cursor`]: fn@crate::properties::cursor
+#[property(LAYOUT, default(false), widget_impl(Scroll))]
+pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    use crate::core::mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
+
+    let enabled = enabled.into_var();
+    let mut mouse_input = EventHandle::dummy();
+
+    struct Dragging {
+        _mouse_move: EventHandle,
+        start: DipPoint,
+    }
+    let mut dragging = None;
+
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            if enabled.get() {
+                mouse_input = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+            }
+        }
+        UiNodeOp::Deinit => {
+            mouse_input = EventHandle::dummy();
+            dragging = None;
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(enabled) = enabled.get_new() {
+                if enabled && mouse_input.is_dummy() {
+                    mouse_input = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+                } else {
+                    mouse_input = EventHandle::dummy();
+                    dragging = None;
+                }
+            }
+        }
+        UiNodeOp::Event { update } => {
+            if enabled.get() {
+                c.event(update);
+
+                if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                    if args.is_primary() {
+                        if args.is_mouse_down() {
+                            dragging = Some(Dragging {
+                                _mouse_move: MOUSE_MOVE_EVENT.subscribe(WIDGET.id()),
+                                start: args.position,
+                            });
+                        } else {
+                            dragging = None;
+                        }
+                    }
+                } else if let Some(d) = &dragging {
+                    if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
+                        let delta = d.start - args.position;
+                        println!("!!: {delta:?}");
+                    }
+                }
+            }
+        }
+        _ => {}
+    })
+}

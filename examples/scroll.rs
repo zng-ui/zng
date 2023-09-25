@@ -21,9 +21,11 @@ fn main() {
 
 fn app_main() {
     App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+        let mouse_pan = var(false);
+        let smooth_scrolling = var(true);
         Window! {
             title = "Scroll Example";
-            child_insert_above = commands(), 0;
+            child_insert_above = commands(mouse_pan.clone(), smooth_scrolling.clone()), 0;
             child = Scroll! {
                 id = "scroll";
                 padding = 20;
@@ -31,7 +33,8 @@ fn app_main() {
                     hex!(#245E81),
                     colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                 );
-                // smooth_scrolling = false;
+                smooth_scrolling = smooth_scrolling.map_into();
+                mouse_pan;
                 child = Stack!{
                     direction = StackDirection::top_to_bottom();
                     children_align = Align::LEFT;
@@ -55,7 +58,7 @@ fn app_main() {
     })
 }
 
-fn commands() -> impl UiNode {
+fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
     use zero_ui::widgets::scroll::commands::*;
 
     SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_TOP)));
@@ -108,6 +111,19 @@ fn commands() -> impl UiNode {
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 50.pct()),
                 ]
             ),
+            SubMenu! {
+                "Options",
+                ui_vec![
+                    Toggle! {
+                        checked = mouse_pan;
+                        child = Text!("Mouse Pan");
+                    },
+                    Toggle! {
+                        checked = smooth_scrolling;
+                        child = Text!("Smooth Scrolling");
+                    },
+                ]
+            }
         ];
     }
 }

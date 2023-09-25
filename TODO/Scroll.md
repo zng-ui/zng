@@ -16,5 +16,7 @@
 
 * Mouse grab/pan property.
 
+* Auto-scrolling after middle click.
+
 * Overscroll config.
     - See https://drafts.csswg.org/css-overscroll/
