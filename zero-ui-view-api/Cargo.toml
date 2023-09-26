@@ -16,7 +16,7 @@ ipc = ["ipc-channel", "duct"]
 
 [dependencies]
 # Firefox 118 release
-webrender_api = { git = "https://github.com/servo/webrender.git", rev = "fc20c758261b73fc22eadfeb7630c3468359eaa2" }
+webrender_api = { git = "https://github.com/servo/webrender.git", rev = "18fc4bbf91ddabd0b2c0d148544ffe4fb654a26a" }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
