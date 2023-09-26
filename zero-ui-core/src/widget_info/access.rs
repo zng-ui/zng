@@ -84,7 +84,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Sets a custom name for the widget in accessibility info.
     ///
-    /// Note that if this is not set a name is already derived from the text content or [`WidgetId::name`] of the widget.
+    /// Note that if this is not set the [`WidgetId::name`] of the widget is used.
     pub fn set_label(&mut self, name: impl Into<Txt>) {
         let name = name.into();
         self.builder.with_meta(move |mut m| m.set(&ACCESS_NAME_ID, name));
@@ -293,7 +293,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 impl WidgetInfo {
     /// Accessibility info, if the info tree was build with [`access_enabled`].
     ///
-    /// [`access_enabled`]: WidgetInfoTree::access_enabled
+    /// [`access_enabled`]: crate::widget_info::WidgetInfoTree::access_enabled
     pub fn access(&self) -> Option<WidgetAccessInfo> {
         if self.tree.access_enabled() {
             Some(WidgetAccessInfo { info: self.clone() })
@@ -316,6 +316,31 @@ macro_rules! get_state {
                 None
             }
         })
+    };
+}
+macro_rules! has_state {
+    ($self:ident.$Discriminant:ident) => {
+        match $self.access() {
+            Some(a) => a.state.iter().any(|a| matches!(a, AccessState::$Discriminant)),
+            None => false,
+        }
+    };
+}
+macro_rules! get_widgets {
+    ($self:ident.$Discriminant:ident) => {
+        $self
+            .access()
+            .and_then(|a| {
+                a.state
+                    .iter()
+                    .find_map(|a| if let AccessState::$Discriminant(ids) = a { Some(ids) } else { None })
+            })
+            .into_iter()
+            .flatten()
+            .filter_map(|id| {
+                let id = WidgetId::from_raw(id.0);
+                $self.info.tree.get(id)
+            })
     };
 }
 impl WidgetAccessInfo {
@@ -355,6 +380,197 @@ impl WidgetAccessInfo {
     /// Gets visibility of related widgets.
     pub fn expanded(&self) -> Option<bool> {
         get_state!(self.Expanded).copied()
+    }
+
+    /// Indicates the availability and type of interactive popup widget.
+    pub fn has_popup(&self) -> Option<Popup> {
+        get_state!(self.HasPopup).copied()
+    }
+
+    /// If the widget data has errors.
+    pub fn is_invalid(&self) -> bool {
+        has_state!(self.Invalid) || self.is_invalid_grammar() || self.is_invalid_spelling()
+    }
+
+    /// If the widget has invalid grammar errors.
+    pub fn is_invalid_grammar(&self) -> bool {
+        has_state!(self.InvalidGrammar)
+    }
+
+    /// If the widget has invalid spelling errors.
+    pub fn is_invalid_spelling(&self) -> bool {
+        has_state!(self.InvalidSpelling)
+    }
+
+    /// Gets the accessibility name.
+    pub fn label(&self) -> Txt {
+        if let Some(n) = self.info.meta().get_clone(&ACCESS_NAME_ID) {
+            return n;
+        }
+        self.info.id().name()
+    }
+
+    /// Indicates whether a [`TextBox`] accepts multiple lines of input.
+    ///
+    /// [`TextBox`]: AccessRole::TextBox
+    pub fn is_multi_line(&self) -> bool {
+        has_state!(self.MultiLine)
+    }
+
+    /// Indicates that the user may select more than one item from the current selectable descendants.
+    pub fn is_multi_selectable(&self) -> bool {
+        has_state!(self.MultiSelectable)
+    }
+
+    /// Indicates whether the widget's orientation is horizontal, vertical, or unknown/ambiguous.
+    pub fn orientation(&self) -> Option<Orientation> {
+        get_state!(self.Orientation).copied()
+    }
+
+    /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
+    pub fn placeholder(&self) -> Option<Txt> {
+        self.info.meta().get_clone(&ACCESS_PLACEHOLDER_ID)
+    }
+
+    /// Indicates that the widget is not editable, but is otherwise operable.
+    pub fn is_read_only(&self) -> bool {
+        has_state!(self.ReadOnly)
+    }
+
+    /// Indicates that user input is required on the widget before a form may be submitted.
+    pub fn is_required(&self) -> bool {
+        has_state!(self.Required)
+    }
+
+    /// Defines the hierarchical level of an widget within a structure.
+    pub fn level(&self) -> Option<NonZeroU32> {
+        get_state!(self.Level).copied()
+    }
+
+    /// Indicates that the widget is selected.
+    pub fn is_selected(&self) -> bool {
+        has_state!(self.Selected)
+    }
+
+    /// Indicates if items in a table or grid are sorted in ascending or descending order.
+    pub fn sort(&self) -> Option<SortDirection> {
+        get_state!(self.Sort).copied()
+    }
+
+    /// Maximum value (inclusive).
+    pub fn value_max(&self) -> Option<f64> {
+        get_state!(self.ValueMax).copied()
+    }
+
+    /// Minimum value (inclusive).
+    pub fn value_min(&self) -> Option<f64> {
+        get_state!(self.ValueMin).copied()
+    }
+
+    /// Current value.
+    pub fn value(&self) -> Option<f64> {
+        get_state!(self.Value).copied()
+    }
+
+    /// Current value in a readable format.
+    ///
+    /// Note that this returns `Some(_)` only when a value text was set, [`value`]
+    /// may or may not be set also.
+    ///
+    /// [`value`]: Self::value
+    pub fn value_text(&self) -> Option<Txt> {
+        self.info.meta().get_clone(&ACCESS_VALUE_ID)
+    }
+
+    /// Gets the live indicator, changes, atomic and busy.
+    ///
+    /// See [`AccessState::Live`] for more details.
+    pub fn live(&self) -> Option<(LiveIndicator, LiveChange, bool, bool)> {
+        self.access()?.state.iter().find_map(|s| {
+            if let AccessState::Live {
+                indicator,
+                changes,
+                atomic,
+                busy,
+            } = s
+            {
+                Some((*indicator, *changes, *atomic, *busy))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Defines the total number of columns in a [`Table`], [`Grid`], or [`TreeGrid`] when not all columns are present in tree.
+    ///
+    /// The value `0` indicates that not all columns are in the widget and the application cannot determinate the exact number.
+    ///
+    /// [`Table`]: AccessRole::Table
+    /// [`Grid`]: AccessRole::Grid
+    /// [`TreeGrid`]: AccessRole::TreeGrid
+    pub fn col_count(&self) -> Option<usize> {
+        get_state!(self.ColCount).copied()
+    }
+
+    /// Defines an widget's column index in the parent table or grid.
+    pub fn col_index(&self) -> Option<usize> {
+        get_state!(self.ColIndex).copied()
+    }
+
+    /// Defines the number of columns spanned by the widget in the parent table or grid.
+    pub fn col_span(&self) -> Option<usize> {
+        get_state!(self.ColSpan).copied()
+    }
+
+    /// Defines the total number of rows in a [`Table`], [`Grid`], or [`TreeGrid`] when not all rows are present in tree.
+    ///
+    /// The value `0` indicates that not all rows are in the widget and the application cannot determinate the exact number.
+    ///
+    /// [`Table`]: AccessRole::Table
+    /// [`Grid`]: AccessRole::Grid
+    /// [`TreeGrid`]: AccessRole::TreeGrid
+    pub fn row_count(&self) -> Option<usize> {
+        get_state!(self.RowCount).copied()
+    }
+
+    /// Defines an widget's column index in the parent table or grid.
+    pub fn row_index(&self) -> Option<usize> {
+        get_state!(self.RowIndex).copied()
+    }
+
+    /// Defines the number of columns spanned by the widget in the parent table or grid.
+    pub fn row_span(&self) -> Option<usize> {
+        get_state!(self.RowSpan).copied()
+    }
+
+    /// Defines the widget's number or position in the current set of list items or tree items when not all items are present in the tree.
+    pub fn item_index(&self) -> Option<usize> {
+        get_state!(self.ItemIndex).copied()
+    }
+
+    /// Widget(s) whose contents or presence are controlled by this widget.
+    pub fn controls(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.Controls)
+    }
+
+    /// Identifies the widget(s) that describes this widget.
+    pub fn described_by(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.DescribedBy)
+    }
+
+    /// identifies the widget(s) that provide additional information related to this widget.
+    pub fn details(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.Details)
+    }
+
+    /// Identifies the widget(s) that labels the widget it is applied to.
+    pub fn labelled_by(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.LabelledBy)
+    }
+
+    /// Extra widgets that are *child* to this widget, but are not descendants on the info tree.
+    pub fn owns(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.Owns)
     }
 }
 
