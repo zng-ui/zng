@@ -1,12 +1,12 @@
 //! UI nodes used for building a text widget.
 
-use std::{borrow::Cow, fmt, ops, sync::Arc, time::Instant};
+use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Instant};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
 
 use super::{
-    commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_CMD},
+    commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
     text_properties::*,
 };
 use crate::{
@@ -53,6 +53,11 @@ pub struct CaretInfo {
     ///
     /// [`caret_retained_x`]: LayoutText::caret_retained_x
     pub used_retained_x: bool,
+
+    /// Don't scroll to new caret position on the next update.
+    ///
+    /// If this is set to `true` the next time `index` or `index_version` changes auto-scroll is skipped once.
+    pub skip_next_scroll: bool,
 }
 impl fmt::Debug for CaretInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -409,6 +414,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     selection_index: None,
                     index_version: 0,
                     used_retained_x: false,
+                    skip_next_scroll: false,
                 }),
             });
 
@@ -468,7 +474,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             } else if TEXT_EDITABLE_VAR.get() {
                 let prev_caret = {
                     let caret = resolved.as_mut().unwrap().caret.get_mut();
-                    (caret.index, caret.index_version)
+                    (caret.index, caret.index_version, caret.selection_index)
                 };
 
                 if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
@@ -571,7 +577,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     let resolved = resolved.as_mut().unwrap();
                     let caret = resolved.caret.get_mut();
 
-                    if (caret.index, caret.index_version) != prev_caret {
+                    if (caret.index, caret.index_version, caret.selection_index) != prev_caret {
                         caret.used_retained_x = false;
                         if caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
@@ -1081,7 +1087,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                         txt.caret_origin = Some(p);
 
-                        if SCROLL.try_id().is_some() {
+                        if !mem::take(&mut caret.skip_next_scroll) && SCROLL.try_id().is_some() {
                             let line_height = txt
                                 .shaped_text
                                 .line(index.line)
@@ -1137,6 +1143,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         events: [EventHandle; 1],
         caret_animation: VarHandle,
         select: CommandHandle,
+        select_all: CommandHandle,
     }
     impl EditData {
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
@@ -1200,6 +1207,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
 
                 d.select = SELECT_CMD.scoped(id).subscribe(true);
+                d.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
             }
 
             // txt.txt not available yet.
@@ -1215,7 +1223,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = {
                     let caret = resolved.caret.lock();
-                    (caret.index, caret.index_version)
+                    (caret.index, caret.index_version, caret.selection_index)
                 };
 
                 if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
@@ -1483,10 +1491,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                         LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
                     }
+                } else if let Some(args) = SELECT_ALL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                    args.propagation().stop();
+                    LayoutText::call_select_op(&mut txt.txt, || TextSelectOp::select_all().call());
                 }
 
                 let mut caret = resolved.caret.lock();
-                if (caret.index, caret.index_version) != prev_caret_index {
+                if (caret.index, caret.index_version, caret.selection_index) != prev_caret_index {
                     if caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();
@@ -1585,6 +1596,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let d = EditData::get(&mut edit_data);
 
                     d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
+
+                    d.select = SELECT_CMD.scoped(id).subscribe(true);
+                    d.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
                 } else {
                     edit_data = None;
                 }

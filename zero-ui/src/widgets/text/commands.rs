@@ -7,7 +7,11 @@
 
 use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
-use crate::core::{task::parking_lot::Mutex, undo::*};
+use crate::core::{
+    gesture::{shortcut, CommandShortcutExt, ShortcutFilter},
+    task::parking_lot::Mutex,
+    undo::*,
+};
 
 use super::{
     nodes::{LayoutText, ResolvedText},
@@ -24,6 +28,15 @@ command! {
     ///
     /// The request must be set as the command parameter.
     pub static SELECT_CMD;
+
+    /// Select all text.
+    ///
+    /// The request is the same as [`SELECT_CMD`] with [`TextSelectOp::select_all`].
+    pub static SELECT_ALL_CMD = {
+        name: "Select All",
+        shortcut: shortcut!(CTRL+'A'),
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+    };;
 }
 
 struct SharedTextEditOp {
@@ -760,6 +773,20 @@ impl TextSelectOp {
         Self::new(move || select_line_word_nearest_to(replace_selection, false, window_point))
     }
 
+    /// Select the full text.
+    pub fn select_all() -> Self {
+        Self::new(|| {
+            let ctx = ResolvedText::get();
+            let mut c = ctx.caret.lock();
+            c.selection_index = Some(CaretIndex::ZERO);
+            c.set_index(CaretIndex {
+                index: ctx.text.text().len(),
+                line: 0,
+            });
+            c.skip_next_scroll = true;
+        })
+    }
+
     pub(super) fn call(self) {
         (self.op.lock())();
     }
@@ -775,7 +802,7 @@ fn next_prev(clear_selection: bool, insert_index_fn: fn(&SegmentedText, usize) -
         c.selection_index = Some(i);
     }
     i.index = insert_index_fn(&ctx.text, i.index);
-    c.index = Some(i);
+    c.set_index(i);
     c.used_retained_x = false;
 }
 
@@ -810,12 +837,12 @@ fn line_up_down(clear_selection: bool, diff: i8) {
                 None => i = CaretIndex::ZERO,
             };
             i.index = ctx.text.snap_grapheme_boundary(i.index);
-            c.index = Some(i);
+            c.set_index(i);
         }
     }
 
     if c.index.is_none() {
-        c.index = Some(CaretIndex::ZERO);
+        c.set_index(CaretIndex::ZERO);
         c.selection_index = None;
     }
 }
@@ -850,12 +877,12 @@ fn page_up_down(clear_selection: bool, diff: i8) {
                 None => i = CaretIndex::ZERO,
             };
             i.index = resolved.text.snap_grapheme_boundary(i.index);
-            c.index = Some(i);
+            c.set_index(i);
         }
     }
 
     if c.index.is_none() {
-        c.index = Some(CaretIndex::ZERO);
+        c.set_index(CaretIndex::ZERO);
         c.selection_index = None;
     }
 }
@@ -874,7 +901,7 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
 
     if let Some(li) = layout.shaped_text.line(i.line) {
         i.index = index(li);
-        c.index = Some(i);
+        c.set_index(i);
         c.used_retained_x = false;
     }
 }
@@ -966,7 +993,7 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                     index: range.start,
                 });
             }
-            c.index = Some(CaretIndex {
+            c.set_index(CaretIndex {
                 line: l.index(),
                 index: range.end,
             });

@@ -18,9 +18,6 @@
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
-    - Commands.
-        - Select All (CTRL+a).
-        - Must not scroll to caret in this one.
 
 * PageUp and PageDown should move the caret to either the start or end of the line if you're at the first or last line respectively
 * Shift delete removes line.
