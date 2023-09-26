@@ -33,20 +33,20 @@ pub enum AccessRole {
     Option,
     /// Defines a widget that displays the progress status for tasks that take a long time.
     ///
-    /// The [`AccessState::ValueNow`] and other value states define the progress.
+    /// The [`AccessState::Value`] and other value states define the progress.
     ProgressBar,
     /// Selectable items in a list where only one item may be selected at a time.
     Radio,
     /// Widget controls the scrolling of content within a viewing area.
     ///
-    /// Must also set [`AccessState::Controls`] and [`AccessState::ValueNow`] to define
+    /// Must also set [`AccessState::Controls`] and [`AccessState::Value`] to define
     /// the scroll widget and amount scrolled. By default the value min/max is 0/100.
     ScrollBar,
     /// Identifies a text-box that is used for searching.
     SearchBox,
     /// Defines an input where the user selects a value from within a given range.
     ///
-    /// The [`AccessState::ValueNow`] and other value states define the range and value.
+    /// The [`AccessState::Value`] and other value states define the range and value.
     Slider,
     /// Defines a type of range that expects the user to select a value from among discrete choices.
     SpinButton,
@@ -176,6 +176,24 @@ pub enum AccessRole {
     Dialog,
 }
 
+/// Kind of current item a widget represents.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum CurrentKind {
+    /// Represents the current page within a set of pages such as the link to the current document in a breadcrumb.
+    Page,
+    /// Represents the current step within a process such as the current step in an enumerated multi step checkout flow .
+    Step,
+    /// Represents the current location within an environment or context such as the image that is visually
+    /// highlighted as the current component of a flow chart.
+    Location,
+    /// Represents the current date within a collection of dates such as the current date within a calendar.
+    Date,
+    /// Represents the current time within a set of times such as the current time within a timetable.
+    Time,
+    /// Represents the current item within a set.
+    Item,
+}
+
 /// Accessibility attribute of a node in the accessibility tree.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -191,19 +209,8 @@ pub enum AccessState {
     /// If the widget is checked (`Some(true)`), unchecked (`Some(false)`), or if the checked status is indeterminate (`None`).
     Checked(Option<bool>),
 
-    /// Represents the current page within a set of pages such as the link to the current document in a breadcrumb.
-    CurrentPage,
-    /// Represents the current step within a process such as the current step in an enumerated multi step checkout flow .
-    CurrentStep,
-    /// Represents the current location within an environment or context such as the image that is visually
-    /// highlighted as the current component of a flow chart.
-    CurrentLocation,
-    /// Represents the current date within a collection of dates such as the current date within a calendar.
-    CurrentDate,
-    /// Represents the current time within a set of times such as the current time within a timetable.
-    CurrentTime,
-    /// Represents the current item within a set.
-    CurrentItem,
+    /// Indicates that the widget represents a [current](CurrentKind) item.
+    Current(CurrentKind),
 
     /// Indicates that the widget is perceivable but disabled, so it is not editable or otherwise operable.
     Disabled,
@@ -264,10 +271,10 @@ pub enum AccessState {
     /// Defines the minimum value (inclusive).
     ValueMin(f64),
     /// Defines the current value.
-    ValueNow(f64),
-    /// Defines a human readable version of the [`ValueNow`].
+    Value(f64),
+    /// Defines a human readable version of the [`Value`].
     ///
-    /// [`ValueNow`]: Self::ValueNow
+    /// [`Value`]: Self::Value
     ValueText(String),
 
     /// Indicates that a widget will be updated, and describes the types of
@@ -318,7 +325,7 @@ pub enum AccessState {
     /// widgets when the tree hierarchy cannot be used to represent the relationship.
     Owns(Vec<AccessNodeId>),
     /// Defines the widget's number or position in the current set of list items or tree items when not all items are present in the tree.
-    PosInSet(usize),
+    ItemIndex(usize),
     /// Defines the total number of rows in a [`Table`], [`Grid`], or [`TreeGrid`] when not all rows are present in tree.
     ///
     /// The value `0` indicates that not all rows are in the widget and the application cannot determinate the exact number.
@@ -343,7 +350,7 @@ pub enum LiveIndicator {
     /// Indicates that updates to the region have the highest priority and should be presented to the user immediately.
     Assertive,
     /// Indicates that updates to the region should **not** be presented to the user unless the user is currently focused on that region.
-    OnlyIfFocused,
+    OnlyFocused,
     /// Indicates that updates to the region should be presented at the next graceful opportunity, such as at the end of
     /// speaking the current sentence or when the user pauses typing.
     Polite,

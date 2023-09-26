@@ -9,7 +9,7 @@ use crate::{
     text::TextSegmentKind,
 };
 
-pub use zero_ui_view_api::access::{AccessRole, AccessState};
+pub use zero_ui_view_api::access::AccessRole;
 
 use super::*;
 
@@ -80,13 +80,6 @@ impl WidgetInfoBuilder {
 
     fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<WidgetInfoData> {
         self.tree.index_mut(id)
-    }
-
-    /// If accessibility info must be collected for this window.
-    ///
-    /// If this is `true` it will remain true for the lifetime of the window.
-    pub fn access_enabled(&self) -> bool {
-        self.access_enabled
     }
 
     /// Current widget id.
@@ -217,20 +210,15 @@ impl WidgetInfoBuilder {
         before_count..self.tree.index(self.node).children_count()
     }
 
-    /// Set the accessibility role of the widget if [`access_enabled`].
+    /// Accessibility metadata builder.
     ///
-    /// [`access_enabled`]: fn@Self::access_enabled
-    pub fn set_access_role(&mut self, role: AccessRole) {
-        // !!: TODO
-        let _ = role;
-    }
-
-    /// Push the accessibility state if [`access_enabled`].
-    ///
-    /// [`access_enabled`]: fn@Self::access_enabled
-    pub fn push_access_state(&mut self, state: AccessState) {
-        // !!: TODO
-        let _ = state;
+    /// Only available if accessibility info is required for the window.
+    pub fn access(&mut self) -> Option<access::WidgetInfoAccessBuilder> {
+        if self.access_enabled {
+            Some(access::WidgetInfoAccessBuilder { builder: self })
+        } else {
+            None
+        }
     }
 
     /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].

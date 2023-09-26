@@ -902,12 +902,14 @@ fn access_node_to_kit(
                 Some(false) => accesskit::CheckedState::False,
                 None => accesskit::CheckedState::Mixed,
             }),
-            CurrentPage => builder.set_aria_current(accesskit::AriaCurrent::Page),
-            CurrentStep => builder.set_aria_current(accesskit::AriaCurrent::Step),
-            CurrentLocation => builder.set_aria_current(accesskit::AriaCurrent::Location),
-            CurrentDate => builder.set_aria_current(accesskit::AriaCurrent::Date),
-            CurrentTime => builder.set_aria_current(accesskit::AriaCurrent::Time),
-            CurrentItem => builder.set_aria_current(accesskit::AriaCurrent::True),
+            Current(kind) => match kind {
+                access::CurrentKind::Page => builder.set_aria_current(accesskit::AriaCurrent::Page),
+                access::CurrentKind::Step => builder.set_aria_current(accesskit::AriaCurrent::Step),
+                access::CurrentKind::Location => builder.set_aria_current(accesskit::AriaCurrent::Location),
+                access::CurrentKind::Date => builder.set_aria_current(accesskit::AriaCurrent::Date),
+                access::CurrentKind::Time => builder.set_aria_current(accesskit::AriaCurrent::Time),
+                access::CurrentKind::Item => builder.set_aria_current(accesskit::AriaCurrent::True),
+            },
             Disabled => builder.set_disabled(),
             ErrorMessage(id) => builder.set_error_message(access_id_to_kit(*id)),
             Expanded(b) => builder.set_expanded(*b),
@@ -940,7 +942,7 @@ fn access_node_to_kit(
             },
             ValueMax(m) => builder.set_max_numeric_value(*m),
             ValueMin(m) => builder.set_min_numeric_value(*m),
-            ValueNow(v) => builder.set_numeric_value(*v),
+            Value(v) => builder.set_numeric_value(*v),
             ValueText(v) => builder.set_value(v.clone().into_boxed_str()),
             Live {
                 indicator,
@@ -950,7 +952,7 @@ fn access_node_to_kit(
             } => {
                 builder.set_live(match indicator {
                     access::LiveIndicator::Assertive => accesskit::Live::Assertive,
-                    access::LiveIndicator::OnlyIfFocused => accesskit::Live::Off,
+                    access::LiveIndicator::OnlyFocused => accesskit::Live::Off,
                     access::LiveIndicator::Polite => accesskit::Live::Polite,
                 });
                 builder.set_live_relevant({
@@ -997,7 +999,7 @@ fn access_node_to_kit(
                     builder.push_indirect_child(access_id_to_kit(*id));
                 }
             }
-            PosInSet(p) => builder.set_position_in_set(*p),
+            ItemIndex(p) => builder.set_position_in_set(*p),
             RowCount(c) => builder.set_table_row_count(*c),
             RowIndex(i) => builder.set_table_row_index(*i),
             RowSpan(s) => builder.set_table_cell_row_span(*s),
