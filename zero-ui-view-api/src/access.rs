@@ -177,7 +177,7 @@ pub enum AccessRole {
 }
 
 /// Kind of current item a widget represents.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum CurrentKind {
     /// Represents the current page within a set of pages such as the link to the current document in a breadcrumb.
     Page,

@@ -213,9 +213,9 @@ impl WidgetInfoBuilder {
     /// Accessibility metadata builder.
     ///
     /// Only available if accessibility info is required for the window.
-    pub fn access(&mut self) -> Option<access::WidgetInfoAccessBuilder> {
+    pub fn access(&mut self) -> Option<access::WidgetAccessInfoBuilder> {
         if self.access_enabled {
-            Some(access::WidgetInfoAccessBuilder { builder: self })
+            Some(access::WidgetAccessInfoBuilder { builder: self })
         } else {
             None
         }

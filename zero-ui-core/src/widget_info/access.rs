@@ -7,13 +7,13 @@ pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveCh
 
 use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
-use super::WidgetInfoBuilder;
+use super::{WidgetInfo, WidgetInfoBuilder};
 
 /// Accessibility metadata.
-pub struct WidgetInfoAccessBuilder<'a> {
+pub struct WidgetAccessInfoBuilder<'a> {
     pub(super) builder: &'a mut WidgetInfoBuilder,
 }
-impl<'a> WidgetInfoAccessBuilder<'a> {
+impl<'a> WidgetAccessInfoBuilder<'a> {
     fn with_access(&mut self, f: impl FnOnce(&mut AccessInfo)) {
         self.builder.with_meta(move |mut m| f(m.entry(&ACCESS_INFO_ID).or_default()))
     }
@@ -287,6 +287,74 @@ impl<'a> WidgetInfoAccessBuilder<'a> {
             }
             a.state.push(AccessState::Owns(vec![detail_id.into()]))
         })
+    }
+}
+
+impl WidgetInfo {
+    /// Accessibility info, if the info tree was build with [`access_enabled`].
+    ///
+    /// [`access_enabled`]: WidgetInfoTree::access_enabled
+    pub fn access(&self) -> Option<WidgetAccessInfo> {
+        if self.tree.access_enabled() {
+            Some(WidgetAccessInfo { info: self.clone() })
+        } else {
+            None
+        }
+    }
+}
+
+/// Accessibility info for a widget.
+pub struct WidgetAccessInfo {
+    info: WidgetInfo,
+}
+macro_rules! get_state {
+    ($self:ident.$Discriminant:ident) => {
+        $self.access()?.state.iter().find_map(|a| {
+            if let AccessState::$Discriminant(value) = a {
+                Some(value)
+            } else {
+                None
+            }
+        })
+    };
+}
+impl WidgetAccessInfo {
+    fn access(&self) -> Option<&AccessInfo> {
+        self.info.meta().get(&ACCESS_INFO_ID)
+    }
+
+    /// Accessibility role of the widget.
+    pub fn role(&self) -> Option<AccessRole> {
+        self.access()?.role
+    }
+
+    /// How input text triggers display of one or more predictions of the user's intended value.
+    pub fn auto_complete(&self) -> Option<AutoComplete> {
+        get_state!(self.AutoComplete).copied()
+    }
+
+    /// If the widget is checked (`Some(true)`), unchecked (`Some(false)`), or if the checked status is indeterminate (`None`).
+    ///
+    /// Note that the value is wrapped in another `Option<_>` that indicates if it was set or not.
+    pub fn checked(&self) -> Option<Option<bool>> {
+        get_state!(self.Checked).copied()
+    }
+
+    /// Kind of current item the widget represents.
+    pub fn current(&self) -> Option<CurrentKind> {
+        get_state!(self.Current).copied()
+    }
+
+    /// Gets the invalid widget that this widget is an error message for.
+    pub fn error_message(&self) -> Option<WidgetInfo> {
+        let id = get_state!(self.ErrorMessage)?;
+        let id = WidgetId::from_raw(id.0);
+        self.info.tree.get(id)
+    }
+
+    /// Gets visibility of related widgets.
+    pub fn expanded(&self) -> Option<bool> {
+        get_state!(self.Expanded).copied()
     }
 }
 
