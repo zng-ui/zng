@@ -1,4 +1,5 @@
 # TextInput
+
 * Implement selection.
     - Text edit/text change must use selection.
         - Delete selection.
@@ -26,24 +27,34 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
+# Accessibility
+
+* Implement info full build and send.
+    - Skip nodes without any accessibility info?
+        - Review what HTML elements are included.
+    - Optimize updates.
+* Access states from existing info:
+    - AccessState::Modal - Derived from interactivity.
+    - AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
+    - AccessState::FlowTo - Derived from tab index.
+* How to integrate with focus service without depending on it?
+    - Have focus service set a focusable flag on the tree?
+    - The API has a special value for just the focused.
+* Integrate access states.
+    - Text sets label to the text.
+    - Toggle sets checked.
+    - Review all states.
+
+* Implement accessibility properties for each state?
+    - We support building widgets on instantiation only.
+    - Like using `Wgt!` with custom properties to form a new widget.
+    - For these widgets the properties are useful.
+
+* Implement way to enabled accessibility from code.
+    - Some programmatic service may be interested in these values too.
+
 # View-Process
 
 * Update to winit-29 when released.
     - Lots of breaking changes.
-
-* Implement automation/screen reader APIs.
-    - Add access info to info tree.
-        - Some are cheap, like role, are there any that are excessive?
-            - Even role is one byte per node, or much more if we use the meta dictionary.
-            - On the other hand, if we only enable access on demand and use meta we don't add any cost.
-            - Property name is `access_role`, all properties with `access` prefix.
-            - Only accept other metadata if the `access_role` is set?
-                - Firefox has role=generic in some entries in the access tree.
-        - Track invalidations?
-        - We only send changes to view-process.
-    - Some state like
-    - Implement access API info from info tree.
-        - Figure out units, transforms.
-    - Review !!: TODO
-    - Implement way to enabled accessibility from code.
-        - Some programmatic service may be interested in these values too.
+* Next webrender breaks image masks.

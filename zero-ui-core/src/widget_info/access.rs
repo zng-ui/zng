@@ -374,15 +374,6 @@ impl WidgetInfo {
             }
         }
 
-        /*
-        !!: TODO state that is always derived?
-
-        * AccessState::Modal - Derived from interactivity.
-        * AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
-        * AccessState::FlowTo - Derived from tab index.
-
-        */
-
         let len_before = builder.len();
         for child in self.children() {
             child.to_access_info(builder);

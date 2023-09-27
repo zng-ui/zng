@@ -631,10 +631,6 @@ impl HeadedCtrl {
             if args.window_id == WINDOW.id() {
                 self.vars.0.access_enabled.set(true);
                 UPDATES.update_info_window(args.window_id);
-                // !!: TODO, keep a list of widget already send to the view-process?
-                // - Keep a flag in the info?
-                // - We want to only send parent node that has children change and node that has property change.
-                // - What about "live"?
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -664,8 +660,13 @@ impl HeadedCtrl {
         let info = self.content.info(info_widgets);
         if let (Some(info), Some(view)) = (&info, &self.window) {
             if info.access_enabled() {
-                // !!: TODO, collect access update for view-process.
-                let _ = (info, view);
+                let info = info.to_access_tree();
+                let root_id = info.root().id;
+                let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
+                    updates: vec![info],
+                    full_root: Some(root_id),
+                    focused: None,
+                });
             }
         }
         info

@@ -600,11 +600,11 @@ pub struct AccessNode {
     pub state: Vec<AccessState>,
     /// Number of children.
     ///
-    /// See [`AccessTree::push`] for more details.
+    /// See [`AccessTreeBuilder::push`] for more details.
     pub children_count: u32,
     /// Number of descendants.
     ///
-    /// See [`AccessTree::push`] for more details.
+    /// See [`AccessTreeBuilder::push`] for more details.
     pub descendants_count: u32,
 }
 impl AccessNode {
