@@ -22,7 +22,7 @@ pub enum WidgetInfoMeta {}
 pub struct WidgetInfoBuilder {
     info_widgets: Arc<InfoUpdates>,
     window_id: WindowId,
-    access_enabled: bool,
+    pub(super) access_enabled: bool,
 
     node: tree::NodeId,
     widget_id: WidgetId,
@@ -208,17 +208,6 @@ impl WidgetInfoBuilder {
         let before_count = self.tree.index(self.node).children_count();
         info(self);
         before_count..self.tree.index(self.node).children_count()
-    }
-
-    /// Accessibility metadata builder.
-    ///
-    /// Only available if accessibility info is required for the window.
-    pub fn access(&mut self) -> Option<access::WidgetAccessInfoBuilder> {
-        if self.access_enabled {
-            Some(access::WidgetAccessInfoBuilder { builder: self })
-        } else {
-            None
-        }
     }
 
     /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].

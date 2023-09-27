@@ -339,7 +339,7 @@ pub enum AccessState {
     /// Defines the number of rows spanned by the widget in the parent table or grid.
     RowSpan(usize),
     /// Defines the number of items in the current set of list items or tree items when not all items in the set are present in the tree.
-    SetSize(usize),
+    ItemCount(usize),
 }
 
 /// Defines how a live update is communicated to the user.
@@ -593,7 +593,7 @@ pub struct AccessNode {
     /// Widget ID.
     pub id: AccessNodeId,
     /// Accessibility role.
-    pub role: AccessRole,
+    pub role: Option<AccessRole>,
     /// Commands the widget supports.
     pub commands: Vec<AccessCommandName>,
     /// Accessibility state.
@@ -609,7 +609,7 @@ pub struct AccessNode {
 }
 impl AccessNode {
     /// New leaf node.
-    pub fn new(id: AccessNodeId, role: AccessRole) -> Self {
+    pub fn new(id: AccessNodeId, role: Option<AccessRole>) -> Self {
         Self {
             id,
             role,
@@ -620,18 +620,10 @@ impl AccessNode {
         }
     }
 }
-
-/// Accessibility info tree for a window.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccessTree(Vec<AccessNode>);
-impl AccessTree {
-    /// New tree with root node.
-    pub fn new(root: AccessNode) -> Self {
-        let mut s = Self(vec![]);
-        s.push(root);
-        s
-    }
-
+/// Accessibility info tree builder.
+#[derive(Default)]
+pub struct AccessTreeBuilder(Vec<AccessNode>);
+impl AccessTreeBuilder {
     /// Pushes a node on the tree.
     ///
     /// If `children_count` is not zero the children must be pushed immediately after, each child
@@ -640,6 +632,28 @@ impl AccessTree {
         self.0.push(node);
     }
 
+    /// Build the tree.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no node was pushed, at least one node (root) is required.
+    pub fn build(self) -> AccessTree {
+        assert!(!self.0.is_empty(), "missing root node");
+        AccessTree(self.0)
+    }
+}
+impl ops::Deref for AccessTreeBuilder {
+    type Target = [AccessNode];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Accessibility info tree for a window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessTree(Vec<AccessNode>);
+impl AccessTree {
     /// Root node.
     pub fn root(&self) -> AccessNodeRef {
         AccessNodeRef { tree: self, index: 0 }

@@ -7,7 +7,20 @@ pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveCh
 
 use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
-use super::{WidgetInfo, WidgetInfoBuilder};
+use super::{WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
+
+impl WidgetInfoBuilder {
+    /// Accessibility metadata builder.
+    ///
+    /// Only available if accessibility info is required for the window.
+    pub fn access(&mut self) -> Option<WidgetAccessInfoBuilder> {
+        if self.access_enabled {
+            Some(WidgetAccessInfoBuilder { builder: self })
+        } else {
+            None
+        }
+    }
+}
 
 /// Accessibility metadata.
 pub struct WidgetAccessInfoBuilder<'a> {
@@ -214,6 +227,11 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::RowSpan(span)))
     }
 
+    /// Sets the number of items in the current set of list items or tree items when not all items in the set are present in the tree.
+    pub fn set_item_count(&mut self, count: usize) {
+        self.with_access(|a| a.set_state(AccessState::ItemCount(count)))
+    }
+
     /// Sets the widget's number or position in the current set of list items or tree items when not all items are present in the tree.
     pub fn set_item_index(&mut self, index: usize) {
         self.with_access(|a| a.set_state(AccessState::ItemIndex(index)))
@@ -290,6 +308,33 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     }
 }
 
+impl WidgetInfoTree {
+    /// If this tree contains accessibility information.
+    ///
+    /// If `true` accessibility is enabled for the window and will stay enabled for its lifetime.
+    pub fn access_enabled(&self) -> bool {
+        self.0.access_enabled
+    }
+
+    /// Build an access tree from the info tree.
+    ///
+    /// If not [`access_enabled`] returns a placeholder tree with only the root node.
+    ///
+    /// [`access_enabled`]: Self::access_enabled
+    pub fn to_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
+        let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+        if self.0.access_enabled {
+            self.root().to_access_info(&mut builder);
+        } else {
+            builder.push(zero_ui_view_api::access::AccessNode::new(
+                self.root().id().into(),
+                Some(AccessRole::Application),
+            ));
+        }
+        builder.build()
+    }
+}
+
 impl WidgetInfo {
     /// Accessibility info, if the info tree was build with [`access_enabled`].
     ///
@@ -300,6 +345,51 @@ impl WidgetInfo {
         } else {
             None
         }
+    }
+
+    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) {
+        let mut node = zero_ui_view_api::access::AccessNode::new(self.id().into(), None);
+
+        if let Some(a) = self.meta().get(&ACCESS_INFO_ID) {
+            node.role = a.role;
+            node.state = a.state.clone();
+        } else if self.parent().is_none() {
+            node.role = Some(AccessRole::Application);
+        }
+
+        if let Some(p) = self.meta().get(&ACCESS_PLACEHOLDER_ID) {
+            node.state.push(AccessState::Placeholder(p.to_string()));
+        }
+
+        if let Some(t) = self.meta().get(&ACCESS_VALUE_ID) {
+            node.state.push(AccessState::ValueText(t.to_string()));
+        }
+
+        if let Some(n) = self.meta().get(&ACCESS_NAME_ID) {
+            node.state.push(AccessState::Label(n.to_string()));
+        } else {
+            let name = self.id().name();
+            if !name.is_empty() {
+                node.state.push(AccessState::Label(name.to_string()));
+            }
+        }
+
+        /*
+        !!: TODO state that is always derived?
+
+        * AccessState::Modal - Derived from interactivity.
+        * AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
+        * AccessState::FlowTo - Derived from tab index.
+
+        */
+
+        let len_before = builder.len();
+        for child in self.children() {
+            child.to_access_info(builder);
+            node.children_count += 1;
+        }
+        node.descendants_count = (builder.len() - len_before) as u32;
+        builder.push(node);
     }
 }
 
@@ -543,6 +633,11 @@ impl WidgetAccessInfo {
         get_state!(self.RowSpan).copied()
     }
 
+    /// Defines the number of items in the current set of list items or tree items when not all items in the set are present in the tree.
+    pub fn item_count(&self) -> Option<usize> {
+        get_state!(self.ItemCount).copied()
+    }
+
     /// Defines the widget's number or position in the current set of list items or tree items when not all items are present in the tree.
     pub fn item_index(&self) -> Option<usize> {
         get_state!(self.ItemIndex).copied()
@@ -594,13 +689,3 @@ static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();
 static ACCESS_NAME_ID: StaticStateId<Txt> = StaticStateId::new_unique();
 static ACCESS_PLACEHOLDER_ID: StaticStateId<Txt> = StaticStateId::new_unique();
 static ACCESS_VALUE_ID: StaticStateId<Txt> = StaticStateId::new_unique();
-
-/*
-!!: TODO state that is always derived?
-
-* AccessState::Modal - Derived from interactivity.
-* AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
-* AccessState::FlowTo - Derived from tab index.
-* AccessState::SetSize - Derived from bounds.
-
-*/

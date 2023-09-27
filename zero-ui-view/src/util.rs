@@ -822,7 +822,7 @@ fn access_node_to_kit(
     output: &mut Vec<(accesskit::NodeId, accesskit::Node)>,
 ) -> accesskit::NodeId {
     let node_id = access_id_to_kit(node.id);
-    let node_role = access_role_to_kit(node.role);
+    let node_role = node.role.map(access_role_to_kit).unwrap_or(accesskit::Role::Unknown);
     let mut builder = accesskit::NodeBuilder::new(node_role);
 
     // add actions
@@ -1003,7 +1003,7 @@ fn access_node_to_kit(
             RowCount(c) => builder.set_table_row_count(*c),
             RowIndex(i) => builder.set_table_row_index(*i),
             RowSpan(s) => builder.set_table_cell_row_span(*s),
-            SetSize(s) => builder.set_size_of_set(*s),
+            ItemCount(s) => builder.set_size_of_set(*s),
             _ => {}
         }
     }

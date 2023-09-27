@@ -163,13 +163,6 @@ impl WidgetInfoTree {
         self.0.frame.read().stats.clone()
     }
 
-    /// If this tree contains accessibility information.
-    ///
-    /// If `true` accessibility is enabled for the window and will stay enabled for its lifetime.
-    pub fn access_enabled(&self) -> bool {
-        self.0.access_enabled
-    }
-
     /// Scale factor of the last rendered frame.
     pub fn scale_factor(&self) -> Factor {
         self.0.frame.read().scale_factor
