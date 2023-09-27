@@ -81,42 +81,91 @@ impl TextEditOp {
     pub fn insert(insert: impl Into<Txt>) -> Self {
         struct InsertData {
             insert: Txt,
-            caret: Option<CaretIndex>,
+            selection_state: SelectionState,
+            removed: Txt,
         }
         let data = InsertData {
             insert: insert.into(),
-            caret: None,
+            selection_state: SelectionState::Initial,
+            removed: Txt::from_static(""),
         };
+        #[derive(Clone, Copy)]
+        enum SelectionState {
+            Initial,
+            Caret(CaretIndex),
+            Selection(CaretIndex, CaretIndex),
+        }
+
         Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                let insert_idx = *data.caret.get_or_insert_with(|| caret.index.unwrap_or(CaretIndex::ZERO));
                 let insert = &data.insert;
 
-                let i = insert_idx.index;
-                txt.modify(clmv!(insert, |args| {
-                    args.to_mut().to_mut().insert_str(i, insert.as_str());
-                }))
-                .unwrap();
+                if let SelectionState::Initial = data.selection_state {
+                    if let Some(range) = caret.selection_range() {
+                        data.selection_state = SelectionState::Selection(range.start, range.end);
+                    } else {
+                        data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
+                    }
+                }
+                match data.selection_state {
+                    SelectionState::Initial => unreachable!(),
+                    SelectionState::Caret(insert_idx) => {
+                        let i = insert_idx.index;
+                        txt.modify(clmv!(insert, |args| {
+                            args.to_mut().to_mut().insert_str(i, insert.as_str());
+                        }))
+                        .unwrap();
 
-                let mut i = insert_idx;
-                i.index += insert.len();
-                caret.set_index(i);
+                        let mut i = insert_idx;
+                        i.index += insert.len();
+                        caret.set_index(i);
+                        caret.selection_index = None;
+                    }
+                    SelectionState::Selection(start, end) => {
+                        let char_range = start.index..end.index;
+                        txt.with(|t| {
+                            let r = &t[char_range.clone()];
+                            if r != data.removed {
+                                data.removed = Txt::from_str(r);
+                            }
+                        });
+
+                        txt.modify(clmv!(insert, |args| {
+                            args.to_mut().to_mut().replace_range(char_range, insert.as_str());
+                        }))
+                        .unwrap();
+
+                        let mut i = start;
+                        i.index += insert.len();
+                        caret.set_index(i);
+                        caret.selection_index = None;
+                    }
+                }
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let len = data.insert.len();
-                let insert_idx = data.caret.unwrap();
+                let insert_idx = match data.selection_state {
+                    SelectionState::Initial => unreachable!(),
+                    SelectionState::Caret(c) => c,
+                    SelectionState::Selection(start, _) => start,
+                };
                 let i = insert_idx.index;
-                txt.modify(move |args| {
-                    args.to_mut().to_mut().replace_range(i..i + len, "");
-                })
+                let removed = &data.removed;
+
+                txt.modify(clmv!(removed, |args| {
+                    args.to_mut().to_mut().replace_range(i..i + len, removed.as_str());
+                }))
                 .unwrap();
 
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                caret.set_index(insert_idx);
+                let mut i = insert_idx;
+                i.index += removed.len();
+                caret.set_index(i);
+                caret.selection_index = Some(insert_idx);
             }
             UndoFullOp::Info { info } => {
                 let mut label = Txt::from_static("\"");
@@ -143,12 +192,15 @@ impl TextEditOp {
             } => {
                 if within_undo_interval {
                     if let Some(next_data) = next_data.downcast_mut::<InsertData>() {
-                        let mut after_idx = data.caret.unwrap();
-                        after_idx.index += data.insert.len();
+                        if let (SelectionState::Caret(mut after_idx), SelectionState::Caret(caret)) =
+                            (data.selection_state, next_data.selection_state)
+                        {
+                            after_idx.index += data.insert.len();
 
-                        if after_idx.index == next_data.caret.unwrap().index {
-                            data.insert.push_str(&next_data.insert);
-                            *merged = true;
+                            if after_idx.index == caret.index {
+                                data.insert.push_str(&next_data.insert);
+                                *merged = true;
+                            }
                         }
                     }
                 }

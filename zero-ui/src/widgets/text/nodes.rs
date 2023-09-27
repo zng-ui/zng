@@ -1457,9 +1457,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     }
                                     2 => TextSelectOp::select_word_nearest_to(!has_shift, args.position),
                                     3 => TextSelectOp::select_line_nearest_to(!has_shift, args.position),
-                                    4 => {
-                                        return; //TODO
-                                    }
+                                    4 => TextSelectOp::select_all(),
                                     _ => unreachable!(),
                                 }
                                 .call();

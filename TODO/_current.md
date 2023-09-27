@@ -2,7 +2,6 @@
 * Implement selection.
     - Text edit/text change must use selection.
         - Delete selection.
-        - Replace selection when typing starts.
     - Arrow keys must use selection.
         - Does not move caret, moves from the end-point in the direction.
     - Mouse:
@@ -11,6 +10,7 @@
             - Prevent double-click from selecting the line break segment?
             - When a selection already exists, double-clicking to the left of it is incorrect
         - Triple-click and Quadruple-click?
+            - Also needs to grow selection by line and not change, respectively
     - Touch:
         - Research how it works.
     - Clear selection on typing and clicking (when not holding shift).
