@@ -138,9 +138,7 @@ impl TextEditOp {
                         }))
                         .unwrap();
 
-                        let mut i = start;
-                        i.index += insert.len();
-                        caret.set_index(i);
+                        caret.set_char_index(start.index + insert.len());
                         caret.selection_index = None;
                     }
                 }
@@ -162,10 +160,7 @@ impl TextEditOp {
 
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                let mut i = insert_idx;
-                i.index += removed.len();
-                caret.set_index(i);
-                caret.selection_index = Some(insert_idx);
+                caret.set_char_selection(insert_idx.index, insert_idx.index + removed.len());
             }
             UndoFullOp::Info { info } => {
                 let mut label = Txt::from_static("\"");
@@ -437,7 +432,8 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                ctx.caret.lock().set_char_index(select_after.start); // TODO, selection
+                let mut caret = ctx.caret.lock();
+                caret.set_char_selection(select_after.start, select_after.end);
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let ctx = ResolvedText::get();
@@ -450,7 +446,7 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                ctx.caret.lock().set_char_index(select_before.start); // TODO, selection
+                ctx.caret.lock().set_char_selection(select_before.start, select_before.end);
             }
             UndoFullOp::Info { info } => *info = Some(Arc::new("replace")),
             UndoFullOp::Merge { .. } => {}
@@ -830,11 +826,7 @@ impl TextSelectOp {
         Self::new(|| {
             let ctx = ResolvedText::get();
             let mut c = ctx.caret.lock();
-            c.selection_index = Some(CaretIndex::ZERO);
-            c.set_index(CaretIndex {
-                index: ctx.text.text().len(),
-                line: 0,
-            });
+            c.set_char_selection(0, ctx.text.text().len());
             c.skip_next_scroll = true;
         })
     }

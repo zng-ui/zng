@@ -29,6 +29,9 @@
 
 # Accessibility
 
+* Info always inited in Windows 10.
+    - Maybe due to IME integration?
+
 * Implement info full build and send.
     - Skip nodes without any accessibility info?
         - Review what HTML elements are included.

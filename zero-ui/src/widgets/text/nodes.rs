@@ -76,7 +76,15 @@ impl CaretInfo {
         self.index_version = self.index_version.wrapping_add(1);
     }
 
-    /// Set the car byte index and update the index version.
+    /// Sets the selection start, end and update the index version.
+    ///
+    /// The `end` is the caret position.
+    pub fn set_selection(&mut self, start: CaretIndex, end: CaretIndex) {
+        self.selection_index = Some(start);
+        self.set_index(end);
+    }
+
+    /// Set the char byte index and update the index version.
     ///
     /// The caret line is always snapped when the caret changes, so the line value will be updated.
     pub fn set_char_index(&mut self, index: usize) {
@@ -86,6 +94,20 @@ impl CaretInfo {
             self.index = Some(CaretIndex { index, line: 0 });
         }
         self.index_version = self.index_version.wrapping_add(1);
+    }
+
+    /// Set the char byte index of the selection start, end and update the index version.
+    ///
+    /// The `end` is the caret position.
+    ///
+    /// The caret and selection lines are always snapped when the caret changes, so the line values will be updated.
+    pub fn set_char_selection(&mut self, start: usize, end: usize) {
+        if let Some(s) = &mut self.selection_index {
+            s.index = start;
+        } else {
+            self.selection_index = Some(CaretIndex { index: start, line: 0 });
+        }
+        self.set_char_index(end);
     }
 
     /// Gets the selection range if both [`index`] and [`selection_index`] are set.

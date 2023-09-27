@@ -629,6 +629,8 @@ impl HeadedCtrl {
             }
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
+                tracing::info!("accessibility info enabled for {:?}", args.window_id);
+
                 self.vars.0.access_enabled.set(true);
                 UPDATES.update_info_window(args.window_id);
             }
