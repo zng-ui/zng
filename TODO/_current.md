@@ -1,8 +1,6 @@
 # TextInput
 
 * Implement selection.
-    - Text edit/text change must use selection.
-        - Delete selection.
     - Arrow keys must use selection.
         - Does not move caret, moves from the end-point in the direction.
     - Mouse:

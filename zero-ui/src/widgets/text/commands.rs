@@ -99,7 +99,11 @@ impl TextEditOp {
 
                 if let SelectionState::Initial = data.selection_state {
                     if let Some(range) = caret.selection_range() {
-                        data.selection_state = SelectionState::Selection(range.start, range.end);
+                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
+                        } else {
+                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
+                        }
                     } else {
                         data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
                     }
@@ -118,7 +122,7 @@ impl TextEditOp {
                         caret.set_index(i);
                         caret.selection_index = None;
                     }
-                    SelectionState::Selection(start, end) => {
+                    SelectionState::CaretSelection(start, end) | SelectionState::SelectionCaret(start, end) => {
                         let char_range = start.index..end.index;
                         txt.with(|t| {
                             let r = &t[char_range.clone()];
@@ -139,10 +143,11 @@ impl TextEditOp {
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let len = data.insert.len();
-                let insert_idx = match data.selection_state {
+                let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
                     SelectionState::Initial => unreachable!(),
-                    SelectionState::Caret(c) => c,
-                    SelectionState::Selection(start, _) => start,
+                    SelectionState::Caret(c) => (c, None, c),
+                    SelectionState::CaretSelection(start, end) => (start, Some(end), start),
+                    SelectionState::SelectionCaret(start, end) => (start, Some(start), end),
                 };
                 let i = insert_idx.index;
                 let removed = &data.removed;
@@ -154,7 +159,8 @@ impl TextEditOp {
 
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                caret.set_char_selection(insert_idx.index, insert_idx.index + removed.len());
+                caret.set_index(caret_idx);
+                caret.selection_index = selection_idx;
             }
             UndoFullOp::Info { info } => {
                 let mut label = Txt::from_static("\"");
@@ -228,15 +234,19 @@ impl TextEditOp {
 
                 if let SelectionState::Initial = data.selection_state {
                     if let Some(range) = caret.selection_range() {
-                        data.selection_state = SelectionState::Selection(range.start, range.end);
+                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
+                        } else {
+                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
+                        }
                     } else {
                         data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
                     }
                 }
 
                 let rmv = match data.selection_state {
-                    SelectionState::Selection(s, e) => s.index..e.index,
                     SelectionState::Caret(c) => backspace_range(&ctx.text, c.index, data.count),
+                    SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
                     SelectionState::Initial => unreachable!(),
                 };
                 if rmv.is_empty() {
@@ -264,9 +274,10 @@ impl TextEditOp {
                     return;
                 }
 
-                let (insert_idx, (selection, caret_idx)) = match data.selection_state {
-                    SelectionState::Caret(c) => (c.index - data.removed.len(), (None, c.index)),
-                    SelectionState::Selection(s, e) => (s.index, (Some(s), e.index)),
+                let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
+                    SelectionState::Caret(c) => (c.index - data.removed.len(), None, c),
+                    SelectionState::CaretSelection(s, e) => (s.index, Some(e), s),
+                    SelectionState::SelectionCaret(s, e) => (s.index, Some(s), e),
                     SelectionState::Initial => unreachable!(),
                 };
                 let removed = &data.removed;
@@ -278,8 +289,8 @@ impl TextEditOp {
 
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
-                caret.set_char_index(caret_idx);
-                caret.selection_index = selection;
+                caret.set_index(caret_idx);
+                caret.selection_index = selection_idx;
             }
             UndoFullOp::Info { info } => {
                 *info = Some(if data.count == 1 {
@@ -346,14 +357,18 @@ impl TextEditOp {
 
                 if let SelectionState::Initial = data.selection_state {
                     if let Some(range) = caret.selection_range() {
-                        data.selection_state = SelectionState::Selection(range.start, range.end);
+                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
+                        } else {
+                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
+                        }
                     } else {
                         data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
                     }
                 }
 
                 let rmv = match data.selection_state {
-                    SelectionState::Selection(s, e) => s.index..e.index,
+                    SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
                     SelectionState::Caret(c) => delete_range(&ctx.text, c.index, data.count),
                     SelectionState::Initial => unreachable!(),
                 };
@@ -388,9 +403,10 @@ impl TextEditOp {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                let (insert_idx, selection) = match data.selection_state {
-                    SelectionState::Caret(c) => (c.index, None),
-                    SelectionState::Selection(s, e) => (s.index, Some(e)),
+                let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
+                    SelectionState::Caret(c) => (c.index, None, c),
+                    SelectionState::CaretSelection(s, e) => (s.index, Some(e), s),
+                    SelectionState::SelectionCaret(s, e) => (s.index, Some(s), e),
                     SelectionState::Initial => unreachable!(),
                 };
 
@@ -399,8 +415,8 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                caret.set_char_index(insert_idx); // (re)start caret animation
-                caret.selection_index = selection;
+                caret.set_index(caret_idx); // (re)start caret animation
+                caret.selection_index = selection_idx;
             }
             UndoFullOp::Info { info } => {
                 *info = Some(if data.count == 1 {
@@ -417,7 +433,7 @@ impl TextEditOp {
             } => {
                 if within_undo_interval {
                     if let Some(next_data) = next_data.downcast_ref::<DeleteData>() {
-                        if let (SelectionState::Caret(mut after_idx), SelectionState::Caret(caret)) =
+                        if let (SelectionState::Caret(after_idx), SelectionState::Caret(caret)) =
                             (data.selection_state, next_data.selection_state)
                         {
                             if after_idx.index == caret.index {
@@ -533,7 +549,8 @@ impl TextEditOp {
 enum SelectionState {
     Initial,
     Caret(CaretIndex),
-    Selection(CaretIndex, CaretIndex),
+    CaretSelection(CaretIndex, CaretIndex),
+    SelectionCaret(CaretIndex, CaretIndex),
 }
 
 /// Parameter for [`EDIT_CMD`], apply the request and don't register undo.
