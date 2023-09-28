@@ -1631,8 +1631,8 @@ impl Window {
     }
 
     /// Update the accessibility info.
-    pub fn access_update(&mut self, _update: zero_ui_view_api::access::AccessTreeUpdate) {
-        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(_update))
+    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate) {
+        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
     }
 }
 impl Drop for Window {
@@ -1665,7 +1665,7 @@ struct AccessSender {
     event_sender: AppEventSender,
 }
 impl accesskit::ActionHandler for AccessSender {
-    fn do_action(&self, request: accesskit::ActionRequest) {
+    fn do_action(&mut self, request: accesskit::ActionRequest) {
         if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
             let _ = self.event_sender.send(AppEvent::Notify(ev));
         }

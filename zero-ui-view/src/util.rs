@@ -715,7 +715,7 @@ pub(crate) fn accesskit_to_event(
     use accesskit::Action;
     use zero_ui_view_api::access::*;
 
-    let target = AccessNodeId(request.target.0.get() as u64);
+    let target = AccessNodeId(request.target.0);
 
     Some(zero_ui_view_api::Event::AccessCommand {
         window: window_id,
@@ -732,8 +732,6 @@ pub(crate) fn accesskit_to_event(
             Action::Increment => AccessCommand::Increment(1),
             Action::HideTooltip => AccessCommand::SetToolTipVis(false),
             Action::ShowTooltip => AccessCommand::SetToolTipVis(true),
-            Action::InvalidateTree => return None,
-            Action::LoadInlineTextBoxes => return None,
             Action::ReplaceSelectedText => {
                 if let Some(accesskit::ActionData::Value(s)) = request.data {
                     AccessCommand::ReplaceSelectedText(s.to_string())
@@ -772,8 +770,8 @@ pub(crate) fn accesskit_to_event(
             Action::SetTextSelection => {
                 if let Some(accesskit::ActionData::SetTextSelection(s)) = request.data {
                     AccessCommand::SelectText {
-                        start: (AccessNodeId(s.anchor.node.0.get() as u64), s.anchor.character_index),
-                        caret: (AccessNodeId(s.focus.node.0.get() as u64), s.focus.character_index),
+                        start: (AccessNodeId(s.anchor.node.0), s.anchor.character_index),
+                        caret: (AccessNodeId(s.focus.node.0), s.focus.character_index),
                     }
                 } else {
                     return None;
@@ -797,7 +795,7 @@ pub(crate) fn access_tree_init(root_id: AccessNodeId) -> accesskit::TreeUpdate {
     accesskit::TreeUpdate {
         nodes: vec![(root_id, root)],
         tree: Some(accesskit::Tree::new(root_id)),
-        focus: Some(root_id),
+        focus: root_id,
     }
 }
 
@@ -812,7 +810,7 @@ pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::Access
     accesskit::TreeUpdate {
         nodes,
         tree: update.full_root.map(|id| accesskit::Tree::new(access_id_to_kit(id))),
-        focus: update.focused.map(access_id_to_kit),
+        focus: access_id_to_kit(update.focused),
     }
 }
 
@@ -884,23 +882,19 @@ fn access_node_to_kit(
         use zero_ui_view_api::access::{self, AccessState::*};
 
         match state {
-            AutoComplete(s) => builder.set_auto_complete(
+            AutoComplete(s) => {
                 if *s == access::AutoComplete::BOTH {
-                    "both"
+                    builder.set_auto_complete(accesskit::AutoComplete::Both)
                 } else if *s == access::AutoComplete::INLINE {
-                    "inline"
+                    builder.set_auto_complete(accesskit::AutoComplete::Inline)
                 } else if *s == access::AutoComplete::LIST {
-                    "list"
-                } else {
-                    "none"
+                    builder.set_auto_complete(accesskit::AutoComplete::List)
                 }
-                .to_owned()
-                .into_boxed_str(),
-            ),
-            Checked(b) => builder.set_checked_state(match b {
-                Some(true) => accesskit::CheckedState::True,
-                Some(false) => accesskit::CheckedState::False,
-                None => accesskit::CheckedState::Mixed,
+            }
+            Checked(b) => builder.set_checked(match b {
+                Some(true) => accesskit::Checked::True,
+                Some(false) => accesskit::Checked::False,
+                None => accesskit::Checked::Mixed,
             }),
             Current(kind) => match kind {
                 access::CurrentKind::Page => builder.set_aria_current(accesskit::AriaCurrent::Page),
@@ -926,7 +920,6 @@ fn access_node_to_kit(
             Label(s) => builder.set_name(s.clone().into_boxed_str()),
             Level(n) => builder.set_hierarchical_level(n.get() as usize),
             Modal => builder.set_modal(),
-            MultiLine => builder.set_multiline(),
             MultiSelectable => builder.set_multiselectable(),
             Orientation(o) => match o {
                 access::Orientation::Horizontal => builder.set_orientation(accesskit::Orientation::Horizontal),
@@ -944,39 +937,11 @@ fn access_node_to_kit(
             ValueMin(m) => builder.set_min_numeric_value(*m),
             Value(v) => builder.set_numeric_value(*v),
             ValueText(v) => builder.set_value(v.clone().into_boxed_str()),
-            Live {
-                indicator,
-                changes,
-                atomic,
-                busy,
-            } => {
+            Live { indicator, atomic, busy } => {
                 builder.set_live(match indicator {
                     access::LiveIndicator::Assertive => accesskit::Live::Assertive,
                     access::LiveIndicator::OnlyFocused => accesskit::Live::Off,
                     access::LiveIndicator::Polite => accesskit::Live::Polite,
-                });
-                builder.set_live_relevant({
-                    if *changes == access::LiveChange::ALL {
-                        "all".to_owned()
-                    } else {
-                        let mut s = String::new();
-                        if changes.contains(access::LiveChange::ADD) {
-                            s.push_str("additions ");
-                        }
-                        if changes.contains(access::LiveChange::REMOVE) {
-                            s.push_str("removals ");
-                        }
-                        if changes.contains(access::LiveChange::TEXT) {
-                            s.push_str("text ");
-                        }
-                        if !s.is_empty() {
-                            let _last_char = s.pop();
-                            debug_assert_eq!(Some(' '), _last_char);
-                        }
-
-                        s
-                    }
-                    .into_boxed_str()
                 });
                 if *atomic {
                     builder.set_live_atomic();
@@ -996,7 +961,7 @@ fn access_node_to_kit(
             LabelledBy(ids) => builder.set_labelled_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             Owns(ids) => {
                 for id in ids {
-                    builder.push_indirect_child(access_id_to_kit(*id));
+                    builder.push_child(access_id_to_kit(*id));
                 }
             }
             ItemIndex(p) => builder.set_position_in_set(*p),
@@ -1019,7 +984,7 @@ fn access_node_to_kit(
 }
 
 fn access_id_to_kit(id: AccessNodeId) -> accesskit::NodeId {
-    accesskit::NodeId(std::num::NonZeroU128::new(id.0 as _).unwrap())
+    accesskit::NodeId(id.0)
 }
 
 fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::Role {
@@ -1037,15 +1002,15 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         ProgressBar => Role::ProgressIndicator,
         Radio => Role::RadioButton,
         ScrollBar => Role::ScrollBar,
-        SearchBox => Role::SearchBox,
+        SearchBox => Role::SearchInput,
         Slider => Role::Slider,
         SpinButton => Role::SpinButton,
         Switch => Role::Switch,
         Tab => Role::Tab,
         TabPanel => Role::TabPanel,
-        TextBox => Role::TextField,
+        TextInput => Role::TextInput,
         TreeItem => Role::TreeItem,
-        ComboBox => Role::TextFieldWithComboBox,
+        ComboBox => Role::ComboBox,
         Grid => Role::Grid,
         ListBox => Role::ListBox,
         Menu => Role::Menu,
@@ -1069,7 +1034,6 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         ListItem => Role::ListItem,
         Math => Role::Math,
         Note => Role::Note,
-        Presentation => Role::Presentation,
         Row => Role::Row,
         RowGroup => Role::RowGroup,
         RowHeader => Role::RowHeader,

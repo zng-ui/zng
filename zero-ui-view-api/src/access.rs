@@ -57,7 +57,7 @@ pub enum AccessRole {
     /// Identifies a container for the active tab.
     TabPanel,
     /// Identifies a widget that allows the input of free-form text.
-    TextBox,
+    TextInput,
     /// Identifies an item in a tree widget.
     TreeItem,
 
@@ -117,8 +117,6 @@ pub enum AccessRole {
     Math,
     /// Identifies a section whose content is parenthetic or ancillary to the main content.
     Note,
-    /// Identifies an area visible to assistive technologies, but without any specific role.
-    Presentation,
     /// Identifies a row of cells within a tabular structure.
     Row,
     /// Identifies a group of rows within a tabular structure.
@@ -199,11 +197,11 @@ pub enum CurrentKind {
 #[non_exhaustive]
 pub enum AccessState {
     /// Inputting text triggers display of one or more predictions of the user's intended
-    /// value for a [`ComboBox`], [`SearchBox`], or [`TextBox`].
+    /// value for a [`ComboBox`], [`SearchBox`], or [`TextInput`].
     ///
     /// [`ComboBox`]: AccessRole::ComboBox
     /// [`SearchBox`]: AccessRole::SearchBox
-    /// [`TextBox`]: AccessRole::TextBox
+    /// [`TextInput`]: AccessRole::TextInput
     AutoComplete(AutoComplete),
 
     /// If the widget is checked (`Some(true)`), unchecked (`Some(false)`), or if the checked status is indeterminate (`None`).
@@ -248,10 +246,6 @@ pub enum AccessState {
     Level(NonZeroU32),
     /// Indicates whether the widget is modal when displayed.
     Modal,
-    /// Indicates whether a [`TextBox`] accepts multiple lines of input.
-    ///
-    /// [`TextBox`]: AccessRole::TextBox
-    MultiLine,
     /// Indicates that the user may select more than one item from the current selectable descendants.
     MultiSelectable,
     /// Indicates whether the widget's orientation is horizontal, vertical, or unknown/ambiguous.
@@ -277,13 +271,10 @@ pub enum AccessState {
     /// [`Value`]: Self::Value
     ValueText(String),
 
-    /// Indicates that a widget will be updated, and describes the types of
-    /// updates the user agents, assistive technologies, and user can expect from the live region.
+    /// Indicate that the widget can change.
     Live {
         /// How the changes must be notified.
         indicator: LiveIndicator,
-        /// What changes are expected.
-        changes: LiveChange,
         /// If the live region must be re-read entirely after each update.
         atomic: bool,
         /// Indicates the live area being modified and that assistive technologies may want
@@ -291,10 +282,10 @@ pub enum AccessState {
         busy: bool,
     },
 
-    /// Identifies the currently active widget when focus is on a composite widget, [`ComboBox`], [`TextBox`], [`Group`], or [`Application`].
+    /// Identifies the currently active widget when focus is on a composite widget, [`ComboBox`], [`TextInput`], [`Group`], or [`Application`].
     ///
     /// [`ComboBox`]: AccessRole::ComboBox
-    /// [`TextBox`]: AccessRole::TextBox
+    /// [`TextInput`]: AccessRole::TextInput
     /// [`Group`]: AccessRole::Group
     /// [`Application`]: AccessRole::Application
     ActiveDescendant(AccessNodeId),
@@ -414,23 +405,6 @@ bitflags! {
         /// may be displayed. If displayed, one value in the collection is automatically selected,
         /// and the text needed to complete the automatically selected value appears after the caret in the input.
         const BOTH = 0b11;
-    }
-}
-
-bitflags! {
-    /// Changes a live region makes.
-    ///
-    /// See [`AccessState::Live`].
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct LiveChange: u8 {
-        /// Descendant nodes are added.
-        const ADD = 0b001;
-        /// Descendant nodes are removed.
-        const REMOVE = 0b010;
-        /// Text content changes.
-        const TEXT = 0b100;
-        /// All changes are possible.
-        const ALL = 0b111;
     }
 }
 
@@ -749,6 +723,6 @@ pub struct AccessTreeUpdate {
     /// Is the root widget if the entire tree is present in `updates`.
     pub full_root: Option<AccessNodeId>,
 
-    /// Focused widget changed.
-    pub focused: Option<AccessNodeId>,
+    /// Focused widget, or root.
+    pub focused: AccessNodeId,
 }

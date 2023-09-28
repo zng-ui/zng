@@ -667,7 +667,7 @@ impl HeadedCtrl {
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
                     updates: vec![info],
                     full_root: Some(root_id),
-                    focused: None,
+                    focused: root_id,
                 });
             }
         }

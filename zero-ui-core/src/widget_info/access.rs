@@ -3,7 +3,7 @@
 use std::num::NonZeroU32;
 
 use zero_ui_view_api::access::AccessState;
-pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveChange, LiveIndicator, Orientation, Popup, SortDirection};
+pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveIndicator, Orientation, Popup, SortDirection};
 
 use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
@@ -37,11 +37,11 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     }
 
     /// Set how input text triggers display of one or more predictions of the user's intended
-    /// value for a [`ComboBox`], [`SearchBox`], or [`TextBox`].
+    /// value for a [`ComboBox`], [`SearchBox`], or [`TextInput`].
     ///
     /// [`ComboBox`]: AccessRole::ComboBox
     /// [`SearchBox`]: AccessRole::SearchBox
-    /// [`TextBox`]: AccessRole::TextBox
+    /// [`TextInput`]: AccessRole::TextInput
     pub fn set_auto_complete(&mut self, mode: AutoComplete) {
         self.with_access(|a| a.set_state(AccessState::AutoComplete(mode)))
     }
@@ -108,13 +108,6 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::Level(hierarchical_level)))
     }
 
-    /// Indicates whether a [`TextBox`] accepts multiple lines of input.
-    ///
-    /// [`TextBox`]: AccessRole::TextBox
-    pub fn flag_multi_line(&mut self) {
-        self.with_access(|a| a.set_state(AccessState::MultiLine))
-    }
-
     /// Indicates that the user may select more than one item from the current selectable descendants.
     pub fn flag_multi_selectable(&mut self) {
         self.with_access(|a| a.set_state(AccessState::MultiSelectable))
@@ -172,17 +165,10 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state_txt(AccessStateTxt::ValueText(value)))
     }
 
-    /// Flags that the widget will be updated, and describes the types of
-    /// updates the user agents, assistive technologies, and user can expect from the live region.
-    pub fn set_live(&mut self, indicator: LiveIndicator, changes: LiveChange, atomic: bool, busy: bool) {
-        self.with_access(|a| {
-            a.set_state(AccessState::Live {
-                indicator,
-                changes,
-                atomic,
-                busy,
-            })
-        })
+    /// Indicate that the widget can change, how the change can be announced, if `atomic`
+    /// the entire widget must be re-read, if `busy` the screen reader must wait until the change completes.
+    pub fn set_live(&mut self, indicator: LiveIndicator, atomic: bool, busy: bool) {
+        self.with_access(|a| a.set_state(AccessState::Live { indicator, atomic, busy }))
     }
 
     /// Sets the total number of columns in a [`Table`], [`Grid`], or [`TreeGrid`] when not all columns are present in tree.
@@ -488,13 +474,6 @@ impl WidgetAccessInfo {
         get_state!(self.txt.Label).cloned()
     }
 
-    /// Indicates whether a [`TextBox`] accepts multiple lines of input.
-    ///
-    /// [`TextBox`]: AccessRole::TextBox
-    pub fn is_multi_line(&self) -> bool {
-        has_state!(self.MultiLine)
-    }
-
     /// Indicates that the user may select more than one item from the current selectable descendants.
     pub fn is_multi_selectable(&self) -> bool {
         has_state!(self.MultiSelectable)
@@ -560,19 +539,13 @@ impl WidgetAccessInfo {
         get_state!(self.txt.ValueText).cloned()
     }
 
-    /// Gets the live indicator, changes, atomic and busy.
+    /// Gets the live indicator, atomic and busy.
     ///
     /// See [`AccessState::Live`] for more details.
-    pub fn live(&self) -> Option<(LiveIndicator, LiveChange, bool, bool)> {
+    pub fn live(&self) -> Option<(LiveIndicator, bool, bool)> {
         self.access()?.state.iter().find_map(|s| {
-            if let AccessState::Live {
-                indicator,
-                changes,
-                atomic,
-                busy,
-            } = s
-            {
-                Some((*indicator, *changes, *atomic, *busy))
+            if let AccessState::Live { indicator, atomic, busy } = s {
+                Some((*indicator, *atomic, *busy))
             } else {
                 None
             }
