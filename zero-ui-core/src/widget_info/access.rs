@@ -420,6 +420,11 @@ macro_rules! get_widgets {
     };
 }
 impl WidgetAccessInfo {
+    /// Full widget info.
+    pub fn info(&self) -> &WidgetInfo {
+        &self.info
+    }
+
     fn access(&self) -> Option<&AccessInfo> {
         self.info.meta().get(&ACCESS_INFO_ID)
     }
