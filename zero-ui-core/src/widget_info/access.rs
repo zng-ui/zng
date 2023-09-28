@@ -100,7 +100,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Note that if this is not set the [`WidgetId::name`] of the widget is used.
     pub fn set_label(&mut self, name: impl Into<Txt>) {
         let name = name.into();
-        self.builder.with_meta(move |mut m| m.set(&ACCESS_NAME_ID, name));
+        self.with_access(|a| a.set_state_txt(AccessStateTxt::Label(name)))
     }
 
     /// Sets the hierarchical level of the widget within a parent scope.
@@ -128,7 +128,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
     pub fn set_placeholder(&mut self, placeholder: impl Into<Txt>) {
         let placeholder = placeholder.into();
-        self.builder.with_meta(move |mut m| m.set(&ACCESS_PLACEHOLDER_ID, placeholder));
+        self.with_access(|a| a.set_state_txt(AccessStateTxt::Placeholder(placeholder)))
     }
 
     /// Indicates that the widget is not editable, but is otherwise operable.
@@ -168,8 +168,8 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Set a text that is a readable version of the current value.
     pub fn set_value_text(&mut self, value: impl Into<Txt>) {
-        let placeholder = value.into();
-        self.builder.with_meta(move |mut m| m.set(&ACCESS_VALUE_ID, placeholder));
+        let value = value.into();
+        self.with_access(|a| a.set_state_txt(AccessStateTxt::ValueText(value)))
     }
 
     /// Flags that the widget will be updated, and describes the types of
@@ -353,21 +353,12 @@ impl WidgetInfo {
         if let Some(a) = self.meta().get(&ACCESS_INFO_ID) {
             node.role = a.role;
             node.state = a.state.clone();
+            node.state.extend(a.state_txt.iter().map(From::from));
         } else if self.parent().is_none() {
             node.role = Some(AccessRole::Application);
         }
 
-        if let Some(p) = self.meta().get(&ACCESS_PLACEHOLDER_ID) {
-            node.state.push(AccessState::Placeholder(p.to_string()));
-        }
-
-        if let Some(t) = self.meta().get(&ACCESS_VALUE_ID) {
-            node.state.push(AccessState::ValueText(t.to_string()));
-        }
-
-        if let Some(n) = self.meta().get(&ACCESS_NAME_ID) {
-            node.state.push(AccessState::Label(n.to_string()));
-        } else {
+        if !node.state.iter().rev().any(|s| matches!(s, AccessState::Label(_))) {
             let name = self.id().name();
             if !name.is_empty() {
                 node.state.push(AccessState::Label(name.to_string()));
@@ -390,13 +381,17 @@ pub struct WidgetAccessInfo {
 }
 macro_rules! get_state {
     ($self:ident.$Discriminant:ident) => {
-        $self.access()?.state.iter().find_map(|a| {
-            if let AccessState::$Discriminant(value) = a {
-                Some(value)
-            } else {
-                None
-            }
-        })
+        get_state!($self, state, AccessState, $Discriminant)
+    };
+    ($self:ident.txt.$Discriminant:ident) => {
+        get_state!($self, state_txt, AccessStateTxt, $Discriminant)
+    };
+    ($self:ident, $state:ident, $State:ident, $Discriminant:ident) => {
+        $self
+            .access()?
+            .$state
+            .iter()
+            .find_map(|a| if let $State::$Discriminant(value) = a { Some(value) } else { None })
     };
 }
 macro_rules! has_state {
@@ -484,11 +479,8 @@ impl WidgetAccessInfo {
     }
 
     /// Gets the accessibility name.
-    pub fn label(&self) -> Txt {
-        if let Some(n) = self.info.meta().get_clone(&ACCESS_NAME_ID) {
-            return n;
-        }
-        self.info.id().name()
+    pub fn label(&self) -> Option<Txt> {
+        get_state!(self.txt.Label).cloned()
     }
 
     /// Indicates whether a [`TextBox`] accepts multiple lines of input.
@@ -510,7 +502,7 @@ impl WidgetAccessInfo {
 
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
     pub fn placeholder(&self) -> Option<Txt> {
-        self.info.meta().get_clone(&ACCESS_PLACEHOLDER_ID)
+        get_state!(self.txt.Placeholder).cloned()
     }
 
     /// Indicates that the widget is not editable, but is otherwise operable.
@@ -560,7 +552,7 @@ impl WidgetAccessInfo {
     ///
     /// [`value`]: Self::value
     pub fn value_text(&self) -> Option<Txt> {
-        self.info.meta().get_clone(&ACCESS_VALUE_ID)
+        get_state!(self.txt.ValueText).cloned()
     }
 
     /// Gets the live indicator, changes, atomic and busy.
@@ -664,6 +656,7 @@ impl WidgetAccessInfo {
 struct AccessInfo {
     role: Option<AccessRole>,
     state: Vec<AccessState>,
+    state_txt: Vec<AccessStateTxt>,
 }
 impl AccessInfo {
     fn set_state(&mut self, state: AccessState) {
@@ -674,9 +667,30 @@ impl AccessInfo {
             self.state.push(state);
         }
     }
+
+    fn set_state_txt(&mut self, state: AccessStateTxt) {
+        let discriminant = std::mem::discriminant(&state);
+        if let Some(present) = self.state_txt.iter_mut().find(|s| std::mem::discriminant(&**s) == discriminant) {
+            *present = state;
+        } else {
+            self.state_txt.push(state);
+        }
+    }
+}
+
+enum AccessStateTxt {
+    Label(Txt),
+    Placeholder(Txt),
+    ValueText(Txt),
+}
+impl From<&AccessStateTxt> for AccessState {
+    fn from(value: &AccessStateTxt) -> Self {
+        match value {
+            AccessStateTxt::Label(l) => AccessState::Label(l.to_string()),
+            AccessStateTxt::Placeholder(p) => AccessState::Placeholder(p.to_string()),
+            AccessStateTxt::ValueText(v) => AccessState::ValueText(v.to_string()),
+        }
+    }
 }
 
 static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();
-static ACCESS_NAME_ID: StaticStateId<Txt> = StaticStateId::new_unique();
-static ACCESS_PLACEHOLDER_ID: StaticStateId<Txt> = StaticStateId::new_unique();
-static ACCESS_VALUE_ID: StaticStateId<Txt> = StaticStateId::new_unique();

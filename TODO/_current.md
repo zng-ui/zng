@@ -31,10 +31,14 @@
 
 * Info always inited in Windows 10.
     - Maybe due to IME integration?
+    - Chrome has a workaround, they send a `EVENT_SYSTEM_ALERT` with obj id `1`, then if a `WM_GETOBJECT` is
+      received for the same object they enable accessibility.
+        - https://www.chromium.org/developers/design-documents/accessibility/
+* Info always inited in ElementaryOS.
 
 * Implement info full build and send.
     - Skip nodes without any accessibility info?
-        - Review what HTML elements are included.
+        - HTML does this, DIV not included, children become part of the first included parent.
     - Optimize updates.
 * Access states from existing info:
     - AccessState::Modal - Derived from interactivity.
