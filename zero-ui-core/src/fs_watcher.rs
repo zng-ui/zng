@@ -1547,7 +1547,7 @@ impl SyncWithVar {
         (Self { task, handle }, var)
     }
 
-    // Match the event and flag variable update.
+    /// Match the event and flag variable update.
     ///
     /// Returns if the variable is still alive.
     pub fn on_event(&mut self, args: &FsChangesArgs) -> bool {

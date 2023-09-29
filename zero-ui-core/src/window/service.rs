@@ -263,7 +263,7 @@ impl WINDOWS {
         WINDOWS_SV.read().parallel.clone()
     }
 
-    // Requests a new window.
+    /// Requests a new window.
     ///
     /// The `new_window` future runs in a [`UiTask`] inside the new [`WINDOW`] context.
     ///

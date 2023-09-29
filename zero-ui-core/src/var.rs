@@ -1826,7 +1826,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         var_on_new(self, handler, true)
     }
 
-    // Add a `handler` that is called every time this variable updates,
+    /// Add a `handler` that is called every time this variable updates,
     /// the handler is called after all other UI updates.
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
@@ -2278,7 +2278,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(|s| s.layout_z())
     }
 
-    // Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_dft_x(&self, default: Px) -> Px
@@ -2288,7 +2288,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(move |s| s.layout_dft_x(default))
     }
 
-    // Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_dft_y(&self, default: Px) -> Px
@@ -2298,7 +2298,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(move |s| s.layout_dft_y(default))
     }
 
-    // Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
+    /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     fn layout_dft_z(&self, default: Px) -> Px

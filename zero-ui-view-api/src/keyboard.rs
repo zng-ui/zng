@@ -82,9 +82,7 @@ impl std::fmt::Debug for NativeKeyCode {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[repr(u16)]
 pub enum KeyCode {
-    // source: https://docs.rs/winit/0.29.0-beta.0/src/winit/keyboard.rs.html#201-649
-    //
-    //
+    /* source: https://docs.rs/winit/0.29.0-beta.0/src/winit/keyboard.rs.html#201-649 */
     /// This variant is used when the key cannot be translated to any other variant.
     ///
     /// The native keycode is provided (if available) so you're able to more reliably match

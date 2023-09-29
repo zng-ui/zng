@@ -422,7 +422,7 @@ pub enum Event {
         selection: PxRect,
     },
 
-    // Config events
+    /* Config events */
     /// System fonts have changed.
     FontsChanged,
     /// System text-antialiasing configuration has changed.
@@ -438,7 +438,7 @@ pub enum Event {
     /// System locale changed.
     LocaleChanged(LocaleConfig),
 
-    // Raw device events
+    /* Raw device events */
     /// Device added or installed.
     DeviceAdded(DeviceId),
     /// Device removed.

@@ -822,7 +822,7 @@ impl ViewHeadless {
     }
 }
 
-// Weak handle to a window or view.
+/// Weak handle to a window or view.
 ///
 /// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
 /// window is closed or view is disposed.
