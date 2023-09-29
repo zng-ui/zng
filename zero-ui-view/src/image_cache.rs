@@ -5,7 +5,7 @@ use winit::window::Icon;
 use zero_ui_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
-    units::{Px, PxSize},
+    units::{Px, PxPoint, PxSize},
     Event,
 };
 
@@ -929,6 +929,12 @@ impl Image {
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             winit::window::Icon::from_rgba(buf, width, height).ok()
         }
+    }
+
+    /// Generate a cursor from the image.
+    pub fn cursor(&self, hotspot: PxPoint) -> Option<()> {
+        let _hotspot = hotspot;
+        None // TODO after https://github.com/rust-windowing/winit/pull/3039
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {

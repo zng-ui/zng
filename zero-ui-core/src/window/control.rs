@@ -26,7 +26,7 @@ use crate::{
     var::*,
     widget_info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
-    window::AutoSize,
+    window::{AutoSize, CursorImage},
 };
 
 use super::{
@@ -35,6 +35,25 @@ use super::{
     WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
     TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
 };
+
+struct ImageResources {
+    icon_var: Option<ImageVar>,
+    cursor_var: Option<ImageVar>,
+    icon_binding: VarHandle,
+    cursor_binding: VarHandle,
+    deadline: Deadline,
+}
+impl Default for ImageResources {
+    fn default() -> Self {
+        Self {
+            icon_var: None,
+            cursor_var: None,
+            icon_binding: VarHandle::dummy(),
+            cursor_binding: VarHandle::dummy(),
+            deadline: Deadline::timeout(1.secs()),
+        }
+    }
+}
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
@@ -57,9 +76,7 @@ struct HeadedCtrl {
     state: Option<WindowStateAll>, // None if not inited.
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
-    icon: Option<ImageVar>,
-    icon_binding: VarHandle,
-    icon_deadline: Deadline,
+    img_res: ImageResources,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     system_color_scheme: Option<ColorScheme>,
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
@@ -86,9 +103,7 @@ impl HeadedCtrl {
             state: None,
             monitor: None,
             resize_wait_id: None,
-            icon: None,
-            icon_binding: VarHandle::dummy(),
-            icon_deadline: Deadline::timeout(1.secs()),
+            img_res: ImageResources::default(),
             system_color_scheme: None,
             parent_color_scheme: None,
             actual_parent: None,
@@ -291,12 +306,14 @@ impl HeadedCtrl {
                 }
             }
 
+            let mut img_res_loading = vec![];
+
             // icon:
             let mut send_icon = false;
             if let Some(ico) = self.vars.icon().get_new() {
                 use crate::image::ImageSource;
 
-                self.icon = match ico {
+                self.img_res.icon_var = match ico {
                     WindowIcon::Default => None,
                     WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
                         ico.clone(),
@@ -305,40 +322,87 @@ impl HeadedCtrl {
                     WindowIcon::Image(source) => Some(IMAGES.cache(source)),
                 };
 
-                if let Some(ico) = &self.icon {
-                    self.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
+                if let Some(ico) = &self.img_res.icon_var {
+                    self.img_res.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
 
                     if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
-                        if self.icon_deadline.has_elapsed() {
-                            UPDATES.layout_window(WINDOW.id());
-                        } else {
-                            let window_id = WINDOW.id();
-                            TIMERS
-                                .on_deadline(
-                                    self.icon_deadline,
-                                    app_hn_once!(ico, |_| {
-                                        if ico.get().is_loading() {
-                                            UPDATES.layout_window(window_id);
-                                        }
-                                    }),
-                                )
-                                .perm();
-                        }
+                        img_res_loading.push(ico.clone());
                     }
                 } else {
                     self.vars.0.actual_icon.set(None);
-                    self.icon_binding = VarHandle::dummy();
+                    self.img_res.icon_binding = VarHandle::dummy();
                 }
 
                 send_icon = true;
-            } else if self.icon.as_ref().map(|ico| ico.is_new()).unwrap_or(false) {
+            } else if self.img_res.icon_var.as_ref().map(|ico| ico.is_new()).unwrap_or(false) {
                 send_icon = true;
             }
             if send_icon {
-                let icon = self.icon.as_ref().and_then(|ico| ico.get().view().cloned());
+                let icon = self.img_res.icon_var.as_ref().and_then(|ico| ico.get().view().cloned());
                 self.update_gen(move |view| {
                     let _: Ignore = view.set_icon(icon.as_ref());
                 });
+            }
+
+            // cursor_image:
+            let mut send_cursor = false;
+            if let Some(cur) = self.vars.cursor_image().get_new() {
+                use crate::image::ImageSource;
+
+                self.img_res.cursor_var = match cur {
+                    None => None,
+                    Some(CursorImage { source, .. }) => match source {
+                        ImageSource::Render(cur, _) => Some(IMAGES.cache(ImageSource::Render(
+                            cur.clone(),
+                            Some(crate::image::ImageRenderArgs { parent: Some(WINDOW.id()) }),
+                        ))),
+                        source => Some(IMAGES.cache(source)),
+                    },
+                };
+
+                if let Some(cur) = &self.img_res.cursor_var {
+                    self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_image, |img| Some(img.clone()));
+
+                    if cur.get().is_loading() && self.window.is_none() && !self.waiting_view {
+                        img_res_loading.push(cur.clone());
+                    }
+                } else {
+                    self.vars.0.actual_cursor_image.set(None);
+                    self.img_res.cursor_binding = VarHandle::dummy();
+                }
+
+                send_cursor = true;
+            } else if self.img_res.cursor_var.as_ref().map(|cur| cur.is_new()).unwrap_or(false) {
+                send_cursor = true;
+            }
+            if send_cursor {
+                let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
+                if let Some(c) = self.vars.cursor_image().get() {
+                    let hotspot = c.hotspot;
+                    self.update_gen(move |view| {
+                        let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);
+                    })
+                }
+            }
+
+            // setup init wait for images
+            if !img_res_loading.is_empty() {
+                if self.img_res.deadline.has_elapsed() {
+                    UPDATES.layout_window(WINDOW.id());
+                } else {
+                    let window_id = WINDOW.id();
+                    TIMERS
+                        .on_deadline(
+                            self.img_res.deadline,
+                            app_hn_once!(|_| {
+                                if img_res_loading.iter().any(|i| i.get().is_loading()) {
+                                    // window maybe still waiting.
+                                    UPDATES.layout_window(window_id);
+                                }
+                            }),
+                        )
+                        .perm();
+                }
             }
 
             if let Some(title) = self.vars.title().get_new() {
@@ -697,11 +761,17 @@ impl HeadedCtrl {
         let m = self.monitor.as_ref().unwrap();
         self.vars.0.scale_factor.set(m.scale_factor().get());
 
-        // await icon load for up to 1s.
-        if let Some(icon) = &self.icon {
-            if !self.icon_deadline.has_elapsed() && icon.get().is_loading() {
-                // block on icon loading.
-                return;
+        // await images load up to 1s.
+        if self.img_res.deadline.has_elapsed() {
+            if let Some(icon) = &self.img_res.icon_var {
+                if icon.get().is_loading() {
+                    return;
+                }
+            }
+            if let Some(cursor) = &self.img_res.cursor_var {
+                if cursor.get().is_loading() {
+                    return;
+                }
             }
         }
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
@@ -815,8 +885,19 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
-            icon: self.icon.as_ref().and_then(|ico| ico.get().view().map(|ico| ico.id())).flatten(),
+            icon: self
+                .img_res
+                .icon_var
+                .as_ref()
+                .and_then(|ico| ico.get().view().map(|ico| ico.id()))
+                .flatten(),
             cursor: self.vars.cursor().get(),
+            cursor_image: self
+                .img_res
+                .cursor_var
+                .as_ref()
+                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
+                .flatten(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
@@ -928,8 +1009,19 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
-            icon: self.icon.as_ref().and_then(|ico| ico.get().view().map(|ico| ico.id())).flatten(),
+            icon: self
+                .img_res
+                .icon_var
+                .as_ref()
+                .and_then(|ico| ico.get().view().map(|ico| ico.id()))
+                .flatten(),
             cursor: self.vars.cursor().get(),
+            cursor_image: self
+                .img_res
+                .cursor_var
+                .as_ref()
+                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
+                .flatten(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),

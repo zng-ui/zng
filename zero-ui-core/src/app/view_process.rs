@@ -693,6 +693,27 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_cursor(id, icon))
     }
 
+    /// Set the window cursor to a custom image.
+    ///
+    /// Falls-back to cursor icon if set to `None`.
+    ///
+    /// The `hotspot` value is an exact point in the image that is the mouse position. This value is only used if
+    /// the image format does not contain a hotspot.
+    pub fn set_cursor_image(&self, cursor: Option<&ViewImage>, hotspot: PxPoint) -> Result<()> {
+        self.0.call(|id, p| {
+            if let Some(cur) = cursor {
+                let cur = cur.0.read();
+                if p.generation() == cur.generation {
+                    p.set_cursor_image(id, cur.id.map(|img| zero_ui_view_api::window::CursorImage { img, hotspot }))
+                } else {
+                    Err(ViewProcessOffline)
+                }
+            } else {
+                p.set_cursor_image(id, None)
+            }
+        })
+    }
+
     /// Set the window icon visibility in the taskbar.
     pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
         self.0.call(|id, p| p.set_taskbar_visible(id, visible))

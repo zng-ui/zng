@@ -595,6 +595,19 @@ impl_from_and_into_var! {
     }
 }
 
+/// Window custom cursor.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CursorImage {
+    /// Cursor image source.
+    ///
+    /// For better compatibility use a square image between 32 and 128 pixels.
+    pub source: ImageSource,
+    /// Pixel in the source image that is the exact mouse position.
+    ///
+    /// This value is ignored if the image source format already has hotspot information.
+    pub hotspot: PxPoint,
+}
+
 /// Frame image capture mode in a window.
 ///
 /// You can set the capture mode using [`WindowVars::frame_capture_mode`].

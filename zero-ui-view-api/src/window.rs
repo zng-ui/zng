@@ -431,6 +431,8 @@ pub struct WindowRequest {
     pub icon: Option<ImageId>,
     /// Window cursor icon and visibility.
     pub cursor: Option<CursorIcon>,
+    /// Window custom cursor.
+    pub cursor_image: Option<ImageId>,
     /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 
@@ -723,6 +725,17 @@ impl CursorIcon {
             _ => splat(20.0, 0.0),
         }
     }
+}
+
+/// Defines a custom mouse cursor.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CursorImage {
+    /// Cursor image.
+    pub img: ImageId,
+    /// Exact point in the image that is the mouse position.
+    ///
+    /// This value is only used if the image format does not contain a hotspot.
+    pub hotspot: PxPoint,
 }
 
 /// Window state after a resize.

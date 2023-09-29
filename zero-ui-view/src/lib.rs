@@ -149,9 +149,9 @@ use zero_ui_view_api::{
     touch::{TouchId, TouchUpdate},
     units::*,
     window::{
-        CursorIcon, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
-        HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest, WindowState,
-        WindowStateAll,
+        CursorIcon, CursorImage, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
+        HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
+        WindowState, WindowStateAll,
     },
     Inited, *,
 };
@@ -1690,6 +1690,17 @@ impl Api for App {
 
     fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {
         self.with_window(id, |w| w.set_cursor(icon), || ())
+    }
+
+    fn set_cursor_image(&mut self, id: WindowId, icon: Option<CursorImage>) {
+        let icon = icon.and_then(|img| self.image_cache.get(img.img).and_then(|i| i.cursor(img.hotspot)));
+        self.with_window(
+            id,
+            |w| {
+                let _ = (w, icon); // TODO https://github.com/rust-windowing/winit/pull/3039
+            },
+            || (),
+        );
     }
 
     fn image_decoders(&mut self) -> Vec<String> {

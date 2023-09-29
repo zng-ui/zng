@@ -18,6 +18,8 @@ pub(super) struct WindowVarsData {
     icon: ArcVar<WindowIcon>,
     pub(super) actual_icon: ArcVar<Option<Img>>,
     cursor: ArcVar<Option<CursorIcon>>,
+    cursor_image: ArcVar<Option<CursorImage>>,
+    pub(super) actual_cursor_image: ArcVar<Option<Img>>,
     title: ArcVar<Txt>,
 
     state: ArcVar<WindowState>,
@@ -88,6 +90,8 @@ impl WindowVars {
             icon: var(WindowIcon::Default),
             actual_icon: var(None),
             cursor: var(Some(CursorIcon::Default)),
+            cursor_image: var(None),
+            actual_cursor_image: var(None),
             title: var("".to_text()),
 
             state: var(WindowState::Normal),
@@ -195,6 +199,26 @@ impl WindowVars {
     /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
     pub fn cursor(&self) -> ArcVar<Option<CursorIcon>> {
         self.0.cursor.clone()
+    }
+
+    /// Window custom cursor.
+    ///
+    /// When this is set to a loaded image it is used as a cursor, falls-back to [`cursor`].
+    ///
+    /// See [`CursorImage`] for details.
+    ///
+    /// [`cursor`]: Self::cursor
+    pub fn cursor_image(&self) -> ArcVar<Option<CursorImage>> {
+        self.0.cursor_image.clone()
+    }
+
+    /// Window custom cursor image.
+    ///
+    /// This is `None` if [`cursor_image`] is not set, otherwise it is an [`Img`] reference clone.
+    ///
+    /// [`cursor_image`]: Self::cursor_image
+    pub fn actual_cursor_image(&self) -> ReadOnlyArcVar<Option<Img>> {
+        self.0.actual_cursor_image.read_only()
     }
 
     /// Window title text.
