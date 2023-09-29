@@ -678,56 +678,56 @@ impl TextSelectOp {
     ///
     /// This is the `Right` key operation.
     pub fn next() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::next_insert_index))
+        Self::new(|| next_prev(true, SegmentedText::next_insert_index, |_, s| s.end.index))
     }
 
     /// Extend or shrink selection by moving the caret to the next insert index.
     ///
     /// This is the `SHIFT+Right` key operation.
     pub fn select_next() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::next_insert_index))
+        Self::new(|| next_prev(false, SegmentedText::next_insert_index, |_, _| unreachable!()))
     }
 
     /// Clear selection and move the caret to the previous insert index.
     ///
     /// This is the `Left` key operation.
     pub fn prev() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::prev_insert_index))
+        Self::new(|| next_prev(true, SegmentedText::prev_insert_index, |_, s| s.start.index))
     }
 
     /// Extend or shrink selection by moving the caret to the previous insert index.
     ///
     /// This is the `SHIFT+Left` key operation.
     pub fn select_prev() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::prev_insert_index))
+        Self::new(|| next_prev(false, SegmentedText::prev_insert_index,  |_, _| unreachable!()))
     }
 
     /// Clear selection and move the caret to the next word insert index.
     ///
     /// This is the `CTRL+Right` shortcut operation.
     pub fn next_word() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::next_word_index))
+        Self::new(|| next_prev(true, SegmentedText::next_word_index, |t, s| t.next_word_index(s.end.index)))
     }
 
     /// Extend or shrink selection by moving the caret to the next word insert index.
     ///
     /// This is the `CTRL+SHIFT+Right` shortcut operation.
     pub fn select_next_word() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::next_word_index))
+        Self::new(|| next_prev(false, SegmentedText::next_word_index,  |_, _| unreachable!()))
     }
 
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn prev_word() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::prev_word_index))
+        Self::new(|| next_prev(true, SegmentedText::prev_word_index, |t, s| t.prev_word_index(s.start.index)))
     }
 
     /// Extend or shrink selection by moving the caret to the previous word insert index.
     ///
     /// This is the `CTRL+SHIFT+Left` shortcut operation.
     pub fn select_prev_word() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::prev_word_index))
+        Self::new(|| next_prev(false, SegmentedText::prev_word_index,  |_, _| unreachable!()))
     }
 
     /// Clear selection and move the caret to the nearest insert index on the previous line.
@@ -889,16 +889,23 @@ impl TextSelectOp {
     }
 }
 
-fn next_prev(clear_selection: bool, insert_index_fn: fn(&SegmentedText, usize) -> usize) {
+fn next_prev(clear_selection: bool, insert_index_fn: fn(&SegmentedText, usize) -> usize, selection_index: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize) {
     let ctx = ResolvedText::get();
     let mut c = ctx.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
+        i.index = if let Some(s) = c.selection_range() {
+            selection_index(&ctx.text, s)
+        } else {
+            insert_index_fn(&ctx.text, i.index)
+        };
         c.selection_index = None;
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+    } else {
+        if c.selection_index.is_none() {
+            c.selection_index = Some(i);
+        }
+        i.index = insert_index_fn(&ctx.text, i.index);
     }
-    i.index = insert_index_fn(&ctx.text, i.index);
     c.set_index(i);
     c.used_retained_x = false;
 }

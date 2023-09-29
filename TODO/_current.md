@@ -1,8 +1,6 @@
 # TextInput
 
 * Implement selection.
-    - Arrow keys must use selection.
-        - Does not move caret, moves from the end-point in the direction.
     - Mouse:
         - Double-click causes selection that grows by word.
             - Conflict with normal press drag?
