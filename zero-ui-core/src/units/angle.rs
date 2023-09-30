@@ -19,6 +19,10 @@ use std::{
 /// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
 /// mode, types that don't support this use the normal linear interpolation. All angle and transform units
 /// implement this.
+///
+/// Samplers can be set in animations using the [`Var::easing_with`] method.
+///
+/// [`Var::easing_with`]: crate::var::Var::easing_with
 pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: super::EasingStep) -> T {
     slerp_enabled(true, || t.sample(step))
 }
@@ -31,6 +35,8 @@ pub fn is_slerp_enabled() -> bool {
 }
 
 /// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
+///
+/// See [`slerp_sampler`] for a way to enable in animations.
 pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
     SLERP_ENABLED.with_context_value(enabled, f)
 }

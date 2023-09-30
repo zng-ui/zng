@@ -255,7 +255,7 @@ impl Default for BorderSide {
 }
 impl animation::Transitionable for BorderSide {
     fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
-        self.color = self.color.lerp(&to.color, step);
+        self.color = self.color.lerp(to.color, step);
         self.style = self.style.lerp(&to.style, step);
         self
     }
