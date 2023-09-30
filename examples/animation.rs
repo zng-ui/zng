@@ -26,8 +26,8 @@ fn app_main() {
     })
 }
 
-const FROM_COLOR: Rgba = colors::RED;
-const TO_COLOR: Rgba = colors::GREEN;
+const FROM_COLOR: Rgba = web_colors::RED;
+const TO_COLOR: Rgba = web_colors::GREEN;
 const FPS: u32 = 60;
 
 fn example() -> impl UiNode {
@@ -65,7 +65,7 @@ fn example() -> impl UiNode {
                     x = x.map(|x| x.clone() - 20.dip());
 
                     when *#is_hovered {
-                        background_color = colors::LIME;
+                        background_color = web_colors::LIME;
                     }
                 };
             },
@@ -117,7 +117,7 @@ fn example() -> impl UiNode {
                 foreground_highlight = {
                     offsets: -2,
                     widths: 1,
-                    sides: colors::DARK_RED,
+                    sides: web_colors::DARK_RED,
                 };
                 click_shortcut = shortcut![Escape];
                 on_click = hn!(x, color, |_| {

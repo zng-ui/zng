@@ -194,7 +194,7 @@ fn screenshot() -> impl UiNode {
                 WINDOWS.open_headless(async_clmv!(enabled, {
                     Window! {
                         size = (500, 400);
-                        background_color = colors::DARK_GREEN;
+                        background_color = web_colors::DARK_GREEN;
                         font_size = 72;
                         child_align = Align::CENTER;
                         child = Text!("No Head!");

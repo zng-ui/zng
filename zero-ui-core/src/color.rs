@@ -12,6 +12,7 @@ pub use crate::app::view_process::ColorScheme;
 pub mod colors;
 pub mod filters;
 mod mix;
+pub mod web_colors;
 pub use mix::*;
 
 ///<span data-del-macro-root></span> Hexadecimal color literal.

@@ -117,7 +117,7 @@ fn window_status() -> impl UiNode {
 fn icon() -> impl UiNode {
     Container! {
         size = (36, 36);
-        background_gradient = Line::to_bottom_right(), stops![colors::ORANGE_RED, 70.pct(), colors::DARK_RED];
+        background_gradient = Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;

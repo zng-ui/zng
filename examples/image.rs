@@ -524,7 +524,7 @@ impl ImgWindow {
     }
 }
 fn loading_color() -> Rgba {
-    colors::LIGHT_GRAY
+    web_colors::LIGHT_GRAY
 }
 
 fn error_color() -> Rgba {

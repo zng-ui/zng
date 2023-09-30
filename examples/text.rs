@@ -124,11 +124,11 @@ fn basic() -> impl UiNode {
             Strong!("Strong Text"),
             Em!("Emphasis Text"),
             Text! {
-                font_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
+                font_color = color_scheme_map(web_colors::LIGHT_GREEN, web_colors::DARK_GREEN);
                 txt = "Colored Text";
 
                 when *#is_hovered {
-                    font_color = color_scheme_map(colors::YELLOW, colors::BROWN);
+                    font_color = color_scheme_map(web_colors::YELLOW, web_colors::BROWN);
                 }
             },
             Text!("Emoticons 🔎👨‍💻🧐"),
@@ -142,13 +142,13 @@ fn line_height() -> impl UiNode {
         ui_vec![
             Text! {
                 txt = "Default: 'Émp Giga Ç'";
-                background_color = colors::LIGHT_BLUE;
-                font_color = colors::BLACK;
+                background_color = web_colors::LIGHT_BLUE;
+                font_color = web_colors::BLACK;
             },
             Text! {
                 txt = "150%: 'Émp Giga Ç'";
-                background_color = colors::LIGHT_BLUE;
-                font_color = colors::BLACK;
+                background_color = web_colors::LIGHT_BLUE;
+                font_color = web_colors::BLACK;
                 line_height = 150.pct();
             },
         ],
@@ -226,7 +226,7 @@ fn decoration_lines() -> impl UiNode {
             Text! {
                 txt = "Strikethrough, 4, Double,\ndifferent color";
                 strikethrough = 4, LineStyle::Double;
-                strikethrough_color = colors::RED;
+                strikethrough_color = web_colors::RED;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
@@ -257,7 +257,7 @@ fn decoration_lines() -> impl UiNode {
             Text! {
                 txt = "Underline, 3, wavy,\ndifferent color, no skip";
                 underline = 3, LineStyle::Wavy(1.0);
-                underline_color = colors::GREEN;
+                underline_color = web_colors::GREEN;
                 underline_skip = UnderlineSkip::NONE;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);

@@ -27,13 +27,6 @@
 
 * Underline padding does not look right for some curved glyphs (parenthesis shows this), consider improving the `h_line_hits`.
 
-# Mixed Content
-
-* Implement text runs composed of multiple styles, same problem as font fallback?
-* Implement widgets that derive text runs and styles from the text.
-    - Markdown.
-    - ANSI coloring (to show basic Inspector in a window).
-
 # Font Loading
 
 * Support web fonts.

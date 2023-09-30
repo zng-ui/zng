@@ -246,7 +246,7 @@ fn delayed_focus() -> impl UiNode {
                 focusable = true;
                 when *#is_focused {
                     txt = "focused";
-                    background_color = color_scheme_map(colors::DARK_GREEN, colors::LIGHT_GREEN);
+                    background_color = color_scheme_map(web_colors::DARK_GREEN, web_colors::LIGHT_GREEN);
                 }
             },
         ]
@@ -351,7 +351,7 @@ fn nested_focusables() -> impl UiNode {
                     title = "Focus Example - Nested Focusables";
 
                     color_scheme = ColorScheme::Dark;
-                    background_color = colors::DIM_GRAY;
+                    background_color = web_colors::DIM_GRAY;
 
                     // zero_ui::properties::inspector::show_center_points = true;
                     child_align = Align::CENTER;
@@ -400,10 +400,10 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
         border = 1, colors::RED.with_alpha(30.pct());
         background_color = colors::RED.with_alpha(20.pct());
         when *#is_focused {
-            background_color = colors::GREEN;
+            background_color = web_colors::GREEN;
         }
         when *#is_return_focus {
-            border = 1, colors::LIME_GREEN;
+            border = 1, web_colors::LIME_GREEN;
         }
     }
 }

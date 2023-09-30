@@ -72,7 +72,7 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
                 frame.push_border(
                     wgt.outer_bounds(),
                     PxSideOffsets::new_all_same(p),
-                    BorderSides::dotted(colors::PINK),
+                    BorderSides::dotted(web_colors::PINK),
                     PxCornerRadius::zero(),
                 );
             }
@@ -80,7 +80,7 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
             frame.push_border(
                 wgt.inner_bounds(),
                 PxSideOffsets::new_all_same(p),
-                BorderSides::solid(colors::ROYAL_BLUE),
+                BorderSides::solid(web_colors::ROYAL_BLUE),
                 PxCornerRadius::zero(),
             );
         },
@@ -105,7 +105,7 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
                         frame.push_border(
                             *row,
                             PxSideOffsets::new_all_same(p),
-                            BorderSides::dotted(colors::LIGHT_SALMON),
+                            BorderSides::dotted(web_colors::LIGHT_SALMON),
                             PxCornerRadius::zero(),
                         )
                     }
@@ -258,7 +258,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if valid && enabled.get() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let fail_sides = BorderSides::solid(colors::RED);
-                let hits_sides = BorderSides::solid(colors::LIME_GREEN);
+                let hits_sides = BorderSides::solid(web_colors::LIME_GREEN);
 
                 frame.with_hit_tests_disabled(|frame| {
                     for fail in &fails {

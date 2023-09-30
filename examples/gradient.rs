@@ -45,10 +45,13 @@ fn title(title: &'static str) -> impl UiNode {
 
 fn linear_angle() -> impl UiNode {
     sample_line(ui_vec![
-        sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE])),
-        sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE])),
-        sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN])),
-        sample("45º 14px", linear_gradient(45.deg(), [(colors::LIME, 14), (colors::GRAY, 14)])),
+        sample("90º", linear_gradient(90.deg(), [web_colors::RED, web_colors::BLUE])),
+        sample("45º", linear_gradient(45.deg(), [web_colors::GREEN, web_colors::BLUE])),
+        sample("0º", linear_gradient(0.deg(), [web_colors::BLACK, web_colors::GREEN])),
+        sample(
+            "45º 14px",
+            linear_gradient(45.deg(), [(web_colors::LIME, 14), (web_colors::GRAY, 14)])
+        ),
     ])
 }
 
@@ -56,19 +59,22 @@ fn linear_points() -> impl UiNode {
     sample_line(ui_vec![
         sample(
             "(30, 30) to (90, 90) clamp",
-            linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]),
+            linear_gradient((30, 30).to(90, 90), [web_colors::GREEN, web_colors::RED]),
         ),
         sample(
             "(30, 30) to (90, 90) repeat",
-            linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]).repeat(),
+            linear_gradient((30, 30).to(90, 90), [web_colors::GREEN, web_colors::RED]).repeat(),
         ),
         sample(
             "(30, 30) to (90, 90) reflect",
-            linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]).reflect(),
+            linear_gradient((30, 30).to(90, 90), [web_colors::GREEN, web_colors::RED]).reflect(),
         ),
         sample(
             "to bottom right",
-            linear_gradient(Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 80.pct(), colors::CRIMSON]),
+            linear_gradient(
+                Line::to_bottom_right(),
+                stops![web_colors::MIDNIGHT_BLUE, 80.pct(), web_colors::CRIMSON]
+            ),
         ),
     ])
 }
@@ -76,14 +82,17 @@ fn linear_points() -> impl UiNode {
 fn linear_tile() -> impl UiNode {
     let w = 180 / 5;
     sample_line(ui_vec![
-        sample("tiles", linear_gradient(45.deg(), [colors::GREEN, colors::YELLOW]).tile(w, 0),),
+        sample(
+            "tiles",
+            linear_gradient(45.deg(), [web_colors::GREEN, web_colors::YELLOW]).tile(w, 0),
+        ),
         sample(
             "tiles spaced",
-            linear_gradient(45.deg(), [colors::MAGENTA, colors::AQUA]).tile(w + 5, 5),
+            linear_gradient(45.deg(), [web_colors::MAGENTA, web_colors::AQUA]).tile(w + 5, 5),
         ),
         sample(
             "pattern",
-            linear_gradient(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())]).tile(20, 0),
+            linear_gradient(45.deg(), [(web_colors::BLACK, 50.pct()), (web_colors::ORANGE, 50.pct())]).tile(20, 0),
         ),
     ])
 }
@@ -93,17 +102,17 @@ fn stack_linear() -> impl UiNode {
         sample(
             "background",
             stack_nodes(ui_vec![
-                linear_gradient(45.deg(), [colors::RED, colors::GREEN]),
+                linear_gradient(45.deg(), [web_colors::RED, web_colors::GREEN]),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)]),
             ]),
         ),
         sample(
             "over color",
             stack_nodes(ui_vec![
-                flood(colors::WHITE),
-                linear_gradient(0.deg(), stops![colors::RED, (colors::RED.transparent(), 50.pct())]),
-                linear_gradient(120.deg(), stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())]),
-                linear_gradient(240.deg(), stops![colors::BLUE, (colors::BLUE.transparent(), 50.pct())]),
+                flood(web_colors::WHITE),
+                linear_gradient(0.deg(), stops![web_colors::RED, (web_colors::RED.transparent(), 50.pct())]),
+                linear_gradient(120.deg(), stops![web_colors::GREEN, (web_colors::GREEN.transparent(), 50.pct())]),
+                linear_gradient(240.deg(), stops![web_colors::BLUE, (web_colors::BLUE.transparent(), 50.pct())]),
             ]),
         ),
         sample(
@@ -111,13 +120,13 @@ fn stack_linear() -> impl UiNode {
             stack_nodes({
                 let rainbow = GradientStops::from_stripes(
                     &[
-                        colors::RED,
-                        colors::ORANGE,
-                        colors::YELLOW,
-                        colors::GREEN,
-                        colors::DODGER_BLUE,
-                        colors::INDIGO,
-                        colors::BLUE_VIOLET,
+                        web_colors::RED,
+                        web_colors::ORANGE,
+                        web_colors::YELLOW,
+                        web_colors::GREEN,
+                        web_colors::DODGER_BLUE,
+                        web_colors::INDIGO,
+                        web_colors::BLUE_VIOLET,
                     ],
                     0.0,
                 );
@@ -139,16 +148,16 @@ fn stack_linear() -> impl UiNode {
                 }
 
                 ui_vec![
-                    flood(colors::WHITE),
-                    gradient(0, colors::RED),
-                    gradient(20, colors::RED),
-                    gradient(40, colors::RED),
-                    gradient(120, colors::GREEN),
-                    gradient(140, colors::GREEN),
-                    gradient(160, colors::GREEN),
-                    gradient(240, colors::BLUE),
-                    gradient(260, colors::BLUE),
-                    gradient(280, colors::BLUE),
+                    flood(web_colors::WHITE),
+                    gradient(0, web_colors::RED),
+                    gradient(20, web_colors::RED),
+                    gradient(40, web_colors::RED),
+                    gradient(120, web_colors::GREEN),
+                    gradient(140, web_colors::GREEN),
+                    gradient(160, web_colors::GREEN),
+                    gradient(240, web_colors::BLUE),
+                    gradient(260, web_colors::BLUE),
+                    gradient(280, web_colors::BLUE),
                 ]
             }),
         ),
@@ -181,7 +190,7 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
 fn icon() -> impl UiNode {
     Text! {
         size = 36;
-        background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
+        background_gradient = Line::to_bottom_right(), stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON];
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;

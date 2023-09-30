@@ -20,7 +20,7 @@ fn app_main() {
         Window! {
             title = "Border Example";
 
-            background_color = colors::BLUE.darken(70.pct());
+            background_color = web_colors::BLUE.darken(70.pct());
 
             color_scheme = ColorScheme::Dark;
 
@@ -87,14 +87,14 @@ fn clip_to_bounds_demo() -> impl UiNode {
     Container! {
         child_align = Align::FILL;
         corner_radius = 10;
-        border = 0.5, colors::RED.darken(20.pct());
+        border = 0.5, web_colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
         on_click = hn!(clip, |_| {
             clip.modify(|c| *c.to_mut() = !**c)
         });
         child = Text! {
             corner_radius = 0;
-            background_color = colors::GREEN.darken(40.pct());
+            background_color = web_colors::GREEN.darken(40.pct());
             padding = 3;
             rotate = -(5.deg());
             txt_align = Align::CENTER;
@@ -116,13 +116,13 @@ mod widgets {
 
                 child_align = Align::CENTER;
 
-                background_color = colors::GREEN.darken(40.pct());
+                background_color = web_colors::GREEN.darken(40.pct());
 
                 border0 = 4, colors::WHITE.with_alpha(20.pct());
                 border1 = 4, colors::BLACK.with_alpha(20.pct());
                 border2 = 4, colors::WHITE.with_alpha(20.pct());
 
-                foreground_highlight = 3, 1, colors::ORANGE;
+                foreground_highlight = 3, 1, web_colors::ORANGE;
 
                 corner_radius = 20;
             }

@@ -84,7 +84,7 @@ fn transform3d_examples() -> impl UiNode {
                     padding = 10;
                 };
 
-                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 transform_style = TransformStyle::Preserve3D;
                 border = 2, (colors::GRAY, BorderStyle::Dashed);
 
@@ -140,7 +140,7 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -148,7 +148,7 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
             }
         };
         is_hovered = parent_is_hovered;
-        border = 2, (colors::GRAY, BorderStyle::Dashed);
+        border = 2, (web_colors::GRAY, BorderStyle::Dashed);
     }
 }
 fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) -> impl UiNode {
@@ -158,7 +158,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -182,7 +182,7 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
             transform_origin = origin.into();
 
             child = Text!(label.into());
-            background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -207,7 +207,7 @@ fn transformed_sampler(
                     .easing_with(300.ms(), easing::linear, sampler);
 
                 child = Text!(label.into());
-                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
                 is_hovered;
@@ -227,14 +227,14 @@ fn transform_stack() -> impl UiNode {
         children = ui_vec![
             Container! {
                 child = Text!("Identity");
-                background_color = colors::DARK_GRAY.with_alpha(80.pct());
+                background_color = web_colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
             Container! {
                 id = "in-stack";
                 transform = rotate(45.deg());
                 child = Text!("Rotated 45º");
-                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
                 when *#is_hovered {
@@ -243,7 +243,7 @@ fn transform_stack() -> impl UiNode {
             },
             Container! {
                 child = Text!("Identity");
-                background_color = colors::DARK_GRAY.with_alpha(80.pct());
+                background_color = web_colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
         ];
@@ -271,7 +271,7 @@ fn transform_order() -> impl UiNode {
             translate = -5, -5;
 
             size = (60, 60);
-            background_color = colors::GREEN;
+            background_color = web_colors::GREEN;
 
             when *#is_hovered {
                 z_index = ZIndex::DEFAULT - 1;
@@ -399,7 +399,7 @@ fn touch_example() -> impl UiNode {
 
                 offset = 200;
                 size = 400;
-                background_color = colors::DODGER_BLUE;
+                background_color = web_colors::DODGER_BLUE;
                 corner_radius = 10;
             },
 

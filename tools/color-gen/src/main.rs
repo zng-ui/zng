@@ -1,9 +1,9 @@
-//! Generate the crate::core::color::colors module.
+//! Generate the colors code.
 
 use serde::Deserialize;
 
 fn main() {
-    println!("{}", xterm_256::generate().unwrap());
+    println!("{}", colors::generate().unwrap());
 }
 
 mod xterm_256 {
@@ -68,12 +68,18 @@ mod web_colors {
             use std::fmt::Write;
 
             writeln!(&mut s)?;
-            writeln!(&mut s, "/// {} (`#{}`)", color.doc_name(), color.hex)?;
-            writeln!(&mut s, "///")?;
-            writeln!(&mut s, "/// `rgb({}, {}, {})`", color.rgb.r, color.rgb.g, color.rgb.b)?;
             writeln!(
                 &mut s,
-                "pub const {}: Color = rgb!({}, {}, {});",
+                r#"/// <div style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></div> {name}, <code>#{hex}</code>, <code>rgb({r}, {g}, {b})</code>."#,
+                hex = color.hex,
+                name = color.doc_name(),
+                r = color.rgb.r,
+                g = color.rgb.g,
+                b = color.rgb.b,
+            );
+            writeln!(
+                &mut s,
+                "pub const {}: Rgba = rgb!({}, {}, {});",
                 color.const_name(),
                 color.rgb.r,
                 color.rgb.g,
@@ -118,6 +124,87 @@ mod web_colors {
                 }
             }
             result
+        }
+    }
+
+    #[derive(Deserialize)]
+    struct Color {
+        r: u8,
+        g: u8,
+        b: u8,
+    }
+}
+
+mod colors {
+    use super::*;
+
+    pub fn generate() -> Result<String, Box<dyn std::error::Error>> {
+        let colors: Vec<WebColor> = serde_json::from_str(JSON)?;
+
+        let mut s = String::new();
+
+        for color in colors {
+            use std::fmt::Write;
+
+            writeln!(&mut s)?;
+            writeln!(
+                &mut s,
+                r#"/// <div style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></div> {name}, <code>#{hex}</code>, <code>rgb({r}, {g}, {b})</code>."#,
+                hex = color.hex(),
+                name = color.doc_name(),
+                r = color.rgb.r,
+                g = color.rgb.g,
+                b = color.rgb.b,
+            );
+            writeln!(
+                &mut s,
+                "pub const {}: Rgba = rgb!({}, {}, {});",
+                color.const_name(),
+                color.rgb.r,
+                color.rgb.g,
+                color.rgb.b
+            )?;
+        }
+
+        Ok(s)
+    }
+
+    const JSON: &str = include_str! {"colors.json"};
+
+    #[derive(Deserialize)]
+    struct WebColor {
+        name: String,
+        rgb: Color,
+    }
+    impl WebColor {
+        fn doc_name(&self) -> String {
+            let mut result = String::with_capacity(self.name.len() + 1);
+            for c in self.name.chars() {
+                if c.is_uppercase() && !result.is_empty() {
+                    result.push(' ');
+                }
+                result.push(c);
+            }
+            result
+        }
+
+        fn const_name(&self) -> String {
+            let mut result = String::with_capacity(self.name.len() + 1);
+            for c in self.name.chars() {
+                if result.is_empty() {
+                    result.push(c)
+                } else if c.is_uppercase() {
+                    result.push('_');
+                    result.push(c);
+                } else {
+                    result.push(c.to_ascii_uppercase())
+                }
+            }
+            result
+        }
+
+        fn hex(&self) -> String {
+            format!("{:02X}{:02X}{:02X}", self.rgb.r, self.rgb.g, self.rgb.b)
         }
     }
 

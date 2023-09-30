@@ -118,9 +118,9 @@ fn layer_index_example() -> impl UiNode {
         direction = StackDirection::left_to_right();
         spacing = 5;
         children = ui_vec![
-            layer_n_btn(7, colors::DARK_GREEN),
-            layer_n_btn(8, colors::DARK_BLUE),
-            layer_n_btn(9, colors::DARK_RED),
+            layer_n_btn(7, web_colors::DARK_GREEN),
+            layer_n_btn(8, web_colors::DARK_BLUE),
+            layer_n_btn(9, web_colors::DARK_RED),
         ]
     }
 }
@@ -199,8 +199,8 @@ fn anchor_example() -> impl UiNode {
                 font_color = rgb(0.92, 0.92, 0.92);
                 padding = 4;
                 font_weight = FontWeight::BOLD;
-                background_color = colors::DARK_GREEN.with_alpha(80.pct());
-                border = 1, colors::GREEN.darken(20.pct());
+                background_color = web_colors::DARK_GREEN.with_alpha(80.pct());
+                border = 1, web_colors::GREEN.darken(20.pct());
                 margin = 2;
                 hit_test_mode = HitTestMode::Disabled;
             })
