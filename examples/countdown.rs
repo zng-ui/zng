@@ -41,7 +41,7 @@ fn app_main() {
 
             child = Text!(count.map(|&n| {
                 let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
-                println!("{r}");
+                tracing::info!("{r}");
                 r
             }));
 

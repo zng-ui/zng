@@ -148,8 +148,8 @@ fn app_main() {
                                 Ok(())
                             })();
                             match r {
-                                Ok(_) => println!("Opened another process"),
-                                Err(e) => eprintln!("Error opening another process, {e:?}"),
+                                Ok(_) => tracing::info!("Opened another process"),
+                                Err(e) => tracing::error!("Error opening another process, {e:?}"),
                             }
                         })
                     }

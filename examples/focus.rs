@@ -282,7 +282,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
         child = Text!(content.clone());
         tab_index;
         on_click = hn!(|_| {
-            println!("Clicked {content} {tab_index:?}")
+            tracing::info!("Clicked {content} {tab_index:?}")
         });
     }
 }
@@ -328,13 +328,13 @@ fn trace_focus() {
     FOCUS_CHANGED_EVENT
         .on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
             if args.is_hightlight_changed() {
-                println!("highlight: {}", args.highlight);
+                tracing::info!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {
-                println!("focused {:?} moved", args.new_focus.as_ref().unwrap());
+                tracing::info!("focused {:?} moved", args.new_focus.as_ref().unwrap());
             } else if args.is_enabled_change() {
-                println!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
+                tracing::info!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
             } else {
-                println!("{} -> {}", inspect::focus(&args.prev_focus), inspect::focus(&args.new_focus));
+                tracing::info!("{} -> {}", inspect::focus(&args.prev_focus), inspect::focus(&args.new_focus));
             }
         }))
         .perm();

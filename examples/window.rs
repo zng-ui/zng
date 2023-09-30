@@ -48,7 +48,7 @@ async fn main_window() -> WindowRoot {
         };
         title;
         on_state_changed = hn!(|args: &WindowChangedArgs| {
-            println!("state: {:?}", args.new_state().unwrap());
+            tracing::info!("state: {:?}", args.new_state().unwrap());
         });
         on_close_requested = confirm_close();
         child_align = Align::CENTER;
@@ -149,21 +149,21 @@ fn screenshot() -> impl UiNode {
                 // disable button until screenshot is saved.
                 enabled.set(false);
 
-                println!("taking `screenshot.png`..");
+                tracing::info!("taking `screenshot.png`..");
 
                 let t = Instant::now();
                 let img = WINDOW.frame_image(None).get();
                 img.wait_done().await;
-                println!("taken in {:?}, saving..", t.elapsed());
+                tracing::info!("taken in {:?}, saving..", t.elapsed());
 
                 let t = Instant::now();
 
                 match img.save("screenshot.png").await {
                     Ok(_) => {
-                        println!("saved in {:?}", t.elapsed());
+                        tracing::info!("saved in {:?}", t.elapsed());
                     }
                     Err(e) => {
-                        eprintln!("error {e}")
+                        tracing::error!("error {e}")
                     }
                 }
 
@@ -190,7 +190,7 @@ fn screenshot() -> impl UiNode {
             on_click = hn!(|_| {
                 enabled.set(false);
 
-                println!("taking `screenshot.png` using a new headless window ..");
+                tracing::info!("taking `screenshot.png` using a new headless window ..");
                 WINDOWS.open_headless(async_clmv!(enabled, {
                     Window! {
                         size = (500, 400);
@@ -201,10 +201,10 @@ fn screenshot() -> impl UiNode {
 
                         frame_capture_mode = FrameCaptureMode::Next;
                         on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
-                            println!("saving screenshot..");
+                            tracing::info!("saving screenshot..");
                             match args.frame_image.unwrap().save("screenshot.png").await {
-                                Ok(_) => println!("saved"),
-                                Err(e) => eprintln!("{e}")
+                                Ok(_) => tracing::info!("saved"),
+                                Err(e) => tracing::error!("{e}")
                             }
                             debug_assert_eq!(WINDOW.id(), args.window_id);
                             WINDOW.close();
@@ -424,10 +424,10 @@ fn visibility() -> impl UiNode {
         child = Text!("Hide for 1s");
         on_click = async_hn!(visible, |_| {
             visible.set(false);
-            println!("visible=false");
+            tracing::info!("visible=false");
             task::deadline(1.secs()).await;
             visible.set(true);
-            println!("visible=true");
+            tracing::info!("visible=true");
         });
     };
 

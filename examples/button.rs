@@ -59,17 +59,17 @@ fn example() -> impl UiNode {
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(new_txt);
         });
-        on_double_click = hn!(|_| println!("double click!"));
-        on_triple_click = hn!(|_| println!("triple click!"));
-        on_context_click = hn!(|_| println!("context click!"));
+        on_double_click = hn!(|_| tracing::info!("double click!"));
+        on_triple_click = hn!(|_| tracing::info!("triple click!"));
+        on_context_click = hn!(|_| tracing::info!("context click!"));
         context_menu = ContextMenu!(ui_vec![
             Button! {
                 child = Text!("Context Item 1");
-                on_click = hn!(|_| println!("context item 1 click!"));
+                on_click = hn!(|_| tracing::info!("context item 1 click!"));
             },
             Button! {
                 child = Text!("Context Item 2");
-                on_click = hn!(|_| println!("context item 2 click!"));
+                on_click = hn!(|_| tracing::info!("context item 2 click!"));
             }
         ]);
         child = Text!(t);
@@ -88,7 +88,7 @@ fn image_button() -> impl UiNode {
     Button! {
         id = "img-btn";
         tooltip = Tip!(Text!("image button"));
-        on_click = hn!(|_| println!("Clicked image button"));
+        on_click = hn!(|_| tracing::info!("Clicked image button"));
         child_insert_start = {
             insert: Image! {
                 source = "examples/res/window/icon-bytes.png";
@@ -124,13 +124,13 @@ fn split_button() -> impl UiNode {
         style_fn = toggle::ComboStyle!();
 
         on_click = hn!(split_count, |_| {
-            println!("Clicked split part");
+            tracing::info!("Clicked split part");
             split_count.set(split_count.get() + 1);
         });
 
         child = Button! {
             on_click = hn!(button_count, |args: &ClickArgs| {
-                println!("Clicked button part");
+                tracing::info!("Clicked button part");
                 button_count.set(button_count.get() + 1);
 
                 args.propagation().stop();

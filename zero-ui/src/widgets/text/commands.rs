@@ -1100,12 +1100,8 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                 l.actual_text_caret_range()
             };
 
-            let merge_with_selection = if replace_selection {
-                None
-            } else {
-                c.selection_range()
-            };
-            if let Some(mut s) = merge_with_selection { 
+            let merge_with_selection = if replace_selection { None } else { c.selection_range() };
+            if let Some(mut s) = merge_with_selection {
                 let caret_at_start = range.start < s.start.index;
                 s.start.index = s.start.index.min(range.start);
                 s.end.index = s.end.index.max(range.end);
