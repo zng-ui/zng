@@ -2,10 +2,7 @@
 
 * Implement selection.
     - Mouse:
-        - Double-click causes selection that grows by word.
-            - Conflict with normal press drag?
-            - Prevent double-click from selecting the line break segment?
-            - When a selection already exists, double-clicking to the left of it is incorrect
+        - Double-click causes selection that grows by word or.
         - Triple-click and Quadruple-click?
             - Also needs to grow selection by line and not change, respectively
     - Touch:

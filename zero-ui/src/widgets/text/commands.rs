@@ -1090,21 +1090,44 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
         //if has rendered
         if let Some(l) = layout.shaped_text.nearest_line(pos.y) {
             let range = if select_word {
-                l.nearest_seg(pos.x).map(|seg| seg.text_range()).unwrap_or_else(|| l.text_range())
+                let max_char = l.actual_text_caret_range().end;
+                let mut r = l.nearest_seg(pos.x).map(|seg| seg.text_range()).unwrap_or_else(|| l.text_range());
+                // don't select line-break at end of line
+                r.start = r.start.min(max_char);
+                r.end = r.end.min(max_char);
+                r
             } else {
                 l.actual_text_caret_range()
             };
 
-            if replace_selection {
+            let merge_with_selection = if replace_selection {
+                None
+            } else {
+                c.selection_range()
+            };
+            if let Some(mut s) = merge_with_selection { 
+                let caret_at_start = range.start < s.start.index;
+                s.start.index = s.start.index.min(range.start);
+                s.end.index = s.end.index.max(range.end);
+
+                if caret_at_start {
+                    c.selection_index = Some(s.end);
+                    c.set_index(s.start);
+                } else {
+                    c.selection_index = Some(s.start);
+                    c.set_index(s.end);
+                }
+            } else {
                 c.selection_index = Some(CaretIndex {
                     line: l.index(),
                     index: range.start,
                 });
+                c.set_index(CaretIndex {
+                    line: l.index(),
+                    index: range.end,
+                });
             }
-            c.set_index(CaretIndex {
-                line: l.index(),
-                index: range.end,
-            });
+
             return;
         };
     }
