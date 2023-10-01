@@ -183,7 +183,7 @@ impl Rgba {
     /// ```
     /// # use zero_ui_core::color::*;
     /// # use zero_ui_core::units::*;
-    /// colors::DARK_RED.lighten(10.pct())
+    /// web_colors::DARK_RED.lighten(10.pct())
     /// # ;
     /// ```
     pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
@@ -201,7 +201,7 @@ impl Rgba {
     /// ```
     /// # use zero_ui_core::color::*;
     /// # use zero_ui_core::units::*;
-    /// colors::DARK_RED.darken(10.pct())
+    /// web_colors::DARK_RED.darken(10.pct())
     /// # ;
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         self.to_hsla().darken(amount).to_rgba()
@@ -435,7 +435,7 @@ impl Hsla {
     /// ```
     /// # use zero_ui_core::color::*;
     /// # use zero_ui_core::units::*;
-    /// colors::DARK_RED.to_hsla().lighten(10.pct())
+    /// web_colors::DARK_RED.to_hsla().lighten(10.pct())
     /// # ;
     /// ```
     ///

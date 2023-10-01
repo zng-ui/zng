@@ -27,7 +27,7 @@ use super::hit_test_mode;
 ///     background = Text! {
 ///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
-///         font_color = colors::LIGHT_GRAY;
+///         font_color = web_colors::LIGHT_GRAY;
 ///         transform = rotate(45.deg());
 ///         align = Align::CENTER;
 ///     }
@@ -142,7 +142,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///     background_radial = {
 ///         center: (50.pct(), 80.pct()),
 ///         radius: 100.pct(),
-///         stops: [colors::BLACK, colors::DARK_ORANGE],
+///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
 ///     }
 /// }
 /// # ;
@@ -178,7 +178,7 @@ pub fn background_radial(
 ///     background_conic = {
 ///         center: (50.pct(), 80.pct()),
 ///         angle: 0.deg(),
-///         stops: [colors::BLACK, colors::DARK_ORANGE],
+///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
 ///     }
 /// }
 /// # ;

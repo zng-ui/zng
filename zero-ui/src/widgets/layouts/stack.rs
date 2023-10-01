@@ -631,7 +631,7 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_core::widget_instance::PanelListRang
 ///     children = (0..30).map(|i| Button! { child = Text!("Row {i}") }.boxed()).collect::<UiNodeVec>();
 ///     button::extend_style = style_fn!(|_| Style! {
 ///         when *#stack::get_index % 3 == 0 {
-///             background_color = colors::DARK_GRAY;
+///             background_color = web_colors::DARK_GRAY;
 ///         }
 ///     });
 /// }

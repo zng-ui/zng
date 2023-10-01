@@ -516,14 +516,14 @@ pub mod column {
     /// This uses `get_index` to give every third column a different background.
     ///
     /// ```
-    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
+    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::*};
     /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
     /// grid::Column! {
     ///     background_color = colors::GRAY;    
     ///
     ///     when *#get_index % 3 == 0 {
-    ///         background_color = colors::DARK_GRAY;
+    ///         background_color = web_colors::DARK_GRAY;
     ///     }
     /// }
     /// # ;
@@ -699,14 +699,14 @@ pub mod row {
     /// This uses `get_index` to give every third row a different background.
     ///
     /// ```
-    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
+    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::*};
     /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
     /// grid::Row! {
     ///     background_color = colors::GRAY;    
     ///
     ///     when *#get_index % 3 == 0 {
-    ///         background_color = colors::DARK_GRAY;
+    ///         background_color = web_colors::DARK_GRAY;
     ///     }
     /// }
     /// # ;
