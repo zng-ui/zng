@@ -255,6 +255,7 @@ impl Rgba {
         match lerp_space() {
             LerpSpace::Rgba => self.lerp_rgba(to, factor),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), factor).to_rgba(),
+            LerpSpace::LinearHsla => self.to_hsla().lerp_hsla(to.to_hsla(), factor).to_rgba(),
         }
     }
 }
@@ -541,12 +542,24 @@ impl Hsla {
         self.into()
     }
 
-    /// Linear interpolate in the [`LerpSpace::Hsla`] mode.
-    pub fn slerp(mut self, to: Self, factor: Factor) -> Self {
+    fn lerp_sla(mut self, to: Hsla, factor: Factor) -> Self {
         self.saturation = self.saturation.lerp(&to.saturation, factor);
         self.lightness = self.lightness.lerp(&to.lightness, factor);
         self.alpha = self.alpha.lerp(&to.alpha, factor);
+        self
+    }
+
+    /// Linear interpolate in the [`LerpSpace::Hsla`] mode.
+    pub fn slerp(mut self, to: Self, factor: Factor) -> Self {
+        self = self.lerp_sla(to, factor);
         self.hue = AngleDegree(self.hue).slerp(AngleDegree(to.hue), factor).0;
+        self
+    }
+
+    /// Linear interpolate in the [`LerpSpace::LinearHsla`] mode.
+    pub fn lerp_hsla(mut self, to: Self, factor: Factor) -> Self {
+        self = self.lerp_sla(to, factor);
+        self.hue = self.hue.lerp(&to.hue, factor);
         self
     }
 
@@ -555,6 +568,7 @@ impl Hsla {
         match lerp_space() {
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), factor).to_hsla(),
             LerpSpace::Hsla => self.slerp(to, factor),
+            LerpSpace::LinearHsla => self.lerp_hsla(to, factor),
         }
     }
 }
@@ -869,6 +883,7 @@ impl Transitionable for Hsva {
         match lerp_space() {
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), step).to_hsva(),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), step).to_hsva(),
+            LerpSpace::LinearHsla => self.to_hsla().lerp_hsla(to.to_hsla(), step).to_hsva(),
         }
     }
 }
@@ -1268,11 +1283,13 @@ impl Transitionable for ColorPair {
 /// See [`with_lerp_space`] for more details.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LerpSpace {
-    /// Linear interpolation between each RGBA component.
+    /// Linear interpolation in each RGBA component.
     Rgba,
     /// Spherical linear interpolation in Hue (shorter path), linear interpolation in SLA.
     #[default]
     Hsla,
+    /// Linear interpolation in each HSLA component.
+    LinearHsla,
 }
 
 /// Gets the lerp space used for color interpolation.
@@ -1282,7 +1299,7 @@ pub fn lerp_space() -> LerpSpace {
 
 /// Calls `f` with [`lerp_space`] set to `space`.
 ///
-/// See [`rgba_sampler`] and [`hsla_sampler`] for a way to set the space in animations.
+/// See [`rgba_sampler`] and [`linear_hsla_sampler`] for a way to set the space in animations.
 pub fn with_lerp_space<R>(space: LerpSpace, f: impl FnOnce() -> R) -> R {
     LERP_SPACE.with_context_value(space, f)
 }
@@ -1301,6 +1318,15 @@ pub fn rgba_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T
 /// Note that this is already the default.
 pub fn hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     with_lerp_space(LerpSpace::Hsla, || t.sample(step))
+}
+
+/// Animation sampler that sets the [`lerp_space`] to [`LerpSpace::LinearHsla`].
+///
+/// Samplers can be set in animations using the [`Var::easing_with`] method.
+///
+/// [`Var::easing_with`]: crate::var::Var::easing_with
+pub fn linear_hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
+    with_lerp_space(LerpSpace::LinearHsla, || t.sample(step))
 }
 
 context_local! {
