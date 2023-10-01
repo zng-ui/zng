@@ -957,7 +957,7 @@ fn access_node_to_kit(
             Controls(ids) => builder.set_controls(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             DescribedBy(ids) => builder.set_described_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             Details(ids) => builder.set_details(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
-            FlowTo(id) => builder.set_flow_to(vec![access_id_to_kit(*id)]),
+            FlowTo(ids) => builder.set_flow_to(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             LabelledBy(ids) => builder.set_labelled_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             Owns(ids) => {
                 for id in ids {

@@ -223,6 +223,11 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::ItemIndex(index)))
     }
 
+    /// Sets if the widget is modal when displayed.
+    pub fn flag_modal(&mut self) {
+        self.with_access(|a| a.set_state(AccessState::Modal))
+    }
+
     /// Push a widget whose contents or presence are controlled by this widget.
     pub fn push_controls(&mut self, controlled_id: impl Into<WidgetId>) {
         let controlled_id = controlled_id.into();
@@ -292,6 +297,20 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
             a.state.push(AccessState::Owns(vec![detail_id.into()]))
         })
     }
+
+    /// Push an option for next widget read that is not the next logical widget already.
+    pub fn push_flows_to(&mut self, next_id: impl Into<WidgetId>) {
+        let next_id = next_id.into();
+        self.with_access(|a| {
+            for state in &mut a.state {
+                if let AccessState::FlowTo(c) = state {
+                    c.push(next_id.into());
+                    return;
+                }
+            }
+            a.state.push(AccessState::FlowTo(vec![next_id.into()]))
+        })
+    }
 }
 
 impl WidgetInfoTree {
@@ -310,6 +329,7 @@ impl WidgetInfoTree {
     pub fn to_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
         let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
         if self.0.access_enabled {
+            // no panic cause root role is always set by the builder.
             self.root().access().unwrap().to_access_info(&mut builder);
         } else {
             builder.push(zero_ui_view_api::access::AccessNode::new(
@@ -595,6 +615,11 @@ impl WidgetAccessInfo {
         get_state!(self.ItemIndex).copied()
     }
 
+    /// Indicates whether the widget is modal when displayed.
+    pub fn modal(&self) -> bool {
+        has_state!(self.Modal)
+    }
+
     /// Widget(s) whose contents or presence are controlled by this widget.
     pub fn controls(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
         get_widgets!(self.Controls)
@@ -618,6 +643,11 @@ impl WidgetAccessInfo {
     /// Extra widgets that are *child* to this widget, but are not descendants on the info tree.
     pub fn owns(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
         get_widgets!(self.Owns)
+    }
+
+    /// Options for next widget to read.
+    pub fn flows_to(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
+        get_widgets!(self.FlowTo)
     }
 
     fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) {

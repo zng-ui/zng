@@ -306,10 +306,10 @@ pub enum AccessState {
     Controls(Vec<AccessNodeId>),
     /// Identifies the widget(s) that describes this widget.
     DescribedBy(Vec<AccessNodeId>),
-    /// identifies the widget(s) that provide additional information related to this widget.
+    /// Identifies the widget(s) that provide additional information related to this widget.
     Details(Vec<AccessNodeId>),
-    /// Override the next node in reading order.
-    FlowTo(AccessNodeId),
+    /// Options for next widget to read.
+    FlowTo(Vec<AccessNodeId>),
     /// Identifies the widget(s) that labels the widget it is applied to.
     LabelledBy(Vec<AccessNodeId>),
     /// Identifies widget(s) in order to define a visual, functional, or contextual relationship between a parent and its child

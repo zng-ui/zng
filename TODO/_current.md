@@ -23,15 +23,15 @@
 # Accessibility
 
 * Access states from existing info:
-    - AccessState::Modal - Derived from interactivity.
     - AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
-    - AccessState::FlowTo - Derived from tab index.
+        - No, this is the selected descendant, can stay selected after focus exit.
 
 * Track focus update.
 
 * Integrate access states.
     - Text sets label to the text.
     - Toggle sets checked.
+    - Modal.
     - Review all states.
 
 * Implement accessibility properties for each state?
