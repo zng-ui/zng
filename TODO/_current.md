@@ -22,24 +22,15 @@
 
 # Accessibility
 
-* Info always inited in Windows 10.
-    - Maybe due to IME integration?
-    - Chrome has a workaround, they send a `EVENT_SYSTEM_ALERT` with obj id `1`, then if a `WM_GETOBJECT` is
-      received for the same object they enable accessibility.
-        - https://www.chromium.org/developers/design-documents/accessibility/
-* Info always inited in ElementaryOS.
-
-* Implement info full build and send.
-    - Skip nodes without any accessibility info?
-        - HTML does this, DIV not included, children become part of the first included parent.
-    - Optimize updates.
 * Access states from existing info:
     - AccessState::Modal - Derived from interactivity.
     - AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
     - AccessState::FlowTo - Derived from tab index.
+
 * How to integrate with focus service without depending on it?
     - Have focus service set a focusable flag on the tree?
     - The API has a special value for just the focused.
+
 * Integrate access states.
     - Text sets label to the text.
     - Toggle sets checked.

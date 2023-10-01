@@ -62,7 +62,7 @@ impl WidgetInfoBuilder {
         let root_node = tree.root().id();
         lookup.insert(root_id, root_node);
 
-        WidgetInfoBuilder {
+        let mut builder = WidgetInfoBuilder {
             info_widgets,
             window_id,
             access_enabled,
@@ -75,7 +75,13 @@ impl WidgetInfoBuilder {
             build_meta: Arc::default(),
             build_start: Instant::now(),
             pushed_widgets: 1, // root is always new.
+        };
+
+        if let Some(mut b) = builder.access() {
+            b.set_role(super::access::AccessRole::Application);
         }
+
+        builder
     }
 
     fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<WidgetInfoData> {

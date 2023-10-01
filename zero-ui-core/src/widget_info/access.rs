@@ -7,7 +7,7 @@ pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveIn
 
 use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
-use super::{WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
+use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
 
 impl WidgetInfoBuilder {
     /// Accessibility metadata builder.
@@ -310,7 +310,7 @@ impl WidgetInfoTree {
     pub fn to_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
         let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
         if self.0.access_enabled {
-            self.root().to_access_info(&mut builder);
+            self.root().access().unwrap().to_access_info(&mut builder);
         } else {
             builder.push(zero_ui_view_api::access::AccessNode::new(
                 self.root().id().into(),
@@ -322,42 +322,33 @@ impl WidgetInfoTree {
 }
 
 impl WidgetInfo {
-    /// Accessibility info, if the info tree was build with [`access_enabled`].
+    /// Accessibility info, if the widget is accessible.
+    ///
+    /// The widget is accessible only if [`access_enabled`] and some access metadata was set on the widget.
     ///
     /// [`access_enabled`]: crate::widget_info::WidgetInfoTree::access_enabled
     pub fn access(&self) -> Option<WidgetAccessInfo> {
-        if self.tree.access_enabled() {
+        if self.tree.access_enabled() && self.meta().contains(&ACCESS_INFO_ID) {
             Some(WidgetAccessInfo { info: self.clone() })
         } else {
             None
         }
     }
 
-    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) {
-        let mut node = zero_ui_view_api::access::AccessNode::new(self.id().into(), None);
-
-        if let Some(a) = self.meta().get(&ACCESS_INFO_ID) {
-            node.role = a.role;
-            node.state = a.state.clone();
-            node.state.extend(a.state_txt.iter().map(From::from));
-        } else if self.parent().is_none() {
-            node.role = Some(AccessRole::Application);
-        }
-
-        if !node.state.iter().rev().any(|s| matches!(s, AccessState::Label(_))) {
-            let name = self.id().name();
-            if !name.is_empty() {
-                node.state.push(AccessState::Label(name.to_string()));
-            }
-        }
-
-        let len_before = builder.len();
-        for child in self.children() {
-            child.to_access_info(builder);
-            node.children_count += 1;
-        }
-        node.descendants_count = (builder.len() - len_before) as u32;
-        builder.push(node);
+    /// Descendant branches that have accessibility info.
+    ///
+    /// The iterator enters descendants only until it finds a node that has access info, these nodes are yielded,
+    /// the iterator yields the accessible children in the access info view.
+    pub fn access_children(&self) -> impl Iterator<Item = WidgetAccessInfo> {
+        self.descendants()
+            .tree_filter(|w| {
+                if w.access().is_some() {
+                    super::TreeFilter::SkipDescendants
+                } else {
+                    super::TreeFilter::Skip
+                }
+            })
+            .map(|w| w.access().unwrap())
     }
 }
 
@@ -374,7 +365,7 @@ macro_rules! get_state {
     };
     ($self:ident, $state:ident, $State:ident, $Discriminant:ident) => {
         $self
-            .access()?
+            .access()
             .$state
             .iter()
             .find_map(|a| if let $State::$Discriminant(value) = a { Some(value) } else { None })
@@ -382,27 +373,27 @@ macro_rules! get_state {
 }
 macro_rules! has_state {
     ($self:ident.$Discriminant:ident) => {
-        match $self.access() {
-            Some(a) => a.state.iter().any(|a| matches!(a, AccessState::$Discriminant)),
-            None => false,
-        }
+        $self.access().state.iter().any(|a| matches!(a, AccessState::$Discriminant))
     };
 }
 macro_rules! get_widgets {
     ($self:ident.$Discriminant:ident) => {
         $self
             .access()
-            .and_then(|a| {
-                a.state
-                    .iter()
-                    .find_map(|a| if let AccessState::$Discriminant(ids) = a { Some(ids) } else { None })
+            .state
+            .iter()
+            .find_map(|a| {
+                if let AccessState::$Discriminant(ids) = a {
+                    Some(ids.iter().filter_map(|id| {
+                        let id = WidgetId::from_raw(id.0);
+                        $self.info.tree.get(id)
+                    }))
+                } else {
+                    None
+                }
             })
             .into_iter()
             .flatten()
-            .filter_map(|id| {
-                let id = WidgetId::from_raw(id.0);
-                $self.info.tree.get(id)
-            })
     };
 }
 impl WidgetAccessInfo {
@@ -411,13 +402,13 @@ impl WidgetAccessInfo {
         &self.info
     }
 
-    fn access(&self) -> Option<&AccessInfo> {
-        self.info.meta().get(&ACCESS_INFO_ID)
+    fn access(&self) -> &AccessInfo {
+        self.info.meta().req(&ACCESS_INFO_ID)
     }
 
     /// Accessibility role of the widget.
     pub fn role(&self) -> Option<AccessRole> {
-        self.access()?.role
+        self.access().role
     }
 
     /// How input text triggers display of one or more predictions of the user's intended value.
@@ -543,7 +534,7 @@ impl WidgetAccessInfo {
     ///
     /// See [`AccessState::Live`] for more details.
     pub fn live(&self) -> Option<(LiveIndicator, bool, bool)> {
-        self.access()?.state.iter().find_map(|s| {
+        self.access().state.iter().find_map(|s| {
             if let AccessState::Live { indicator, atomic, busy } = s {
                 Some((*indicator, *atomic, *busy))
             } else {
@@ -627,6 +618,31 @@ impl WidgetAccessInfo {
     /// Extra widgets that are *child* to this widget, but are not descendants on the info tree.
     pub fn owns(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
         get_widgets!(self.Owns)
+    }
+
+    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) {
+        let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
+
+        let a = self.access();
+
+        node.role = a.role;
+        node.state = a.state.clone();
+        node.state.extend(a.state_txt.iter().map(From::from));
+
+        if !node.state.iter().rev().any(|s| matches!(s, AccessState::Label(_))) {
+            let name = self.info.id().name();
+            if !name.is_empty() {
+                node.state.push(AccessState::Label(name.to_string()));
+            }
+        }
+
+        let len_before = builder.len();
+        for child in self.info.access_children() {
+            child.to_access_info(builder);
+            node.children_count += 1;
+        }
+        node.descendants_count = (builder.len() - len_before) as u32;
+        builder.push(node);
     }
 }
 
