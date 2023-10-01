@@ -27,9 +27,7 @@
     - AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
     - AccessState::FlowTo - Derived from tab index.
 
-* How to integrate with focus service without depending on it?
-    - Have focus service set a focusable flag on the tree?
-    - The API has a special value for just the focused.
+* Track focus update.
 
 * Integrate access states.
     - Text sets label to the text.

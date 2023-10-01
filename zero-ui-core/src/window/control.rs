@@ -726,12 +726,31 @@ impl HeadedCtrl {
         let info = self.content.info(info_widgets);
         if let (Some(info), Some(view)) = (&info, &self.window) {
             if info.access_enabled() {
-                let info = info.to_access_tree();
-                let root_id = info.root().id;
+                // update access tree
+                let access_info = info.to_access_tree();
+                let root_id = access_info.root().id;
+
+                // focused is root_id when not focused, OR..
+                let mut focused = root_id;
+                if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
+                    crate::focus::FOCUS.focused().with(|p| {
+                        if let Some(p) = p {
+                            if p.window_id() == info.window_id() {
+                                if let Some(wgt) = info.get(p.widget_id()) {
+                                    if wgt.access().is_some() {
+                                        // is focused widget, if it is accessible
+                                        focused = wgt.id().into();
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
-                    updates: vec![info],
+                    updates: vec![access_info],
                     full_root: Some(root_id),
-                    focused: root_id,
+                    focused,
                 });
             }
         }
