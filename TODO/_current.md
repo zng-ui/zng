@@ -58,3 +58,7 @@
 * Update to winit-29 when released.
     - Lots of breaking changes.
 * Next webrender breaks image masks.
+
+# Color
+
+* Implement `LerpSpace::LinearHsla` to cover the entire hue range in a 0ª to 360º animation.
