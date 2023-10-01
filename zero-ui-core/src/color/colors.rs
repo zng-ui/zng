@@ -18,47 +18,47 @@ macro_rules! rgb {
     };
 }
 
-/// <div style="display: inline-block; background-color:#000000; width:20px; height:20px;"></div> Black, <code>#000000</code>, <code>rgb(0, 0, 0)</code>.
+/// <span style="display: inline-block; background-color:#000000; width:20px; height:20px;"></span> Black, `#000000`, `rgb(0, 0, 0)`.
 pub const BLACK: Rgba = rgb!(0, 0, 0);
 
-/// <div style="display: inline-block; background-color:#808080; width:20px; height:20px;"></div> Gray, <code>#808080</code>, <code>rgb(128, 128, 128)</code>.
+/// <span style="display: inline-block; background-color:#808080; width:20px; height:20px;"></span> Gray, `#808080`, `rgb(128, 128, 128)`.
 pub const GRAY: Rgba = rgb!(128, 128, 128);
 
-/// <div style="display: inline-block; background-color:#FFFFFF; width:20px; height:20px;"></div> White, <code>#FFFFFF</code>, <code>rgb(255, 255, 255)</code>.
+/// <span style="display: inline-block; background-color:#FFFFFF; width:20px; height:20px;"></span> White, `#FFFFFF`, `rgb(255, 255, 255)`.
 pub const WHITE: Rgba = rgb!(255, 255, 255);
 
-/// <div style="display: inline-block; background-color:#FF0000; width:20px; height:20px;"></div> Red, <code>#FF0000</code>, <code>rgb(255, 0, 0)</code>.
+/// <span style="display: inline-block; background-color:#FF0000; width:20px; height:20px;"></span> Red, `#FF0000`, `rgb(255, 0, 0)`.
 pub const RED: Rgba = rgb!(255, 0, 0);
 
-/// <div style="display: inline-block; background-color:#FF8000; width:20px; height:20px;"></div> Orange, <code>#FF8000</code>, <code>rgb(255, 128, 0)</code>.
+/// <span style="display: inline-block; background-color:#FF8000; width:20px; height:20px;"></span> Orange, `#FF8000`, `rgb(255, 128, 0)`.
 pub const ORANGE: Rgba = rgb!(255, 128, 0);
 
-/// <div style="display: inline-block; background-color:#FFFF00; width:20px; height:20px;"></div> Yellow, <code>#FFFF00</code>, <code>rgb(255, 255, 0)</code>.
+/// <span style="display: inline-block; background-color:#FFFF00; width:20px; height:20px;"></span> Yellow, `#FFFF00`, `rgb(255, 255, 0)`.
 pub const YELLOW: Rgba = rgb!(255, 255, 0);
 
-/// <div style="display: inline-block; background-color:#80FF00; width:20px; height:20px;"></div> Lime, <code>#80FF00</code>, <code>rgb(128, 255, 0)</code>.
+/// <span style="display: inline-block; background-color:#80FF00; width:20px; height:20px;"></span> Lime, `#80FF00`, `rgb(128, 255, 0)`.
 pub const LIME: Rgba = rgb!(128, 255, 0);
 
-/// <div style="display: inline-block; background-color:#00FF00; width:20px; height:20px;"></div> Green, <code>#00FF00</code>, <code>rgb(0, 255, 0)</code>.
+/// <span style="display: inline-block; background-color:#00FF00; width:20px; height:20px;"></span> Green, `#00FF00`, `rgb(0, 255, 0)`.
 pub const GREEN: Rgba = rgb!(0, 255, 0);
 
-/// <div style="display: inline-block; background-color:#00FF80; width:20px; height:20px;"></div> Spring, <code>#00FF80</code>, <code>rgb(0, 255, 128)</code>.
+/// <span style="display: inline-block; background-color:#00FF80; width:20px; height:20px;"></span> Spring, `#00FF80`, `rgb(0, 255, 128)`.
 pub const SPRING: Rgba = rgb!(0, 255, 128);
 
-/// <div style="display: inline-block; background-color:#00FFFF; width:20px; height:20px;"></div> Cyan, <code>#00FFFF</code>, <code>rgb(0, 255, 255)</code>.
+/// <span style="display: inline-block; background-color:#00FFFF; width:20px; height:20px;"></span> Cyan, `#00FFFF`, `rgb(0, 255, 255)`.
 pub const CYAN: Rgba = rgb!(0, 255, 255);
 
-/// <div style="display: inline-block; background-color:#0080FF; width:20px; height:20px;"></div> Azure, <code>#0080FF</code>, <code>rgb(0, 128, 255)</code>.
+/// <span style="display: inline-block; background-color:#0080FF; width:20px; height:20px;"></span> Azure, `#0080FF`, `rgb(0, 128, 255)`.
 pub const AZURE: Rgba = rgb!(0, 128, 255);
 
-/// <div style="display: inline-block; background-color:#0000FF; width:20px; height:20px;"></div> Blue, <code>#0000FF</code>, <code>rgb(0, 0, 255)</code>.
+/// <span style="display: inline-block; background-color:#0000FF; width:20px; height:20px;"></span> Blue, `#0000FF`, `rgb(0, 0, 255)`.
 pub const BLUE: Rgba = rgb!(0, 0, 255);
 
-/// <div style="display: inline-block; background-color:#8000FF; width:20px; height:20px;"></div> Violet, <code>#8000FF</code>, <code>rgb(128, 0, 255)</code>.
+/// <span style="display: inline-block; background-color:#8000FF; width:20px; height:20px;"></span> Violet, `#8000FF`, `rgb(128, 0, 255)`.
 pub const VIOLET: Rgba = rgb!(128, 0, 255);
 
-/// <div style="display: inline-block; background-color:#FF00FF; width:20px; height:20px;"></div> Magenta, <code>#FF00FF</code>, <code>rgb(255, 0, 255)</code>.
+/// <span style="display: inline-block; background-color:#FF00FF; width:20px; height:20px;"></span> Magenta, `#FF00FF`, `rgb(255, 0, 255)`.
 pub const MAGENTA: Rgba = rgb!(255, 0, 255);
 
-/// <div style="display: inline-block; background-color:#FF0080; width:20px; height:20px;"></div> Rose, <code>#FF0080</code>, <code>rgb(255, 0, 128)</code>.
+/// <span style="display: inline-block; background-color:#FF0080; width:20px; height:20px;"></span> Rose, `#FF0080`, `rgb(255, 0, 128)`.
 pub const ROSE: Rgba = rgb!(255, 0, 128);

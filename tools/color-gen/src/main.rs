@@ -73,7 +73,7 @@ pub mod web_colors {
             writeln!(&mut s)?;
             writeln!(
                 &mut s,
-                r#"/// <div style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></div> {name}, <code>#{hex}</code>, <code>rgb({r}, {g}, {b})</code>."#,
+                r#"/// <span style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></span> {name}, `#{hex}`, `rgb({r}, {g}, {b})`."#,
                 hex = color.hex,
                 name = color.doc_name(),
                 r = color.rgb.r,
@@ -152,7 +152,7 @@ pub mod colors {
             writeln!(&mut s)?;
             writeln!(
                 &mut s,
-                r#"/// <div style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></div> {name}, <code>#{hex}</code>, <code>rgb({r}, {g}, {b})</code>."#,
+                r#"/// <span style="display: inline-block; background-color:#{hex}; width:20px; height:20px;"></span> {name}, `#{hex}`, `rgb({r}, {g}, {b})`."#,
                 hex = color.hex(),
                 name = color.doc_name(),
                 r = color.rgb.r,
