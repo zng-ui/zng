@@ -6,7 +6,7 @@ fn main() {
     println!("{}", colors::generate().unwrap());
 }
 
-mod xterm_256 {
+pub mod xterm_256 {
     use super::*;
 
     pub fn generate() -> Result<String, Box<dyn std::error::Error>> {
@@ -16,14 +16,14 @@ mod xterm_256 {
 
         let mut s = String::new();
 
-        writeln!(&mut s, "static X_TERM_256: [(u8, u8, u8); 256] = [");
+        writeln!(&mut s, "static X_TERM_256: [(u8, u8, u8); 256] = [")?;
 
         for color in colors {
             let Rgb { r, g, b } = color.rgb;
-            writeln!(&mut s, "   ({r}, {g}, {b}),");
+            writeln!(&mut s, "   ({r}, {g}, {b}),")?;
         }
 
-        writeln!(&mut s, "];");
+        writeln!(&mut s, "];")?;
 
         Ok(s)
     }
@@ -31,6 +31,7 @@ mod xterm_256 {
     // credits to https://www.ditig.com/256-colors-cheat-sheet
     const JSON: &str = include_str! {"xterm-256.json"};
 
+    #[allow(unused)]
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct XColor {
@@ -41,6 +42,7 @@ mod xterm_256 {
         name: String,
     }
 
+    #[allow(unused)]
     #[derive(Deserialize)]
     struct Rgb {
         r: u8,
@@ -48,6 +50,7 @@ mod xterm_256 {
         b: u8,
     }
 
+    #[allow(unused)]
     #[derive(Deserialize)]
     struct Hsl {
         h: f32,
@@ -56,7 +59,7 @@ mod xterm_256 {
     }
 }
 
-mod web_colors {
+pub mod web_colors {
     use super::*;
 
     pub fn generate() -> Result<String, Box<dyn std::error::Error>> {
@@ -76,7 +79,7 @@ mod web_colors {
                 r = color.rgb.r,
                 g = color.rgb.g,
                 b = color.rgb.b,
-            );
+            )?;
             writeln!(
                 &mut s,
                 "pub const {}: Rgba = rgb!({}, {}, {});",
@@ -135,7 +138,7 @@ mod web_colors {
     }
 }
 
-mod colors {
+pub mod colors {
     use super::*;
 
     pub fn generate() -> Result<String, Box<dyn std::error::Error>> {
@@ -155,7 +158,7 @@ mod colors {
                 r = color.rgb.r,
                 g = color.rgb.g,
                 b = color.rgb.b,
-            );
+            )?;
             writeln!(
                 &mut s,
                 "pub const {}: Rgba = rgb!({}, {}, {});",

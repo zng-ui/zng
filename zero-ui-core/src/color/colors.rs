@@ -42,8 +42,8 @@ pub const LIME: Rgba = rgb!(128, 255, 0);
 /// <div style="display: inline-block; background-color:#00FF00; width:20px; height:20px;"></div> Green, <code>#00FF00</code>, <code>rgb(0, 255, 0)</code>.
 pub const GREEN: Rgba = rgb!(0, 255, 0);
 
-/// <div style="display: inline-block; background-color:#000080; width:20px; height:20px;"></div> Spring, <code>#000080</code>, <code>rgb(0, 0, 128)</code>.
-pub const SPRING: Rgba = rgb!(0, 0, 128);
+/// <div style="display: inline-block; background-color:#00FF80; width:20px; height:20px;"></div> Spring, <code>#00FF80</code>, <code>rgb(0, 255, 128)</code>.
+pub const SPRING: Rgba = rgb!(0, 255, 128);
 
 /// <div style="display: inline-block; background-color:#00FFFF; width:20px; height:20px;"></div> Cyan, <code>#00FFFF</code>, <code>rgb(0, 255, 255)</code>.
 pub const CYAN: Rgba = rgb!(0, 255, 255);
