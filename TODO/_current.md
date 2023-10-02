@@ -22,16 +22,15 @@
 
 # Accessibility
 
+* Refactor Invalid to use bitflags.
+    - Implement property.
+* How to implement live property?
+
 * Integrate access states.
     - Text sets label to the text.
     - Toggle sets checked.
     - Modal.
     - Review all states.
-
-* Implement accessibility properties for each state?
-    - We support building widgets on instantiation only.
-    - Like using `Wgt!` with custom properties to form a new widget.
-    - For these widgets the properties are useful.
 
 * Implement way to enabled accessibility from code.
     - Some programmatic service may be interested in these values too.

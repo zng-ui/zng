@@ -84,8 +84,8 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     }
 
     /// Indicates the availability and type of interactive popup widget.
-    pub fn set_has_popup(&mut self, popup: Popup) {
-        self.with_access(|a| a.set_state(AccessState::HasPopup(popup)))
+    pub fn set_popup(&mut self, popup: Popup) {
+        self.with_access(|a| a.set_state(AccessState::Popup(popup)))
     }
 
     /// Indicates that the widget's data is invalid with optional kinds of errors.
@@ -193,7 +193,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::ColIndex(index)))
     }
 
-    /// sets the number of columns spanned by the widget in the parent table or grid.
+    /// Sets the number of columns spanned by the widget in the parent table or grid.
     pub fn set_col_span(&mut self, span: usize) {
         self.with_access(|a| a.set_state(AccessState::ColSpan(span)))
     }
@@ -214,7 +214,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::RowIndex(index)))
     }
 
-    /// sets the number of rows spanned by the widget in the parent table or grid.
+    /// Sets the number of rows spanned by the widget in the parent table or grid.
     pub fn set_row_span(&mut self, span: usize) {
         self.with_access(|a| a.set_state(AccessState::RowSpan(span)))
     }
@@ -278,29 +278,29 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Push a widget that provide additional information related to this widget.
     pub fn push_labeled_by(&mut self, label_id: impl Into<WidgetId>) {
-        let detail_id = label_id.into();
+        let label_id = label_id.into();
         self.with_access(|a| {
             for state in &mut a.state {
                 if let AccessState::LabelledBy(c) = state {
-                    c.push(detail_id.into());
+                    c.push(label_id.into());
                     return;
                 }
             }
-            a.state.push(AccessState::LabelledBy(vec![detail_id.into()]))
+            a.state.push(AccessState::LabelledBy(vec![label_id.into()]))
         })
     }
 
-    /// Push widget a widget that is a *child* of this widget, but is not already a child in the info tree.
-    pub fn push_owns(&mut self, label_id: impl Into<WidgetId>) {
-        let detail_id = label_id.into();
+    /// Push a widget that is a *child* of this widget, but is not already a child in the info tree.
+    pub fn push_owns(&mut self, owned_id: impl Into<WidgetId>) {
+        let owned_id = owned_id.into();
         self.with_access(|a| {
             for state in &mut a.state {
                 if let AccessState::Owns(c) = state {
-                    c.push(detail_id.into());
+                    c.push(owned_id.into());
                     return;
                 }
             }
-            a.state.push(AccessState::Owns(vec![detail_id.into()]))
+            a.state.push(AccessState::Owns(vec![owned_id.into()]))
         })
     }
 
@@ -475,7 +475,7 @@ impl WidgetAccessInfo {
 
     /// Indicates the availability and type of interactive popup widget.
     pub fn has_popup(&self) -> Option<Popup> {
-        get_state!(self.HasPopup).copied()
+        get_state!(self.Popup).copied()
     }
 
     /// If the widget data has errors.

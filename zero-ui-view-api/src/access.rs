@@ -230,7 +230,7 @@ pub enum AccessState {
     Expanded(bool),
 
     /// Indicates the availability and type of interactive popup widget.
-    HasPopup(Popup),
+    Popup(Popup),
 
     /// Indicates the entered value does not conform to the format expected by the application.
     Invalid,

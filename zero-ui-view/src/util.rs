@@ -907,7 +907,7 @@ fn access_node_to_kit(
             Disabled => builder.set_disabled(),
             ErrorMessage(id) => builder.set_error_message(access_id_to_kit(*id)),
             Expanded(b) => builder.set_expanded(*b),
-            HasPopup(pop) => match pop {
+            Popup(pop) => match pop {
                 access::Popup::Menu => builder.set_has_popup(accesskit::HasPopup::Menu),
                 access::Popup::ListBox => builder.set_has_popup(accesskit::HasPopup::Listbox),
                 access::Popup::Tree => builder.set_has_popup(accesskit::HasPopup::Tree),
