@@ -22,10 +22,6 @@
 
 # Accessibility
 
-* Access states from existing info:
-    - AccessState::ActiveDescendant - Derived from focused (we just use the normal focus nav for these widgets).
-        - No, this is the selected descendant, can stay selected after focus exit.
-
 * Track focus update.
 
 * Integrate access states.

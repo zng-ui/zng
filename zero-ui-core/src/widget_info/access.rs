@@ -66,6 +66,12 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::ErrorMessage(invalid_wgt.into())))
     }
 
+    /// Identifies the currently active widget when focus is on a composite widget.
+    pub fn set_active_descendant(&mut self, descendant: impl Into<WidgetId>) {
+        let descendant = descendant.into();
+        self.with_access(|a| a.set_state(AccessState::ActiveDescendant(descendant.into())))
+    }
+
     /// Indicate that the widget toggles the visibility of related widgets.
     ///
     /// Use  [`push_controls`], or [`push_owns`] to indicate the widgets that change visibility based on
@@ -451,6 +457,13 @@ impl WidgetAccessInfo {
     /// Gets the invalid widget that this widget is an error message for.
     pub fn error_message(&self) -> Option<WidgetInfo> {
         let id = get_state!(self.ErrorMessage)?;
+        let id = WidgetId::from_raw(id.0);
+        self.info.tree.get(id)
+    }
+
+    /// Identifies the currently active widget when focus is on a composite widget.
+    pub fn active_descendant(&self) -> Option<WidgetInfo> {
+        let id = get_state!(self.ActiveDescendant)?;
         let id = WidgetId::from_raw(id.0);
         self.info.tree.get(id)
     }
