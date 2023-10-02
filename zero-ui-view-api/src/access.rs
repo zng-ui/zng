@@ -233,11 +233,7 @@ pub enum AccessState {
     Popup(Popup),
 
     /// Indicates the entered value does not conform to the format expected by the application.
-    Invalid,
-    /// Indicates the entered value contains a grammatical error.
-    InvalidGrammar,
-    /// Indicates the entered value contains a spelling error.
-    InvalidSpelling,
+    Invalid(Invalid),
 
     /// Defines a string value that labels the widget.
     Label(String),
@@ -405,6 +401,19 @@ bitflags! {
         /// may be displayed. If displayed, one value in the collection is automatically selected,
         /// and the text needed to complete the automatically selected value appears after the caret in the input.
         const BOTH = 0b11;
+    }
+
+    /// Defines the kind of invalid data error of an widget.
+    ///
+    /// See [`AccessState::Invalid`].
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct Invalid: u8 {
+        /// Indicates the entered value does not conform to the format expected by the application.
+        const ANY =    0b001;
+        /// Indicates the entered value contains a grammatical error.
+        const GRAMMAR =  0b011;
+         /// Indicates the entered value contains a spelling error.
+        const SPELLING = 0b101;
     }
 }
 

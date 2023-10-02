@@ -3,7 +3,7 @@
 use std::num::NonZeroU32;
 
 use zero_ui_view_api::access::AccessState;
-pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, LiveIndicator, Orientation, Popup, SortDirection};
+pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection};
 
 use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
@@ -89,16 +89,8 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     }
 
     /// Indicates that the widget's data is invalid with optional kinds of errors.
-    pub fn flag_invalid(&mut self, grammar: bool, spelling: bool) {
-        if !grammar && !spelling {
-            self.with_access(|a| a.set_state(AccessState::Invalid));
-        }
-        if grammar {
-            self.with_access(|a| a.set_state(AccessState::InvalidGrammar));
-        }
-        if spelling {
-            self.with_access(|a| a.set_state(AccessState::InvalidSpelling));
-        }
+    pub fn set_invalid(&mut self, error: Invalid) {
+        self.with_access(|a| a.set_state(AccessState::Invalid(error)));
     }
 
     /// Sets a custom name for the widget in accessibility info.
@@ -479,18 +471,8 @@ impl WidgetAccessInfo {
     }
 
     /// If the widget data has errors.
-    pub fn is_invalid(&self) -> bool {
-        has_state!(self.Invalid) || self.is_invalid_grammar() || self.is_invalid_spelling()
-    }
-
-    /// If the widget has invalid grammar errors.
-    pub fn is_invalid_grammar(&self) -> bool {
-        has_state!(self.InvalidGrammar)
-    }
-
-    /// If the widget has invalid spelling errors.
-    pub fn is_invalid_spelling(&self) -> bool {
-        has_state!(self.InvalidSpelling)
+    pub fn invalid(&self) -> Invalid {
+        get_state!(self.Invalid).copied().unwrap_or_else(Invalid::empty)
     }
 
     /// Gets the accessibility name.

@@ -914,9 +914,15 @@ fn access_node_to_kit(
                 access::Popup::Grid => builder.set_has_popup(accesskit::HasPopup::Grid),
                 access::Popup::Dialog => builder.set_has_popup(accesskit::HasPopup::Dialog),
             },
-            Invalid => builder.set_invalid(accesskit::Invalid::True),
-            InvalidGrammar => builder.set_invalid(accesskit::Invalid::Grammar),
-            InvalidSpelling => builder.set_invalid(accesskit::Invalid::Spelling),
+            Invalid(i) => {
+                if i.contains(access::Invalid::SPELLING) {
+                    builder.set_invalid(accesskit::Invalid::Spelling)
+                } else if i.contains(access::Invalid::GRAMMAR) {
+                    builder.set_invalid(accesskit::Invalid::Grammar)
+                } else if i.contains(access::Invalid::ANY) {
+                    builder.set_invalid(accesskit::Invalid::True)
+                }
+            }
             Label(s) => builder.set_name(s.clone().into_boxed_str()),
             Level(n) => builder.set_hierarchical_level(n.get() as usize),
             Modal => builder.set_modal(),

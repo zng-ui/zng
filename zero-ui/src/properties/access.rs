@@ -344,3 +344,9 @@ pub fn flows_to(child: impl UiNode, next_options: impl IntoVar<Vec<WidgetId>>) -
         }
     })
 }
+
+///
+#[property(CONTEXT)]
+pub fn invalid(child: impl UiNode, error: impl IntoVar<Invalid>) -> impl UiNode {
+    with_access_state(child, error, |b, v| b.set_invalid(*v))
+}

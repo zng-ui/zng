@@ -22,8 +22,6 @@
 
 # Accessibility
 
-* Refactor Invalid to use bitflags.
-    - Implement property.
 * How to implement live property?
 
 * Integrate access states.
