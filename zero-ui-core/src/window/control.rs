@@ -18,6 +18,7 @@ use crate::{
     },
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
+    focus::FOCUS,
     image::{ImageVar, Img, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate},
     text::FONTS,
@@ -492,6 +493,10 @@ impl HeadedCtrl {
             });
         }
 
+        if self.vars.0.access_enabled.get() && FOCUS.focused().is_new() {
+            self.update_access_focused();
+        }
+
         self.content.update(update_widgets);
     }
 
@@ -730,31 +735,47 @@ impl HeadedCtrl {
                 let access_info = info.to_access_tree();
                 let root_id = access_info.root().id;
 
-                // focused is root_id when not focused, OR..
-                let mut focused = root_id;
-                if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
-                    crate::focus::FOCUS.focused().with(|p| {
-                        if let Some(p) = p {
-                            if p.window_id() == info.window_id() {
-                                if let Some(wgt) = info.get(p.widget_id()) {
-                                    if wgt.access().is_some() {
-                                        // is focused widget, if it is accessible
-                                        focused = wgt.id().into();
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
                     updates: vec![access_info],
                     full_root: Some(root_id),
-                    focused,
+                    focused: self.focused_descendant(info).map(Into::into).unwrap_or(root_id),
                 });
             }
         }
         info
+    }
+
+    fn focused_descendant(&self, info: &WidgetInfoTree) -> Option<WidgetId> {
+        if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
+            crate::focus::FOCUS.focused().with(|p| {
+                if let Some(p) = p {
+                    if p.window_id() == info.window_id() {
+                        if let Some(wgt) = info.get(p.widget_id()) {
+                            if wgt.access().is_some() {
+                                // is focused accessible widget inside window
+                                return Some(wgt.id());
+                            }
+                        }
+                    }
+                }
+                None
+            })
+        } else {
+            None
+        }
+    }
+
+    fn update_access_focused(&mut self) {
+        if let Some(view) = &self.window {
+            let info = WINDOW.info();
+            if info.access_enabled() {
+                let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
+                    updates: vec![],
+                    full_root: None,
+                    focused: self.focused_descendant(&info).unwrap_or(info.root().id()).into(),
+                });
+            }
+        }
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
