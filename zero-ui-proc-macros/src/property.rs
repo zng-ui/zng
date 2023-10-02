@@ -47,14 +47,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if capture {
         attrs.tag_doc("c", "Capture-only property function");
         mtd_attrs.tag_doc("c", "Capture-only property method");
-        extra_docs = quote! {
-            ///
-            /// # Capture-Only
-            ///
-            /// This property is capture-only, it only defines a property signature, it does not implement any behavior by itself.
-            /// Widgets can capture and implement this property as part of their intrinsics, otherwise it will have no
-            /// effect if set on a widget that does not implement it.
-        };
+        if !attrs.docs.is_empty() {
+            extra_docs = quote! {
+                ///
+                /// # Capture-Only
+                ///
+                /// This property is capture-only, it only defines a property signature, it does not implement any behavior by itself.
+                /// Widgets can capture and implement this property as part of their intrinsics, otherwise it will have no
+                /// effect if set on a widget that does not implement it.
+            };
+        }
 
         if item.sig.inputs.is_empty() {
             errors.push(

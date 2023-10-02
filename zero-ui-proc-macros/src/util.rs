@@ -369,7 +369,7 @@ impl Attributes {
         }
     }
 
-    /// Insert a tag on the first doc line, generate a doc if none are present.
+    /// Insert a tag on the first doc line, does nothing if docs are missing (to cause a doc missing warning).
     pub fn tag_doc(&mut self, text: &str, help: &str) {
         let txt = format!("<strong title='{help}' data-tag='{text}'><code>{text}</code></strong>  ");
         for first in self.docs.iter_mut() {
@@ -386,13 +386,6 @@ impl Attributes {
                 Err(_) => continue,
             }
         }
-
-        self.docs.insert(
-            0,
-            parse_quote! {
-                #[doc = #txt]
-            },
-        );
     }
 
     pub(crate) fn cfg_and_lints(&self) -> TokenStream {

@@ -58,9 +58,9 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Indicates that the widget is an error message for the `invalid_wgt`.
     ///
-    /// The other widget must [`flag_invalid`].
+    /// The other widget must [`set_invalid`].
     ///
-    /// [`flag_invalid`]: fn@Self::flag_invalid
+    /// [`set_invalid`]: fn@Self::set_invalid
     pub fn set_error_message(&mut self, invalid_wgt: impl Into<WidgetId>) {
         let invalid_wgt = invalid_wgt.into();
         self.with_access(|a| a.set_state(AccessState::ErrorMessage(invalid_wgt.into())))

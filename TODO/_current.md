@@ -22,6 +22,9 @@
 
 # Accessibility
 
+* Implement a way to detect access state updates.
+    - Right now we rebuild the entire tree every time.
+
 * Integrate access states.
     - Text sets label to the text.
     - Toggle sets checked.

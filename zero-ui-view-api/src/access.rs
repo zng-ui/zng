@@ -367,7 +367,7 @@ pub enum Orientation {
 
 /// Popup type.
 ///
-/// See [`AccessState::HasPopup`].
+/// See [`AccessState::Popup`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Popup {
     /// The popup is a menu.

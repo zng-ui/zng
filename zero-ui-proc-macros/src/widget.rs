@@ -247,11 +247,17 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         (r, start_r)
     };
 
-    let docs_js = DOCS_JS.as_str();
+    let docs_js = if attrs.docs.is_empty() {
+        // cause docs missing warning
+        quote!()
+    } else {
+        let docs_js = DOCS_JS.as_str();
+        quote!(#[doc=#docs_js])
+    };
 
     let r = quote! {
         #attrs
-        #[doc=#docs_js]
+        #docs_js
         #vis #struct_token #ident #mixin_p(#parent);
         impl #mixin_p std::ops::Deref for #ident #mixin_p {
             type Target = #parent;

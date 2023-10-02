@@ -1285,6 +1285,7 @@ pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacin
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
 
+/// Highlight a text range.
 #[property(CHILD_LAYOUT+100)]
 pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
     let range = range.into_var();
