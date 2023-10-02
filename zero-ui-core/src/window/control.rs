@@ -140,358 +140,349 @@ impl HeadedCtrl {
             }
         }
 
-        if let Some(enforced_fullscreen) = &mut self.kiosk {
-            // always fullscreen, but can be windowed or exclusive.
+        if let Some(prev_state) = self.state.clone() {
+            debug_assert!(self.window.is_some() || self.waiting_view || self.respawned);
 
-            if let Some(state) = self.vars.state().get_new() {
-                if !state.is_fullscreen() {
-                    tracing::error!("window in `kiosk` mode can only be fullscreen");
+            let mut new_state = prev_state.clone();
 
-                    self.vars.state().set(*enforced_fullscreen);
-                } else {
-                    *enforced_fullscreen = state;
-                }
-            }
-
-            if let Some(false) = self.vars.visible().get_new() {
-                tracing::error!("window in `kiosk` mode can not be hidden");
-
-                self.vars.visible().set(true);
-            }
-
-            if let Some(mode) = self.vars.chrome().get_new() {
-                if !mode.is_none() {
-                    tracing::error!("window in `kiosk` mode can not show chrome");
-                    self.vars.chrome().set(WindowChrome::None);
-                }
-            }
-        } else {
-            // not kiosk mode.
-
-            if let Some(prev_state) = self.state.clone() {
-                debug_assert!(self.window.is_some() || self.waiting_view || self.respawned);
-
-                let mut new_state = prev_state.clone();
-
-                if let Some(query) = self.vars.monitor().get_new() {
-                    if self.monitor.is_none() {
-                        let monitor = query.select_fallback();
-                        let scale_factor = monitor.scale_factor().get();
+            if let Some(query) = self.vars.monitor().get_new() {
+                if self.monitor.is_none() {
+                    let monitor = query.select_fallback();
+                    let scale_factor = monitor.scale_factor().get();
+                    self.vars.0.scale_factor.set(scale_factor);
+                    self.monitor = Some(monitor);
+                } else if let Some(new) = query.select() {
+                    let current = self.vars.0.actual_monitor.get();
+                    if Some(new.id()) != current {
+                        let scale_factor = new.scale_factor().get();
                         self.vars.0.scale_factor.set(scale_factor);
-                        self.monitor = Some(monitor);
-                    } else if let Some(new) = query.select() {
-                        let current = self.vars.0.actual_monitor.get();
-                        if Some(new.id()) != current {
-                            let scale_factor = new.scale_factor().get();
-                            self.vars.0.scale_factor.set(scale_factor);
-                            self.vars.0.actual_monitor.set(new.id());
-                            self.monitor = Some(new);
-                        }
+                        self.vars.0.actual_monitor.set(new.id());
+                        self.monitor = Some(new);
+                    }
+                }
+            }
+
+            if let Some(mut chrome) = self.vars.chrome().get_new() {
+                if !chrome.is_none() {
+                    tracing::error!("window in `kiosk` mode can not show chrome");
+                    chrome = WindowChrome::None;
+                }
+
+                new_state.chrome_visible = chrome.is_default();
+            }
+
+            if let Some(mut req_state) = self.vars.state().get_new() {
+                if let Some(enforced_fullscreen) = &mut self.kiosk {
+                    if !req_state.is_fullscreen() {
+                        tracing::error!("window in `kiosk` mode can only be fullscreen");
+
+                        req_state = *enforced_fullscreen;
+                    } else {
+                        *enforced_fullscreen = req_state;
                     }
                 }
 
-                if let Some(chrome) = self.vars.chrome().get_new() {
-                    new_state.chrome_visible = chrome.is_default();
-                }
+                new_state.set_state(req_state);
+                self.vars.0.restore_state.set(new_state.restore_state);
+            }
 
-                if let Some(req_state) = self.vars.state().get_new() {
-                    new_state.set_state(req_state);
-                    self.vars.0.restore_state.set(new_state.restore_state);
-                }
+            if self.vars.min_size().is_new() || self.vars.max_size().is_new() {
+                if let Some(m) = &self.monitor {
+                    let scale_factor = m.scale_factor().get();
+                    let screen_ppi = m.ppi().get();
+                    let screen_size = m.size().get();
+                    let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                        let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
+                        let max_size = self.vars.max_size().layout_dft(screen_size);
 
-                if self.vars.min_size().is_new() || self.vars.max_size().is_new() {
-                    if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().get();
-                        let screen_ppi = m.ppi().get();
-                        let screen_size = m.size().get();
-                        let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
-                            let max_size = self.vars.max_size().layout_dft(screen_size);
-
-                            (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
-                        });
-
-                        let size = new_state.restore_rect.size;
-
-                        new_state.restore_rect.size = size.min(max_size).max(min_size);
-                        new_state.min_size = min_size;
-                        new_state.max_size = max_size;
-                    }
-                }
-
-                if let Some(auto) = self.vars.auto_size().get_new() {
-                    if auto != AutoSize::DISABLED {
-                        UPDATES.layout_window(WINDOW.id());
-                    }
-                }
-
-                if self.vars.size().is_new() {
-                    let auto_size = self.vars.auto_size().get();
-
-                    if auto_size != AutoSize::CONTENT {
-                        if let Some(m) = &self.monitor {
-                            let scale_factor = m.scale_factor().get();
-                            let screen_ppi = m.ppi().get();
-                            let screen_size = m.size().get();
-                            let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                                self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor.0)
-                            });
-
-                            let size = size.min(new_state.max_size).max(new_state.min_size);
-
-                            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                                new_state.restore_rect.size.width = size.width;
-                            }
-                            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                                new_state.restore_rect.size.height = size.height;
-                            }
-                        }
-                    }
-                }
-
-                if let Some(font_size) = self.vars.font_size().get_new() {
-                    if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().get();
-                        let screen_ppi = m.ppi().get();
-                        let screen_size = m.size().get();
-                        let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor))
-                        });
-                        if font_size_px < Px(0) {
-                            tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
-                            font_size_px = Length::pt_to_px(11.0, scale_factor);
-                        }
-                        let font_size_dip = font_size_px.to_dip(scale_factor.0);
-
-                        if font_size_dip != self.root_font_size {
-                            self.root_font_size = font_size_dip;
-                            UPDATES.layout_window(WINDOW.id());
-                        }
-                    }
-                }
-
-                if let Some(pos) = self.vars.position().get_new() {
-                    if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().get();
-                        let screen_ppi = m.ppi().get();
-                        let screen_size = m.size().get();
-                        let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            pos.layout_dft(PxPoint::new(Px(50), Px(50)))
-                        });
-                        new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
-                    }
-                }
-
-                if let Some(visible) = self.vars.visible().get_new() {
-                    self.update_gen(move |view| {
-                        let _: Ignore = view.set_visible(visible);
+                        (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                     });
-                }
 
-                if let Some(movable) = self.vars.movable().get_new() {
-                    self.update_gen(move |view| {
-                        let _: Ignore = view.set_movable(movable);
-                    });
-                }
+                    let size = new_state.restore_rect.size;
 
-                if let Some(resizable) = self.vars.resizable().get_new() {
-                    self.update_gen(move |view| {
-                        let _: Ignore = view.set_resizable(resizable);
-                    });
-                }
-
-                if prev_state != new_state {
-                    self.update_gen(move |view| {
-                        let _: Ignore = view.set_state(new_state);
-                    })
+                    new_state.restore_rect.size = size.min(max_size).max(min_size);
+                    new_state.min_size = min_size;
+                    new_state.max_size = max_size;
                 }
             }
 
-            let mut img_res_loading = vec![];
-
-            // icon:
-            let mut send_icon = false;
-            if let Some(ico) = self.vars.icon().get_new() {
-                use crate::image::ImageSource;
-
-                self.img_res.icon_var = match ico {
-                    WindowIcon::Default => None,
-                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
-                        ico.clone(),
-                        Some(crate::image::ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                    ))),
-                    WindowIcon::Image(source) => Some(IMAGES.cache(source)),
-                };
-
-                if let Some(ico) = &self.img_res.icon_var {
-                    self.img_res.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
-
-                    if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
-                        img_res_loading.push(ico.clone());
-                    }
-                } else {
-                    self.vars.0.actual_icon.set(None);
-                    self.img_res.icon_binding = VarHandle::dummy();
-                }
-
-                send_icon = true;
-            } else if self.img_res.icon_var.as_ref().map(|ico| ico.is_new()).unwrap_or(false) {
-                send_icon = true;
-            }
-            if send_icon {
-                let icon = self.img_res.icon_var.as_ref().and_then(|ico| ico.get().view().cloned());
-                self.update_gen(move |view| {
-                    let _: Ignore = view.set_icon(icon.as_ref());
-                });
-            }
-
-            // cursor_image:
-            let mut send_cursor = false;
-            if let Some(cur) = self.vars.cursor_image().get_new() {
-                use crate::image::ImageSource;
-
-                self.img_res.cursor_var = match cur {
-                    None => None,
-                    Some(CursorImage { source, .. }) => match source {
-                        ImageSource::Render(cur, _) => Some(IMAGES.cache(ImageSource::Render(
-                            cur.clone(),
-                            Some(crate::image::ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                        ))),
-                        source => Some(IMAGES.cache(source)),
-                    },
-                };
-
-                if let Some(cur) = &self.img_res.cursor_var {
-                    self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_image, |img| Some(img.clone()));
-
-                    if cur.get().is_loading() && self.window.is_none() && !self.waiting_view {
-                        img_res_loading.push(cur.clone());
-                    }
-                } else {
-                    self.vars.0.actual_cursor_image.set(None);
-                    self.img_res.cursor_binding = VarHandle::dummy();
-                }
-
-                send_cursor = true;
-            } else if self.img_res.cursor_var.as_ref().map(|cur| cur.is_new()).unwrap_or(false) {
-                send_cursor = true;
-            }
-            if send_cursor {
-                let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
-                if let Some(c) = self.vars.cursor_image().get() {
-                    let hotspot = c.hotspot;
-                    self.update_gen(move |view| {
-                        let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);
-                    })
-                }
-            }
-
-            // setup init wait for images
-            if !img_res_loading.is_empty() {
-                if self.img_res.deadline.has_elapsed() {
+            if let Some(auto) = self.vars.auto_size().get_new() {
+                if auto != AutoSize::DISABLED {
                     UPDATES.layout_window(WINDOW.id());
-                } else {
-                    let window_id = WINDOW.id();
-                    TIMERS
-                        .on_deadline(
-                            self.img_res.deadline,
-                            app_hn_once!(|_| {
-                                if img_res_loading.iter().any(|i| i.get().is_loading()) {
-                                    // window maybe still waiting.
-                                    UPDATES.layout_window(window_id);
-                                }
-                            }),
-                        )
-                        .perm();
                 }
             }
 
-            if let Some(title) = self.vars.title().get_new() {
+            if self.vars.size().is_new() {
+                let auto_size = self.vars.auto_size().get();
+
+                if auto_size != AutoSize::CONTENT {
+                    if let Some(m) = &self.monitor {
+                        let scale_factor = m.scale_factor().get();
+                        let screen_ppi = m.ppi().get();
+                        let screen_size = m.size().get();
+                        let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                            self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor.0)
+                        });
+
+                        let size = size.min(new_state.max_size).max(new_state.min_size);
+
+                        if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                            new_state.restore_rect.size.width = size.width;
+                        }
+                        if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                            new_state.restore_rect.size.height = size.height;
+                        }
+                    }
+                }
+            }
+
+            if let Some(pos) = self.vars.position().get_new() {
+                if let Some(m) = &self.monitor {
+                    let scale_factor = m.scale_factor().get();
+                    let screen_ppi = m.ppi().get();
+                    let screen_size = m.size().get();
+                    let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                        pos.layout_dft(PxPoint::new(Px(50), Px(50)))
+                    });
+                    new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
+                }
+            }
+
+            if let Some(mut visible) = self.vars.visible().get_new() {
+                if !visible && self.kiosk.is_some() {
+                    tracing::error!("window in `kiosk` mode can not be hidden");
+                    visible = true;
+                }
+
                 self.update_gen(move |view| {
-                    let _: Ignore = view.set_title(title.into_owned());
+                    let _: Ignore = view.set_visible(visible);
                 });
             }
 
-            if let Some(mode) = self.vars.video_mode().get_new() {
+            if let Some(movable) = self.vars.movable().get_new() {
                 self.update_gen(move |view| {
-                    let _: Ignore = view.set_video_mode(mode);
+                    let _: Ignore = view.set_movable(movable);
                 });
             }
 
-            if let Some(cursor) = self.vars.cursor().get_new() {
+            if let Some(resizable) = self.vars.resizable().get_new() {
                 self.update_gen(move |view| {
-                    let _: Ignore = view.set_cursor(cursor);
+                    let _: Ignore = view.set_resizable(resizable);
                 });
             }
 
-            if let Some(visible) = self.vars.taskbar_visible().get_new() {
+            if prev_state != new_state {
                 self.update_gen(move |view| {
-                    let _: Ignore = view.set_taskbar_visible(visible);
-                });
+                    let _: Ignore = view.set_state(new_state);
+                })
             }
+        }
 
-            if let Some(top) = self.vars.always_on_top().get_new() {
-                self.update_gen(move |view| {
-                    let _: Ignore = view.set_always_on_top(top);
-                });
-            }
-
-            if let Some(mode) = self.vars.frame_capture_mode().get_new() {
-                self.update_gen(move |view| {
-                    let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
-                });
-            }
-
+        if let Some(font_size) = self.vars.font_size().get_new() {
             if let Some(m) = &self.monitor {
-                if let Some(fct) = m.scale_factor().get_new() {
-                    self.vars.0.scale_factor.set(fct);
+                let scale_factor = m.scale_factor().get();
+                let screen_ppi = m.ppi().get();
+                let screen_size = m.size().get();
+                let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                    font_size.layout_dft_x(Length::pt_to_px(11.0, scale_factor))
+                });
+                if font_size_px < Px(0) {
+                    tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
+                    font_size_px = Length::pt_to_px(11.0, scale_factor);
                 }
-                if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
+                let font_size_dip = font_size_px.to_dip(scale_factor.0);
+
+                if font_size_dip != self.root_font_size {
+                    self.root_font_size = font_size_dip;
                     UPDATES.layout_window(WINDOW.id());
                 }
             }
+        }
 
-            if let Some(indicator) = self.vars.focus_indicator().get_new() {
-                if WINDOWS.is_focused(WINDOW.id()).unwrap_or(false) {
-                    self.vars.focus_indicator().set(None);
-                } else if let Some(view) = &self.window {
-                    let _ = view.set_focus_indicator(indicator);
-                    // will be set to `None` once the window is focused.
+        let mut img_res_loading = vec![];
+
+        // icon:
+        let mut send_icon = false;
+        if let Some(ico) = self.vars.icon().get_new() {
+            use crate::image::ImageSource;
+
+            self.img_res.icon_var = match ico {
+                WindowIcon::Default => None,
+                WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
+                    ico.clone(),
+                    Some(crate::image::ImageRenderArgs { parent: Some(WINDOW.id()) }),
+                ))),
+                WindowIcon::Image(source) => Some(IMAGES.cache(source)),
+            };
+
+            if let Some(ico) = &self.img_res.icon_var {
+                self.img_res.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
+
+                if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
+                    img_res_loading.push(ico.clone());
                 }
-                // else indicator is send with init.
+            } else {
+                self.vars.0.actual_icon.set(None);
+                self.img_res.icon_binding = VarHandle::dummy();
             }
 
-            let mut update_color_scheme = false;
-
-            if update_parent(&mut self.actual_parent, &self.vars) {
-                self.parent_color_scheme = self
-                    .actual_parent
-                    .and_then(|id| WINDOWS.vars(id).ok().map(|v| v.actual_color_scheme()));
-                update_color_scheme = true;
-            }
-
-            if update_color_scheme
-                || self.vars.color_scheme().is_new()
-                || self.parent_color_scheme.as_ref().map(|t| t.is_new()).unwrap_or(false)
-            {
-                let scheme = self
-                    .vars
-                    .color_scheme()
-                    .get()
-                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
-                    .or(self.system_color_scheme)
-                    .unwrap_or_default();
-                self.vars.0.actual_color_scheme.set(scheme);
-            }
-
-            self.vars.renderer_debug().with_new(|dbg| {
-                if let Some(view) = &self.window {
-                    if let Some(key) = dbg.extension_id() {
-                        let _ = view.renderer().render_extension::<_, ()>(key, dbg);
-                    }
-                }
+            send_icon = true;
+        } else if self.img_res.icon_var.as_ref().map(|ico| ico.is_new()).unwrap_or(false) {
+            send_icon = true;
+        }
+        if send_icon {
+            let icon = self.img_res.icon_var.as_ref().and_then(|ico| ico.get().view().cloned());
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_icon(icon.as_ref());
             });
         }
+
+        // cursor_image:
+        let mut send_cursor = false;
+        if let Some(cur) = self.vars.cursor_image().get_new() {
+            use crate::image::ImageSource;
+
+            self.img_res.cursor_var = match cur {
+                None => None,
+                Some(CursorImage { source, .. }) => match source {
+                    ImageSource::Render(cur, _) => Some(IMAGES.cache(ImageSource::Render(
+                        cur.clone(),
+                        Some(crate::image::ImageRenderArgs { parent: Some(WINDOW.id()) }),
+                    ))),
+                    source => Some(IMAGES.cache(source)),
+                },
+            };
+
+            if let Some(cur) = &self.img_res.cursor_var {
+                self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_image, |img| Some(img.clone()));
+
+                if cur.get().is_loading() && self.window.is_none() && !self.waiting_view {
+                    img_res_loading.push(cur.clone());
+                }
+            } else {
+                self.vars.0.actual_cursor_image.set(None);
+                self.img_res.cursor_binding = VarHandle::dummy();
+            }
+
+            send_cursor = true;
+        } else if self.img_res.cursor_var.as_ref().map(|cur| cur.is_new()).unwrap_or(false) {
+            send_cursor = true;
+        }
+        if send_cursor {
+            let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
+            if let Some(c) = self.vars.cursor_image().get() {
+                let hotspot = c.hotspot;
+                self.update_gen(move |view| {
+                    let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);
+                })
+            }
+        }
+
+        // setup init wait for images
+        if !img_res_loading.is_empty() {
+            if self.img_res.deadline.has_elapsed() {
+                UPDATES.layout_window(WINDOW.id());
+            } else {
+                let window_id = WINDOW.id();
+                TIMERS
+                    .on_deadline(
+                        self.img_res.deadline,
+                        app_hn_once!(|_| {
+                            if img_res_loading.iter().any(|i| i.get().is_loading()) {
+                                // window maybe still waiting.
+                                UPDATES.layout_window(window_id);
+                            }
+                        }),
+                    )
+                    .perm();
+            }
+        }
+
+        if let Some(title) = self.vars.title().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_title(title.into_owned());
+            });
+        }
+
+        if let Some(mode) = self.vars.video_mode().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_video_mode(mode);
+            });
+        }
+
+        if let Some(cursor) = self.vars.cursor().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_cursor(cursor);
+            });
+        }
+
+        if let Some(visible) = self.vars.taskbar_visible().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_taskbar_visible(visible);
+            });
+        }
+
+        if let Some(top) = self.vars.always_on_top().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_always_on_top(top);
+            });
+        }
+
+        if let Some(mode) = self.vars.frame_capture_mode().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
+            });
+        }
+
+        if let Some(m) = &self.monitor {
+            if let Some(fct) = m.scale_factor().get_new() {
+                self.vars.0.scale_factor.set(fct);
+            }
+            if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
+                UPDATES.layout_window(WINDOW.id());
+            }
+        }
+
+        if let Some(indicator) = self.vars.focus_indicator().get_new() {
+            if WINDOWS.is_focused(WINDOW.id()).unwrap_or(false) {
+                self.vars.focus_indicator().set(None);
+            } else if let Some(view) = &self.window {
+                let _ = view.set_focus_indicator(indicator);
+                // will be set to `None` once the window is focused.
+            }
+            // else indicator is send with init.
+        }
+
+        let mut update_color_scheme = false;
+
+        if update_parent(&mut self.actual_parent, &self.vars) {
+            self.parent_color_scheme = self
+                .actual_parent
+                .and_then(|id| WINDOWS.vars(id).ok().map(|v| v.actual_color_scheme()));
+            update_color_scheme = true;
+        }
+
+        if update_color_scheme
+            || self.vars.color_scheme().is_new()
+            || self.parent_color_scheme.as_ref().map(|t| t.is_new()).unwrap_or(false)
+        {
+            let scheme = self
+                .vars
+                .color_scheme()
+                .get()
+                .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
+                .or(self.system_color_scheme)
+                .unwrap_or_default();
+            self.vars.0.actual_color_scheme.set(scheme);
+        }
+
+        self.vars.renderer_debug().with_new(|dbg| {
+            if let Some(view) = &self.window {
+                if let Some(key) = dbg.extension_id() {
+                    let _ = view.renderer().render_extension::<_, ()>(key, dbg);
+                }
+            }
+        });
 
         if self.vars.0.access_enabled.get() && FOCUS.focused().is_new() {
             self.update_access_focused();
