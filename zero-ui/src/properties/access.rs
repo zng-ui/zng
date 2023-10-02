@@ -106,8 +106,8 @@ pub fn active_descendant(child: impl UiNode, descendant: impl IntoVar<WidgetId>)
 /// Use  [`controls`], or [`owns`] to indicate the widgets that change visibility based on
 /// this value.
 ///
-/// [`controls`]: fn@push_controls
-/// [`owns`]: fn@push_owns
+/// [`controls`]: fn@controls
+/// [`owns`]: fn@owns
 #[property(CONTEXT)]
 pub fn expanded(child: impl UiNode, expanded: impl IntoVar<bool>) -> impl UiNode {
     with_access_state(child, expanded, |b, v| b.set_expanded(*v))
@@ -345,8 +345,39 @@ pub fn flows_to(child: impl UiNode, next_options: impl IntoVar<Vec<WidgetId>>) -
     })
 }
 
-///
+/// Indicates that the widget's data is invalid with optional kinds of errors.
 #[property(CONTEXT)]
 pub fn invalid(child: impl UiNode, error: impl IntoVar<Invalid>) -> impl UiNode {
     with_access_state(child, error, |b, v| b.set_invalid(*v))
+}
+
+/// Indicate that the widget can change, how the change can be announced, if `atomic`
+/// the entire widget must be re-read, if `busy` the screen reader must wait until the change completes.
+#[property(CONTEXT)]
+pub fn live(
+    child: impl UiNode,
+    indicator: impl IntoVar<LiveIndicator>,
+    atomic: impl IntoVar<bool>,
+    busy: impl IntoVar<bool>,
+) -> impl UiNode {
+    let indicator = indicator.into_var();
+    let atomic = atomic.into_var();
+    let busy = busy.into_var();
+    let mut handles = VarHandles::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Deinit => {
+            handles.clear();
+        }
+        UiNodeOp::Info { info } => {
+            if let Some(mut builder) = info.access() {
+                if handles.is_dummy() {
+                    handles.push(indicator.subscribe(UpdateOp::Info, WIDGET.id()));
+                    handles.push(atomic.subscribe(UpdateOp::Info, WIDGET.id()));
+                    handles.push(busy.subscribe(UpdateOp::Info, WIDGET.id()));
+                }
+                builder.set_live(indicator.get(), atomic.get(), busy.get());
+            }
+        }
+        _ => {}
+    })
 }

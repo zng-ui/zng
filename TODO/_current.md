@@ -22,8 +22,6 @@
 
 # Accessibility
 
-* How to implement live property?
-
 * Integrate access states.
     - Text sets label to the text.
     - Toggle sets checked.
