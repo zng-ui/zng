@@ -282,7 +282,7 @@ impl SegmentedText {
     }
 
     /// The text string.
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> &Txt {
         &self.text
     }
 

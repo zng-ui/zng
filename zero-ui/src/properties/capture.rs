@@ -153,6 +153,8 @@ pub fn capture_pointer_on_init(child: impl UiNode, mode: impl IntoVar<CaptureMod
 ///
 /// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
 ///
+/// This property also sets the accessibility modal flag.
+///
 /// [allows interaction]: crate::core::widget_info::WidgetInfo::interactivity
 #[property(CONTEXT, default(false))]
 pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
@@ -183,6 +185,10 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             let mws = WINDOW.req_state(&MODAL_WIDGETS);
 
             if enabled.get() {
+                if let Some(mut a) = info.access() {
+                    a.flag_modal();
+                }
+
                 let insert_filter = {
                     let mut mws = mws.lock();
                     if mws.widgets.insert(WIDGET.id()) {

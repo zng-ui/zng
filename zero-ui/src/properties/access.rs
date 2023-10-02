@@ -16,26 +16,17 @@ use crate::prelude::new_property::*;
 
 /// Sets the widget kind for accessibility services.
 ///
-/// Note that the widget role must be implemented, this property only sets the metadata,
-#[property(CONTEXT, default(None))]
-pub fn access_role(child: impl UiNode, role: impl IntoVar<Option<AccessRole>>) -> impl UiNode {
-    let role = role.into_var();
-    let mut handle = VarHandle::dummy();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Deinit => {
-            handle = VarHandle::dummy();
-        }
-        UiNodeOp::Info { info } => {
+/// Note that the widget role must be implemented, this property only sets the metadata.
+#[property(WIDGET)]
+pub fn access_role(child: impl UiNode, role: impl IntoValue<AccessRole>) -> impl UiNode {
+    let role = role.into();
+    match_node(child, move |c, op| {
+        if let UiNodeOp::Info { info } = op {
+            c.info(info);
             if let Some(mut info) = info.access() {
-                if handle.is_dummy() {
-                    handle = role.subscribe(UpdateOp::Info, WIDGET.id());
-                }
-                if let Some(r) = role.get() {
-                    info.set_role(r);
-                }
+                info.set_role(role);
             }
         }
-        _ => {}
     })
 }
 
@@ -46,11 +37,12 @@ fn with_access_state<T: VarValue>(
 ) -> impl UiNode {
     let state = state.into_var();
     let mut handle = VarHandle::dummy();
-    match_node(child, move |_, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
             handle = VarHandle::dummy();
         }
         UiNodeOp::Info { info } => {
+            c.info(info);
             if let Some(mut builder) = info.access() {
                 if handle.is_dummy() {
                     handle = state.subscribe(UpdateOp::Info, WIDGET.id());
@@ -364,11 +356,12 @@ pub fn live(
     let atomic = atomic.into_var();
     let busy = busy.into_var();
     let mut handles = VarHandles::dummy();
-    match_node(child, move |_, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Deinit => {
             handles.clear();
         }
         UiNodeOp::Info { info } => {
+            c.info(info);
             if let Some(mut builder) = info.access() {
                 if handles.is_dummy() {
                     handles.push(indicator.subscribe(UpdateOp::Info, WIDGET.id()));

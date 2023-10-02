@@ -24,11 +24,10 @@
 
 * Implement a way to detect access state updates.
     - Right now we rebuild the entire tree every time.
+    - Also need to track what widget changed children.
 
-* Integrate access states.
-    - Text sets label to the text.
-    - Toggle sets checked.
-    - Modal.
+* Integrate access states and role.
+    - Roles.
     - Review all states.
 
 * Implement way to enabled accessibility from code.

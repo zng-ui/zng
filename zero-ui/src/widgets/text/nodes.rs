@@ -327,6 +327,8 @@ context_local! {
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `Text!` widget includes this node in the [`NestGroup::EVENT`] group,
 /// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::get`] function.
+///
+/// This node also sets the accessibility label to the resolved text.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
     struct LoadingFontFaceList {
         _var_handle: VarHandle,
@@ -467,6 +469,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 FocusInfoBuilder::new(info).focusable(true);
             }
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
+            if let Some(mut a) = info.access() {
+                a.set_label(resolved.as_ref().unwrap().text.text().clone());
+            }
         }
         UiNodeOp::Event { update } => {
             if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
@@ -643,10 +648,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
 
                 let direction = DIRECTION_VAR.get();
-                if r.text.text() != text || r.text.base_direction() != direction {
+                if r.text.text() != &text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
                     if let Some(i) = &mut r.caret.get_mut().index {
                         i.index = r.text.snap_grapheme_boundary(i.index);
+                    }
+
+                    if WINDOW.vars().access_enabled().get() {
+                        WIDGET.info();
                     }
 
                     r.pending_layout = PendingLayout::RESHAPE;
@@ -731,7 +740,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     });
                 }
 
-                if r.text.text() != text {
+                if r.text.text() != &text {
                     r.text = SegmentedText::new(text, DIRECTION_VAR.get());
                     if let Some(i) = &mut r.caret.get_mut().index {
                         i.index = r.text.snap_grapheme_boundary(i.index);

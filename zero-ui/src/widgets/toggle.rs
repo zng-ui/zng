@@ -68,6 +68,7 @@ context_var! {
 pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
     let checked = checked.into_var();
     let mut _toggle_handle = CommandHandle::dummy();
+    let mut access_handle = VarHandle::dummy();
     let node = match_node(
         child,
         clmv!(checked, |child, op| match op {
@@ -77,6 +78,15 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
+                access_handle = VarHandle::dummy();
+            }
+            UiNodeOp::Info { info } => {
+                if let Some(mut a) = info.access() {
+                    if access_handle.is_dummy() {
+                        access_handle = checked.subscribe(UpdateOp::Info, WIDGET.id());
+                    }
+                    a.set_checked(Some(checked.get()));
+                }
             }
             UiNodeOp::Event { update } => {
                 child.event(update);
@@ -136,6 +146,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
     let checked = checked.into_var();
     let mut _toggle_handle = CommandHandle::dummy();
+    let mut access_handle = VarHandle::dummy();
 
     let node = match_node(
         child,
@@ -146,6 +157,15 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
+                access_handle = VarHandle::dummy();
+            }
+            UiNodeOp::Info { info } => {
+                if let Some(mut a) = info.access() {
+                    if access_handle.is_dummy() {
+                        access_handle = checked.subscribe(UpdateOp::Info, WIDGET.id());
+                    }
+                    a.set_checked(checked.get());
+                }
             }
             UiNodeOp::Event { update } => {
                 child.event(update);
