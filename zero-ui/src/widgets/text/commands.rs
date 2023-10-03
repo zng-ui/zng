@@ -972,7 +972,11 @@ fn page_up_down(clear_selection: bool, diff: i8) {
     c.used_retained_x = true;
     if layout.caret_origin.is_some() {
         let li = i.line;
-        if let Some(li) = layout.shaped_text.line(li) {
+        if diff == -1 && li == 0 {
+            c.set_char_index(0);
+        } else if diff == 1 && li == layout.shaped_text.lines_len() - 1 {
+            c.set_char_index(resolved.text.text().len());
+        } else if let Some(li) = layout.shaped_text.line(li) {
             let target_line_y = li.rect().origin.y + page_y;
             match layout.shaped_text.nearest_line(target_line_y) {
                 Some(l) => {

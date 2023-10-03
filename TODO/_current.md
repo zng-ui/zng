@@ -13,7 +13,6 @@
         - Char input, paste, IME
     - Impl cut & copy.
 
-* PageUp and PageDown should move the caret to either the start or end of the line if you're at the first or last line respectively
 * Shift delete removes line.
 * Ctrl delete removed word.
 
