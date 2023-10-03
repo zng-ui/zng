@@ -22,6 +22,16 @@ pub fn access_role(child: impl UiNode, role: impl IntoVar<AccessRole>) -> impl U
     with_access_state(child, role, |b, v| b.set_role(*v))
 }
 
+/// Append supported access commands.
+#[property(CONTEXT)]
+pub fn access_commands(child: impl UiNode, commands: impl IntoVar<Vec<AccessCmdName>>) -> impl UiNode {
+    with_access_state(child, commands, |b, v| {
+        for cmd in v {
+            b.push_command(*cmd);
+        }
+    })
+}
+
 /// Set how input text triggers display of one or more predictions of the user's intended
 /// value for a [`ComboBox`], [`SearchBox`], or [`TextInput`].
 ///

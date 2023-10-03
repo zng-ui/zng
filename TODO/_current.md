@@ -19,16 +19,6 @@
 
 # Accessibility
 
-* Implement transforms and size.
-
-* Implement available commands.
-    - Do we need to split scroll commands?
-        - Firefox does not announce scroll?
-    - `ShowContextMenu` cannot always be announced.
-        - `AccessCommandName` is not a valid enum for selecting actions?
-        - Or we need to split the click.
-    - Technically `accesskit::Action::Blur` is not always available when focus is, ESC can return focus to same place.
-
 * Implement or remove `SetNextTabStart`.
 
 * Figure units for `accesskit::ActionData::ScrollTargetRect` and others.
@@ -36,9 +26,11 @@
 * Implement a way to detect access state updates.
     - Right now we rebuild the entire tree every time.
     - Also need to track what widget changed children.
+    - Also need to update when transform changes during render.
 
-* Integrate access states and role.
-    - Roles.
+* Integrate access commands, states and role.
+    - Set commands in `on_click` (can't use macro?)
+    - Set role in more widgets.
     - Scrollbar values.
     - Review all states.
 

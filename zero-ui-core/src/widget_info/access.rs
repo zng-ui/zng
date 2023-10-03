@@ -3,9 +3,11 @@
 use std::num::NonZeroU32;
 
 use zero_ui_view_api::access::AccessState;
-pub use zero_ui_view_api::access::{AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection};
+pub use zero_ui_view_api::access::{
+    AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
+};
 
-use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
+use crate::{context::StaticStateId, text::Txt, units::PxRect, widget_instance::WidgetId};
 
 use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
 
@@ -34,6 +36,11 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Set the accessibility role of the widget.
     pub fn set_role(&mut self, role: AccessRole) {
         self.with_access(|a| a.role = Some(role))
+    }
+
+    /// Add a supported access command.
+    pub fn push_command(&mut self, cmd: AccessCmdName) {
+        self.with_access(|a| a.commands.push(cmd))
     }
 
     /// Set how input text triggers display of one or more predictions of the user's intended
@@ -368,6 +375,11 @@ impl WidgetInfo {
             })
             .map(|w| w.access().unwrap())
     }
+
+    /// First ancestor that is accessible.
+    pub fn access_parent(&self) -> Option<WidgetAccessInfo> {
+        self.ancestors().find_map(|w| w.access())
+    }
 }
 
 /// Accessibility info for a widget.
@@ -427,6 +439,11 @@ impl WidgetAccessInfo {
     /// Accessibility role of the widget.
     pub fn role(&self) -> Option<AccessRole> {
         self.access().role
+    }
+
+    /// Accessibility commands supported by the widget.
+    pub fn commands(&self) -> &[AccessCmdName] {
+        &self.access().commands
     }
 
     /// How input text triggers display of one or more predictions of the user's intended value.
@@ -650,6 +667,15 @@ impl WidgetAccessInfo {
 
         let a = self.access();
 
+        let bounds = self.info.bounds_info();
+        let undo_parent_transform = self
+            .info
+            .access_parent()
+            .and_then(|w| w.info.inner_transform().inverse())
+            .unwrap_or_default();
+        node.transform = bounds.inner_transform().then(&undo_parent_transform);
+        node.bounds = PxRect::from_size(bounds.inner_size());
+
         node.role = a.role;
         node.state = a.state.clone();
         node.state.extend(a.state_txt.iter().map(From::from));
@@ -674,6 +700,7 @@ impl WidgetAccessInfo {
 #[derive(Default)]
 struct AccessInfo {
     role: Option<AccessRole>,
+    commands: Vec<AccessCmdName>,
     state: Vec<AccessState>,
     state_txt: Vec<AccessStateTxt>,
 }

@@ -5,7 +5,7 @@ use std::{num::NonZeroU32, ops};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::units::{DipRect, DipVector};
+use crate::units::{DipRect, DipVector, PxRect, PxTransform};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -581,6 +581,10 @@ pub struct AccessNode {
     pub commands: Vec<AccessCmdName>,
     /// Accessibility state.
     pub state: Vec<AccessState>,
+    /// Widget transform (in the parent space).
+    pub transform: PxTransform,
+    /// Widget bounds (in the `transform` space).
+    pub bounds: PxRect,
     /// Number of children.
     ///
     /// See [`AccessTreeBuilder::push`] for more details.
@@ -598,6 +602,8 @@ impl AccessNode {
             role,
             commands: vec![],
             state: vec![],
+            transform: PxTransform::identity(),
+            bounds: PxRect::zero(),
             children_count: 0,
             descendants_count: 0,
         }
