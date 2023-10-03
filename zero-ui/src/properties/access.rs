@@ -17,41 +17,9 @@ use crate::prelude::new_property::*;
 /// Sets the widget kind for accessibility services.
 ///
 /// Note that the widget role must be implemented, this property only sets the metadata.
-#[property(WIDGET)]
-pub fn access_role(child: impl UiNode, role: impl IntoValue<AccessRole>) -> impl UiNode {
-    let role = role.into();
-    match_node(child, move |c, op| {
-        if let UiNodeOp::Info { info } = op {
-            c.info(info);
-            if let Some(mut info) = info.access() {
-                info.set_role(role);
-            }
-        }
-    })
-}
-
-fn with_access_state<T: VarValue>(
-    child: impl UiNode,
-    state: impl IntoVar<T>,
-    set_info: impl Fn(&mut WidgetAccessInfoBuilder, &T) + Send + 'static,
-) -> impl UiNode {
-    let state = state.into_var();
-    let mut handle = VarHandle::dummy();
-    match_node(child, move |c, op| match op {
-        UiNodeOp::Deinit => {
-            handle = VarHandle::dummy();
-        }
-        UiNodeOp::Info { info } => {
-            c.info(info);
-            if let Some(mut builder) = info.access() {
-                if handle.is_dummy() {
-                    handle = state.subscribe(UpdateOp::Info, WIDGET.id());
-                }
-                state.with(|val| set_info(&mut builder, val));
-            }
-        }
-        _ => {}
-    })
+#[property(CONTEXT)]
+pub fn access_role(child: impl UiNode, role: impl IntoVar<AccessRole>) -> impl UiNode {
+    with_access_state(child, role, |b, v| b.set_role(*v))
 }
 
 /// Set how input text triggers display of one or more predictions of the user's intended
@@ -369,6 +337,30 @@ pub fn live(
                     handles.push(busy.subscribe(UpdateOp::Info, WIDGET.id()));
                 }
                 builder.set_live(indicator.get(), atomic.get(), busy.get());
+            }
+        }
+        _ => {}
+    })
+}
+
+fn with_access_state<T: VarValue>(
+    child: impl UiNode,
+    state: impl IntoVar<T>,
+    set_info: impl Fn(&mut WidgetAccessInfoBuilder, &T) + Send + 'static,
+) -> impl UiNode {
+    let state = state.into_var();
+    let mut handle = VarHandle::dummy();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Deinit => {
+            handle = VarHandle::dummy();
+        }
+        UiNodeOp::Info { info } => {
+            c.info(info);
+            if let Some(mut builder) = info.access() {
+                if handle.is_dummy() {
+                    handle = state.subscribe(UpdateOp::Info, WIDGET.id());
+                }
+                state.with(|val| set_info(&mut builder, val));
             }
         }
         _ => {}
