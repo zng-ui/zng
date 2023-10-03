@@ -7,6 +7,16 @@ use super::event_property;
 use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
+fn access_click(child: impl UiNode, _: bool) -> impl UiNode {
+    match_node(child, |_, op| {
+        if let UiNodeOp::Info { info } = op {
+            if let Some(mut access) = info.access() {
+                access.push_command(crate::core::widget_info::access::AccessCmdName::Click)
+            }
+        }
+    })
+}
+
 event_property! {
     /// On widget click from any source and of any click count and the widget is enabled.
     ///
@@ -17,6 +27,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
+        with: access_click,
     }
 
     /// On widget click from any source and of any click count and the widget is disabled.
@@ -24,6 +35,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_disabled(WIDGET.id()),
+        with: access_click,
     }
 
     /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
@@ -34,6 +46,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_single() && args.is_enabled(WIDGET.id()),
+        with: access_click,
     }
 
     /// On widget click from any source but exclusive double-clicks and the widget is enabled.
@@ -65,6 +78,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_primary() && args.is_enabled(WIDGET.id()),
+        with: access_click,
     }
 
     /// On widget click with the primary button, excluding double/triple clicks and the widget is enabled.
@@ -75,6 +89,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_primary() && args.is_single() && args.is_enabled(WIDGET.id()),
+        with: access_click,
     }
 
     /// On widget click with the primary button and exclusive double-clicks and the widget is enabled.
@@ -104,6 +119,7 @@ event_property! {
         event: CLICK_EVENT,
         args: ClickArgs,
         filter: |args| args.is_context() && args.is_enabled(WIDGET.id()),
+        with: access_click,
     }
 }
 

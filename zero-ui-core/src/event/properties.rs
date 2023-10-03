@@ -13,6 +13,7 @@ macro_rules! __event_property {
             event: $EVENT:path,
             args: $Args:path,
             filter: $filter:expr,
+            with: $($with:expr)? $(,)?
         }
     ) => { $crate::paste! {
         $(#[$on_event_attrs])*
@@ -30,7 +31,7 @@ macro_rules! __event_property {
             child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
         ) -> impl $crate::widget_instance::UiNode {
-            $crate::event::on_event(child, $EVENT, $filter, handler)
+            $crate::__event_property!(with($crate::event::on_event(child, $EVENT, $filter, handler), false, $($with)?))
         }
 
         #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
@@ -49,7 +50,7 @@ macro_rules! __event_property {
             child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
         ) -> impl $crate::widget_instance::UiNode {
-            $crate::event::on_pre_event(child, $EVENT, $filter, handler)
+            $crate::__event_property!(with($crate::event::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
         }
     } };
 
@@ -65,10 +66,52 @@ macro_rules! __event_property {
             $vis fn $event {
                 event: $EVENT,
                 args: $Args,
-                filter: |args| true,
+                filter: |_args| true,
+                with:
             }
         }
     };
+
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+            filter: $filter:expr,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                filter: $filter,
+                with:
+            }
+        }
+    };
+
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+            with: $with:expr,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                filter: |_args| true,
+                with: $with,
+            }
+        }
+    };
+
+    (with($child:expr, $preview:expr,)) => { $child };
+    (with($child:expr, $preview:expr, $with:expr)) => { ($with)($child, $preview) };
 }
 ///<span data-del-macro-root></span> Declare one or more event properties.
 ///
@@ -120,6 +163,27 @@ macro_rules! __event_property {
 ///
 /// You can use [`command_property`] to declare command event properties.
 ///
+/// # With Extra Nodes
+///
+/// You can wrap the event handler node with extra nodes by setting the optional `with` closure:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::event::{event_property, EventArgs};
+/// # use zero_ui_core::keyboard::*;
+/// # fn some_node(child: impl zero_ui_core::widget_instance::UiNode) -> impl zero_ui_core::widget_instance::UiNode { child }
+/// event_property! {
+///     pub fn key_input {
+///         event: KEY_INPUT_EVENT,
+///         args: KeyInputArgs,
+///         with: |child, _preview| some_node(child),
+///     }
+/// }
+/// ```
+///
+/// The closure receives two arguments, the handler `UiNode` and a `bool` that is `true` if the closure is called in in the *on_pre_*
+/// property or `false` when called in the *on_* property.
+///
 /// [`on_pre_event`]: crate::event::on_pre_event
 /// [`on_event`]: crate::event::on_event
 /// [`propagation`]: AnyEventArgs::propagation
@@ -132,7 +196,8 @@ macro_rules! event_property {
         $vis:vis fn $event:ident {
             event: $EVENT:path,
             args: $Args:path $(,
-            filter: $filter:expr)? $(,)?
+            filter: $filter:expr)? $(,
+            with: $with:expr)? $(,)?
         }
     )+) => {$(
         $crate::__event_property! {
@@ -141,6 +206,7 @@ macro_rules! event_property {
                 event: $EVENT,
                 args: $Args,
                 $(filter: $filter,)?
+                $(with: $with,)?
             }
         }
     )+};

@@ -25,10 +25,9 @@
     - Also need to update when transform changes during render.
 
 * Integrate access commands, states and role.
-    - Set commands in `on_click` (can't use macro?)
     - Set role in more widgets.
     - Scrollbar values.
-    - Review all states.
+    - Review all states and commands.
 
 * Implement way to enabled accessibility from code.
     - Some programmatic service may be interested in these values too.
