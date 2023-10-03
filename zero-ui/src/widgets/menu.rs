@@ -24,6 +24,7 @@ impl Menu {
             alt_focus_scope = true;
             panel::panel_fn = PANEL_FN_VAR;
             style_fn = STYLE_VAR;
+            access_role = AccessRole::Menu;
         }
     }
 }
@@ -123,6 +124,8 @@ impl ButtonStyle {
 
             click_mode = ClickMode::release();// part of press-and-drag to click (see SubMenuPopup)
 
+            access_role = AccessRole::MenuItem;
+
             on_pre_mouse_enter = hn!(|_| {
                 FOCUS.focus_widget(WIDGET.id(), false);
             });
@@ -152,6 +155,7 @@ impl ToggleStyle {
             self;
 
             click_mode = ClickMode::release();
+            access_role = AccessRole::MenuItemCheckBox;
 
             sub::start_column_fn = wgt_fn!(|_ |crate::widgets::Text! {
                 size = 1.2.em();

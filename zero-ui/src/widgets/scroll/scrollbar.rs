@@ -14,6 +14,7 @@ impl Scrollbar {
             crate::properties::background_color = vis::BACKGROUND_VAR;
             crate::properties::click_mode = ClickMode::repeat();
             crate::properties::events::mouse::on_mouse_click = scroll_click_handler();
+            access_role = AccessRole::ScrollBar;
         }
 
         self.widget_builder().push_build_action(|wgt| {

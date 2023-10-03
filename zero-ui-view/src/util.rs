@@ -1035,7 +1035,7 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         Figure => Role::Figure,
         Group => Role::Group,
         Heading => Role::Heading,
-        Img => Role::Image,
+        Image => Role::Image,
         List => Role::List,
         ListItem => Role::ListItem,
         Math => Role::Math,

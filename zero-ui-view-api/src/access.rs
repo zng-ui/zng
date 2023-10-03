@@ -108,7 +108,7 @@ pub enum AccessRole {
     /// Defines a heading to a page or section, with [`AccessState::Level`] defining structure.
     Heading,
     /// Identifies a widget container that should be considered as a single image.
-    Img,
+    Image,
     /// Identifies a list of items.
     List,
     /// Identifies an item inside a list of items.

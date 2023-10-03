@@ -153,7 +153,7 @@ pub mod prelude {
             VarValue, VARS,
         },
         widget_base::HitTestMode,
-        widget_info::{InteractionPath, Visibility, WidgetPath},
+        widget_info::{access::AccessRole, InteractionPath, Visibility, WidgetPath},
         widget_instance::{
             ui_vec, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
             UiNodeListChain, UiNodeVec, WidgetId, ZIndex,
@@ -170,6 +170,8 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::*;
 
+    #[doc(no_inline)]
+    pub use crate::properties::access::access_role;
     #[doc(no_inline)]
     pub use crate::properties::commands::*;
     #[doc(no_inline)]
@@ -327,8 +329,8 @@ pub mod prelude {
             widget_base::{self, EnabledMix, HitTestMode, WidgetBase, WidgetImpl},
             widget_impl,
             widget_info::{
-                InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
-                WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
+                access::AccessRole, InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility,
+                WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
             },
             widget_instance::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, z_index, AdoptiveNode, BoxedUiNode,
@@ -337,6 +339,8 @@ pub mod prelude {
             },
             widget_mixin, widget_set,
         };
+        #[doc(no_inline)]
+        pub use crate::properties::access::access_role;
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
         #[doc(no_inline)]

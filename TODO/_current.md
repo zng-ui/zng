@@ -28,6 +28,7 @@
 
 * Integrate access states and role.
     - Roles.
+    - Scrollbar values.
     - Review all states.
 
 * Implement way to enabled accessibility from code.

@@ -21,6 +21,11 @@ pub struct Image(WidgetBase);
 impl Image {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(on_build);
+
+        widget_set! {
+            self;
+            access_role = AccessRole::Image;
+        }
     }
 }
 
