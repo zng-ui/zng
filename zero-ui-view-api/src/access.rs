@@ -430,7 +430,7 @@ pub struct AccessNodeId(pub u64);
 /// [`Event::AccessCommand`]: crate::Event::AccessCommand
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-pub enum AccessCommand {
+pub enum AccessCmd {
     /// Run the click action on the widget.
     ///
     /// If `true` run the primary (default) action, if `false` run the context action.
@@ -459,7 +459,7 @@ pub enum AccessCommand {
     SetToolTipVis(bool),
 
     /// Scroll command.
-    Scroll(ScrollCommand),
+    Scroll(ScrollCmd),
 
     /// Insert the text.
     ReplaceSelectedText(String),
@@ -484,70 +484,70 @@ pub enum AccessCommand {
     /// reset the selection, if applicable.
     SetNumber(f64),
 }
-impl AccessCommand {
+impl AccessCmd {
     /// Gets the command discriminant without associated data.
-    pub fn name(&self) -> AccessCommandName {
+    pub fn name(&self) -> AccessCmdName {
         match self {
-            AccessCommand::Click(_) => AccessCommandName::Click,
-            AccessCommand::Focus(_) => AccessCommandName::Focus,
-            AccessCommand::SetNextTabStart => AccessCommandName::SetNextTabStart,
-            AccessCommand::SetExpanded(_) => AccessCommandName::SetExpanded,
-            AccessCommand::Increment(_) => AccessCommandName::Increment,
-            AccessCommand::SetToolTipVis(_) => AccessCommandName::SetToolTipVis,
-            AccessCommand::Scroll(_) => AccessCommandName::Scroll,
-            AccessCommand::ReplaceSelectedText(_) => AccessCommandName::ReplaceSelectedText,
-            AccessCommand::SelectText { .. } => AccessCommandName::SelectText,
-            AccessCommand::SetString(_) => AccessCommandName::SetString,
-            AccessCommand::SetNumber(_) => AccessCommandName::SetNumber,
+            AccessCmd::Click(_) => AccessCmdName::Click,
+            AccessCmd::Focus(_) => AccessCmdName::Focus,
+            AccessCmd::SetNextTabStart => AccessCmdName::SetNextTabStart,
+            AccessCmd::SetExpanded(_) => AccessCmdName::SetExpanded,
+            AccessCmd::Increment(_) => AccessCmdName::Increment,
+            AccessCmd::SetToolTipVis(_) => AccessCmdName::SetToolTipVis,
+            AccessCmd::Scroll(_) => AccessCmdName::Scroll,
+            AccessCmd::ReplaceSelectedText(_) => AccessCmdName::ReplaceSelectedText,
+            AccessCmd::SelectText { .. } => AccessCmdName::SelectText,
+            AccessCmd::SetString(_) => AccessCmdName::SetString,
+            AccessCmd::SetNumber(_) => AccessCmdName::SetNumber,
         }
     }
 }
 
 /// Accessibility command without associated data.
 ///
-/// See [`AccessCommand::name`] for more details.
+/// See [`AccessCmd::name`] for more details.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-pub enum AccessCommandName {
-    /// [`AccessCommand::Click`]
+pub enum AccessCmdName {
+    /// [`AccessCmd::Click`]
     Click,
 
-    /// [`AccessCommand::Focus`]
+    /// [`AccessCmd::Focus`]
     Focus,
 
-    /// [`AccessCommand::SetNextTabStart`]
+    /// [`AccessCmd::SetNextTabStart`]
     SetNextTabStart,
 
-    /// [`AccessCommand::SetExpanded`]
+    /// [`AccessCmd::SetExpanded`]
     SetExpanded,
 
-    /// [`AccessCommand::Increment`]
+    /// [`AccessCmd::Increment`]
     Increment,
 
-    /// [`AccessCommand::SetToolTipVis`]
+    /// [`AccessCmd::SetToolTipVis`]
     SetToolTipVis,
 
-    /// [`AccessCommand::Scroll`]
+    /// [`AccessCmd::Scroll`]
     Scroll,
 
-    /// [`AccessCommand::ReplaceSelectedText`]
+    /// [`AccessCmd::ReplaceSelectedText`]
     ReplaceSelectedText,
 
-    /// [`AccessCommand::SelectText`]
+    /// [`AccessCmd::SelectText`]
     SelectText,
 
-    /// [`AccessCommand::SetString`]
+    /// [`AccessCmd::SetString`]
     SetString,
 
-    /// [`AccessCommand::SetNumber`]
+    /// [`AccessCmd::SetNumber`]
     SetNumber,
 }
 
 /// Accessibility scroll command.
 ///
-/// The command must run in the context of the target widow and widget, see [`AccessCommand::Scroll`] for more details.
+/// The command must run in the context of the target widow and widget, see [`AccessCmd::Scroll`] for more details.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum ScrollCommand {
+pub enum ScrollCmd {
     /// Scroll page up.
     ///
     /// If the scroll-box only scrolls horizontally this is the same as `ScrollLeft`.
@@ -578,7 +578,7 @@ pub struct AccessNode {
     /// Accessibility role.
     pub role: Option<AccessRole>,
     /// Commands the widget supports.
-    pub commands: Vec<AccessCommandName>,
+    pub commands: Vec<AccessCmdName>,
     /// Accessibility state.
     pub state: Vec<AccessState>,
     /// Number of children.

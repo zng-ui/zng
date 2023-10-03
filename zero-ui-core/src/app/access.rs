@@ -1,8 +1,8 @@
 //! Accessibility/automation events.
 
-use zero_ui_view_api::access::AccessCommand;
+use zero_ui_view_api::access::AccessCmd;
 
-pub use zero_ui_view_api::access::ScrollCommand;
+pub use zero_ui_view_api::access::ScrollCmd;
 
 use crate::{
     event::{event, event_args, EventUpdate},
@@ -16,41 +16,41 @@ pub(super) fn on_access_init(window_id: WindowId) -> EventUpdate {
     ACCESS_INITED_EVENT.new_update(args)
 }
 
-pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCommand) -> Option<EventUpdate> {
+pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCmd) -> Option<EventUpdate> {
     match command {
-        AccessCommand::Click(primary) => {
+        AccessCmd::Click(primary) => {
             let args = AccessClickArgs::now(window_id, widget_id, primary);
             Some(ACCESS_CLICK_EVENT.new_update(args))
         }
-        AccessCommand::Focus(focus) => {
+        AccessCmd::Focus(focus) => {
             let args = AccessFocusArgs::now(window_id, widget_id, focus);
             Some(ACCESS_FOCUS_EVENT.new_update(args))
         }
-        AccessCommand::SetNextTabStart => {
+        AccessCmd::SetNextTabStart => {
             // TODO
             None
         }
-        AccessCommand::SetExpanded(expanded) => {
+        AccessCmd::SetExpanded(expanded) => {
             let args = AccessExpanderArgs::now(window_id, widget_id, expanded);
             Some(ACCESS_EXPANDER_EVENT.new_update(args))
         }
-        AccessCommand::Increment(inc) => {
+        AccessCmd::Increment(inc) => {
             let args = AccessIncrementArgs::now(window_id, widget_id, inc);
             Some(ACCESS_INCREMENT_EVENT.new_update(args))
         }
-        AccessCommand::SetToolTipVis(vis) => {
+        AccessCmd::SetToolTipVis(vis) => {
             let args = AccessToolTipArgs::now(window_id, widget_id, vis);
             Some(ACCESS_TOOLTIP_EVENT.new_update(args))
         }
-        AccessCommand::ReplaceSelectedText(s) => {
+        AccessCmd::ReplaceSelectedText(s) => {
             let args = AccessTextArgs::now(window_id, widget_id, s, true);
             Some(ACCESS_TEXT_EVENT.new_update(args))
         }
-        AccessCommand::Scroll(s) => {
+        AccessCmd::Scroll(s) => {
             let args = AccessScrollArgs::now(window_id, widget_id, s);
             Some(ACCESS_SCROLL_EVENT.new_update(args))
         }
-        AccessCommand::SelectText {
+        AccessCmd::SelectText {
             start: (start_wgt, start_idx),
             caret: (caret_wgt, caret_idx),
         } => {
@@ -59,11 +59,11 @@ pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, comman
             let args = AccessSelectionArgs::now(window_id, (start_wgt, start_idx), (caret_wgt, caret_idx));
             Some(ACCESS_SELECTION_EVENT.new_update(args))
         }
-        AccessCommand::SetString(s) => {
+        AccessCmd::SetString(s) => {
             let args = AccessTextArgs::now(window_id, widget_id, s, false);
             Some(ACCESS_TEXT_EVENT.new_update(args))
         }
-        AccessCommand::SetNumber(n) => {
+        AccessCmd::SetNumber(n) => {
             let args = AccessNumberArgs::now(window_id, widget_id, n);
             Some(ACCESS_NUMBER_EVENT.new_update(args))
         }
@@ -198,7 +198,7 @@ event_args! {
         pub widget_id: WidgetId,
 
         /// Scroll command.
-        pub command: ScrollCommand,
+        pub command: ScrollCmd,
 
         ..
 

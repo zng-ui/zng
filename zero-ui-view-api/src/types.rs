@@ -1,7 +1,7 @@
 //! General event types.
 
 use crate::{
-    access::{AccessCommand, AccessNodeId},
+    access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
@@ -506,7 +506,7 @@ pub enum Event {
         /// Target widget.
         target: AccessNodeId,
         /// Command.
-        command: AccessCommand,
+        command: AccessCmd,
     },
 
     /// Represents a custom event send by the extension.

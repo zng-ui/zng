@@ -721,36 +721,36 @@ pub(crate) fn accesskit_to_event(
         window: window_id,
         target,
         command: match request.action {
-            Action::Default => AccessCommand::Click(true),
-            Action::ShowContextMenu => AccessCommand::Click(false),
-            Action::Focus => AccessCommand::Focus(true),
-            Action::Blur => AccessCommand::Focus(false),
-            Action::Collapse => AccessCommand::SetExpanded(false),
-            Action::Expand => AccessCommand::SetExpanded(true),
+            Action::Default => AccessCmd::Click(true),
+            Action::ShowContextMenu => AccessCmd::Click(false),
+            Action::Focus => AccessCmd::Focus(true),
+            Action::Blur => AccessCmd::Focus(false),
+            Action::Collapse => AccessCmd::SetExpanded(false),
+            Action::Expand => AccessCmd::SetExpanded(true),
             Action::CustomAction => return None,
-            Action::Decrement => AccessCommand::Increment(-1),
-            Action::Increment => AccessCommand::Increment(1),
-            Action::HideTooltip => AccessCommand::SetToolTipVis(false),
-            Action::ShowTooltip => AccessCommand::SetToolTipVis(true),
+            Action::Decrement => AccessCmd::Increment(-1),
+            Action::Increment => AccessCmd::Increment(1),
+            Action::HideTooltip => AccessCmd::SetToolTipVis(false),
+            Action::ShowTooltip => AccessCmd::SetToolTipVis(true),
             Action::ReplaceSelectedText => {
                 if let Some(accesskit::ActionData::Value(s)) = request.data {
-                    AccessCommand::ReplaceSelectedText(s.to_string())
+                    AccessCmd::ReplaceSelectedText(s.to_string())
                 } else {
-                    AccessCommand::ReplaceSelectedText(String::new())
+                    AccessCmd::ReplaceSelectedText(String::new())
                 }
             }
-            Action::ScrollBackward => AccessCommand::Scroll(ScrollCommand::PageUp),
-            Action::ScrollForward => AccessCommand::Scroll(ScrollCommand::PageDown),
+            Action::ScrollBackward => AccessCmd::Scroll(ScrollCmd::PageUp),
+            Action::ScrollForward => AccessCmd::Scroll(ScrollCmd::PageDown),
 
-            Action::ScrollDown => AccessCommand::Scroll(ScrollCommand::PageDown),
-            Action::ScrollLeft => AccessCommand::Scroll(ScrollCommand::PageLeft),
-            Action::ScrollRight => AccessCommand::Scroll(ScrollCommand::PageRight),
-            Action::ScrollUp => AccessCommand::Scroll(ScrollCommand::PageUp),
+            Action::ScrollDown => AccessCmd::Scroll(ScrollCmd::PageDown),
+            Action::ScrollLeft => AccessCmd::Scroll(ScrollCmd::PageLeft),
+            Action::ScrollRight => AccessCmd::Scroll(ScrollCmd::PageRight),
+            Action::ScrollUp => AccessCmd::Scroll(ScrollCmd::PageUp),
             Action::ScrollIntoView => {
                 if let Some(accesskit::ActionData::ScrollTargetRect(_r)) = request.data {
                     return None; // TODO, figure out units
                 } else {
-                    AccessCommand::Scroll(ScrollCommand::ScrollTo)
+                    AccessCmd::Scroll(ScrollCmd::ScrollTo)
                 }
             }
             Action::ScrollToPoint => {
@@ -769,7 +769,7 @@ pub(crate) fn accesskit_to_event(
             }
             Action::SetTextSelection => {
                 if let Some(accesskit::ActionData::SetTextSelection(s)) = request.data {
-                    AccessCommand::SelectText {
+                    AccessCmd::SelectText {
                         start: (AccessNodeId(s.anchor.node.0), s.anchor.character_index),
                         caret: (AccessNodeId(s.focus.node.0), s.focus.character_index),
                     }
@@ -777,10 +777,10 @@ pub(crate) fn accesskit_to_event(
                     return None;
                 }
             }
-            Action::SetSequentialFocusNavigationStartingPoint => AccessCommand::SetNextTabStart,
+            Action::SetSequentialFocusNavigationStartingPoint => AccessCmd::SetNextTabStart,
             Action::SetValue => match request.data {
-                Some(accesskit::ActionData::Value(s)) => AccessCommand::SetString(s.to_string()),
-                Some(accesskit::ActionData::NumericValue(n)) => AccessCommand::SetNumber(n),
+                Some(accesskit::ActionData::Value(s)) => AccessCmd::SetString(s.to_string()),
+                Some(accesskit::ActionData::NumericValue(n)) => AccessCmd::SetNumber(n),
                 _ => return None,
             },
         },
@@ -825,12 +825,12 @@ fn access_node_to_kit(
 
     // add actions
     for cmd in &node.commands {
-        use zero_ui_view_api::access::AccessCommandName::*;
+        use zero_ui_view_api::access::AccessCmdName::*;
 
         match cmd {
             Click => {
                 builder.add_action(accesskit::Action::Default);
-                builder.add_action(accesskit::Action::ShowContextMenu); // TODO, what if it does not?
+                builder.add_action(accesskit::Action::ShowContextMenu);
             }
             Focus => {
                 builder.add_action(accesskit::Action::Focus);
