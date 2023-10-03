@@ -125,6 +125,14 @@ impl CaretInfo {
             Ordering::Greater => Some(b..a),
         }
     }
+
+    /// Gets the character range of the selection if both [`index`] and [`selection_index`] are set.
+    ///
+    /// [`index`]: Self::index
+    /// [`selection_index`]: Self::selection_index
+    pub fn selection_char_range(&self) -> Option<ops::Range<usize>> {
+        self.selection_range().map(|r| r.start.index..r.end.index)
+    }
 }
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
@@ -536,7 +544,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
-                                        } else {
+                                        } else if args.modifiers.is_empty() {
                                             args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                                         }
@@ -575,10 +583,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                             caret.opacity = var(0.fct()).read_only();
                         }
-                    } else if let Some(_args) = CUT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                        tracing::error!("TODO cut");
-                    } else if let Some(_args) = COPY_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                        tracing::error!("TODO copy");
+                    } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                        let ctx = resolved.as_mut().unwrap();
+                        if let Some(range) = ctx.caret.get_mut().selection_char_range() {
+                            args.propagation().stop();
+                            if CLIPBOARD.set_text(Txt::from_str(&ctx.text.text()[range])).is_ok() {
+                                ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
+                            }
+                        }
+                    } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                        let resolved = resolved.as_mut().unwrap();
+                        if let Some(range) = resolved.caret.get_mut().selection_char_range() {
+                            args.propagation().stop();
+                            let _ = CLIPBOARD.set_text(Txt::from_str(&resolved.text.text()[range]));
+                        }
                     } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {

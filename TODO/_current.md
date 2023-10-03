@@ -1,5 +1,6 @@
 # TextInput
 
+* Bug: Pressing delete after selecting all does nothing.
 * Implement selection.
     - Mouse:
         - Double-click causes selection that grows by word or.
@@ -11,10 +12,6 @@
     - Draw selection for line break.
     - Input replaces selection.
         - Char input, paste, IME
-    - Impl cut & copy.
-
-* Shift delete removes line.
-* Ctrl delete removed word.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

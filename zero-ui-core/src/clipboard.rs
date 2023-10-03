@@ -115,7 +115,7 @@ impl CLIPBOARD {
     pub fn text(&self) -> Result<Option<Txt>, ClipboardError> {
         self.get(|v| v.read_text()).map(|s| s.map(|s| Txt::from_str(&s)))
     }
-    /// Sets the text string on the clipboard, returns `true` if the operation succeeded.
+    /// Sets the text string on the clipboard, returns `Ok(())` if the operation succeeded.
     pub fn set_text(&self, txt: impl Into<Txt>) -> Result<(), ClipboardError> {
         self.set(|v| v.write_text(txt.into().into()))
     }
