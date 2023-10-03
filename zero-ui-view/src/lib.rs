@@ -686,6 +686,8 @@ impl App {
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
 
+        // Linux dialog is not actually modal, the parent window can continue to receive interaction events,
+        // this macro return early when a modal dialog is open in Linux.
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",

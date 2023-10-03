@@ -12,10 +12,26 @@
     - Input replaces selection.
         - Char input, paste, IME
 
+* ArrowUp and ArrowDown should move the caret to either the start or end of the line if you're at the first or last line respectively.
+
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
 # Accessibility
+
+* Implement transforms and size.
+
+* Implement available commands.
+    - Do we need to split scroll commands?
+        - Firefox does not announce scroll?
+    - `ShowContextMenu` cannot always be announced.
+        - `AccessCommandName` is not a valid enum for selecting actions?
+        - Or we need to split the click.
+    - Technically `accesskit::Action::Blur` is not always available when focus is, ESC can return focus to same place.
+
+* Implement or remove `SetNextTabStart`.
+
+* Figure units for `accesskit::ActionData::ScrollTargetRect` and others.
 
 * Implement a way to detect access state updates.
     - Right now we rebuild the entire tree every time.
