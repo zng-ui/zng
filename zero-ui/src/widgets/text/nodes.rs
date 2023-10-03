@@ -527,7 +527,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         if let KeyState::Pressed = args.state {
                             match &args.key {
                                 Some(Key::Backspace) => {
-                                    if resolved.as_mut().unwrap().caret.get_mut().index.unwrap_or(CaretIndex::ZERO).index > 0 {
+                                    let caret = resolved.as_mut().unwrap().caret.get_mut();
+                                    if caret.selection_index.is_some() || caret.index.unwrap_or(CaretIndex::ZERO).index > 0 {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace_word().call(&text));
@@ -539,8 +540,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 }
                                 Some(Key::Delete) => {
                                     let r = resolved.as_mut().unwrap();
-                                    let caret_idx = r.caret.get_mut().index.unwrap_or(CaretIndex::ZERO);
-                                    if caret_idx.index < r.text.text().len() {
+                                    let caret = r.caret.get_mut();
+                                    let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
+                                    if caret.selection_index.is_some() || caret_idx.index < r.text.text().len() {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));

@@ -1,6 +1,5 @@
 # TextInput
 
-* Bug: Pressing delete after selecting all does nothing.
 * Implement selection.
     - Mouse:
         - Double-click causes selection that grows by word or.
