@@ -19,10 +19,6 @@
 
 # Accessibility
 
-* Implement or remove `SetNextTabStart`.
-
-* Figure units for `accesskit::ActionData::ScrollTargetRect` and others.
-
 * Implement a way to detect access state updates.
     - Right now we rebuild the entire tree every time.
     - Also need to track what widget changed children.

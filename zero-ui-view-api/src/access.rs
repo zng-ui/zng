@@ -5,7 +5,7 @@ use std::{num::NonZeroU32, ops};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::units::{DipRect, DipVector, PxRect, PxTransform};
+use crate::units::{PxRect, PxTransform, PxVector};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -441,12 +441,6 @@ pub enum AccessCmd {
     /// If `true` the widget is focused, if `false` and the widget is already focused does ESC.
     Focus(bool),
 
-    /// Sets this widget as the starting point for the next TAB navigation.
-    ///
-    /// If the user presses TAB the focus will move to the next logical focusable after this widget,
-    /// but this widget will not be focused by this request.
-    SetNextTabStart,
-
     /// Expand or collapse the widget content.
     SetExpanded(bool),
 
@@ -490,7 +484,6 @@ impl AccessCmd {
         match self {
             AccessCmd::Click(_) => AccessCmdName::Click,
             AccessCmd::Focus(_) => AccessCmdName::Focus,
-            AccessCmd::SetNextTabStart => AccessCmdName::SetNextTabStart,
             AccessCmd::SetExpanded(_) => AccessCmdName::SetExpanded,
             AccessCmd::Increment(_) => AccessCmdName::Increment,
             AccessCmd::SetToolTipVis(_) => AccessCmdName::SetToolTipVis,
@@ -514,9 +507,6 @@ pub enum AccessCmdName {
 
     /// [`AccessCmd::Focus`]
     Focus,
-
-    /// [`AccessCmd::SetNextTabStart`]
-    SetNextTabStart,
 
     /// [`AccessCmd::SetExpanded`]
     SetExpanded,
@@ -564,10 +554,10 @@ pub enum ScrollCmd {
     /// Scroll until the widget is fully visible.
     ScrollTo,
     /// Scroll until the rectangle (in the widget space) is fully visible.
-    ScrollToRect(DipRect),
+    ScrollToRect(PxRect),
 
-    /// Set the horizontal and vertical scroll offset.
-    SetScrollOffset(DipVector),
+    /// Set the horizontal and vertical scroll offset (in the widget space).
+    SetScrollOffset(PxVector),
 }
 
 /// Represents a widget in the access info tree.

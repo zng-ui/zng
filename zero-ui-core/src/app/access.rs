@@ -26,10 +26,6 @@ pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, comman
             let args = AccessFocusArgs::now(window_id, widget_id, focus);
             Some(ACCESS_FOCUS_EVENT.new_update(args))
         }
-        AccessCmd::SetNextTabStart => {
-            // TODO
-            None
-        }
         AccessCmd::SetExpanded(expanded) => {
             let args = AccessExpanderArgs::now(window_id, widget_id, expanded);
             Some(ACCESS_EXPANDER_EVENT.new_update(args))

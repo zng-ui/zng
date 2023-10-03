@@ -708,6 +708,14 @@ pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_
     }
 }
 
+fn accesskit_to_px(length: f64) -> Px {
+    Px(length.round() as _)
+}
+
+fn accesskit_point_to_px(p: accesskit::Point) -> PxPoint {
+    PxPoint::new(accesskit_to_px(p.x), accesskit_to_px(p.y))
+}
+
 pub(crate) fn accesskit_to_event(
     window_id: zero_ui_view_api::window::WindowId,
     request: accesskit::ActionRequest,
@@ -747,22 +755,26 @@ pub(crate) fn accesskit_to_event(
             Action::ScrollRight => AccessCmd::Scroll(ScrollCmd::PageRight),
             Action::ScrollUp => AccessCmd::Scroll(ScrollCmd::PageUp),
             Action::ScrollIntoView => {
-                if let Some(accesskit::ActionData::ScrollTargetRect(_r)) = request.data {
-                    return None; // TODO, figure out units
+                if let Some(accesskit::ActionData::ScrollTargetRect(r)) = request.data {
+                    let r = PxRect::new(
+                        accesskit_point_to_px(r.origin()),
+                        PxSize::new(accesskit_to_px(r.width()), accesskit_to_px(r.height())),
+                    );
+                    AccessCmd::Scroll(ScrollCmd::ScrollToRect(r))
                 } else {
                     AccessCmd::Scroll(ScrollCmd::ScrollTo)
                 }
             }
             Action::ScrollToPoint => {
-                if let Some(accesskit::ActionData::ScrollToPoint(_p)) = request.data {
-                    return None; // TODO, units
+                if let Some(accesskit::ActionData::ScrollToPoint(p)) = request.data {
+                    AccessCmd::Scroll(ScrollCmd::ScrollToRect(PxRect::new(accesskit_point_to_px(p), PxSize::splat(Px(1)))))
                 } else {
                     return None;
                 }
             }
             Action::SetScrollOffset => {
-                if let Some(accesskit::ActionData::SetScrollOffset(_o)) = request.data {
-                    return None; // TODO, value range
+                if let Some(accesskit::ActionData::SetScrollOffset(o)) = request.data {
+                    AccessCmd::Scroll(ScrollCmd::SetScrollOffset(accesskit_point_to_px(o).to_vector()))
                 } else {
                     return None;
                 }
@@ -777,7 +789,7 @@ pub(crate) fn accesskit_to_event(
                     return None;
                 }
             }
-            Action::SetSequentialFocusNavigationStartingPoint => AccessCmd::SetNextTabStart,
+            Action::SetSequentialFocusNavigationStartingPoint => return None,
             Action::SetValue => match request.data {
                 Some(accesskit::ActionData::Value(s)) => AccessCmd::SetString(s.to_string()),
                 Some(accesskit::ActionData::NumericValue(n)) => AccessCmd::SetNumber(n),
@@ -836,9 +848,6 @@ fn access_node_to_kit(
                 builder.add_action(accesskit::Action::Focus);
                 builder.add_action(accesskit::Action::Blur);
             }
-            SetNextTabStart => {
-                builder.add_action(accesskit::Action::SetSequentialFocusNavigationStartingPoint);
-            }
             SetExpanded => {
                 builder.add_action(accesskit::Action::Expand);
                 builder.add_action(accesskit::Action::Collapse);
@@ -851,7 +860,6 @@ fn access_node_to_kit(
                 builder.add_action(accesskit::Action::HideTooltip);
             }
             Scroll => {
-                // TODO, what is can't scroll up?
                 builder.add_action(accesskit::Action::ScrollBackward);
                 builder.add_action(accesskit::Action::ScrollUp);
                 builder.add_action(accesskit::Action::ScrollLeft);
