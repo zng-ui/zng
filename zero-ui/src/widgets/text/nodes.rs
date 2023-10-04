@@ -43,6 +43,10 @@ pub struct CaretInfo {
     /// Second index that defines the start or end of a selection range.
     pub selection_index: Option<CaretIndex>,
 
+    /// Selection replace by word or line sets this value, selection extend by word or line
+    /// grows from this central selection.
+    pub initial_selection: Option<ops::Range<CaretIndex>>,
+
     /// Value incremented by one every time the `index` is set.
     ///
     /// This is used to signal interaction with the `index` value by [`TextEditOp`]
@@ -82,6 +86,13 @@ impl CaretInfo {
     pub fn set_selection(&mut self, start: CaretIndex, end: CaretIndex) {
         self.selection_index = Some(start);
         self.set_index(end);
+    }
+
+    /// Clears selection.
+    pub fn clear_selection(&mut self) {
+        self.selection_index = None;
+        self.initial_selection = None;
+        self.index_version = self.index_version.wrapping_add(1);
     }
 
     /// Set the char byte index and update the index version.
@@ -444,6 +455,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     opacity: caret_opacity,
                     index: None,
                     selection_index: None,
+                    initial_selection: None,
                     index_version: 0,
                     used_retained_x: false,
                     skip_next_scroll: false,
@@ -1212,6 +1224,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         count: u8,
     }
     let mut selection_mouse_down = None::<SelectionMouseDown>;
+    let mut click_count = 0;
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1466,7 +1479,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if modifiers.is_empty() {
                             args.propagation().stop();
 
-                            let click_count = if let Some(info) = &mut selection_mouse_down {
+                            click_count = if let Some(info) = &mut selection_mouse_down {
                                 let cfg = MOUSE.multi_click_config().get();
 
                                 let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {
@@ -1526,8 +1539,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if !selection_move_handles.is_dummy() {
                         args.propagation().stop();
 
-                        LayoutText::call_select_op(&mut txt.txt, || {
-                            TextSelectOp::select_nearest_to(args.position).call();
+                        LayoutText::call_select_op(&mut txt.txt, || match click_count {
+                            1 => TextSelectOp::select_nearest_to(args.position).call(),
+                            2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
+                            3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
+                            4 => {}
+                            _ => unreachable!(),
                         });
                     }
                 } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {

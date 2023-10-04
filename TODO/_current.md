@@ -1,13 +1,11 @@
 # TextInput
 
 * Implement selection.
-    - Mouse:
-        - Double-click causes selection that grows by word or.
-        - Triple-click and Quadruple-click?
-            - Also needs to grow selection by line and not change, respectively
     - Touch:
         - Research how it works.
     - Draw selection for line break.
+
+* Implement shift single/double/triple click selections.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

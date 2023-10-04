@@ -120,7 +120,7 @@ impl TextEditOp {
                         let mut i = insert_idx;
                         i.index += insert.len();
                         caret.set_index(i);
-                        caret.selection_index = None;
+                        caret.clear_selection();
                     }
                     SelectionState::CaretSelection(start, end) | SelectionState::SelectionCaret(start, end) => {
                         let char_range = start.index..end.index;
@@ -137,7 +137,7 @@ impl TextEditOp {
                         .unwrap();
 
                         caret.set_char_index(start.index + insert.len());
-                        caret.selection_index = None;
+                        caret.clear_selection();
                     }
                 }
             }
@@ -262,7 +262,7 @@ impl TextEditOp {
                 });
 
                 caret.set_char_index(rmv.start);
-                caret.selection_index = None;
+                caret.clear_selection();
 
                 txt.modify(move |args| {
                     args.to_mut().to_mut().replace_range(rmv, "");
@@ -386,7 +386,7 @@ impl TextEditOp {
                 });
 
                 caret.set_char_index(rmv.start); // (re)start caret animation
-                caret.selection_index = None;
+                caret.clear_selection();
 
                 txt.modify(move |args| {
                     args.to_mut().to_mut().replace_range(rmv, "");
@@ -903,7 +903,7 @@ fn next_prev(
         } else {
             insert_index_fn(&resolved.text, i.index)
         };
-        c.selection_index = None;
+        c.clear_selection();
     } else {
         if c.selection_index.is_none() {
             c.selection_index = Some(i);
@@ -922,7 +922,7 @@ fn line_up_down(clear_selection: bool, diff: i8) {
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.selection_index = None;
+        c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
     }
@@ -955,7 +955,7 @@ fn line_up_down(clear_selection: bool, diff: i8) {
 
     if c.index.is_none() {
         c.set_index(CaretIndex::ZERO);
-        c.selection_index = None;
+        c.clear_selection();
     }
 }
 
@@ -967,7 +967,7 @@ fn page_up_down(clear_selection: bool, diff: i8) {
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.selection_index = None;
+        c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
     }
@@ -999,7 +999,7 @@ fn page_up_down(clear_selection: bool, diff: i8) {
 
     if c.index.is_none() {
         c.set_index(CaretIndex::ZERO);
-        c.selection_index = None;
+        c.clear_selection();
     }
 }
 
@@ -1010,7 +1010,7 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.selection_index = None;
+        c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
     }
@@ -1028,7 +1028,7 @@ fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.selection_index = None;
+        c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
     }
@@ -1047,7 +1047,7 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
 
     if clear_selection {
-        c.selection_index = None;
+        c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
     }
@@ -1078,7 +1078,7 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
 
     if c.index.is_none() {
         c.set_index(CaretIndex::ZERO);
-        c.selection_index = None;
+        c.clear_selection();
     }
 }
 
@@ -1108,7 +1108,11 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                 l.actual_text_caret_range()
             };
 
-            let merge_with_selection = if replace_selection { None } else { c.selection_range() };
+            let merge_with_selection = if replace_selection {
+                None
+            } else {
+                c.initial_selection.clone().or_else(|| c.selection_range())
+            };
             if let Some(mut s) = merge_with_selection {
                 let caret_at_start = range.start < s.start.index;
                 s.start.index = s.start.index.min(range.start);
@@ -1122,14 +1126,18 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                     c.set_index(s.end);
                 }
             } else {
-                c.selection_index = Some(CaretIndex {
+                let start = CaretIndex {
                     line: l.index(),
                     index: range.start,
-                });
-                c.set_index(CaretIndex {
+                };
+                let end = CaretIndex {
                     line: l.index(),
                     index: range.end,
-                });
+                };
+                c.selection_index = Some(start);
+                c.set_index(end);
+
+                c.initial_selection = Some(start..end);
             }
 
             return;
@@ -1138,6 +1146,6 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
 
     if c.index.is_none() {
         c.set_index(CaretIndex::ZERO);
-        c.selection_index = None;
+        c.clear_selection();
     }
 }
