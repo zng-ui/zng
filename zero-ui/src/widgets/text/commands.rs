@@ -877,9 +877,9 @@ impl TextSelectOp {
     /// Select the full text.
     pub fn select_all() -> Self {
         Self::new(|| {
-            let ctx = ResolvedText::get();
-            let mut c = ctx.caret.lock();
-            c.set_char_selection(0, ctx.text.text().len());
+            let resolved = ResolvedText::get();
+            let mut c = resolved.caret.lock();
+            c.set_char_selection(0, resolved.text.text().len());
             c.skip_next_scroll = true;
         })
     }
@@ -894,21 +894,21 @@ fn next_prev(
     insert_index_fn: fn(&SegmentedText, usize) -> usize,
     selection_index: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
 ) {
-    let ctx = ResolvedText::get();
-    let mut c = ctx.caret.lock();
+    let resolved = ResolvedText::get();
+    let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
         i.index = if let Some(s) = c.selection_range() {
-            selection_index(&ctx.text, s)
+            selection_index(&resolved.text, s)
         } else {
-            insert_index_fn(&ctx.text, i.index)
+            insert_index_fn(&resolved.text, i.index)
         };
         c.selection_index = None;
     } else {
         if c.selection_index.is_none() {
             c.selection_index = Some(i);
         }
-        i.index = insert_index_fn(&ctx.text, i.index);
+        i.index = insert_index_fn(&resolved.text, i.index);
     }
     c.set_index(i);
     c.used_retained_x = false;
@@ -916,10 +916,10 @@ fn next_prev(
 
 fn line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
-    let ctx = ResolvedText::get();
+    let resolved = ResolvedText::get();
     let layout = LayoutText::get();
 
-    let mut c = ctx.caret.lock();
+    let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
         c.selection_index = None;
@@ -938,14 +938,18 @@ fn line_up_down(clear_selection: bool, diff: i8) {
                 Some(l) => {
                     i.line = next_li;
                     i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, ctx.text.text()),
+                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.text.text()),
                         None => l.text_range().end,
                     }
                 }
                 None => i = CaretIndex::ZERO,
             };
-            i.index = ctx.text.snap_grapheme_boundary(i.index);
+            i.index = resolved.text.snap_grapheme_boundary(i.index);
             c.set_index(i);
+        } else if diff == -1 {
+            c.set_char_index(0);
+        } else if diff == 1 {
+            c.set_char_index(resolved.text.text().len());
         }
     }
 

@@ -7,12 +7,7 @@
             - Also needs to grow selection by line and not change, respectively
     - Touch:
         - Research how it works.
-    - Clear selection on typing and clicking (when not holding shift).
     - Draw selection for line break.
-    - Input replaces selection.
-        - Char input, paste, IME
-
-* ArrowUp and ArrowDown should move the caret to either the start or end of the line if you're at the first or last line respectively.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
