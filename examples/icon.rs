@@ -90,8 +90,6 @@ fn icons() -> impl UiNode {
                 padding = (7, 15, 7, 26);
                 min_width = 40.vh_pct();
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
-                accepts_tab = false;
-                accepts_enter = false;
                 foreground = Icon! {
                     align = Align::LEFT;
                     ico = icons::outlined::SEARCH;

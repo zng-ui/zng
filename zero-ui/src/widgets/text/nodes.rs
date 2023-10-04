@@ -567,10 +567,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 _ => {
                                     let insert = args.insert_str();
                                     if !insert.is_empty() {
-                                        args.propagation().stop();
                                         let skip =
                                             (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                         if !skip {
+                                            args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || {
                                                 TextEditOp::insert(Txt::from_str(insert)).call(&text)
                                             });

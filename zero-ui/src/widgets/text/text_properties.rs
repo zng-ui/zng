@@ -1071,10 +1071,10 @@ context_var! {
     pub static TEXT_EDITABLE_VAR: bool = false;
 
     /// Accepts `'\t'` input when editable.
-    pub static ACCEPTS_TAB_VAR: bool = true;
+    pub static ACCEPTS_TAB_VAR: bool = false;
 
     /// Accepts `'\n'` input when editable.
-    pub static ACCEPTS_ENTER_VAR: bool = true;
+    pub static ACCEPTS_ENTER_VAR: bool = false;
 
     /// Caret color, inherits from [`FONT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
