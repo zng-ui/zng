@@ -835,6 +835,21 @@ fn access_node_to_kit(
     let node_role = node.role.map(access_role_to_kit).unwrap_or(accesskit::Role::Unknown);
     let mut builder = accesskit::NodeBuilder::new(node_role);
 
+    // add bounds and transform
+    if !node.size.is_empty() {
+        let mut bounds = accesskit::Rect::new(0.0, 0.0, node.size.width.0 as f64, node.size.height.0 as f64);
+        if !node.transform.is_identity() {
+            if let (0, PxTransform::Offset(o)) = (node.children_count, node.transform) {
+                let (x, y) = o.cast().to_tuple();
+                bounds = bounds.with_origin(accesskit::Point::new(x, y));
+            } else {
+                let t = node.transform.to_transform().to_2d();
+                builder.set_transform(accesskit::Affine::new(t.cast().to_array()));
+            }
+        }
+        builder.set_bounds(bounds);
+    }
+
     // add actions
     for cmd in &node.commands {
         use zero_ui_view_api::access::AccessCmdName::*;

@@ -7,7 +7,7 @@ pub use zero_ui_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
 
-use crate::{context::StaticStateId, text::Txt, units::PxRect, widget_instance::WidgetId};
+use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
 
 use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
 
@@ -674,7 +674,7 @@ impl WidgetAccessInfo {
             .and_then(|w| w.info.inner_transform().inverse())
             .unwrap_or_default();
         node.transform = bounds.inner_transform().then(&undo_parent_transform);
-        node.bounds = PxRect::from_size(bounds.inner_size());
+        node.size = bounds.inner_size();
 
         node.role = a.role;
         node.state = a.state.clone();
