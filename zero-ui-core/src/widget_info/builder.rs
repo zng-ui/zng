@@ -23,6 +23,7 @@ pub struct WidgetInfoBuilder {
     info_widgets: Arc<InfoUpdates>,
     window_id: WindowId,
     pub(super) access_enabled: bool,
+    started_access: bool,
 
     node: tree::NodeId,
     widget_id: WidgetId,
@@ -66,6 +67,7 @@ impl WidgetInfoBuilder {
             info_widgets,
             window_id,
             access_enabled,
+            started_access: access_enabled && !WINDOW.info().access_enabled(),
             node: root_node,
             tree,
             interactivity_filters: vec![],
@@ -132,7 +134,7 @@ impl WidgetInfoBuilder {
     /// Calls `f` to build the context widget info, note that `f` is only called if the widget info cannot be reused.
     pub fn push_widget(&mut self, f: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
-        if !WIDGET.take_update(UpdateFlags::INFO) && !self.info_widgets.delivery_list().enter_widget(id) {
+        if !WIDGET.take_update(UpdateFlags::INFO) && !self.info_widgets.delivery_list().enter_widget(id) && !self.started_access {
             // reuse
             let tree = WINDOW.info();
             if let Some(wgt) = tree.get(id) {
@@ -235,6 +237,7 @@ impl WidgetInfoBuilder {
             info_widgets: self.info_widgets.clone(),
             window_id: self.window_id,
             access_enabled: self.access_enabled,
+            started_access: self.started_access,
             widget_id: self.widget_id,
             meta: self.meta.clone(),
             node: tree.root().id(),

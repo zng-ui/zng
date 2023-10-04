@@ -218,6 +218,13 @@ pub trait UiNode: Any + Send {
     fn deinit(&mut self);
 
     /// Called every time there are structural changes in the UI tree such as a node added or removed.
+    ///
+    /// Note that info rebuild has higher priority over event, update, layout and render, this means that
+    /// [`WIDGET.info`] is always available in those methods, but it also means that if you set a variable
+    /// and request info update the next info rebuild will still observe the old variable value, you can
+    /// work around this issue by only requesting info rebuild after the variable updates.
+    ///
+    /// [`WIDGET.info`]: crate::context::WIDGET::info
     fn info(&mut self, info: &mut WidgetInfoBuilder);
 
     /// Called every time an event updates.

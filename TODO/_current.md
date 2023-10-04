@@ -21,6 +21,7 @@
     - Set role in more widgets.
     - Scrollbar values.
     - Review all states and commands.
+    - Focusable (can only be sure after the widget info builds)
 
 * Implement way to enabled accessibility from code.
     - Some programmatic service may be interested in these values too.

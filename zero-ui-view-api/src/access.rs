@@ -599,16 +599,39 @@ impl AccessNode {
         }
     }
 }
+
 /// Accessibility info tree builder.
 #[derive(Default)]
-pub struct AccessTreeBuilder(Vec<AccessNode>);
+pub struct AccessTreeBuilder {
+    nodes: Vec<AccessNode>,
+    #[cfg(debug_assertions)]
+    ids: rustc_hash::FxHashSet<AccessNodeId>,
+}
 impl AccessTreeBuilder {
     /// Pushes a node on the tree.
     ///
-    /// If `children_count` is not zero the children must be pushed immediately after, each child
+    /// If [`children_count`] is not zero the children must be pushed immediately after, each child
     /// pushes their children immediately after too. A tree `(a(a.a, a.b, a.c), b)` pushes `[a, a.a, a.b, a.c, b]`.
-    pub fn push(&mut self, node: AccessNode) {
-        self.0.push(node);
+    ///
+    /// Note that you can push with [`children_count`] zero, and then use the returned index and [`node`] to set the children
+    /// count after pushing the descendants.
+    ///
+    /// [`node`]: Self::node
+    /// [`children_count`]: AccessNode::children_count
+    pub fn push(&mut self, node: AccessNode) -> usize {
+        #[cfg(debug_assertions)]
+        if !self.ids.insert(node.id) {
+            panic!("id `{:?}` already in tree", node.id)
+        }
+
+        let i = self.nodes.len();
+        self.nodes.push(node);
+        i
+    }
+
+    /// Mutable reference to an already pushed node.
+    pub fn node(&mut self, i: usize) -> &mut AccessNode {
+        &mut self.nodes[i]
     }
 
     /// Build the tree.
@@ -617,15 +640,15 @@ impl AccessTreeBuilder {
     ///
     /// Panics if no node was pushed, at least one node (root) is required.
     pub fn build(self) -> AccessTree {
-        assert!(!self.0.is_empty(), "missing root node");
-        AccessTree(self.0)
+        assert!(!self.nodes.is_empty(), "missing root node");
+        AccessTree(self.nodes)
     }
 }
 impl ops::Deref for AccessTreeBuilder {
     type Target = [AccessNode];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.nodes
     }
 }
 
@@ -666,11 +689,18 @@ pub struct AccessNodeRef<'a> {
     index: usize,
 }
 impl<'a> AccessNodeRef<'a> {
-    /// iterate over all descendant nodes.
-    pub fn descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+    /// Iterate over `self` and all descendant nodes.
+    pub fn self_and_descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
         let range = self.index..(self.index + self.descendants_count as usize);
         let tree = self.tree;
         range.map(move |i| AccessNodeRef { tree, index: i })
+    }
+
+    /// Iterate over all descendant nodes.
+    pub fn descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+        let mut d = self.self_and_descendants();
+        d.next();
+        d
     }
 
     /// Iterate over children nodes.
@@ -689,9 +719,9 @@ impl<'a> AccessNodeRef<'a> {
                         tree: self.tree,
                         index: self.index,
                     };
-                    self.count -= 1;
 
-                    self.index += item.descendants_count as usize;
+                    self.count -= 1;
+                    self.index += 1 + item.descendants_count as usize;
 
                     Some(item)
                 } else {

@@ -812,11 +812,11 @@ pub(crate) fn access_tree_init(root_id: AccessNodeId) -> accesskit::TreeUpdate {
 }
 
 pub(crate) fn access_tree_update_to_kit(update: zero_ui_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
-    let mut class_set = accesskit::NodeClassSet::new();
+    let mut classes = accesskit::NodeClassSet::new();
     let mut nodes = Vec::with_capacity(update.updates.iter().map(|t| t.len()).sum());
 
     for update in update.updates {
-        access_node_to_kit(update.root(), &mut class_set, &mut nodes);
+        access_node_to_kit(update.root(), &mut classes, &mut nodes);
     }
 
     accesskit::TreeUpdate {

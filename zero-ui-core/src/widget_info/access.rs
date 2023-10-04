@@ -687,13 +687,19 @@ impl WidgetAccessInfo {
             }
         }
 
+        let node = builder.push(node);
+
+        let mut children_count = 0;
         let len_before = builder.len();
         for child in self.info.access_children() {
             child.to_access_info(builder);
-            node.children_count += 1;
+            children_count += 1;
         }
-        node.descendants_count = (builder.len() - len_before) as u32;
-        builder.push(node);
+        let descendants_count = (builder.len() - len_before) as u32;
+
+        let node = builder.node(node);
+        node.children_count = children_count;
+        node.descendants_count = descendants_count;
     }
 }
 

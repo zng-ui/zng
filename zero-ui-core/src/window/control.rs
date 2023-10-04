@@ -484,7 +484,9 @@ impl HeadedCtrl {
             }
         });
 
-        if self.vars.0.access_enabled.get() && FOCUS.focused().is_new() {
+        if let Some(true) = self.vars.0.access_enabled.get_new() {
+            UPDATES.update_info_window(WINDOW.id());
+        } else if self.vars.0.access_enabled.get() && FOCUS.focused().is_new() {
             self.update_access_focused();
         }
 
@@ -690,9 +692,7 @@ impl HeadedCtrl {
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 tracing::info!("accessibility info enabled for {:?}", args.window_id);
-
                 self.vars.0.access_enabled.set(true);
-                UPDATES.update_info_window(args.window_id);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -729,14 +729,14 @@ impl HeadedCtrl {
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
                     updates: vec![access_info],
                     full_root: Some(root_id),
-                    focused: self.focused_descendant(info).map(Into::into).unwrap_or(root_id),
+                    focused: self.accessible_focused(info).map(Into::into).unwrap_or(root_id),
                 });
             }
         }
         info
     }
 
-    fn focused_descendant(&self, info: &WidgetInfoTree) -> Option<WidgetId> {
+    fn accessible_focused(&self, info: &WidgetInfoTree) -> Option<WidgetId> {
         if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
             crate::focus::FOCUS.focused().with(|p| {
                 if let Some(p) = p {
@@ -763,7 +763,7 @@ impl HeadedCtrl {
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
                     updates: vec![],
                     full_root: None,
-                    focused: self.focused_descendant(&info).unwrap_or(info.root().id()).into(),
+                    focused: self.accessible_focused(&info).unwrap_or(info.root().id()).into(),
                 });
             }
         }
