@@ -43,7 +43,7 @@ impl From<ExtendMode> for RenderExtendMode {
 
 /// Gradient extend mode supported by the render.
 ///
-/// Note that [`ExtendMode::Reflect`](crate::gradient::ExtendMode::Reflect) is not supported
+/// Note that [`ExtendMode::Reflect`] is not supported
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
 pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 

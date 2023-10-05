@@ -160,7 +160,7 @@ pub enum Justify {
     Auto,
     /// The text is justified by adding space between words.
     ///
-    /// This only works if [`WordSpacing`](crate::units::WordSpacing) is set to auto.
+    /// This only works if [`WordSpacing`] is set to auto.
     InterWord,
     /// The text is justified by adding space between letters.
     ///

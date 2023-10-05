@@ -3,7 +3,7 @@
 //! These events are re-exported by [`Window!`](struct@crate::widgets::Window) as `on_open` and `on_close_requested`, but you can
 //! attach then in any widget inside a window using the property full name.
 //!
-//! There is no event property for the [`WINDOW_CLOSE_EVENT`](crate::core::window::WINDOW_CLOSE_EVENT) because that event notifies
+//! There is no event property for the [`WINDOW_CLOSE_EVENT`] because that event notifies
 //! after the window is deinited. You can use [`on_deinit`](fn@crate::properties::events::widget::on_deinit) in the
 //! [`Window!`](struct@crate::widgets::Window) widget to handle a window closing, or create an app level handler for the
 //! event using [`EVENTS`](crate::core::event::EVENTS).

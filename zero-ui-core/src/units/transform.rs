@@ -8,8 +8,8 @@ use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, EasingStep
 ///
 /// # Builder
 ///
-/// The transform can be started by one of this functions, [`rotate`], [`translate`], [`scale`] and [`skew`]. More
-/// transforms can be chained by calling the methods of this type.
+/// The transform can be started by one of `Transform::new_*` associated functions or [`Transform::identity`]. More
+/// transforms can be chained by calling the methods for each.
 ///
 /// # Examples
 ///
@@ -32,26 +32,122 @@ enum TransformPart {
     Translate3d(Length, Length, Length),
     Perspective(Length),
 }
+
 impl Transform {
     /// No transform.
     pub fn identity() -> Self {
         Self::default()
     }
 
+    /// Create a 2d rotation transform.
+    pub fn new_rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
+        Transform::identity().rotate(angle)
+    }
+
+    /// Create a 3d rotation transform around the ***x*** axis.
+    pub fn new_rotate_x<A: Into<AngleRadian>>(angle: A) -> Transform {
+        Transform::identity().rotate_x(angle)
+    }
+
+    /// Create a 3d rotation transform around the ***y*** axis.
+    pub fn new_rotate_y<A: Into<AngleRadian>>(angle: A) -> Transform {
+        Transform::identity().rotate_y(angle)
+    }
+
+    /// Same as `new_rotate`.
+    pub fn new_rotate_z<A: Into<AngleRadian>>(angle: A) -> Transform {
+        Transform::identity().rotate_z(angle)
+    }
+
+    /// Create a 3d rotation transform.
+    pub fn new_rotate_3d<A: Into<AngleRadian>>(x: f32, y: f32, z: f32, angle: A) -> Transform {
+        Transform::identity().rotate_3d(x, y, z, angle)
+    }
+
+    /// Create a 2d translation transform.
+    pub fn new_translate<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Transform {
+        Transform::identity().translate(x, y)
+    }
+
+    /// Create a 3d translation transform.
+    pub fn new_translate_3d<X: Into<Length>, Y: Into<Length>, Z: Into<Length>>(x: X, y: Y, z: Z) -> Transform {
+        Transform::identity().translate_3d(x, y, z)
+    }
+
+    /// Create a 2d translation transform in the X dimension.
+    pub fn new_translate_x<X: Into<Length>>(x: X) -> Transform {
+        Transform::new_translate(x, 0.0)
+    }
+
+    /// Create a 2d translation transform in the Y dimension.
+    pub fn new_translate_y<Y: Into<Length>>(y: Y) -> Transform {
+        Transform::new_translate(0.0, y)
+    }
+
+    /// Create a 3d translation transform in the z dimension.
+    pub fn new_translate_z<Z: Into<Length>>(z: Z) -> Transform {
+        Transform::new_translate_3d(0.0, 0.0, z)
+    }
+
+    /// Create a 3d perspective transform.
+    pub fn new_perspective<D: Into<Length>>(d: D) -> Transform {
+        Transform::identity().perspective(d)
+    }
+
+    /// Create a 2d skew transform.
+    pub fn new_skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(x: X, y: Y) -> Transform {
+        Transform::identity().skew(x, y)
+    }
+
+    /// Create a 2d skew transform in the X dimension.
+    pub fn new_skew_x<X: Into<AngleRadian>>(x: X) -> Transform {
+        Transform::new_skew(x, 0.rad())
+    }
+
+    /// Create a 2d skew transform in the Y dimension.
+    pub fn new_skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
+        Transform::new_skew(0.rad(), y)
+    }
+
+    /// Create a 2d scale transform.
+    ///
+    /// The same `scale` is applied to both dimensions.
+    pub fn new_scale<S: Into<Factor>>(scale: S) -> Transform {
+        let scale = scale.into();
+        Transform::new_scale_xy(scale, scale)
+    }
+
+    /// Create a 2d scale transform on the X dimension.
+    pub fn new_scale_x<X: Into<Factor>>(x: X) -> Transform {
+        Transform::new_scale_xy(x, 1.0)
+    }
+
+    /// Create a 2d scale transform on the Y dimension.
+    pub fn new_scale_y<Y: Into<Factor>>(y: Y) -> Transform {
+        Transform::new_scale_xy(1.0, y)
+    }
+
+    /// Create a 2d scale transform.
+    pub fn new_scale_xy<X: Into<Factor>, Y: Into<Factor>>(x: X, y: Y) -> Transform {
+        Transform::identity().scale_xy(x, y)
+    }
+}
+
+impl Transform {
     /// Change `self` to apply `other` after its transformation.
     ///
     /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::units::*;
-    /// rotate(10.deg()).then(translate(50, 30));
+    /// Transform::new_rotate(10.deg()).then(Transform::new_translate(50, 30));
     /// ```
     ///
     /// Is the equivalent of:
     ///
     /// ```
     /// # use zero_ui_core::units::*;
-    /// rotate(10.deg()).translate(50, 30);
+    /// Transform::new_rotate(10.deg()).translate(50, 30);
     /// ```
     pub fn then(mut self, other: Transform) -> Self {
         let mut other_parts = other.parts.into_iter();
@@ -180,7 +276,8 @@ impl Transform {
         self.needs_layout = true;
         self
     }
-
+}
+impl Transform {
     /// Compute a [`PxTransform`] in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
@@ -310,99 +407,6 @@ impl_from_and_into_var! {
     fn from(t: PxTransform) -> Transform {
         Transform { parts: vec![TransformPart::Computed(t)], needs_layout: false, lerp_to: vec![] }
     }
-}
-
-/// Create a 2d rotation transform.
-pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
-    Transform::default().rotate(angle)
-}
-
-/// Create a 3d rotation transform around the ***x*** axis.
-pub fn rotate_x<A: Into<AngleRadian>>(angle: A) -> Transform {
-    Transform::default().rotate_x(angle)
-}
-
-/// Create a 3d rotation transform around the ***y*** axis.
-pub fn rotate_y<A: Into<AngleRadian>>(angle: A) -> Transform {
-    Transform::default().rotate_y(angle)
-}
-
-/// Same as [`rotate`].
-pub fn rotate_z<A: Into<AngleRadian>>(angle: A) -> Transform {
-    Transform::default().rotate_z(angle)
-}
-
-/// Create a 3d rotation transform.
-pub fn rotate_3d<A: Into<AngleRadian>>(x: f32, y: f32, z: f32, angle: A) -> Transform {
-    Transform::default().rotate_3d(x, y, z, angle)
-}
-
-/// Create a 2d translation transform.
-pub fn translate<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Transform {
-    Transform::default().translate(x, y)
-}
-
-/// Create a 3d translation transform.
-pub fn translate_3d<X: Into<Length>, Y: Into<Length>, Z: Into<Length>>(x: X, y: Y, z: Z) -> Transform {
-    Transform::default().translate_3d(x, y, z)
-}
-
-/// Create a 2d translation transform in the X dimension.
-pub fn translate_x<X: Into<Length>>(x: X) -> Transform {
-    translate(x, 0.0)
-}
-
-/// Create a 2d translation transform in the Y dimension.
-pub fn translate_y<Y: Into<Length>>(y: Y) -> Transform {
-    translate(0.0, y)
-}
-
-/// Create a 3d translation transform in the z dimension.
-pub fn translate_z<Z: Into<Length>>(z: Z) -> Transform {
-    translate_3d(0.0, 0.0, z)
-}
-
-/// Create a 3d perspective transform.
-pub fn perspective<D: Into<Length>>(d: D) -> Transform {
-    Transform::default().perspective(d)
-}
-
-/// Create a 2d skew transform.
-pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(x: X, y: Y) -> Transform {
-    Transform::default().skew(x, y)
-}
-
-/// Create a 2d skew transform in the X dimension.
-pub fn skew_x<X: Into<AngleRadian>>(x: X) -> Transform {
-    skew(x, 0.rad())
-}
-
-/// Create a 2d skew transform in the Y dimension.
-pub fn skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
-    skew(0.rad(), y)
-}
-
-/// Create a 2d scale transform.
-///
-/// The same `scale` is applied to both dimensions.
-pub fn scale<S: Into<Factor>>(scale: S) -> Transform {
-    let scale = scale.into();
-    scale_xy(scale, scale)
-}
-
-/// Create a 2d scale transform on the X dimension.
-pub fn scale_x<X: Into<Factor>>(x: X) -> Transform {
-    scale_xy(x, 1.0)
-}
-
-/// Create a 2d scale transform on the Y dimension.
-pub fn scale_y<Y: Into<Factor>>(y: Y) -> Transform {
-    scale_xy(1.0, y)
-}
-
-/// Create a 2d scale transform.
-pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(x: X, y: Y) -> Transform {
-    Transform::default().scale_xy(x, y)
 }
 
 // Matrix decomp. Mostly copied from Servo code.

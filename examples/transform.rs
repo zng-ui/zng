@@ -53,11 +53,11 @@ fn transform2d_examples() -> impl UiNode {
         spacing = 25;
         children_align = Align::TOP;
         children = ui_vec![
-            transformed("Translate -10", translate(-10, -10)),
-            transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
-            transformed("Rotate 10º", rotate(10.deg())),
-            transformed("Skew-X 15º", skew_x(15.deg())),
-            transformed("Scale 130%", scale(130.pct())),
+            transformed("Translate -10", Transform::new_translate(-10, -10)),
+            transformed_at("Rotate 10º (0, 0)", Transform::new_rotate(10.deg()), (0, 0)),
+            transformed("Rotate 10º", Transform::new_rotate(10.deg())),
+            transformed("Skew-X 15º", Transform::new_skew_x(15.deg())),
+            transformed("Scale 130%", Transform::new_scale(130.pct())),
             transformed("Identity", Transform::identity()),
             transformed_sampler("Lerp", animation::Transition::sample),
             transformed_sampler("Slerp", units::slerp_sampler),
@@ -71,14 +71,14 @@ fn transform3d_examples() -> impl UiNode {
         spacing = 25;
         children_align = Align::TOP;
         children = ui_vec![
-            transformed_3d("Rotate Y:45º (.5, .5)", rotate_y(45.deg()), Point::center()),
-            transformed_3d("Rotate Y:45º (0., 0.)", rotate_y(45.deg()), Point::top_left()),
-            transformed_3d("Rotate Y:45º (1., 1.)", rotate_y(45.deg()), Point::bottom_right()),
-            transformed_3d("Rotate Y:145º (.5, .5)", rotate_y(145.deg()), Point::center()),
-            transformed_3d("Translate Z 50", translate_z(50), Point::center()),
+            transformed_3d("Rotate Y:45º (.5, .5)", Transform::new_rotate_y(45.deg()), Point::center()),
+            transformed_3d("Rotate Y:45º (0., 0.)", Transform::new_rotate_y(45.deg()), Point::top_left()),
+            transformed_3d("Rotate Y:45º (1., 1.)", Transform::new_rotate_y(45.deg()), Point::bottom_right()),
+            transformed_3d("Rotate Y:145º (.5, .5)", Transform::new_rotate_y(145.deg()), Point::center()),
+            transformed_3d("Translate Z 50", Transform::new_translate_z(50), Point::center()),
             Container! {
                 child = Container! {
-                    transform = rotate_y(45.deg()).translate_z(20);
+                    transform = Transform::new_rotate_y(45.deg()).translate_z(20);
                     child = Text!("Perspective");
                     background_color = color_scheme_map(colors::BLUE.with_alpha(80.pct()), hex!(#62BEFC).with_alpha(80.pct()));
                     padding = 10;
@@ -232,7 +232,7 @@ fn transform_stack() -> impl UiNode {
             },
             Container! {
                 id = "in-stack";
-                transform = rotate(45.deg());
+                transform = Transform::new_rotate(45.deg());
                 child = Text!("Rotated 45º");
                 background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
@@ -256,7 +256,7 @@ fn transform_order() -> impl UiNode {
     z_stack(ui_vec![
         Wgt! {
             // single property
-            transform = rotate(10.deg()).translate(-5, -5);
+            transform = Transform::new_rotate(10.deg()).translate(-5, -5);
 
             size = (60, 60);
             background_color = colors::BLUE.lighten(50.pct());
@@ -306,25 +306,25 @@ fn cube_example() -> impl UiNode {
                         background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
                         border = 2, text::FONT_COLOR_VAR.map_into();
 
-                        transform = translate_z(100).then(match i {
-                            1 => rotate_y(0.deg()),
-                            2 => rotate_y(90.deg()),
-                            3 => rotate_y(180.deg()),
-                            4 => rotate_y(-90.deg()),
-                            5 => rotate_x(90.deg()),
-                            6 => rotate_x(-90.deg()),
+                        transform = Transform::new_translate_z(100).then(match i {
+                            1 => Transform::new_rotate_y(0.deg()),
+                            2 => Transform::new_rotate_y(90.deg()),
+                            3 => Transform::new_rotate_y(180.deg()),
+                            4 => Transform::new_rotate_y(-90.deg()),
+                            5 => Transform::new_rotate_x(90.deg()),
+                            6 => Transform::new_rotate_x(-90.deg()),
                             _ => unreachable!()
                         });
                     }.boxed())
                     .collect::<UiNodeVec>();
 
                     transform = show.map(|&i| match i {
-                        1 => rotate_y(0.deg()),
-                        2 => rotate_y(-90.deg()),
-                        3 => rotate_y(-180.deg()),
-                        4 => rotate_y(90.deg()),
-                        5 => rotate_x(-90.deg()),
-                        6 => rotate_x(90.deg()),
+                        1 => Transform::new_rotate_y(0.deg()),
+                        2 => Transform::new_rotate_y(-90.deg()),
+                        3 => Transform::new_rotate_y(-180.deg()),
+                        4 => Transform::new_rotate_y(90.deg()),
+                        5 => Transform::new_rotate_x(-90.deg()),
+                        6 => Transform::new_rotate_x(90.deg()),
                         _ => unreachable!(),
                     }
                     .translate_z(-100))

@@ -91,7 +91,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
             d.vars.retain(|_, v| v.retain());
         }
 
-        let entry = d.vars.entry(key.clone()).or_insert_with(VarEntry::default);
+        let entry = d.vars.entry(key.clone()).or_default();
         if let Some(res) = entry.res.upgrade() {
             return res.boxed();
         }

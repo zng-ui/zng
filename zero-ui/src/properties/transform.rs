@@ -69,7 +69,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
 /// Rotate transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`rotate(angle)`](units::rotate) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_rotate(angle)`](units::Transform::new_rotate) using variable mapping.
 ///
 /// The rotation is done *around* the [`transform_origin`] in 2D.
 ///
@@ -77,12 +77,12 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, angle.into_var().map(|&a| units::rotate(a)))
+    transform(child, angle.into_var().map(|&a| units::Transform::new_rotate(a)))
 }
 
 /// Rotate transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`rotate_x(angle)`](units::rotate_x) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_rotate_x(angle)`](units::Transform::new_rotate_x) using variable mapping.
 ///
 /// The rotation is done *around* the ***x*** axis that passes trough the [`transform_origin`] in 3D.
 ///
@@ -90,12 +90,12 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
 pub fn rotate_x(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, angle.into_var().map(|&a| units::rotate_x(a)))
+    transform(child, angle.into_var().map(|&a| units::Transform::new_rotate_x(a)))
 }
 
 /// Rotate transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`rotate_y(angle)`](units::rotate_y) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_rotate_y(angle)`](units::Transform::new_rotate_y) using variable mapping.
 ///
 /// The rotation is done *around* the ***y*** axis that passes trough the [`transform_origin`] in 3D.
 ///
@@ -103,7 +103,7 @@ pub fn rotate_x(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl Ui
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(0.rad()))]
 pub fn rotate_y(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, angle.into_var().map(|&a| units::rotate_y(a)))
+    transform(child, angle.into_var().map(|&a| units::Transform::new_rotate_y(a)))
 }
 
 /// Same as [`rotate`].
@@ -111,120 +111,129 @@ pub fn rotate_y(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl Ui
 /// [`rotate`]: fn@rotate
 #[property(LAYOUT, default(0.rad()))]
 pub fn rotate_z(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, angle.into_var().map(|&a| units::rotate_z(a)))
+    transform(child, angle.into_var().map(|&a| units::Transform::new_rotate_z(a)))
 }
 
 /// Scale transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`scale(s)`](units::scale) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_scale(s)`](units::Transform::new_scale) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
 pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
-    transform(child, s.into_var().map(|&x| units::scale(x)))
+    transform(child, s.into_var().map(|&x| units::Transform::new_scale(x)))
 }
 
 /// Scale X and Y transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`scale_xy(x, y)`](units::scale) using variable merging.
+/// This property is a shorthand way of setting [`transform`] to [`new_scale_xy(x, y)`](units::Transform::new_scale) using variable merging.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0, 1.0))]
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> impl UiNode {
-    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
+    transform(
+        child,
+        merge_var!(x.into_var(), y.into_var(), |&x, &y| units::Transform::new_scale_xy(x, y)),
+    )
 }
 
 /// Scale X transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`scale_x(x)`](units::scale_x) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_scale_x(x)`](units::Transform::new_scale_x) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
 pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
-    transform(child, x.into_var().map(|&x| units::scale_x(x)))
+    transform(child, x.into_var().map(|&x| units::Transform::new_scale_x(x)))
 }
 
 /// Scale Y transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`scale_y(y)`](units::scale_y) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_scale_y(y)`](units::Transform::new_scale_y) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(1.0))]
 pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
-    transform(child, y.into_var().map(|&y| units::scale_y(y)))
+    transform(child, y.into_var().map(|&y| units::Transform::new_scale_y(y)))
 }
 
 /// Skew transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`skew(x, y)`](units::skew) using variable merging.
+/// This property is a shorthand way of setting [`transform`] to [`new_skew(x, y)`](units::Transform::new_skew) using variable merging.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0.rad(), 0.rad()))]
 pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::skew(x, y)))
+    transform(
+        child,
+        merge_var!(x.into_var(), y.into_var(), |&x, &y| units::Transform::new_skew(x, y)),
+    )
 }
 
 /// Skew X transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`skew_x(x)`](units::skew_x) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_skew_x(x)`](units::Transform::new_skew_x) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0.rad()))]
 pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, x.into_var().map(|&x| units::skew_x(x)))
+    transform(child, x.into_var().map(|&x| units::Transform::new_skew_x(x)))
 }
 
 /// Skew Y transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`skew_y(y)`](units::skew_y) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_skew_y(y)`](units::Transform::new_skew_y) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT)]
 pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, y.into_var().map(|&y| units::skew_y(y)))
+    transform(child, y.into_var().map(|&y| units::Transform::new_skew_y(y)))
 }
 
 /// Translate transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`translate(x, y)`](units::translate) using variable merging.
+/// This property is a shorthand way of setting [`transform`] to [`new_translate(x, y)`](units::Transform::new_translate) using variable merging.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0, 0))]
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
     transform(
         child,
-        merge_var!(x.into_var(), y.into_var(), |x, y| units::translate(x.clone(), y.clone())),
+        merge_var!(x.into_var(), y.into_var(), |x, y| units::Transform::new_translate(
+            x.clone(),
+            y.clone()
+        )),
     )
 }
 
 /// Translate X transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`translate_x(x)`](units::translate_x) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_translate_x(x)`](units::Transform::new_translate_x) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
 pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, x.into_var().map(|x| units::translate_x(x.clone())))
+    transform(child, x.into_var().map(|x| units::Transform::new_translate_x(x.clone())))
 }
 
 /// Translate Y transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`translate_y(y)`](units::translate_y) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_translate_y(y)`](units::Transform::new_translate_y) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, y.into_var().map(|y| units::translate_y(y.clone())))
+    transform(child, y.into_var().map(|y| units::Transform::new_translate_y(y.clone())))
 }
 
 /// Translate Z transform.
 ///
-/// This property is a shorthand way of setting [`transform`] to [`translate_z(z)`](units::translate_z) using variable mapping.
+/// This property is a shorthand way of setting [`transform`] to [`new_translate_z(z)`](units::Transform::new_translate_z) using variable mapping.
 ///
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0))]
 pub fn translate_z(child: impl UiNode, z: impl IntoVar<Length>) -> impl UiNode {
-    transform(child, z.into_var().map(|z| units::translate_z(z.clone())))
+    transform(child, z.into_var().map(|z| units::Transform::new_translate_z(z.clone())))
 }
 
 /// Point relative to the widget inner bounds around which the [`transform`] is applied.

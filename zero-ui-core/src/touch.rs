@@ -1284,11 +1284,7 @@ impl TouchManager {
                     }
                 }
                 TouchPhase::Cancel => {
-                    let handle = self
-                        .pressed
-                        .remove(&update.touch)
-                        .map(|i| i.touch_propagation)
-                        .unwrap_or_else(EventPropagationHandle::new);
+                    let handle = self.pressed.remove(&update.touch).map(|i| i.touch_propagation).unwrap_or_default();
                     handle.stop();
                     (handle, DipVector::zero())
                 }

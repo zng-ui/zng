@@ -2,8 +2,8 @@
 
 use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Instant};
 
+use crate::core::text::font_features::FontVariations;
 use atomic::{Atomic, Ordering};
-use font_features::FontVariations;
 
 use super::{
     commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},

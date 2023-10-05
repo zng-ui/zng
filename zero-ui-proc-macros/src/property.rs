@@ -106,7 +106,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     }
 
-    let mut item = item;
     if capture {
         let inputs = inputs.iter().map(|i| &i.ident);
         if !item.block.stmts.is_empty() {

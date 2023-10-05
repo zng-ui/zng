@@ -3,8 +3,8 @@ use std::{fmt, ops};
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{
-    impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, LengthUnits,
-    Point, Px, PxVector, Size, Transform,
+    impl_length_comp_conversions, Dip, DipVector, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, LengthUnits, Point, Px,
+    PxVector, Size, Transform,
 };
 
 /// 2D vector in [`Length`] units.
@@ -109,7 +109,7 @@ impl Vector {
 
     /// Create a translate transform from `self`.
     pub fn into_transform(self) -> Transform {
-        translate(self.x, self.y)
+        Transform::new_translate(self.x, self.y)
     }
 }
 impl super::Layout2d for Vector {

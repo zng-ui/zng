@@ -474,7 +474,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             });
             let selected = selected.unwrap_or_else(|| {
                 // contextual selector can change in any update.
-                value.with(|val| is_selected(val))
+                value.with(is_selected)
             });
             checked.set(selected);
 

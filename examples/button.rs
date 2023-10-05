@@ -231,7 +231,7 @@ fn combo_box() -> impl UiNode {
                 direction = StackDirection::top_to_bottom();
                 children = options.into_iter().map(|o| Toggle! {
                     child = Text!(o);
-                    value::<Txt> = o.clone();
+                    value::<Txt> = o;
                 })
                 .collect::<UiNodeVec>();
             };
