@@ -23,11 +23,6 @@
     - Review all states and commands.
     - Focusable (can only be sure after the widget info builds)
 
-* Implement way to enabled accessibility from code.
-    - Some programmatic service may be interested in these values too.
-    - Don't send to view-process if only enabled in app-process.
-    - Enabled per-window or all windows?
-
 * Issues discovered testing with Windows Narrator:
     - English text is read using the OS lang narrator (not English).
         - `accesskit` has a lang state, need surface it?

@@ -16,7 +16,7 @@ impl WidgetInfoBuilder {
     ///
     /// Only available if accessibility info is required for the window.
     pub fn access(&mut self) -> Option<WidgetAccessInfoBuilder> {
-        if self.access_enabled {
+        if self.access_enabled.is_enabled() {
             Some(WidgetAccessInfoBuilder { builder: self })
         } else {
             None
@@ -321,8 +321,8 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 impl WidgetInfoTree {
     /// If this tree contains accessibility information.
     ///
-    /// If `true` accessibility is enabled for the window and will stay enabled for its lifetime.
-    pub fn access_enabled(&self) -> bool {
+    /// If accessibility is enabled for the window and will stay enabled for its lifetime.
+    pub fn access_enabled(&self) -> AccessEnabled {
         self.0.access_enabled
     }
 
@@ -333,7 +333,7 @@ impl WidgetInfoTree {
     /// [`access_enabled`]: Self::access_enabled
     pub fn to_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
         let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
-        if self.0.access_enabled {
+        if self.0.access_enabled.is_enabled() {
             // no panic cause root role is always set by the builder.
             self.root().access().unwrap().to_access_info(&mut builder);
         } else {
@@ -353,7 +353,7 @@ impl WidgetInfo {
     ///
     /// [`access_enabled`]: crate::widget_info::WidgetInfoTree::access_enabled
     pub fn access(&self) -> Option<WidgetAccessInfo> {
-        if self.tree.access_enabled() && self.meta().contains(&ACCESS_INFO_ID) {
+        if self.tree.access_enabled().is_enabled() && self.meta().contains(&ACCESS_INFO_ID) {
             Some(WidgetAccessInfo { info: self.clone() })
         } else {
             None
@@ -746,3 +746,26 @@ impl From<&AccessStateTxt> for AccessState {
 }
 
 static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();
+
+bitflags! {
+    /// Defines how accessibility info is enabled.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct AccessEnabled: u8 {
+        /// Access info is collected in the app-process and is available in ([`WidgetInfo::access`]).
+        const APP = 0b01;
+        /// Access info is send to the view-process because it was requested by an external tool, probably a screen reader.
+        const VIEW = 0b11;
+    }
+}
+impl AccessEnabled {
+    /// Is enabled in app at least.
+    pub fn is_enabled(self) -> bool {
+        !self.is_empty()
+    }
+
+    /// Is not enabled in app nor view.
+    pub fn is_disabled(self) -> bool {
+        self.is_empty()
+    }
+}

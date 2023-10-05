@@ -11,6 +11,7 @@ use crate::{
     text::{ToText, Txt},
     units::*,
     var::*,
+    widget_info::access::AccessEnabled,
 };
 
 pub(super) struct WindowVarsData {
@@ -70,7 +71,7 @@ pub(super) struct WindowVarsData {
 
     renderer_debug: ArcVar<RendererDebug>,
 
-    pub(super) access_enabled: ArcVar<bool>,
+    pub(super) access_enabled: ArcVar<AccessEnabled>,
 }
 
 /// Controls properties of an open window using variables.
@@ -146,7 +147,7 @@ impl WindowVars {
 
             renderer_debug: var(RendererDebug::disabled()),
 
-            access_enabled: var(false),
+            access_enabled: var(AccessEnabled::empty()),
         });
         Self(vars)
     }
@@ -657,10 +658,19 @@ impl WindowVars {
 
     /// If an accessibility service has requested info from this window.
     ///
-    /// This is set to `true` on the first request and is never disabled after, when enabled accessibility info
-    /// is collected from the info tree and send to the view-process.
-    pub fn access_enabled(&self) -> ReadOnlyArcVar<bool> {
+    /// This variable can only add flags, you can enable it in the app-process using [`enable_access`], the
+    /// view-process can also enable it on the first request for accessibility info by an external tool.
+    ///
+    /// [`enable_access`]: Self::enable_access
+    pub fn access_enabled(&self) -> ReadOnlyArcVar<AccessEnabled> {
         self.0.access_enabled.read_only()
+    }
+
+    /// Enable accessibility info for the window in the app-process only if it is not already enabled.
+    pub fn enable_access(&self) {
+        if self.0.access_enabled.get().is_disabled() {
+            self.0.access_enabled.modify(|e| *e.to_mut() |= AccessEnabled::APP);
+        }
     }
 }
 impl PartialEq for WindowVars {

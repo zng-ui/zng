@@ -25,7 +25,7 @@ use crate::{
     timer::TIMERS,
     units::*,
     var::*,
-    widget_info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
+    widget_info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::{AutoSize, CursorImage},
 };
@@ -484,9 +484,10 @@ impl HeadedCtrl {
             }
         });
 
-        if let Some(true) = self.vars.0.access_enabled.get_new() {
+        if let Some(e) = self.vars.0.access_enabled.get_new() {
+            debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
-        } else if self.vars.0.access_enabled.get() && FOCUS.focused().is_new() {
+        } else if self.vars.0.access_enabled.get() == AccessEnabled::VIEW && FOCUS.focused().is_new() {
             self.update_access_focused();
         }
 
@@ -692,7 +693,7 @@ impl HeadedCtrl {
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 tracing::info!("accessibility info enabled for {:?}", args.window_id);
-                self.vars.0.access_enabled.set(true);
+                self.vars.0.access_enabled.set(AccessEnabled::VIEW);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -721,7 +722,7 @@ impl HeadedCtrl {
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         let info = self.content.info(info_widgets);
         if let (Some(info), Some(view)) = (&info, &self.window) {
-            if info.access_enabled() {
+            if info.access_enabled() == AccessEnabled::VIEW {
                 // update access tree
                 let access_info = info.to_access_tree();
                 let root_id = access_info.root().id;
@@ -759,7 +760,7 @@ impl HeadedCtrl {
     fn update_access_focused(&mut self) {
         if let Some(view) = &self.window {
             let info = WINDOW.info();
-            if info.access_enabled() {
+            if info.access_enabled().is_enabled() {
                 let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
                     updates: vec![],
                     full_root: None,

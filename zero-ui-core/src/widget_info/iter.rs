@@ -435,7 +435,10 @@ mod tests {
         app::App,
         context::{WidgetCtx, WidgetUpdateMode, WIDGET, WINDOW},
         units::FactorUnits,
-        widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
+        widget_info::{
+            access::AccessEnabled, iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
+            WidgetInfoTree,
+        },
         widget_instance::WidgetId,
         window::WindowId,
     };
@@ -474,7 +477,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
-            false,
+            AccessEnabled::empty(),
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
@@ -609,7 +612,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
-            false,
+            AccessEnabled::empty(),
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
@@ -732,7 +735,7 @@ mod tests {
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
-            false,
+            AccessEnabled::empty(),
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),

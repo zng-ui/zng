@@ -454,7 +454,7 @@ impl WINDOW {
         let mut info = crate::widget_info::WidgetInfoBuilder::new(
             Arc::default(),
             WINDOW.id(),
-            true,
+            crate::widget_info::access::AccessEnabled::APP,
             WIDGET.id(),
             WidgetBoundsInfo::new_size(l_size, l_size),
             WidgetBorderInfo::new(),

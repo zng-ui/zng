@@ -686,7 +686,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         i.index = r.text.snap_grapheme_boundary(i.index);
                     }
 
-                    if WINDOW.vars().access_enabled().get() {
+                    if WINDOW.vars().access_enabled().get().is_enabled() {
                         WIDGET.info();
                     }
 

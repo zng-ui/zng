@@ -37,7 +37,7 @@ mod hit;
 pub(crate) use hit::HitTestClips;
 
 pub use self::hit::RelativeHitZ;
-use self::iter::TreeIterator;
+use self::{access::AccessEnabled, iter::TreeIterator};
 
 /// Stats over the lifetime of a widget info tree.
 ///
@@ -118,7 +118,7 @@ impl WidgetInfoTreeStatsUpdate {
 pub struct WidgetInfoTree(Arc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
-    access_enabled: bool,
+    access_enabled: AccessEnabled,
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
@@ -149,7 +149,7 @@ impl WidgetInfoTree {
         WidgetInfoBuilder::new(
             Arc::default(),
             window_id,
-            false,
+            AccessEnabled::empty(),
             root_id,
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),

@@ -22,7 +22,7 @@ pub enum WidgetInfoMeta {}
 pub struct WidgetInfoBuilder {
     info_widgets: Arc<InfoUpdates>,
     window_id: WindowId,
-    pub(super) access_enabled: bool,
+    pub(super) access_enabled: access::AccessEnabled,
     started_access: bool,
 
     node: tree::NodeId,
@@ -44,7 +44,7 @@ impl WidgetInfoBuilder {
     pub fn new(
         info_widgets: Arc<InfoUpdates>,
         window_id: WindowId,
-        access_enabled: bool,
+        access_enabled: access::AccessEnabled,
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: WidgetBorderInfo,
@@ -67,7 +67,7 @@ impl WidgetInfoBuilder {
             info_widgets,
             window_id,
             access_enabled,
-            started_access: access_enabled && !WINDOW.info().access_enabled(),
+            started_access: access_enabled.is_enabled() && WINDOW.info().access_enabled().is_disabled(),
             node: root_node,
             tree,
             interactivity_filters: vec![],
