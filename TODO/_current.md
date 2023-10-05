@@ -25,6 +25,20 @@
 
 * Implement way to enabled accessibility from code.
     - Some programmatic service may be interested in these values too.
+    - Don't send to view-process if only enabled in app-process.
+    - Enabled per-window or all windows?
+
+* Issues discovered testing with Windows Narrator:
+    - English text is read using the OS lang narrator (not English).
+        - `accesskit` has a lang state, need surface it?
+    - Button text child not used as a label.
+        - Just says "button" (role?).
+        - Inspect.exe shows "none" in label.
+    - Check boxes read as "disabled button".
+        - Need to set the role probably.
+    - Default action does nothing.
+        - `on_click` sets the support for Click command.
+        - Focus already works, so not a problem with all events from accessibility.
 
 # View-Process
 
