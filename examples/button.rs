@@ -19,6 +19,7 @@ fn app_main() {
     App::default().run_window(async {
         Window! {
             title = "Button Example";
+            lang = lang!("en-US");
             child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 20;

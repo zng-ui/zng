@@ -30,7 +30,9 @@ rustc-hash = "1"
 bitflags = { version = "2", features = ["serde", "bytemuck"] }
 bytemuck = { version = "1", features = ["derive"] }
 
-ipc-channel = { version = "0.16", optional = true }
+ipc-channel = { version = "0.17", optional = true }
 bincode = "1"
 parking_lot = "0.12"
 serde_variant = "0.1"
+
+unic-langid = { version = "0.9", features = ["serde"] }

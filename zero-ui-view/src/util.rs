@@ -998,6 +998,7 @@ fn access_node_to_kit(
             RowIndex(i) => builder.set_table_row_index(*i),
             RowSpan(s) => builder.set_table_cell_row_span(*s),
             ItemCount(s) => builder.set_size_of_set(*s),
+            Lang(l) => builder.set_language(l.to_string()),
             _ => {}
         }
     }

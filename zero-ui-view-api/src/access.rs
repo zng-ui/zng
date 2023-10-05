@@ -327,6 +327,9 @@ pub enum AccessState {
     RowSpan(usize),
     /// Defines the number of items in the current set of list items or tree items when not all items in the set are present in the tree.
     ItemCount(usize),
+
+    /// Language of texts inside the widget and descendants.
+    Lang(unic_langid::LanguageIdentifier),
 }
 
 /// Defines how a live update is communicated to the user.

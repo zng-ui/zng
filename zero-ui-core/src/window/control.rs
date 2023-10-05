@@ -20,6 +20,7 @@ use crate::{
     event::{AnyEventArgs, EventUpdate},
     focus::FOCUS,
     image::{ImageVar, Img, IMAGES},
+    l10n::LANG_VAR,
     render::{FrameBuilder, FrameId, FrameUpdate},
     text::FONTS,
     timer::TIMERS,
@@ -487,8 +488,14 @@ impl HeadedCtrl {
         if let Some(e) = self.vars.0.access_enabled.get_new() {
             debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
-        } else if self.vars.0.access_enabled.get() == AccessEnabled::VIEW && FOCUS.focused().is_new() {
-            self.update_access_focused();
+        } else {
+            let access = self.vars.0.access_enabled.get();
+            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
+                UPDATES.update_info_window(WINDOW.id());
+            }
+            if access == AccessEnabled::VIEW && FOCUS.focused().is_new() {
+                self.update_access_focused();
+            }
         }
 
         self.content.update(update_widgets);
@@ -1243,6 +1250,16 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
+        if let Some(e) = self.vars.0.access_enabled.get_new() {
+            debug_assert!(e.is_enabled());
+            UPDATES.update_info_window(WINDOW.id());
+        } else {
+            let access = self.vars.0.access_enabled.get();
+            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
+                UPDATES.update_info_window(WINDOW.id());
+            }
+        }
+
         if self.surface.is_some() {
             if self.vars.size().is_new()
                 || self.vars.min_size().is_new()
@@ -1496,6 +1513,16 @@ impl HeadlessCtrl {
     }
 
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
+        if let Some(e) = self.vars.0.access_enabled.get_new() {
+            debug_assert!(e.is_enabled());
+            UPDATES.update_info_window(WINDOW.id());
+        } else {
+            let access = self.vars.0.access_enabled.get();
+            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
+                UPDATES.update_info_window(WINDOW.id());
+            }
+        }
+
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             UPDATES.layout_window(WINDOW.id());
         }
@@ -1728,6 +1755,10 @@ impl ContentCtrl {
                 self.root_ctx.border(),
                 self.vars.0.scale_factor.get(),
             );
+
+            if let Some(mut access) = info.access() {
+                access.set_lang(LANG_VAR.with(|l| l.best().clone()));
+            }
 
             WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.info(&mut info);

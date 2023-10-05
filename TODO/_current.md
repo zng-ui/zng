@@ -25,7 +25,7 @@
 
 * Issues discovered testing with Windows Narrator:
     - English text is read using the OS lang narrator (not English).
-        - `accesskit` has a lang state, need surface it?
+        - Issue still exists after implementing lang.   
     - Button text child not used as a label.
         - Just says "button" (role?).
         - Inspect.exe shows "none" in label.

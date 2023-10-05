@@ -8,9 +8,10 @@
 
 use std::num::NonZeroU32;
 
-use zero_ui_core::widget_info::access::*;
-
-use crate::core::widget_info::AccessRole;
+use crate::core::{
+    l10n::Lang,
+    widget_info::{access::*, AccessRole},
+};
 
 use crate::prelude::new_property::*;
 
@@ -319,6 +320,12 @@ pub fn flows_to(child: impl UiNode, next_options: impl IntoVar<Vec<WidgetId>>) -
 #[property(CONTEXT)]
 pub fn invalid(child: impl UiNode, error: impl IntoVar<Invalid>) -> impl UiNode {
     with_access_state(child, error, |b, v| b.set_invalid(*v))
+}
+
+/// Defines the language used by screen-readers to read text in this widget and descendants.
+#[property(CONTEXT)]
+pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
+    with_access_state(child, lang, |b, v| b.set_lang(v.clone()))
 }
 
 /// Indicate that the widget can change, how the change can be announced, if `atomic`

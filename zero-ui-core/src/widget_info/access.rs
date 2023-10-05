@@ -7,7 +7,7 @@ pub use zero_ui_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
 
-use crate::{context::StaticStateId, text::Txt, widget_instance::WidgetId};
+use crate::{context::StaticStateId, l10n::Lang, text::Txt, widget_instance::WidgetId};
 
 use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
 
@@ -231,6 +231,11 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Sets if the widget is modal when displayed.
     pub fn flag_modal(&mut self) {
         self.with_access(|a| a.set_state(AccessState::Modal))
+    }
+
+    /// Defines the language used by screen-readers to read text in this widget and descendants.
+    pub fn set_lang(&mut self, lang: Lang) {
+        self.with_access(|a| a.set_state(AccessState::Lang(lang)))
     }
 
     /// Push a widget whose contents or presence are controlled by this widget.
@@ -495,6 +500,13 @@ impl WidgetAccessInfo {
     /// Gets the accessibility name.
     pub fn label(&self) -> Option<Txt> {
         get_state!(self.txt.Label).cloned()
+    }
+
+    /// Gets the language of texts inside this widget and descendants.
+    ///
+    /// If not set it is the parents language.
+    pub fn lang(&self) -> Option<Lang> {
+        get_state!(self.Lang).cloned()
     }
 
     /// Indicates that the user may select more than one item from the current selectable descendants.

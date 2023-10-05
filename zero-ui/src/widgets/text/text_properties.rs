@@ -5,6 +5,7 @@ use crate::core::{
     text::{font_features::*, *},
 };
 use crate::prelude::{new_property::*, new_widget::widget_mixin};
+use crate::properties::access;
 
 /// Basic text font properties.
 ///
@@ -832,10 +833,14 @@ pub struct LangMix<P>(P);
 /// This property affects all texts inside the widget and the layout direction.
 ///
 /// Sets the [`LANG_VAR`] and [`DIRECTION_VAR`] context vars and the [`LayoutMetrics::direction`].
+/// Also sets the [`access::lang`] when accessibility is enabled.
+///
+/// [`access::lang`]: fn@access::lang
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
     let child = direction(child, lang.map(|l| l.best().character_direction().into()));
+    let child = access::lang(child, lang.map(|l| l.best().clone()));
     with_context_var(child, LANG_VAR, lang)
 }
 
