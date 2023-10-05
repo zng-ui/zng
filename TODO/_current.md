@@ -24,8 +24,6 @@
     - Focusable (can only be sure after the widget info builds)
 
 * Issues discovered testing with Windows Narrator:
-    - English text is read using the OS lang narrator (not English).
-        - Issue still exists after implementing lang.   
     - Button text child not used as a label.
         - Just says "button" (role?).
         - Inspect.exe shows "none" in label.
