@@ -1,4 +1,6 @@
 * Review `thread_local!` after Rust update.
+* Review if animations start in the same update cycle.
+    - Observed new caret animation updating only after one render.
 
 # TextInput
 
@@ -6,9 +8,6 @@
     - Touch:
         - Research how it works.
     - Draw selection for line break.
-
-* Fix caret blinking when selection dragging.
-    - Var starts at 0.fct() and animation *immediately* sets to 1.fct(), but one frame is rendered before the animation starts.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

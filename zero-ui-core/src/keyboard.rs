@@ -451,11 +451,12 @@ impl KeyboardService {
     }
 
     fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
-        let var = var(0.fct());
+        let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
 
         let zero = 0.fct();
         let one = 1.fct();
+        let mut init = true;
 
         var.animate(move |anim, vm| {
             let (interval, timeout) = cfg.get();
@@ -466,7 +467,9 @@ impl KeyboardService {
                 anim.stop();
             } else {
                 if **vm == one {
-                    vm.set(zero);
+                    if !std::mem::take(&mut init) {
+                        vm.set(zero);
+                    }
                 } else {
                     vm.set(one);
                 }
