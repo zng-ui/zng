@@ -22,9 +22,6 @@
     - Focusable (can only be sure after the widget info builds)
 
 * Issues discovered testing with Windows Narrator:
-    - Button text child not used as a label.
-        - Just says "button" (role?).
-        - Inspect.exe shows "none" in label.
     - Check boxes read as "disabled button".
         - Need to set the role probably.
     - Default action does nothing.

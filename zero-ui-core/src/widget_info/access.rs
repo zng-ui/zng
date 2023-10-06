@@ -497,9 +497,53 @@ impl WidgetAccessInfo {
         get_state!(self.Invalid).copied().unwrap_or_else(Invalid::empty)
     }
 
-    /// Gets the accessibility name.
+    /// Gets the accessibility name explicitly set on this widget.
+    ///
+    /// Use [`actual_label`] to get the label send to the view-process,
+    ///
+    /// [`actual_label`]: Self::actual_label
     pub fn label(&self) -> Option<Txt> {
         get_state!(self.txt.Label).cloned()
+    }
+
+    /// Actual accessibility name for this widget.
+    ///
+    /// This is [`label`] if it is set, otherwise a label is generated
+    /// for the widget in some instances:
+    ///
+    /// * If the widget has [`AccessCmdName::Click`] capability the label is set to a concatenation of
+    /// the accessible children [`label`] values. This usually sets button labels to their child text.
+    ///
+    /// [`label`]: Self::label
+    pub fn actual_label(&self) -> Option<Txt> {
+        let t = self.label();
+        if t.is_some() {
+            return t;
+        }
+
+        let fallback = self.fallback_label();
+        if !fallback.is_empty() {
+            return Some(Txt::from_str(&fallback));
+        }
+
+        None
+    }
+
+    fn fallback_label(&self) -> String {
+        if !self.commands().iter().any(|c| matches!(c, AccessCmdName::Click)) {
+            return String::new();
+        }
+        // clickable with no label, try copying child label
+        let mut label = String::new();
+        let mut sep = "";
+        for child in self.info.access_children() {
+            if let Some(l) = child.label() {
+                label.push_str(sep);
+                sep = " ";
+                label.push_str(&l);
+            }
+        }
+        label
     }
 
     /// Gets the language of texts inside this widget and descendants.
@@ -693,9 +737,9 @@ impl WidgetAccessInfo {
         node.state.extend(a.state_txt.iter().map(From::from));
 
         if !node.state.iter().rev().any(|s| matches!(s, AccessState::Label(_))) {
-            let name = self.info.id().name();
-            if !name.is_empty() {
-                node.state.push(AccessState::Label(name.to_string()));
+            let fallback = self.fallback_label();
+            if !fallback.is_empty() {
+                node.state.push(AccessState::Label(fallback));
             }
         }
 
