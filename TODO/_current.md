@@ -22,8 +22,9 @@
     - Focusable (can only be sure after the widget info builds)
 
 * Issues discovered testing with Windows Narrator:
-    - Check boxes read as "disabled button".
-        - Need to set the role probably.
+    - Toggle button does not get label from child text like button.
+        - Implement that by role instead of Click command support?
+    - Review toggle button for other UIs, are they read as check-box?
     - Default action does nothing.
         - `on_click` sets the support for Click command.
         - Focus already works, so not a problem with all events from accessibility.

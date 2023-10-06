@@ -11,7 +11,6 @@ impl Button {
             self;
             style_fn = STYLE_VAR;
             capture_pointer = true;
-            access_role = AccessRole::Button;
         }
     }
 
@@ -91,6 +90,8 @@ impl DefaultStyle {
         use crate::properties::*;
         widget_set! {
             self;
+
+            access_role = AccessRole::Button;
 
             padding = (7, 15);
             corner_radius = 4;

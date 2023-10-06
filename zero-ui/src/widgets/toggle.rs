@@ -992,6 +992,7 @@ impl CheckStyle {
                 },
                 spacing: CHECK_SPACING_VAR,
             };
+            access_role = AccessRole::CheckBox;
         }
     }
 }
