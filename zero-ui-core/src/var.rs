@@ -1905,7 +1905,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// If the variable is always read-only no animation is created and a dummy handle returned. The animation
     /// targets the current [`actual_var`] and is stopped if the variable is dropped.
     ///
-    /// The `animate` closure is called every frame with the [`Animation`] and *modify* access to the variable value, the args
+    /// The `animate` closure is called every frame, starting after next frame, the closure inputs are 
+    /// the [`Animation`] args and *modify* access to the variable value, the args
     /// can be used to calculate the new variable value and to control or stop the animation.
     ///
     /// [`actual_var`]: Var::actual_var

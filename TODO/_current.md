@@ -1,6 +1,6 @@
 * Review `thread_local!` after Rust update.
-* Review if animations start in the same update cycle.
-    - Observed new caret animation updating only after one render.
+* Implement `has_extension` and `req_extension` for all apps.
+    - Collect a list of extension info (TypeId, "type_name").
 
 # TextInput
 

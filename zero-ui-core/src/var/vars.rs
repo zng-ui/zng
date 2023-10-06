@@ -110,7 +110,7 @@ impl VARS {
         }
     }
 
-    /// Adds an animation handler that is called every frame to update captured variables.
+    /// Adds an `animation` closure that is called every frame to update captured variables, starting after next frame.
     ///
     /// This is used to implement all [`Var<T>`] animations, it enables any kind of variable animation,
     /// including multiple variables.
@@ -186,12 +186,13 @@ impl VARS {
     /// animation is running the app awakes every [`VARS.frame_duration`]. You can use [`Animation::sleep`] to *pause* the animation
     /// for a duration, if all animations are sleeping the app is also sleeping.
     ///
-    /// Animations have their control over a variable permanently overridden when a newer animation modifies it or
-    /// it is modified directly, but even if overridden **the animation keeps running**. This happens because the system has no insight of
-    /// all side effects caused by the `animation` closure. You can use the [`VARS.current_modify`] and [`AnyVar::modify_importance`]
-    /// to detect when the animation no longer affects any variables and stop it.
+    /// Animations lose control over a variable permanently when a newer animation modifies the var or
+    /// the var is modified directly, but even if the animation can't control any variables **it keeps running**.
+    /// This happens because the system has no insight of all side effects caused by the `animation` closure. You
+    /// can use the [`VARS.current_modify`] and [`AnyVar::modify_importance`] to detect when the animation no longer affects
+    /// any variables and stop the animation to avoid awaking the app for no reason.
     ///
-    /// These optimizations are implemented by the animations provided as methods of [`Var<T>`].
+    /// These optimizations are already implemented by the animations provided as methods of [`Var<T>`].
     ///
     /// # External Controller
     ///
