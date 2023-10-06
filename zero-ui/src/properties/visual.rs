@@ -28,7 +28,7 @@ use super::hit_test_mode;
 ///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
 ///         font_color = web_colors::LIGHT_GRAY;
-///         transform = rotate(45.deg());
+///         transform = Transform::new_rotate(45.deg());
 ///         align = Align::CENTER;
 ///     }
 /// }
@@ -218,7 +218,7 @@ pub fn background_conic(
 ///         font_size = 72;
 ///         font_color = colors::BLACK;
 ///         opacity = 10.pct();
-///         transform = rotate(45.deg());
+///         transform = Transform::new_rotate(45.deg());
 ///         align = Align::CENTER;
 ///     }
 /// }

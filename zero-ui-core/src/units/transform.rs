@@ -17,7 +17,7 @@ use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, EasingStep
 ///
 /// ```
 /// # use zero_ui_core::units::*;
-/// let rotate_then_move = rotate(10.deg()).translate(50, 30);
+/// let rotate_then_move = Transform::new_rotate(10.deg()).translate(50, 30);
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Transform {
