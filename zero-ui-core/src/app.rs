@@ -909,11 +909,6 @@ pub struct AppExtended<E: AppExtension> {
 #[cfg(dyn_app_extension)]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// Includes an application extension.
-    ///
-    /// # Panics
-    ///
-    /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
-    /// extension type.
     pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self.extensions.push(TraceAppExt(extension).boxed());
         self
@@ -938,11 +933,6 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
 #[cfg(not(dyn_app_extension))]
 impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
-    ///
-    /// # Panics
-    ///
-    /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
-    /// extension type.
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
         AppExtended {
             _cleanup: self._cleanup,

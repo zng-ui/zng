@@ -116,9 +116,9 @@ impl AppProcessService {
 
 /// Info about an app-extension.
 ///
-/// See [`APP_PROCESS.extensions`] for more details.
-///
-/// [`APP_PROCESS.extensions`]: APP_PROCESS::extensions
+/// See [`App::extensions`] for more details.
+/// 
+/// [`App::extensions`]: crate::app::App::extensions
 #[derive(Clone, Copy)]
 pub struct AppExtensionInfo {
     /// Extension type ID.
