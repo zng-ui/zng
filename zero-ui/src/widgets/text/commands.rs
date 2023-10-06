@@ -1050,6 +1050,9 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
         c.clear_selection();
     } else if c.selection_index.is_none() {
         c.selection_index = Some(i);
+    } else if let Some((_, is_word)) = c.initial_selection.clone() {
+        drop(c);
+        return select_line_word_nearest_to(false, is_word, window_point);
     }
 
     c.used_retained_x = false;
@@ -1111,7 +1114,7 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
             let merge_with_selection = if replace_selection {
                 None
             } else {
-                c.initial_selection.clone().or_else(|| c.selection_range())
+                c.initial_selection.clone().map(|(s, _)| s).or_else(|| c.selection_range())
             };
             if let Some(mut s) = merge_with_selection {
                 let caret_at_start = range.start < s.start.index;
@@ -1137,7 +1140,7 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                 c.selection_index = Some(start);
                 c.set_index(end);
 
-                c.initial_selection = Some(start..end);
+                c.initial_selection = Some((start..end, select_word));
             }
 
             return;

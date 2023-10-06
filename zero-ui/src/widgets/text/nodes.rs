@@ -43,9 +43,9 @@ pub struct CaretInfo {
     /// Second index that defines the start or end of a selection range.
     pub selection_index: Option<CaretIndex>,
 
-    /// Selection replace by word or line sets this value, selection extend by word or line
-    /// grows from this central selection.
-    pub initial_selection: Option<ops::Range<CaretIndex>>,
+    /// Selection by word or line sets this value, selection extend by word or line
+    /// grows from this central selection. The value is `(selection, is_word)`.
+    pub initial_selection: Option<(ops::Range<CaretIndex>, bool)>,
 
     /// Value incremented by one every time the `index` is set.
     ///

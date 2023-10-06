@@ -1,3 +1,5 @@
+* Review `thread_local!` after Rust update.
+
 # TextInput
 
 * Implement selection.
@@ -5,7 +7,8 @@
         - Research how it works.
     - Draw selection for line break.
 
-* Implement shift single/double/triple click selections.
+* Fix caret blinking when selection dragging.
+    - Var starts at 0.fct() and animation *immediately* sets to 1.fct(), but one frame is rendered before the animation starts.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
