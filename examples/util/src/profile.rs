@@ -398,22 +398,20 @@ impl Profiler {
     }
 
     fn thread_id(&self) -> u64 {
-        THREAD_ID.with(|id| {
-            if let Some(id) = id.get() {
-                id
-            } else {
-                let tid = self.tid.fetch_add(1, Ordering::Relaxed);
-                id.set(Some(tid));
-                self.sender.send(Msg::ThreadInfo {
-                    id: tid,
-                    name: thread::current()
-                        .name()
-                        .map(|n| escape(n).to_string())
-                        .unwrap_or_else(|| format!("<{tid:?}>")),
-                });
-                tid
-            }
-        })
+        if let Some(id) = THREAD_ID.get() {
+            id
+        } else {
+            let tid = self.tid.fetch_add(1, Ordering::Relaxed);
+            THREAD_ID.set(Some(tid));
+            self.sender.send(Msg::ThreadInfo {
+                id: tid,
+                name: thread::current()
+                    .name()
+                    .map(|n| escape(n).to_string())
+                    .unwrap_or_else(|| format!("<{tid:?}>")),
+            });
+            tid
+        }
     }
 }
 impl Subscriber for Profiler {

@@ -78,14 +78,11 @@ impl LocalContext {
     }
 
     pub(crate) fn start_app(id: AppId) -> AppScope {
-        let valid = LOCAL.with(|c| {
-            let mut c = c.borrow_mut();
-            match c.entry(TypeId::of::<AppId>()) {
-                hashbrown::hash_map::Entry::Occupied(_) => false,
-                hashbrown::hash_map::Entry::Vacant(e) => {
-                    e.insert((Arc::new(id), LocalValueKind::App));
-                    true
-                }
+        let valid = LOCAL.with_borrow_mut(|c| match c.entry(TypeId::of::<AppId>()) {
+            hashbrown::hash_map::Entry::Occupied(_) => false,
+            hashbrown::hash_map::Entry::Vacant(e) => {
+                e.insert((Arc::new(id), LocalValueKind::App));
+                true
             }
         });
         assert!(valid, "cannot start app, another app is already in the thread context");
@@ -96,8 +93,7 @@ impl LocalContext {
         }
     }
     fn end_app(id: AppId) {
-        let valid = LOCAL.with(|c| {
-            let mut c = c.borrow_mut();
+        let valid = LOCAL.with_borrow_mut(|c| {
             if c.get(&TypeId::of::<AppId>())
                 .map(|(v, _)| v.downcast_ref::<AppId>() == Some(&id))
                 .unwrap_or(false)
@@ -117,9 +113,8 @@ impl LocalContext {
 
     /// Get the ID of the app that owns the current context.
     pub fn current_app() -> Option<AppId> {
-        LOCAL.with(|c| {
-            c.borrow()
-                .get(&TypeId::of::<AppId>())
+        LOCAL.with_borrow(|c| {
+            c.get(&TypeId::of::<AppId>())
                 .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
                 .copied()
         })
@@ -134,8 +129,7 @@ impl LocalContext {
         let cleanup = RunOnDrop::new(cleanup);
 
         type CleanupList = Vec<RunOnDrop<Box<dyn FnOnce() + Send>>>;
-        LOCAL.with(|c| {
-            let mut c = c.borrow_mut();
+        LOCAL.with_borrow_mut(|c| {
             let c = c
                 .entry(TypeId::of::<CleanupList>())
                 .or_insert_with(|| (Arc::new(Mutex::new(CleanupList::new())), LocalValueKind::App));
@@ -149,7 +143,7 @@ impl LocalContext {
     /// Context locals modified after this capture are not included in the capture.
     pub fn capture() -> Self {
         Self {
-            data: LOCAL.with(|c| c.borrow().clone()),
+            data: LOCAL.with_borrow(|c| c.clone()),
         }
     }
 
@@ -160,9 +154,8 @@ impl LocalContext {
             CaptureFilter::All => Self::capture(),
             CaptureFilter::ContextVars { exclude } => {
                 let mut data = LocalData::new();
-                LOCAL.with(|c| {
-                    let d = c.borrow();
-                    for (k, (v, kind)) in d.iter() {
+                LOCAL.with_borrow(|c| {
+                    for (k, (v, kind)) in c.iter() {
                         if kind.include_var() && !exclude.0.contains(k) {
                             data.insert(*k, (v.clone(), *kind));
                         }
@@ -172,9 +165,8 @@ impl LocalContext {
             }
             CaptureFilter::ContextLocals { exclude } => {
                 let mut data = LocalData::new();
-                LOCAL.with(|c| {
-                    let d = c.borrow();
-                    for (k, (v, kind)) in d.iter() {
+                LOCAL.with_borrow(|c| {
+                    for (k, (v, kind)) in c.iter() {
                         if kind.include_local() && !exclude.0.contains(k) {
                             data.insert(*k, (v.clone(), *kind));
                         }
@@ -184,9 +176,8 @@ impl LocalContext {
             }
             CaptureFilter::Include(set) => {
                 let mut data = LocalData::new();
-                LOCAL.with(|c| {
-                    let d = c.borrow();
-                    for (k, v) in d.iter() {
+                LOCAL.with_borrow(|c| {
+                    for (k, v) in c.iter() {
                         if set.0.contains(k) {
                             data.insert(*k, v.clone());
                         }
@@ -196,9 +187,8 @@ impl LocalContext {
             }
             CaptureFilter::Exclude(set) => {
                 let mut data = LocalData::new();
-                LOCAL.with(|c| {
-                    let d = c.borrow();
-                    for (k, v) in d.iter() {
+                LOCAL.with_borrow(|c| {
+                    for (k, v) in c.iter() {
                         if !set.0.contains(k) {
                             data.insert(*k, v.clone());
                         }
@@ -212,9 +202,8 @@ impl LocalContext {
     /// Collects a set of all the values in the context.
     pub fn value_set(&self) -> ContextValueSet {
         let mut set = ContextValueSet::new();
-        LOCAL.with(|c| {
-            let d = c.borrow();
-            for k in d.keys() {
+        LOCAL.with_borrow(|c| {
+            for k in c.keys() {
                 set.0.insert(*k);
             }
         });
@@ -229,9 +218,9 @@ impl LocalContext {
     /// [`with_context_blend`]: Self::with_context_blend
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
         let data = mem::take(&mut self.data);
-        let prev = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), data));
+        let prev = LOCAL.with_borrow_mut(|c| mem::replace(c, data));
         let _restore = RunOnDrop::new(|| {
-            self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
+            self.data = LOCAL.with_borrow_mut(|c| mem::replace(c, prev));
         });
         f()
     }
@@ -249,18 +238,13 @@ impl LocalContext {
         if self.data.is_empty() {
             f()
         } else {
-            let prev = LOCAL.with(|c| {
-                let mut parent = c.borrow_mut();
-                let (mut base, over) = if over {
-                    (parent.clone(), &self.data)
-                } else {
-                    (self.data.clone(), &*parent)
-                };
+            let prev = LOCAL.with_borrow_mut(|c| {
+                let (mut base, over) = if over { (c.clone(), &self.data) } else { (self.data.clone(), &*c) };
                 for (k, v) in over {
                     base.insert(*k, v.clone());
                 }
 
-                mem::replace(&mut *parent, base)
+                mem::replace(c, base)
             });
             let _restore = RunOnDrop::new(|| {
                 LOCAL.with(|c| {
@@ -272,18 +256,18 @@ impl LocalContext {
     }
 
     fn contains(key: TypeId) -> bool {
-        LOCAL.with(|c| c.borrow().contains_key(&key))
+        LOCAL.with_borrow(|c| c.contains_key(&key))
     }
 
     fn get(key: TypeId) -> Option<LocalValue> {
-        LOCAL.with(|c| c.borrow().get(&key).cloned())
+        LOCAL.with_borrow(|c| c.get(&key).cloned())
     }
 
     fn set(key: TypeId, value: LocalValue) -> Option<LocalValue> {
-        LOCAL.with(|c| c.borrow_mut().insert(key, value))
+        LOCAL.with_borrow_mut(|c| c.insert(key, value))
     }
     fn remove(key: TypeId) -> Option<LocalValue> {
-        LOCAL.with(|c| c.borrow_mut().remove(&key))
+        LOCAL.with_borrow_mut(|c| c.remove(&key))
     }
 
     fn with_value_ctx<T: Send + Sync + 'static, R>(

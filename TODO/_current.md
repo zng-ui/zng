@@ -1,5 +1,3 @@
-* Review `thread_local!` after Rust update.
-
 # TextInput
 
 * Implement selection.

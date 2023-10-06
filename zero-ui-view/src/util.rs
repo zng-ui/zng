@@ -559,13 +559,13 @@ thread_local! {
 
 /// If `true` our custom panic hook must not log anything.
 pub(crate) fn suppress_panic() -> bool {
-    SUPPRESS.with(|s| s.get())
+    SUPPRESS.get()
 }
 
 /// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
 pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> std::thread::Result<T> {
-    SUPPRESS.with(|s| s.set(true));
-    let _cleanup = RunOnDrop::new(|| SUPPRESS.with(|s| s.set(false)));
+    SUPPRESS.set(true);
+    let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
     std::panic::catch_unwind(f)
 }
 

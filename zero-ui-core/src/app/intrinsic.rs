@@ -117,7 +117,7 @@ impl AppProcessService {
 /// Info about an app-extension.
 ///
 /// See [`App::extensions`] for more details.
-/// 
+///
 /// [`App::extensions`]: crate::app::App::extensions
 #[derive(Clone, Copy)]
 pub struct AppExtensionInfo {

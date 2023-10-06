@@ -1249,26 +1249,24 @@ pub mod util {
     impl Position {
         pub fn next(tag: &'static str) -> Self {
             Position {
-                pos: COUNT.with(|c| {
-                    let r = c.get();
-                    c.set(r + 1);
+                pos: {
+                    let r = COUNT.get();
+                    COUNT.set(r + 1);
                     r
-                }),
+                },
                 tag,
             }
         }
 
         fn next_init() -> u32 {
-            COUNT_INIT.with(|c| {
-                let r = c.get();
-                c.set(r + 1);
-                r
-            })
+            let r = COUNT_INIT.get();
+            COUNT_INIT.set(r + 1);
+            r
         }
 
         pub fn reset() {
-            COUNT.with(|c| c.set(0));
-            COUNT_INIT.with(|c| c.set(0));
+            COUNT.set(0);
+            COUNT_INIT.set(0);
         }
     }
 

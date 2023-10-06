@@ -46,12 +46,11 @@ impl FontKitCache {
         match self.threads.entry(std::thread::current().id()) {
             std::collections::hash_map::Entry::Occupied(e) => {
                 let i = **e.get();
-                FONT_KIT_CACHE.with(|c| c.borrow()[i].font.clone().unwrap())
+                FONT_KIT_CACHE.with_borrow(|c| c[i].font.clone().unwrap())
             }
             std::collections::hash_map::Entry::Vacant(e) => {
                 cleanup_current_font_kit_cache();
-                FONT_KIT_CACHE.with(|c| {
-                    let mut c = c.borrow_mut();
+                FONT_KIT_CACHE.with_borrow_mut(|c| {
                     let key = Arc::new(c.len());
                     let font = Rc::new(init());
                     c.push(FontKitThreadLocalEntry {
