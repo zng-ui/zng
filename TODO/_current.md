@@ -1,6 +1,4 @@
 * Review `thread_local!` after Rust update.
-* Implement `has_extension` and `req_extension` for all apps.
-    - Collect a list of extension info (TypeId, "type_name").
 
 # TextInput
 

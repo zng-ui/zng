@@ -194,6 +194,8 @@ impl HeadlessAppWindowExt for HeadlessApp {
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
+        app::App::extensions().require::<WindowManager>();
+
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
             let window_id = response.wait_rsp().await;

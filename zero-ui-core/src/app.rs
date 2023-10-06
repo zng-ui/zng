@@ -304,14 +304,12 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [render]: #5-render
 /// [`RAW_FRAME_RENDERED_EVENT`]: raw_events::RAW_FRAME_RENDERED_EVENT
 pub trait AppExtension: 'static {
-    /// Type id of this extension.
-    fn id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
-
-    /// If this extension is the `app_extension_id` or dispatches to it.
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.id() == app_extension_id
+    /// Register info abound this extension on the info list.
+    fn register(&self, info: &mut AppExtensionsInfo)
+    where
+        Self: Sized,
+    {
+        info.push::<Self>()
     }
 
     /// Initializes this extension.
@@ -423,8 +421,7 @@ pub trait AppExtension: 'static {
 /// Boxed version of [`AppExtension`].
 #[doc(hidden)]
 pub trait AppExtensionBoxed: 'static {
-    fn id_boxed(&self) -> TypeId;
-    fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
+    fn register_boxed(&self, info: &mut AppExtensionsInfo);
     fn init_boxed(&mut self);
     fn enable_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self);
@@ -439,12 +436,8 @@ pub trait AppExtensionBoxed: 'static {
     fn deinit_boxed(&mut self);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
-    fn id_boxed(&self) -> TypeId {
-        self.id()
-    }
-
-    fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool {
-        self.is_or_contain(app_extension_id)
+    fn register_boxed(&self, info: &mut AppExtensionsInfo) {
+        self.register(info);
     }
 
     fn init_boxed(&mut self) {
@@ -496,12 +489,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
     }
 }
 impl AppExtension for Box<dyn AppExtensionBoxed> {
-    fn id(&self) -> TypeId {
-        self.as_ref().id_boxed()
-    }
-
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.as_ref().is_or_contain_boxed(app_extension_id)
+    fn register(&self, info: &mut AppExtensionsInfo) {
+        self.as_ref().register_boxed(info);
     }
 
     fn init(&mut self) {
@@ -562,12 +551,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 
 struct TraceAppExt<E: AppExtension>(E);
 impl<E: AppExtension> AppExtension for TraceAppExt<E> {
-    fn id(&self) -> TypeId {
-        self.0.id()
-    }
-
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.0.is_or_contain(app_extension_id)
+    fn register(&self, info: &mut AppExtensionsInfo) {
+        self.0.register(info)
     }
 
     fn init(&mut self) {
@@ -733,6 +718,10 @@ impl App {
         } else {
             WindowMode::Headless
         }
+    }
+    /// List of app extensions that are part of the current app.
+    pub fn extensions() -> Arc<AppExtensionsInfo> {
+        APP_PROCESS_SV.read().extensions()
     }
 }
 
@@ -926,12 +915,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
     pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        if self.extended_with::<F>() {
-            panic!("app already extended with `{}`", type_name::<F>())
-        }
-
         self.extensions.push(TraceAppExt(extension).boxed());
-
         self
     }
 
@@ -960,9 +944,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
-        if self.extended_with::<F>() {
-            panic!("app already extended with `{}`", type_name::<F>())
-        }
         AppExtended {
             _cleanup: self._cleanup,
             extensions: (self.extensions, TraceAppExt(extension)),
@@ -986,11 +967,6 @@ impl<E: AppExtension> AppExtended<E> {
     }
 }
 impl<E: AppExtension> AppExtended<E> {
-    /// Gets if the application is already extended with the extension type.
-    pub fn extended_with<F: AppExtension>(&self) -> bool {
-        self.extensions.is_or_contain(TypeId::of::<F>())
-    }
-
     /// Set the path to the executable for the *View Process*.
     ///
     /// By the default the current executable is started again as a *View Process*, you can use
@@ -1060,6 +1036,10 @@ impl<E: AppExtension> RunningApp<E> {
         let (sender, receiver) = AppEventSender::new();
 
         UPDATES.init(sender);
+
+        let mut info = AppExtensionsInfo::start();
+        extensions.register(&mut info);
+        APP_PROCESS_SV.write().set_extensions(info);
 
         let device_events = extensions.enable_device_events();
         let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, device_events);
@@ -2303,9 +2283,7 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
 }
 
 impl AppExtension for () {
-    fn is_or_contain(&self, _: TypeId) -> bool {
-        false
-    }
+    fn register(&self, _: &mut AppExtensionsInfo) {}
 }
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     fn init(&mut self) {
@@ -2313,8 +2291,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.init();
     }
 
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id)
+    fn register(&self, info: &mut AppExtensionsInfo) {
+        self.0.register(info);
+        self.1.register(info);
     }
 
     fn enable_device_events(&self) -> bool {
@@ -2380,13 +2359,10 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+    fn register(&self, info: &mut AppExtensionsInfo) {
         for ext in self {
-            if ext.is_or_contain(app_extension_id) {
-                return true;
-            }
+            ext.register(info);
         }
-        false
     }
 
     fn enable_device_events(&self) -> bool {

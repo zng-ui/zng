@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops;
 
 use crate::app::*;
 use crate::event::*;
@@ -77,12 +78,14 @@ app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService = const {
         AppProcessService {
             exit_requests: None,
+            extensions: None,
         }
     };
 }
 
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
+    extensions: Option<Arc<AppExtensionsInfo>>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
@@ -98,6 +101,96 @@ impl AppProcessService {
             UPDATES.update(None);
             response
         }
+    }
+
+    pub(super) fn extensions(&self) -> Arc<AppExtensionsInfo> {
+        self.extensions
+            .clone()
+            .unwrap_or_else(|| Arc::new(AppExtensionsInfo { infos: vec![] }))
+    }
+
+    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo) {
+        self.extensions = Some(Arc::new(info));
+    }
+}
+
+/// Info about an app-extension.
+///
+/// See [`APP_PROCESS.extensions`] for more details.
+///
+/// [`APP_PROCESS.extensions`]: APP_PROCESS::extensions
+#[derive(Clone, Copy)]
+pub struct AppExtensionInfo {
+    /// Extension type ID.
+    pub type_id: TypeId,
+    /// Extension type name.
+    pub type_name: &'static str,
+}
+impl PartialEq for AppExtensionInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.type_id == other.type_id
+    }
+}
+impl fmt::Debug for AppExtensionInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.type_name)
+    }
+}
+impl Eq for AppExtensionInfo {}
+impl AppExtensionInfo {
+    /// New info for `E`.
+    pub fn new<E: AppExtension>() -> Self {
+        Self {
+            type_id: TypeId::of::<E>(),
+            type_name: type_name::<E>(),
+        }
+    }
+}
+
+/// List of app-extensions that are part of an app.
+#[derive(Clone, PartialEq)]
+pub struct AppExtensionsInfo {
+    infos: Vec<AppExtensionInfo>,
+}
+impl fmt::Debug for AppExtensionsInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(&self.infos).finish()
+    }
+}
+impl AppExtensionsInfo {
+    pub(super) fn start() -> Self {
+        Self { infos: vec![] }
+    }
+
+    /// Push the extension info.
+    pub fn push<E: AppExtension>(&mut self) {
+        let info = AppExtensionInfo::new::<E>();
+        assert!(!self.contains::<E>(), "app-extension `{info:?}` is already in the list");
+        self.infos.push(info);
+    }
+
+    /// Gets if the extension `E` is in the list.
+    pub fn contains<E: AppExtension>(&self) -> bool {
+        self.contains_info(AppExtensionInfo::new::<E>())
+    }
+
+    /// Gets i the extension is in the list.
+    pub fn contains_info(&self, info: AppExtensionInfo) -> bool {
+        self.infos.iter().any(|e| e.type_id == info.type_id)
+    }
+
+    /// Panics if the extension `E` is not present.
+    #[track_caller]
+    pub fn require<E: AppExtension>(&self) {
+        let info = AppExtensionInfo::new::<E>();
+        assert!(self.contains_info(info), "app-extension `{info:?}` is required");
+    }
+}
+impl ops::Deref for AppExtensionsInfo {
+    type Target = [AppExtensionInfo];
+
+    fn deref(&self) -> &Self::Target {
+        &self.infos
     }
 }
 
