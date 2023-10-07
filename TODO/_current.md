@@ -3,7 +3,6 @@
 * Implement selection.
     - Touch:
         - Research how it works.
-    - Draw selection for line break.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

@@ -9,6 +9,10 @@
 * Padding affects the baseline incorrectly.
     - Baseline in general is not tracked correctly?
 
+* (`SHIFT+Click`):
+    - Implement a way to extend selections that were started with double or triple clicks by char instead of by word or line.
+    - VSCode does it when you shift click inside text that has already been selected, but it also loses the initial selection.
+
 # Edit
 
 * Edit across multiple texts in the same wrap container.

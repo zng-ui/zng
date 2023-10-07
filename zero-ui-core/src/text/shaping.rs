@@ -1532,14 +1532,37 @@ impl ShapedText {
 
             rects.push(line_rect);
         } else {
-            let mut line_rect = self.line(range.start.line).unwrap().rect();
+            fn try_space_advance(line: ShapedLine) -> Option<Px> {
+                let seg = line.seg(line.segs_len().checked_sub(2)?)?;
+                let font = seg.glyph(seg.glyphs_range().len().checked_sub(1)?)?.0;
+                let space_glyph = font.face().font_kit()?.glyph_for_char(' ')?;
+                Some(Px(font.advance(space_glyph).ok()?.x as i32))
+            }
+            fn space_advance(line: ShapedLine) -> Px {
+                if let Some(advance) = try_space_advance(line) {
+                    advance
+                } else {
+                    // fallback
+                    line.height() / Px(3)
+                }
+            }
+            let line = self.line(range.start.line).unwrap();
+            let mut line_rect = line.rect();
             let x_diff = start_x - line_rect.origin.x;
             line_rect.origin.x = start_x;
             line_rect.size.width -= x_diff;
+            if !line.ended_by_wrap() {
+                // add one space advance to show the line break
+                line_rect.size.width += space_advance(line);
+            }
             rects.push(line_rect);
 
             for line in (range.start.line + 1)..range.end.line {
-                line_rect = self.line(line).unwrap().rect();
+                let line = self.line(line).unwrap();
+                line_rect = line.rect();
+                if !line.ended_by_wrap() {
+                    line_rect.size.width += space_advance(line);
+                }
                 rects.push(line_rect);
             }
 
@@ -2299,6 +2322,17 @@ impl<'a> fmt::Debug for ShapedLine<'a> {
     }
 }
 impl<'a> ShapedLine<'a> {
+    /// Height of the line.
+    pub fn height(&self) -> Px {
+        if self.index == 0 {
+            self.text.first_line.height()
+        } else if self.index == self.text.lines.0.len() - 1 {
+            self.text.last_line.height()
+        } else {
+            self.text.line_height
+        }
+    }
+
     /// Bounds of the line.
     pub fn rect(&self) -> PxRect {
         if self.index == 0 {
