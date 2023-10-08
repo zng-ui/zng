@@ -1,7 +1,5 @@
 # TextInput
 
-* Panic, open text, select, new empty, type.
-
 * Implement selection.
     - Touch:
         - Research how it works.

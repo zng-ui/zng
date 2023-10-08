@@ -682,8 +682,18 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 let direction = DIRECTION_VAR.get();
                 if r.text.text() != &text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
-                    if let Some(i) = &mut r.caret.get_mut().index {
+
+                    // prevent invalid indexes
+                    let caret = r.caret.get_mut();
+                    if let Some(i) = &mut caret.index {
                         i.index = r.text.snap_grapheme_boundary(i.index);
+                    }
+                    if let Some(i) = &mut caret.selection_index {
+                        i.index = r.text.snap_grapheme_boundary(i.index);
+                    }
+                    if let Some((cr, _)) = &mut caret.initial_selection {
+                        cr.start.index = r.text.snap_grapheme_boundary(cr.start.index);
+                        cr.end.index = r.text.snap_grapheme_boundary(cr.end.index);
                     }
 
                     if WINDOW.vars().access_enabled().get().is_enabled() {
