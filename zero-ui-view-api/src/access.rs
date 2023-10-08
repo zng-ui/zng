@@ -308,6 +308,10 @@ pub enum AccessState {
     FlowTo(Vec<AccessNodeId>),
     /// Identifies the widget(s) that labels the widget it is applied to.
     LabelledBy(Vec<AccessNodeId>),
+    /// Uses the widget children as [`LabelledBy`].
+    ///
+    /// [`LabelledBy`]: Self::LabelledBy
+    LabelledByChild,
     /// Identifies widget(s) in order to define a visual, functional, or contextual relationship between a parent and its child
     /// widgets when the tree hierarchy cannot be used to represent the relationship.
     Owns(Vec<AccessNodeId>),

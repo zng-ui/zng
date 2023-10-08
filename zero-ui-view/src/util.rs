@@ -988,6 +988,10 @@ fn access_node_to_kit(
             Details(ids) => builder.set_details(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             FlowTo(ids) => builder.set_flow_to(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             LabelledBy(ids) => builder.set_labelled_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
+            LabelledByChild => {
+                let labelled_by = node.children().map(|c| access_id_to_kit(c.id)).collect::<Vec<_>>();
+                builder.set_labelled_by(labelled_by);
+            }
             Owns(ids) => {
                 for id in ids {
                     builder.push_child(access_id_to_kit(*id));

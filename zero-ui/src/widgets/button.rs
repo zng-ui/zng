@@ -11,6 +11,7 @@ impl Button {
             self;
             style_fn = STYLE_VAR;
             capture_pointer = true;
+            access::labelled_by_child = true;
         }
     }
 

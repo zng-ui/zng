@@ -281,7 +281,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     }
 
     /// Push a widget that provide additional information related to this widget.
-    pub fn push_labeled_by(&mut self, label_id: impl Into<WidgetId>) {
+    pub fn push_labelled_by(&mut self, label_id: impl Into<WidgetId>) {
         let label_id = label_id.into();
         self.with_access(|a| {
             for state in &mut a.state {
@@ -320,6 +320,13 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
             }
             a.state.push(AccessState::FlowTo(vec![next_id.into()]))
         })
+    }
+
+    /// Uses the accessible children as [`labelled_by`].
+    ///
+    /// [`labelled_by`]: WidgetAccessInfo::labelled_by
+    pub fn flag_labelled_by_child(&mut self) {
+        self.with_access(|a| a.set_state(AccessState::LabelledByChild))
     }
 }
 
@@ -498,52 +505,15 @@ impl WidgetAccessInfo {
     }
 
     /// Gets the accessibility name explicitly set on this widget.
-    ///
-    /// Use [`actual_label`] to get the label send to the view-process,
-    ///
-    /// [`actual_label`]: Self::actual_label
     pub fn label(&self) -> Option<Txt> {
         get_state!(self.txt.Label).cloned()
     }
 
-    /// Actual accessibility name for this widget.
+    /// If the widget children must be used like [`labelled_by`].
     ///
-    /// This is [`label`] if it is set, otherwise a label is generated
-    /// for the widget in some instances:
-    ///
-    /// * If the widget has [`AccessCmdName::Click`] capability the label is set to a concatenation of
-    /// the accessible children [`label`] values. This usually sets button labels to their child text.
-    ///
-    /// [`label`]: Self::label
-    pub fn actual_label(&self) -> Option<Txt> {
-        let t = self.label();
-        if t.is_some() {
-            return t;
-        }
-
-        let fallback = self.fallback_label();
-        if !fallback.is_empty() {
-            return Some(Txt::from_str(&fallback));
-        }
-
-        None
-    }
-
-    fn fallback_label(&self) -> String {
-        if !self.commands().iter().any(|c| matches!(c, AccessCmdName::Click)) {
-            return String::new();
-        }
-        // clickable with no label, try copying child label
-        let mut label = String::new();
-        let mut sep = "";
-        for child in self.info.access_children() {
-            if let Some(l) = child.label() {
-                label.push_str(sep);
-                sep = " ";
-                label.push_str(&l);
-            }
-        }
-        label
+    /// [`labelled_by`]: Self::labelled_by
+    pub fn labelled_by_child(&self) -> bool {
+        has_state!(self.LabelledByChild)
     }
 
     /// Gets the language of texts inside this widget and descendants.
@@ -735,13 +705,6 @@ impl WidgetAccessInfo {
         node.role = a.role;
         node.state = a.state.clone();
         node.state.extend(a.state_txt.iter().map(From::from));
-
-        if !node.state.iter().rev().any(|s| matches!(s, AccessState::Label(_))) {
-            let fallback = self.fallback_label();
-            if !fallback.is_empty() {
-                node.state.push(AccessState::Label(fallback));
-            }
-        }
 
         let node = builder.push(node);
 

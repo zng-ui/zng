@@ -92,10 +92,25 @@ pub fn popup(child: impl UiNode, popup: impl IntoVar<Popup>) -> impl UiNode {
 
 /// Sets a custom name for the widget in accessibility info.
 ///
-/// Note that if this is not set the [`WidgetId::name`] of the widget is used.
+/// See also [`labelled_by`] and [`labelled_by_child`].
+///
+/// [`labelled_by`]: fn@labelled_by
+/// [`labelled_by_child`]: fn@labelled_by_child
 #[property(CONTEXT)]
 pub fn label(child: impl UiNode, label: impl IntoVar<Txt>) -> impl UiNode {
     with_access_state(child, label, |b, v| b.set_label(v.clone()))
+}
+
+/// Uses the accessible children as [`labelled_by`].
+///
+/// [`labelled_by`]: fn@labelled_by
+#[property(CONTEXT)]
+pub fn labelled_by_child(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_access_state(child, enabled, |b, v| {
+        if *v {
+            b.flag_labelled_by_child();
+        }
+    })
 }
 
 /// Sets the hierarchical level of the widget within a parent scope.
@@ -288,10 +303,10 @@ pub fn details(child: impl UiNode, details: impl IntoVar<Vec<WidgetId>>) -> impl
 
 /// Append widgets that provide additional information related to this widget.
 #[property(CONTEXT)]
-pub fn labeled_by(child: impl UiNode, labels: impl IntoVar<Vec<WidgetId>>) -> impl UiNode {
+pub fn labelled_by(child: impl UiNode, labels: impl IntoVar<Vec<WidgetId>>) -> impl UiNode {
     with_access_state(child, labels, |b, v| {
         for id in v {
-            b.push_labeled_by(*id);
+            b.push_labelled_by(*id);
         }
     })
 }
