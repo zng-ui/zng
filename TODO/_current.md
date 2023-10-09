@@ -21,9 +21,6 @@
     - Focusable (can only be sure after the widget info builds)
 
 * Issues discovered testing with Windows Narrator:
-    - Decorative icon "text" sets `access::label`.
-        - Implement `access::visibility(bool)`.
-        - It disables access info builder in the widget and descendants.
     - Review toggle button for other UIs, are they read as check-box?
     - Default action does nothing.
         - `on_click` sets the support for Click command.

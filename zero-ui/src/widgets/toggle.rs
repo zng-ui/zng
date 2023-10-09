@@ -1010,6 +1010,7 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
     crate::widgets::Text! {
         hit_test_mode = false;
+        accessible = false;
         size = 1.2.em();
         font_family = FontNames::system_ui(&lang!(und));
         txt_align = Align::CENTER;
@@ -1188,6 +1189,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
 fn combomark_visual() -> impl UiNode {
     crate::widgets::Text! {
         hit_test_mode = false;
+        accessible = false;
         font_family = FontNames::system_ui(&lang!(und));
         txt_align = Align::CENTER;
         align = Align::CENTER;

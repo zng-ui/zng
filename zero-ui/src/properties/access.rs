@@ -33,6 +33,24 @@ pub fn access_commands(child: impl UiNode, commands: impl IntoVar<Vec<AccessCmdN
     })
 }
 
+/// Defines if the widget and descendants can be present in the accessibility info tree.
+///
+/// If set to `false` the widget and descendants is not included in accessibility info send to screen readers,
+/// if set to `true` the widget and descendants can be accessible if they set any accessibility metadata, the
+/// same as if this property is not set.
+///
+/// Note that not accessible widgets will still collect accessibility info, the info is just no send
+/// to the view-process and screen readers. Also note that hidden or collapsed widgets are not accessible
+/// by default.
+#[property(WIDGET, default(true))]
+pub fn accessible(child: impl UiNode, accessible: impl IntoVar<bool>) -> impl UiNode {
+    with_access_state(child, accessible, |b, v| {
+        if !*v {
+            b.flag_inaccessible();
+        }
+    })
+}
+
 /// Set how input text triggers display of one or more predictions of the user's intended
 /// value for a [`ComboBox`], [`SearchBox`], or [`TextInput`].
 ///

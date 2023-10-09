@@ -328,6 +328,14 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     pub fn flag_labelled_by_child(&mut self) {
         self.with_access(|a| a.set_state(AccessState::LabelledByChild))
     }
+
+    /// Exclude the widget and descendants from the view-process and screen readers.
+    ///
+    /// Note that the accessibility info for the widget and descendants is still collected and
+    /// available in the app-process.
+    pub fn flag_inaccessible(&mut self) {
+        self.builder.flag_meta(&INACCESSIBLE_ID);
+    }
 }
 
 impl WidgetInfoTree {
@@ -688,9 +696,29 @@ impl WidgetAccessInfo {
         get_widgets!(self.FlowTo)
     }
 
-    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) {
-        let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
+    /// If the widget and descendants is *visible* in the view-process and screen readers.
+    ///   
+    /// Note that the accessibility info for the widget and descendants is still
+    /// available in the app-process.
+    pub fn is_accessible(&self) -> bool {
+        for wgt in self.info.self_and_ancestors() {
+            if wgt.meta().contains(&INACCESSIBLE_ID) {
+                return false;
+            }
+        }
+        true
+    }
 
+    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
+        if self.info.meta().contains(&INACCESSIBLE_ID) || !self.info.visibility().is_visible() {
+            if self.info.parent().is_none() {
+                // root node is required (but can be empty)
+                builder.push(zero_ui_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
+            }
+            return false;
+        }
+
+        let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
         let a = self.access();
 
         let bounds = self.info.bounds_info();
@@ -711,14 +739,17 @@ impl WidgetAccessInfo {
         let mut children_count = 0;
         let len_before = builder.len();
         for child in self.info.access_children() {
-            child.to_access_info(builder);
-            children_count += 1;
+            if child.to_access_info(builder) {
+                children_count += 1;
+            }
         }
         let descendants_count = (builder.len() - len_before) as u32;
 
         let node = builder.node(node);
         node.children_count = children_count;
         node.descendants_count = descendants_count;
+
+        true
     }
 }
 
@@ -765,6 +796,7 @@ impl From<&AccessStateTxt> for AccessState {
 }
 
 static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();
+static INACCESSIBLE_ID: StaticStateId<()> = StaticStateId::new_unique();
 
 bitflags! {
     /// Defines how accessibility info is enabled.

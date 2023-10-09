@@ -338,7 +338,7 @@ pub mod prelude {
             widget_mixin, widget_set,
         };
         #[doc(no_inline)]
-        pub use crate::properties::access::access_role;
+        pub use crate::properties::access::{access_role, accessible};
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
         #[doc(no_inline)]
