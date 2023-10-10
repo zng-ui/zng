@@ -21,6 +21,7 @@ impl TextInput {
         widget_set! {
             self;
 
+            access_role = AccessRole::TextInput;
             txt_editable = true;
             capture_pointer = true;
             txt_align = Align::TOP_START;

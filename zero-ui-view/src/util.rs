@@ -858,6 +858,7 @@ fn access_node_to_kit(
             Click => {
                 builder.add_action(accesskit::Action::Default);
                 builder.add_action(accesskit::Action::ShowContextMenu);
+                builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
             }
             Focus => {
                 builder.add_action(accesskit::Action::Focus);

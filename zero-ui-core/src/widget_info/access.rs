@@ -734,6 +734,8 @@ impl WidgetAccessInfo {
         node.state = a.state.clone();
         node.state.extend(a.state_txt.iter().map(From::from));
 
+        node.commands = a.commands.clone();
+
         let node = builder.push(node);
 
         let mut children_count = 0;
