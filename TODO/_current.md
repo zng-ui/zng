@@ -1,8 +1,16 @@
 # TextInput
 
+* Implement read-only text.
+    - `read_only` property and read-only variable.
+    - Selectable text is `editable` true and `read_only` true?
 * Implement selection.
     - Touch:
-        - Research how it works.
+        - Long-press to start selecting text:
+            - Selects a word initially (if there is text)
+                - Shows draggable "cursors" to extend or shrink selection
+            - Context menu appears when selecting (or just interacting, if it's an editable field)
+                - Show a draggable "cursor" when interacting with editable fields, to move the insertion point
+* Implement default context menu?
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
