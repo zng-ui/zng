@@ -1229,7 +1229,7 @@ impl App {
             monitors.push((id, fresh_handle))
         }
 
-        if dbg!(changed) {
+        if changed {
             self.monitors = monitors;
 
             let monitors = self.available_monitors();
