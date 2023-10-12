@@ -182,14 +182,7 @@ pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl
         UiNodeOp::Render { frame } => {
             img.as_ref().unwrap().0.with(|img| {
                 if img.is_loaded() && !rect.size.is_empty() {
-                    frame.push_clips(
-                        |c| {
-                            c.push_clip_mask(img, rect);
-                        },
-                        |frame| {
-                            c.render(frame);
-                        },
-                    );
+                    frame.push_mask(img, rect, |frame| c.render(frame));
                 }
             });
         }

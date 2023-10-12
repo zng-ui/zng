@@ -1183,13 +1183,6 @@ impl FrameBuilder {
         self.push_clips(move |c| c.push_clip_rounded_rect(clip_rect, corners, clip_out, hit_test), render)
     }
 
-    /// Calls `render` with a new clip context that adds the image mask.
-    ///
-    /// Note that clip masks do not affect hit-test.
-    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
-        self.push_clips(move |c| c.push_clip_mask(image, rect), render)
-    }
-
     /// Calls `clips` to push multiple clips that define a new clip context, then calls `render` in the clip context.
     pub fn push_clips(&mut self, clips: impl FnOnce(&mut ClipBuilder), render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clips);
@@ -1215,6 +1208,23 @@ impl FrameBuilder {
             render_count -= 1;
 
             self.display_list.pop_clip();
+        }
+    }
+
+    /// Push an image mask that affects all visual rendered by `render`.
+    pub fn push_mask(&mut self, image: &impl Img, rect: PxRect, render: impl FnOnce(&mut Self)) {
+        let mut pop = false;
+        if self.visible {
+            if let Some(r) = &self.renderer {
+                self.display_list.push_mask(image.image_key(r), rect);
+                pop = true;
+            }
+        }
+
+        render(self);
+
+        if pop {
+            self.display_list.pop_mask();
         }
     }
 
@@ -2002,18 +2012,6 @@ impl<'a> ClipBuilder<'a> {
                 .hit_clips
                 .push_clip_rounded_rect(clip_rect.to_box2d(), corners, clip_out);
             self.hit_test_count += 1;
-        }
-    }
-
-    /// Push the image as a clip mask.
-    ///
-    /// Note that this clip does not affect hit-test.
-    pub fn push_clip_mask(&mut self, image: &impl Img, rect: PxRect) {
-        if self.builder.visible {
-            if let Some(r) = &self.builder.renderer {
-                self.builder.display_list.push_clip_mask(image.image_key(r), rect);
-                self.render_count += 1;
-            }
         }
     }
 }

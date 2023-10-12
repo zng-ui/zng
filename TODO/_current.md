@@ -34,10 +34,6 @@
 
 * Update to winit-29 when released.
     - Lots of breaking changes.
-* Next webrender breaks image masks.
-    - Current version already break image masks used in color rectangles.
-    - Next breaks image masks in images.
-    - Really need to figure out how Firefox is using this API.
 
 # Publish
 
