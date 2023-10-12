@@ -10,6 +10,9 @@
                 - Shows draggable "cursors" to extend or shrink selection
             - Context menu appears when selecting (or just interacting, if it's an editable field)
                 - Show a draggable "cursor" when interacting with editable fields, to move the insertion point
+* Touch, set a flag that indicates caret or selection from touch.
+* Touch, `TOUCH_TAP_EVENT` conflict with `TOUCH_TRANSFORM_EVENT` when text widget subscribes to tap and is
+inside scroll widget that subscribes to transform.
 * Implement default context menu?
 
 * Implement IME.

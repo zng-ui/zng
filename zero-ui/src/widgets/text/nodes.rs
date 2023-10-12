@@ -18,6 +18,7 @@ use crate::{
         pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
         task::parking_lot::Mutex,
         text::*,
+        touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
         window::WindowLoadingHandle,
     },
     prelude::{
@@ -1213,7 +1214,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 1],
+        events: [EventHandle; 3],
         caret_animation: VarHandle,
         select: CommandHandle,
         select_all: CommandHandle,
@@ -1278,6 +1279,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let d = EditData::get(&mut edit_data);
 
                 d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
+                d.events[1] = TOUCH_TAP_EVENT.subscribe(id);
+                d.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
 
                 d.select = SELECT_CMD.scoped(id).subscribe(true);
@@ -1544,6 +1547,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     } else {
                         selection_move_handles.clear();
                     }
+                } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
+                    if args.modifiers.is_empty() {
+                        args.propagation().stop();
+
+                        LayoutText::call_select_op(&mut txt.txt, || {
+                            TextSelectOp::nearest_to(args.position).call();
+                        });
+                    }
+                } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
+                    if args.modifiers.is_empty() {
+                        args.propagation().stop();
+
+                        LayoutText::call_select_op(&mut txt.txt, || {
+                            TextSelectOp::select_word_nearest_to(true, args.position).call();
+                        });
+                    }
                 } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                     if !selection_move_handles.is_dummy() {
                         args.propagation().stop();
@@ -1671,6 +1690,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let d = EditData::get(&mut edit_data);
 
                     d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
+                    d.events[1] = TOUCH_TAP_EVENT.subscribe(id);
+                    d.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
 
                     d.select = SELECT_CMD.scoped(id).subscribe(true);
                     d.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
