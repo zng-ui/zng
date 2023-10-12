@@ -1484,7 +1484,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if args.is_primary() && args.is_mouse_down() {
                         let mut modifiers = args.modifiers;
                         let has_shift = modifiers.take_shift();
-                        // let has_ctrl = modifiers.take_ctrl();
 
                         if modifiers.is_empty() {
                             args.propagation().stop();
