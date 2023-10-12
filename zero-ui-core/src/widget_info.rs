@@ -1585,24 +1585,25 @@ impl WidgetInfo {
         self.tree.out_of_bounds().filter(move |w| range.contains(w))
     }
 
-    /// Iterator over self and descendants, first all in-bounds descendants, then all out-of-bounds.
+    /// Iterator over self and descendants, first self, then all in-bounds descendants, then all out-of-bounds descendants.
     ///
     /// If the `filter` returns `false` the widget and all it's in-bounds descendants are skipped, otherwise they are yielded. After
     /// all in-bounds descendants reachable from `self` and filtered the iterator changes to each out-of-bounds descendants and their
-    /// in-bounds descendants.
+    /// in-bounds descendants that are also filtered.
     pub fn spatial_iter(&self, filter: impl Fn(&WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
+        let self_id = self.id();
         self.self_and_descendants()
             .tree_filter(clmv!(filter, |w| {
-                if w.is_in_bounds() && filter(w) {
+                if (w.is_in_bounds() || w.id() == self_id) && filter(w) {
                     TreeFilter::Include
                 } else {
                     TreeFilter::SkipAll
                 }
             }))
             .chain(self.out_of_bounds().flat_map(clmv!(filter, |w| {
-                let self_id = w.id();
+                let out_of_bound_root_id = w.id();
                 w.self_and_descendants().tree_filter(clmv!(filter, |w| {
-                    if (w.is_in_bounds() || w.id() == self_id) && filter(w) {
+                    if (w.is_in_bounds() || w.id() == out_of_bound_root_id) && filter(w) {
                         TreeFilter::Include
                     } else {
                         TreeFilter::SkipAll
