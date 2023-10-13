@@ -788,6 +788,7 @@ impl WidgetAccessInfo {
         true
     }
 
+    /// Returns `(is_present, is_accessible)`.
     fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> (bool, bool) {
         let is_accessible = !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible();
 
@@ -797,13 +798,39 @@ impl WidgetAccessInfo {
 
         if let Some(prev) = prev_tree.get(self.info.id()) {
             let was_accessible = !prev.meta().contains(&INACCESSIBLE_ID) && prev.visibility().is_visible();
+            if let (true, Some(prev)) = (was_accessible, prev.access()) {
+                if prev.access() != self.access() {
+                    // changed
+
+                    // TODO, children list might also change, in that case the AccessKit crate requires the full
+                    // info in the parent too.
+                    todo!()
+                } else {
+                    // no change
+                    return (false, is_accessible);
+                }
+            } else {
+                // remove
+                todo!()
+            }
         }
 
-        (true, true)
+        if is_accessible {
+            // insert
+            let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+            let insert = self.to_access_info(&mut builder);
+            assert!(insert);
+            updates.push(builder.build());
+
+            // TODO, parent cannot be reused also, so why are we adding update here?
+            (true, true)
+        } else {
+            (false, false)
+        }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 struct AccessInfo {
     role: Option<AccessRole>,
     commands: Vec<AccessCmdName>,
@@ -830,6 +857,7 @@ impl AccessInfo {
     }
 }
 
+#[derive(PartialEq)]
 enum AccessStateTxt {
     Label(Txt),
     Placeholder(Txt),
