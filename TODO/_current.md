@@ -30,7 +30,13 @@
     - Review all states and commands.
     - Focusable (can only be sure after the widget info builds).
 
-* Review default action, we only set click "verb", there are others.
+* Language not changing for text (in Windows Narrator at least).
+    - Firefox sets "Culture" in UI automation interface.
+    - Our own apps do not.
+        - We set the language, so AccessKit is not doing it.
+
+* All examples must be fully useable with a screen reader.
+    - Test OS defaults and NVDA.
 
 # View-Process
 
