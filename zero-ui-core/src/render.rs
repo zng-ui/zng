@@ -392,7 +392,7 @@ impl FrameBuilder {
         self.renderer.as_ref()
     }
 
-    /// Id of the frame being build.
+    /// Id of the new frame.
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
     }
@@ -658,6 +658,7 @@ impl FrameBuilder {
                         tree,
                         info.id(),
                         info.parent().map(|p| p.inner_bounds()),
+                        self.frame_id,
                     );
 
                     if let Some(i) = b.render_info() {
@@ -998,7 +999,7 @@ impl FrameBuilder {
 
             self.transform = inner_transform.then(&parent_transform);
 
-            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
+            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds, self.frame_id);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
@@ -2243,7 +2244,7 @@ impl FrameUpdate {
     /// New frame update builder.
     ///
     /// * `render_update_widgets` - External update requests.
-    /// * `frame_id` - Id of the frame that will be updated.
+    /// * `frame_id` - Id of the new frame.
     /// * `root_id` - Id of the window root widget.
     /// * `renderer` - Reference to the renderer that will update.
     /// * `clear_color` - The current clear color.
@@ -2289,7 +2290,7 @@ impl FrameUpdate {
         }
     }
 
-    /// The frame that will be updated.
+    /// Id of the new frame.
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
     }
@@ -2520,6 +2521,7 @@ impl FrameUpdate {
                             tree,
                             info.id(),
                             info.parent().map(|p| p.inner_bounds()),
+                            self.frame_id,
                         );
                     };
                     let targets = tree.get(id).unwrap().self_and_descendants();
@@ -2603,7 +2605,7 @@ impl FrameUpdate {
 
             self.transform = inner_transform.then(&parent_transform);
 
-            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
+            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds, self.frame_id);
             let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             render_update(self);

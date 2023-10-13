@@ -52,6 +52,7 @@ impl WidgetInfoBuilder {
     ) -> Self {
         let tree = Tree::new(WidgetInfoData {
             id: root_id,
+            is_reused: false,
             bounds_info: root_bounds_info,
             border_info: root_border_info,
             meta: Arc::new(OwnedStateMap::new()),
@@ -139,8 +140,9 @@ impl WidgetInfoBuilder {
             let tree = WINDOW.info();
             if let Some(wgt) = tree.get(id) {
                 self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |old_data| {
-                    let r = old_data.clone();
-                    r.cache.lock().interactivity = None;
+                    let mut r = old_data.clone();
+                    r.is_reused = true;
+                    r.cache.get_mut().interactivity = None;
                     for filter in &r.interactivity_filters {
                         self.interactivity_filters.push(filter.clone());
                     }
@@ -162,6 +164,7 @@ impl WidgetInfoBuilder {
             .node(parent_node)
             .push_child(WidgetInfoData {
                 id,
+                is_reused: false,
                 bounds_info,
                 border_info,
                 meta: Arc::new(OwnedStateMap::new()),
@@ -226,6 +229,7 @@ impl WidgetInfoBuilder {
         let node = self.tree.index(self.node).value();
         let tree = Tree::new(WidgetInfoData {
             id: node.id,
+            is_reused: node.is_reused,
             bounds_info: node.bounds_info.clone(),
             border_info: node.border_info.clone(),
             meta: node.meta.clone(),
@@ -270,6 +274,7 @@ impl WidgetInfoBuilder {
 
         self.tree.index_mut(self.node).parallel_fold(split.tree, &mut |d| WidgetInfoData {
             id: d.id,
+            is_reused: d.is_reused,
             bounds_info: d.bounds_info.clone(),
             border_info: d.border_info.clone(),
             meta: d.meta.clone(),

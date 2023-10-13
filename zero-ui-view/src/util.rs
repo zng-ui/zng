@@ -839,7 +839,7 @@ fn access_node_to_kit(
     if !node.size.is_empty() {
         let mut bounds = accesskit::Rect::new(0.0, 0.0, node.size.width.0 as f64, node.size.height.0 as f64);
         if !node.transform.is_identity() {
-            if let (0, PxTransform::Offset(o)) = (node.children_count, node.transform) {
+            if let (0, PxTransform::Offset(o)) = (node.children_count(), node.transform) {
                 let (x, y) = o.cast().to_tuple();
                 bounds = bounds.with_origin(accesskit::Point::new(x, y));
             } else {
@@ -1009,10 +1009,20 @@ fn access_node_to_kit(
     }
 
     // add descendants
-    for child in node.children() {
-        let child_id = access_node_to_kit(child, class_set, output);
-        builder.push_child(child_id);
+    if node.children.is_empty() {
+        for child in node.children() {
+            let child_id = access_node_to_kit(child, class_set, output);
+            builder.push_child(child_id);
+        }
+    } else {
+        for id in &node.children {
+            builder.push_child(access_id_to_kit(*id));
+        }
+        for child in node.children() {
+            let _ = access_node_to_kit(child, class_set, output);
+        }
     }
+
     let node = builder.build(class_set);
     output.push((node_id, node));
     node_id

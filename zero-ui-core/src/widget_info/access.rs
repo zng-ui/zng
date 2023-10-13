@@ -364,6 +364,40 @@ impl WidgetInfoTree {
         }
         builder.build()
     }
+
+    /// Build partial access trees for updated widgets.
+    ///
+    /// Returns `None` if not [`access_enabled`] or no access info has changed. The [`focused`] value is always set
+    /// to the root ID, it must be changed to the correct focused widget.
+    ///
+    /// [`access_enabled`]: Self::access_enabled
+    /// [`focused`]: zero_ui_view_api::access::AccessTreeUpdate::focused
+    pub fn to_access_updates(&self, prev_tree: &Self) -> Option<zero_ui_view_api::access::AccessTreeUpdate> {
+        let is_enabled = self.access_enabled().is_enabled();
+        let root_id = self.root().id().into();
+        if is_enabled && !prev_tree.access_enabled().is_enabled() {
+            // first update after access enabled
+            return Some(zero_ui_view_api::access::AccessTreeUpdate {
+                updates: vec![self.to_access_tree()],
+                full_root: Some(root_id),
+                focused: root_id,
+            });
+        }
+
+        if is_enabled {
+            let mut updates = vec![];
+            self.root().access().unwrap().to_access_updates(prev_tree, &mut updates);
+            if !updates.is_empty() {
+                return Some(zero_ui_view_api::access::AccessTreeUpdate {
+                    updates,
+                    full_root: None,
+                    focused: root_id,
+                });
+            }
+        }
+
+        None
+    }
 }
 
 impl WidgetInfo {
@@ -738,20 +772,34 @@ impl WidgetAccessInfo {
 
         let node = builder.push(node);
 
-        let mut children_count = 0;
+        let mut children_len = 0;
         let len_before = builder.len();
         for child in self.info.access_children() {
             if child.to_access_info(builder) {
-                children_count += 1;
+                children_len += 1;
             }
         }
-        let descendants_count = (builder.len() - len_before) as u32;
+        let descendants_len = (builder.len() - len_before) as u32;
 
         let node = builder.node(node);
-        node.children_count = children_count;
-        node.descendants_count = descendants_count;
+        node.children_len = children_len;
+        node.descendants_len = descendants_len;
 
         true
+    }
+
+    fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> (bool, bool) {
+        let is_accessible = !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible();
+
+        if self.info.is_reused() {
+            return (false, is_accessible);
+        }
+
+        if let Some(prev) = prev_tree.get(self.info.id()) {
+            let was_accessible = !prev.meta().contains(&INACCESSIBLE_ID) && prev.visibility().is_visible();
+        }
+
+        (true, true)
     }
 }
 

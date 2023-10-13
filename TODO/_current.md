@@ -21,8 +21,7 @@
 
 * Implement a way to detect access state updates.
     - Right now we rebuild the entire tree every time.
-    - Also need to track what widget changed children.
-    - Also need to update when transform changes during render.
+* Update when transform & visibility changes during render.
 
 * Integrate access commands, states and role.
     - Set role in more widgets.

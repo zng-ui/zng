@@ -582,14 +582,22 @@ pub struct AccessNode {
     pub transform: PxTransform,
     /// Widget bounds size (in the `transform` space).
     pub size: PxSize,
-    /// Number of children.
+    /// Children, including nodes that are not present in the tree because they did not change since last update.
+    ///
+    /// Can be empty if all children are present in the tree. If not empty it must contain all children, omitted and present,
+    /// in the logical order.
     ///
     /// See [`AccessTreeBuilder::push`] for more details.
-    pub children_count: u32,
-    /// Number of descendants.
+    pub children: Vec<AccessNodeId>,
+
+    /// Number of children nodes actually present in the tree.
     ///
     /// See [`AccessTreeBuilder::push`] for more details.
-    pub descendants_count: u32,
+    pub children_len: u32,
+    /// Number of descendant nodes actually present in the tree.
+    ///
+    /// See [`AccessTreeBuilder::push`] for more details.
+    pub descendants_len: u32,
 }
 impl AccessNode {
     /// New leaf node.
@@ -601,9 +609,15 @@ impl AccessNode {
             state: vec![],
             transform: PxTransform::identity(),
             size: PxSize::zero(),
-            children_count: 0,
-            descendants_count: 0,
+            children: vec![],
+            children_len: 0,
+            descendants_len: 0,
         }
+    }
+
+    /// Total count of children.
+    pub fn children_count(&self) -> usize {
+        (self.children_len as usize).max(self.children.len())
     }
 }
 
@@ -617,14 +631,20 @@ pub struct AccessTreeBuilder {
 impl AccessTreeBuilder {
     /// Pushes a node on the tree.
     ///
-    /// If [`children_count`] is not zero the children must be pushed immediately after, each child
+    /// If [`children_len`] is not zero the children must be pushed immediately after, each child
     /// pushes their children immediately after too. A tree `(a(a.a, a.b, a.c), b)` pushes `[a, a.a, a.b, a.c, b]`.
     ///
-    /// Note that you can push with [`children_count`] zero, and then use the returned index and [`node`] to set the children
-    /// count after pushing the descendants.
+    /// Note that you can push with [`children_len`] zero, and then use the returned index and [`node`] to set the children
+    /// count after pushing the descendants. Also don't forget to update the [`descendants_len`].
+    ///
+    /// If the tree is being build for an update children that did not change can be omitted, if any child is omitted
+    /// the [`children`] value must be set, it must list IDs for both present and omitted nodes in the same order they
+    /// would have been pushed if not omitted.
     ///
     /// [`node`]: Self::node
-    /// [`children_count`]: AccessNode::children_count
+    /// [`children_len`]: AccessNode::children_len
+    /// [`descendants_len`]: AccessNode::descendants_len
+    /// [`children`]: AccessNode::children
     pub fn push(&mut self, node: AccessNode) -> usize {
         #[cfg(debug_assertions)]
         if !self.ids.insert(node.id) {
@@ -698,7 +718,7 @@ pub struct AccessNodeRef<'a> {
 impl<'a> AccessNodeRef<'a> {
     /// Iterate over `self` and all descendant nodes.
     pub fn self_and_descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
-        let range = self.index..(self.index + self.descendants_count as usize);
+        let range = self.index..(self.index + self.descendants_len as usize);
         let tree = self.tree;
         range.map(move |i| AccessNodeRef { tree, index: i })
     }
@@ -728,7 +748,7 @@ impl<'a> AccessNodeRef<'a> {
                     };
 
                     self.count -= 1;
-                    self.index += 1 + item.descendants_count as usize;
+                    self.index += 1 + item.descendants_len as usize;
 
                     Some(item)
                 } else {
@@ -743,7 +763,7 @@ impl<'a> AccessNodeRef<'a> {
         impl<'a> ExactSizeIterator for ChildrenIter<'a> {}
         ChildrenIter {
             tree: self.tree,
-            count: self.children_count as usize,
+            count: self.children_len as usize,
             index: self.index + 1,
         }
     }
