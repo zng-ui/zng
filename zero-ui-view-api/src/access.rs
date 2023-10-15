@@ -639,11 +639,11 @@ impl AccessTreeBuilder {
     ///
     /// If the tree is being build for an update children that did not change can be omitted, if any child is omitted
     /// the [`children`] value must be set, it must list IDs for both present and omitted nodes in the same order they
-    /// would have been pushed if not omitted. 
-    /// 
+    /// would have been pushed if not omitted.
+    ///
     /// Note that changed nodes must be present in full, for example, if only the size changes all the node state
     /// must also be present, this includes the total count of children, if a child is inserted the parent node must
-    /// also be present, the grand-parent in this case does not need to be present. 
+    /// also be present, the grand-parent in this case does not need to be present.
     ///
     /// [`node`]: Self::node
     /// [`children_len`]: AccessNode::children_len

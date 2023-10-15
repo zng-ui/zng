@@ -26,7 +26,7 @@ use crate::render::RenderMode;
 use crate::task::ui::UiTask;
 use crate::task::ParallelIteratorExt;
 use crate::timer::{DeadlineHandle, TIMERS};
-use crate::widget_info::WidgetInfoTree;
+use crate::widget_info::{WidgetInfo, WidgetInfoTree};
 use crate::widget_instance::{BoxedUiNode, NilUiNode, UiNode};
 use crate::{app_local, var::*};
 use crate::{units::*, widget_instance::WidgetId};
@@ -433,6 +433,14 @@ impl WINDOWS {
             .ok_or(WindowNotFound(window_id))
     }
 
+    /// Search for the widget in all windows.
+    ///
+    /// Returns [`WindowNotFound`] if none of the current windows contains the `widget_id`.
+    pub fn widget_info(&self, widget_id: impl Into<WidgetId>) -> Option<WidgetInfo> {
+        let widget_id = widget_id.into();
+        WINDOWS_SV.read().windows_info.values().find_map(|w| w.widget_tree.get(widget_id))
+    }
+
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
@@ -484,7 +492,7 @@ impl WINDOWS {
         }
     }
 
-    /// Iterate over the widget trees of each open window.
+    /// Gets a reference to the widget trees of each open window.
     pub fn widget_trees(&self) -> Vec<WidgetInfoTree> {
         WINDOWS_SV.read().windows_info.values().map(|w| w.widget_tree.clone()).collect()
     }

@@ -35,6 +35,7 @@ pub use paste::paste;
 #[macro_use]
 pub mod handler;
 
+pub mod access;
 pub mod app;
 pub mod border;
 pub mod clipboard;

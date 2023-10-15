@@ -306,3 +306,29 @@ event! {
     /// Select text.
     pub static ACCESS_SELECTION_EVENT: AccessSelectionArgs;
 }
+
+/// Accessibility service.
+pub struct ACCESS;
+
+impl ACCESS {
+    /// Search for the widget and click it if found.
+    ///
+    /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
+    ///
+    /// Returns the widget info if it was found and a click event was scheduled.
+    pub fn click(&self, widget_id: impl Into<WidgetId>, is_primary: bool) -> Option<crate::widget_info::WidgetInfo> {
+        if let Some(w) = crate::window::WINDOWS.widget_info(widget_id) {
+            self.click_info(&w, is_primary);
+            Some(w)
+        } else {
+            None
+        }
+    }
+
+    /// Click the widget.
+    ///
+    /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
+    pub fn click_info(&self, widget: &crate::widget_info::WidgetInfo, is_primary: bool) {
+        ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(widget.tree().window_id(), widget.id(), is_primary));
+    }
+}

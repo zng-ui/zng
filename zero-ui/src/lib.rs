@@ -115,6 +115,7 @@ pub mod prelude {
 
     #[doc(no_inline)]
     pub use crate::core::{
+        access::ACCESS,
         app::App,
         async_clmv,
         border::{BorderSide, BorderSides, BorderStyle, LineOrientation, LineStyle},

@@ -87,10 +87,8 @@ use commands::FocusCommands;
 mod tests;
 
 use crate::{
-    app::{
-        access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT},
-        AppExtension,
-    },
+    access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT},
+    app::AppExtension,
     app_local,
     context::*,
     crate_util::{IdEntry, IdMap},

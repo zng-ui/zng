@@ -3,8 +3,8 @@
 use std::{mem, sync::Arc};
 
 use crate::{
+    access::ACCESS_INITED_EVENT,
     app::{
-        access::ACCESS_INITED_EVENT,
         raw_events::{
             RawWindowFocusArgs, RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT,
             RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,

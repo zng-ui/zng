@@ -198,8 +198,8 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
         child_align = Align::CENTER;
         on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
-                LAYERS.remove("expanded-icon");
                 args.propagation().stop();
+                ACCESS.click("close-btn", true);
             }
         });
         child = Container! {

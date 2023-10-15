@@ -650,6 +650,12 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
         backdrop_blur = 2;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
+        on_click = hn!(|args: &ClickArgs| {
+            if WIDGET.id() == args.target.widget_id() {
+                args.propagation().stop();
+                ACCESS.click("cancel-btn", true);
+            }
+        });
         child = Container! {
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
@@ -687,6 +693,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                                 })
                             },
                             Button! {
+                                id = "cancel-btn";
                                 child = Text!("Cancel");
                                 on_click = async_hn!(opacity, state, |_| {
                                     opacity.ease(0.fct(), 150.ms(), easing::linear).perm();

@@ -3,10 +3,8 @@
 use parking_lot::Mutex;
 
 use crate::{
-    app::{
-        access::{AccessClickArgs, ACCESS_CLICK_EVENT},
-        *,
-    },
+    access::{AccessClickArgs, ACCESS_CLICK_EVENT},
+    app::*,
     context::*,
     crate_util::{FxHashMap, FxHashSet, Handle, HandleOwner, WeakHandle},
     event::*,
@@ -1264,13 +1262,11 @@ impl ShortcutTarget {
             }
         }
 
-        for tree in WINDOWS.widget_trees() {
-            if let Some(w) = tree.get(self.widget_id) {
-                let path = w.interaction_path();
-                *found = Some(path.as_path().clone());
+        if let Some(w) = WINDOWS.widget_info(self.widget_id) {
+            let path = w.interaction_path();
+            *found = Some(path.as_path().clone());
 
-                return path.unblocked();
-            }
+            return path.unblocked();
         }
 
         None
@@ -1476,12 +1472,9 @@ impl ShortcutActions {
                     }
                 }
                 CommandScope::Widget(id) => {
-                    for tree in WINDOWS.widget_trees() {
-                        if let Some(info) = tree.get(id) {
-                            let p = info.interaction_path();
-
-                            return Some((distance_key(&focused, &p), Kind::Command(p, cmd)));
-                        }
+                    if let Some(info) = WINDOWS.widget_info(id) {
+                        let p = info.interaction_path();
+                        return Some((distance_key(&focused, &p), Kind::Command(p, cmd)));
                     }
                 }
                 CommandScope::App => cmd_app.push(cmd),
@@ -1944,10 +1937,8 @@ impl CommandShortcutExt for Command {
                                 !filter.contains(ShortcutFilter::ENABLED) || p.interactivity_of(id).map(|i| i.is_enabled()).unwrap_or(false)
                             })
                         } else if filter.contains(ShortcutFilter::ENABLED) {
-                            for tree in WINDOWS.widget_trees() {
-                                if let Some(w) = tree.get(id) {
-                                    return w.interactivity().is_enabled();
-                                }
+                            if let Some(w) = WINDOWS.widget_info(id) {
+                                return w.interactivity().is_enabled();
                             }
 
                             false

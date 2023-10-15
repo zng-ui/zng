@@ -1,6 +1,5 @@
 //! App startup and app extension API.
 
-pub mod access;
 mod intrinsic;
 pub mod raw_device_events;
 pub mod raw_events;
@@ -1309,14 +1308,14 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             Event::AccessInit { window: w_id } => {
-                self.notify_event(access::on_access_init(window_id(w_id)), observer);
+                self.notify_event(crate::access::on_access_init(window_id(w_id)), observer);
             }
             Event::AccessCommand {
                 window: win_id,
                 target: wgt_id,
                 command,
             } => {
-                if let Some(update) = access::on_access_command(window_id(win_id), WidgetId::from_raw(wgt_id.0), command) {
+                if let Some(update) = crate::access::on_access_command(window_id(win_id), WidgetId::from_raw(wgt_id.0), command) {
                     self.notify_event(update, observer);
                 }
             }
