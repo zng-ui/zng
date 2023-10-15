@@ -1,6 +1,8 @@
 # TextInput
 
 * Implement `txt_selectable` text.
+    - Move subscription code to a method of `EditData`.
+    - Set cut and copy enabled flag, they must be always subscribed (when editable/selectable) but only enabled when there is a selection.
 * Implement selection.
     - Touch:
         - Long-press to start selecting text:
