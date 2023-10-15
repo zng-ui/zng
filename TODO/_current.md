@@ -1,8 +1,6 @@
 # TextInput
 
-* Implement read-only text.
-    - `read_only` property and read-only variable.
-    - Selectable text is `editable` true and `read_only` true?
+* Implement `txt_selectable` text.
 * Implement selection.
     - Touch:
         - Long-press to start selecting text:

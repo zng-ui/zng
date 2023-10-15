@@ -1075,6 +1075,9 @@ context_var! {
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
 
+    /// Text is selectable.
+    pub static TEXT_SELECTABLE_VAR: bool = false;
+
     /// Accepts `'\t'` input when editable.
     pub static ACCEPTS_TAB_VAR: bool = false;
 
@@ -1088,15 +1091,23 @@ context_var! {
     pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(20.pct());
 }
 
-/// Enable text selection, copy, caret and input; and makes the widget focusable.
+/// Enable text caret, input and makes the widget focusable.
 ///
-/// If the `txt` variable is read-only, this only enables text selection, if the var is writeable this
+/// If the `txt` variable is read-only, this is ignored, if the var is writeable this
 /// enables text input and modifies the variable.
 ///
 /// Sets the [`TEXT_EDITABLE_VAR`].
 #[property(CONTEXT, default(TEXT_EDITABLE_VAR), widget_impl(TextEditMix<P>))]
 pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
+}
+
+/// Enable text selection, copy and makes the widget focusable.
+///
+/// Sets the [`TEXT_SELECTABLE_VAR`].
+#[property(CONTEXT, default(TEXT_SELECTABLE_VAR), widget_impl(TextEditMix<P>))]
+pub fn txt_selectable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, TEXT_SELECTABLE_VAR, enabled)
 }
 
 /// If the `'\t'` character is inserted when tab is pressed and the text is editable.

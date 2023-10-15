@@ -23,6 +23,7 @@ impl TextInput {
 
             access_role = AccessRole::TextInput;
             txt_editable = true;
+            txt_selectable = true;
             capture_pointer = true;
             txt_align = Align::TOP_START;
             focusable = true;

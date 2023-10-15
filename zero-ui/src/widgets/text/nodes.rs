@@ -405,7 +405,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 .sub_var(&FONT_SYNTHESIS_VAR)
                 .sub_var(&LANG_VAR);
             // for editable mode
-            WIDGET.sub_var(&TEXT_EDITABLE_VAR);
+            WIDGET.sub_var(&TEXT_EDITABLE_VAR).sub_var(&TEXT_SELECTABLE_VAR);
 
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
@@ -471,10 +471,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 d.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
                 d.events[2] = KEY_INPUT_EVENT.subscribe(id);
 
-                d.cut = CUT_CMD.scoped(id).subscribe(true);
-                d.copy = COPY_CMD.scoped(id).subscribe(true);
                 d.paste = PASTE_CMD.scoped(id).subscribe(true);
                 d.edit = EDIT_CMD.scoped(id).subscribe(true);
+            }
+            if TEXT_SELECTABLE_VAR.get() {
+                let id = WIDGET.id();
+
+                let d = EditData::get(&mut edit_data);
+
+                d.copy = COPY_CMD.scoped(id).subscribe(true);
+                if editable {
+                    d.cut = CUT_CMD.scoped(id).subscribe(true);
+                } else {
+                    d.events[2] = KEY_INPUT_EVENT.subscribe(id);
+                }
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
@@ -486,7 +496,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             resolved = None;
         }
         UiNodeOp::Info { info } => {
-            if TEXT_EDITABLE_VAR.get() {
+            if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
                 FocusInfoBuilder::new(info).focusable(true);
             }
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
@@ -606,12 +616,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                             }
                         }
-                    } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                        let resolved = resolved.as_mut().unwrap();
-                        if let Some(range) = resolved.caret.get_mut().selection_char_range() {
-                            args.propagation().stop();
-                            let _ = CLIPBOARD.set_text(Txt::from_str(&resolved.text.text()[range]));
-                        }
                     } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {
@@ -648,6 +652,15 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         }
                         resolved.pending_layout |= PendingLayout::CARET;
                         WIDGET.layout(); // update caret_origin
+                    }
+                }
+            }
+            if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
+                if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                    let resolved = resolved.as_mut().unwrap();
+                    if let Some(range) = resolved.caret.get_mut().selection_char_range() {
+                        args.propagation().stop();
+                        let _ = CLIPBOARD.set_text(Txt::from_str(&resolved.text.text()[range]));
                     }
                 }
             }
@@ -742,6 +755,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
             }
 
+            // !!: TODO selectable
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
                 if enabled && edit_data.is_none() {
                     // actually enabled.
