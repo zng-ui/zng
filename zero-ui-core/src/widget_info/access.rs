@@ -2,12 +2,19 @@
 
 use std::num::NonZeroU32;
 
+use parking_lot::Mutex;
 use zero_ui_view_api::access::AccessState;
 pub use zero_ui_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
 
-use crate::{context::StaticStateId, l10n::Lang, text::Txt, widget_instance::WidgetId};
+use crate::{
+    context::StaticStateId,
+    l10n::Lang,
+    text::Txt,
+    units::{PxSize, PxTransform},
+    widget_instance::WidgetId,
+};
 
 use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
 
@@ -365,13 +372,17 @@ impl WidgetInfoTree {
         builder.build()
     }
 
-    /// Build partial access trees for updated widgets.
+    /// Build partial or full access trees for updated widgets.
     ///
     /// Returns `None` if not [`access_enabled`] or no access info has changed. The [`focused`] value is always set
     /// to the root ID, it must be changed to the correct focused widget.
     ///
+    /// This is usually called by window implementers just after the next frame after info rebuild. Note that these
+    /// updates will also include [`to_access_updates_bounds`].
+    ///
     /// [`access_enabled`]: Self::access_enabled
     /// [`focused`]: zero_ui_view_api::access::AccessTreeUpdate::focused
+    /// [`to_access_updates_bounds`]: Self::to_access_updates_bounds
     pub fn to_access_updates(&self, prev_tree: &Self) -> Option<zero_ui_view_api::access::AccessTreeUpdate> {
         let is_enabled = self.access_enabled().is_enabled();
         let root_id = self.root().id().into();
@@ -387,6 +398,38 @@ impl WidgetInfoTree {
         if is_enabled {
             let mut updates = vec![];
             self.root().access().unwrap().to_access_updates(prev_tree, &mut updates);
+            if !updates.is_empty() {
+                return Some(zero_ui_view_api::access::AccessTreeUpdate {
+                    updates,
+                    full_root: None,
+                    focused: root_id,
+                });
+            }
+        }
+
+        None
+    }
+
+    /// Build partial access trees for widgets that changed transform, size or visibility.
+    ///
+    /// Returns `None` if not [`access_enabled`] or no transform/visibility changed.  The [`focused`] value is always set
+    /// to the root ID, it must be changed to the correct focused widget.
+    ///
+    /// This is usually called by window implementers after each frame that is not [`to_access_updates`].
+    ///
+    /// [`access_enabled`]: Self::access_enabled
+    /// [`focused`]: zero_ui_view_api::access::AccessTreeUpdate::focused
+    /// [`to_access_updates`]: Self::to_access_updates
+    pub fn to_access_updates_bounds(&self) -> Option<zero_ui_view_api::access::AccessTreeUpdate> {
+        let is_enabled = self.access_enabled().is_enabled();
+        let root_id = self.root().id().into();
+
+        if is_enabled && {
+            let frame = self.0.frame.read();
+            frame.stats.bounds_updated_frame == frame.stats.last_frame || frame.stats.vis_updated_frame == frame.stats.last_frame
+        } {
+            let mut updates = vec![];
+            self.root().access().unwrap().to_access_updates_bounds(&mut updates);
             if !updates.is_empty() {
                 return Some(zero_ui_view_api::access::AccessTreeUpdate {
                     updates,
@@ -757,14 +800,10 @@ impl WidgetAccessInfo {
         let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
         let a = self.access();
 
-        let bounds = self.info.bounds_info();
-        let undo_parent_transform = self
-            .info
-            .access_parent()
-            .and_then(|w| w.info.inner_transform().inverse())
-            .unwrap_or_default();
-        node.transform = bounds.inner_transform().then(&undo_parent_transform);
-        node.size = bounds.inner_size();
+        let bounds_info = self.bounds_info();
+        node.transform = bounds_info.0;
+        node.size = bounds_info.1;
+        *a.view_bounds.lock() = Some(bounds_info);
 
         node.role = a.role;
         node.state = a.state.clone();
@@ -775,12 +814,26 @@ impl WidgetAccessInfo {
         node
     }
 
+    fn bounds_info(&self) -> (PxTransform, PxSize) {
+        let bounds = self.info.bounds_info();
+        let undo_parent_transform = self
+            .info
+            .access_parent()
+            .and_then(|w| w.info.inner_transform().inverse())
+            .unwrap_or_default();
+        let transform = bounds.inner_transform().then(&undo_parent_transform);
+        let size = bounds.inner_size();
+
+        (transform, size)
+    }
+
     fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
         if !self.is_local_accessible() {
             if self.info.parent().is_none() {
                 // root node is required (but can be empty)
                 builder.push(zero_ui_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
             }
+            *self.access().view_bounds.lock() = None;
             return false;
         }
 
@@ -803,16 +856,35 @@ impl WidgetAccessInfo {
     }
 
     fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) {
-        if self.info.is_reused() || !self.is_local_accessible() {
-            // no change or not accessible
+        if !self.is_local_accessible() {
+            // not accessible
+            *self.access().view_bounds.lock() = None;
             return;
         }
+
+        let mut bounds_changed = false;
+        if self.info.is_reused() {
+            // no info change, check bounds that can change every render
+
+            let bounds = Some(self.bounds_info());
+            let a = self.access();
+            let mut prev_bounds = a.view_bounds.lock();
+
+            bounds_changed = *prev_bounds != bounds;
+
+            if !bounds_changed {
+                return;
+            }
+
+            *prev_bounds = bounds;
+        }
+        let bounds_changed = bounds_changed;
 
         if let Some(prev) = prev_tree.get(self.info.id()) {
             let was_accessible = prev.access().map(|w| w.is_local_accessible()).unwrap_or(false);
             if let (true, Some(prev)) = (was_accessible, prev.access()) {
                 let mut children = None;
-                if prev.access() != self.access() || {
+                if bounds_changed || !prev.access().info_eq(self.access()) || {
                     // check children and cache result
                     let c = self.info.access_children_ids();
                     let changed = c != prev.info.access_children_ids();
@@ -853,14 +925,73 @@ impl WidgetAccessInfo {
         assert!(insert);
         updates.push(builder.build());
     }
+
+    /// Returns `true` if access changed by visibility update.
+    fn to_access_updates_bounds(&self, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> bool {
+        if !self.info.meta().contains(&INACCESSIBLE_ID) {
+            // not accessible
+            return false;
+        }
+        if !self.info.visibility().is_visible() {
+            // not accessible because not visible
+            return self.access().view_bounds.lock().take().is_some();
+        }
+
+        let a = self.access();
+
+        let mut vis_changed = false;
+        let mut update;
+
+        let new_bounds = Some(self.bounds_info());
+        {
+            let mut bounds = a.view_bounds.lock();
+            update = *bounds != new_bounds;
+            if update {
+                vis_changed = bounds.is_none();
+                *bounds = new_bounds;
+            }
+        };
+
+        if vis_changed {
+            // branch now accessible
+            let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+            let insert = self.to_access_info(&mut builder);
+            assert!(insert);
+            updates.push(builder.build());
+        } else {
+            // update if bounds info changed or a child changed visibility
+
+            for child in self.info.access_children() {
+                let child_vis_changed = child.to_access_updates_bounds(updates);
+                update |= child_vis_changed;
+            }
+
+            if update {
+                let mut node = self.to_access_node_leaf();
+                node.children = self
+                    .info
+                    .access_children()
+                    .filter_map(|a| if a.is_local_accessible() { Some(a.info.id().into()) } else { None })
+                    .collect();
+
+                let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+                builder.push(node);
+                updates.push(builder.build());
+            }
+        }
+
+        vis_changed
+    }
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Default)]
 struct AccessInfo {
     role: Option<AccessRole>,
     commands: Vec<AccessCmdName>,
     state: Vec<AccessState>,
     state_txt: Vec<AccessStateTxt>,
+
+    view_bounds: Mutex<Option<(PxTransform, PxSize)>>,
 }
 impl AccessInfo {
     fn set_state(&mut self, state: AccessState) {
@@ -879,6 +1010,10 @@ impl AccessInfo {
         } else {
             self.state_txt.push(state);
         }
+    }
+
+    fn info_eq(&self, other: &Self) -> bool {
+        self.role == other.role && self.commands == other.commands && self.state == other.state && self.state_txt == other.state_txt
     }
 }
 

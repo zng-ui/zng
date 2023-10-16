@@ -1104,15 +1104,22 @@ impl HeadedCtrl {
             );
 
             if let Some(prev_tree) = self.render_access_update.take() {
-                // info was rebuild before this frame
                 let info = WINDOW.info();
+                // info was rebuild before this frame
                 if let Some(mut update) = info.to_access_updates(&prev_tree) {
                     // updated access info
                     update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
                     let _ = view.access_update(update);
                 }
             } else {
-                // !!: TODO, info was not rebuild before this frame, but transforms and visibility may have changed
+                let info = WINDOW.info();
+                if info.access_enabled() == AccessEnabled::VIEW {
+                    if let Some(mut update) = info.to_access_updates_bounds() {
+                        // updated transforms or visibility access info
+                        update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
+                        let _ = view.access_update(update);
+                    }
+                }
             }
         }
     }

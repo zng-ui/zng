@@ -92,7 +92,7 @@ impl WidgetInfoTreeStats {
             self.bounds_updated_frame = frame;
         }
 
-        // can double count if changed to collapsed from visible, so we don't show this stat.
+        // we don't show `vis_updated` because if can be counted twice when visibility changes from collapsed.
         if update.vis_updated > 0 || self.vis_updated_frame == FrameId::INVALID {
             self.vis_updated_frame = frame;
         }
@@ -302,7 +302,7 @@ impl fmt::Debug for WidgetInfoTree {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct WidgetBoundsData {
     inner_offset: PxVector,
     child_offset: PxVector,
@@ -331,7 +331,6 @@ struct WidgetBoundsData {
 
     outer_bounds: PxRect,
     inner_bounds: PxRect,
-    inner_bound_frame: FrameId,
 
     hit_clips: HitTestClips,
     hit_index: hit::HitChildIndex,
@@ -340,41 +339,6 @@ struct WidgetBoundsData {
     is_partially_culled: bool,
     cannot_auto_hide: bool,
     is_collapsed: bool,
-}
-
-impl Default for WidgetBoundsData {
-    fn default() -> Self {
-        Self {
-            inner_offset: Default::default(),
-            child_offset: Default::default(),
-            inline: Default::default(),
-            measure_inline: Default::default(),
-            measure_outer_size: Default::default(),
-            outer_size: Default::default(),
-            inner_size: Default::default(),
-            baseline: Default::default(),
-            inner_offset_baseline: Default::default(),
-            transform_style: Default::default(),
-            perspective: Default::default(),
-            perspective_origin: Default::default(),
-            measure_metrics: Default::default(),
-            measure_metrics_used: Default::default(),
-            metrics: Default::default(),
-            metrics_used: Default::default(),
-            outer_transform: Default::default(),
-            inner_transform: Default::default(),
-            rendered: Default::default(),
-            outer_bounds: Default::default(),
-            inner_bounds: Default::default(),
-            inner_bound_frame: FrameId::INVALID,
-            hit_clips: Default::default(),
-            hit_index: Default::default(),
-            is_in_bounds: Default::default(),
-            is_partially_culled: Default::default(),
-            cannot_auto_hide: Default::default(),
-            is_collapsed: Default::default(),
-        }
-    }
 }
 
 /// Widget render data.
@@ -637,7 +601,6 @@ impl WidgetBoundsInfo {
         info: &WidgetInfoTree,
         widget_id: WidgetId,
         parent_inner: Option<PxRect>,
-        frame_id: FrameId,
     ) {
         let bounds = transform
             .outer_transformed(PxBox::from_size(self.inner_size()))
@@ -648,7 +611,6 @@ impl WidgetBoundsInfo {
 
         if m.inner_bounds != bounds {
             m.inner_bounds = bounds;
-            m.inner_bound_frame = frame_id;
             info.bounds_changed();
         }
         let in_bounds = parent_inner.map(|r| r.contains_rect(&bounds)).unwrap_or(true);
@@ -688,13 +650,6 @@ impl WidgetBoundsInfo {
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
     pub fn inner_bounds(&self) -> PxRect {
         self.0.lock().inner_bounds
-    }
-
-    /// Last frame that changed the [`inner_bounds`].
-    ///
-    /// [`inner_bounds`]: Self::inner_bounds
-    pub fn inner_bounds_frame(&self) -> FrameId {
-        self.0.lock().inner_bound_frame
     }
 
     /// If the widget and descendants was collapsed during layout.
@@ -1352,13 +1307,6 @@ impl WidgetInfo {
     pub fn inner_bounds(&self) -> PxRect {
         let info = self.info();
         info.bounds_info.inner_bounds()
-    }
-
-    /// If the [`inner_bounds`] changed size or position in the last frame.
-    ///
-    /// [`inner_bounds`]: Self::inner_bounds
-    pub fn inner_bounds_is_new(&self) -> bool {
-        self.info().bounds_info.inner_bounds_frame() == self.tree.0.frame.read().stats.last_frame
     }
 
     /// Widget inner bounds center in the window space.

@@ -658,7 +658,6 @@ impl FrameBuilder {
                         tree,
                         info.id(),
                         info.parent().map(|p| p.inner_bounds()),
-                        self.frame_id,
                     );
 
                     if let Some(i) = b.render_info() {
@@ -999,7 +998,7 @@ impl FrameBuilder {
 
             self.transform = inner_transform.then(&parent_transform);
 
-            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds, self.frame_id);
+            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
@@ -2521,7 +2520,6 @@ impl FrameUpdate {
                             tree,
                             info.id(),
                             info.parent().map(|p| p.inner_bounds()),
-                            self.frame_id,
                         );
                     };
                     let targets = tree.get(id).unwrap().self_and_descendants();
@@ -2605,7 +2603,7 @@ impl FrameUpdate {
 
             self.transform = inner_transform.then(&parent_transform);
 
-            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds, self.frame_id);
+            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
             let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             render_update(self);
