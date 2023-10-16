@@ -84,6 +84,8 @@ struct HeadedCtrl {
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
     actual_parent: Option<WindowId>,
     root_font_size: Dip,
+
+    render_access_update: Option<WidgetInfoTree>, // previous info tree
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
@@ -111,6 +113,8 @@ impl HeadedCtrl {
             actual_parent: None,
             actual_state: None,
             root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.0),
+
+            render_access_update: None,
         }
     }
 
@@ -727,18 +731,14 @@ impl HeadedCtrl {
 
     #[must_use]
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
+        let prev_tree = WINDOW.info();
         let info = self.content.info(info_widgets);
-        if let (Some(info), Some(view)) = (&info, &self.window) {
+        if let (Some(info), true) = (&info, self.window.is_some()) {
+            // updated widget info and has view-process window
             if info.access_enabled() == AccessEnabled::VIEW {
-                // update access tree
-                let access_info = info.to_access_tree();
-                let root_id = access_info.root().id;
-
-                let _ = view.access_update(zero_ui_view_api::access::AccessTreeUpdate {
-                    updates: vec![access_info],
-                    full_root: Some(root_id),
-                    focused: self.accessible_focused(info).map(Into::into).unwrap_or(root_id),
-                });
+                // view window requires access info, next frame
+                self.render_access_update = Some(prev_tree);
+                UPDATES.render_window(WINDOW.id());
             }
         }
         info
@@ -1102,6 +1102,18 @@ impl HeadedCtrl {
                 render_widgets,
                 render_update_widgets,
             );
+
+            if let Some(prev_tree) = self.render_access_update.take() {
+                // info was rebuild before this frame
+                let info = WINDOW.info();
+                if let Some(mut update) = info.to_access_updates(&prev_tree) {
+                    // updated access info
+                    update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
+                    let _ = view.access_update(update);
+                }
+            } else {
+                // !!: TODO, info was not rebuild before this frame, but transforms and visibility may have changed
+            }
         }
     }
 

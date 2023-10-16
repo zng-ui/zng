@@ -19,7 +19,6 @@
 
 # Accessibility
 
-* Use `to_access_updates`.
 * Update when transform & visibility changes during render.
 
 * Integrate access commands, states and role.
