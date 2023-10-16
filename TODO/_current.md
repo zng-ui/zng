@@ -19,8 +19,7 @@
 
 # Accessibility
 
-* Implement a way to detect access state updates.
-    - Right now we rebuild the entire tree every time.
+* Use `to_access_updates`.
 * Update when transform & visibility changes during render.
 
 * Integrate access commands, states and role.

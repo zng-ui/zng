@@ -430,6 +430,12 @@ impl WidgetInfo {
             .map(|w| w.access().unwrap())
     }
 
+    fn access_children_ids(&self) -> Vec<zero_ui_view_api::access::AccessNodeId> {
+        self.access_children()
+            .filter_map(|w| if w.is_local_accessible() { Some(w.info.id().into()) } else { None })
+            .collect()
+    }
+
     /// First ancestor that is accessible.
     pub fn access_parent(&self) -> Option<WidgetAccessInfo> {
         self.ancestors().find_map(|w| w.access())
@@ -736,22 +742,18 @@ impl WidgetAccessInfo {
     /// available in the app-process.
     pub fn is_accessible(&self) -> bool {
         for wgt in self.info.self_and_ancestors() {
-            if wgt.meta().contains(&INACCESSIBLE_ID) {
+            if wgt.meta().contains(&INACCESSIBLE_ID) || !self.info.visibility().is_visible() {
                 return false;
             }
         }
         true
     }
 
-    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
-        if self.info.meta().contains(&INACCESSIBLE_ID) || !self.info.visibility().is_visible() {
-            if self.info.parent().is_none() {
-                // root node is required (but can be empty)
-                builder.push(zero_ui_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
-            }
-            return false;
-        }
+    fn is_local_accessible(&self) -> bool {
+        !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible()
+    }
 
+    fn to_access_node_leaf(&self) -> zero_ui_view_api::access::AccessNode {
         let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
         let a = self.access();
 
@@ -770,7 +772,19 @@ impl WidgetAccessInfo {
 
         node.commands = a.commands.clone();
 
-        let node = builder.push(node);
+        node
+    }
+
+    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
+        if !self.is_local_accessible() {
+            if self.info.parent().is_none() {
+                // root node is required (but can be empty)
+                builder.push(zero_ui_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
+            }
+            return false;
+        }
+
+        let node = builder.push(self.to_access_node_leaf());
 
         let mut children_len = 0;
         let len_before = builder.len();
@@ -788,45 +802,56 @@ impl WidgetAccessInfo {
         true
     }
 
-    /// Returns `(is_present, is_accessible)`.
-    fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> (bool, bool) {
-        let is_accessible = !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible();
-
-        if self.info.is_reused() {
-            return (false, is_accessible);
+    fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) {
+        if self.info.is_reused() || !self.is_local_accessible() {
+            // no change or not accessible
+            return;
         }
 
         if let Some(prev) = prev_tree.get(self.info.id()) {
-            let was_accessible = !prev.meta().contains(&INACCESSIBLE_ID) && prev.visibility().is_visible();
+            let was_accessible = prev.access().map(|w| w.is_local_accessible()).unwrap_or(false);
             if let (true, Some(prev)) = (was_accessible, prev.access()) {
-                if prev.access() != self.access() {
+                let mut children = None;
+                if prev.access() != self.access() || {
+                    // check children and cache result
+                    let c = self.info.access_children_ids();
+                    let changed = c != prev.info.access_children_ids();
+                    children = Some(c);
+                    changed
+                } {
                     // changed
+                    let mut node = self.to_access_node_leaf();
 
-                    // TODO, children list might also change, in that case the AccessKit crate requires the full
-                    // info in the parent too.
-                    todo!()
+                    for child in self.info.access_children() {
+                        child.to_access_updates(prev_tree, updates);
+                    }
+
+                    node.children = children.unwrap_or_else(|| {
+                        self.info
+                            .access_children()
+                            .filter_map(|a| if a.is_local_accessible() { Some(a.info.id().into()) } else { None })
+                            .collect()
+                    });
+
+                    let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+                    builder.push(node);
+                    updates.push(builder.build());
+
+                    return;
                 } else {
                     // no change
-                    return (false, is_accessible);
+                    return;
                 }
             } else {
-                // remove
-                todo!()
+                // was not accessible
             }
         }
 
-        if is_accessible {
-            // insert
-            let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
-            let insert = self.to_access_info(&mut builder);
-            assert!(insert);
-            updates.push(builder.build());
-
-            // TODO, parent cannot be reused also, so why are we adding update here?
-            (true, true)
-        } else {
-            (false, false)
-        }
+        // insert
+        let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+        let insert = self.to_access_info(&mut builder);
+        assert!(insert);
+        updates.push(builder.build());
     }
 }
 
