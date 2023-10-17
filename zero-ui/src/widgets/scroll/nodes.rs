@@ -47,11 +47,17 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
         UiNodeOp::Info { info } => {
             if let Some(mut info) = info.access() {
                 let mode = mode.get();
+                let mut any = false;
                 if mode.contains(ScrollMode::HORIZONTAL) {
                     info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.actual_var());
+                    any = true;
                 }
                 if mode.contains(ScrollMode::VERTICAL) {
                     info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.actual_var());
+                    any = true;
+                }
+                if any {
+                    info.push_command(zero_ui_core::widget_info::access::AccessCmdName::Scroll);
                 }
             }
         }

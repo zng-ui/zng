@@ -361,6 +361,32 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
     with_access_state(child, lang, |b, v| b.set_lang(v.clone()))
 }
 
+/// Sets the amount scrolled on the horizontal if the content can be scrolled horizontally.
+///
+/// The `normal_x` value can be a read-only variable, the variable can be updated without needing to rebuild
+/// info for every pixel scrolled, if the view-process requires access info the value is updated every render
+/// together with the widget bounds updates.
+///
+/// The value must be normalized in the 0..1 range, 0 is showing the content leftmost edge, 1 is showing
+/// the content the rightmost edge.
+#[property(CONTEXT)]
+pub fn scroll_horizontal(child: impl UiNode, normal_x: impl IntoVar<Factor>) -> impl UiNode {
+    with_access_state_var(child, normal_x, |b, v| b.set_scroll_horizontal(v.clone()))
+}
+
+/// Sets the amount scrolled on the vertical if the content can be scrolled vertically.
+///
+/// The `normal_y` value can be a read-only variable, the variable can be updated without needing to rebuild
+/// info for every pixel scrolled, if the view-process requires access info the value is updated every render
+/// together with the widget bounds updates.
+///
+/// The value must be normalized in the 0..1 range, 0 is showing the content topmost edge, 1 is showing
+/// the content the bottommost edge.
+#[property(CONTEXT)]
+pub fn scroll_vertical(child: impl UiNode, normal_y: impl IntoVar<Factor>) -> impl UiNode {
+    with_access_state_var(child, normal_y, |b, v| b.set_scroll_vertical(v.clone()))
+}
+
 /// Indicate that the widget can change, how the change can be announced, if `atomic`
 /// the entire widget must be re-read, if `busy` the screen reader must wait until the change completes.
 #[property(CONTEXT)]
@@ -398,6 +424,14 @@ fn with_access_state<T: VarValue>(
     state: impl IntoVar<T>,
     set_info: impl Fn(&mut WidgetAccessInfoBuilder, &T) + Send + 'static,
 ) -> impl UiNode {
+    with_access_state_var(child, state, move |b, v| v.with(|v| set_info(b, v)))
+}
+
+fn with_access_state_var<T: VarValue, I: IntoVar<T>>(
+    child: impl UiNode,
+    state: I,
+    set_info: impl Fn(&mut WidgetAccessInfoBuilder, &I::Var) + Send + 'static,
+) -> impl UiNode {
     let state = state.into_var();
     let mut handle = VarHandle::dummy();
     match_node(child, move |c, op| match op {
@@ -410,7 +444,7 @@ fn with_access_state<T: VarValue>(
                 if handle.is_dummy() {
                     handle = state.subscribe(UpdateOp::Info, WIDGET.id());
                 }
-                state.with(|val| set_info(&mut builder, val));
+                set_info(&mut builder, &state)
             }
         }
         _ => {}
