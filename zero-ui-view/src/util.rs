@@ -990,7 +990,11 @@ fn access_node_to_kit(
             FlowTo(ids) => builder.set_flow_to(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             LabelledBy(ids) => builder.set_labelled_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             LabelledByChild => {
-                let labelled_by = node.children().map(|c| access_id_to_kit(c.id)).collect::<Vec<_>>();
+                let labelled_by: Vec<_> = if node.children.is_empty() {
+                    node.children().map(|c| access_id_to_kit(c.id)).collect()
+                } else {
+                    node.children.iter().map(|id| access_id_to_kit(*id)).collect()
+                };
                 builder.set_labelled_by(labelled_by);
             }
             Owns(ids) => {
