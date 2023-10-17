@@ -1008,6 +1008,17 @@ fn access_node_to_kit(
             RowSpan(s) => builder.set_table_cell_row_span(*s),
             ItemCount(s) => builder.set_size_of_set(*s),
             Lang(l) => builder.set_language(l.to_string()),
+
+            ScrollHorizontal(x) => {
+                builder.set_scroll_x(*x as f64);
+                builder.set_scroll_x_min(0.0);
+                builder.set_scroll_x_max(1.0);
+            }
+            ScrollVertical(y) => {
+                builder.set_scroll_y(*y as f64);
+                builder.set_scroll_y_min(0.0);
+                builder.set_scroll_y_max(1.0);
+            }
             _ => {}
         }
     }

@@ -12,7 +12,8 @@ use crate::{
     context::StaticStateId,
     l10n::Lang,
     text::Txt,
-    units::{PxSize, PxTransform},
+    units::{Factor, PxSize, PxTransform},
+    var::*,
     widget_instance::WidgetId,
 };
 
@@ -112,7 +113,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Note that if this is not set the [`WidgetId::name`] of the widget is used.
     pub fn set_label(&mut self, name: impl Into<Txt>) {
         let name = name.into();
-        self.with_access(|a| a.set_state_txt(AccessStateTxt::Label(name)))
+        self.with_access(|a| a.set_state_source(AccessStateSource::Label(name)))
     }
 
     /// Sets the hierarchical level of the widget within a parent scope.
@@ -133,7 +134,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
     pub fn set_placeholder(&mut self, placeholder: impl Into<Txt>) {
         let placeholder = placeholder.into();
-        self.with_access(|a| a.set_state_txt(AccessStateTxt::Placeholder(placeholder)))
+        self.with_access(|a| a.set_state_source(AccessStateSource::Placeholder(placeholder)))
     }
 
     /// Indicates that the widget is not editable, but is otherwise operable.
@@ -174,7 +175,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Set a text that is a readable version of the current value.
     pub fn set_value_text(&mut self, value: impl Into<Txt>) {
         let value = value.into();
-        self.with_access(|a| a.set_state_txt(AccessStateTxt::ValueText(value)))
+        self.with_access(|a| a.set_state_source(AccessStateSource::ValueText(value)))
     }
 
     /// Indicate that the widget can change, how the change can be announced, if `atomic`
@@ -243,6 +244,32 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Defines the language used by screen-readers to read text in this widget and descendants.
     pub fn set_lang(&mut self, lang: Lang) {
         self.with_access(|a| a.set_state(AccessState::Lang(lang)))
+    }
+
+    /// Sets the amount scrolled on the horizontal if the content can be scrolled horizontally.
+    ///
+    /// The `normal_x` value can be a read-only variable, the variable can be updated without needing to rebuild
+    /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
+    /// together with the widget bounds updates.
+    ///
+    /// The value must be normalized in the 0..1 range, 0 is showing the content leftmost edge, 1 is showing
+    /// the content the rightmost edge.
+    pub fn set_scroll_horizontal(&mut self, normal_x: impl IntoVar<Factor>) {
+        let normal_x = normal_x.into_var().boxed();
+        self.with_access(|a| a.set_state_source(AccessStateSource::ScrollHorizontal(normal_x)))
+    }
+
+    /// Sets the amount scrolled on the vertical if the content can be scrolled vertically.
+    ///
+    /// The `normal_y` value can be a read-only variable, the variable can be updated without needing to rebuild
+    /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
+    /// together with the widget bounds updates.
+    ///
+    /// The value must be normalized in the 0..1 range, 0 is showing the content topmost edge, 1 is showing
+    /// the content the bottommost edge.
+    pub fn set_scroll_vertical(&mut self, normal_y: impl IntoVar<Factor>) {
+        let normal_y = normal_y.into_var().boxed();
+        self.with_access(|a| a.set_state_source(AccessStateSource::ScrollVertical(normal_y)))
     }
 
     /// Push a widget whose contents or presence are controlled by this widget.
@@ -493,8 +520,8 @@ macro_rules! get_state {
     ($self:ident.$Discriminant:ident) => {
         get_state!($self, state, AccessState, $Discriminant)
     };
-    ($self:ident.txt.$Discriminant:ident) => {
-        get_state!($self, state_txt, AccessStateTxt, $Discriminant)
+    ($self:ident.source.$Discriminant:ident) => {
+        get_state!($self, state_source, AccessStateSource, $Discriminant)
     };
     ($self:ident, $state:ident, $State:ident, $Discriminant:ident) => {
         $self
@@ -597,7 +624,7 @@ impl WidgetAccessInfo {
 
     /// Gets the accessibility name explicitly set on this widget.
     pub fn label(&self) -> Option<Txt> {
-        get_state!(self.txt.Label).cloned()
+        get_state!(self.source.Label).cloned()
     }
 
     /// If the widget children must be used like [`labelled_by`].
@@ -613,6 +640,18 @@ impl WidgetAccessInfo {
     pub fn lang(&self) -> Option<Lang> {
         get_state!(self.Lang).cloned()
     }
+    /// Normalized (0..1) horizontal scroll, 0 is showing the content leftmost edge, 1 is showing the content the rightmost edge.
+    ///
+    /// Also signals that the content is horizontally scrollable.
+    pub fn scroll_horizontal(&self) -> Option<BoxedVar<Factor>> {
+        get_state!(self.source.ScrollHorizontal).cloned()
+    }
+    /// Normalized (0..1) vertical scroll, 0 is showing the content topmost edge, 1 is showing the content the bottommost edge.
+    ///
+    /// Also signals that the content is vertically scrollable.
+    pub fn scroll_vertical(&self) -> Option<BoxedVar<Factor>> {
+        get_state!(self.source.ScrollVertical).cloned()
+    }
 
     /// Indicates that the user may select more than one item from the current selectable descendants.
     pub fn is_multi_selectable(&self) -> bool {
@@ -626,7 +665,7 @@ impl WidgetAccessInfo {
 
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
     pub fn placeholder(&self) -> Option<Txt> {
-        get_state!(self.txt.Placeholder).cloned()
+        get_state!(self.source.Placeholder).cloned()
     }
 
     /// Indicates that the widget is not editable, but is otherwise operable.
@@ -676,7 +715,7 @@ impl WidgetAccessInfo {
     ///
     /// [`value`]: Self::value
     pub fn value_text(&self) -> Option<Txt> {
-        get_state!(self.txt.ValueText).cloned()
+        get_state!(self.source.ValueText).cloned()
     }
 
     /// Gets the live indicator, atomic and busy.
@@ -801,20 +840,20 @@ impl WidgetAccessInfo {
         let a = self.access();
 
         let bounds_info = self.bounds_info();
-        node.transform = bounds_info.0;
-        node.size = bounds_info.1;
+        node.transform = bounds_info.transform;
+        node.size = bounds_info.size;
         *a.view_bounds.lock() = Some(bounds_info);
 
         node.role = a.role;
         node.state = a.state.clone();
-        node.state.extend(a.state_txt.iter().map(From::from));
+        node.state.extend(a.state_source.iter().map(From::from));
 
         node.commands = a.commands.clone();
 
         node
     }
 
-    fn bounds_info(&self) -> (PxTransform, PxSize) {
+    fn bounds_info(&self) -> ViewBoundsInfo {
         let bounds = self.info.bounds_info();
         let undo_parent_transform = self
             .info
@@ -824,7 +863,15 @@ impl WidgetAccessInfo {
         let transform = bounds.inner_transform().then(&undo_parent_transform);
         let size = bounds.inner_size();
 
-        (transform, size)
+        let scroll_h = get_state!(self.source.ScrollHorizontal).map(|x| x.get());
+        let scroll_v = get_state!(self.source.ScrollVertical).map(|x| x.get());
+
+        ViewBoundsInfo {
+            transform,
+            size,
+            scroll_h,
+            scroll_v,
+        }
     }
 
     fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
@@ -984,14 +1031,22 @@ impl WidgetAccessInfo {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
+struct ViewBoundsInfo {
+    transform: PxTransform,
+    size: PxSize,
+    scroll_h: Option<Factor>,
+    scroll_v: Option<Factor>,
+}
+
 #[derive(Default)]
 struct AccessInfo {
     role: Option<AccessRole>,
     commands: Vec<AccessCmdName>,
     state: Vec<AccessState>,
-    state_txt: Vec<AccessStateTxt>,
+    state_source: Vec<AccessStateSource>,
 
-    view_bounds: Mutex<Option<(PxTransform, PxSize)>>,
+    view_bounds: Mutex<Option<ViewBoundsInfo>>,
 }
 impl AccessInfo {
     fn set_state(&mut self, state: AccessState) {
@@ -1003,32 +1058,49 @@ impl AccessInfo {
         }
     }
 
-    fn set_state_txt(&mut self, state: AccessStateTxt) {
+    fn set_state_source(&mut self, state: AccessStateSource) {
         let discriminant = std::mem::discriminant(&state);
-        if let Some(present) = self.state_txt.iter_mut().find(|s| std::mem::discriminant(&**s) == discriminant) {
+        if let Some(present) = self.state_source.iter_mut().find(|s| std::mem::discriminant(&**s) == discriminant) {
             *present = state;
         } else {
-            self.state_txt.push(state);
+            self.state_source.push(state);
         }
     }
 
     fn info_eq(&self, other: &Self) -> bool {
-        self.role == other.role && self.commands == other.commands && self.state == other.state && self.state_txt == other.state_txt
+        self.role == other.role && self.commands == other.commands && self.state == other.state && self.state_source == other.state_source
     }
 }
 
-#[derive(PartialEq)]
-enum AccessStateTxt {
+enum AccessStateSource {
     Label(Txt),
     Placeholder(Txt),
     ValueText(Txt),
+    ScrollHorizontal(BoxedVar<Factor>),
+    ScrollVertical(BoxedVar<Factor>),
 }
-impl From<&AccessStateTxt> for AccessState {
-    fn from(value: &AccessStateTxt) -> Self {
+
+impl PartialEq for AccessStateSource {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Label(l0), Self::Label(r0)) => l0 == r0,
+            (Self::Placeholder(l0), Self::Placeholder(r0)) => l0 == r0,
+            (Self::ValueText(l0), Self::ValueText(r0)) => l0 == r0,
+            // values equality not done here, see `ViewBoundsInfo` usage
+            (Self::ScrollHorizontal(l0), Self::ScrollHorizontal(r0)) => l0.var_ptr() == r0.var_ptr(),
+            (Self::ScrollVertical(l0), Self::ScrollVertical(r0)) => l0.var_ptr() == r0.var_ptr(),
+            _ => false,
+        }
+    }
+}
+impl From<&AccessStateSource> for AccessState {
+    fn from(value: &AccessStateSource) -> Self {
         match value {
-            AccessStateTxt::Label(l) => AccessState::Label(l.to_string()),
-            AccessStateTxt::Placeholder(p) => AccessState::Placeholder(p.to_string()),
-            AccessStateTxt::ValueText(v) => AccessState::ValueText(v.to_string()),
+            AccessStateSource::Label(l) => AccessState::Label(l.to_string()),
+            AccessStateSource::Placeholder(p) => AccessState::Placeholder(p.to_string()),
+            AccessStateSource::ValueText(v) => AccessState::ValueText(v.to_string()),
+            AccessStateSource::ScrollHorizontal(x) => AccessState::ScrollHorizontal(x.get().0),
+            AccessStateSource::ScrollVertical(y) => AccessState::ScrollVertical(y.get().0),
         }
     }
 }

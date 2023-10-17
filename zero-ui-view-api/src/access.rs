@@ -334,6 +334,12 @@ pub enum AccessState {
 
     /// Language of texts inside the widget and descendants.
     Lang(unic_langid::LanguageIdentifier),
+
+    /// Normalized (0..1) horizontal scroll, 0 is showing the content leftmost edge, 1 is showing the content the rightmost edge.
+    ScrollHorizontal(f32),
+
+    /// Normalized (0..1) vertical scroll, 0 is showing the content topmost edge, 1 is showing the content the bottommost edge.
+    ScrollVertical(f32),
 }
 
 /// Defines how a live update is communicated to the user.

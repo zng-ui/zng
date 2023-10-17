@@ -20,6 +20,8 @@
 
 # Accessibility
 
+* Scroll offset not visible in Windows UI automation info.
+
 * Integrate access commands, states and role.
     - Set role in more widgets.
     - Scrollbar values.
