@@ -928,7 +928,7 @@ impl WidgetAccessInfo {
 
     /// Returns `true` if access changed by visibility update.
     fn to_access_updates_bounds(&self, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> bool {
-        if !self.info.meta().contains(&INACCESSIBLE_ID) {
+        if self.info.meta().contains(&INACCESSIBLE_ID) {
             // not accessible
             return false;
         }

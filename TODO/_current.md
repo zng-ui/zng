@@ -20,9 +20,6 @@
 
 # Accessibility
 
-* Button region not in correct place after animation.
-    - Button example, "Add Button" region.
-
 * Integrate access commands, states and role.
     - Set role in more widgets.
     - Scrollbar values.

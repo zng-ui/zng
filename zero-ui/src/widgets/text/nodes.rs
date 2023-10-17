@@ -1317,8 +1317,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
-            let editable =  TEXT_EDITABLE_VAR.get();
-            let selectable =  TEXT_SELECTABLE_VAR.get();
+            let editable = TEXT_EDITABLE_VAR.get();
+            let selectable = TEXT_SELECTABLE_VAR.get();
             if (editable || selectable) && WIDGET.info().interactivity().is_enabled() && txt.txt.is_some() {
                 let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = {
