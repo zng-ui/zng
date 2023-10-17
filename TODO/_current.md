@@ -22,6 +22,10 @@
 * Button region not in correct place after animation.
     - Button example, "Add Button" region.
 
+* `LabelledByChild` does not work if child is not included in the update.
+    - We need to query the AccessKit data, is it available?
+    - If not we will have to copy to a map.
+
 * Integrate access commands, states and role.
     - Set role in more widgets.
     - Scrollbar values.
