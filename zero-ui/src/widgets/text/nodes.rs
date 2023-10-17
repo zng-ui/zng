@@ -379,6 +379,31 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
             &mut *edit_data.get_or_insert_with(Default::default)
         }
+
+        fn subscribe(&mut self) {
+            let editable = TEXT_EDITABLE_VAR.get();
+            if editable {
+                let id = WIDGET.id();
+
+                self.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
+                self.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
+                self.events[2] = KEY_INPUT_EVENT.subscribe(id);
+
+                self.paste = PASTE_CMD.scoped(id).subscribe(true);
+                self.edit = EDIT_CMD.scoped(id).subscribe(true);
+            }
+
+            if TEXT_SELECTABLE_VAR.get() {
+                let id = WIDGET.id();
+
+                self.copy = COPY_CMD.scoped(id).subscribe(true);
+                if editable {
+                    self.cut = CUT_CMD.scoped(id).subscribe(true);
+                } else {
+                    self.events[2] = KEY_INPUT_EVENT.subscribe(id);
+                }
+            }
+        }
     }
 
     let text = text.into_var().boxed();
@@ -463,28 +488,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }),
             });
 
-            if editable {
-                let id = WIDGET.id();
-
-                let d = EditData::get(&mut edit_data);
-                d.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
-                d.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
-                d.events[2] = KEY_INPUT_EVENT.subscribe(id);
-
-                d.paste = PASTE_CMD.scoped(id).subscribe(true);
-                d.edit = EDIT_CMD.scoped(id).subscribe(true);
-            }
-            if TEXT_SELECTABLE_VAR.get() {
-                let id = WIDGET.id();
-
-                let d = EditData::get(&mut edit_data);
-
-                d.copy = COPY_CMD.scoped(id).subscribe(true);
-                if editable {
-                    d.cut = CUT_CMD.scoped(id).subscribe(true);
-                } else {
-                    d.events[2] = KEY_INPUT_EVENT.subscribe(id);
-                }
+            if editable || TEXT_SELECTABLE_VAR.get() {
+                EditData::get(&mut edit_data).subscribe();
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
@@ -755,35 +760,27 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
             }
 
-            // !!: TODO selectable
-            if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
-                if enabled && edit_data.is_none() {
-                    // actually enabled.
+            if TEXT_EDITABLE_VAR.is_new() || TEXT_SELECTABLE_VAR.is_new() {
+                edit_data = None;
 
+                let editable = TEXT_EDITABLE_VAR.get();
+                if editable || TEXT_SELECTABLE_VAR.get() {
+                    EditData::get(&mut edit_data).subscribe();
+                }
+
+                let id = WIDGET.id();
+
+                if editable && FOCUS.is_focused(id).get() {
                     let d = EditData::get(&mut edit_data);
-
-                    let id = WIDGET.id();
-                    d.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
-                    d.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
-                    d.events[2] = KEY_INPUT_EVENT.subscribe(id);
-
-                    d.cut = CUT_CMD.scoped(id).subscribe(true);
-                    d.copy = COPY_CMD.scoped(id).subscribe(true);
-                    d.paste = PASTE_CMD.scoped(id).subscribe(true);
-                    d.edit = EDIT_CMD.scoped(id).subscribe(true);
-
-                    if FOCUS.is_focused(id).get() {
-                        let new_animation = KEYBOARD.caret_animation();
-                        d.caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, id);
-                        r.caret.get_mut().opacity = new_animation;
-                    }
+                    let new_animation = KEYBOARD.caret_animation();
+                    d.caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, id);
+                    r.caret.get_mut().opacity = new_animation;
                 } else {
-                    edit_data = None;
                     r.caret.get_mut().opacity = var(0.fct()).read_only();
                 }
 
                 let mut text = text.get();
-                if !enabled {
+                if !editable {
                     // toggle text transforms
                     TEXT_TRANSFORM_VAR.with(|t| {
                         if let Cow::Owned(t) = t.transform(&text) {
@@ -1237,6 +1234,26 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
             &mut *edit_data.get_or_insert_with(Default::default)
         }
+
+        fn subscribe(&mut self) {
+            let selectable = TEXT_SELECTABLE_VAR.get();
+
+            if selectable || TEXT_EDITABLE_VAR.get() {
+                let id = WIDGET.id();
+
+                self.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
+                self.events[1] = TOUCH_TAP_EVENT.subscribe(id);
+                self.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
+                // KEY_INPUT_EVENT subscribed by `resolve_text`.
+            }
+
+            if selectable {
+                let id = WIDGET.id();
+
+                self.select = SELECT_CMD.scoped(id).subscribe(true);
+                self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            }
+        }
     }
     // Use `EditData::get` to access.
     let mut edit_data = None;
@@ -1287,18 +1304,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
             txt.shaping_args.font_features = FONT_FEATURES_VAR.with(|f| f.finalize());
 
-            let editable = TEXT_EDITABLE_VAR.get();
-            if editable {
-                let id = WIDGET.id();
-                let d = EditData::get(&mut edit_data);
-
-                d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
-                d.events[1] = TOUCH_TAP_EVENT.subscribe(id);
-                d.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
-                // KEY_INPUT_EVENT subscribed by `resolve_text`.
-
-                d.select = SELECT_CMD.scoped(id).subscribe(true);
-                d.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
+                EditData::get(&mut edit_data).subscribe();
             }
 
             // txt.txt not available yet.
@@ -1310,7 +1317,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
-            if TEXT_EDITABLE_VAR.get() && WIDGET.info().interactivity().is_enabled() && txt.txt.is_some() {
+            let editable =  TEXT_EDITABLE_VAR.get();
+            let selectable =  TEXT_SELECTABLE_VAR.get();
+            if (editable || selectable) && WIDGET.info().interactivity().is_enabled() && txt.txt.is_some() {
                 let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = {
                     let caret = resolved.caret.lock();
@@ -1696,21 +1705,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 WIDGET.layout();
             });
 
-            if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
-                if enabled && edit_data.is_none() {
-                    // actually enabled.
+            if TEXT_EDITABLE_VAR.is_new() || TEXT_SELECTABLE_VAR.is_new() {
+                edit_data = None;
 
-                    let id = WIDGET.id();
-                    let d = EditData::get(&mut edit_data);
-
-                    d.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
-                    d.events[1] = TOUCH_TAP_EVENT.subscribe(id);
-                    d.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
-
-                    d.select = SELECT_CMD.scoped(id).subscribe(true);
-                    d.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
-                } else {
-                    edit_data = None;
+                if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
+                    EditData::get(&mut edit_data).subscribe();
                 }
             }
 
