@@ -23,8 +23,8 @@
 * Integrate access commands, states and role.
     - Review all states and commands.
     - Set role in more widgets.
-    - Scroll-to.
-    - Focusable (can only be sure after the widget info builds).
+    - `ScrollIntoView`.
+        - Right now we set this in the viewport widget, it must be set in all children?
 
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.

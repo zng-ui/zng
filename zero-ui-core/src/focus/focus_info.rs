@@ -1819,6 +1819,8 @@ struct FocusInfoData {
     skip_directional: Option<bool>,
 
     inner_alt: Atomic<Option<WidgetId>>,
+
+    access_handler_registered: bool,
 }
 impl FocusInfoData {
     /// Build a [`FocusInfo`] from the collected configuration in `self`.
@@ -1905,7 +1907,28 @@ impl<'a> FocusInfoBuilder<'a> {
     }
 
     fn with_data<R>(&mut self, visitor: impl FnOnce(&mut FocusInfoData) -> R) -> R {
-        self.0.with_meta(|m| visitor(m.into_entry(&FOCUS_INFO_ID).or_default()))
+        let mut access = self.0.access().is_some();
+
+        let r = self.0.with_meta(|m| {
+            let data = m.into_entry(&FOCUS_INFO_ID).or_default();
+
+            if access {
+                access = !std::mem::replace(&mut data.access_handler_registered, true);
+            }
+
+            visitor(data)
+        });
+
+        if access {
+            // access info required and not registered
+            self.0.access().unwrap().on_access_build(|args| {
+                if args.widget.info().clone().into_focusable(true, false).is_some() {
+                    args.node.commands.push(zero_ui_view_api::access::AccessCmdName::Focus);
+                }
+            });
+        }
+
+        r
     }
 
     fn with_tree_data<R>(&mut self, visitor: impl FnOnce(&mut FocusTreeData) -> R) -> R {

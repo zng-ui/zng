@@ -370,6 +370,13 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     pub fn flag_inaccessible(&mut self) {
         self.builder.flag_meta(&INACCESSIBLE_ID);
     }
+
+    /// Register a `handler` that is called every time view-process access info is build from the current widget,
+    /// the handler can modify the view info.
+    pub fn on_access_build(&mut self, handler: impl Fn(AccessBuildArgs) + Send + Sync + 'static) {
+        let handler = Box::new(handler);
+        self.with_access(|a| a.build_handlers.push(handler));
+    }
 }
 
 impl WidgetInfoTree {
@@ -850,6 +857,13 @@ impl WidgetAccessInfo {
 
         node.commands = a.commands.clone();
 
+        for handler in &a.build_handlers {
+            handler(AccessBuildArgs {
+                widget: self,
+                node: &mut node,
+            });
+        }
+
         node
     }
 
@@ -1047,6 +1061,7 @@ struct AccessInfo {
     state_source: Vec<AccessStateSource>,
 
     view_bounds: Mutex<Option<ViewBoundsInfo>>,
+    build_handlers: Vec<Box<dyn Fn(AccessBuildArgs) + Send + Sync>>,
 }
 impl AccessInfo {
     fn set_state(&mut self, state: AccessState) {
@@ -1129,4 +1144,14 @@ impl AccessEnabled {
     pub fn is_disabled(self) -> bool {
         self.is_empty()
     }
+}
+
+/// Arguments for [`on_view_access_build`] handlers.
+///
+/// [`on_view_access_build`]: WidgetAccessInfoBuilder::on_view_access_build
+pub struct AccessBuildArgs<'a> {
+    /// Widget that is converting to view info.
+    pub widget: &'a WidgetAccessInfo,
+    /// Partially build view info, does not include children info.
+    pub node: &'a mut zero_ui_view_api::access::AccessNode,
 }
