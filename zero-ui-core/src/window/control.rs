@@ -750,9 +750,11 @@ impl HeadedCtrl {
                 if let Some(p) = p {
                     if p.window_id() == info.window_id() {
                         if let Some(wgt) = info.get(p.widget_id()) {
-                            if wgt.access().is_some() {
-                                // is focused accessible widget inside window
-                                return Some(wgt.id());
+                            if let Some(wgt) = wgt.access() {
+                                if wgt.is_accessible() {
+                                    // is focused accessible widget inside window
+                                    return Some(wgt.info().id());
+                                }
                             }
                         }
                     }

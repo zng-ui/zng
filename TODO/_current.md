@@ -21,12 +21,8 @@
 # Accessibility
 
 * Panic in markdown example, focused node not present.
-    -panicked at 'assertion failed: self.nodes.contains_key(&self.focus)', {cargo}\accesskit_consumer-0.16.0\src\tree.rs:35:9
-    - Caused because focused link is unloaded by virtualization?
-    - But scrolls back to link when clicking in content?
-        - This is a bug to fix too, but how did it find the widget?
-        - Maybe not unloaded by virtualization, just not rendered (not visible)?
-
+    - panicked at 'assertion failed: self.nodes.contains_key(&self.focus)', {cargo}\accesskit_consumer-0.16.0\src\tree.rs:35:9
+    - Panic on start in some cases.
 * Integrate access commands, states and role.
     - Review all states and commands.
     - `ScrollIntoView`.
