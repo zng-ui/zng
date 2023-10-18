@@ -20,12 +20,13 @@
 
 # Accessibility
 
-* Markdown image alt is a node, we need to convert to a text.
-    - Collect inline texts if accessibility is enabled?
-    - Create a property that sets the access label from a node.
-        - The node is not layout or rendered, but it is part of the info?
-        - Visibility auto excludes in this case.
-        - Lets just collect the text.
+* Panic in markdown example, focused node not present.
+    -panicked at 'assertion failed: self.nodes.contains_key(&self.focus)', {cargo}\accesskit_consumer-0.16.0\src\tree.rs:35:9
+    - Caused because focused link is unloaded by virtualization?
+    - But scrolls back to link when clicking in content?
+        - This is a bug to fix too, but how did it find the widget?
+        - Maybe not unloaded by virtualization, just not rendered (not visible)?
+
 * Integrate access commands, states and role.
     - Review all states and commands.
     - `ScrollIntoView`.

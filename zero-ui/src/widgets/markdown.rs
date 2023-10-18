@@ -164,6 +164,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
     let mut code_block_text = None;
+    let mut image_alt = None;
     let mut heading_text = None;
     let mut footnote_def_start = None;
     let mut table_cells = vec![];
@@ -245,6 +246,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::Image(_, _, _) => {
                     last_txt_end = '\0';
+                    image_alt = Some(String::new());
                 }
             },
             Event::End(tag) => match tag {
@@ -410,6 +412,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         source: image_resolver.resolve(&url),
                         title: title.to_text(),
                         alt_items: mem::take(&mut inlines).into(),
+                        alt_txt: image_alt.take().unwrap_or_default().into(),
                     }));
                 }
             },
@@ -445,6 +448,9 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     }
 
                     if let Some(t) = &mut heading_text {
+                        t.push_str(&txt);
+                    }
+                    if let Some(t) = &mut image_alt {
                         t.push_str(&txt);
                     }
                     inlines.push(

@@ -137,6 +137,8 @@ pub struct ImageFnArgs {
     pub title: Txt,
     /// Items to display when the image does not load and for screen readers.
     pub alt_items: UiNodeVec,
+    /// Alt items in text form.
+    pub alt_txt: Txt,
 }
 
 /// Arguments for a markdown rule view.
@@ -690,11 +692,13 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
         wgt_fn!(|_| Tip!(Text!(title.clone())))
     };
 
+    let alt_txt = args.alt_txt;
     let mut alt_items = args.alt_items;
     if alt_items.is_empty() {
         Image! {
             align = Align::TOP_LEFT;
             tooltip_fn;
+            access::label = alt_txt;
             source = args.source;
         }
     } else {
@@ -711,6 +715,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
             align = Align::TOP_LEFT;
             source = args.source;
             tooltip_fn;
+            access::label = alt_txt;
             img_error_fn = wgt_fn!(|_| {
                 alt_items.take_on_init()
             });
