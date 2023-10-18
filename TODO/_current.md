@@ -21,6 +21,9 @@
 # Accessibility
 
 * Scroll offset not visible in Windows UI automation info.
+    - Aria expects scroll values in the scroll-bars.
+    - Also expects aria-controls set to the scroll widget.
+    - https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/scrollbar_role
 
 * Integrate access commands, states and role.
     - Set role in more widgets.
