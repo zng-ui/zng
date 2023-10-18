@@ -416,6 +416,8 @@ impl Tip {
             self;
             hit_test_mode = false;
 
+            access_role = AccessRole::ToolTip;
+
             focusable = false;
             focus_on_init = unset!;
 

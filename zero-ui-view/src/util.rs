@@ -1094,6 +1094,7 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         ListItem => Role::ListItem,
         Math => Role::Math,
         Note => Role::Note,
+        Column => Role::Column,
         Row => Role::Row,
         RowGroup => Role::RowGroup,
         RowHeader => Role::RowHeader,

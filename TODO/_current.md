@@ -20,9 +20,14 @@
 
 # Accessibility
 
+* Markdown image alt is a node, we need to convert to a text.
+    - Collect inline texts if accessibility is enabled?
+    - Create a property that sets the access label from a node.
+        - The node is not layout or rendered, but it is part of the info?
+        - Visibility auto excludes in this case.
+        - Lets just collect the text.
 * Integrate access commands, states and role.
     - Review all states and commands.
-    - Set role in more widgets.
     - `ScrollIntoView`.
         - Right now we set this in the viewport widget, it must be set in all children?
 

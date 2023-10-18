@@ -8,6 +8,11 @@ pub struct RuleLine(WidgetBase);
 impl RuleLine {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(on_build);
+
+        widget_set! {
+            self;
+            access_role = AccessRole::Separator;
+        }
     }
 
     widget_impl! {

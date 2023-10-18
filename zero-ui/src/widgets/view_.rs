@@ -167,7 +167,10 @@ macro_rules! wgt_fn {
         $crate::widgets::WidgetFn::new($crate::core::clmv! {
             $($tt)+
         })
-    }
+    };
+    () => {
+        $crate::widgets::WidgetFn::nil()
+    };
 }
 #[doc(inline)]
 pub use crate::wgt_fn;

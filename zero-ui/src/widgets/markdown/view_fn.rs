@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 pub use pulldown_cmark::HeadingLevel;
 use zero_ui_core::{gesture::ClickArgs, image::ImageSource};
 
@@ -528,6 +530,8 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
         NilUiNode.boxed()
     } else {
         crate::widgets::layouts::Wrap! {
+            access_role = AccessRole::Heading;
+            access::level = NonZeroU32::new(args.level as _).unwrap();
             font_size = match args.level {
                 HeadingLevel::H1 => 2.em(),
                 HeadingLevel::H2 => 1.5.em(),
@@ -558,6 +562,7 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
         Grid! {
             grid::cell::at = grid::cell::AT_AUTO; // in case it is nested
 
+            access_role = AccessRole::List;
             margin = (0, 0, 0, 1.em());
             cells = args.items;
             columns = ui_vec![
@@ -642,12 +647,14 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
 
     let mut r = if items.len() == 1 {
         Container! {
+            access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             child = items.remove(0);
         }
         .boxed()
     } else {
         Wrap! {
+            access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             children = items;
         }
@@ -656,6 +663,7 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
 
     if let Some(inner) = args.nested_list {
         r = Stack! {
+            access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
@@ -675,10 +683,18 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
 pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
+    let tooltip_fn = if args.title.is_empty() {
+        wgt_fn!()
+    } else {
+        let title = args.title;
+        wgt_fn!(|_| Tip!(Text!(title.clone())))
+    };
+
     let mut alt_items = args.alt_items;
     if alt_items.is_empty() {
         Image! {
             align = Align::TOP_LEFT;
+            tooltip_fn;
             source = args.source;
         }
     } else {
@@ -694,6 +710,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
         Image! {
             align = Align::TOP_LEFT;
             source = args.source;
+            tooltip_fn;
             img_error_fn = wgt_fn!(|_| {
                 alt_items.take_on_init()
             });
@@ -746,6 +763,7 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
     use crate::widgets::layouts::{grid, Grid};
 
     Grid! {
+        access_role = AccessRole::Table;
         background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
         border = 1, FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
@@ -781,6 +799,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
         NilUiNode.boxed()
     } else if args.is_heading {
         Wrap! {
+            access_role = AccessRole::Cell;
             grid::cell::at = grid::cell::AT_AUTO;
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
             padding = 6;
@@ -790,6 +809,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
         .boxed()
     } else {
         Wrap! {
+            access_role = AccessRole::Cell;
             grid::cell::at = grid::cell::AT_AUTO;
             padding = 6;
             child_align = args.col_align;

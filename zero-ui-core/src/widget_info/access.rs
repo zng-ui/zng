@@ -1146,9 +1146,9 @@ impl AccessEnabled {
     }
 }
 
-/// Arguments for [`on_view_access_build`] handlers.
+/// Arguments for [`on_access_build`] handlers.
 ///
-/// [`on_view_access_build`]: WidgetAccessInfoBuilder::on_view_access_build
+/// [`on_access_build`]: WidgetAccessInfoBuilder::on_access_build
 pub struct AccessBuildArgs<'a> {
     /// Widget that is converting to view info.
     pub widget: &'a WidgetAccessInfo,

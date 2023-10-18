@@ -90,6 +90,8 @@ pub enum AccessRole {
     Article,
     /// Identifies a widget as being a cell in a tabular container that does not contain column or row header information.
     Cell,
+    /// Identifies a column of cells within a tabular structure.
+    Column,
     /// Identifies a widget as being a cell in a row contains header information for a column.
     ColumnHeader,
     /// Indicates the widget is a definition of a term or concept.
@@ -117,6 +119,7 @@ pub enum AccessRole {
     Math,
     /// Identifies a section whose content is parenthetic or ancillary to the main content.
     Note,
+
     /// Identifies a row of cells within a tabular structure.
     Row,
     /// Identifies a group of rows within a tabular structure.

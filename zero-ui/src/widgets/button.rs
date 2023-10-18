@@ -142,6 +142,7 @@ impl LinkStyle {
             self;
             text::font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
             crate::properties::cursor = CursorIcon::Hand;
+            access_role = AccessRole::Link;
 
             when *#is_cap_hovered {
                 text::underline = 1, LineStyle::Solid;

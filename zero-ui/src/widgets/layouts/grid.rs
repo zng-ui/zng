@@ -20,6 +20,12 @@ impl Grid {
             );
             w.set_child(child);
         });
+
+        widget_set! {
+            self;
+
+            access_role = AccessRole::Grid;
+        }
     }
 }
 
@@ -454,6 +460,13 @@ pub mod column {
             /// Column width.
             pub crate::properties::width(width: impl IntoVar<Length>);
         }
+
+        fn widget_intrinsic(&mut self) {
+            widget_set! {
+                self;
+                access_role = AccessRole::Column;
+            }
+        }
     }
 
     /// Column index, total in the parent widget set by the parent.
@@ -637,6 +650,13 @@ pub mod row {
             /// Row height.
             pub crate::properties::height(max: impl IntoVar<Length>);
         }
+
+        fn widget_intrinsic(&mut self) {
+            widget_set! {
+                self;
+                access_role = AccessRole::Row;
+            }
+        }
     }
 
     /// Row index, total in the parent widget set by the parent.
@@ -799,6 +819,14 @@ pub mod cell {
     /// See the [`Grid::cells`] property for more details.
     #[widget($crate::widgets::layouts::grid::Cell)]
     pub struct Cell(Container);
+    impl Cell {
+        fn widget_intrinsic(&mut self) {
+            widget_set! {
+                self;
+                access_role = AccessRole::GridCell;
+            }
+        }
+    }
 
     /// Represents values set by cell properties in a widget.
     #[derive(Clone, Copy, Debug)]

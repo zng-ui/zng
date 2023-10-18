@@ -499,7 +499,8 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
 /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default
 /// selector so the [`value`] property only works if a contextual selector is present.
 ///
-/// This property sets the [`SELECTOR`] context and handles [`commands::SelectOp`] requests.
+/// This property sets the [`SELECTOR`] context and handles [`commands::SelectOp`] requests. It also sets the widget
+/// access role to [`AccessRole::RadioGroup`].
 ///
 /// [`value`]: fn@value
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Toggle))]
@@ -508,6 +509,11 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
     let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             _select_handle = commands::SELECT_CMD.scoped(WIDGET.id()).subscribe(true);
+        }
+        UiNodeOp::Info { info } => {
+            if let Some(mut info) = info.access() {
+                info.set_role(AccessRole::RadioGroup);
+            }
         }
         UiNodeOp::Deinit => {
             _select_handle = CommandHandle::dummy();
@@ -1050,6 +1056,7 @@ impl ComboStyle {
 
         widget_set! {
             self;
+            access_role = AccessRole::ComboBox;
             child_align = Align::FILL;
             border_over = false;
             border_align = 1.fct();
@@ -1275,6 +1282,7 @@ impl RadioStyle {
         widget_set! {
             self;
 
+            access_role = AccessRole::Radio;
             crate::properties::child_insert_start = {
                 insert: {
                     let parent_hovered = var(false);
