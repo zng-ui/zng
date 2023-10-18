@@ -37,39 +37,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&mode)
+                .sub_var_layout(&mode)
                 .sub_var_layout(&SCROLL_VERTICAL_OFFSET_VAR)
                 .sub_var_layout(&SCROLL_HORIZONTAL_OFFSET_VAR)
                 .sub_var_layout(&SCROLL_SCALE_VAR)
                 .sub_var_layout(&child_align);
-        }
-
-        UiNodeOp::Info { info } => {
-            if let Some(mut info) = info.access() {
-                let mode = mode.get();
-                let mut any = false;
-                if mode.contains(ScrollMode::HORIZONTAL) {
-                    info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.actual_var());
-                    any = true;
-                }
-                if mode.contains(ScrollMode::VERTICAL) {
-                    info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.actual_var());
-                    any = true;
-                }
-                if any {
-                    info.push_command(zero_ui_core::widget_info::access::AccessCmdName::Scroll);
-                }
-            }
-        }
-
-        UiNodeOp::Update { .. } => {
-            if mode.is_new() {
-                WIDGET.layout();
-
-                if WINDOW.vars().access_enabled().get().is_enabled() {
-                    WIDGET.update_info();
-                }
-            }
         }
 
         UiNodeOp::Measure { wm, desired_size } => {

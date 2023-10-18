@@ -35,6 +35,7 @@ impl Scrollbar {
 
             let orientation = wgt.capture_var_or_else(property_id!(Self::orientation), || Orientation::Vertical);
             wgt.push_intrinsic(NestGroup::CONTEXT, "scrollbar-context", move |child| {
+                let child = access_node(child);
                 with_context_var(child, ORIENTATION_VAR, orientation)
             });
         });
@@ -145,5 +146,27 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
         }
 
         args.propagation().stop();
+    })
+}
+
+fn access_node(child: impl UiNode) -> impl UiNode {
+    let mut handle = VarHandle::dummy();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Info { info } = op {
+            if let Some(mut info) = info.access() {
+                use crate::widgets::scroll::*;
+
+                if handle.is_dummy() {
+                    handle = ORIENTATION_VAR.subscribe(UpdateOp::Info, WIDGET.id());
+                }
+
+                match ORIENTATION_VAR.get() {
+                    Orientation::Horizontal => info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.actual_var()),
+                    Orientation::Vertical => info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.actual_var()),
+                }
+
+                info.push_controls(SCROLL.id());
+            }
+        }
     })
 }
