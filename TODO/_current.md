@@ -21,15 +21,10 @@
 # Accessibility
 
 * Integrate access commands, states and role.
-    - Set role in more widgets.
-    - Scrollbar values.
     - Review all states and commands.
+    - Set role in more widgets.
+    - Scroll-to.
     - Focusable (can only be sure after the widget info builds).
-
-* Language not changing for text (in Windows Narrator at least).
-    - Firefox sets "Culture" in UI automation interface.
-    - Our own apps do not.
-        - We set the language, so AccessKit is not doing it.
 
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
