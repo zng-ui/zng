@@ -19,13 +19,6 @@
 
 # Accessibility
 
-* Panic in markdown example, focused node not present.
-    - panicked at 'assertion failed: self.nodes.contains_key(&self.focus)', {cargo}\accesskit_consumer-0.16.0\src\tree.rs:35:9
-    - Panic on start in some cases.
-    - Is not due to virtualization.
-    - We check visibility, but visibility is the only other way to have a node not send.
-    - Bounds of scrolled widget (out and back into view) is not correct.
-        - Review render update.
 * Integrate access commands, states and role.
     - Review all states and commands.
     - `ScrollIntoView`.

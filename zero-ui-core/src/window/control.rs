@@ -767,6 +767,10 @@ impl HeadedCtrl {
     }
 
     fn update_access_focused(&mut self) {
+        if self.render_access_update.is_some() {
+            // will update next frame
+            return;
+        }
         if let Some(view) = &self.window {
             let info = WINDOW.info();
             if info.access_enabled().is_enabled() {
