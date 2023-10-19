@@ -1,8 +1,7 @@
 # TextInput
 
 * Implement `txt_selectable` text.
-    - Test `txt_editable=false;txt_selectable=true`, is edit blocked?
-    - Test `txt_editable=true;txt_selectable=false`, cannot create selection?
+    - Should `txt_editable=false;txt_selectable=true` really be focusable? It currently is.
     - Set cut and copy enabled flag, they must be always subscribed (when editable/selectable) but only enabled when there is a selection.
 * Implement selection.
     - Touch:

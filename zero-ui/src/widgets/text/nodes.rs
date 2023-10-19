@@ -1330,30 +1330,30 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
                         match key {
                             Key::Tab => {
-                                if args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
+                                if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
                                     args.propagation().stop();
                                 }
                             }
                             Key::Enter => {
-                                if args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
+                                if editable && args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
                                     args.propagation().stop();
                                 }
                             }
                             Key::ArrowRight => {
                                 let mut modifiers = args.modifiers;
-                                let has_shift = modifiers.take_shift();
-                                let has_ctrl = modifiers.take_ctrl();
-                                if modifiers.is_empty() {
+                                let select = selectable && modifiers.take_shift();
+                                let word = modifiers.take_ctrl();
+                                if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            if has_ctrl {
+                                        if select {
+                                            if word {
                                                 TextSelectOp::select_next_word()
                                             } else {
                                                 TextSelectOp::select_next()
                                             }
-                                        } else if has_ctrl {
+                                        } else if word {
                                             TextSelectOp::next_word()
                                         } else {
                                             TextSelectOp::next()
@@ -1364,19 +1364,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             }
                             Key::ArrowLeft => {
                                 let mut modifiers = args.modifiers;
-                                let has_shift = modifiers.take_shift();
-                                let has_ctrl = modifiers.take_ctrl();
-                                if modifiers.is_empty() {
+                                let select = selectable && modifiers.take_shift();
+                                let word = modifiers.take_ctrl();
+                                if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            if has_ctrl {
+                                        if select {
+                                            if word {
                                                 TextSelectOp::select_prev_word()
                                             } else {
                                                 TextSelectOp::select_prev()
                                             }
-                                        } else if has_ctrl {
+                                        } else if word {
                                             TextSelectOp::prev_word()
                                         } else {
                                             TextSelectOp::prev()
@@ -1388,12 +1388,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::ArrowUp => {
                                 if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
                                     let mut modifiers = args.modifiers;
-                                    let has_shift = modifiers.take_shift();
-                                    if modifiers.is_empty() {
+                                    let select = selectable && modifiers.take_shift();
+                                    if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
                                         LayoutText::call_select_op(&mut txt.txt, || {
-                                            if has_shift {
+                                            if select {
                                                 TextSelectOp::select_line_up()
                                             } else {
                                                 TextSelectOp::line_up()
@@ -1406,12 +1406,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::ArrowDown => {
                                 if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
                                     let mut modifiers = args.modifiers;
-                                    let has_shift = modifiers.take_shift();
-                                    if modifiers.is_empty() {
+                                    let select = selectable && modifiers.take_shift();
+                                    if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
                                         LayoutText::call_select_op(&mut txt.txt, || {
-                                            if has_shift {
+                                            if select {
                                                 TextSelectOp::select_line_down()
                                             } else {
                                                 TextSelectOp::line_down()
@@ -1424,12 +1424,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::PageUp => {
                                 if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
                                     let mut modifiers = args.modifiers;
-                                    let has_shift = modifiers.take_shift();
-                                    if modifiers.is_empty() {
+                                    let select = selectable && modifiers.take_shift();
+                                    if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
                                         LayoutText::call_select_op(&mut txt.txt, || {
-                                            if has_shift {
+                                            if select {
                                                 TextSelectOp::select_page_up()
                                             } else {
                                                 TextSelectOp::page_up()
@@ -1442,12 +1442,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::PageDown => {
                                 if ACCEPTS_ENTER_VAR.get() || txt.txt.as_ref().unwrap().shaped_text.lines_len() > 1 {
                                     let mut modifiers = args.modifiers;
-                                    let has_shift = modifiers.take_shift();
-                                    if modifiers.is_empty() {
+                                    let select = selectable && modifiers.take_shift();
+                                    if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
                                         LayoutText::call_select_op(&mut txt.txt, || {
-                                            if has_shift {
+                                            if select {
                                                 TextSelectOp::select_page_down()
                                             } else {
                                                 TextSelectOp::page_down()
@@ -1459,19 +1459,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             }
                             Key::Home => {
                                 let mut modifiers = args.modifiers;
-                                let has_shift = modifiers.take_shift();
-                                let has_ctrl = modifiers.take_ctrl();
-                                if modifiers.is_empty() {
+                                let select = selectable && modifiers.take_shift();
+                                let full_text = modifiers.take_ctrl();
+                                if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            if has_ctrl {
+                                        if select {
+                                            if full_text {
                                                 TextSelectOp::select_text_start()
                                             } else {
                                                 TextSelectOp::select_line_start()
                                             }
-                                        } else if has_ctrl {
+                                        } else if full_text {
                                             TextSelectOp::text_start()
                                         } else {
                                             TextSelectOp::line_start()
@@ -1482,19 +1482,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             }
                             Key::End => {
                                 let mut modifiers = args.modifiers;
-                                let has_shift = modifiers.take_shift();
-                                let has_ctrl = modifiers.take_ctrl();
-                                if modifiers.is_empty() {
+                                let select = selectable && modifiers.take_shift();
+                                let full_text = modifiers.take_ctrl();
+                                if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
                                     LayoutText::call_select_op(&mut txt.txt, || {
-                                        if has_shift {
-                                            if has_ctrl {
+                                        if select {
+                                            if full_text {
                                                 TextSelectOp::select_text_end()
                                             } else {
                                                 TextSelectOp::select_line_end()
                                             }
-                                        } else if has_ctrl {
+                                        } else if full_text {
                                             TextSelectOp::text_end()
                                         } else {
                                             TextSelectOp::line_end()
@@ -1509,7 +1509,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                     if args.is_primary() && args.is_mouse_down() {
                         let mut modifiers = args.modifiers;
-                        let has_shift = modifiers.take_shift();
+                        let select = selectable && modifiers.take_shift();
 
                         if modifiers.is_empty() {
                             args.propagation().stop();
@@ -1547,25 +1547,37 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                             LayoutText::call_select_op(&mut txt.txt, || {
                                 match click_count {
-                                    1 => {
-                                        if has_shift {
-                                            TextSelectOp::select_nearest_to(args.position)
-                                        } else {
-                                            TextSelectOp::nearest_to(args.position)
+                                    1 => if select {
+                                        TextSelectOp::select_nearest_to(args.position)
+                                    } else {
+                                        TextSelectOp::nearest_to(args.position)
+                                    }
+                                    .call(),
+                                    2 => {
+                                        if selectable {
+                                            TextSelectOp::select_word_nearest_to(!select, args.position).call()
                                         }
                                     }
-                                    2 => TextSelectOp::select_word_nearest_to(!has_shift, args.position),
-                                    3 => TextSelectOp::select_line_nearest_to(!has_shift, args.position),
-                                    4 => TextSelectOp::select_all(),
+                                    3 => {
+                                        if selectable {
+                                            TextSelectOp::select_line_nearest_to(!select, args.position).call()
+                                        }
+                                    }
+                                    4 => {
+                                        if selectable {
+                                            TextSelectOp::select_all().call()
+                                        }
+                                    }
                                     _ => unreachable!(),
-                                }
-                                .call();
+                                };
                             });
 
-                            let id = WIDGET.id();
-                            selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
-                            selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
-                            POINTER_CAPTURE.capture_widget(id);
+                            if selectable {
+                                let id = WIDGET.id();
+                                selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
+                                selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
+                                POINTER_CAPTURE.capture_widget(id);
+                            }
                         }
                     } else {
                         selection_move_handles.clear();
@@ -1579,7 +1591,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         });
                     }
                 } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
-                    if args.modifiers.is_empty() {
+                    if args.modifiers.is_empty() && selectable {
                         args.propagation().stop();
 
                         LayoutText::call_select_op(&mut txt.txt, || {
@@ -1587,7 +1599,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         });
                     }
                 } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                    if !selection_move_handles.is_dummy() {
+                    if !selection_move_handles.is_dummy() && selectable {
                         args.propagation().stop();
 
                         LayoutText::call_select_op(&mut txt.txt, || match click_count {
@@ -1602,20 +1614,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if args.is_lost(WIDGET.id()) {
                         selection_move_handles.clear();
                     }
-                } else if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                    if let Some(op) = args.param::<TextSelectOp>() {
-                        args.propagation().stop();
+                } else if selectable {
+                    if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                        if let Some(op) = args.param::<TextSelectOp>() {
+                            args.propagation().stop();
 
-                        LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
+                            LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
+                        }
+                    } else if let Some(args) = SELECT_ALL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                        args.propagation().stop();
+                        LayoutText::call_select_op(&mut txt.txt, || TextSelectOp::select_all().call());
                     }
-                } else if let Some(args) = SELECT_ALL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                    args.propagation().stop();
-                    LayoutText::call_select_op(&mut txt.txt, || TextSelectOp::select_all().call());
                 }
 
                 let mut caret = resolved.caret.lock();
                 if (caret.index, caret.index_version, caret.selection_index) != prev_caret_index {
-                    if caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
+                    if !editable || caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
                         EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         caret.opacity = var(0.fct()).read_only();
                     } else {
