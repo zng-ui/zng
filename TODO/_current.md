@@ -10,6 +10,9 @@
                 - Shows draggable "cursors" to extend or shrink selection
             - Context menu appears when selecting (or just interacting, if it's an editable field)
                 - Show a draggable "cursor" when interacting with editable fields, to move the insertion point
+        - Draw touch carets.
+            - Must not be clipped by text widget bounds.
+            - Use `LAYERS`?
 * Touch, set a flag that indicates caret or selection from touch.
 
 * Implement default context menu?

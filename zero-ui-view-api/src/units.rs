@@ -884,18 +884,18 @@ pub struct CornerRadius2D<T, U> {
     pub top_left: euclid::Size2D<T, U>,
     /// Top-right corner radius.
     pub top_right: euclid::Size2D<T, U>,
-    /// Bottom-left corner radius.
-    pub bottom_left: euclid::Size2D<T, U>,
     /// Bottom-right corner radius.
     pub bottom_right: euclid::Size2D<T, U>,
+    /// Bottom-left corner radius.
+    pub bottom_left: euclid::Size2D<T, U>,
 }
 impl<T: Default, U> Default for CornerRadius2D<T, U> {
     fn default() -> Self {
         Self {
             top_left: Default::default(),
             top_right: Default::default(),
-            bottom_left: Default::default(),
             bottom_right: Default::default(),
+            bottom_left: Default::default(),
         }
     }
 }
@@ -904,8 +904,8 @@ impl<T: Clone, U> Clone for CornerRadius2D<T, U> {
         Self {
             top_left: self.top_left.clone(),
             top_right: self.top_right.clone(),
-            bottom_left: self.bottom_left.clone(),
             bottom_right: self.bottom_right.clone(),
+            bottom_left: self.bottom_left.clone(),
         }
     }
 }
@@ -915,14 +915,14 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius2D<T, U> {
     pub fn new(
         top_left: euclid::Size2D<T, U>,
         top_right: euclid::Size2D<T, U>,
-        bottom_left: euclid::Size2D<T, U>,
         bottom_right: euclid::Size2D<T, U>,
+        bottom_left: euclid::Size2D<T, U>,
     ) -> Self {
         Self {
             top_left,
             top_right,
-            bottom_left,
             bottom_right,
+            bottom_left,
         }
     }
 
@@ -1017,8 +1017,8 @@ impl<T: fmt::Debug, U> fmt::Debug for CornerRadius2D<T, U> {
         f.debug_struct("CornerRadius2D")
             .field("top_left", &self.top_left)
             .field("top_right", &self.top_right)
-            .field("bottom_left", &self.bottom_left)
             .field("bottom_right", &self.bottom_right)
+            .field("bottom_left", &self.bottom_left)
             .finish()
     }
 }
@@ -1026,8 +1026,8 @@ impl<T: PartialEq, U> PartialEq for CornerRadius2D<T, U> {
     fn eq(&self, other: &Self) -> bool {
         self.top_left == other.top_left
             && self.top_right == other.top_right
-            && self.bottom_left == other.bottom_left
             && self.bottom_right == other.bottom_right
+            && self.bottom_left == other.bottom_left
     }
 }
 impl<T: Eq, U> Eq for CornerRadius2D<T, U> {}
