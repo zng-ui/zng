@@ -39,12 +39,16 @@
 
 # Focus
 
+* `navigation_origin`.
+    - Use the var.
+    - Mouse input automatically sets it?
+        - What if `direct_or_exit` auto-sets it?
+        - A flag in `direct_or*` modes?
+    - Implement access API for this, AccessKit already has something similar.
+
 * Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
   focus to first child.
-  - Should not scroll if focus moves from Scroll to descendant.
-  - Should not transfer focus to first child if first child is not in viewport?
-* Implement "focus origin", that is an widget that is not focusable, but focus navigation starts from it.
-  - Browsers set this to the element that also has the invisible caret that defines a shift+click selection start.
+  - Use `navigation_origin`, don't scroll if it is set?
 
 # Drag & Drop
 

@@ -2050,12 +2050,12 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 //         _ => {}
 //     })
 // }
-
-pub enum TouchCaret {
-    Left,
-    Center,
-    Right,
-}
+//
+// pub enum TouchCaret {
+//     Left,
+//     Center,
+//     Right,
+// }
 
 /// An Ui node that renders the text selection background.
 ///

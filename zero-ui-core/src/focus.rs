@@ -640,6 +640,21 @@ impl FOCUS {
         FOCUS_SV.read().focus_hidden_widgets.clone()
     }
 
+    /// Override the starting point of the next focus move.
+    ///
+    /// Focus requests that move the focus relative to the current focus will move from this widget instead
+    /// if it is found in the focused window. This widget does not need to be focusable. 
+    /// 
+    /// The variable is cleared every time the focus is moved.
+    ///
+    /// If not set the [`focused`] widget is the origin.
+    ///
+    /// [`focused`]: Self::focused
+    #[must_use]
+    pub fn navigation_origin(&self) -> ArcVar<Option<WidgetId>> {
+        FOCUS_SV.read().navigation_origin_var.clone()
+    }
+
     /// Current focused widget.
     #[must_use]
     pub fn focused(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
@@ -903,6 +918,7 @@ struct FocusService {
 
     focused_var: ArcVar<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
+    navigation_origin_var: ArcVar<Option<WidgetId>>,
 
     return_focused_var: IdMap<WidgetId, ArcVar<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
@@ -930,6 +946,7 @@ impl FocusService {
 
             focused_var: var(None),
             focused: None,
+            navigation_origin_var: var(None),
 
             return_focused_var: IdMap::default(),
             return_focused: IdMap::default(),
