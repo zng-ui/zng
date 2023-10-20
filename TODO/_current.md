@@ -3,17 +3,24 @@
 * Implement `txt_selectable` text.
     - Should `txt_editable=false;txt_selectable=true` really be focusable? It currently is.
     - Set cut and copy enabled flag, they must be always subscribed (when editable/selectable) but only enabled when there is a selection.
-* Implement selection.
-    - Touch:
-        - Long-press to start selecting text:
-            - Selects a word initially (if there is text)
-                - Shows draggable "cursors" to extend or shrink selection
-            - Context menu appears when selecting (or just interacting, if it's an editable field)
-                - Show a draggable "cursor" when interacting with editable fields, to move the insertion point
-        - Draw touch carets.
-            - Must not be clipped by text widget bounds.
-            - Use `LAYERS`?
-* Touch, set a flag that indicates caret or selection from touch.
+
+* Touch selection.
+    - Set a flag that indicates caret or selection from touch.
+    - Context menu appears when selecting (or just interacting, if it's an editable field)
+    - Not a normal context menu, "floating toolbar"?
+
+* Configurable caret.
+    - Property sets a `WidgetFn<CaretPosition>` that generates the caret node.
+    - `enum CaretPosition { SelectionStart, SelectionEnd, Insert }`.
+    - Have a different properties for normal caret and touch caret?
+        - Can make one for touch only to begin with.
+    - Caret node must configure some context data that sets the exact offset of the caret line?
+        - They need to be positioned by the host node.
+    - Touch carets must not be clipped by parent widgets.
+        - Use `LAYERS`?
+        - They still need to interact with the parent, if the node is in `LAYERS` it will not be in
+          the text context. Capture context?
+    - More expensive than current caret, but we will have two carets max so not a problem.
 
 * Implement default context menu?
 

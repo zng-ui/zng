@@ -2008,55 +2008,54 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 }
 
 // !!: TODO
-fn caret_visual(caret: TouchCaret) -> impl UiNode {
-    use zero_ui::prelude::new_property::*;
-    match_node_leaf(move |op| match op {
-        UiNodeOp::Layout { final_size, .. } => {
-            let size = Dip::new(16).to_px(LAYOUT.scale_factor().0);
-            *final_size = PxSize::splat(size);
-            final_size.height += Px(40);
-        }
-        UiNodeOp::Render { frame } => {
-            let size = Dip::new(16).to_px(frame.scale_factor().0);
-            let mut size = PxSize::splat(size);
+// fn caret_visual(caret: TouchCaret) -> impl UiNode {
+//     use zero_ui::prelude::new_property::*;
+//     match_node_leaf(move |op| match op {
+//         UiNodeOp::Layout { final_size, .. } => {
+//             let size = Dip::new(16).to_px(LAYOUT.scale_factor().0);
+//             *final_size = PxSize::splat(size);
+//             final_size.height += Px(40);
+//         }
+//         UiNodeOp::Render { frame } => {
+//             let size = Dip::new(16).to_px(frame.scale_factor().0);
+//             let mut size = PxSize::splat(size);
 
-            let corners = match caret {
-                TouchCaret::Left => PxCornerRadius::new(size, PxSize::zero(), PxSize::zero(), size),
-                TouchCaret::Center => PxCornerRadius::new_all(size),
-                TouchCaret::Right => PxCornerRadius::new(PxSize::zero(), size, size, PxSize::zero()),
-            };
+//             let corners = match caret {
+//                 TouchCaret::Left => PxCornerRadius::new(size, PxSize::zero(), PxSize::zero(), size),
+//                 TouchCaret::Center => PxCornerRadius::new_all(size),
+//                 TouchCaret::Right => PxCornerRadius::new(PxSize::zero(), size, size, PxSize::zero()),
+//             };
 
-            if !matches!(caret, TouchCaret::Center) {
-                size.width *= 0.8;
-            }
+//             if !matches!(caret, TouchCaret::Center) {
+//                 size.width *= 0.8;
+//             }
 
-            let line_height = Px(20);
+//             let line_height = Px(20);
 
-            let rect = PxRect::new(PxPoint::new(Px(0), line_height), size);
-            frame.push_clip_rounded_rect(rect, corners, false, false, |frame| {
-                frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
-            });
+//             let rect = PxRect::new(PxPoint::new(Px(0), line_height), size);
+//             frame.push_clip_rounded_rect(rect, corners, false, false, |frame| {
+//                 frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+//             });
 
-            let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
-            let line_pos = match caret {
-                TouchCaret::Left => PxPoint::new(size.width - caret_thickness, Px(0)),
-                TouchCaret::Center => PxPoint::new(size.width / Px(2) - caret_thickness / Px(2), Px(0)),
-                TouchCaret::Right => PxPoint::zero(),
-            };
+//             let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
+//             let line_pos = match caret {
+//                 TouchCaret::Left => PxPoint::new(size.width - caret_thickness, Px(0)),
+//                 TouchCaret::Center => PxPoint::new(size.width / Px(2) - caret_thickness / Px(2), Px(0)),
+//                 TouchCaret::Right => PxPoint::zero(),
+//             };
 
-            let rect = PxRect::new(line_pos, PxSize::new(caret_thickness, line_height));
-            frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
-        }
-        _ => {}
-    })
-}
+//             let rect = PxRect::new(line_pos, PxSize::new(caret_thickness, line_height));
+//             frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+//         }
+//         _ => {}
+//     })
+// }
 
 pub enum TouchCaret {
     Left,
     Center,
     Right,
 }
-
 
 /// An Ui node that renders the text selection background.
 ///
