@@ -751,7 +751,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                     let viewport_size = scroll_info.viewport_size();
 
-                    let mut offset = PxVector::zero();
+                    let mut offset = PxVector::splat(Px::MAX);
 
                     match mode {
                         ScrollToMode::Minimal { margin } => {
@@ -823,11 +823,11 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     if let Some(scale) = zoom {
                         SCROLL.chase_zoom(|_| scale);
                     }
-                    if offset.y != Px(0) && max_scroll.height > Px(0) {
+                    if offset.y != Px::MAX && max_scroll.height > Px(0) {
                         let offset_y = offset.y.0 as f32 / max_scroll.height.0 as f32;
                         SCROLL.chase_vertical(|_| offset_y.fct());
                     }
-                    if offset.x != Px(0) && max_scroll.width > Px(0) {
+                    if offset.x != Px::MAX && max_scroll.width > Px(0) {
                         let offset_x = offset.x.0 as f32 / max_scroll.width.0 as f32;
                         SCROLL.chase_horizontal(|_| offset_x.fct());
                     }

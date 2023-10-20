@@ -1,3 +1,8 @@
+* Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
+  focus to first child.
+  - Should not scroll if focus moves from Scroll to descendant.
+  - Should not transfer focus to first child if first child is not in viewport?
+
 # TextInput
 
 * Implement `txt_selectable` text.
