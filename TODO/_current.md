@@ -1,8 +1,3 @@
-* Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
-  focus to first child.
-  - Should not scroll if focus moves from Scroll to descendant.
-  - Should not transfer focus to first child if first child is not in viewport?
-
 # TextInput
 
 * Implement `txt_selectable` text.
@@ -31,6 +26,15 @@
 
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
+
+# Focus
+
+* Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
+  focus to first child.
+  - Should not scroll if focus moves from Scroll to descendant.
+  - Should not transfer focus to first child if first child is not in viewport?
+* Implement "focus origin", that is an widget that is not focusable, but focus navigation starts from it.
+  - Browsers set this to the element that also has the invisible caret that defines a shift+click selection start.
 
 # Drag & Drop
 
