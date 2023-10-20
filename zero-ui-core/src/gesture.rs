@@ -1558,15 +1558,18 @@ impl ShortcutActions {
     /// is a direct focus request on the scope, or if this is some it is a direct or related request to the focus shortcut target.
     pub fn focus(&self) -> Option<FocusTarget> {
         if let Some((p, _)) = &self.click {
-            return Some(FocusTarget::Direct(p.widget_id()));
+            return Some(FocusTarget::Direct { target: p.widget_id() });
         } else if let Some(c) = self.commands.first() {
             if let CommandScope::Widget(w) = c.scope() {
                 if FOCUS.focused().with(|f| f.as_ref().map(|p| !p.contains(w)).unwrap_or(true)) {
-                    return Some(FocusTarget::Direct(w));
+                    return Some(FocusTarget::Direct { target: w });
                 }
             }
         }
-        self.focus.map(FocusTarget::DirectOrRelated)
+        self.focus.map(|target| FocusTarget::DirectOrRelated {
+            target,
+            navigation_origin: true,
+        })
     }
 
     /// Click target and kind.

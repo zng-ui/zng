@@ -473,7 +473,7 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         UiNodeOp::Update { .. } => {
             if let State::InfoInited = &state {
                 state = State::Done;
-                FOCUS.focus_widget_or_related(WIDGET.id(), false);
+                FOCUS.focus_widget_or_related(WIDGET.id(), false, false);
             }
         }
         _ => {}

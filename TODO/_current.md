@@ -40,10 +40,12 @@
 # Focus
 
 * `navigation_origin`.
-    - Use the var.
     - Mouse input automatically sets it?
-        - What if `direct_or_exit` auto-sets it?
-        - A flag in `direct_or*` modes?
+        - Only if parent focusable is much bigger?
+        - Navigation looks stuck if the origin is the label of a button.
+            - First change is just focus on the button.
+            - Deactivated for now, `navigation_origin` docs still says it does this.
+
     - Implement access API for this, AccessKit already has something similar.
 
 * Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers

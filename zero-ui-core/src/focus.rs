@@ -476,23 +476,27 @@ impl AppExtension for FocusManager {
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
             if args.is_mouse_down() {
                 // click
-                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false, false));
             }
         } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
             if args.is_touch_start() {
                 // start
-                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false, false));
             }
         } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
             // click
-            request = Some(FocusRequest::direct_or_exit(args.widget_id, false));
+            request = Some(FocusRequest::direct_or_exit(args.widget_id, false, false));
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_SV.write();
             if args.new_focus.is_some() {
-                if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
-                    if args.is_focus(window_id) {
-                        request = Some(FocusRequest::direct(widget_id, highlight));
+                if let Some(pending) = focus.pending_window_focus.take() {
+                    if args.is_focus(pending.window) {
+                        request = Some(FocusRequest::direct_or_related(
+                            pending.target,
+                            pending.nav_origin.is_some(),
+                            pending.highlight,
+                        ));
                     }
                 }
             }
@@ -643,9 +647,10 @@ impl FOCUS {
     /// Override the starting point of the next focus move.
     ///
     /// Focus requests that move the focus relative to the current focus will move from this widget instead
-    /// if it is found in the focused window. This widget does not need to be focusable. 
-    /// 
-    /// The variable is cleared every time the focus is moved.
+    /// if it is found in the focused window. This widget does not need to be focusable.
+    ///
+    /// The variable is cleared every time the focus is moved. Auto focus by click or touch also sets the
+    /// navigation origin if the clicked widget is not focusable.
     ///
     /// If not set the [`focused`] widget is the origin.
     ///
@@ -758,9 +763,14 @@ impl FOCUS {
     /// If the widget and no parent are focusable the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
+    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable ancestor
+    /// is focused because the `target` is not focusable.
+    ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_exit`].
-    pub fn focus_widget_or_exit(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
-        self.focus(FocusRequest::direct_or_exit(widget_id.into(), highlight));
+    ///
+    /// [`navigation_origin`]: FOCUS::navigation_origin
+    pub fn focus_widget_or_exit(&self, widget_id: impl Into<WidgetId>, navigation_origin: bool, highlight: bool) {
+        self.focus(FocusRequest::direct_or_exit(widget_id.into(), navigation_origin, highlight));
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable descendant, also changes the highlight.
@@ -768,9 +778,14 @@ impl FOCUS {
     /// If the widget and no child are focusable the focus does not move, in this case the highlight changes for
     /// the current focused widget.
     ///
+    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable descendant
+    /// is focused because the `target` is not focusable.
+    ///
     /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_enter`].
-    pub fn focus_widget_or_enter(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
-        self.focus(FocusRequest::direct_or_enter(widget_id.into(), highlight));
+    ///
+    /// [`navigation_origin`]: FOCUS::navigation_origin
+    pub fn focus_widget_or_enter(&self, widget_id: impl Into<WidgetId>, navigation_origin: bool, highlight: bool) {
+        self.focus(FocusRequest::direct_or_enter(widget_id.into(), navigation_origin, highlight));
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable descendant, else focus the first
@@ -779,14 +794,19 @@ impl FOCUS {
     /// If the widget no focusable widget is found the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
+    /// If `navigation_origin` is `true` the `target` becomes the [`navigation_origin`] when the first focusable relative
+    /// is focused because the `target` is not focusable.
+    ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_related`].
-    pub fn focus_widget_or_related(&self, widget_id: impl Into<WidgetId>, highlight: bool) {
-        self.focus(FocusRequest::direct_or_related(widget_id.into(), highlight));
+    ///
+    /// [`navigation_origin`]: FOCUS::navigation_origin
+    pub fn focus_widget_or_related(&self, widget_id: impl Into<WidgetId>, navigation_origin: bool, highlight: bool) {
+        self.focus(FocusRequest::direct_or_related(widget_id.into(), navigation_origin, highlight));
     }
 
-    /// Focus the first logical descendant that is focusable from the current focus.
+    /// Focus the first logical descendant that is focusable from the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::enter`].
     pub fn focus_enter(&self) {
@@ -794,9 +814,10 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the first logical ancestor that is focusable from the current focus or the return focus from ALT scopes.
+    /// Focus the first logical ancestor that is focusable from the navigation origin or the current focus
+    /// or the return focus from ALT scopes.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
     pub fn focus_exit(&self) {
@@ -804,9 +825,9 @@ impl FOCUS {
         self.focus(req)
     }
 
-    /// Focus the logical next widget from the current focus.
+    /// Focus the logical next widget from the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin of focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::next`].
     pub fn focus_next(&self) {
@@ -814,9 +835,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the logical previous widget from the current focus.
+    /// Focus the logical previous widget from the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::prev`].
     pub fn focus_prev(&self) {
@@ -824,9 +845,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the nearest upward widget from the current focus.
+    /// Focus the nearest upward widget from the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::up`].
     pub fn focus_up(&self) {
@@ -834,9 +855,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the nearest widget to the right of the current focus.
+    /// Focus the nearest widget to the right of the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::right`].
     pub fn focus_right(&self) {
@@ -844,9 +865,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the nearest downward widget from the current focus.
+    /// Focus the nearest downward widget from the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::down`].
     pub fn focus_down(&self) {
@@ -854,9 +875,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the nearest widget to the left of the current focus.
+    /// Focus the nearest widget to the left of the navigation origin or the current focus.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::left`].
     pub fn focus_left(&self) {
@@ -864,9 +885,9 @@ impl FOCUS {
         self.focus(req);
     }
 
-    /// Focus the ALT scope from the current focused widget or escapes the current ALT scope.
+    /// Focus the ALT scope from the navigation origin or the current focus or escapes the current ALT scope.
     ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    /// Does nothing if no origin or focus is set. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::alt`].
     pub fn focus_alt(&self) {
@@ -909,6 +930,13 @@ impl PendingFocusRequest {
     }
 }
 
+struct PendingWindowFocus {
+    window: WindowId,
+    target: WidgetId,
+    highlight: bool,
+    nav_origin: Option<WidgetId>,
+}
+
 struct FocusService {
     auto_highlight: ArcVar<Option<Duration>>,
     focus_disabled_widgets: ArcVar<bool>,
@@ -919,6 +947,7 @@ struct FocusService {
     focused_var: ArcVar<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
     navigation_origin_var: ArcVar<Option<WidgetId>>,
+    navigation_origin: Option<WidgetId>,
 
     return_focused_var: IdMap<WidgetId, ArcVar<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
@@ -931,7 +960,7 @@ struct FocusService {
 
     enabled_nav: EnabledNavWithFrame,
 
-    pending_window_focus: Option<(WindowId, WidgetId, bool)>,
+    pending_window_focus: Option<PendingWindowFocus>,
     pending_highlight: bool,
 }
 impl FocusService {
@@ -947,6 +976,7 @@ impl FocusService {
             focused_var: var(None),
             focused: None,
             navigation_origin_var: var(None),
+            navigation_origin: None,
 
             return_focused_var: IdMap::default(),
             return_focused: IdMap::default(),
@@ -966,15 +996,36 @@ impl FocusService {
 
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, is_info_retry: bool) -> Option<FocusChangedArgs> {
-        match (&self.focused, request.target) {
-            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, false, request),
-            (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(widget_id, request.highlight, false, true, request),
-            (_, FocusTarget::DirectOrEnter(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, request),
-            (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, request),
-            (Some(prev), move_) => {
-                if let Ok(info) = WINDOWS.widget_tree(prev.path.window_id()) {
+        match request.target {
+            FocusTarget::Direct { target } => self.focus_direct(target, false, request.highlight, false, false, request),
+            FocusTarget::DirectOrExit { target, navigation_origin } => {
+                self.focus_direct(target, navigation_origin, request.highlight, false, true, request)
+            }
+            FocusTarget::DirectOrEnter { target, navigation_origin } => {
+                self.focus_direct(target, navigation_origin, request.highlight, true, false, request)
+            }
+            FocusTarget::DirectOrRelated { target, navigation_origin } => {
+                self.focus_direct(target, navigation_origin, request.highlight, true, true, request)
+            }
+            move_ => {
+                let origin;
+                let origin_tree;
+                if let Some(o) = self.navigation_origin_var.get() {
+                    origin = Some(o);
+                    origin_tree = WINDOWS.focused_info();
+                    self.navigation_origin_var.set(None);
+                    self.navigation_origin = None;
+                } else if let Some(prev) = &self.focused {
+                    origin = Some(prev.path.widget_id());
+                    origin_tree = WINDOWS.widget_tree(prev.path.window_id()).ok();
+                } else {
+                    origin = None;
+                    origin_tree = None;
+                }
+
+                if let (Some(info), Some(origin)) = (origin_tree, origin) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
-                    if let Some(w) = info.get(prev.path.widget_id()) {
+                    if let Some(w) = info.get(origin) {
                         if let Some(new_focus) = match move_ {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),
@@ -1016,6 +1067,7 @@ impl FocusService {
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
                             self.move_focus(
                                 Some(FocusedInfo::new(new_focus)),
+                                None,
                                 request.highlight,
                                 FocusChangedCause::Request(request),
                             )
@@ -1032,7 +1084,6 @@ impl FocusService {
                     self.continue_focus_highlight(request.highlight)
                 }
             }
-            _ => None,
         }
     }
 
@@ -1061,7 +1112,7 @@ impl FocusService {
                         // to some `r`. So we setup an info retry, the focus will move to `r` momentarily,
                         // exiting the alt-scope, and if it removes the modal filter the focus will return.
                         self.request =
-                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, highlight), Instant::now());
+                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, false, highlight), Instant::now());
                     }
                 }
             }
@@ -1083,14 +1134,24 @@ impl FocusService {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
                         self.enabled_nav = widget.enabled_nav_with_frame();
-                        return self.move_focus(Some(FocusedInfo::new(widget)), self.is_highlighting, FocusChangedCause::Recovery);
+                        return self.move_focus(
+                            Some(FocusedInfo::new(widget)),
+                            self.navigation_origin_var.get(),
+                            self.is_highlighting,
+                            FocusChangedCause::Recovery,
+                        );
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(Some(FocusedInfo::new(new_focus)), self.is_highlighting, FocusChangedCause::Recovery);
+                            return self.move_focus(
+                                Some(FocusedInfo::new(new_focus)),
+                                self.navigation_origin_var.get(),
+                                self.is_highlighting,
+                                FocusChangedCause::Recovery,
+                            );
                         } else {
                             // no focusable parent or root
                             return self.focus_focused_window(self.is_highlighting);
@@ -1106,7 +1167,12 @@ impl FocusService {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(Some(FocusedInfo::new(new_focus)), self.is_highlighting, FocusChangedCause::Recovery);
+                            return self.move_focus(
+                                Some(FocusedInfo::new(new_focus)),
+                                self.navigation_origin_var.get(),
+                                self.is_highlighting,
+                                FocusChangedCause::Recovery,
+                            );
                         }
                     }
                 }
@@ -1143,11 +1209,13 @@ impl FocusService {
     fn focus_direct(
         &mut self,
         widget_id: WidgetId,
+        navigation_origin: bool,
         highlight: bool,
         fallback_to_childs: bool,
         fallback_to_parents: bool,
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
+        let mut next_origin = None;
         let mut target = None;
         if let Some(w) = WINDOWS
             .widget_trees()
@@ -1159,11 +1227,17 @@ impl FocusService {
                 let enable = w.enabled_nav_with_frame();
                 target = Some((FocusedInfo::new(w), enable));
             } else if fallback_to_childs {
+                if navigation_origin {
+                    next_origin = Some(widget_id);
+                }
                 if let Some(w) = w.descendants().next() {
                     let enable = w.enabled_nav_with_frame();
                     target = Some((FocusedInfo::new(w), enable));
                 }
             } else if fallback_to_parents {
+                if navigation_origin {
+                    next_origin = Some(widget_id);
+                }
                 if let Some(w) = w.parent() {
                     let enable = w.enabled_nav_with_frame();
                     target = Some((FocusedInfo::new(w), enable));
@@ -1186,13 +1260,22 @@ impl FocusService {
                 }
 
                 // will focus when the window is focused
-                self.pending_window_focus = Some((target.path.window_id(), target.path.widget_id(), highlight));
+                self.pending_window_focus = Some(PendingWindowFocus {
+                    window: target.path.window_id(),
+                    target: target.path.widget_id(),
+                    highlight,
+                    nav_origin: next_origin,
+                });
+                self.navigation_origin = next_origin;
+                self.navigation_origin_var.set(next_origin);
                 None
             } else {
                 self.enabled_nav = enabled_nav;
-                self.move_focus(Some(target), highlight, FocusChangedCause::Request(request))
+                self.move_focus(Some(target), next_origin, highlight, FocusChangedCause::Request(request))
             }
         } else {
+            self.navigation_origin = next_origin;
+            self.navigation_origin_var.set(next_origin);
             self.change_highlight(highlight, request)
         }
     }
@@ -1222,23 +1305,34 @@ impl FocusService {
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
                 self.enabled_nav = root.enabled_nav_with_frame();
-                self.move_focus(Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
+                self.move_focus(Some(FocusedInfo::new(root)), None, highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
                 self.enabled_nav = EnabledNavWithFrame::invalid();
-                self.move_focus(None, false, FocusChangedCause::Recovery)
+                self.move_focus(None, None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no focused window
             self.enabled_nav = EnabledNavWithFrame::invalid();
-            self.move_focus(None, false, FocusChangedCause::Recovery)
+            self.move_focus(None, None, false, FocusChangedCause::Recovery)
         }
     }
 
     #[must_use]
-    fn move_focus(&mut self, new_focus: Option<FocusedInfo>, highlight: bool, cause: FocusChangedCause) -> Option<FocusChangedArgs> {
+    fn move_focus(
+        &mut self,
+        new_focus: Option<FocusedInfo>,
+        new_origin: Option<WidgetId>,
+        highlight: bool,
+        cause: FocusChangedCause,
+    ) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
         self.is_highlighting_var.set(highlight);
+
+        self.navigation_origin = new_origin;
+        if self.navigation_origin_var.get() != new_origin {
+            self.navigation_origin_var.set(new_origin);
+        }
 
         let r = if self.focused.as_ref().map(|p| &p.path) != new_focus.as_ref().map(|p| &p.path) {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1282,6 +1376,7 @@ impl FocusService {
                             self.enabled_nav = widget.enabled_nav_with_frame();
                             return self.move_focus(
                                 Some(FocusedInfo::new(widget)),
+                                self.navigation_origin,
                                 self.is_highlighting,
                                 FocusChangedCause::ScopeGotFocus(reverse),
                             );

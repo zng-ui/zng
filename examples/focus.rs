@@ -211,7 +211,7 @@ fn delayed_focus() -> impl UiNode {
 
             delayed_btn("Force Focus", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    target: FocusTarget::Direct { target: WidgetId::named("target") },
                     highlight: true,
                     force_window_focus: true,
                     window_indicator: None,
@@ -219,7 +219,7 @@ fn delayed_focus() -> impl UiNode {
             }),
             delayed_btn("Info Indicator", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    target: FocusTarget::Direct { target: WidgetId::named("target") },
                     highlight: true,
                     force_window_focus: false,
                     window_indicator: Some(FocusIndicator::Info),
@@ -227,7 +227,7 @@ fn delayed_focus() -> impl UiNode {
             }),
             delayed_btn("Critical Indicator", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    target: FocusTarget::Direct { target: WidgetId::named("target") },
                     highlight: true,
                     force_window_focus: false,
                     window_indicator: Some(FocusIndicator::Critical),

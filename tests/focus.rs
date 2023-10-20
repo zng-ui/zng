@@ -1751,12 +1751,12 @@ impl TestApp {
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
-        FOCUS.focus_widget_or_exit(widget_id, true);
+        FOCUS.focus_widget_or_exit(widget_id, false, true);
         let _ = self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
-        FOCUS.focus_widget_or_enter(widget_id, true);
+        FOCUS.focus_widget_or_enter(widget_id, false, true);
         let _ = self.app.update(false);
     }
 

@@ -254,19 +254,37 @@ impl FocusRequest {
 
     /// New [`FocusTarget::Direct`] request.
     pub fn direct(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::Direct(widget_id), highlight)
+        Self::new(FocusTarget::Direct { target: widget_id }, highlight)
     }
     /// New [`FocusTarget::DirectOrExit`] request.
-    pub fn direct_or_exit(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrExit(widget_id), highlight)
+    pub fn direct_or_exit(widget_id: WidgetId, navigation_origin: bool, highlight: bool) -> Self {
+        Self::new(
+            FocusTarget::DirectOrExit {
+                target: widget_id,
+                navigation_origin,
+            },
+            highlight,
+        )
     }
     /// New [`FocusTarget::DirectOrEnter`] request.
-    pub fn direct_or_enter(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrEnter(widget_id), highlight)
+    pub fn direct_or_enter(widget_id: WidgetId, navigation_origin: bool, highlight: bool) -> Self {
+        Self::new(
+            FocusTarget::DirectOrEnter {
+                target: widget_id,
+                navigation_origin,
+            },
+            highlight,
+        )
     }
     /// New [`FocusTarget::DirectOrRelated`] request.
-    pub fn direct_or_related(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrRelated(widget_id), highlight)
+    pub fn direct_or_related(widget_id: WidgetId, navigation_origin: bool, highlight: bool) -> Self {
+        Self::new(
+            FocusTarget::DirectOrRelated {
+                target: widget_id,
+                navigation_origin,
+            },
+            highlight,
+        )
     }
     /// New [`FocusTarget::Enter`] request.
     pub fn enter(highlight: bool) -> Self {
@@ -322,14 +340,41 @@ impl FocusRequest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FocusTarget {
     /// Move focus to widget.
-    Direct(WidgetId),
+    Direct {
+        /// Focusable widget.
+        target: WidgetId,
+    },
     /// Move focus to the widget if it is focusable or to the first focusable ancestor.
-    DirectOrExit(WidgetId),
+    DirectOrExit {
+        /// Maybe focusable widget.
+        target: WidgetId,
+        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable ancestor
+        /// is focused because the `target` is not focusable.
+        ///
+        /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
+        navigation_origin: bool,
+    },
     /// Move focus to the widget if it is focusable or to first focusable descendant.
-    DirectOrEnter(WidgetId),
+    DirectOrEnter {
+        /// Maybe focusable widget.
+        target: WidgetId,
+        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable descendant
+        /// is focused because the `target` is not focusable.
+        ///
+        /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
+        navigation_origin: bool,
+    },
     /// Move focus to the widget if it is focusable, or to the first focusable descendant or
     /// to the first focusable ancestor.
-    DirectOrRelated(WidgetId),
+    DirectOrRelated {
+        /// Maybe focusable widget.
+        target: WidgetId,
+        /// If `true` the `target` becomes the [`navigation_origin`] when the first focusable relative
+        /// is focused because the `target` is not focusable.
+        ///
+        /// [`navigation_origin`]: crate::focus::FOCUS::navigation_origin
+        navigation_origin: bool,
+    },
 
     /// Move focus to the first focusable descendant of the current focus, or to first in screen.
     Enter,
