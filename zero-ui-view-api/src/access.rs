@@ -457,6 +457,13 @@ pub enum AccessCmd {
     /// If `true` the widget is focused, if `false` and the widget is already focused does ESC.
     Focus(bool),
 
+    /// Sets the focus navigation origin to the widget.
+    ///
+    /// The navigation origin is the widget that logical and directional focus requests moves from. If
+    /// not set the focus moves from the current focus, if set it moves from this origin. The origin widget
+    /// does not need to be focusable and it is not focused by this command.
+    FocusNavOrigin,
+
     /// Expand or collapse the widget content.
     SetExpanded(bool),
 
@@ -500,6 +507,7 @@ impl AccessCmd {
         match self {
             AccessCmd::Click(_) => AccessCmdName::Click,
             AccessCmd::Focus(_) => AccessCmdName::Focus,
+            AccessCmd::FocusNavOrigin => AccessCmdName::FocusNavOrigin,
             AccessCmd::SetExpanded(_) => AccessCmdName::SetExpanded,
             AccessCmd::Increment(_) => AccessCmdName::Increment,
             AccessCmd::SetToolTipVis(_) => AccessCmdName::SetToolTipVis,
@@ -523,6 +531,8 @@ pub enum AccessCmdName {
 
     /// [`AccessCmd::Focus`]
     Focus,
+    /// [`AccessCmd::FocusNavOrigin`]
+    FocusNavOrigin,
 
     /// [`AccessCmd::SetExpanded`]
     SetExpanded,

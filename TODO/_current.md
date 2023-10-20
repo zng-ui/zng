@@ -46,8 +46,6 @@
             - First change is just focus on the button.
             - Deactivated for now, `navigation_origin` docs still says it does this.
 
-    - Implement access API for this, AccessKit already has something similar.
-
 * Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
   focus to first child.
   - Use `navigation_origin`, don't scroll if it is set?

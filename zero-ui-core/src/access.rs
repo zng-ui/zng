@@ -26,6 +26,10 @@ pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, comman
             let args = AccessFocusArgs::now(window_id, widget_id, focus);
             Some(ACCESS_FOCUS_EVENT.new_update(args))
         }
+        AccessCmd::FocusNavOrigin => {
+            let args = AccessFocusNavOriginArgs::now(window_id, widget_id);
+            Some(ACCESS_FOCUS_NAV_ORIGIN_EVENT.new_update(args))
+        }
         AccessCmd::SetExpanded(expanded) => {
             let args = AccessExpanderArgs::now(window_id, widget_id, expanded);
             Some(ACCESS_EXPANDER_EVENT.new_update(args))
@@ -117,6 +121,22 @@ event_args! {
         ///
         /// If `true` the widget is focused, if `false` and the widget is focused, does ESC.
         pub focus: bool,
+
+        ..
+
+        /// Target the widget.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_widget(self.widget_id)
+        }
+    }
+
+    /// Arguments for the [`ACCESS_FOCUS_NAV_ORIGIN_EVENT`].
+    pub struct AccessFocusNavOriginArgs {
+        /// Target window.
+        pub window_id: WindowId,
+
+        /// Target widget.
+        pub widget_id: WidgetId,
 
         ..
 
@@ -284,6 +304,9 @@ event! {
 
     /// Focus or escape focus on a widget.
     pub static ACCESS_FOCUS_EVENT: AccessFocusArgs;
+
+    /// Sets the focus navigation origin.
+    pub static ACCESS_FOCUS_NAV_ORIGIN_EVENT: AccessFocusNavOriginArgs;
 
     /// Expand or collapse the widget content.
     pub static ACCESS_EXPANDER_EVENT: AccessExpanderArgs;

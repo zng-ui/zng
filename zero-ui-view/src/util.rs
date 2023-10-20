@@ -732,6 +732,7 @@ pub(crate) fn accesskit_to_event(
             Action::Default => AccessCmd::Click(true),
             Action::ShowContextMenu => AccessCmd::Click(false),
             Action::Focus => AccessCmd::Focus(true),
+            Action::SetSequentialFocusNavigationStartingPoint => AccessCmd::FocusNavOrigin,
             Action::Blur => AccessCmd::Focus(false),
             Action::Collapse => AccessCmd::SetExpanded(false),
             Action::Expand => AccessCmd::SetExpanded(true),
@@ -789,7 +790,6 @@ pub(crate) fn accesskit_to_event(
                     return None;
                 }
             }
-            Action::SetSequentialFocusNavigationStartingPoint => return None,
             Action::SetValue => match request.data {
                 Some(accesskit::ActionData::Value(s)) => AccessCmd::SetString(s.to_string()),
                 Some(accesskit::ActionData::NumericValue(n)) => AccessCmd::SetNumber(n),

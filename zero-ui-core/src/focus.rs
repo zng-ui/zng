@@ -87,7 +87,7 @@ use commands::FocusCommands;
 mod tests;
 
 use crate::{
-    access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT},
+    access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     app::AppExtension,
     app_local,
     context::*,
@@ -441,6 +441,8 @@ impl AppExtension for FocusManager {
             } else if is_focused {
                 FOCUS.focus_exit();
             }
+        } else if let Some(args) = ACCESS_FOCUS_NAV_ORIGIN_EVENT.on(update) {
+            FOCUS.navigation_origin().set(Some(args.widget_id));
         } else {
             self.commands.as_mut().unwrap().event_preview(update);
         }
