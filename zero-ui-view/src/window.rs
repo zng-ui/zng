@@ -255,8 +255,8 @@ impl Window {
                         device: DeviceId::INVALID, // same as winit
                         key_code: KeyCode::F4,
                         state: KeyState::Pressed,
-                        key: Some(Key::F4),
-                        key_modified: Some(Key::F4),
+                        key: Key::F4,
+                        key_modified: Key::F4,
                         text: String::new(),
                     }));
                     return Some(0);

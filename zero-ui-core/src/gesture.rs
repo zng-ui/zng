@@ -806,13 +806,14 @@ impl KeyInputArgs {
             return None;
         }
 
-        self.key
-            .as_ref()
-            .and_then(|k| GestureKey::try_from(k.clone()).ok())
-            .map(|key| KeyGesture {
-                key,
-                modifiers: self.modifiers,
-            })
+        if let Key::Unidentified = &self.key {
+            return None;
+        }
+
+        GestureKey::try_from(self.key.clone()).ok().map(|key| KeyGesture {
+            key,
+            modifiers: self.modifiers,
+        })
     }
 
     /// Gets [`gesture`](Self::gesture) as a shortcut.
@@ -1080,7 +1081,8 @@ impl GesturesService {
     }
 
     fn on_key_input(&mut self, args: &KeyInputArgs) {
-        if let (false, Some(key)) = (args.propagation().is_stopped(), &args.key) {
+        let key = &args.key;
+        if !args.propagation().is_stopped() && !matches!(key, Key::Unidentified) {
             match args.state {
                 KeyState::Pressed => {
                     if let Ok(gesture_key) = GestureKey::try_from(key.clone()) {

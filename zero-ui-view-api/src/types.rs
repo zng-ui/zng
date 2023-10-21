@@ -233,11 +233,11 @@ pub enum Event {
         /// Semantic key.
         ///
         /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
-        key: Option<Key>,
+        key: Key,
         /// Semantic key modified by the current active modifiers.
         ///
         /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
-        key_modified: Option<Key>,
+        key_modified: Key,
         /// Text typed.
         ///
         /// This is only set during [`KeyState::Pressed`] of a key that generates text.

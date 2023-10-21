@@ -927,8 +927,8 @@ impl App {
                             device: d_id,
                             key_code,
                             state,
-                            key: Some(key), // !!: TODO, remove option
-                            key_modified: Some(key_modified),
+                            key,
+                            key_modified,
                             text: event.text.map(|s| s.as_str().to_owned()).unwrap_or_default(),
                         });
                     }
@@ -1148,8 +1148,8 @@ impl App {
                             device: *d_id,
                             key_code: *s_code,
                             state: KeyState::Released,
-                            key: Some(key.clone()),
-                            key_modified: Some(key.clone()),
+                            key: key.clone(),
+                            key_modified: key.clone(),
                             text: String::new(),
                         });
                     }
@@ -1160,8 +1160,8 @@ impl App {
                             device: *d_id,
                             key_code: *s_code,
                             state: KeyState::Released,
-                            key: Some(key.clone()),
-                            key_modified: Some(key.clone()),
+                            key: key.clone(),
+                            key_modified: key.clone(),
                             text: String::new(),
                         });
                     }
@@ -1172,8 +1172,8 @@ impl App {
                             device: *d_id,
                             key_code: *s_code,
                             state: KeyState::Released,
-                            key: Some(key.clone()),
-                            key_modified: Some(key.clone()),
+                            key: key.clone(),
+                            key_modified: key.clone(),
                             text: String::new(),
                         });
                     }
@@ -1184,8 +1184,8 @@ impl App {
                             device: *d_id,
                             key_code: *s_code,
                             state: KeyState::Released,
-                            key: Some(key.clone()),
-                            key_modified: Some(key.clone()),
+                            key: key.clone(),
+                            key_modified: key.clone(),
                             text: String::new(),
                         });
                     }

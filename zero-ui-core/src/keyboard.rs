@@ -40,11 +40,11 @@ event_args! {
         /// Semantic key.
         ///
         /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
-        pub key: Option<Key>,
+        pub key: Key,
         /// Semantic key modified by the current active modifiers.
         ///
         /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
-        pub key_modified: Option<Key>,
+        pub key_modified: Key,
 
         /// Text typed.
         ///
@@ -355,7 +355,8 @@ impl KeyboardService {
                     });
                 }
 
-                if let Some(key) = &args.key {
+                let key = &args.key;
+                if !matches!(&key, Key::Unidentified) {
                     if !self.keys.with(|c| c.contains(key)) {
                         self.keys.modify(clmv!(key, |ks| {
                             ks.to_mut().push(key);
@@ -379,7 +380,8 @@ impl KeyboardService {
                     });
                 }
 
-                if let Some(key) = &args.key {
+                let key = &args.key;
+                if !matches!(&key, Key::Unidentified) {
                     if self.keys.with(|c| c.contains(key)) {
                         self.keys.modify(clmv!(key, |ks| {
                             if let Some(i) = ks.as_ref().iter().position(|k| k == &key) {
@@ -504,8 +506,8 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             DeviceId::virtual_keyboard(),
             code,
             state,
-            Some(key.clone()),
-            Some(key),
+            key.clone(),
+            key,
             "",
         );
         RAW_KEY_INPUT_EVENT.notify(args);
