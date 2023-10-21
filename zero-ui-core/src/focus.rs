@@ -393,20 +393,12 @@ event! {
 ///
 /// [`App::default`]: crate::app::App::default
 /// [`SHORTCUT_EVENT`]: crate::gesture::SHORTCUT_EVENT
+#[derive(Default)]
 pub struct FocusManager {
-    last_keyboard_event: Instant,
     commands: Option<FocusCommands>,
     pending_render: Option<WidgetInfoTree>,
 }
-impl Default for FocusManager {
-    fn default() -> Self {
-        Self {
-            last_keyboard_event: Instant::now().checked_sub(Duration::from_secs(10)).unwrap(),
-            commands: None,
-            pending_render: None,
-        }
-    }
-}
+
 impl AppExtension for FocusManager {
     fn init(&mut self) {
         self.commands = Some(FocusCommands::new());
@@ -514,7 +506,7 @@ impl AppExtension for FocusManager {
                 }
             }
         } else if let Some(args) = crate::app::raw_events::RAW_KEY_INPUT_EVENT.on(update) {
-            self.last_keyboard_event = args.timestamp;
+            FOCUS_SV.write().last_keyboard_event = args.timestamp;
         }
 
         if let Some(request) = request {
@@ -567,14 +559,10 @@ impl FocusManager {
 
     fn notify(&mut self, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
-            if !args.highlight && args.new_focus.is_some() {
-                if let Some(dur) = focus.auto_highlight.get() {
-                    if args.timestamp.duration_since(self.last_keyboard_event) <= dur {
-                        args.highlight = true;
-                        focus.is_highlighting = true;
-                        focus.is_highlighting_var.set(true);
-                    }
-                }
+            if !args.highlight && args.new_focus.is_some() && focus.auto_highlight(args.timestamp) {
+                args.highlight = true;
+                focus.is_highlighting = true;
+                focus.is_highlighting_var.set(true);
             }
 
             let reverse = args.cause.is_prev_request();
@@ -721,8 +709,11 @@ impl FOCUS {
     /// Request a focus update.
     ///
     /// All other focus request methods call this method.
-    pub fn focus(&self, request: FocusRequest) {
+    pub fn focus(&self, mut request: FocusRequest) {
         let mut f = FOCUS_SV.write();
+        if !request.highlight && f.auto_highlight(Instant::now()) {
+            request.highlight = true;
+        }
         f.pending_window_focus = None;
         f.request = PendingFocusRequest::Update(request);
         UPDATES.update(None);
@@ -941,6 +932,8 @@ struct PendingWindowFocus {
 
 struct FocusService {
     auto_highlight: ArcVar<Option<Duration>>,
+    last_keyboard_event: Instant,
+
     focus_disabled_widgets: ArcVar<bool>,
     focus_hidden_widgets: ArcVar<bool>,
 
@@ -970,6 +963,8 @@ impl FocusService {
     fn new() -> Self {
         Self {
             auto_highlight: var(Some(300.ms())),
+            last_keyboard_event: Instant::now().checked_sub(Duration::from_secs(10)).unwrap(),
+
             focus_disabled_widgets: var(true),
             focus_hidden_widgets: var(true),
 
@@ -994,6 +989,15 @@ impl FocusService {
             pending_window_focus: None,
             pending_highlight: false,
         }
+    }
+
+    fn auto_highlight(&self, timestamp: Instant) -> bool {
+        if let Some(dur) = self.auto_highlight.get() {
+            if timestamp.duration_since(self.last_keyboard_event) <= dur {
+                return true;
+            }
+        }
+        false
     }
 
     #[must_use]
@@ -1026,8 +1030,8 @@ impl FocusService {
                 }
 
                 if let (Some(info), Some(origin)) = (origin_tree, origin) {
-                    let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
                     if let Some(w) = info.get(origin) {
+                        let w = w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
                         if let Some(new_focus) = match move_ {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),

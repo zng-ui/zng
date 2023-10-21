@@ -40,11 +40,11 @@
 # Focus
 
 * `navigation_origin`.
-    - Mouse input automatically sets it?
-        - Only if parent focusable is much bigger?
-        - Navigation looks stuck if the origin is the label of a button.
-            - First change is just focus on the button.
-            - Deactivated for now, `navigation_origin` docs still says it does this.
+    - Mouse input automatically sets only if parent focusable is much bigger?
+    - Issue: Focusable with single non-focusable child not fully centered.
+        - Click on the child focus the parent, but child is the origin.
+        - Directional navigation only highlights parent because the parent is the closest to origin (without exact center point).
+    - Disabled for now, `navigation_origin` docs still says it happens on click.
 
 * Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
   focus to first child.
