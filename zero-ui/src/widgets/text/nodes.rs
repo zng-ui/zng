@@ -671,6 +671,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.event(update));
+            if let Some(edit_data) = &mut edit_data {
+                let has_selection = resolved.as_mut().unwrap().caret.get_mut().selection_range().is_some();
+                edit_data.cut.set_enabled(has_selection);
+                edit_data.copy.set_enabled(has_selection);
+            }
         }
         UiNodeOp::Update { updates } => {
             let r = resolved.as_mut().unwrap();
