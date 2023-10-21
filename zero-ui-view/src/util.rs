@@ -6,7 +6,7 @@ use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::{
     config::ColorScheme,
-    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    keyboard::{Key, KeyCode, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchForce, TouchPhase},
     units::*,
@@ -241,26 +241,22 @@ impl CursorToWinit for CursorIcon {
         use winit::window::CursorIcon::*;
         match self {
             CursorIcon::Default => Default,
-            CursorIcon::Crosshair => Crosshair,
-            CursorIcon::Hand => Hand,
-            CursorIcon::Arrow => Arrow,
-            CursorIcon::Move => Move,
-            CursorIcon::Text => Text,
-            CursorIcon::Wait => Wait,
-            CursorIcon::Help => Help,
-            CursorIcon::Progress => Progress,
-            CursorIcon::NotAllowed => NotAllowed,
             CursorIcon::ContextMenu => ContextMenu,
+            CursorIcon::Help => Help,
+            CursorIcon::Pointer => Pointer,
+            CursorIcon::Progress => Progress,
+            CursorIcon::Wait => Wait,
             CursorIcon::Cell => Cell,
+            CursorIcon::Crosshair => Crosshair,
+            CursorIcon::Text => Text,
             CursorIcon::VerticalText => VerticalText,
             CursorIcon::Alias => Alias,
             CursorIcon::Copy => Copy,
+            CursorIcon::Move => Move,
             CursorIcon::NoDrop => NoDrop,
+            CursorIcon::NotAllowed => NotAllowed,
             CursorIcon::Grab => Grab,
             CursorIcon::Grabbing => Grabbing,
-            CursorIcon::AllScroll => AllScroll,
-            CursorIcon::ZoomIn => ZoomIn,
-            CursorIcon::ZoomOut => ZoomOut,
             CursorIcon::EResize => EResize,
             CursorIcon::NResize => NResize,
             CursorIcon::NeResize => NeResize,
@@ -275,6 +271,10 @@ impl CursorToWinit for CursorIcon {
             CursorIcon::NwseResize => NwseResize,
             CursorIcon::ColResize => ColResize,
             CursorIcon::RowResize => RowResize,
+            CursorIcon::AllScroll => AllScroll,
+            CursorIcon::ZoomIn => ZoomIn,
+            CursorIcon::ZoomOut => ZoomOut,
+            _ => Default,
         }
     }
 }
@@ -351,6 +351,8 @@ pub(crate) fn winit_mouse_button_to_zui(b: winit::event::MouseButton) -> MouseBu
         winit::event::MouseButton::Left => MouseButton::Left,
         winit::event::MouseButton::Right => MouseButton::Right,
         winit::event::MouseButton::Middle => MouseButton::Middle,
+        winit::event::MouseButton::Back => MouseButton::Back,
+        winit::event::MouseButton::Forward => MouseButton::Forward,
         winit::event::MouseButton::Other(btn) => MouseButton::Other(btn),
     }
 }
@@ -362,195 +364,28 @@ pub(crate) fn winit_theme_to_zui(t: winit::window::Theme) -> ColorScheme {
     }
 }
 
-use winit::event::VirtualKeyCode as VKey;
-pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
-    match v_key {
-        // this is temporary until winit releases (chars are localized by the system)
-        VKey::Key1 => Key::Char('1'),
-        VKey::Key2 => Key::Char('2'),
-        VKey::Key3 => Key::Char('3'),
-        VKey::Key4 => Key::Char('4'),
-        VKey::Key5 => Key::Char('5'),
-        VKey::Key6 => Key::Char('6'),
-        VKey::Key7 => Key::Char('7'),
-        VKey::Key8 => Key::Char('8'),
-        VKey::Key9 => Key::Char('9'),
-        VKey::Key0 => Key::Char('0'),
-        VKey::A => Key::Char('A'),
-        VKey::B => Key::Char('B'),
-        VKey::C => Key::Char('C'),
-        VKey::D => Key::Char('D'),
-        VKey::E => Key::Char('E'),
-        VKey::F => Key::Char('F'),
-        VKey::G => Key::Char('G'),
-        VKey::H => Key::Char('H'),
-        VKey::I => Key::Char('I'),
-        VKey::J => Key::Char('J'),
-        VKey::K => Key::Char('K'),
-        VKey::L => Key::Char('L'),
-        VKey::M => Key::Char('M'),
-        VKey::N => Key::Char('N'),
-        VKey::O => Key::Char('O'),
-        VKey::P => Key::Char('P'),
-        VKey::Q => Key::Char('Q'),
-        VKey::R => Key::Char('R'),
-        VKey::S => Key::Char('S'),
-        VKey::T => Key::Char('T'),
-        VKey::U => Key::Char('U'),
-        VKey::V => Key::Char('V'),
-        VKey::W => Key::Char('W'),
-        VKey::X => Key::Char('X'),
-        VKey::Y => Key::Char('Y'),
-        VKey::Z => Key::Char('Z'),
-        VKey::Escape => Key::Escape,
-        VKey::F1 => Key::F1,
-        VKey::F2 => Key::F2,
-        VKey::F3 => Key::F3,
-        VKey::F4 => Key::F4,
-        VKey::F5 => Key::F5,
-        VKey::F6 => Key::F6,
-        VKey::F7 => Key::F7,
-        VKey::F8 => Key::F8,
-        VKey::F9 => Key::F9,
-        VKey::F10 => Key::F10,
-        VKey::F11 => Key::F11,
-        VKey::F12 => Key::F12,
-        VKey::F13 => Key::F13,
-        VKey::F14 => Key::F14,
-        VKey::F15 => Key::F15,
-        VKey::F16 => Key::F16,
-        VKey::F17 => Key::F17,
-        VKey::F18 => Key::F18,
-        VKey::F19 => Key::F19,
-        VKey::F20 => Key::F20,
-        VKey::F21 => Key::F21,
-        VKey::F22 => Key::F22,
-        VKey::F23 => Key::F23,
-        VKey::F24 => Key::F24,
-        VKey::Snapshot => Key::PrintScreen,
-        VKey::Scroll => Key::ScrollLock,
-        VKey::Pause => Key::Pause,
-        VKey::Insert => Key::Insert,
-        VKey::Home => Key::Home,
-        VKey::Delete => Key::Delete,
-        VKey::End => Key::End,
-        VKey::PageDown => Key::PageDown,
-        VKey::PageUp => Key::PageUp,
-        VKey::Left => Key::ArrowLeft,
-        VKey::Up => Key::ArrowUp,
-        VKey::Right => Key::ArrowRight,
-        VKey::Down => Key::ArrowDown,
-        VKey::Back => Key::Backspace,
-        VKey::Return => Key::Enter,
-        VKey::Space => Key::Space,
-        VKey::Compose => Key::Compose,
-        VKey::Caret => Key::Unidentified,
-        VKey::Numlock => Key::NumLock,
-        VKey::Numpad0 => Key::Char('0'),
-        VKey::Numpad1 => Key::Char('1'),
-        VKey::Numpad2 => Key::Char('2'),
-        VKey::Numpad3 => Key::Char('3'),
-        VKey::Numpad4 => Key::Char('4'),
-        VKey::Numpad5 => Key::Char('5'),
-        VKey::Numpad6 => Key::Char('6'),
-        VKey::Numpad7 => Key::Char('7'),
-        VKey::Numpad8 => Key::Char('8'),
-        VKey::Numpad9 => Key::Char('9'),
-        VKey::NumpadAdd => Key::Char('+'),
-        VKey::NumpadDivide => Key::Char('/'),
-        VKey::NumpadDecimal => Key::Char('.'),
-        VKey::NumpadComma => Key::Char(','),
-        VKey::NumpadEnter => Key::Enter,
-        VKey::NumpadEquals => Key::Char('='),
-        VKey::NumpadMultiply => Key::Char('*'),
-        VKey::NumpadSubtract => Key::Char('-'),
-        VKey::AbntC1 => Key::Char('/'),
-        VKey::AbntC2 => Key::Char('ç'),
-        VKey::Apostrophe => Key::Char('\''),
-        VKey::Apps => Key::AppSwitch,
-        VKey::Asterisk => Key::Char('*'),
-        VKey::At => Key::Char('@'),
-        VKey::Ax => Key::Unidentified,
-        VKey::Backslash => Key::Char('\\'),
-        VKey::Calculator => Key::LaunchApplication2,
-        VKey::Capital => Key::Unidentified,
-        VKey::Colon => Key::Char(':'),
-        VKey::Comma => Key::Char(','),
-        VKey::Convert => Key::Convert,
-        VKey::Equals => Key::Char('='),
-        VKey::Grave => Key::Char('`'),
-        VKey::Kana => Key::KanaMode,
-        VKey::Kanji => Key::KanjiMode,
-        VKey::LAlt => Key::Alt,
-        VKey::LBracket => Key::Char('['),
-        VKey::LControl => Key::Ctrl,
-        VKey::LShift => Key::Shift,
-        VKey::LWin => Key::Super,
-        VKey::Mail => Key::LaunchMail,
-        VKey::MediaSelect => Key::MediaApps,
-        VKey::MediaStop => Key::MediaStop,
-        VKey::Minus => Key::Char('-'),
-        VKey::Mute => Key::AudioVolumeMute,
-        VKey::MyComputer => Key::Unidentified,
-        VKey::NavigateForward => Key::NavigateNext,
-        VKey::NavigateBackward => Key::NavigatePrevious,
-        VKey::NextTrack => Key::MediaTrackNext,
-        VKey::NoConvert => Key::NonConvert,
-        VKey::OEM102 => Key::Unidentified,
-        VKey::Period => Key::Char('.'),
-        VKey::PlayPause => Key::MediaPlayPause,
-        VKey::Plus => Key::Char('+'),
-        VKey::Power => Key::Power,
-        VKey::PrevTrack => Key::MediaTrackPrevious,
-        VKey::RAlt => Key::AltGraph,
-        VKey::RBracket => Key::Char(']'),
-        VKey::RControl => Key::Ctrl,
-        VKey::RShift => Key::Shift,
-        VKey::RWin => Key::Super,
-        VKey::Semicolon => Key::Char(';'),
-        VKey::Slash => Key::Char('/'),
-        VKey::Sleep => Key::Standby,
-        VKey::Stop => Key::MediaStop,
-        VKey::Sysrq => Key::PrintScreen,
-        VKey::Tab => Key::Tab,
-        VKey::Underline => Key::Char('_'),
-        VKey::Unlabeled => Key::Unidentified,
-        VKey::VolumeDown => Key::AudioVolumeDown,
-        VKey::VolumeUp => Key::AudioVolumeUp,
-        VKey::Wake => Key::WakeUp,
-        VKey::WebBack => Key::BrowserBack,
-        VKey::WebFavorites => Key::BrowserFavorites,
-        VKey::WebForward => Key::BrowserForward,
-        VKey::WebHome => Key::BrowserHome,
-        VKey::WebRefresh => Key::BrowserRefresh,
-        VKey::WebSearch => Key::BrowserSearch,
-        VKey::WebStop => Key::BrowserStop,
-        VKey::Yen => Key::Char('¥'),
-        VKey::Copy => Key::Copy,
-        VKey::Paste => Key::Paste,
-        VKey::Cut => Key::Cut,
+#[cfg(windows)]
+pub(crate) fn winit_to_hwnd(window: &winit::window::Window) -> isize {
+    use raw_window_handle::HasRawWindowHandle;
+    match window.raw_window_handle() {
+        raw_window_handle::RawWindowHandle::Win32(w) => w.hwnd as _,
+        _ => unreachable!(),
     }
 }
 
-pub(crate) fn scan_code_to_key(scan: winit::event::ScanCode) -> KeyCode {
-    let k = if cfg!(windows) {
-        NativeKeyCode::Windows(scan as _)
-    } else if cfg!(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    )) {
-        NativeKeyCode::Xkb(scan as _)
-    } else if cfg!(target_os = "macos") {
-        NativeKeyCode::MacOS(scan as _)
-    } else if cfg!(target_os = "android") {
-        NativeKeyCode::Android(scan as _)
-    } else {
-        NativeKeyCode::Unidentified
-    };
-    KeyCode::Unidentified(k)
+use winit::keyboard::Key as WinitKey;
+pub(crate) fn winit_key_to_key(key: WinitKey) -> Key {
+    todo!() // !!: TODO
+}
+
+use winit::keyboard::KeyCode as WinitKeyCode;
+pub(crate) fn winit_key_code_to_key_code(key: WinitKeyCode) -> KeyCode {
+    todo!() // !!: TODO
+}
+
+use winit::keyboard::PhysicalKey as WinitPhysicalKey;
+pub(crate) fn winit_physical_key_to_key_code(key: WinitPhysicalKey) -> KeyCode {
+    todo!() // !!: TODO
 }
 
 thread_local! {
@@ -604,7 +439,8 @@ pub(crate) extern "system" fn minimal_wndproc(
 }
 
 #[cfg(windows)]
-pub fn get_instance_handle() -> winit::platform::windows::HINSTANCE {
+pub fn get_instance_handle() -> isize {
+    // HINSTANCE
     // Gets the instance handle by taking the address of the
     // pseudo-variable created by the Microsoft linker:
     // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483

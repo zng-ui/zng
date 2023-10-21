@@ -112,10 +112,11 @@ use gl::GlContextManager;
 use image_cache::ImageCache;
 use util::WinitToPx;
 use winit::{
-    event::{DeviceEvent, ModifiersState, WindowEvent},
+    event::{DeviceEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
+    keyboard::ModifiersState,
     monitor::MonitorHandle,
-    platform::run_return::EventLoopExtRunReturn,
+    platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
 
 mod config;
@@ -144,7 +145,7 @@ use zero_ui_view_api::{
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
-    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     touch::{TouchId, TouchUpdate},
     units::*,
@@ -413,11 +414,11 @@ impl App {
         self.device_events = false;
 
         if let Some(t) = t {
-            t.set_device_event_filter(winit::event_loop::DeviceEventFilter::Always);
+            t.listen_device_events(winit::event_loop::DeviceEvents::Never);
         }
 
         #[cfg(windows)]
-        util::unregister_raw_input();
+        util::unregister_raw_input(); // !!: TODO, test if we still need this.
     }
 
     pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
@@ -437,7 +438,7 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
+        let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build().unwrap();
 
         drop(winit_span);
 
@@ -514,7 +515,7 @@ impl App {
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let mut event_loop = EventLoopBuilder::with_user_event().build();
+        let mut event_loop = EventLoopBuilder::with_user_event().build().unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
@@ -543,15 +544,14 @@ impl App {
         let mut idle = IdleTrace(None);
         idle.enter();
 
-        event_loop.run_return(move |event, target, flow| {
+        event_loop.run(move |event, target| {
             idle.exit();
 
             app.window_target = target;
-
-            *flow = ControlFlow::Wait;
+            target.set_control_flow(ControlFlow::Wait);
 
             if app.exited {
-                *flow = ControlFlow::Exit;
+                target.exit();
             } else {
                 use winit::event::Event as WEvent;
                 match event {
@@ -567,7 +567,7 @@ impl App {
                                         if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
                                             // lost connection to app-process
                                             app.exited = true;
-                                            *flow = ControlFlow::Exit;
+                                            target.exit();
                                         }
                                     }
                                     RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
@@ -579,7 +579,7 @@ impl App {
                         AppEvent::RefreshMonitors => app.refresh_monitors(),
                         AppEvent::ParentProcessExited => {
                             app.exited = true;
-                            *flow = ControlFlow::Exit;
+                            target.exit();
                         }
                         AppEvent::ImageLoaded(data) => {
                             app.image_cache.loaded(data);
@@ -596,7 +596,7 @@ impl App {
                     },
                     WEvent::Suspended => {}
                     WEvent::Resumed => {}
-                    WEvent::MainEventsCleared => {
+                    WEvent::AboutToWait => {
                         app.finish_cursor_entered_move();
                         app.update_modifiers();
                         app.flush_coalesced();
@@ -605,9 +605,10 @@ impl App {
                             app.skip_ralt = false;
                         }
                     }
-                    WEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
-                    WEvent::RedrawEventsCleared => {}
-                    WEvent::LoopDestroyed => {}
+                    WEvent::MemoryWarning => {
+                        // !!: TODO, create a memory pressure event, flush caches?
+                    }
+                    WEvent::LoopExiting => {}
                 }
             }
 
@@ -722,6 +723,7 @@ impl App {
         }
 
         match event {
+            WindowEvent::RedrawRequested => self.windows[i].redraw(),
             WindowEvent::Resized(_) => {
                 let size = if let Some(size) = self.windows[i].resized() {
                     size
@@ -888,37 +890,34 @@ impl App {
             }
             WindowEvent::KeyboardInput {
                 device_id,
-                input,
+                event,
                 is_synthetic,
             } => {
                 linux_modal_dialog_bail!();
 
                 if !is_synthetic && self.windows[i].is_focused() {
+                    // see the Window::focus comments.
                     #[cfg(windows)]
                     if self.skip_ralt {
-                        // see the Window::focus comments.
-                        if let Some(winit::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
+                        if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::AltRight) = event.physical_key {
                             return;
                         }
                     }
 
-                    let state = util::element_state_to_key_state(input.state);
-                    let key = input.virtual_keycode.map(util::v_key_to_key);
+                    let state = util::element_state_to_key_state(event.state);
+                    let key = util::winit_key_to_key(event.key_without_modifiers());
+                    let key_modified = util::winit_key_to_key(event.logical_key);
+                    let key_code = util::winit_physical_key_to_key_code(event.physical_key);
                     let d_id = self.device_id(device_id);
 
                     let mut send_event = true;
 
-                    if let Some(key) = key.clone() {
-                        if key.is_modifier() {
-                            match state {
-                                KeyState::Pressed => {
-                                    send_event = self
-                                        .pressed_modifiers
-                                        .insert(key, (d_id, util::scan_code_to_key(input.scancode)))
-                                        .is_none();
-                                }
-                                KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
+                    if key.is_modifier() {
+                        match state {
+                            KeyState::Pressed => {
+                                send_event = self.pressed_modifiers.insert(key, (d_id, key_code)).is_none();
                             }
+                            KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
                         }
                     }
 
@@ -926,32 +925,19 @@ impl App {
                         self.notify(Event::KeyboardInput {
                             window: id,
                             device: d_id,
-                            key_code: util::scan_code_to_key(input.scancode),
+                            key_code,
                             state,
-                            key: key.clone(),
-                            key_modified: key.clone(),
-                            text: String::new(),
+                            key: Some(key), // !!: TODO, remove option
+                            key_modified: Some(key_modified),
+                            text: event.text.map(|s| s.as_str().to_owned()).unwrap_or_default(),
                         });
                     }
                 }
             }
-            WindowEvent::ReceivedCharacter(c) => {
-                linux_modal_dialog_bail!();
-                // merged with previous key press.
-                self.notify(Event::KeyboardInput {
-                    window: id,
-                    device: DeviceId::INVALID,
-                    key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-                    state: KeyState::Pressed,
-                    key: None,
-                    key_modified: None,
-                    text: c.to_string(),
-                })
-            }
             WindowEvent::ModifiersChanged(m) => {
                 linux_modal_dialog_bail!();
                 if self.windows[i].is_focused() {
-                    self.pending_modifiers_update = Some(m);
+                    self.pending_modifiers_update = Some(m.state());
                 }
             }
             WindowEvent::CursorMoved { device_id, position, .. } => {
@@ -1122,6 +1108,7 @@ impl App {
                 // TODO
             }
             WindowEvent::Occluded(_) => {}
+            WindowEvent::ActivationTokenDone { .. } => {}
         }
     }
 
@@ -1154,7 +1141,7 @@ impl App {
                 let mut notify = vec![];
                 self.pressed_modifiers.retain(|key, (d_id, s_code)| {
                     let mut retain = true;
-                    if matches!(key, Key::Super) && !m.logo() {
+                    if matches!(key, Key::Super) && !m.super_key() {
                         retain = false;
                         notify.push(Event::KeyboardInput {
                             window: id,
@@ -1166,7 +1153,7 @@ impl App {
                             text: String::new(),
                         });
                     }
-                    if matches!(key, Key::Shift) && !m.shift() {
+                    if matches!(key, Key::Shift) && !m.shift_key() {
                         retain = false;
                         notify.push(Event::KeyboardInput {
                             window: id,
@@ -1178,7 +1165,7 @@ impl App {
                             text: String::new(),
                         });
                     }
-                    if matches!(key, Key::Alt | Key::AltGraph) && !m.alt() {
+                    if matches!(key, Key::Alt | Key::AltGraph) && !m.alt_key() {
                         retain = false;
                         notify.push(Event::KeyboardInput {
                             window: id,
@@ -1190,7 +1177,7 @@ impl App {
                             text: String::new(),
                         });
                     }
-                    if matches!(key, Key::Ctrl) && !m.ctrl() {
+                    if matches!(key, Key::Ctrl) && !m.control_key() {
                         retain = false;
                         notify.push(Event::KeyboardInput {
                             window: id,
@@ -1366,10 +1353,9 @@ impl App {
                 }),
                 DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
                     device: d_id,
-                    key_code: util::scan_code_to_key(k.scancode),
+                    key_code: util::winit_physical_key_to_key_code(k.physical_key),
                     state: util::element_state_to_key_state(k.state),
                 }),
-                DeviceEvent::Text { .. } => {}
             }
         }
     }

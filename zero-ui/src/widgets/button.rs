@@ -141,7 +141,7 @@ impl LinkStyle {
         widget_set! {
             self;
             text::font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
-            crate::properties::cursor = CursorIcon::Hand;
+            crate::properties::cursor = CursorIcon::Pointer;
             access_role = AccessRole::Link;
 
             when *#is_cap_hovered {

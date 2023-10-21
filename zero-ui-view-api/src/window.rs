@@ -579,124 +579,178 @@ impl WindowStateAll {
 }
 
 /// Describes the appearance of the mouse cursor.
+#[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CursorIcon {
-    /// The platform-dependent default cursor.
+    /// The platform-dependent default cursor. Often rendered as arrow.
     #[default]
     Default,
-    /// A simple crosshair.
-    Crosshair,
-    /// A hand (often used to indicate links in web browsers).
-    Hand,
-    /// Self explanatory.
-    Arrow,
-    /// Indicates something is to be moved.
-    Move,
-    /// Indicates horizontal text that may be selected or edited.
-    Text,
-    /// Program busy indicator.
-    Wait,
-    /// Help indicator (often rendered as a "?")
+
+    /// A context menu is available for the object under the cursor. Often
+    /// rendered as an arrow with a small menu-like graphic next to it.
+    ContextMenu,
+
+    /// Help is available for the object under the cursor. Often rendered as a
+    /// question mark or a balloon.
     Help,
-    /// Progress indicator. Shows that processing is being done. But in contrast
-    /// with "Wait" the user may still interact with the program. Often rendered
-    /// as a spinning beach ball, or an arrow with a watch or hourglass.
+
+    /// The cursor is a pointer that indicates a link. Often rendered as the
+    /// backside of a hand with the index finger extended.
+    Pointer,
+
+    /// A progress indicator. The program is performing some processing, but is
+    /// different from [`CursorIcon::Wait`] in that the user may still interact
+    /// with the program.
     Progress,
 
-    /// Cursor showing that something cannot be done.
-    NotAllowed,
-    /// Indicates that a context menu is available.
-    ContextMenu,
-    /// Indicates a table cell or set of cells can be selected.
-    Cell,
-    /// Indicates vertical text that may be selected or edited.
-    VerticalText,
-    /// Indicates an alias or shortcut is to be created.
-    Alias,
-    /// Indicates something is to be copied.
-    Copy,
-    /// An item may not be dropped at the current location.
-    NoDrop,
-    /// Indicates something can be grabbed.
-    Grab,
-    /// Indicates something is grabbed.
-    Grabbing,
-    /// Something can be scrolled in any direction (panned).
-    AllScroll,
-    /// Something can be zoomed (magnified) in.
-    ZoomIn,
-    /// Something can be zoomed (magnified) out.
-    ZoomOut,
+    /// Indicates that the program is busy and the user should wait. Often
+    /// rendered as a watch or hourglass.
+    Wait,
 
-    /// Indicate that the right vertical edge is to be moved left/right.
+    /// Indicates that a cell or set of cells may be selected. Often rendered as
+    /// a thick plus-sign with a dot in the middle.
+    Cell,
+
+    /// A simple crosshair (e.g., short line segments resembling a "+" sign).
+    /// Often used to indicate a two dimensional bitmap selection mode.
+    Crosshair,
+
+    /// Indicates text that may be selected. Often rendered as an I-beam.
+    Text,
+
+    /// Indicates vertical-text that may be selected. Often rendered as a
+    /// horizontal I-beam.
+    VerticalText,
+
+    /// Indicates an alias of/shortcut to something is to be created. Often
+    /// rendered as an arrow with a small curved arrow next to it.
+    Alias,
+
+    /// Indicates something is to be copied. Often rendered as an arrow with a
+    /// small plus sign next to it.
+    Copy,
+
+    /// Indicates something is to be moved.
+    Move,
+
+    /// Indicates that the dragged item cannot be dropped at the current cursor
+    /// location. Often rendered as a hand or pointer with a small circle with a
+    /// line through it.
+    NoDrop,
+
+    /// Indicates that the requested action will not be carried out. Often
+    /// rendered as a circle with a line through it.
+    NotAllowed,
+
+    /// Indicates that something can be grabbed (dragged to be moved). Often
+    /// rendered as the backside of an open hand.
+    Grab,
+
+    /// Indicates that something is being grabbed (dragged to be moved). Often
+    /// rendered as the backside of a hand with fingers closed mostly out of
+    /// view.
+    Grabbing,
+
+    /// The east border to be moved.
     EResize,
-    /// Indicates that the top horizontal edge is to be moved up/down.
+
+    /// The north border to be moved.
     NResize,
-    /// Indicates that top-right corner is to be moved.
+
+    /// The north-east corner to be moved.
     NeResize,
-    /// Indicates that the top-left corner is to be moved.
+
+    /// The north-west corner to be moved.
     NwResize,
-    /// Indicates that the bottom vertical edge is to be moved up/down.
+
+    /// The south border to be moved.
     SResize,
-    /// Indicates that the bottom-right corner is to be moved.
+
+    /// The south-east corner to be moved.
     SeResize,
-    /// Indicates that the bottom-left corner is to be moved.
+
+    /// The south-west corner to be moved.
     SwResize,
-    /// Indicates that the left vertical edge is to be moved left/right.
+
+    /// The west border to be moved.
     WResize,
-    /// Indicates that the any of the vertical edges is to be moved left/right.
+
+    /// The east and west borders to be moved.
     EwResize,
-    /// Indicates that the any of the horizontal edges is to be moved up/down.
+
+    /// The south and north borders to be moved.
     NsResize,
-    /// Indicates that the top-right or bottom-left corners are to be moved.
+
+    /// The north-east and south-west corners to be moved.
     NeswResize,
-    /// Indicates that the top-left or bottom-right corners are to be moved.
+
+    /// The north-west and south-east corners to be moved.
     NwseResize,
-    /// Indicates that the item/column can be resized horizontally.
+
+    /// Indicates that the item/column can be resized horizontally. Often
+    /// rendered as arrows pointing left and right with a vertical bar
+    /// separating them.
     ColResize,
-    /// Indicates that the item/row can be resized vertically.
+
+    /// Indicates that the item/row can be resized vertically. Often rendered as
+    /// arrows pointing up and down with a horizontal bar separating them.
     RowResize,
+
+    /// Indicates that the something can be scrolled in any direction. Often
+    /// rendered as arrows pointing up, down, left, and right with a dot in the
+    /// middle.
+    AllScroll,
+
+    /// Indicates that something can be zoomed in. Often rendered as a
+    /// magnifying glass with a "+" in the center of the glass.
+    ZoomIn,
+
+    /// Indicates that something can be zoomed in. Often rendered as a
+    /// magnifying glass with a "-" in the center of the glass.
+    ZoomOut,
 }
 
 impl CursorIcon {
     /// All cursor icons.
-    pub const ALL: &'static [CursorIcon] = &[
-        CursorIcon::Default,
-        CursorIcon::Crosshair,
-        CursorIcon::Hand,
-        CursorIcon::Arrow,
-        CursorIcon::Move,
-        CursorIcon::Text,
-        CursorIcon::Wait,
-        CursorIcon::Help,
-        CursorIcon::Progress,
-        CursorIcon::NotAllowed,
-        CursorIcon::ContextMenu,
-        CursorIcon::Cell,
-        CursorIcon::VerticalText,
-        CursorIcon::Alias,
-        CursorIcon::Copy,
-        CursorIcon::NoDrop,
-        CursorIcon::Grab,
-        CursorIcon::Grabbing,
-        CursorIcon::AllScroll,
-        CursorIcon::ZoomIn,
-        CursorIcon::ZoomOut,
-        CursorIcon::EResize,
-        CursorIcon::NResize,
-        CursorIcon::NeResize,
-        CursorIcon::NwResize,
-        CursorIcon::SResize,
-        CursorIcon::SeResize,
-        CursorIcon::SwResize,
-        CursorIcon::WResize,
-        CursorIcon::EwResize,
-        CursorIcon::NsResize,
-        CursorIcon::NeswResize,
-        CursorIcon::NwseResize,
-        CursorIcon::ColResize,
-        CursorIcon::RowResize,
-    ];
+    pub const ALL: &'static [CursorIcon] = {
+        use CursorIcon::*;
+        &[
+            Default,
+            ContextMenu,
+            Help,
+            Pointer,
+            Progress,
+            Wait,
+            Cell,
+            Crosshair,
+            Text,
+            VerticalText,
+            Alias,
+            Copy,
+            Move,
+            NoDrop,
+            NotAllowed,
+            Grab,
+            Grabbing,
+            EResize,
+            NResize,
+            NeResize,
+            NwResize,
+            SResize,
+            SeResize,
+            SwResize,
+            WResize,
+            EwResize,
+            NsResize,
+            NeswResize,
+            NwseResize,
+            ColResize,
+            RowResize,
+            AllScroll,
+            ZoomIn,
+            ZoomOut,
+        ]
+    };
 
     /// Estimated icon size and click spot in that size.
     pub fn size_and_spot(&self) -> (DipSize, DipPoint) {

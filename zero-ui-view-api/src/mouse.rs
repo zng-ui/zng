@@ -28,6 +28,10 @@ pub enum MouseButton {
     Right,
     /// Middle button.
     Middle,
+    /// Back button.
+    Back,
+    /// Forward button.
+    Forward,
     /// Any other button.
     Other(u16),
 }

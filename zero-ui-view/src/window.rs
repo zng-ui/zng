@@ -227,12 +227,11 @@ impl Window {
         #[cfg(windows)]
         {
             let event_sender = event_sender.clone();
-            use winit::platform::windows::WindowExtWindows;
 
             let mut first_focus = false;
 
             let window_id = winit_window.id();
-            let hwnd = winit_window.hwnd() as _;
+            let hwnd = crate::util::winit_to_hwnd(&winit_window);
             crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if !first_focus && unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
                     // Windows sends a `WM_SETFOCUS` when the window open, even if the user changed focus to something
@@ -502,10 +501,8 @@ impl Window {
 
     #[cfg(windows)]
     fn windows_is_foreground(&self) -> bool {
-        use winit::platform::windows::WindowExtWindows;
-
         let foreground = unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-        foreground == self.window.hwnd()
+        foreground == crate::util::winit_to_hwnd(&self.window)
     }
 
     pub fn is_focused(&self) -> bool {
@@ -598,10 +595,9 @@ impl Window {
     #[cfg(windows)]
     pub fn bring_to_top(&mut self) {
         use windows_sys::Win32::UI::WindowsAndMessaging::*;
-        use winit::platform::windows::WindowExtWindows;
 
         if !self.is_always_on_top {
-            let hwnd = self.window.hwnd();
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
 
             unsafe {
                 let _ = SetWindowPos(
@@ -712,10 +708,10 @@ impl Window {
             Foundation::{POINT, RECT},
             UI::WindowsAndMessaging::*,
         };
-        use winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
+        use winit::platform::windows::MonitorHandleExtWindows;
 
         if let Some(monitor) = self.window.current_monitor() {
-            let hwnd = self.window.hwnd() as _;
+            let hwnd = crate::util::winit_to_hwnd(&self.window) as _;
             let mut placement = WINDOWPLACEMENT {
                 length: mem::size_of::<WINDOWPLACEMENT>() as _,
                 flags: 0,
@@ -835,7 +831,7 @@ impl Window {
     fn is_maximized(&self) -> bool {
         #[cfg(windows)]
         {
-            let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
             // SAFETY: function does not fail.
             return unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsZoomed(hwnd as _) } != 0;
         }
@@ -856,7 +852,7 @@ impl Window {
 
         #[cfg(windows)]
         {
-            let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
             // SAFETY: function does not fail.
             return unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsIconic(hwnd as _) } != 0;
         }
@@ -913,7 +909,14 @@ impl Window {
             new_state.restore_rect = self.state.restore_rect;
 
             self.set_inner_position(new_state.restore_rect.origin);
-            self.window.set_inner_size(new_state.restore_rect.size.to_winit());
+            let new_size = new_state.restore_rect.size.to_winit();
+            if let Some(immediate_new_size) = self.window.request_inner_size(new_size) {
+                if immediate_new_size == new_size.to_physical(self.window.scale_factor()) {
+                    // size changed immediately, winit says: "resize event in such case may not be generated"
+                    // * Review of Windows and Linux shows that the resize event is send.
+                    tracing::debug!("immediate resize may not have notified, new size: {immediate_new_size:?}");
+                }
+            }
 
             self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
@@ -988,7 +991,6 @@ impl Window {
         self.taskbar_visible = visible;
 
         use windows_sys::Win32::System::Com::*;
-        use winit::platform::windows::WindowExtWindows;
 
         use crate::util::taskbar_com;
 
@@ -1006,10 +1008,10 @@ impl Window {
                 0 => {
                     let result = if visible {
                         let add_tab = (*(*taskbar_list2).lpVtbl).parent.AddTab;
-                        add_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                        add_tab(taskbar_list2.cast(), crate::util::winit_to_hwnd(&self.window) as _)
                     } else {
                         let delete_tab = (*(*taskbar_list2).lpVtbl).parent.DeleteTab;
-                        delete_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                        delete_tab(taskbar_list2.cast(), crate::util::winit_to_hwnd(&self.window) as _)
                     };
                     if result != 0 {
                         let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
@@ -1131,7 +1133,7 @@ impl Window {
         self.state = new_state;
 
         if self.state.state == WindowState::Normal {
-            self.window.set_inner_size(self.state.restore_rect.size.to_winit());
+            self.window.request_inner_size(self.state.restore_rect.size.to_winit());
 
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));

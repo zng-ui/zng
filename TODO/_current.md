@@ -1,3 +1,9 @@
+# Winit Upgrade
+
+* Fix all "!!:".
+* Test all.
+* Test run_same_process twice (headless example can do this).
+
 # TextInput
 
 * Implement `txt_selectable` text.

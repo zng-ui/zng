@@ -128,7 +128,7 @@ impl GlContextManager {
         window_target: &EventLoopWindowTarget<AppEvent>,
         hardware: Option<bool>,
     ) -> Result<GlContext, Box<dyn Error>> {
-        let display_handle = window_target.raw_display_handle();
+        let display_handle = window_target.raw_display_handle(); // !!: TODO, try from window too.
         let window_handle = window.raw_window_handle();
 
         #[cfg(windows)]
@@ -684,9 +684,9 @@ mod blit {
     #[cfg(windows)]
     mod windows_blit {
 
+        use raw_window_handle::HasRawWindowHandle;
         use windows_sys::Win32::Foundation::HWND;
         use windows_sys::Win32::Graphics::Gdi::*;
-        use winit::platform::windows::WindowExtWindows;
 
         pub struct GdiBlit {
             hwnd: HWND,
@@ -694,7 +694,10 @@ mod blit {
 
         impl GdiBlit {
             pub fn new(window: &winit::window::Window) -> Self {
-                GdiBlit { hwnd: window.hwnd() as _ }
+                match window.raw_window_handle() {
+                    raw_window_handle::RawWindowHandle::Win32(h) => GdiBlit { hwnd: h.hwnd as _ },
+                    _ => unreachable!(),
+                }
             }
 
             pub fn supported() -> bool {
