@@ -501,15 +501,7 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState) {
         use crate::app::raw_events::*;
 
-        let args = RawKeyInputArgs::now(
-            window_id,
-            DeviceId::virtual_keyboard(),
-            code,
-            state,
-            key.clone(),
-            key,
-            "",
-        );
+        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, state, key.clone(), key, "");
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 

@@ -146,21 +146,21 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         open_timer = None;
                     }
                 } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                    if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
+                    if let KeyState::Pressed = args.state {
                         if !is_open.get() {
                             if let Some(info) = WIDGET.info().into_focusable(true, true) {
                                 if info.info().submenu_parent().is_none() {
                                     // root, open for arrow keys that do not cause focus move
-                                    if matches!(key, Key::ArrowUp | Key::ArrowDown) {
+                                    if matches!(&args.key, Key::ArrowUp | Key::ArrowDown) {
                                         open_pop = info.focusable_down().is_none() && info.focusable_up().is_none();
-                                    } else if matches!(key, Key::ArrowLeft | Key::ArrowRight) {
+                                    } else if matches!(&args.key, Key::ArrowLeft | Key::ArrowRight) {
                                         open_pop = info.focusable_left().is_none() && info.focusable_right().is_none();
                                     }
                                 } else {
                                     // sub, open in direction.
                                     match DIRECTION_VAR.get() {
-                                        LayoutDirection::LTR => open_pop = matches!(key, Key::ArrowRight),
-                                        LayoutDirection::RTL => open_pop = matches!(key, Key::ArrowLeft),
+                                        LayoutDirection::LTR => open_pop = matches!(&args.key, Key::ArrowRight),
+                                        LayoutDirection::RTL => open_pop = matches!(&args.key, Key::ArrowLeft),
                                     }
                                 }
                             }

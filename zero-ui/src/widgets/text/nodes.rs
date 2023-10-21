@@ -554,7 +554,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                         if let KeyState::Pressed = args.state {
                             match &args.key {
-                                Some(Key::Backspace) => {
+                                Key::Backspace => {
                                     let caret = resolved.as_mut().unwrap().caret.get_mut();
                                     if caret.selection_index.is_some() || caret.index.unwrap_or(CaretIndex::ZERO).index > 0 {
                                         if args.modifiers.is_only_ctrl() {
@@ -566,7 +566,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                         }
                                     }
                                 }
-                                Some(Key::Delete) => {
+                                Key::Delete => {
                                     let r = resolved.as_mut().unwrap();
                                     let caret = r.caret.get_mut();
                                     let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
@@ -1327,8 +1327,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 };
 
                 if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                    if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
-                        match key {
+                    if let KeyState::Pressed = args.state {
+                        match &args.key {
                             Key::Tab => {
                                 if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
                                     args.propagation().stop();

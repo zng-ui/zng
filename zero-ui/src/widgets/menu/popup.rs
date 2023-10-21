@@ -167,8 +167,8 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
             c.event(update);
 
             if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let (Some(key), KeyState::Pressed) = (&args.key, args.state) {
-                    match key {
+                if let KeyState::Pressed = args.state {
+                    match &args.key {
                         Key::Escape => {
                             let info = WIDGET.info();
                             if let Some(m) = info.submenu_parent() {
@@ -188,8 +188,8 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                         if m.submenu_parent().is_some() {
                                             if let Some(o) = m.orientation_from(info.info().center()) {
                                                 escape = match o {
-                                                    Orientation2D::Left => key == &Key::ArrowLeft,
-                                                    Orientation2D::Right => key == &Key::ArrowRight,
+                                                    Orientation2D::Left => args.key == Key::ArrowLeft,
+                                                    Orientation2D::Right => args.key == Key::ArrowRight,
                                                     Orientation2D::Below | Orientation2D::Above => false,
                                                 };
                                             }
@@ -206,7 +206,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                             // change root
 
                                             let m = m.into_focus_info(true, true);
-                                            let next_root = match key {
+                                            let next_root = match &args.key {
                                                 Key::ArrowLeft => m.next_left(),
                                                 Key::ArrowRight => m.next_right(),
                                                 _ => unreachable!(),
