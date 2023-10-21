@@ -57,7 +57,7 @@ pub enum ClipboardError {
 impl fmt::Display for ClipboardError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ClipboardError::NotFound => write!(f, "clipboard does not contains requested format"),
+            ClipboardError::NotFound => write!(f, "clipboard does not contain the requested format"),
             ClipboardError::NotSupported => write!(f, "clipboard implementation does not support the format"),
             ClipboardError::Other(_) => write!(f, "internal error"),
         }
