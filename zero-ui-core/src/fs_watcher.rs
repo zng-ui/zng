@@ -20,7 +20,7 @@ use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 
 use crate::{
-    app::AppExtension,
+    app::{raw_events::LOW_MEMORY_EVENT, AppExtension},
     context::app_local,
     crate_util::{lock_exclusive, lock_shared, unlock_ok, Handle, HandleOwner},
     event::{event, event_args, EventHandle},
@@ -62,6 +62,8 @@ impl AppExtension for FsWatcherManager {
     fn event_preview(&mut self, update: &mut crate::event::EventUpdate) {
         if let Some(args) = FS_CHANGES_EVENT.on(update) {
             WATCHER_SV.write().event(args);
+        } else if LOW_MEMORY_EVENT.on(update).is_some() {
+            WATCHER_SV.write().low_memory();
         }
     }
 
@@ -967,6 +969,12 @@ impl WatcherService {
     fn event(&mut self, args: &FsChangesArgs) {
         self.read_to_var.retain_mut(|f| f.on_event(args));
         self.sync_with_var.retain_mut(|f| f.on_event(args));
+    }
+
+    fn low_memory(&mut self) {
+        self.read_to_var.retain_mut(|v| v.retain());
+        let sync_debounce = self.sync_debounce.get();
+        self.sync_with_var.retain_mut(|v| v.retain(sync_debounce));
     }
 
     fn update(&mut self) {

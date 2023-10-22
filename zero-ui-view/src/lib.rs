@@ -607,7 +607,7 @@ impl App {
                             }
                         }
                         WEvent::MemoryWarning => {
-                            // !!: TODO, create a memory pressure event, flush caches?
+                            app.on_low_memory();
                         }
                         WEvent::LoopExiting => {}
                     }
@@ -673,6 +673,18 @@ impl App {
                 }
             }
         });
+    }
+
+    fn on_low_memory(&mut self) {
+        self.image_cache.on_low_memory();
+        for w in &mut self.windows {
+            w.on_low_memory();
+        }
+        for s in &mut self.surfaces {
+            s.on_low_memory();
+        }
+        self.exts.on_low_memory();
+        self.notify(Event::LowMemory);
     }
 
     fn on_window_event(&mut self, window_id: winit::window::WindowId, event: WindowEvent) {

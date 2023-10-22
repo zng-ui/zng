@@ -39,6 +39,9 @@ pub trait ViewExtension: Send + Any {
     fn renderer(&mut self) -> Option<Box<dyn RendererExtension>> {
         None
     }
+
+    /// System warning low memory, release unused memory, caches.
+    fn low_memory(&mut self) {}
 }
 
 ///  Represents a view extension associated with a renderer instance.
@@ -105,6 +108,9 @@ pub trait RendererExtension: Any {
     fn redraw(&mut self, args: &mut RedrawArgs) {
         let _ = args;
     }
+
+    /// System warning low memory, release unused memory, caches.
+    fn low_memory(&mut self) {}
 }
 
 /// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
@@ -618,6 +624,12 @@ impl ViewExtensions {
                     id: ApiExtensionId::from_index(i),
                 },
             });
+        }
+    }
+
+    pub(crate) fn on_low_memory(&mut self) {
+        for ext in self.exts.iter_mut() {
+            ext.low_memory();
         }
     }
 }

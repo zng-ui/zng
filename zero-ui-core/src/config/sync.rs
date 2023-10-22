@@ -226,6 +226,10 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         }
         contains
     }
+
+    fn low_memory(&mut self) {
+        self.shared.low_memory();
+    }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

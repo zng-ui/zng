@@ -101,6 +101,12 @@ impl AnyConfig for SwitchConfig {
             None => false,
         }
     }
+
+    fn low_memory(&mut self) {
+        for c in &mut self.cfgs {
+            c.cfg.low_memory();
+        }
+    }
 }
 impl Config for SwitchConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

@@ -235,6 +235,10 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         let mut d = self.0.lock();
         d.fallback.remove(key) || d.config.remove(key)
     }
+
+    fn low_memory(&mut self) {
+        self.0.lock().vars.retain(|_, v| v.retain())
+    }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

@@ -616,6 +616,16 @@ event_args! {
             list.search_all()
         }
     }
+
+    /// Arguments for [`LOW_MEMORY_EVENT`].
+    pub struct LowMemoryArgs {
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
 }
 
 event! {
@@ -743,6 +753,9 @@ event! {
 
     /// Image generated from a frame is ready for reading.
     pub static RAW_FRAME_IMAGE_READY_EVENT: RawFrameImageReadyArgs;
+
+    /// System low memory warning, some platforms may kill the app if it does not release memory.
+    pub static LOW_MEMORY_EVENT: LowMemoryArgs;
 
     /// Custom view-process extension event.
     pub static RAW_EXTENSION_EVENT: RawExtensionEventArgs;

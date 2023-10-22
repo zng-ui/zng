@@ -1638,6 +1638,14 @@ impl Window {
         // !!: TODO
         // self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
     }
+
+    pub(crate) fn on_low_memory(&mut self) {
+        self.api.notify_memory_pressure();
+
+        for (_, ext) in &mut self.renderer_exts {
+            ext.low_memory();
+        }
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {

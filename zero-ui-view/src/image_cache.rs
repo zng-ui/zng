@@ -838,6 +838,10 @@ impl ImageCache {
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
         }
     }
+
+    pub(crate) fn on_low_memory(&mut self) {
+        // app-process controls this cache
+    }
 }
 
 /// (pixels, size, ppi, is_opaque, is_mask)

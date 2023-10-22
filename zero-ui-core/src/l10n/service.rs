@@ -260,7 +260,7 @@ impl L10nService {
     }
 }
 app_local! {
-    pub(super) static L10N_SV: L10nService=L10nService::new();
+    pub(super) static L10N_SV: L10nService = L10nService::new();
 }
 
 type ConcurrentFluentBundle = fluent::bundle::FluentBundle<Arc<fluent::FluentResource>, intl_memoizer::concurrent::IntlLangMemoizer>;

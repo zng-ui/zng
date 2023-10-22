@@ -1403,6 +1403,8 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(KEY_EVENT.new_update(args), observer);
             }
 
+            Event::LowMemory => {}
+
             // Others
             Event::Inited(Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }

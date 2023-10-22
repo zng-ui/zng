@@ -468,6 +468,14 @@ impl Surface {
 
         r.unwrap_or_else(|| ApiExtensionPayload::unknown_extension(extension_id))
     }
+
+    pub(crate) fn on_low_memory(&mut self) {
+        self.api.notify_memory_pressure();
+
+        for (_, ext) in &mut self.renderer_exts {
+            ext.low_memory();
+        }
+    }
 }
 impl Drop for Surface {
     fn drop(&mut self) {

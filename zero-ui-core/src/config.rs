@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    app::AppExtension,
+    app::{raw_events::LOW_MEMORY_EVENT, AppExtension},
     app_local, clmv,
     fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile},
     task,
@@ -63,7 +63,13 @@ pub use self::yaml::*;
 #[derive(Default)]
 pub struct ConfigManager {}
 
-impl AppExtension for ConfigManager {}
+impl AppExtension for ConfigManager {
+    fn event_preview(&mut self, update: &mut crate::event::EventUpdate) {
+        if LOW_MEMORY_EVENT.on(update).is_some() {
+            CONFIG_SV.write().low_memory();
+        }
+    }
+}
 
 /// Represents the app main config.
 ///
@@ -125,6 +131,10 @@ impl AnyConfig for CONFIG {
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
         CONFIG_SV.write().remove(key)
+    }
+
+    fn low_memory(&mut self) {
+        CONFIG_SV.write().low_memory()
     }
 }
 impl Config for CONFIG {
@@ -264,6 +274,9 @@ pub trait AnyConfig: Send + Any {
     /// Returns `true` if the key was found and will be removed in the next app update.
     /// Returns `false` if the key was not found or the config is read-only.
     fn remove(&mut self, key: &ConfigKey) -> bool;
+
+    /// System warning low memory, flush RAM caches.
+    fn low_memory(&mut self);
 }
 
 /// Represents one or more config sources.
@@ -304,6 +317,10 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
 
     fn remove(&mut self, _key: &ConfigKey) -> bool {
         false
+    }
+
+    fn low_memory(&mut self) {
+        self.cfg.low_memory()
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
@@ -375,6 +392,10 @@ impl AnyConfig for MemoryConfig {
         } else {
             false
         }
+    }
+
+    fn low_memory(&mut self) {
+        self.contains.retain(|_, v| v.strong_count() > 0);
     }
 }
 impl Config for MemoryConfig {
@@ -520,6 +541,12 @@ impl ConfigVars {
     pub fn rebind(&mut self, source: &mut dyn AnyConfig) {
         self.values.retain(|key, wk_var| wk_var.rebind(key, source));
         self.contains.retain(|key, wk_var| wk_var.rebind(key, source));
+    }
+
+    /// System warning low memory, flush caches.
+    pub fn low_memory(&mut self) {
+        self.values.retain(|_, v| v.can_upgrade());
+        self.contains.retain(|_, v| v.var.strong_count() > 0)
     }
 }
 trait AnyConfigVar: Any + Send + Sync {

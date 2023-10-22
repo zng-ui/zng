@@ -37,6 +37,11 @@ impl AnyConfig for SwapConfig {
     fn remove(&mut self, key: &ConfigKey) -> bool {
         self.cfg.get_mut().remove(key)
     }
+
+    fn low_memory(&mut self) {
+        self.cfg.get_mut().low_memory();
+        self.shared.low_memory();
+    }
 }
 impl Config for SwapConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

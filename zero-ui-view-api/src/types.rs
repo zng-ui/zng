@@ -509,6 +509,9 @@ pub enum Event {
         command: AccessCmd,
     },
 
+    /// System low memory warning, some platforms may kill the app if it does not release memory.
+    LowMemory,
+
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
 }

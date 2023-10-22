@@ -16,7 +16,7 @@ use zero_ui_view_api::ipc::IpcBytes;
 
 use crate::{
     app::{
-        raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
+        raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
         view_process::{ImageRequest, ViewImage, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
@@ -190,6 +190,8 @@ impl AppExtension for ImageManager {
                     }
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
+        } else if LOW_MEMORY_EVENT.on(update).is_some() {
+            IMAGES.clean_all();
         } else {
             self.event_preview_render(update);
         }
