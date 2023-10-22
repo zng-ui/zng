@@ -1,8 +1,7 @@
 # Winit Upgrade
 
-* Deadlock reading window state during CursorEntered event (.scale_factor or .is_maximized).
-    - Winit bug.
-* Update `accesskit`.
+* Wait for `winit` deadlock fix: https://github.com/rust-windowing/winit/pull/3172
+* Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256
 * Fix all "!!:".
 * Test all.
 * Test run_same_process twice (headless example can do this).
