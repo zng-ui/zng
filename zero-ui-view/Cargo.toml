@@ -70,7 +70,12 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
-winit = { version = "0.29", default-features = false, features = ["x11", "wayland", "wayland-dlopen", "rwh_05"] }
+winit = { git = "https://github.com/rust-windowing/winit", rev = "d37d1a03b20004cf014f8a9bd62b2545419603ad", default-features = false, features = [
+    "x11",
+    "wayland",
+    "wayland-dlopen",
+    "rwh_05",
+] }
 glutin = "0.31"
 raw-window-handle = "0.5" # matches glutin
 flume = "0.11"
@@ -82,18 +87,18 @@ rustc-hash = "1"
 rayon = "1"
 backtrace = "0.3"
 serde = "1"
-rfd =  { version = "0.12", default_features = false, features = ["xdg-portal"] }
+rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
 # accesskit = "0.12" !!: TODO
 # accesskit_winit = "0.15"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"
 features = [
-    "Win32_UI_Shell", 
+    "Win32_UI_Shell",
     "Win32_System_Com",
-    "Win32_UI_WindowsAndMessaging", 
-    "Win32_Devices_HumanInterfaceDevice",   
-    "Win32_UI_Input_KeyboardAndMouse", 
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_Graphics_Gdi",
     "Win32_Graphics_OpenGL",
     "Win32_UI_Accessibility",
@@ -104,10 +109,7 @@ features = [
 ]
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.51.0"
-features = [
-    "Foundation_Collections",
-    "System_UserProfile"
-]
+features = ["Foundation_Collections", "System_UserProfile"]
 
 [target.'cfg(windows)'.dependencies]
 clipboard-win = { version = "4", features = ["std"] }
@@ -118,7 +120,7 @@ sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 wayland-client = { version = "0.31", default_features = false } # matches winit
-x11-dl = "2.18.5" # matches winit
+x11-dl = "2.18.5"                                               # matches winit
 tempfile = "3"
 
 # xlib is re-exported by glutin/winit
