@@ -1,9 +1,13 @@
 # Winit Upgrade
 
+* Deadlock reading window state during CursorEntered event (.scale_factor or .is_maximized).
+    - Winit bug.
 * Update `accesskit`.
 * Fix all "!!:".
 * Test all.
 * Test run_same_process twice (headless example can do this).
+* Review new winit features.
+* Merge.
 
 # TextInput
 
@@ -65,11 +69,6 @@
     - Wait for winit 29.
     - Visual can be a screen capture of the widget by default.
     - Browsers do this, with some fade-out mask effect and text selection clipping.
-
-# View-Process
-
-* Update to winit-29 when released.
-    - Lots of breaking changes.
 
 # Publish
 
