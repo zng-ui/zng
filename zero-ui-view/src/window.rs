@@ -107,8 +107,7 @@ pub(crate) struct Window {
     render_mode: RenderMode,
 
     modal_dialog_active: Arc<AtomicBool>,
-
-    access: accesskit_winit::Adapter,
+    // access: accesskit_winit::Adapter,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -341,18 +340,19 @@ impl Window {
 
         drop(wr_scope);
 
-        let access_root = cfg.access_root;
-        let mut first = Some((event_sender.clone(), id));
-        let access = accesskit_winit::Adapter::with_action_handler(
-            &winit_window,
-            move || {
-                if let Some((first, window_id)) = first.take() {
-                    let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
-                }
-                crate::util::access_tree_init(access_root)
-            },
-            Box::new(AccessSender { id, event_sender }),
-        );
+        // !!: TODO, accesskit update
+        // let access_root = cfg.access_root;
+        // let mut first = Some((event_sender.clone(), id));
+        // let access = accesskit_winit::Adapter::with_action_handler(
+        //     &winit_window,
+        //     move || {
+        //         if let Some((first, window_id)) = first.take() {
+        //             let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
+        //         }
+        //         crate::util::access_tree_init(access_root)
+        //     },
+        //     Box::new(AccessSender { id, event_sender }),
+        // );
 
         let mut win = Self {
             id,
@@ -391,7 +391,7 @@ impl Window {
             focused: None,
             modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
-            access,
+            // access,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1133,7 +1133,7 @@ impl Window {
         self.state = new_state;
 
         if self.state.state == WindowState::Normal {
-            self.window.request_inner_size(self.state.restore_rect.size.to_winit());
+            let _ = self.window.request_inner_size(self.state.restore_rect.size.to_winit());
 
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));
@@ -1628,13 +1628,15 @@ impl Window {
     }
 
     /// Pump the accessibility adapter.
-    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
-        let _must_use_why = self.access.on_event(&self.window, event);
+    pub fn pump_access(&mut self, _event: &winit::event::WindowEvent) {
+        // !!: TODO
+        // let _must_use_why = self.access.on_event(&self.window, event);
     }
 
     /// Update the accessibility info.
-    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate) {
-        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
+    pub fn access_update(&mut self, _update: zero_ui_view_api::access::AccessTreeUpdate) {
+        // !!: TODO
+        // self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
     }
 }
 impl Drop for Window {
@@ -1662,14 +1664,15 @@ pub(crate) struct FrameReadyResult {
     pub first_frame: bool,
 }
 
-struct AccessSender {
-    id: WindowId,
-    event_sender: AppEventSender,
-}
-impl accesskit::ActionHandler for AccessSender {
-    fn do_action(&mut self, request: accesskit::ActionRequest) {
-        if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
-            let _ = self.event_sender.send(AppEvent::Notify(ev));
-        }
-    }
-}
+// !!: TODO
+// struct AccessSender {
+//     id: WindowId,
+//     event_sender: AppEventSender,
+// }
+// impl accesskit::ActionHandler for AccessSender {
+//     fn do_action(&mut self, request: accesskit::ActionRequest) {
+//         if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
+//             let _ = self.event_sender.send(AppEvent::Notify(ev));
+//         }
+//     }
+// }

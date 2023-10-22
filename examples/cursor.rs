@@ -89,8 +89,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
 pub const CURSORS: &[(CursorIcon, &[u8])] = &[
     (CursorIcon::Default, include_bytes!("res/cursor/default.png")),
     (CursorIcon::Crosshair, include_bytes!("res/cursor/crosshair.png")),
-    (CursorIcon::Hand, include_bytes!("res/cursor/pointer.png")),
-    (CursorIcon::Arrow, include_bytes!("res/cursor/default.png")),
+    (CursorIcon::Pointer, include_bytes!("res/cursor/pointer.png")),
     (CursorIcon::Move, include_bytes!("res/cursor/move.png")),
     (CursorIcon::Text, include_bytes!("res/cursor/text.png")),
     (CursorIcon::Wait, include_bytes!("res/cursor/wait.png")),

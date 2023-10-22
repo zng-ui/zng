@@ -224,7 +224,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 txt = ico.name;
                                 font_family = FontName::monospace();
                                 font_size = 18;
-                                cursor = CursorIcon::Hand;
+                                cursor = CursorIcon::Pointer;
                                 enabled = copied.map(|&c| !c);
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
                                 disabled_tooltip = Tip!(Text!("copied!"));

@@ -83,8 +83,8 @@ rayon = "1"
 backtrace = "0.3"
 serde = "1"
 rfd =  { version = "0.12", default_features = false, features = ["xdg-portal"] }
-accesskit = "0.12"
-accesskit_winit = "0.15"
+# accesskit = "0.12" !!: TODO
+# accesskit_winit = "0.15"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"

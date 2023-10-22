@@ -515,7 +515,7 @@ impl App {
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let mut event_loop = EventLoopBuilder::with_user_event().build().unwrap();
+        let event_loop = EventLoopBuilder::with_user_event().build().unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
@@ -544,78 +544,80 @@ impl App {
         let mut idle = IdleTrace(None);
         idle.enter();
 
-        event_loop.run(move |event, target| {
-            idle.exit();
+        event_loop
+            .run(move |event, target| {
+                idle.exit();
 
-            app.window_target = target;
-            target.set_control_flow(ControlFlow::Wait);
+                app.window_target = target;
+                target.set_control_flow(ControlFlow::Wait);
 
-            if app.exited {
-                target.exit();
-            } else {
-                use winit::event::Event as WEvent;
-                match event {
-                    WEvent::NewEvents(_) => {}
-                    WEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
-                    WEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
-                    WEvent::UserEvent(ev) => match ev {
-                        AppEvent::Request => {
-                            while let Ok(req) = app.request_recv.try_recv() {
-                                match req {
-                                    RequestEvent::Request(req) => {
-                                        let rsp = app.respond(req);
-                                        if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
-                                            // lost connection to app-process
-                                            app.exited = true;
-                                            target.exit();
+                if app.exited {
+                    target.exit();
+                } else {
+                    use winit::event::Event as WEvent;
+                    match event {
+                        WEvent::NewEvents(_) => {}
+                        WEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
+                        WEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
+                        WEvent::UserEvent(ev) => match ev {
+                            AppEvent::Request => {
+                                while let Ok(req) = app.request_recv.try_recv() {
+                                    match req {
+                                        RequestEvent::Request(req) => {
+                                            let rsp = app.respond(req);
+                                            if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
+                                                // lost connection to app-process
+                                                app.exited = true;
+                                                target.exit();
+                                            }
                                         }
+                                        RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
                                     }
-                                    RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
                                 }
                             }
-                        }
-                        AppEvent::Notify(ev) => app.notify(ev),
-                        AppEvent::WinitFocused(window_id, focused) => app.on_window_event(window_id, WindowEvent::Focused(focused)),
-                        AppEvent::RefreshMonitors => app.refresh_monitors(),
-                        AppEvent::ParentProcessExited => {
-                            app.exited = true;
-                            target.exit();
-                        }
-                        AppEvent::ImageLoaded(data) => {
-                            app.image_cache.loaded(data);
-                        }
-                        AppEvent::MonitorPowerChanged => {
-                            // if a window opens in power-off it is blank until redraw.
-                            for w in &mut app.windows {
-                                w.redraw();
+                            AppEvent::Notify(ev) => app.notify(ev),
+                            AppEvent::WinitFocused(window_id, focused) => app.on_window_event(window_id, WindowEvent::Focused(focused)),
+                            AppEvent::RefreshMonitors => app.refresh_monitors(),
+                            AppEvent::ParentProcessExited => {
+                                app.exited = true;
+                                target.exit();
+                            }
+                            AppEvent::ImageLoaded(data) => {
+                                app.image_cache.loaded(data);
+                            }
+                            AppEvent::MonitorPowerChanged => {
+                                // if a window opens in power-off it is blank until redraw.
+                                for w in &mut app.windows {
+                                    w.redraw();
+                                }
+                            }
+                            AppEvent::DisableDeviceEvents => {
+                                app.disable_device_events(Some(target));
+                            }
+                        },
+                        WEvent::Suspended => {}
+                        WEvent::Resumed => {}
+                        WEvent::AboutToWait => {
+                            app.finish_cursor_entered_move();
+                            app.update_modifiers();
+                            app.flush_coalesced();
+                            #[cfg(windows)]
+                            {
+                                app.skip_ralt = false;
                             }
                         }
-                        AppEvent::DisableDeviceEvents => {
-                            app.disable_device_events(Some(target));
+                        WEvent::MemoryWarning => {
+                            // !!: TODO, create a memory pressure event, flush caches?
                         }
-                    },
-                    WEvent::Suspended => {}
-                    WEvent::Resumed => {}
-                    WEvent::AboutToWait => {
-                        app.finish_cursor_entered_move();
-                        app.update_modifiers();
-                        app.flush_coalesced();
-                        #[cfg(windows)]
-                        {
-                            app.skip_ralt = false;
-                        }
+                        WEvent::LoopExiting => {}
                     }
-                    WEvent::MemoryWarning => {
-                        // !!: TODO, create a memory pressure event, flush caches?
-                    }
-                    WEvent::LoopExiting => {}
                 }
-            }
 
-            app.window_target = std::ptr::null();
+                app.window_target = std::ptr::null();
 
-            idle.enter();
-        });
+                idle.enter();
+            })
+            .unwrap();
     }
 
     fn new(
@@ -915,7 +917,7 @@ impl App {
                     if key.is_modifier() {
                         match state {
                             KeyState::Pressed => {
-                                send_event = self.pressed_modifiers.insert(key, (d_id, key_code)).is_none();
+                                send_event = self.pressed_modifiers.insert(key.clone(), (d_id, key_code)).is_none();
                             }
                             KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
                         }
@@ -1357,12 +1359,6 @@ impl App {
                     state: util::element_state_to_key_state(k.state),
                 }),
             }
-        }
-    }
-
-    fn on_redraw(&mut self, window_id: winit::window::WindowId) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.window_id() == window_id) {
-            w.redraw();
         }
     }
 

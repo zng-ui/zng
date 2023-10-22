@@ -44,13 +44,13 @@ fn app_main() {
                     return;
                 }
                 let mut new_shortcut_text = "not supported";
-                if let Some(key) = &args.key {
-                    if key.is_modifier() {
+                if !matches!(&args.key, Key::Unidentified) {
+                    if args.key.is_modifier() {
                         new_shortcut_text = "";
                     }
-                    keypress_text.set(formatx! {"{key:?}"})
+                    keypress_text.set(formatx!("{:?}", args.key))
                 } else {
-                    keypress_text.set(formatx! {"Key Code: {:?}", args.key_code})
+                    keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
                 }
 
                 shortcut_text.set(new_shortcut_text);

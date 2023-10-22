@@ -13,7 +13,7 @@ fn main() {
             icon = WindowIcon::render(icon);
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|args: &KeyInputArgs| {
-                if args.key == Some(Key::F5) {
+                if args.key == Key::F5 {
                     VIEW_PROCESS.respawn();
                 }
             });
