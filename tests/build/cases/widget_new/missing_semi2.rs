@@ -7,6 +7,6 @@ fn main() {
         margin
         // we expect this properties to be used.
         enabled = true;
-        cursor = CursorIcon::Hand;
+        cursor = CursorIcon::Pointer;
     };
 }

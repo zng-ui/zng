@@ -7,7 +7,7 @@ fn main() {
         cursor = CursorIcon::Default;
         when *#is_pressed {
             margin = 0
-            cursor = CursorIcon::Hand;
+            cursor = CursorIcon::Pointer;
         }
     };
 }

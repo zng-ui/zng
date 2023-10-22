@@ -1,7 +1,7 @@
 error: expected `,`
   --> cases/widget_new/missing_semi_in_when2.rs:10:13
    |
-10 |             cursor = CursorIcon::Hand;
+10 |             cursor = CursorIcon::Pointer;
    |             ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
@@ -14,7 +14,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 8  | |         when *#is_pressed {
 9  | |             margin =
    | |             ^^^^^^
-10 | |             cursor = CursorIcon::Hand;
+10 | |             cursor = CursorIcon::Pointer;
 11 | |         }
 12 | |     };
    | |_____- an argument is missing

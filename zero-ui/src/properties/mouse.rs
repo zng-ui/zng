@@ -11,7 +11,7 @@ use crate::prelude::new_property::*;
 /// ```
 /// # use zero_ui::prelude::*;
 /// Container! {
-///     cursor = CursorIcon::Hand;
+///     cursor = CursorIcon::Pointer;
 ///     child = Text!("Mouse over this text shows the hand cursor");
 /// }
 /// # ;
