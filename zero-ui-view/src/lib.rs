@@ -1337,7 +1337,7 @@ impl App {
     }
 
     fn on_device_event(&mut self, device_id: winit::event::DeviceId, event: DeviceEvent) {
-        if dbg!(self.device_events) {
+        if self.device_events {
             let _s = tracing::trace_span!("on_device_event", ?event);
 
             let d_id = self.device_id(device_id);

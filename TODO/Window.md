@@ -11,7 +11,11 @@
     - This is not the full Windows modal experience, the user can still interact with the parent chrome?
         - Can we disable resize, minimize, maximize?
 * Drag regions.
+    - Winit has `drag_window`.
 * Custom resize borders.
+    - Winit has `drag_resize_window`.
+* Show window menu.
+    - Winit has `show_window_menu`.
 * Parent/child.
     - Z-order, always on-top of parent, but no focus stealing.
 * Video rendering.

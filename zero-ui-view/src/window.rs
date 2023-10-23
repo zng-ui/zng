@@ -1420,6 +1420,8 @@ impl Window {
         }
 
         let _ = renderer.flush_pipeline_info();
+
+        self.window.pre_present_notify();
         self.context.swap_buffers();
     }
 

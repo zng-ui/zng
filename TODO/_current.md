@@ -3,7 +3,6 @@
 * Wait for `winit` deadlock fix: https://github.com/rust-windowing/winit/pull/3172
 * Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256
 * Fix all "!!:".
-* Review new winit features.
 * Merge.
 
 # TextInput
@@ -34,6 +33,7 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
+    - Issue still open, but after winit update API is ready?
 
 # Accessibility
 
@@ -63,7 +63,6 @@
 * Drag/move inside window.
     - Integrate with `touch_transform`.
 * Drag and drop across apps with visual feedback.
-    - Wait for winit 29.
     - Visual can be a screen capture of the widget by default.
     - Browsers do this, with some fade-out mask effect and text selection clipping.
 
