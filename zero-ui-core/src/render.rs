@@ -167,6 +167,20 @@ macro_rules! expect_inner {
     };
 }
 
+macro_rules! warn_empty {
+    ($self:ident.$fn_name:ident($rect:tt)) => {
+        #[cfg(debug_assertions)]
+        if $rect.is_empty() {
+            tracing::warn!(
+                "called `{}` with empty `{:?}` in `{:?}`",
+                stringify!($fn_name),
+                $rect,
+                $self.widget_id
+            )
+        }
+    };
+}
+
 /// Defines if a widget is part of the same 3D space as the parent.
 #[derive(Default, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
 #[repr(u8)]
@@ -1334,6 +1348,7 @@ impl FrameBuilder {
     /// [`push_inner_backdrop_filter`]: Self::push_inner_backdrop_filter
     pub fn push_backdrop_filter(&mut self, clip_rect: PxRect, filter: &RenderFilter) {
         expect_inner!(self.push_backdrop_filter);
+        warn_empty!(self.push_backdrop_filter(clip_rect));
 
         if self.visible {
             self.display_list.push_backdrop_filter(clip_rect, filter, &[], &[]);
@@ -1347,6 +1362,7 @@ impl FrameBuilder {
     /// Push a border.
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
+        warn_empty!(self.push_border(bounds));
 
         if self.visible {
             self.display_list.push_border(
@@ -1378,6 +1394,7 @@ impl FrameBuilder {
         rendering: ImageRendering,
     ) {
         expect_inner!(self.push_border_image);
+        warn_empty!(self.push_border_image(bounds));
 
         if let (true, Some(r)) = (self.visible, &self.renderer) {
             let key = image.image_key(r);
@@ -1415,6 +1432,7 @@ impl FrameBuilder {
             "last color stop must be at offset 1.0"
         );
         expect_inner!(self.push_border_linear_gradient);
+        warn_empty!(self.push_border_linear_gradient(bounds));
 
         if self.visible && !stops.is_empty() {
             self.display_list.push_nine_patch_border(
@@ -1457,6 +1475,7 @@ impl FrameBuilder {
         );
 
         expect_inner!(self.push_border_radial_gradient);
+        warn_empty!(self.push_border_radial_gradient(bounds));
 
         if self.visible && !stops.is_empty() {
             self.display_list.push_nine_patch_border(
@@ -1501,6 +1520,7 @@ impl FrameBuilder {
         );
 
         expect_inner!(self.push_border_conic_gradient);
+        warn_empty!(self.push_border_conic_gradient(bounds));
 
         if self.visible && !stops.is_empty() {
             self.display_list.push_nine_patch_border(
@@ -1534,6 +1554,7 @@ impl FrameBuilder {
         aa: FontAntiAliasing,
     ) {
         expect_inner!(self.push_text);
+        warn_empty!(self.push_text(clip_rect));
 
         if let Some(r) = &self.renderer {
             if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
@@ -1568,6 +1589,7 @@ impl FrameBuilder {
         rendering: ImageRendering,
     ) {
         expect_inner!(self.push_image);
+        warn_empty!(self.push_image(clip_rect));
 
         if let Some(r) = &self.renderer {
             if self.visible {
@@ -1597,6 +1619,7 @@ impl FrameBuilder {
     /// part of the screen is affected, as the entire region is redraw every full frame even if the color did not actually change.
     pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RenderColor>) {
         expect_inner!(self.push_color);
+        warn_empty!(self.push_color(clip_rect));
 
         if self.visible {
             self.display_list.push_color(clip_rect, color);
@@ -1632,6 +1655,7 @@ impl FrameBuilder {
         );
 
         expect_inner!(self.push_linear_gradient);
+        warn_empty!(self.push_linear_gradient(clip_rect));
 
         if !stops.is_empty() && self.visible {
             self.display_list.push_linear_gradient(
@@ -1681,6 +1705,7 @@ impl FrameBuilder {
         );
 
         expect_inner!(self.push_radial_gradient);
+        warn_empty!(self.push_radial_gradient(clip_rect));
 
         if !stops.is_empty() && self.visible {
             self.display_list.push_radial_gradient(
@@ -1729,6 +1754,7 @@ impl FrameBuilder {
         );
 
         expect_inner!(self.push_conic_gradient);
+        warn_empty!(self.push_conic_gradient(clip_rect));
 
         if !stops.is_empty() && self.visible {
             self.display_list.push_conic_gradient(
@@ -1760,6 +1786,7 @@ impl FrameBuilder {
         style: crate::border::LineStyle,
     ) {
         expect_inner!(self.push_line);
+        warn_empty!(self.push_line(clip_rect));
 
         if self.visible {
             match style.render_command() {

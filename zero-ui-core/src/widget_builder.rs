@@ -16,7 +16,7 @@ use crate::{
     var::{types::AnyWhenVarBuilder, *},
     widget_base::{WidgetBase, WidgetExt},
     widget_instance::{
-        ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
+        ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, FillUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
 };
 
@@ -2072,7 +2072,7 @@ impl WidgetBuilding {
 
     /// If an innermost node is defined.
     ///
-    /// If `false` by the end of build the [`NilUiNode`] is used as the innermost node.
+    /// If `false` by the end of build the [`FillUiNode`] is used as the innermost node.
     pub fn has_child(&self) -> bool {
         self.child.is_some()
     }
@@ -2529,7 +2529,7 @@ impl WidgetBuilding {
         #[cfg(inspector)]
         let mut inspector_items = Vec::with_capacity(self.p.items.len());
 
-        let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
+        let mut node = self.child.take().unwrap_or_else(|| FillUiNode.boxed());
         for WidgetItemPositioned { position, item, .. } in self.p.items.into_iter().rev() {
             match item {
                 WidgetItem::Property { args, captured, .. } => {
