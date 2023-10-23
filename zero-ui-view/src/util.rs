@@ -89,39 +89,6 @@ where
     }
 }
 
-#[cfg(windows)]
-pub(crate) fn unregister_raw_input() {
-    use windows_sys::Win32::Devices::HumanInterfaceDevice::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
-    use windows_sys::Win32::Foundation::HWND;
-    use windows_sys::Win32::UI::Input::{RAWINPUTDEVICE, RIDEV_REMOVE};
-
-    let flags = RIDEV_REMOVE;
-
-    let devices: [RAWINPUTDEVICE; 2] = [
-        RAWINPUTDEVICE {
-            usUsagePage: HID_USAGE_PAGE_GENERIC,
-            usUsage: HID_USAGE_GENERIC_MOUSE,
-            dwFlags: flags,
-            hwndTarget: HWND::default(),
-        },
-        RAWINPUTDEVICE {
-            usUsagePage: HID_USAGE_PAGE_GENERIC,
-            usUsage: HID_USAGE_GENERIC_KEYBOARD,
-            dwFlags: flags,
-            hwndTarget: HWND::default(),
-        },
-    ];
-
-    let device_size = std::mem::size_of::<RAWINPUTDEVICE>() as _;
-
-    let ok = unsafe { windows_sys::Win32::UI::Input::RegisterRawInputDevices(devices.as_ptr(), devices.len() as _, device_size) != 0 };
-
-    if !ok {
-        let e = unsafe { windows_sys::Win32::Foundation::GetLastError() };
-        panic!("failed `unregister_raw_input`, {e:?}");
-    }
-}
-
 /// Conversion from `winit` logical units to [`Dip`].
 ///
 /// All conversions are 1 to 1.

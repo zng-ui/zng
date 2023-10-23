@@ -416,9 +416,6 @@ impl App {
         if let Some(t) = t {
             t.listen_device_events(winit::event_loop::DeviceEvents::Never);
         }
-
-        #[cfg(windows)]
-        util::unregister_raw_input(); // !!: TODO, test if we still need this.
     }
 
     pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
@@ -1340,7 +1337,7 @@ impl App {
     }
 
     fn on_device_event(&mut self, device_id: winit::event::DeviceId, event: DeviceEvent) {
-        if self.device_events {
+        if dbg!(self.device_events) {
             let _s = tracing::trace_span!("on_device_event", ?event);
 
             let d_id = self.device_id(device_id);
