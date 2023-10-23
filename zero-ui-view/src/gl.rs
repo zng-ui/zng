@@ -53,8 +53,8 @@ impl GlContextManager {
             let window = window.clone().build(window_target).unwrap();
 
             let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headed_glutin(id, &window, window_target, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headed_glutin(id, &window, window_target, Some(false)),
+                RenderMode::Dedicated => self.create_headed_glutin(id, &window, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headed_glutin(id, &window, Some(false)),
                 RenderMode::Software => self.create_headed_swgl(id, &window),
             }));
 
@@ -125,10 +125,9 @@ impl GlContextManager {
         &mut self,
         id: WindowId,
         window: &winit::window::Window,
-        window_target: &EventLoopWindowTarget<AppEvent>,
         hardware: Option<bool>,
     ) -> Result<GlContext, Box<dyn Error>> {
-        let display_handle = window_target.raw_display_handle(); // !!: TODO, try from window too.
+        let display_handle = window.raw_display_handle();
         let window_handle = window.raw_window_handle();
 
         #[cfg(windows)]
