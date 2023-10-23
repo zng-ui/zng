@@ -470,16 +470,16 @@ impl AppExtension for FocusManager {
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
             if args.is_mouse_down() {
                 // click
-                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false, false));
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             }
         } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
             if args.is_touch_start() {
                 // start
-                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false, false));
+                request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             }
         } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
             // click
-            request = Some(FocusRequest::direct_or_exit(args.widget_id, false, false));
+            request = Some(FocusRequest::direct_or_exit(args.widget_id, true, false));
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_SV.write();
