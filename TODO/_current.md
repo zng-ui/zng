@@ -58,14 +58,6 @@
   focus to first child.
   - Use `navigation_origin`, don't scroll if it is set?
 
-# Drag & Drop
-
-* Drag/move inside window.
-    - Integrate with `touch_transform`.
-* Drag and drop across apps with visual feedback.
-    - Visual can be a screen capture of the widget by default.
-    - Browsers do this, with some fade-out mask effect and text selection clipping.
-
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.
