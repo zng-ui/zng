@@ -774,17 +774,15 @@ mod blit {
         use std::{
             fs::File,
             io::{Seek, Write},
-            os::unix::prelude::AsRawFd,
+            os::fd::AsFd,
         };
 
+        use raw_window_handle::{RawWindowHandle, *};
         use wayland_client::protocol::{
-            wl_buffer::WlBuffer,
             wl_display::WlDisplay,
             wl_shm::{self, WlShm},
-            wl_shm_pool::WlShmPool,
             wl_surface::WlSurface,
         };
-        use winit::platform::{wayland::WindowExtWayland, x11::WindowExtX11};
         use x11_dl::xlib::{GCGraphicsExposures, TrueColor, XGCValues, XVisualInfo, Xlib, ZPixmap, _XDisplay};
 
         #[allow(clippy::large_enum_variant)]
@@ -794,30 +792,83 @@ mod blit {
         }
 
         pub struct WaylandData {
-            pool: wayland_client::Main<WlShmPool>,
-            buf: wayland_client::Main<WlBuffer>,
+            pool: wayland_client::protocol::wl_shm_pool::WlShmPool,
+            buf: wayland_client::protocol::wl_buffer::WlBuffer,
             file: File,
             width: u32,
             height: u32,
             file_size: u32,
         }
 
+        struct WaylandNoOp;
+        impl wayland_client::Dispatch<wayland_client::protocol::wl_registry::WlRegistry, ()> for WaylandNoOp {
+            fn event(
+                _: &mut Self,
+                _: &wayland_client::protocol::wl_registry::WlRegistry,
+                _: wayland_client::protocol::wl_registry::Event,
+                _: &(),
+                _: &wayland_client::Connection,
+                _: &wayland_client::QueueHandle<WaylandNoOp>,
+            ) {
+            }
+        }
+        impl wayland_client::Dispatch<wayland_client::protocol::wl_buffer::WlBuffer, ()> for WaylandNoOp {
+            fn event(
+                _: &mut Self,
+                _: &wayland_client::protocol::wl_buffer::WlBuffer,
+                _: wayland_client::protocol::wl_buffer::Event,
+                _: &(),
+                _: &wayland_client::Connection,
+                _: &wayland_client::QueueHandle<WaylandNoOp>,
+            ) {
+            }
+        }
+        impl wayland_client::Dispatch<wayland_client::protocol::wl_shm::WlShm, ()> for WaylandNoOp {
+            fn event(
+                _: &mut Self,
+                _: &wayland_client::protocol::wl_shm::WlShm,
+                _: wayland_client::protocol::wl_shm::Event,
+                _: &(),
+                _: &wayland_client::Connection,
+                _: &wayland_client::QueueHandle<WaylandNoOp>,
+            ) {
+            }
+        }
+        impl wayland_client::Dispatch<wayland_client::protocol::wl_shm_pool::WlShmPool, ()> for WaylandNoOp {
+            fn event(
+                _: &mut Self,
+                _: &wayland_client::protocol::wl_shm_pool::WlShmPool,
+                _: wayland_client::protocol::wl_shm_pool::Event,
+                _: &(),
+                _: &wayland_client::Connection,
+                _: &wayland_client::QueueHandle<WaylandNoOp>,
+            ) {
+            }
+        }
+
         impl XLibOrWaylandBlit {
             pub fn new(window: &winit::window::Window) -> Self {
-                if let Some(d) = window.xlib_display() {
+                if let (RawDisplayHandle::Xlib(d), RawWindowHandle::Xlib(w)) = (window.raw_display_handle(), window.raw_window_handle()) {
                     Self::XLib {
                         xlib: Xlib::open().unwrap(),
-                        display: d as _,
-                        window: window.xlib_window().unwrap(),
+                        display: d.display as _,
+                        window: w.window as _,
                     }
-                } else if let Some(d) = window.wayland_surface() {
-                    let display: *const WlDisplay = window.wayland_display().unwrap() as _;
+                } else if let (RawDisplayHandle::Wayland(d), RawWindowHandle::Wayland(w)) =
+                    (window.raw_display_handle(), window.raw_window_handle())
+                {
+                    let conn = wayland_client::Connection::connect_to_env().unwrap();
+
+                    let event_queue = conn.new_event_queue::<WaylandNoOp>();
+                    let qhandle = event_queue.handle();
+
+                    let display: *const WlDisplay = d.display as _;
                     let display = unsafe { &*display };
-                    let shm = display.get_registry().bind::<WlShm>(1, 0); // TODO,review this.
+                    let shm: WlShm = display.get_registry(&qhandle, ()).bind(1, 0, &qhandle, ());
                     let file = tempfile::tempfile().expect("cannot create file for wayland blit");
                     let size = window.inner_size();
                     let file_size = size.width * size.height * 4;
-                    let pool = shm.create_pool(file.as_raw_fd(), file_size as _);
+                    let pool = shm.create_pool(file.as_fd(), file_size as _, &qhandle, ());
 
                     let buf = pool.create_buffer(
                         0,
@@ -825,10 +876,12 @@ mod blit {
                         size.height as _,
                         (size.width * 4) as _,
                         wl_shm::Format::Bgra8888,
+                        &qhandle,
+                        (),
                     );
 
                     Self::Wayland {
-                        surface: d as _,
+                        surface: w.surface as _,
                         data: WaylandData {
                             pool,
                             buf,
@@ -913,9 +966,21 @@ mod blit {
                     data.height = height;
 
                     data.buf.destroy();
-                    data.buf = data
-                        .pool
-                        .create_buffer(0, width as i32, height as i32, (width * 4) as i32, wl_shm::Format::Bgra8888);
+
+                    let conn = wayland_client::Connection::connect_to_env().unwrap();
+
+                    let event_queue = conn.new_event_queue::<WaylandNoOp>();
+                    let qhandle = event_queue.handle();
+
+                    data.buf = data.pool.create_buffer(
+                        0,
+                        width as i32,
+                        height as i32,
+                        (width * 4) as i32,
+                        wl_shm::Format::Bgra8888,
+                        &qhandle,
+                        (),
+                    );
 
                     surface.attach(Some(&data.buf), 0, 0);
                 }
