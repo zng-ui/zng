@@ -47,14 +47,6 @@
 
 # Focus
 
-* `navigation_origin`.
-    - Issue: Focusable with single non-focusable child not fully centered.
-        - Click on the child places origin in it, directional nav can find the parent as the closest.
-        - Logical navigation does not have this problem.
-        - Need to implement something for directional nav queries.
-            - Non-focusable directional to sibling focusable: OK.
-            - Non-focusable directional to parent: SKIP.
-
 * Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
   focus to first child.
   - Use `navigation_origin`, don't scroll if it is set?

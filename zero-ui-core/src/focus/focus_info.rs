@@ -1208,10 +1208,16 @@ impl WidgetFocusInfo {
         let self_id = self.info.id();
         let scope_id = scope.info.id();
 
-        println!("!!: {:?}", self.is_focusable());
+        // don't return focus to parent from non-focusable child.
+        let skip_parent = if self.is_focusable() {
+            None
+        } else {
+            self.ancestors().next().map(|w| w.info.id())
+        };
 
         let filter = |w: &WidgetFocusInfo| {
             let mut up_to_scope = w.self_and_ancestors().take_while(|w| w.info.id() != scope_id);
+
             if skip_self {
                 up_to_scope.all(|w| w.info.id() != self_id && !w.focus_info().skip_directional())
             } else {
@@ -1232,7 +1238,7 @@ impl WidgetFocusInfo {
                     .filter(|w| !w.inner_bounds().to_box2d().intersects(&origin)),
             )
             .focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets())
-            .filter(|w| w.info.id() != scope_id);
+            .filter(|w| w.info.id() != scope_id && Some(w.info.id()) != skip_parent);
 
         if any {
             return oriented.find(filter);
