@@ -45,12 +45,6 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# Focus
-
-* Scroll-to-focus happens when Scroll (that is a focus scope) receives focus and immediately transfers
-  focus to first child.
-  - Use `navigation_origin`, don't scroll if it is set?
-
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.

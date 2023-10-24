@@ -311,11 +311,11 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
     with_context_var(child, SMOOTH_SCROLLING_VAR, config)
 }
 
-/// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
+/// Scroll-to mode used by scroll widgets when scrolling to make the focused child visible.
 ///
 /// Default is minimal 0dip on all sides, set to `None` to disable.
 ///
-/// Note that [`SCROLL_TO_CMD`] requests have priority over scroll to focused if both requests
+/// Note that [`SCROLL_TO_CMD`] requests have priority over scroll-to focused if both requests
 /// happen in the same event cycle.
 ///
 /// [`SCROLL_TO_CMD`]: crate::widgets::scroll::commands::SCROLL_TO_CMD

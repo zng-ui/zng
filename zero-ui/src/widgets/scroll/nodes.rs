@@ -662,24 +662,53 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     if (scroll_to.is_none() || !scroll_to_from_cmd) && path.contains(self_id) && path.widget_id() != self_id {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
+                            // scroll_to_focused enabled
+
                             if SCROLL.can_scroll_vertical() || SCROLL.can_scroll_horizontal() {
+                                // can scroll AND focus did not change by a click on the Scroll! scope restoring focus
+                                // back to a child.
+
                                 let tree = WINDOW.info();
                                 if let Some(mut target) = tree.get(path.widget_id()) {
-                                    for a in target.ancestors() {
-                                        if a.is_scroll() {
-                                            if a.id() == self_id {
-                                                break;
-                                            } else {
-                                                // actually focus move inside an inner scroll,
-                                                // the inner-most scroll scrolls to the target,
-                                                // the outer scrolls scroll to the child scroll.
-                                                target = a;
+                                    let mut is_focus_restore = false;
+
+                                    if args.prev_focus.as_ref().map(|p| p.widget_id()) == Some(self_id) {
+                                        // focus moved to child from Scroll! scope (self)
+
+                                        // Check if not caused by a click on a non-focusable child:
+                                        // - On a click in a non-focusable child the focus goes back to the Scroll!.
+                                        // - The Scroll! is a focus scope, it restores the focus to the previous focused child.
+                                        // - The clicked non-focusable becomes the `navigation_origin`.
+                                        // - We don't want to scroll back to the focusable child in this case.
+                                        if let Some(id) = crate::core::focus::FOCUS.navigation_origin().get() {
+                                            if let Some(origin) = tree.get(id) {
+                                                for a in origin.ancestors() {
+                                                    if a.id() == self_id {
+                                                        is_focus_restore = true;
+                                                        break;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
 
-                                    scroll_to = Some((target.bounds_info(), mode, None));
-                                    WIDGET.layout();
+                                    if !is_focus_restore {
+                                        for a in target.ancestors() {
+                                            if a.is_scroll() {
+                                                if a.id() == self_id {
+                                                    break;
+                                                } else {
+                                                    // actually focus move inside an inner scroll,
+                                                    // the inner-most scroll scrolls to the target,
+                                                    // the outer scrolls scroll to the child scroll.
+                                                    target = a;
+                                                }
+                                            }
+                                        }
+
+                                        scroll_to = Some((target.bounds_info(), mode, None));
+                                        WIDGET.layout();
+                                    }
                                 }
                             }
                         }
