@@ -70,7 +70,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
-winit = { git = "https://github.com/rust-windowing/winit", rev = "d37d1a03b20004cf014f8a9bd62b2545419603ad", default-features = false, features = [
+winit = { git = "https://github.com/SamRodri/winit.git", branch = "deadlock-fix", default-features = false, features = [
     "x11",
     "wayland",
     "wayland-dlopen",
