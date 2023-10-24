@@ -892,6 +892,7 @@ pub type PanicResult<R> = thread::Result<R>;
 #[derive(Clone)]
 pub struct BuildFxHasher(usize);
 impl BuildFxHasher {
+    #[allow(clippy::double_parens)] // const_random expands to ({n} as usize)
     const fn new() -> Self {
         BuildFxHasher(const_random::const_random!(usize))
     }

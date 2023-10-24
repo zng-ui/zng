@@ -403,7 +403,6 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             child = TextInput! {
                 id = editor.input_wgt_id();
                 txt = editor.txt.clone();
-                txt_selectable = false;
                 accepts_tab = true;
                 accepts_enter = true;
                 get_caret_status = editor.caret_status.clone();
