@@ -17,6 +17,7 @@
     - Not a normal context menu, "floating toolbar"?
 
 * Configurable caret.
+    - Implement `touch_caret` react to selection.
     - Property sets a `WidgetFn<CaretPosition>` that generates the caret node.
     - `enum CaretPosition { SelectionStart, SelectionEnd, Insert }`.
     - Have a different properties for normal caret and touch caret?

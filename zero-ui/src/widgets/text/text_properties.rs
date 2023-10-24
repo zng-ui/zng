@@ -1087,8 +1087,24 @@ context_var! {
     /// Caret color, inherits from [`FONT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
+    /// Touch caret shape.
+    pub static CARET_TOUCH_SHAPE_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::nodes::default_touch_caret(s));
+
     /// Selection background color.
     pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(20.pct());
+}
+
+/// Defines the position of a caret in relation to the selection.
+///
+/// See [`txt_caret_shape`]: fn@txt_caret_shape
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum CaretShape {
+    /// Caret defines the selection start in LTR and end in RTL text.
+    SelectionLeft,
+    /// Caret defines the selection end in LTR and start in RTL text.
+    SelectionRight,
+    /// Caret defines the insert point, when there is no selection.
+    Insert,
 }
 
 /// Enable text caret, input and makes the widget focusable.
@@ -1132,6 +1148,20 @@ pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 #[property(CONTEXT, default(CARET_COLOR_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
+}
+
+/// Defines custom caret shapes for touch caret.
+///
+/// The `caret` node is not interactive, interaction is implemented by [`nodes::touch_caret`], it must
+/// render the visual and layout to the size of the interaction area.
+///
+/// The caret is aligned depending on the shape, `CaretShape::SelectionLeft` aligns the top-right of the shape
+/// to the top-left of the first line selection rectangle, `CaretShape::SelectionRight` aligns the top-left
+/// of the shape to the top-right of the last line selection rectangle, `CaretShape::Insert` aligns the top-center
+/// of the shape with the insert position.
+#[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
+pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
+    with_context_var(child, CARET_TOUCH_SHAPE_VAR, shape)
 }
 
 /// Sets the [`SELECTION_COLOR_VAR`].
