@@ -88,8 +88,8 @@ rayon = "1"
 backtrace = "0.3"
 serde = "1"
 rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
-accesskit = { git = "https://github.com/Vrixyz/accesskit.git", branch = "winit-main-after-0.28" }
-accesskit_winit = { git = "https://github.com/Vrixyz/accesskit.git", branch = "winit-main-after-0.28" }
+accesskit = { git = "https://github.com/SamRodri/accesskit.git", branch = "winit-update-with-fix" }
+accesskit_winit = { git = "https://github.com/SamRodri/accesskit.git", branch = "winit-update-with-fix" }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"

@@ -107,7 +107,7 @@ pub(crate) struct Window {
     render_mode: RenderMode,
 
     modal_dialog_active: Arc<AtomicBool>,
-    // access: accesskit_winit::Adapter,
+    access: accesskit_winit::Adapter,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -390,7 +390,7 @@ impl Window {
             focused: None,
             modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
-            // access,
+            access,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1629,12 +1629,12 @@ impl Window {
     }
 
     /// Pump the accessibility adapter.
-    pub fn pump_access(&mut self, _event: &winit::event::WindowEvent) {
+    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
         let _must_use_why = self.access.on_event(&self.window, event);
     }
 
     /// Update the accessibility info.
-    pub fn access_update(&mut self, _update: zero_ui_view_api::access::AccessTreeUpdate) {
+    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate) {
         self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
     }
 
