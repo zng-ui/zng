@@ -340,19 +340,18 @@ impl Window {
 
         drop(wr_scope);
 
-        // !!: TODO, accesskit update
-        // let access_root = cfg.access_root;
-        // let mut first = Some((event_sender.clone(), id));
-        // let access = accesskit_winit::Adapter::with_action_handler(
-        //     &winit_window,
-        //     move || {
-        //         if let Some((first, window_id)) = first.take() {
-        //             let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
-        //         }
-        //         crate::util::access_tree_init(access_root)
-        //     },
-        //     Box::new(AccessSender { id, event_sender }),
-        // );
+        let access_root = cfg.access_root;
+        let mut first = Some((event_sender.clone(), id));
+        let access = accesskit_winit::Adapter::with_action_handler(
+            &winit_window,
+            move || {
+                if let Some((first, window_id)) = first.take() {
+                    let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
+                }
+                crate::util::access_tree_init(access_root)
+            },
+            Box::new(AccessSender { id, event_sender }),
+        );
 
         let mut win = Self {
             id,
@@ -1631,14 +1630,12 @@ impl Window {
 
     /// Pump the accessibility adapter.
     pub fn pump_access(&mut self, _event: &winit::event::WindowEvent) {
-        // !!: TODO
-        // let _must_use_why = self.access.on_event(&self.window, event);
+        let _must_use_why = self.access.on_event(&self.window, event);
     }
 
     /// Update the accessibility info.
     pub fn access_update(&mut self, _update: zero_ui_view_api::access::AccessTreeUpdate) {
-        // !!: TODO
-        // self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
+        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
     }
 
     pub(crate) fn on_low_memory(&mut self) {
@@ -1674,15 +1671,14 @@ pub(crate) struct FrameReadyResult {
     pub first_frame: bool,
 }
 
-// !!: TODO
-// struct AccessSender {
-//     id: WindowId,
-//     event_sender: AppEventSender,
-// }
-// impl accesskit::ActionHandler for AccessSender {
-//     fn do_action(&mut self, request: accesskit::ActionRequest) {
-//         if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
-//             let _ = self.event_sender.send(AppEvent::Notify(ev));
-//         }
-//     }
-// }
+struct AccessSender {
+    id: WindowId,
+    event_sender: AppEventSender,
+}
+impl accesskit::ActionHandler for AccessSender {
+    fn do_action(&mut self, request: accesskit::ActionRequest) {
+        if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
+            let _ = self.event_sender.send(AppEvent::Notify(ev));
+        }
+    }
+}
