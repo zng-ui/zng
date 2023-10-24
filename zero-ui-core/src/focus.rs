@@ -527,6 +527,15 @@ impl AppExtension for FocusManager {
             let args = focus.continue_focus_highlight(true);
             self.notify(&mut focus, args);
         }
+
+        if let Some(wgt_id) = focus.navigation_origin_var.get_new() {
+            if wgt_id != focus.navigation_origin {
+                focus.navigation_origin = wgt_id;
+                focus.update_enabled_nav_with_origin();
+                let commands = self.commands.as_mut().unwrap();
+                commands.update_enabled(focus.enabled_nav.nav);
+            }
+        }
     }
 
     fn info(&mut self, _: &mut InfoUpdates) {
@@ -1000,6 +1009,25 @@ impl FocusService {
         false
     }
 
+    fn update_enabled_nav_with_origin(&mut self) {
+        let mut origin = self
+            .focused
+            .as_ref()
+            .and_then(|f| WINDOWS.widget_tree(f.path.window_id()).ok()?.get(f.path.widget_id()));
+        if let (Some(id), Some(focused)) = (self.navigation_origin, &origin) {
+            if let Some(o) = focused.tree().get(id) {
+                origin = Some(o);
+            }
+        }
+
+        if let Some(o) = origin {
+            let o = o.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
+            self.enabled_nav = o.enabled_nav_with_frame();
+        } else {
+            self.enabled_nav.nav = FocusNavAction::empty();
+        }
+    }
+
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, is_info_retry: bool) -> Option<FocusChangedArgs> {
         match request.target {
@@ -1233,19 +1261,25 @@ impl FocusService {
                 let enable = w.enabled_nav_with_frame();
                 target = Some((FocusedInfo::new(w), enable));
             } else if fallback_to_childs {
-                if navigation_origin {
+                let enable = if navigation_origin {
                     next_origin = Some(widget_id);
-                }
+                    Some(w.enabled_nav_with_frame())
+                } else {
+                    None
+                };
                 if let Some(w) = w.descendants().next() {
-                    let enable = w.enabled_nav_with_frame();
+                    let enable = enable.unwrap_or_else(|| w.enabled_nav_with_frame());
                     target = Some((FocusedInfo::new(w), enable));
                 }
             } else if fallback_to_parents {
-                if navigation_origin {
+                let enable = if navigation_origin {
                     next_origin = Some(widget_id);
-                }
+                    Some(w.enabled_nav_with_frame())
+                } else {
+                    None
+                };
                 if let Some(w) = w.parent() {
-                    let enable = w.enabled_nav_with_frame();
+                    let enable = enable.unwrap_or_else(|| w.enabled_nav_with_frame());
                     target = Some((FocusedInfo::new(w), enable));
                 }
             }

@@ -1208,6 +1208,8 @@ impl WidgetFocusInfo {
         let self_id = self.info.id();
         let scope_id = scope.info.id();
 
+        println!("!!: {:?}", self.is_focusable());
+
         let filter = |w: &WidgetFocusInfo| {
             let mut up_to_scope = w.self_and_ancestors().take_while(|w| w.info.id() != scope_id);
             if skip_self {

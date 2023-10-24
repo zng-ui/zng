@@ -51,8 +51,6 @@
     - Issue: Focusable with single non-focusable child not fully centered.
         - Click on the child places origin in it, directional nav can find the parent as the closest.
         - Logical navigation does not have this problem.
-            - Non-focusable is TabIndex::SKIP, and it is already inside the parent, so it exits to parent sibling.
-            - What about prev_tab?
         - Need to implement something for directional nav queries.
             - Non-focusable directional to sibling focusable: OK.
             - Non-focusable directional to parent: SKIP.
