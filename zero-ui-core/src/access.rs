@@ -7,6 +7,7 @@ pub use zero_ui_view_api::access::ScrollCmd;
 use crate::{
     event::{event, event_args, EventUpdate},
     text::Txt,
+    widget_info::{WidgetInfo, WidgetPath},
     widget_instance::WidgetId,
     window::WindowId,
 };
@@ -337,21 +338,58 @@ impl ACCESS {
     /// Search for the widget and click it if found.
     ///
     /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
-    ///
-    /// Returns the widget info if it was found and a click event was scheduled.
-    pub fn click(&self, widget_id: impl Into<WidgetId>, is_primary: bool) -> Option<crate::widget_info::WidgetInfo> {
-        if let Some(w) = crate::window::WINDOWS.widget_info(widget_id) {
-            self.click_info(&w, is_primary);
-            Some(w)
-        } else {
-            None
+    pub fn click(&self, target: impl AccessTargetProvider, is_primary: bool) {
+        if let Some((win, wgt)) = target.window_and_target() {
+            ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(win, wgt, is_primary));
         }
     }
+}
 
-    /// Click the widget.
+/// Provides window and widget for [`ACCESS`] API.
+///
+/// Implemented for `"wgt-id"`, `WidgetId`, `(WindowId, WidgetId)`, `&WidgetPath` and `&WidgetInfo`.
+pub trait AccessTargetProvider {
+    /// Get window and widget.
     ///
-    /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
-    pub fn click_info(&self, widget: &crate::widget_info::WidgetInfo, is_primary: bool) {
-        ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(widget.tree().window_id(), widget.id(), is_primary));
+    /// If the window is not provided the widget is searched in all windows.
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId);
+
+    /// Search window if not provided.
+    fn window_and_target(self) -> Option<(WindowId, WidgetId)>
+    where
+        Self: Sized,
+    {
+        let (window, widget) = self.maybe_window_and_target();
+        if let Some(w) = window {
+            Some((w, widget))
+        } else {
+            crate::window::WINDOWS.widget_info(widget).map(|w| (w.tree().window_id(), widget))
+        }
+    }
+}
+
+impl AccessTargetProvider for WidgetId {
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId) {
+        (None, self)
+    }
+}
+impl AccessTargetProvider for &'static str {
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId) {
+        (None, WidgetId::from(self))
+    }
+}
+impl AccessTargetProvider for (WindowId, WidgetId) {
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId) {
+        (Some(self.0), self.1)
+    }
+}
+impl<'a> AccessTargetProvider for &'a WidgetPath {
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId) {
+        (Some(self.window_id()), self.widget_id())
+    }
+}
+impl<'a> AccessTargetProvider for &'a WidgetInfo {
+    fn maybe_window_and_target(self) -> (Option<WindowId>, WidgetId) {
+        (Some(self.tree().window_id()), self.id())
     }
 }

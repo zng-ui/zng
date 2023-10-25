@@ -37,11 +37,13 @@
 
 # Accessibility
 
-* Integrate access commands, states and role.
-    - `ScrollIntoView`.
-        - Right now we set this in the viewport widget, it must be set in all children?
-        - We can flag all children of Scroll capable node?
-            - No, updates may not know.
+* Implement more commands in `ACCESS`.
+* `ACCESS_TOOLTIP_EVENT`.
+    - Test it in icon example copy label.
+* `ACCESS_SCROLL_EVENT`.
+* `ACCESS_TEXT_EVENT` and `ACCESS_SELECTION_EVENT`.
+* `ACCESS_NUMBER_EVENT` and `ACCESS_INCREMENT_EVENT`.
+    - Implement ParseInput, IntInput.
 
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
