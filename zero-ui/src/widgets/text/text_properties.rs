@@ -1159,7 +1159,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// to the top-left of the first line selection rectangle, `CaretShape::SelectionRight` aligns the top-left
 /// of the shape to the top-right of the last line selection rectangle, `CaretShape::Insert` aligns the top-center
 /// of the shape with the insert position.
-/// 
+///
 /// [`nodes::touch_caret`]: super::nodes::touch_caret
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
