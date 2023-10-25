@@ -48,6 +48,9 @@ pub use switch::Switch;
 pub mod text;
 pub use text::{Em, Strong, Text};
 
+pub mod label;
+pub use label::Label;
+
 pub mod text_input;
 pub use text_input::TextInput;
 

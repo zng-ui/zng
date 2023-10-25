@@ -3,10 +3,10 @@
 use std::num::NonZeroU32;
 
 use parking_lot::Mutex;
-use zero_ui_view_api::access::AccessState;
 pub use zero_ui_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
+use zero_ui_view_api::access::{AccessNodeId, AccessState};
 
 use crate::{
     context::StaticStateId,
@@ -15,6 +15,7 @@ use crate::{
     units::{Factor, PxSize, PxTransform},
     var::*,
     widget_instance::WidgetId,
+    IdMap,
 };
 
 use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
@@ -300,6 +301,24 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         })
     }
 
+    /// Set a widget that is described-by this widget.
+    ///
+    /// When access info for the view-process is build this is converted to a described-by entry. Note
+    /// that only updated widgets are send to the view-process, so if this relation is dynamic you must
+    /// request info rebuild for the previous and new `target_id` to ensure they update correctly.
+    pub fn set_describes(&mut self, target_id: impl Into<WidgetId>) {
+        let target_id = target_id.into();
+        self.with_access(|a| {
+            for state in &mut a.inverse_state {
+                if let InverseAccessState::Describes(t) = state {
+                    *t = target_id;
+                    return;
+                }
+            }
+            a.inverse_state.push(InverseAccessState::Describes(target_id));
+        })
+    }
+
     /// Push a widget that provide additional information related to this widget.
     pub fn push_details(&mut self, detail_id: impl Into<WidgetId>) {
         let detail_id = detail_id.into();
@@ -325,6 +344,24 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
                 }
             }
             a.state.push(AccessState::LabelledBy(vec![label_id.into()]))
+        })
+    }
+
+    /// Set a widget that is labelled-by this widget.
+    ///
+    /// When access info for the view-process is build this is converted to a labelled-by entry. Note
+    /// that only updated widgets are send to the view-process, so if this relation is dynamic you must
+    /// request info rebuild for the previous and new `target_id` to ensure they update correctly.
+    pub fn set_labels(&mut self, target_id: impl Into<WidgetId>) {
+        let target_id = target_id.into();
+        self.with_access(|a| {
+            for state in &mut a.inverse_state {
+                if let InverseAccessState::Labels(t) = state {
+                    *t = target_id;
+                    return;
+                }
+            }
+            a.inverse_state.push(InverseAccessState::Labels(target_id));
         })
     }
 
@@ -396,7 +433,8 @@ impl WidgetInfoTree {
         let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
         if self.0.access_enabled.is_enabled() {
             // no panic cause root role is always set by the builder.
-            self.root().access().unwrap().to_access_info(&mut builder);
+            let inverse = self.collect_inverse_state();
+            self.root().access().unwrap().to_access_info(&inverse, &mut builder);
         } else {
             builder.push(zero_ui_view_api::access::AccessNode::new(
                 self.root().id().into(),
@@ -430,8 +468,9 @@ impl WidgetInfoTree {
         }
 
         if is_enabled {
+            let inverse = self.collect_inverse_state();
             let mut updates = vec![];
-            self.root().access().unwrap().to_access_updates(prev_tree, &mut updates);
+            self.root().access().unwrap().to_access_updates(prev_tree, &inverse, &mut updates);
             if !updates.is_empty() {
                 return Some(zero_ui_view_api::access::AccessTreeUpdate {
                     updates,
@@ -462,8 +501,9 @@ impl WidgetInfoTree {
             let frame = self.0.frame.read();
             frame.stats.bounds_updated_frame == frame.stats.last_frame || frame.stats.vis_updated_frame == frame.stats.last_frame
         } {
+            let inverse = self.collect_inverse_state();
             let mut updates = vec![];
-            self.root().access().unwrap().to_access_updates_bounds(&mut updates);
+            self.root().access().unwrap().to_access_updates_bounds(&inverse, &mut updates);
             if !updates.is_empty() {
                 return Some(zero_ui_view_api::access::AccessTreeUpdate {
                     updates,
@@ -474,6 +514,21 @@ impl WidgetInfoTree {
         }
 
         None
+    }
+
+    fn collect_inverse_state(&self) -> InverseAccess {
+        let mut state = InverseAccess::default();
+        for wgt in self.root().self_and_descendants() {
+            if let Some(a) = wgt.access() {
+                if let Some(t) = a.labels() {
+                    state.labelled_by.entry(t.id()).or_default().push(wgt.id());
+                }
+                if let Some(t) = a.describes() {
+                    state.described_by.entry(t.id()).or_default().push(wgt.id());
+                }
+            }
+        }
+        state
     }
 }
 
@@ -529,6 +584,9 @@ macro_rules! get_state {
     };
     ($self:ident.source.$Discriminant:ident) => {
         get_state!($self, state_source, AccessStateSource, $Discriminant)
+    };
+    ($self:ident.inverse.$Discriminant:ident) => {
+        get_state!($self, inverse_state, InverseAccessState, $Discriminant)
     };
     ($self:ident, $state:ident, $State:ident, $Discriminant:ident) => {
         $self
@@ -805,7 +863,17 @@ impl WidgetAccessInfo {
         get_widgets!(self.DescribedBy)
     }
 
-    /// identifies the widget(s) that provide additional information related to this widget.
+    /// Identifies the widget that is described by this widget.
+    ///
+    /// Note that this is not a query for all widgets that have this one in their [`described_by`] list, it is only
+    /// set if it was set explicitly during info build.
+    ///
+    /// [`described_by`]: Self::described_by
+    pub fn describes(&self) -> Option<WidgetInfo> {
+        get_state!(self.inverse.Describes).copied().and_then(|id| self.info.tree().get(id))
+    }
+
+    /// Identifies the widget(s) that provide additional information related to this widget.
     pub fn details(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
         get_widgets!(self.Details)
     }
@@ -813,6 +881,16 @@ impl WidgetAccessInfo {
     /// Identifies the widget(s) that labels the widget it is applied to.
     pub fn labelled_by(&self) -> impl Iterator<Item = WidgetInfo> + '_ {
         get_widgets!(self.LabelledBy)
+    }
+
+    /// Identifies the widget that is labelled by this widget.
+    ///
+    /// Note that this is not a query for all widgets that have this one in their [`labelled_by`] list, it is only
+    /// set if it was set explicitly during info build.
+    ///
+    /// [`labelled_by`]: Self::labelled_by
+    pub fn labels(&self) -> Option<WidgetInfo> {
+        get_state!(self.inverse.Labels).copied().and_then(|id| self.info.tree().get(id))
     }
 
     /// Extra widgets that are *child* to this widget, but are not descendants on the info tree.
@@ -842,7 +920,7 @@ impl WidgetAccessInfo {
         !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible()
     }
 
-    fn to_access_node_leaf(&self) -> zero_ui_view_api::access::AccessNode {
+    fn to_access_node_leaf(&self, inverse: &InverseAccess) -> zero_ui_view_api::access::AccessNode {
         let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
         let a = self.access();
 
@@ -854,6 +932,33 @@ impl WidgetAccessInfo {
         node.role = a.role;
         node.state = a.state.clone();
         node.state.extend(a.state_source.iter().map(From::from));
+
+        if let Some(lb) = inverse.labelled_by.get(&self.info.id()) {
+            let mut done = false;
+            for state in node.state.iter_mut() {
+                if let AccessState::LabelledBy(l) = state {
+                    l.extend(lb.iter().map(|&id| AccessNodeId::from(id)));
+                    done = true;
+                    break;
+                }
+            }
+            if !done {
+                node.state.push(AccessState::LabelledBy(lb.iter().map(|&id| id.into()).collect()));
+            }
+        }
+        if let Some(ds) = inverse.described_by.get(&self.info.id()) {
+            let mut done = false;
+            for state in node.state.iter_mut() {
+                if let AccessState::DescribedBy(l) = state {
+                    l.extend(ds.iter().map(|&id| AccessNodeId::from(id)));
+                    done = true;
+                    break;
+                }
+            }
+            if !done {
+                node.state.push(AccessState::DescribedBy(ds.iter().map(|&id| id.into()).collect()));
+            }
+        }
 
         node.commands = a.commands.clone();
 
@@ -888,7 +993,7 @@ impl WidgetAccessInfo {
         }
     }
 
-    fn to_access_info(&self, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
+    fn to_access_info(&self, inverse: &InverseAccess, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
         if !self.is_local_accessible() {
             if self.info.parent().is_none() {
                 // root node is required (but can be empty)
@@ -898,12 +1003,12 @@ impl WidgetAccessInfo {
             return false;
         }
 
-        let node = builder.push(self.to_access_node_leaf());
+        let node = builder.push(self.to_access_node_leaf(inverse));
 
         let mut children_len = 0;
         let len_before = builder.len();
         for child in self.info.access_children() {
-            if child.to_access_info(builder) {
+            if child.to_access_info(inverse, builder) {
                 children_len += 1;
             }
         }
@@ -916,7 +1021,12 @@ impl WidgetAccessInfo {
         true
     }
 
-    fn to_access_updates(&self, prev_tree: &WidgetInfoTree, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) {
+    fn to_access_updates(
+        &self,
+        prev_tree: &WidgetInfoTree,
+        inverse: &InverseAccess,
+        updates: &mut Vec<zero_ui_view_api::access::AccessTree>,
+    ) {
         if !self.is_local_accessible() {
             // not accessible
             *self.access().view_bounds.lock() = None;
@@ -953,10 +1063,10 @@ impl WidgetAccessInfo {
                     changed
                 } {
                     // changed
-                    let mut node = self.to_access_node_leaf();
+                    let mut node = self.to_access_node_leaf(inverse);
 
                     for child in self.info.access_children() {
-                        child.to_access_updates(prev_tree, updates);
+                        child.to_access_updates(prev_tree, inverse, updates);
                     }
 
                     node.children = children.unwrap_or_else(|| {
@@ -982,13 +1092,13 @@ impl WidgetAccessInfo {
 
         // insert
         let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
-        let insert = self.to_access_info(&mut builder);
+        let insert = self.to_access_info(inverse, &mut builder);
         assert!(insert);
         updates.push(builder.build());
     }
 
     /// Returns `true` if access changed by visibility update.
-    fn to_access_updates_bounds(&self, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> bool {
+    fn to_access_updates_bounds(&self, inverse: &InverseAccess, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> bool {
         if self.info.meta().contains(&INACCESSIBLE_ID) {
             // not accessible
             return false;
@@ -1016,19 +1126,19 @@ impl WidgetAccessInfo {
         if vis_changed {
             // branch now accessible
             let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
-            let insert = self.to_access_info(&mut builder);
+            let insert = self.to_access_info(inverse, &mut builder);
             assert!(insert);
             updates.push(builder.build());
         } else {
             // update if bounds info changed or a child changed visibility
 
             for child in self.info.access_children() {
-                let child_vis_changed = child.to_access_updates_bounds(updates);
+                let child_vis_changed = child.to_access_updates_bounds(inverse, updates);
                 update |= child_vis_changed;
             }
 
             if update {
-                let mut node = self.to_access_node_leaf();
+                let mut node = self.to_access_node_leaf(inverse);
                 node.children = self
                     .info
                     .access_children()
@@ -1059,6 +1169,7 @@ struct AccessInfo {
     commands: Vec<AccessCmdName>,
     state: Vec<AccessState>,
     state_source: Vec<AccessStateSource>,
+    inverse_state: Vec<InverseAccessState>,
 
     view_bounds: Mutex<Option<ViewBoundsInfo>>,
     build_handlers: Vec<Box<dyn Fn(AccessBuildArgs) + Send + Sync>>,
@@ -1094,7 +1205,6 @@ enum AccessStateSource {
     ScrollHorizontal(BoxedVar<Factor>),
     ScrollVertical(BoxedVar<Factor>),
 }
-
 impl PartialEq for AccessStateSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -1118,6 +1228,17 @@ impl From<&AccessStateSource> for AccessState {
             AccessStateSource::ScrollVertical(y) => AccessState::ScrollVertical(y.get().0),
         }
     }
+}
+
+enum InverseAccessState {
+    Labels(WidgetId),
+    Describes(WidgetId),
+}
+
+#[derive(Default)]
+struct InverseAccess {
+    labelled_by: IdMap<WidgetId, Vec<WidgetId>>,
+    described_by: IdMap<WidgetId, Vec<WidgetId>>,
 }
 
 static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();

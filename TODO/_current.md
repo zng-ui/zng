@@ -38,7 +38,6 @@
 # Accessibility
 
 * Integrate access commands, states and role.
-    - Review all states and commands.
     - `ScrollIntoView`.
         - Right now we set this in the viewport widget, it must be set in all children?
         - We can flag all children of Scroll capable node?

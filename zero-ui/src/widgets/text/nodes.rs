@@ -501,12 +501,15 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             resolved = None;
         }
         UiNodeOp::Info { info } => {
-            if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
+            let editable = TEXT_EDITABLE_VAR.get();
+            if editable || TEXT_SELECTABLE_VAR.get() {
                 FocusInfoBuilder::new(info).focusable(true);
             }
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
-            if let Some(mut a) = info.access() {
-                a.set_label(resolved.as_ref().unwrap().text.text().clone());
+            if !editable {
+                if let Some(mut a) = info.access() {
+                    a.set_label(resolved.as_ref().unwrap().text.text().clone());
+                }
             }
         }
         UiNodeOp::Event { update } => {

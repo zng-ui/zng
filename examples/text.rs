@@ -67,11 +67,17 @@ fn app_main() {
                     margin = 10;
                     child = font_size(fs);
                 },
-                Container! {
-                    align = Align::BOTTOM_RIGHT;
+                Stack! {
+                    direction = StackDirection::top_to_bottom();
+                    spacing = 5;
                     margin = 20;
-                    child = text_editor();
-                }
+                    align = Align::BOTTOM_RIGHT;
+                    children_align = Align::RIGHT;
+                    children = ui_vec![
+                        text_editor(),
+                        form_editor(),
+                    ];
+                },
             ])
         }
     })
@@ -784,5 +790,86 @@ impl TextEditor {
         }
         self.busy.modify(|b| *b.to_mut() += 1);
         BusyTracker(self.busy.clone())
+    }
+}
+
+fn form_editor() -> impl UiNode {
+    let is_open = var(false);
+
+    Button! {
+        child = Text!(is_open.map(|&i| if i { "show form editor" } else { "open form editor" }.into()));
+        style_fn = button::LinkStyle!();
+        on_click = hn!(|_| {
+            let editor_id = WindowId::named("form-editor");
+            if is_open.get() {
+                if WINDOWS.focus(editor_id).is_err() {
+                    is_open.set(false);
+                }
+            } else {
+                WINDOWS.open_id(editor_id, async_clmv!(is_open, {
+                    form_editor_window(is_open)
+                }));
+            }
+        });
+    }
+}
+
+fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
+    Window! {
+        title = "Form";
+        on_open = hn!(is_open, |_| {
+            is_open.set(true);
+        });
+        on_close = hn!(is_open, |_| {
+            is_open.set(false);
+        });
+
+        size = (400, 500);
+
+        child = Stack! {
+            padding = 10;
+            spacing = 5;
+            direction = StackDirection::top_to_bottom();
+            children = ui_vec![
+                form_field("Name:", var(Txt::from_static("my-crate"))),
+                form_field("Authors:", var(Txt::from_static("Jhon Doe"))),
+                form_field("Version:", var(Txt::from_static("0.1.0"))),
+            ]
+        };
+
+        child_insert_below = {
+            insert: Stack! {
+                padding = 10;
+                align = Align::RIGHT;
+                spacing = 5;
+                children = ui_vec![
+                    Button! {
+                        child = Text!("Cancel");
+                        on_click = hn!(|_| {
+                            WINDOW.close();
+                        });
+                    }
+                ]
+            },
+            spacing: 10,
+        };
+    }
+}
+
+fn form_field(label: impl IntoVar<Txt>, value: impl IntoVar<Txt>) -> impl UiNode {
+    let value_id = WidgetId::new_unique();
+    Stack! {
+        direction = StackDirection::left_to_right();
+        spacing = 5;
+        children = ui_vec![
+            Label! {
+                txt = label;
+                target = value_id;
+            },
+            TextInput! {
+                id = value_id;
+                txt = value;
+            }
+        ]
     }
 }
