@@ -2012,7 +2012,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 
 /// An Ui node that renders the touch carets and implement interaction.
 ///
-/// Caret visuals defined by [`TOUCH_CARET_VAR`].
+/// Caret visuals defined by [`CARET_TOUCH_SHAPE_VAR`].
 pub fn touch_caret(child: impl UiNode) -> impl UiNode {
     // is [child] or [child, SelectionLeft, SelectionRight] or [child, Insert]
     let children = vec![child.boxed()];

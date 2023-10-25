@@ -220,7 +220,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                         {
                             let full_path = formatx!("zero_ui_material_icons::{font_mod}::{}", ico.name);
                             let copied = var(false);
-                            Text! {
+                            Label! {
                                 txt = ico.name;
                                 font_family = FontName::monospace();
                                 font_size = 18;

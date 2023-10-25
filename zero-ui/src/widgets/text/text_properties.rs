@@ -1096,7 +1096,7 @@ context_var! {
 
 /// Defines the position of a caret in relation to the selection.
 ///
-/// See [`txt_caret_shape`]: fn@txt_caret_shape
+/// See [`caret_touch_shape`](fn@caret_touch_shape) for more details.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CaretShape {
     /// Caret defines the selection start in LTR and end in RTL text.
@@ -1159,6 +1159,8 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// to the top-left of the first line selection rectangle, `CaretShape::SelectionRight` aligns the top-left
 /// of the shape to the top-right of the last line selection rectangle, `CaretShape::Insert` aligns the top-center
 /// of the shape with the insert position.
+/// 
+/// [`nodes::touch_caret`]: super::nodes::touch_caret
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
     with_context_var(child, CARET_TOUCH_SHAPE_VAR, shape)
