@@ -2011,45 +2011,88 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 ///
 /// Caret visuals defined by [`TOUCH_CARET_VAR`].
 pub fn touch_caret(child: impl UiNode) -> impl UiNode {
-    // !!: don't alloc NilUiNode.boxed(), use the children.len to determine state.
-
-    // is [child, SelectionLeft, SelectionRight] or [child, Insert, NilUiNode]
-    let children = vec![child.boxed(), NilUiNode.boxed(), NilUiNode.boxed()];
+    // is [child] or [child, SelectionLeft, SelectionRight] or [child, Insert]
+    let children = vec![child.boxed()];
 
     let mut sizes = [PxSize::zero(); 2];
 
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&CARET_TOUCH_SHAPE_VAR);
-            // c.children()[1] = CARET_TOUCH_SHAPE_VAR.get()(CaretShape::Insert);
+            let r_txt = ResolvedText::get();
+
+            let caret = r_txt.caret.lock();
+            if caret.index.is_some() {
+                let children = c.children();
+
+                let s = CARET_TOUCH_SHAPE_VAR.get();
+                if caret.selection_index.is_some() {
+                    children.push(s(CaretShape::SelectionLeft));
+                    children.push(s(CaretShape::SelectionRight));
+                } else {
+                    children.push(s(CaretShape::Insert));
+                }
+            }
         }
         UiNodeOp::Deinit => {
             c.deinit_all();
-            c.children()[1] = NilUiNode.boxed();
-            c.children()[2] = NilUiNode.boxed();
+            c.children().truncate(1);
         }
         UiNodeOp::Update { updates } => {
+            let r_txt = ResolvedText::get();
+
+            let caret = r_txt.caret.lock();
+            if caret.index.is_some() {
+                if caret.selection_index.is_some() {
+                    let children = c.children();
+                    if children.len() != 3 {
+                        if children.len() == 2 {
+                            children.remove(1).deinit();
+                        }
+
+                        let s = CARET_TOUCH_SHAPE_VAR.get();
+                        children.push(s(CaretShape::SelectionLeft));
+                        children.push(s(CaretShape::SelectionRight));
+                    }
+                } // !!: Improve this, and add else case
+            }
+
             if let Some(s) = CARET_TOUCH_SHAPE_VAR.get_new() {
                 let children = c.children();
 
-                children[1].deinit();
-                children[1] = s(CaretShape::Insert);
-                children[1].init();
+                if children.len() >= 2 {
+                    children[1].deinit();
 
-                WIDGET.layout().render();
+                    if children.len() == 2 {
+                        children[1] = s(CaretShape::Insert);
+                    } else {
+                        debug_assert_eq!(children.len(), 3);
 
-                children[0].update(updates);
-                children[2].update(updates);
+                        children[2].deinit();
 
-                c.delegated();
+                        children[1] = s(CaretShape::SelectionLeft);
+                        children[2] = s(CaretShape::SelectionRight);
+
+                        children[2].init();
+                    }
+
+                    children[1].init();
+
+                    WIDGET.layout().render();
+                    children[0].update(updates);
+
+                    c.delegated();
+                }
             }
         }
         UiNodeOp::Layout { wl, final_size } => {
             let children = c.children();
 
             *final_size = children[0].layout(wl);
-            sizes[0] = children[1].layout(wl);
-            sizes[1] = children[2].layout(wl);
+
+            for (caret, size) in children[1..].iter_mut().zip(&mut sizes) {
+                *size = caret.layout(wl);
+            }
 
             c.delegated();
         }
@@ -2116,10 +2159,10 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var_render(&SELECTION_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
-            let r_txt = super::nodes::ResolvedText::get();
+            let r_txt = ResolvedText::get();
 
             if let Some(range) = r_txt.caret.lock().selection_range() {
-                let l_txt = super::nodes::LayoutText::get();
+                let l_txt = LayoutText::get();
                 let r_txt = r_txt.text.text();
 
                 for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
