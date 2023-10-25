@@ -41,6 +41,8 @@
     - Review all states and commands.
     - `ScrollIntoView`.
         - Right now we set this in the viewport widget, it must be set in all children?
+        - We can flag all children of Scroll capable node?
+            - No, updates may not know.
 
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
