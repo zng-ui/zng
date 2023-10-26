@@ -109,6 +109,7 @@ impl LAYERS {
         let mut cursor_once_pending = false;
         let mut anchor_info = None;
         let mut offset = (PxPoint::zero(), PxPoint::zero());
+        let mut cursor_bounds = None;
         let mut interactivity = false;
 
         let transform_key = FrameValueKey::new_unique();
@@ -288,11 +289,17 @@ impl LAYERS {
                             }
                         });
 
-                        if let Some((p, include_touch, update)) = match &mode.transform {
-                            AnchorTransform::Cursor { offset, include_touch } => Some((offset, include_touch, true)),
-                            AnchorTransform::CursorOnce { offset, include_touch } => {
-                                Some((offset, include_touch, mem::take(&mut cursor_once_pending)))
-                            }
+                        if let Some((p, include_touch, bounded, update)) = match &mode.transform {
+                            AnchorTransform::Cursor {
+                                offset,
+                                include_touch,
+                                bounds,
+                            } => Some((offset, include_touch, bounds, true)),
+                            AnchorTransform::CursorOnce {
+                                offset,
+                                include_touch,
+                                bounds,
+                            } => Some((offset, include_touch, bounds, mem::take(&mut cursor_once_pending))),
                             _ => None,
                         } {
                             // cursor transform mode, only visible if cursor over window
@@ -345,6 +352,18 @@ impl LAYERS {
                                             .with_constraints(PxConstraints2d::new_exact_size(cursor_rect.size), || p.place.layout())
                                             .to_vector();
                                     let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+
+                                    if let Some(sides) = bounded {
+                                        let sides = LAYOUT
+                                            .with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || sides.layout());
+                                        // render will transform this to anchor and apply to place point
+                                        cursor_bounds = Some(PxRect::new(
+                                            -PxPoint::new(sides.left, sides.top),
+                                            bounds.inner_size() + PxSize::new(sides.horizontal(), sides.vertical()),
+                                        ));
+                                    } else {
+                                        cursor_bounds = None;
+                                    }
 
                                     let o = (place, origin);
                                     if offset != o {
@@ -446,7 +465,23 @@ impl LAYERS {
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::Cursor { .. } | AnchorTransform::CursorOnce { .. } => {
-                                let offset = offset.0 - offset.1;
+                                let (mut place, origin) = offset;
+
+                                if let Some(b) = cursor_bounds {
+                                    // transform `place` to bounds space, clamp to bounds, transform back to window space.
+                                    let transform = bounds_info.inner_transform();
+                                    if let Some(inverse) = transform.inverse() {
+                                        if let Some(p) = inverse.transform_point(place) {
+                                            let bound_p = PxPoint::new(p.x.clamp(b.min_x(), b.max_x()), p.y.clamp(b.min_y(), b.max_y()));
+                                            if p != bound_p {
+                                                if let Some(p) = transform.transform_point(bound_p) {
+                                                    place = p;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                let offset = place - origin;
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
@@ -978,6 +1013,12 @@ pub enum AnchorTransform {
         /// only the latest mouse position is used. Only active touch points count, that is touch start or
         /// move events only.
         include_touch: bool,
+
+        /// If set defines the offset from the anchor widget inner bounds that is the maximum allowed
+        /// position for the layer widget.
+        ///
+        /// Negative offsets are inside the inner bounds, positive outside.
+        bounds: Option<SideOffsets>,
     },
     /// The layer widget is translated to follow the cursor position.
     ///
@@ -993,6 +1034,12 @@ pub enum AnchorTransform {
         /// only the latest mouse position is used. Only active touch points count, that is touch start or
         /// move events only. In case multiple touches are active only the first one counts.
         include_touch: bool,
+
+        /// If set defines the offset from the anchor widget inner bounds that is the maximum allowed
+        /// position for the layer widget.
+        ///
+        /// Negative offsets are inside the inner bounds, positive outside.
+        bounds: Option<SideOffsets>,
     },
 }
 impl_from_and_into_var! {
@@ -1107,6 +1154,7 @@ impl AnchorMode {
             transform: AnchorTransform::CursorOnce {
                 offset: AnchorOffset::out_bottom_in_left(),
                 include_touch: true,
+                bounds: Some(5.into()),
             },
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,
@@ -1123,6 +1171,7 @@ impl AnchorMode {
             transform: AnchorTransform::CursorOnce {
                 offset: AnchorOffset::in_top_left(),
                 include_touch: true,
+                bounds: Some(5.into()),
             },
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,

@@ -298,7 +298,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 KEY_INPUT_EVENT.as_any(),
                 MOUSE_WHEEL_EVENT.as_any(),
             ] {
-                close_event_handles.push(event.hook(clmv!(pop_state, |a| {
+                close_event_handles.push(event.hook(clmv!(pop_state, |_| {
                     let retain = monitor_start.elapsed() <= 200.ms();
                     if !retain {
                         POPUP.close_var(&pop_state);
