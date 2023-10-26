@@ -38,8 +38,9 @@
 # Accessibility
 
 * `ACCESS_TOOLTIP_EVENT`.
-    - `tooltip` closes immediately.
-    - Because of focus_change_event.
+    - Position, mouse only if cursor over anchor?
+    - Custom duration for this source?
+        - Tooltip only closes in the icon example because of focus event when enabled is set to true again.
 
 * Implement more commands in `ACCESS` and widgets.
 * `ACCESS_SCROLL_EVENT`.

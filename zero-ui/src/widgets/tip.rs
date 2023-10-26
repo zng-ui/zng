@@ -288,7 +288,9 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 auto_close = None;
             }
 
-            // close tooltip when the user starts doing something else
+            let monitor_start = Instant::now();
+
+            // close tooltip when the user starts doing something else (after 200ms)
             for event in [
                 MOUSE_INPUT_EVENT.as_any(),
                 CLICK_EVENT.as_any(),
@@ -296,9 +298,12 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 KEY_INPUT_EVENT.as_any(),
                 MOUSE_WHEEL_EVENT.as_any(),
             ] {
-                close_event_handles.push(event.hook(clmv!(pop_state, |_| {
-                    POPUP.close_var(&pop_state);
-                    false
+                close_event_handles.push(event.hook(clmv!(pop_state, |a| {
+                    let retain = monitor_start.elapsed() <= 200.ms();
+                    if !retain {
+                        POPUP.close_var(&pop_state);
+                    }
+                    retain
                 })));
             }
         }
