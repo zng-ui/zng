@@ -2013,7 +2013,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 /// An Ui node that renders the touch carets and implement interaction.
 ///
 /// Caret visuals defined by [`CARET_TOUCH_SHAPE_VAR`].
-pub fn touch_caret(child: impl UiNode) -> impl UiNode {
+pub fn touch_carets(child: impl UiNode) -> impl UiNode {
     // is [child] or [child, SelectionLeft, SelectionRight] or [child, Insert]
     let children = vec![child.boxed()];
 
@@ -2022,82 +2022,64 @@ pub fn touch_caret(child: impl UiNode) -> impl UiNode {
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&CARET_TOUCH_SHAPE_VAR);
-            let r_txt = ResolvedText::get();
-
-            let caret = r_txt.caret.lock();
-            if caret.index.is_some() {
-                let children = c.children();
-
-                let s = CARET_TOUCH_SHAPE_VAR.get();
-                if caret.selection_index.is_some() {
-                    children.push(s(CaretShape::SelectionLeft));
-                    children.push(s(CaretShape::SelectionRight));
-                } else {
-                    children.push(s(CaretShape::Insert));
-                }
-            }
         }
         UiNodeOp::Deinit => {
             c.deinit_all();
             c.children().truncate(1);
         }
-        UiNodeOp::Update { updates } => {
-            let r_txt = ResolvedText::get();
-
-            let caret = r_txt.caret.lock();
-            if caret.index.is_some() {
-                if caret.selection_index.is_some() {
-                    let children = c.children();
-                    if children.len() != 3 {
-                        if children.len() == 2 {
-                            children.remove(1).deinit();
-                        }
-
-                        let s = CARET_TOUCH_SHAPE_VAR.get();
-                        children.push(s(CaretShape::SelectionLeft));
-                        children.push(s(CaretShape::SelectionRight));
-                    }
-                } // !!: Improve this, and add else case
-            }
-
-            if let Some(s) = CARET_TOUCH_SHAPE_VAR.get_new() {
-                let children = c.children();
-
-                if children.len() >= 2 {
-                    children[1].deinit();
-
-                    if children.len() == 2 {
-                        children[1] = s(CaretShape::Insert);
-                    } else {
-                        debug_assert_eq!(children.len(), 3);
-
-                        children[2].deinit();
-
-                        children[1] = s(CaretShape::SelectionLeft);
-                        children[2] = s(CaretShape::SelectionRight);
-
-                        children[2].init();
-                    }
-
-                    children[1].init();
-
-                    WIDGET.layout().render();
-                    children[0].update(updates);
-
-                    c.delegated();
+        UiNodeOp::Update { .. } => {
+            if CARET_TOUCH_SHAPE_VAR.is_new() {
+                for caret in &mut c.children()[1..] {
+                    caret.deinit();
                 }
+                c.children().truncate(1);
+
+                WIDGET.layout();
             }
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let children = c.children();
+            let r_txt = ResolvedText::get();
+            c.delegated();
 
+            let children = c.children();
             *final_size = children[0].layout(wl);
+
+            let caret = r_txt.caret.lock();
+            let mut expected_len = 1; // 1 child
+            if caret.index.is_some() && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id())) {
+                if caret.selection_index.is_some() {
+                    expected_len = 3;
+                } else {
+                    expected_len = 2;
+                }
+            }
+
+            if expected_len != children.len() {
+                // children.len changed OR caret shape changed
+
+                for caret in &mut children[1..] {
+                    caret.deinit();
+                }
+                children.truncate(1);
+
+                let shape = CARET_TOUCH_SHAPE_VAR.get();
+                if expected_len == 2 {
+                    children.push(shape(CaretShape::Insert));
+                } else if expected_len == 3 {
+                    children.push(shape(CaretShape::SelectionLeft));
+                    children.push(shape(CaretShape::SelectionRight));
+                }
+
+                for caret in &mut children[1..] {
+                    caret.init();
+                }
+
+                WIDGET.render();
+            }
 
             for (caret, size) in children[1..].iter_mut().zip(&mut sizes) {
                 *size = caret.layout(wl);
             }
-
-            c.delegated();
         }
         UiNodeOp::Render { frame } => {
             let _ = frame;

@@ -99,7 +99,7 @@ impl Text {
         self.widget_builder().push_build_action(|wgt| {
             let child = nodes::render_text();
             let child = nodes::render_caret(child);
-            let child = nodes::touch_caret(child);
+            let child = nodes::touch_carets(child);
             let child = nodes::render_overlines(child);
             let child = nodes::render_strikethroughs(child);
             let child = nodes::render_underlines(child);

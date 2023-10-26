@@ -1152,7 +1152,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 
 /// Defines custom caret shapes for touch caret.
 ///
-/// The `caret` node is not interactive, interaction is implemented by [`nodes::touch_caret`], it must
+/// The `caret` node is not interactive, interaction is implemented by [`nodes::touch_carets`], it must
 /// render the visual and layout to the size of the interaction area.
 ///
 /// The caret is aligned depending on the shape, `CaretShape::SelectionLeft` aligns the top-right of the shape
@@ -1160,7 +1160,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// of the shape to the top-right of the last line selection rectangle, `CaretShape::Insert` aligns the top-center
 /// of the shape with the insert position.
 ///
-/// [`nodes::touch_caret`]: super::nodes::touch_caret
+/// [`nodes::touch_carets`]: super::nodes::touch_carets
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
     with_context_var(child, CARET_TOUCH_SHAPE_VAR, shape)
