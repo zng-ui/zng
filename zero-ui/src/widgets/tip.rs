@@ -280,7 +280,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
             pop_state.subscribe(UpdateOp::Update, anchor_id).perm();
 
             let duration = TOOLTIP_DURATION_VAR.get();
-            if dbg!(duration) > Duration::ZERO {
+            if duration > Duration::ZERO {
                 let d = TIMERS.deadline(duration);
                 d.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                 auto_close = Some(d);
@@ -405,7 +405,7 @@ context_var! {
     pub static TOOLTIP_DELAY_VAR: Duration = 500.ms();
 
     /// Maximum duration from the last time a tooltip was shown that a new tooltip opens instantly.
-    pub static TOOLTIP_INTERVAL_VAR: Duration = 100.ms();
+    pub static TOOLTIP_INTERVAL_VAR: Duration = 200.ms();
 
     /// Maximum time a tooltip stays open, zero is indefinitely.
     pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
