@@ -230,6 +230,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
                                     if zero_ui::core::clipboard::CLIPBOARD.set_text(full_path).is_ok() {
+                                        ACCESS.show_tooltip(WIDGET.id());
                                         copied.set(true);
                                         task::deadline(2.secs()).await;
                                         copied.set(false);

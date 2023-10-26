@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     core::{
+        access::ACCESS_TOOLTIP_EVENT,
         focus::FOCUS_CHANGED_EVENT,
         gesture::CLICK_EVENT,
         keyboard::KEY_INPUT_EVENT,
@@ -96,7 +97,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
         match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&tip).sub_event(&MOUSE_HOVERED_EVENT);
+                WIDGET
+                    .sub_var(&tip)
+                    .sub_event(&MOUSE_HOVERED_EVENT)
+                    .sub_event(&ACCESS_TOOLTIP_EVENT);
             }
             UiNodeOp::Deinit => {
                 child.deinit();
@@ -111,14 +115,37 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
             UiNodeOp::Event { update } => {
                 child.event(update);
 
+                let mut show_hide = None;
+                let mut hover_target = None;
+
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    if open_delay.is_some() && args.is_mouse_leave() {
+                    hover_target = args.target.as_ref();
+                    if disabled_only {
+                        if args.is_mouse_enter_disabled() {
+                            show_hide = Some(true);
+                        } else if args.is_mouse_leave_disabled() {
+                            show_hide = Some(false);
+                        }
+                    } else if args.is_mouse_enter() {
+                        show_hide = Some(true);
+                    } else if args.is_mouse_leave() {
+                        show_hide = Some(false);
+                    }
+                } else if let Some(args) = ACCESS_TOOLTIP_EVENT.on(update) {
+                    if disabled_only == WIDGET.info().interactivity().is_disabled() {
+                        show_hide = Some(args.visible);
+                    }
+                }
+
+                if let Some(show) = show_hide {
+                    let hide = !show;
+                    if open_delay.is_some() && hide {
                         open_delay = None;
                     }
 
                     match pop_state.get() {
                         PopupState::Opening => {
-                            if args.is_mouse_leave() {
+                            if hide {
                                 // cancel
                                 pop_state
                                     .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
@@ -134,29 +161,19 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             }
                         }
                         PopupState::Open(id) => {
-                            let is_leave = if disabled_only {
-                                args.is_mouse_leave_disabled()
-                            } else {
-                                args.is_mouse_leave_enabled()
-                            };
-                            if is_leave && !args.target.as_ref().map(|t| t.contains(id)).unwrap_or(false) {
+                            if hide && !hover_target.map(|t| t.contains(id)).unwrap_or(false) {
                                 // mouse not over self and tooltip
                                 POPUP.close(id);
                             }
                         }
                         PopupState::Closed => {
-                            let is_enter = if disabled_only {
-                                args.is_mouse_enter_disabled()
-                            } else {
-                                args.is_mouse_enter_enabled()
-                            };
-                            if is_enter {
+                            if show {
                                 // open
-
-                                let mut delay = if TOOLTIP_LAST_CLOSED
-                                    .get()
-                                    .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
-                                    .unwrap_or(true)
+                                let mut delay = if hover_target.is_some()
+                                    && TOOLTIP_LAST_CLOSED
+                                        .get()
+                                        .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
+                                        .unwrap_or(true)
                                 {
                                     TOOLTIP_DELAY_VAR.get()
                                 } else {
@@ -263,7 +280,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
             pop_state.subscribe(UpdateOp::Update, anchor_id).perm();
 
             let duration = TOOLTIP_DURATION_VAR.get();
-            if duration > Duration::ZERO {
+            if dbg!(duration) > Duration::ZERO {
                 let d = TIMERS.deadline(duration);
                 d.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                 auto_close = Some(d);

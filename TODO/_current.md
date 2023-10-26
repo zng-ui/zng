@@ -37,9 +37,11 @@
 
 # Accessibility
 
-* Implement more commands in `ACCESS`.
 * `ACCESS_TOOLTIP_EVENT`.
-    - Test it in icon example copy label.
+    - `tooltip` closes immediately.
+    - Because of focus_change_event.
+
+* Implement more commands in `ACCESS` and widgets.
 * `ACCESS_SCROLL_EVENT`.
 * `ACCESS_TEXT_EVENT` and `ACCESS_SELECTION_EVENT`.
 * `ACCESS_NUMBER_EVENT` and `ACCESS_INCREMENT_EVENT`.

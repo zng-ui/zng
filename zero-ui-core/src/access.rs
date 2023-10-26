@@ -335,12 +335,28 @@ event! {
 pub struct ACCESS;
 
 impl ACCESS {
-    /// Search for the widget and click it if found.
+    /// Click the `target` widget.
     ///
     /// If `is_primary` is `true` a primary click is generated, if it is `false` a context click is generated.
     pub fn click(&self, target: impl AccessTargetProvider, is_primary: bool) {
         if let Some((win, wgt)) = target.window_and_target() {
             ACCESS_CLICK_EVENT.notify(AccessClickArgs::now(win, wgt, is_primary));
+        }
+    }
+
+    /// Show tooltip for `target`, if it has any tooltip.
+    ///
+    /// The tooltip can auto-hide following the same rules as tooltips shown by hover.
+    pub fn show_tooltip(&self, target: impl AccessTargetProvider) {
+        if let Some((win, wgt)) = target.window_and_target() {
+            ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(win, wgt, true));
+        }
+    }
+
+    /// Hide tooltip for `target`, if it has any tooltip showing.
+    pub fn hide_tooltip(&self, target: impl AccessTargetProvider) {
+        if let Some((win, wgt)) = target.window_and_target() {
+            ACCESS_TOOLTIP_EVENT.notify(AccessToolTipArgs::now(win, wgt, false));
         }
     }
 }
