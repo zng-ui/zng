@@ -1,3 +1,5 @@
+* Tooltip cursor bounds should apply to the cursor hotspot, not the position in icon?
+
 # Winit Upgrade
 
 * Wait for `winit` deadlock fix: https://github.com/rust-windowing/winit/pull/3172
@@ -36,11 +38,6 @@
     - Issue still open, but after winit update API is ready?
 
 # Accessibility
-
-* `ACCESS_TOOLTIP_EVENT`.
-    - Position, mouse only if cursor over anchor?
-    - Custom duration for this source?
-        - Tooltip only closes in the icon example because of focus event when enabled is set to true again.
 
 * Implement more commands in `ACCESS` and widgets.
 * `ACCESS_SCROLL_EVENT`.

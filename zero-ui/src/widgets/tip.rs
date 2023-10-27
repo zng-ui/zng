@@ -90,6 +90,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
     let tip = tip.into_var();
     let mut pop_state = var(PopupState::Closed).read_only();
     let mut open_delay = None::<DeadlineVar>;
+    let mut check_cursor = false;
     let mut auto_close = None::<DeadlineVar>;
     let mut close_event_handles = vec![];
     match_node(child, move |child, op| {
@@ -123,17 +124,22 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                     if disabled_only {
                         if args.is_mouse_enter_disabled() {
                             show_hide = Some(true);
+                            check_cursor = false;
                         } else if args.is_mouse_leave_disabled() {
                             show_hide = Some(false);
                         }
                     } else if args.is_mouse_enter() {
                         show_hide = Some(true);
+                        check_cursor = false;
                     } else if args.is_mouse_leave() {
                         show_hide = Some(false);
                     }
                 } else if let Some(args) = ACCESS_TOOLTIP_EVENT.on(update) {
                     if disabled_only == WIDGET.info().interactivity().is_disabled() {
                         show_hide = Some(args.visible);
+                        if args.visible {
+                            check_cursor = true;
+                        }
                     }
                 }
 
@@ -276,10 +282,21 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 }
                 _ => {}
             });
-            pop_state = POPUP.open_config(popup, TOOLTIP_ANCHOR_VAR, TOOLTIP_CONTEXT_CAPTURE_VAR.get());
+
+            let (anchor_var, duration_var) = if check_cursor
+                && !crate::core::mouse::MOUSE
+                    .hovered()
+                    .with(|p| matches!(p, Some(p) if p.contains(anchor_id)))
+            {
+                (ACCESS_TOOLTIP_ANCHOR_VAR, ACCESS_TOOLTIP_DURATION_VAR)
+            } else {
+                (TOOLTIP_ANCHOR_VAR, TOOLTIP_DURATION_VAR)
+            };
+
+            pop_state = POPUP.open_config(popup, anchor_var, TOOLTIP_CONTEXT_CAPTURE_VAR.get());
             pop_state.subscribe(UpdateOp::Update, anchor_id).perm();
 
-            let duration = TOOLTIP_DURATION_VAR.get();
+            let duration = duration_var.get();
             if duration > Duration::ZERO {
                 let d = TIMERS.deadline(duration);
                 d.subscribe(UpdateOp::Update, WIDGET.id()).perm();
@@ -317,10 +334,29 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 ///
 /// By default tips are aligned below the cursor position at the time they are opened.
 ///
+/// This position is used when the tip opens with cursor interaction, see
+/// [`access_tooltip_anchor`] for position without the cursor.
+///
 /// This property sets the [`TOOLTIP_ANCHOR_VAR`].
+///
+/// [`access_tooltip_anchor`]: fn@access_tooltip_anchor
 #[property(CONTEXT, default(TOOLTIP_ANCHOR_VAR))]
 pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, TOOLTIP_ANCHOR_VAR, mode)
+}
+
+/// Set the position of the tip widgets opened for the widget or its descendants without cursor interaction.
+///
+/// This position is used instead of [`tooltip_anchor`] when the tooltip is shown by commands such as [`ACCESS.show_tooltip`]
+/// and the cursor is not over the widget.
+///
+/// This property sets the [`ACCESS_TOOLTIP_ANCHOR_VAR`].
+///
+/// [`tooltip_anchor`]: fn@tooltip_anchor
+/// [`ACCESS.show_tooltip`]: crate::core::access::ACCESS::show_tooltip
+#[property(CONTEXT, default(ACCESS_TOOLTIP_ANCHOR_VAR))]
+pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+    with_context_var(child, ACCESS_TOOLTIP_ANCHOR_VAR, mode)
 }
 
 /// Defines if the tooltip captures the build/instantiate context and sets it
@@ -364,14 +400,31 @@ pub fn tooltip_interval(child: impl UiNode, interval: impl IntoVar<Duration>) ->
 /// Sets the maximum duration a tooltip stays open on the widget or descendants.
 ///
 /// Note that the tooltip closes at the moment the cursor leaves the widget, this duration defines the
-/// time the tooltip is closed even if the cursor is still hovering the widget.
+/// time the tooltip is closed even if the cursor is still hovering the widget. This duration is not used
+/// if the tooltip is opened without cursor interaction, in that case the [`access_tooltip_duration`] is used.
 ///
 /// Zero means indefinitely, is zero by default.
 ///
 /// This property sets the [`TOOLTIP_DURATION_VAR`].
+///
+/// [`access_tooltip_duration`]: fn@access_tooltip_duration
 #[property(CONTEXT, default(TOOLTIP_DURATION_VAR))]
 pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
     with_context_var(child, TOOLTIP_DURATION_VAR, duration)
+}
+
+/// Sets the maximum duration a tooltip stays open on the widget or descendants when it is opened without cursor interaction.
+///
+/// This duration is used instead of [`tooltip_duration`] when the tooltip is shown by commands such as [`ACCESS.show_tooltip`]
+/// and the cursor is not over the widget.
+///
+/// This property sets the [`ACCESS_TOOLTIP_DURATION_VAR`].
+///
+/// [`tooltip_duration`]: fn@tooltip_duration
+/// [`ACCESS.show_tooltip`]: crate::core::access::ACCESS::show_tooltip
+#[property(CONTEXT, default(ACCESS_TOOLTIP_DURATION_VAR))]
+pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
+    with_context_var(child, ACCESS_TOOLTIP_DURATION_VAR, duration)
 }
 
 /// Arguments for tooltip widget functions.
@@ -401,10 +454,15 @@ app_local! {
 }
 
 context_var! {
-    /// Position of the tip widget in relation to the anchor widget.
+    /// Position of the tip widget in relation to the anchor widget, when opened with cursor interaction.
     ///
     /// By default the tip widget is shown below the cursor.
     pub static TOOLTIP_ANCHOR_VAR: AnchorMode = AnchorMode::tooltip();
+
+    /// Position of the tip widget in relation to the anchor widget, when opened without cursor interaction.
+    ///
+    /// By default the tip widget is shown above the widget, centered.
+    pub static ACCESS_TOOLTIP_ANCHOR_VAR: AnchorMode = AnchorMode::tooltip_shortcut();
 
     /// Duration the cursor must be over the anchor widget before the tip widget is opened.
     pub static TOOLTIP_DELAY_VAR: Duration = 500.ms();
@@ -412,8 +470,15 @@ context_var! {
     /// Maximum duration from the last time a tooltip was shown that a new tooltip opens instantly.
     pub static TOOLTIP_INTERVAL_VAR: Duration = 200.ms();
 
-    /// Maximum time a tooltip stays open, zero is indefinitely.
+    /// Maximum time a tooltip stays open, when opened with cursor interaction.
+    ///
+    /// Zero means indefinitely, is zero by default.
     pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
+
+    /// Maximum time a tooltip stays open, when opened without cursor interaction.
+    ///
+    /// Zero means indefinitely, is `5.secs()` by default.
+    pub static ACCESS_TOOLTIP_DURATION_VAR: Duration = 5.secs();
 
     /// Tooltip context capture.
     ///

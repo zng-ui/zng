@@ -1014,8 +1014,8 @@ pub enum AnchorTransform {
         /// move events only.
         include_touch: bool,
 
-        /// If set defines the offset from the anchor widget inner bounds that is the maximum allowed
-        /// position for the layer widget.
+        /// If set defines the offset from the anchor widget inner bounds that is the allowed
+        /// area for the layer widget origin.
         ///
         /// Negative offsets are inside the inner bounds, positive outside.
         bounds: Option<SideOffsets>,
@@ -1035,8 +1035,8 @@ pub enum AnchorTransform {
         /// move events only. In case multiple touches are active only the first one counts.
         include_touch: bool,
 
-        /// If set defines the offset from the anchor widget inner bounds that is the maximum allowed
-        /// position for the layer widget.
+        /// If set defines the offset from the anchor widget inner bounds that is the allowed
+        /// area for the layer widget origin.
         ///
         /// Negative offsets are inside the inner bounds, positive outside.
         bounds: Option<SideOffsets>,
@@ -1154,8 +1154,25 @@ impl AnchorMode {
             transform: AnchorTransform::CursorOnce {
                 offset: AnchorOffset::out_bottom_in_left(),
                 include_touch: true,
-                bounds: Some(5.into()),
+                bounds: None,
             },
+            min_size: AnchorSize::Unbounded,
+            max_size: AnchorSize::Window,
+            viewport_bound: true,
+            corner_radius: false,
+            visibility: true,
+            interactivity: false,
+        }
+    }
+
+    /// Mode where the widget behaves like a tooltip anchored to the widget.
+    pub fn tooltip_shortcut() -> Self {
+        AnchorMode {
+            transform: AnchorTransform::InnerOffset({
+                let mut p = AnchorOffset::out_top();
+                p.origin.y += 4;
+                p
+            }),
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,
             viewport_bound: true,
@@ -1171,7 +1188,7 @@ impl AnchorMode {
             transform: AnchorTransform::CursorOnce {
                 offset: AnchorOffset::in_top_left(),
                 include_touch: true,
-                bounds: Some(5.into()),
+                bounds: None,
             },
             min_size: AnchorSize::Unbounded,
             max_size: AnchorSize::Window,
