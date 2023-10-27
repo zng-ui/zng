@@ -87,6 +87,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     );
 
     wgt.push_intrinsic(NestGroup::EVENT, "commands", |child| {
+        let child = nodes::access_scroll_node(child);
         let child = nodes::scroll_to_node(child);
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);

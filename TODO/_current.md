@@ -1,5 +1,3 @@
-* Tooltip cursor bounds should apply to the cursor hotspot, not the position in icon?
-
 # Winit Upgrade
 
 * Wait for `winit` deadlock fix: https://github.com/rust-windowing/winit/pull/3172
@@ -40,7 +38,6 @@
 # Accessibility
 
 * Implement more commands in `ACCESS` and widgets.
-* `ACCESS_SCROLL_EVENT`.
 * `ACCESS_TEXT_EVENT` and `ACCESS_SELECTION_EVENT`.
 * `ACCESS_NUMBER_EVENT` and `ACCESS_INCREMENT_EVENT`.
     - Implement ParseInput, IntInput.

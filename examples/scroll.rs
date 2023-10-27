@@ -106,6 +106,8 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
                     Hr!(),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
+                    scroll_to_rect((5, 5).at(0.pct(), 50.pct()), ScrollToMode::minimal(10)),
+                    scroll_to_rect((5, 5).at(0.pct(), 50.pct()), ScrollToMode::center()),
                 ]
             ),
             SubMenu!(
@@ -144,7 +146,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
         child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            cmd.notify_param(commands::ScrollToRequest { widget_id: target, mode: mode.clone(), zoom: None, });
+            cmd.notify_param(commands::ScrollToRequest { target: target.into(), mode: mode.clone(), zoom: None, });
         });
     }
 }
@@ -157,7 +159,21 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
         child = Text!("Scroll To {} (minimal) at {}", target, zoom);
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            cmd.notify_param(commands::ScrollToRequest { widget_id: target, mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), });
+            cmd.notify_param(commands::ScrollToRequest { target: target.into(), mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), });
+        });
+    }
+}
+
+fn scroll_to_rect(target: Rect, mode: ScrollToMode) -> impl UiNode {
+    use zero_ui::widgets::scroll::commands;
+
+    let scroll = WidgetId::named("scroll");
+    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
+    Button! {
+        child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
+        enabled = cmd.is_enabled();
+        on_click = hn!(|_| {
+            cmd.notify_param(commands::ScrollToRequest { target: target.clone().into(), mode: mode.clone(), zoom: None, });
         });
     }
 }

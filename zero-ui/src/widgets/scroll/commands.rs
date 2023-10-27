@@ -174,8 +174,8 @@ command! {
     ///
     /// # Parameter
     ///
-    /// This command requires a parameter to work, it can be the [`WidgetId`] of a child widget or
-    /// a [`ScrollToRequest`] instance.
+    /// This command requires a parameter to work, it can be a [`ScrollToRequest`] instance, or a
+    /// [`ScrollToTarget`], or the [`WidgetId`] of a descendant of the scroll, or a [`Rect`] resolved in the scrollable space.
     ///
     /// You can use the [`scroll_to`] function to invoke this command in all parent scrolls automatically.
     pub static SCROLL_TO_CMD;
@@ -280,11 +280,31 @@ impl_from_and_into_var! {
     }
 }
 
+/// Target for the [`SCROLL_TO_CMD`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScrollToTarget {
+    /// Widget (inner bounds) that will be scrolled into view.
+    Descendant(WidgetId),
+    /// Rectangle in the content space that will be scrolled into view.
+    Rect(Rect),
+}
+impl_from_and_into_var! {
+    fn from(widget_id: WidgetId) -> ScrollToTarget {
+        ScrollToTarget::Descendant(widget_id)
+    }
+    fn from(widget_id: &'static str) -> ScrollToTarget {
+        ScrollToTarget::Descendant(widget_id.into())
+    }
+    fn from(rect: Rect) -> ScrollToTarget {
+        ScrollToTarget::Rect(rect)
+    }
+}
+
 /// Parameters for the [`SCROLL_TO_CMD`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScrollToRequest {
-    /// Widget that will be scrolled into view.
-    pub widget_id: WidgetId,
+    /// Area that will be scrolled into view.
+    pub target: ScrollToTarget,
 
     /// How much the scroll position will change to showcase the target widget.
     pub mode: ScrollToMode,
@@ -310,8 +330,16 @@ impl ScrollToRequest {
         if let Some(req) = p.downcast_ref::<Self>() {
             Some(req.clone())
         } else {
-            p.downcast_ref::<WidgetId>().map(|id| ScrollToRequest {
-                widget_id: *id,
+            Some(ScrollToRequest {
+                target: if let Some(target) = p.downcast_ref::<ScrollToTarget>() {
+                    target.clone()
+                } else if let Some(target) = p.downcast_ref::<WidgetId>() {
+                    ScrollToTarget::Descendant(*target)
+                } else if let Some(target) = p.downcast_ref::<Rect>() {
+                    ScrollToTarget::Rect(target.clone())
+                } else {
+                    return None;
+                },
                 mode: ScrollToMode::default(),
                 zoom: None,
             })
@@ -329,15 +357,6 @@ impl ScrollToRequest {
             }
         } else {
             None
-        }
-    }
-}
-impl_from_and_into_var! {
-    fn from(widget_id: WidgetId) -> ScrollToRequest {
-        ScrollToRequest {
-            widget_id,
-            mode: ScrollToMode::default(),
-            zoom: None,
         }
     }
 }
@@ -423,48 +442,50 @@ impl IntoValue<Option<ScrollToMode>> for ScrollToMode {}
 /// Does nothing if the `target` is not found.
 ///
 /// [`is_scroll`]: WidgetInfoExt::is_scroll
-pub fn scroll_to(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>) {
-    scroll_to_impl(target.into(), mode.into(), None)
+pub fn scroll_to(target: impl ScrollToTargetProvider, mode: impl Into<ScrollToMode>) {
+    scroll_to_impl(target.find_target(), mode.into(), None)
 }
 
 /// Like [`scroll_to`], but also adjusts the zoom scale.
-pub fn scroll_to_zoom(target: impl Into<WidgetId>, mode: impl Into<ScrollToMode>, zoom: impl Into<Factor>) {
-    scroll_to_impl(target.into(), mode.into(), Some(zoom.into()))
+pub fn scroll_to_zoom(target: impl ScrollToTargetProvider, mode: impl Into<ScrollToMode>, zoom: impl Into<Factor>) {
+    scroll_to_impl(target.find_target(), mode.into(), Some(zoom.into()))
 }
 
-/// Scroll all parent [`is_scroll`] widgets of `target` so that it becomes visible.
-///
-/// This function is a helper for sending [`SCROLL_TO_CMD`] for all required scroll widgets.
-///
-/// [`is_scroll`]: WidgetInfoExt::is_scroll
-pub fn scroll_to_info(target: &crate::core::widget_info::WidgetInfo, mode: impl Into<ScrollToMode>) {
-    scroll_to_info_impl(target, mode.into(), None)
-}
-
-/// Like [`scroll_to_info`], but also adjusts the zoom scale.
-pub fn scroll_to_info_zoom(target: &crate::core::widget_info::WidgetInfo, mode: impl Into<ScrollToMode>, zoom: impl Into<Factor>) {
-    scroll_to_info_impl(target, mode.into(), Some(zoom.into()))
-}
-
-fn scroll_to_impl(target: WidgetId, mode: ScrollToMode, zoom: Option<Factor>) {
-    for w in crate::core::window::WINDOWS.widget_trees() {
-        if let Some(target) = w.get(target) {
-            scroll_to_info_impl(&target, mode, zoom);
-            break;
+fn scroll_to_impl(target: Option<crate::core::widget_info::WidgetInfo>, mode: ScrollToMode, zoom: Option<Factor>) {
+    if let Some(target) = target {
+        let mut t = target.id();
+        for a in target.ancestors() {
+            if a.is_scroll() {
+                SCROLL_TO_CMD.scoped(a.id()).notify_param(ScrollToRequest {
+                    target: ScrollToTarget::Descendant(t),
+                    mode: mode.clone(),
+                    zoom,
+                });
+                t = a.id();
+            }
         }
     }
 }
 
-fn scroll_to_info_impl(target: &crate::core::widget_info::WidgetInfo, mode: ScrollToMode, zoom: Option<Factor>) {
-    let mut t = target.id();
-    for a in target.ancestors() {
-        if a.is_scroll() {
-            SCROLL_TO_CMD.scoped(a.id()).notify_param(ScrollToRequest {
-                widget_id: t,
-                mode: mode.clone(),
-                zoom,
-            });
-            t = a.id();
-        }
+/// Provides a target for scroll-to command methods.
+///
+/// Implemented for `"widget-id"`, `WidgetId` and `WidgetInfo`.
+pub trait ScrollToTargetProvider {
+    /// Find the target info.
+    fn find_target(self) -> Option<crate::core::widget_info::WidgetInfo>;
+}
+impl ScrollToTargetProvider for &'static str {
+    fn find_target(self) -> Option<crate::core::widget_info::WidgetInfo> {
+        WidgetId::named(self).find_target()
+    }
+}
+impl ScrollToTargetProvider for WidgetId {
+    fn find_target(self) -> Option<crate::core::widget_info::WidgetInfo> {
+        crate::core::window::WINDOWS.widget_info(self)
+    }
+}
+impl ScrollToTargetProvider for crate::core::widget_info::WidgetInfo {
+    fn find_target(self) -> Option<crate::core::widget_info::WidgetInfo> {
+        Some(self)
     }
 }

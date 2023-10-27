@@ -1109,7 +1109,7 @@ pub(crate) fn accesskit_to_event(
             }
             Action::SetScrollOffset => {
                 if let Some(accesskit::ActionData::SetScrollOffset(o)) = request.data {
-                    AccessCmd::Scroll(ScrollCmd::SetScrollOffset(accesskit_point_to_px(o).to_vector()))
+                    AccessCmd::Scroll(ScrollCmd::ScrollToRect(PxRect::new(accesskit_point_to_px(o), PxSize::splat(Px(1)))))
                 } else {
                     return None;
                 }

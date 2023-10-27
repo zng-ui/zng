@@ -5,7 +5,7 @@ use std::{num::NonZeroU32, ops};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::units::{PxRect, PxSize, PxTransform, PxVector};
+use crate::units::{PxRect, PxSize, PxTransform};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -581,9 +581,6 @@ pub enum ScrollCmd {
     ScrollTo,
     /// Scroll until the rectangle (in the widget space) is fully visible.
     ScrollToRect(PxRect),
-
-    /// Set the horizontal and vertical scroll offset (in the widget space).
-    SetScrollOffset(PxVector),
 }
 
 /// Represents a widget in the access info tree.

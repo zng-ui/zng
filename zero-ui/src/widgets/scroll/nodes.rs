@@ -4,6 +4,7 @@
 use crate::prelude::new_widget::*;
 
 use crate::core::{
+    access::ACCESS_SCROLL_EVENT,
     focus::FOCUS_CHANGED_EVENT,
     gradient::{ExtendMode, RenderGradientStop},
     mouse::{MouseScrollDelta, MOUSE_WHEEL_EVENT},
@@ -706,7 +707,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                             }
                                         }
 
-                                        scroll_to = Some((target.bounds_info(), mode, None));
+                                        scroll_to = Some((Rect::from(target.inner_bounds()), mode, None));
                                         WIDGET.layout();
                                     }
                                 }
@@ -719,23 +720,28 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
                     let tree = WINDOW.info();
-                    if let Some(target) = tree.get(request.widget_id) {
-                        // target exists
-                        if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
-                            // target is descendant
-                            if us.is_scroll() {
-                                // we are a scroll.
+                    match request.target {
+                        ScrollToTarget::Descendant(target) => {
+                            if let Some(target) = tree.get(target) {
+                                // target exists
+                                if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
+                                    // target is descendant
+                                    if us.is_scroll() {
+                                        scroll_to = Some((Rect::from(target.inner_bounds()), request.mode, request.zoom));
+                                        scroll_to_from_cmd = true;
+                                        WIDGET.layout();
 
-                                let bounds = target.bounds_info();
-                                let mode = request.mode;
-
-                                // will scroll on the next arrange.
-                                scroll_to = Some((bounds, mode, request.zoom));
-                                scroll_to_from_cmd = true;
-                                WIDGET.layout();
-
-                                args.propagation().stop();
+                                        args.propagation().stop();
+                                    }
+                                }
                             }
+                        }
+                        ScrollToTarget::Rect(rect) => {
+                            scroll_to = Some((rect, request.mode, request.zoom));
+                            scroll_to_from_cmd = true;
+                            WIDGET.layout();
+
+                            args.propagation().stop();
                         }
                     }
                 }
@@ -745,36 +751,42 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             *final_size = child.layout(wl);
 
             if let Some((bounds, mode, mut zoom)) = scroll_to.take() {
-                if let Some(s) = &mut zoom {
-                    *s = s.clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
-                }
-
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
 
                 if let Some(scroll_info) = us.scroll_info() {
-                    let mut target_bounds = bounds.inner_bounds();
+                    if let Some(s) = &mut zoom {
+                        *s = s.clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
+                    }
+
+                    let mut bounds = {
+                        let content = SCROLL.rendered_content();
+                        let mut rect = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(content.size), || bounds.layout());
+                        rect.origin += content.origin.to_vector();
+                        rect
+                    };
+
                     // remove viewport transform
-                    target_bounds = scroll_info
+                    bounds = scroll_info
                         .viewport_transform()
                         .inverse()
-                        .and_then(|t| t.outer_transformed(target_bounds.to_box2d()))
+                        .and_then(|t| t.outer_transformed(bounds.to_box2d()))
                         .map(|b| b.to_rect())
-                        .unwrap_or(target_bounds);
+                        .unwrap_or(bounds);
 
-                    let target_bounds_in_content = target_bounds;
+                    let target_bounds_in_content = bounds;
 
                     // remove offset
                     let rendered_offset = SCROLL.rendered_content().origin.to_vector();
-                    target_bounds.origin -= rendered_offset;
+                    bounds.origin -= rendered_offset;
 
                     // replace scale
                     let rendered_scale = SCROLL.rendered_zoom_scale();
                     if let Some(s) = zoom {
                         let s = s / rendered_scale;
-                        target_bounds.origin *= s;
-                        target_bounds.size *= s;
+                        bounds.origin *= s;
+                        bounds.size *= s;
                     }
                     // target bounds is in the content space at future scale
 
@@ -785,7 +797,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             // add minimal margin
-                            let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());
+                            let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(bounds.size), || margin.layout());
                             let inflate_margin = |mut r: PxRect| {
                                 r.origin.x -= margin.left;
                                 r.origin.y -= margin.top;
@@ -793,7 +805,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 r.size.height += margin.vertical();
                                 r
                             };
-                            let target_bounds = inflate_margin(target_bounds);
+                            let target_bounds = inflate_margin(bounds);
                             let target_bounds_in_content = inflate_margin(target_bounds_in_content);
 
                             // vertical scroll
@@ -829,15 +841,14 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             scroll_point,
                         } => {
                             // find the two points
-                            let default = (target_bounds.size / Px(2)).to_vector().to_point();
-                            let widget_point = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || {
-                                widget_point.layout_dft(default)
-                            });
+                            let default = (bounds.size / Px(2)).to_vector().to_point();
+                            let widget_point =
+                                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(bounds.size), || widget_point.layout_dft(default));
                             let default = (viewport_size / Px(2)).to_vector().to_point();
                             let scroll_point =
                                 LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_size), || scroll_point.layout_dft(default));
 
-                            offset = (widget_point + target_bounds.origin.to_vector()) - scroll_point;
+                            offset = (widget_point + bounds.origin.to_vector()) - scroll_point;
                         }
                     }
 
@@ -1221,6 +1232,47 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                     );
                 }
             });
+        }
+        _ => {}
+    })
+}
+
+/// Create a node that converts [`ACCESS_SCROLL_EVENT`] to command requests.
+pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&ACCESS_SCROLL_EVENT);
+        }
+        UiNodeOp::Event { update } => {
+            c.event(update);
+
+            if let Some(args) = ACCESS_SCROLL_EVENT.on_unhandled(update) {
+                use crate::core::access::ScrollCmd::*;
+
+                let id = WIDGET.id();
+                if args.widget_id == id {
+                    match args.command {
+                        PageUp => PAGE_UP_CMD.scoped(id).notify(),
+                        PageDown => PAGE_DOWN_CMD.scoped(id).notify(),
+                        PageLeft => PAGE_LEFT_CMD.scoped(id).notify(),
+                        PageRight => PAGE_RIGHT_CMD.scoped(id).notify(),
+                        ScrollToRect(rect) => SCROLL_TO_CMD.scoped(id).notify_param(Rect::from(rect)),
+
+                        ScrollTo => {
+                            // parent scroll handles this
+                            return;
+                        }
+                    }
+                    args.propagation().stop();
+                } else {
+                    match args.command {
+                        ScrollTo => super::commands::scroll_to(args.widget_id, ScrollToMode::minimal(10)),
+                        ScrollToRect(rect) => super::commands::scroll_to(args.widget_id, ScrollToMode::minimal_rect(rect)),
+                        _ => return,
+                    }
+                    args.propagation().stop();
+                }
+            }
         }
         _ => {}
     })
