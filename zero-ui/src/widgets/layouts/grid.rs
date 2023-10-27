@@ -1165,28 +1165,28 @@ impl GridLayout {
                 }
 
                 let max_auto_placed = max_auto_placed_i / columns_len + 1;
-                let max_needed = max_auto_placed.max(max_custom).min(max as usize);
+                let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
                 let rows_len = children[1].len();
 
                 #[allow(clippy::comparison_chain)]
-                if rows_len < max_needed {
+                if rows_len < max_needed_len {
                     let auto = downcast_auto(&mut children[1]);
                     let mut index = rows_len;
 
                     let view = auto_grow_fn.get();
                     if view.is_nil() {
-                        imaginary_rows = max_needed - rows_len;
+                        imaginary_rows = max_needed_len - rows_len;
                     } else {
-                        while index < max_needed {
+                        while index < max_needed_len {
                             let mut row = view(AutoGrowFnArgs { mode: auto_mode, index });
                             row.init();
                             auto.push(row);
                             index += 1;
                         }
                     }
-                } else if rows_len > max_needed {
-                    let remove = rows_len - max_needed;
+                } else if rows_len > max_needed_len {
+                    let remove = rows_len - max_needed_len;
                     let auto = downcast_auto(&mut children[1]);
                     for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
                         auto.deinit();
@@ -1206,28 +1206,28 @@ impl GridLayout {
                 }
 
                 let max_auto_placed = max_auto_placed_i / rows_len + 1;
-                let max_needed = max_auto_placed.max(max_custom).min(max as usize);
+                let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
                 let cols_len = children[0].len();
 
                 #[allow(clippy::comparison_chain)]
-                if cols_len < max_needed {
+                if cols_len < max_needed_len {
                     let auto = downcast_auto(&mut children[0]);
                     let mut index = cols_len;
 
                     let view = auto_grow_fn.get();
                     if view.is_nil() {
-                        imaginary_cols = max_needed - cols_len;
+                        imaginary_cols = max_needed_len - cols_len;
                     } else {
-                        while index < max_needed {
+                        while index < max_needed_len {
                             let mut column = view(AutoGrowFnArgs { mode: auto_mode, index });
                             column.init();
                             auto.push(column);
                             index += 1;
                         }
                     }
-                } else if cols_len > max_needed {
-                    let remove = cols_len - max_needed;
+                } else if cols_len > max_needed_len {
+                    let remove = cols_len - max_needed_len;
                     let auto = downcast_auto(&mut children[0]);
                     for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
                         auto.deinit();

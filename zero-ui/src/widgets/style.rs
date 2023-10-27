@@ -365,10 +365,13 @@ impl StyleFn {
         } else if other.is_nil() {
             self
         } else {
-            StyleFn::new(move |args| {
-                let mut r = self(args).unwrap();
-                r.extend(other(args).unwrap());
-                r
+            StyleFn::new(move |args| match (self(args), other(args)) {
+                (Some(mut a), Some(b)) => {
+                    a.extend(b);
+                    a
+                }
+                (Some(r), None) | (None, Some(r)) => r,
+                _ => StyleBuilder::default(),
             })
         }
     }

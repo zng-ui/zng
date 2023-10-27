@@ -826,15 +826,49 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
 
         size = (400, 500);
 
-        child = Stack! {
-            padding = 10;
-            spacing = 5;
-            direction = StackDirection::top_to_bottom();
-            children = ui_vec![
-                form_field("Name:", var(Txt::from_static("my-crate"))),
-                form_field("Authors:", var(Txt::from_static("Jhon Doe"))),
-                form_field("Version:", var(Txt::from_static("0.1.0"))),
-            ]
+        child = Grid! {
+            columns = ui_vec![grid::Column!(), grid::Column!(1.lft())];
+            spacing = (5, 10);
+            padding = 20;
+
+            label::extend_style = Style! {
+                txt_align = Align::END;
+            };
+            cells = ui_vec![
+                Label! {
+                    txt = "Name";
+                    target = "field-name";
+                },
+                TextInput! {
+                    grid::cell::column = 1;
+                    id = "field-name";
+                    txt = var_from("my-crate");
+                },
+
+                Label! {
+                    grid::cell::row = 1;
+                    txt = "Authors";
+                    target = "field-authors";
+                },
+                TextInput! {
+                    grid::cell::row = 1;
+                    grid::cell::column = 1;
+                    id = "field-authors";
+                    txt = var_from("Jhon Doe");
+                },
+
+                Label! {
+                    grid::cell::row = 2;
+                    txt = "Version";
+                    target = "field-version";
+                },
+                TextInput! {
+                    grid::cell::row = 2;
+                    grid::cell::column = 1;
+                    id = "field-version";
+                    txt = var_from("0.1.0");
+                },
+            ];
         };
 
         child_insert_below = {
@@ -853,23 +887,5 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             },
             spacing: 10,
         };
-    }
-}
-
-fn form_field(label: impl IntoVar<Txt>, value: impl IntoVar<Txt>) -> impl UiNode {
-    let value_id = WidgetId::new_unique();
-    Stack! {
-        direction = StackDirection::left_to_right();
-        spacing = 5;
-        children = ui_vec![
-            Label! {
-                txt = label;
-                target = value_id;
-            },
-            TextInput! {
-                id = value_id;
-                txt = value;
-            }
-        ]
     }
 }

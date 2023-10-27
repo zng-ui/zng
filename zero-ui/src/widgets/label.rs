@@ -33,6 +33,19 @@ context_var! {
     pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 }
 
+/// Sets the label style in a context, the parent style is fully replaced.
+#[property(CONTEXT, default(STYLE_VAR))]
+pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
+    with_context_var(child, STYLE_VAR, style)
+}
+
+/// Extends the label style in a context, the parent style is used, properties of the same name set in
+/// `style` override the parent style.
+#[property(CONTEXT, default(StyleFn::nil()))]
+pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
+    style::with_style_extension(child, STYLE_VAR, style)
+}
+
 /// Default label style.
 #[widget($crate::widgets::label::DefaultStyle)]
 pub struct DefaultStyle(Style);
