@@ -1794,6 +1794,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
                 size
             };
+
+            LAYOUT.with_constraints(metrics.constraints().with_new_min_size(*desired_size), || {
+                // foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range may change the size
+                txt.with(|| *desired_size = child.measure(wm))
+            });
         }
         UiNodeOp::Layout { wl, final_size } => {
             child.delegated();
@@ -1849,10 +1854,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let baseline = resolved_txt.baseline.load(Ordering::Relaxed);
             wl.set_baseline(baseline);
 
-            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(*final_size), || {
-                txt.with(|| {
-                    let _ = child.layout(wl);
-                })
+            LAYOUT.with_constraints(metrics.constraints().with_new_min_size(*final_size), || {
+                // foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range may change the size
+                txt.with(|| *final_size = child.layout(wl))
             });
         }
         UiNodeOp::Render { frame } => {
@@ -2242,6 +2246,16 @@ pub fn render_text() -> impl UiNode {
                 }
             }
         }
+        UiNodeOp::Measure { desired_size, .. } => {
+            let txt = LayoutText::get();
+            *desired_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
+        }
+        UiNodeOp::Layout { final_size, .. } => {
+            // layout implemented in `layout_text`, it sets the size as an exact size constraint, we return
+            // the size here for foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range.
+            let txt = LayoutText::get();
+            *final_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
+        }
         UiNodeOp::Render { frame } => {
             let r = ResolvedText::get();
             let t = LayoutText::get();
@@ -2410,7 +2424,7 @@ pub fn render_text() -> impl UiNode {
 ///
 /// The contextual variables affect the layout size.
 pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
-    let child = layout_text(NilUiNode);
+    let child = layout_text(FillUiNode);
     let child = resolve_text(child, " ");
     crate::properties::width(child, width)
 }

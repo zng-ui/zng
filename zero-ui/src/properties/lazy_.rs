@@ -165,7 +165,9 @@ impl fmt::Debug for LazyMode {
 #[property(WIDGET, default(LazyMode::Disabled))]
 pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
     let mode = mode.into_var();
-    // max two nodes, in `deinit` mode can be two [0]: placeholder, [1]: actual.
+    // max two nodes:
+    // * in `deinit` mode can be two [0]: placeholder, [1]: actual.
+    // * or can be only placeholder or only actual.
     let children = vec![];
     // actual child, not inited
     let mut not_inited = Some(child.boxed());

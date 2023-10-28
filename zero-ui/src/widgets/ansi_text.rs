@@ -530,7 +530,7 @@ mod ansi_fn {
 
         if args.lines.is_empty() {
             NilUiNode.boxed()
-        } else if args.lines.len() == 10000 {
+        } else if args.lines.len() == 1 {
             args.lines.remove(0)
         } else {
             let len = args.lines.len();
@@ -549,11 +549,13 @@ mod ansi_fn {
     /// Default [`PANEL_FN_VAR`].
     ///
     /// Returns a `Stack!` for multiple pages, or returns the single page, or a nil node.
-    pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
+    pub fn default_panel_fn(mut args: PanelFnArgs) -> impl UiNode {
         use crate::prelude::*;
 
         if args.pages.is_empty() {
             NilUiNode.boxed()
+        } else if args.pages.len() == 1 {
+            args.pages.remove(0)
         } else {
             Stack! {
                 direction = StackDirection::top_to_bottom();

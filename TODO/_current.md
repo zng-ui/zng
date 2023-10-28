@@ -46,15 +46,10 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# child_insert in text
+# Other Issues
 
-* `child_insert` does not work in `Text!` and `TextInput!` because it is `CHILD` and
-   text layout is `CHILD_LAYOUT+100`.
-* Text layout is like that to support extension nodes that use `LayoutText`.
-* child_insert is like that because it is inserting a child.
-* This is only a problem in `TextInput!` or `Label!` really, where we want to insert something.
-    - Maybe these widgets could have a nested `Text!`?
-    - Maybe we can compute layout in preview and return it from text `CHILD`.
+* Markdown example tries to render zero-sized stuff.
+* Implement shorthand for `Wrap!` and other panels.
 
 # Publish
 
