@@ -808,21 +808,15 @@ impl WidgetMeasure {
                 bounds.set_measure_inline(None);
             } else {
                 #[cfg(debug_assertions)]
-                {
-                    if !inline.last_wrapped {
-                        if inline.first != inline.last {
-                            tracing::error!(
-                                "widget {:?} invalid inline measure, last {:?} != first {:?} but last did not wrap",
-                                WIDGET.id(),
-                                inline.last,
-                                inline.first
-                            );
-                        }
-                    } else if inline.first.is_empty() != inline.last.is_empty() {
-                        // either we have no rows (both zero), or we have one row (both equal) or we have many (both not zero).
-                        tracing::error!("widget {:?} invalid inline measure, first.is_empty != last.is_empty", WIDGET.id());
-                    }
+                if !inline.last_wrapped && inline.first != inline.last {
+                    tracing::error!(
+                        "widget {:?} invalid inline measure, last {:?} != first {:?} but last did not wrap",
+                        WIDGET.id(),
+                        inline.last,
+                        inline.first
+                    );
                 }
+
                 bounds.set_measure_inline(Some(inline));
             }
         } else {
