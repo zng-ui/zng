@@ -46,9 +46,10 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# Other Issues
+# Markdown/Scroll
 
-* Markdown example tries to render zero-sized stuff.
+* Markdown "can `inline`" does not render separated with space.
+* Markdown scrolls on init if only focusable is not in view.
 
 # Publish
 

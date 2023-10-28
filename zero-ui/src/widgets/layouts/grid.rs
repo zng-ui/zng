@@ -1164,7 +1164,7 @@ impl GridLayout {
                     return;
                 }
 
-                let max_auto_placed = max_auto_placed_i / columns_len + 1;
+                let max_auto_placed = max_auto_placed_i / columns_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
                 let rows_len = children[1].len();
@@ -1205,7 +1205,7 @@ impl GridLayout {
                     return;
                 }
 
-                let max_auto_placed = max_auto_placed_i / rows_len + 1;
+                let max_auto_placed = max_auto_placed_i / rows_len;
                 let max_needed_len = max_auto_placed.max(max_custom).min(max as usize) + 1;
 
                 let cols_len = children[0].len();
