@@ -53,6 +53,7 @@
 * child_insert is like that because it is inserting a child.
 * This is only a problem in `TextInput!` or `Label!` really, where we want to insert something.
     - Maybe these widgets could have a nested `Text!`?
+    - Maybe we can compute layout in preview and return it from text `CHILD`.
 
 # Publish
 
