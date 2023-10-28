@@ -7,7 +7,11 @@ use crate::{crate_util::RecycleVec, prelude::new_widget::*};
 use crate::widgets::text::{LINE_SPACING_VAR, TEXT_ALIGN_VAR};
 
 /// Wrapping inline layout.
-#[widget($crate::widgets::layouts::Wrap)]
+#[widget($crate::widgets::layouts::Wrap {
+    ($children:expr) => {
+        children = $children;
+    };
+})]
 pub struct Wrap(WidgetBase);
 impl Wrap {
     fn widget_intrinsic(&mut self) {

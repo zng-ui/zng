@@ -49,7 +49,6 @@
 # Other Issues
 
 * Markdown example tries to render zero-sized stuff.
-* Implement shorthand for `Wrap!` and other panels.
 
 # Publish
 
