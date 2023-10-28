@@ -14,6 +14,7 @@
     - Set a flag that indicates caret or selection from touch.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
     - Not a normal context menu, "floating toolbar"?
+    - Implement `selection_origin`, like `caret_origin` but for the other end of the selection.
 
 * Configurable caret.
     - Implement `touch_caret` react to selection.

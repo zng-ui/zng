@@ -278,7 +278,7 @@ pub struct LayoutText {
     /// Computed [`UNDERLINE_THICKNESS_VAR`].
     pub underline_thickness: Px,
 
-    /// Top-left offset of the caret in the shaped text.
+    /// Top-middle offset of the caret in the shaped text.
     pub caret_origin: Option<PxPoint>,
 
     /// The x offset used when pressing up or down.
@@ -2082,8 +2082,48 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
             }
         }
         UiNodeOp::Render { frame } => {
-            let _ = frame;
+            c.delegated();
+
             // !!: position nodes according with the CaretShape documentation.
+
+            let children = c.children();
+            children[0].render(frame);
+            if children.len() == 2 {
+                let t = LayoutText::get();
+
+                if let Some(mut origin) = t.caret_origin {
+                    let id = WIDGET.id();
+                    origin.x -= sizes[0].width / 2;
+                    frame.push_reference_frame(
+                        SpatialFrameKey::from_widget_child(id, 1),
+                        FrameValue::Value(origin.to_vector().into()),
+                        true,
+                        true,
+                        |frame| children[1].render(frame),
+                    )
+                }
+            } else if children.len() == 3 {
+                let t = LayoutText::get();
+                let r_txt = ResolvedText::get();
+                let caret = r_txt.caret.lock();
+
+                if let (Some(index), Some(s_index), Some(mut origin)) = (caret.index, caret.selection_index, t.caret_origin) {
+                    // !!: TODO right-to-left text
+                    let child_index = if index.index <= s_index.index { 1 } else { 2 };
+                    let id = WIDGET.id();
+                    origin.x -= sizes[child_index - 1].width;
+                    frame.push_reference_frame(
+                        SpatialFrameKey::from_widget_child(id, 1),
+                        FrameValue::Value(origin.to_vector().into()),
+                        true,
+                        true,
+                        |frame| children[child_index].render(frame),
+                    )
+                    // !!: other end of the selection
+                } else {
+                    tracing::error!("touch caret instances do not match context caret")
+                }
+            }
         }
         _ => {}
     })
