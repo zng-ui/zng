@@ -13,7 +13,7 @@ pub use euclid::BoolVector2D;
 /// See also the [`PxConstraints2d`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct PxConstraints {
-    #[serde(with = "serde_constrains_max")]
+    #[serde(with = "serde_constraints_max")]
     max: Px,
     min: Px,
 
@@ -293,7 +293,7 @@ impl Default for PxConstraints {
         Self::new_unbounded()
     }
 }
-mod serde_constrains_max {
+mod serde_constraints_max {
     use super::Px;
     use serde::*;
     pub fn serialize<S: Serializer>(max: &Px, serializer: S) -> Result<S::Ok, S::Error> {

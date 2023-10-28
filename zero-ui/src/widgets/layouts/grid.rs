@@ -174,11 +174,11 @@ pub fn node(
             last_layout = LAYOUT.metrics();
 
             let (spacing, grid_size) = grid.grid_layout(&mut wl.to_measure(None), c.children(), &spacing);
-            let constrains = last_layout.constraints();
+            let constraints = last_layout.constraints();
 
             if grid.is_collapse() {
                 wl.collapse_descendants();
-                *final_size = constrains.fill_or_exact().unwrap_or_default();
+                *final_size = constraints.fill_or_exact().unwrap_or_default();
                 return;
             }
 
@@ -195,7 +195,7 @@ pub fn node(
                 wl,
                 |ci, col, wl| {
                     let info = grid.columns[ci];
-                    LAYOUT.with_constraints(constrains.with_exact(info.width, grid_size.height), || col.layout(wl))
+                    LAYOUT.with_constraints(constraints.with_exact(info.width, grid_size.height), || col.layout(wl))
                 },
                 |_, _| PxSize::zero(),
             );
@@ -204,7 +204,7 @@ pub fn node(
                 wl,
                 |ri, row, wl| {
                     let info = grid.rows[ri];
-                    LAYOUT.with_constraints(constrains.with_exact(grid_size.width, info.height), || row.layout(wl))
+                    LAYOUT.with_constraints(constraints.with_exact(grid_size.width, info.height), || row.layout(wl))
                 },
                 |_, _| PxSize::zero(),
             );
@@ -244,7 +244,7 @@ pub fn node(
                     }
 
                     let (_, define_ref_frame) =
-                        LAYOUT.with_constraints(constrains.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
+                        LAYOUT.with_constraints(constraints.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
                     o.child_offset = cell_offset;
                     o.define_reference_frame = define_ref_frame;
 
@@ -253,7 +253,7 @@ pub fn node(
                 |_, _| PxSize::zero(),
             );
 
-            *final_size = constrains.fill_size_or(grid_size);
+            *final_size = constraints.fill_size_or(grid_size);
         }
         UiNodeOp::Render { frame } => {
             c.delegated();
