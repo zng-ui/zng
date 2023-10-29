@@ -1989,13 +1989,10 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = ResolvedText::get().caret.lock().opacity.get().0;
 
-                    let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
-
-                    clip_rect.origin = origin;
-
-                    clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
-                    clip_rect.size.height = t.shaped_text.line_height();
-
+                    let clip_rect = PxRect::new(
+                        origin,
+                        PxSize::new(Dip::new(1).to_px(frame.scale_factor().0), t.shaped_text.line_height()),
+                    );
                     frame.push_color(clip_rect, color_key.bind(c.into(), true));
                 }
             }
@@ -2088,8 +2085,6 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Render { frame } => {
             c.delegated();
 
-            // !!: position nodes according with the CaretShape documentation.
-
             let children = c.children();
             children[0].render(frame);
             if children.len() == 2 {
@@ -2135,14 +2130,15 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
 
 /// Default touch caret shape.
 pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
-    // !!: TODO, use actual line height
-
     use zero_ui::prelude::new_property::*;
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
             let size = Dip::new(16).to_px(LAYOUT.scale_factor().0);
             *final_size = PxSize::splat(size);
-            final_size.height += Px(40);
+            final_size.height += LayoutText::get().shaped_text.line_height();
+            if !matches!(shape, CaretShape::Insert) {
+                final_size.width *= 0.8;
+            }
         }
         UiNodeOp::Render { frame } => {
             let size = Dip::new(16).to_px(frame.scale_factor().0);
@@ -2158,7 +2154,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
                 size.width *= 0.8;
             }
 
-            let line_height = Px(20);
+            let line_height = LayoutText::get().shaped_text.line_height();
 
             let rect = PxRect::new(PxPoint::new(Px(0), line_height), size);
             frame.push_clip_rounded_rect(rect, corners, false, false, |frame| {
