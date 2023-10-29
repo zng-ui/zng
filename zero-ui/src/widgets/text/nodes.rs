@@ -1985,14 +1985,14 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let t = LayoutText::get();
 
-                if let Some(origin) = t.caret_origin {
+                if let Some(mut origin) = t.caret_origin {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = ResolvedText::get().caret.lock().opacity.get().0;
 
-                    let clip_rect = PxRect::new(
-                        origin,
-                        PxSize::new(Dip::new(1).to_px(frame.scale_factor().0), t.shaped_text.line_height()),
-                    );
+                    let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
+                    origin.x -= caret_thickness / 2;
+
+                    let clip_rect = PxRect::new(origin, PxSize::new(caret_thickness, t.shaped_text.line_height()));
                     frame.push_color(clip_rect, color_key.bind(c.into(), true));
                 }
             }
@@ -2107,12 +2107,16 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 let caret = r_txt.caret.lock();
 
                 if let (Some(index), Some(s_index), Some(mut origin)) = (caret.index, caret.selection_index, t.caret_origin) {
+                    // !!: TODO right-to-left text
                     let index_is_left = index.index <= s_index.index;
 
-                    // !!: TODO right-to-left text
+                    let half_caret = Dip::new(1).to_px(frame.scale_factor().0) / 2; // !!: TODO position in shape, not here;
+
                     let id = WIDGET.id();
                     if index_is_left {
-                        origin.x -= sizes[0].width;
+                        origin.x -= sizes[0].width - half_caret;
+                    } else {
+                        origin.x -= half_caret;
                     }
                     frame.push_reference_frame(
                         SpatialFrameKey::from_widget_child(id, 1),
