@@ -2107,16 +2107,19 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 let caret = r_txt.caret.lock();
 
                 if let (Some(index), Some(s_index), Some(mut origin)) = (caret.index, caret.selection_index, t.caret_origin) {
+                    let index_is_left = index.index <= s_index.index;
+
                     // !!: TODO right-to-left text
-                    let child_index = if index.index <= s_index.index { 1 } else { 2 };
                     let id = WIDGET.id();
-                    origin.x -= sizes[child_index - 1].width;
+                    if index_is_left {
+                        origin.x -= sizes[0].width;
+                    }
                     frame.push_reference_frame(
                         SpatialFrameKey::from_widget_child(id, 1),
                         FrameValue::Value(origin.to_vector().into()),
                         true,
                         true,
-                        |frame| children[child_index].render(frame),
+                        |frame| children[if index_is_left { 1 } else { 2 }].render(frame),
                     )
                     // !!: other end of the selection
                 } else {
@@ -2164,7 +2167,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
             let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
             let line_pos = match shape {
                 CaretShape::SelectionLeft => PxPoint::new(size.width - caret_thickness, Px(0)),
-                CaretShape::Insert => PxPoint::new(size.width / Px(2) - caret_thickness / Px(2), Px(0)),
+                CaretShape::Insert => PxPoint::new((size.width - caret_thickness) / Px(2), Px(0)),
                 CaretShape::SelectionRight => PxPoint::zero(),
             };
 
