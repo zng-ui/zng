@@ -836,33 +836,45 @@ impl WidgetFocusInfo {
         reverse: bool,
     ) -> Option<WidgetFocusInfo> {
         match self.focus_info() {
-            FocusInfo::FocusScope { on_focus, .. } => match on_focus {
-                FocusScopeOnFocus::FirstDescendant => {
-                    if reverse {
-                        self.last_tab_descendant()
-                    } else {
-                        self.first_tab_descendant()
-                    }
-                }
-                FocusScopeOnFocus::LastFocused => last_focused(self.info.id())
-                    .and_then(|path| self.info.tree().get(path.widget_id()))
-                    .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
-                    .and_then(|f| {
-                        if f.info.is_descendant(&self.info) {
-                            Some(f) // valid last focused
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| {
+            FocusInfo::FocusScope { on_focus, .. } => {
+                let candidate = match on_focus {
+                    FocusScopeOnFocus::FirstDescendant | FocusScopeOnFocus::FirstDescendantIgnoreBounds => {
                         if reverse {
                             self.last_tab_descendant()
                         } else {
                             self.first_tab_descendant()
                         }
-                    }), // fallback
-                FocusScopeOnFocus::Widget => None,
-            },
+                    }
+                    FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds => last_focused(self.info.id())
+                        .and_then(|path| self.info.tree().get(path.widget_id()))
+                        .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
+                        .and_then(|f| {
+                            if f.info.is_descendant(&self.info) {
+                                Some(f) // valid last focused
+                            } else {
+                                None
+                            }
+                        })
+                        .or_else(|| {
+                            if reverse {
+                                self.last_tab_descendant()
+                            } else {
+                                self.first_tab_descendant()
+                            }
+                        }), // fallback
+                    FocusScopeOnFocus::Widget => None,
+                };
+
+                // if not IgnoreBounds and some candidate
+                if let (FocusScopeOnFocus::FirstDescendant | FocusScopeOnFocus::LastFocused, Some(candidate)) = (on_focus, &candidate) {
+                    if !self.info.inner_bounds().contains_rect(&candidate.info().inner_bounds()) {
+                        // not fully in bounds.
+                        return None;
+                    }
+                }
+
+                candidate
+            }
             FocusInfo::NotFocusable | FocusInfo::Focusable { .. } => None,
         }
     }
@@ -1694,13 +1706,42 @@ pub enum FocusScopeOnFocus {
     /// Just focus the scope widget.
     Widget,
     /// Focus the first descendant considering the TAB index, if the scope has no descendants
-    /// behaves like [`Widget`](Self::Widget).
+    /// behaves like [`Widget`].
     ///
     /// Focus the last descendant if the focus is *reversing* in, e.g. in a SHIFT+TAB action.
+    ///
+    /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
+    /// by the scope inner-bounds.
+    ///
+    /// [`Widget`]: Self::Widget
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
-    /// scope cannot return focus, behaves like [`FirstDescendant`](Self::FirstDescendant).
+    /// scope cannot return focus, behaves like [`FirstDescendant`].
+    ///
+    /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
+    /// by the scope inner-bounds.
+    ///
+    /// [`Widget`]: Self::Widget
+    /// [`FirstDescendant`]: Self::FirstDescendant
     LastFocused,
+
+    /// Like [`FirstDescendant`], but also focus the descendant even if it's inner-bounds
+    /// is not fully contained by the scope inner-bounds.
+    ///
+    /// The expectation is that the descendant is already visible or will be made visible when
+    /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
+    ///
+    /// [`FirstDescendant`]: Self::FirstDescendant
+    FirstDescendantIgnoreBounds,
+
+    /// Like [`LastFocused`], but also focus the descendant even if it's inner-bounds
+    /// is not fully contained by the scope inner-bounds.
+    ///
+    /// The expectation is that the descendant is already visible or will be made visible when
+    /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
+    ///
+    /// [`LastFocused`]: Self::LastFocused
+    LastFocusedIgnoreBounds,
 }
 impl fmt::Debug for FocusScopeOnFocus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1711,6 +1752,8 @@ impl fmt::Debug for FocusScopeOnFocus {
             FocusScopeOnFocus::Widget => write!(f, "Widget"),
             FocusScopeOnFocus::FirstDescendant => write!(f, "FirstDescendant"),
             FocusScopeOnFocus::LastFocused => write!(f, "LastFocused"),
+            FocusScopeOnFocus::FirstDescendantIgnoreBounds => write!(f, "FirstDescendantIgnoreBounds"),
+            FocusScopeOnFocus::LastFocusedIgnoreBounds => write!(f, "LastFocusedIgnoreBounds"),
         }
     }
 }
