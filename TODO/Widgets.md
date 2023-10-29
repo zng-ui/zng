@@ -15,14 +15,13 @@ Widget that need to be implemented.
 * Slider.
 * ToolTip.
 * Resize parent.
-* Basic markdown view.
 * Charts.
 * Media (audio & video).
 * Image effects.
-* Markdown.
 * Massive images (deep zoom).
 * SVG images.
-* Html (CSS, no Js).
+* HTML (CSS, no Js).
+* Full Markdown (HTML+CSS).
 * Diagram editor.
 * Rich text editor.
 * Browser hosting.

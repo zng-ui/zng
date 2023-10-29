@@ -430,7 +430,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     match WhiteSpace::MergeAll.transform(&txt) {
                         std::borrow::Cow::Borrowed(_) => {
                             if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
-                                txt.to_mut().insert(0, '\u{20}');
+                                txt.to_mut().insert(0, ' ');
                             }
                             txt.end_mut();
                             last_txt_end = txt_end;
@@ -439,7 +439,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                             txt = t;
                             if !txt.is_empty() {
                                 if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
-                                    txt.to_mut().insert(0, '\u{20}');
+                                    txt.to_mut().insert(0, ' ');
                                     txt.end_mut();
                                 }
                                 last_txt_end = txt_end;
@@ -468,6 +468,21 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
             }
             Event::Code(txt) => {
                 let txt = html_escape::decode_html_entities(txt.as_ref());
+
+                if last_txt_end.is_whitespace() {
+                    inlines.push(
+                        text_view(TextFnArgs {
+                            txt: ' '.into(),
+                            style: MarkdownStyle {
+                                strong: strong > 0,
+                                emphasis: emphasis > 0,
+                                strikethrough: strikethrough > 0,
+                            },
+                        })
+                        .boxed(),
+                    );
+                }
+
                 inlines.push(
                     code_inline_view(CodeInlineFnArgs {
                         txt: txt.to_text(),

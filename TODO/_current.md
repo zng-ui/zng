@@ -48,7 +48,6 @@
 
 # Markdown/Scroll
 
-* Markdown "can `inline`" does not render separated with space.
 * Markdown scrolls on init if only focusable is not in view.
 
 # Publish
