@@ -37,8 +37,6 @@
 
 # Accessibility
 
-* Implement more commands in `ACCESS` and widgets.
-* `ACCESS_TEXT_EVENT` and `ACCESS_SELECTION_EVENT`.
 * `ACCESS_NUMBER_EVENT` and `ACCESS_INCREMENT_EVENT`.
     - Implement ParseInput, IntInput.
 

@@ -237,6 +237,9 @@ event_args! {
         pub txt: Txt,
 
         /// If only the selected text is replaced.
+        ///
+        /// Note that if the selection is empty the text is just inserted at the caret position, or is appended if there
+        /// is no caret.
         pub selection_only: bool,
 
         ..
