@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use core::fmt;
 use std::sync::Arc;
 
 use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
@@ -862,11 +863,54 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     txt = "Version";
                     target = "field-version";
                 },
-                TextInput! {
-                    grid::cell::row = 2;
-                    grid::cell::column = 1;
-                    id = "field-version";
-                    txt = var_from("0.1.0");
+                {
+                    let version = var(Version::default());
+
+                    let version_err = var(Txt::from_str(""));
+                    let version_ok = version.filter_map_bidi(
+                        clmv!(version_err, |ver| {
+                            version_err.set(Txt::from_str(""));
+                            Some(ver.to_text())
+                        }),
+                        clmv!(version_err, |txt| {
+                            match txt.parse() {
+                                Ok(ver) => {
+                                    version_err.set(Txt::from_str(""));
+                                    Some(ver)
+                                },
+                                Err(e) => {
+                                    version_err.set(e);
+                                    None
+                                }
+                            }
+                        }),
+                        || Version::default().to_text()
+                    );
+
+                    Stack! {
+                        grid::cell::row = 2;
+                        grid::cell::column = 1;
+
+                        direction = StackDirection::top_to_bottom();
+                        children = ui_vec![
+                            TextInput! {
+                                id = "field-version";
+                                txt = version_ok;
+
+                                when !#{version_err.clone()}.is_empty() {
+                                    border = {
+                                        widths: 1,
+                                        sides: colors::ROSE,
+                                    };
+                                }
+                            },
+                            Text! {
+                                txt = version_err;
+                                font_color = colors::ROSE;
+                                font_size = 0.8.em();
+                            }
+                        ]
+                    }
                 },
             ];
         };
@@ -887,5 +931,38 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             },
             spacing: 10,
         };
+    }
+}
+
+/// Basic version type for input validation demo.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+struct Version {
+    major: u32,
+    minor: u32,
+    rev: u32,
+}
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.rev)
+    }
+}
+impl std::str::FromStr for Version {
+    type Err = Txt;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut r = Self::default();
+
+        let mut split = s.split('.');
+        if let Some(major) = split.next() {
+            r.major = u32::from_str(major).map_err(|e| e.to_text())?;
+        }
+        if let Some(minor) = split.next() {
+            r.minor = u32::from_str(minor).map_err(|e| e.to_text())?;
+        }
+        if let Some(rev) = split.next() {
+            r.rev = u32::from_str(rev).map_err(|e| e.to_text())?;
+        }
+
+        Ok(r)
     }
 }
