@@ -70,7 +70,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
-winit = { git = "https://github.com/SamRodri/winit.git", branch = "deadlock-fix", default-features = false, features = [
+winit = { version = "0.29", default-features = false, features = [
     "x11",
     "wayland",
     "wayland-dlopen",
@@ -88,8 +88,8 @@ rayon = "1"
 backtrace = "0.3"
 serde = "1"
 rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
-accesskit = { git = "https://github.com/SamRodri/accesskit.git", branch = "winit-update-with-fix" }
-accesskit_winit = { git = "https://github.com/SamRodri/accesskit.git", branch = "winit-update-with-fix" }
+accesskit = { git = "https://github.com/Vrixyz/accesskit.git", branch = "winit-main-after-0.28" }
+accesskit_winit = { git = "https://github.com/Vrixyz/accesskit.git", branch = "winit-main-after-0.28" }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"

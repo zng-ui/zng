@@ -1,6 +1,5 @@
 # Winit Upgrade
 
-* Wait for `winit` deadlock fix: https://github.com/rust-windowing/winit/pull/3172
 * Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256
 * Merge.
 

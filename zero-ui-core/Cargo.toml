@@ -110,7 +110,7 @@ blocking = "1"
 parking_lot = "0.12"
 futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"], optional = true }
-futures-lite = "1"
+futures-lite = "2"
 async-fs = "2"
 http-cache-semantics = { version = "1", optional = true }
 http-serde = { version = "1", optional = true }
