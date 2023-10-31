@@ -45,9 +45,11 @@
 
 # DATA Notes
 
-* Implement `parse` for `TextInput`.
+* Implement `txt_parse`.
     - It must use `DATA.invalidate`.
     - Configurable parse moment, real time, with delay or on focus loss.
+    - Capture node, but use it? Because of generic.
+        - Node must use resolved text as source.
 * Implement `required`.
     - It must set error, but not from the start.
     - Some mechanism triggers a validation even if the field was never touched.

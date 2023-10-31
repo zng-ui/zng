@@ -2665,3 +2665,17 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
         count: 1,
     }
 }
+
+pub(super) fn parse_text<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+where
+    T: VarValue + std::str::FromStr + std::fmt::Display,
+{
+    let value = value.into_var();
+    match_node(child, move |c, op| match op {
+        _ => {}
+    })
+}
+
+pub(super) fn parse_text_ctx(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
+    child
+}

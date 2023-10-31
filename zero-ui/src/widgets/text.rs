@@ -94,6 +94,15 @@ pub struct Text(
 #[property(CHILD, capture, default(""), widget_impl(Text))]
 pub fn txt(txt: impl IntoVar<Txt>) {}
 
+/// The value that is converted to and from text.
+#[property(CHILD, widget_impl(Text))]
+pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
+where
+    T: VarValue + std::str::FromStr + std::fmt::Display,
+{
+    nodes::parse_text(child, value)
+}
+
 impl Text {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
@@ -108,8 +117,21 @@ impl Text {
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
 
-            let text = wgt.capture_var_or_default(property_id!(Self::txt));
-            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
+            if let Some(txt_parse) = wgt.capture_property(property_id!(Self::txt_parse)) {
+                let txt_parse = txt_parse.args.clone_boxed();
+                let text = wgt
+                    .capture_var(property_id!(Self::txt))
+                    .unwrap_or_else(|| var(Txt::from_str("")).boxed());
+
+                wgt.push_intrinsic(NestGroup::EVENT, "resolve_text+parse", move |child| {
+                    let child = txt_parse.instantiate(child);
+                    let child = nodes::parse_text_ctx(child, text.clone());
+                    nodes::resolve_text(child, text)
+                });
+            } else {
+                let text = wgt.capture_var_or_default(property_id!(Self::txt));
+                wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
+            }
         });
     }
 }
