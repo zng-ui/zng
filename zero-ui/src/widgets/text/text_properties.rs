@@ -1092,6 +1092,11 @@ context_var! {
 
     /// Selection background color.
     pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(20.pct());
+
+    /// If text parse updated for every text change.
+    pub static TXT_PARSE_LIVE_VAR: bool = true;
+
+    pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
 }
 
 /// Defines the position of a caret in relation to the selection.
@@ -1199,6 +1204,31 @@ pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNod
 #[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextEditMix<P>))]
 pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
     super::nodes::get_lines_wrap_count(child, lines)
+}
+
+/// If [`txt_parse`] tries to parse after any text change immediately.
+///
+/// This is enabled by default, if disabled the [`PARSE_CMD`] can be used to update pending parse.
+///
+/// This property sets the [`TXT_PARSE_LIVE_VAR`].
+///
+/// [`txt_parse`]: fn@super::txt_parse
+/// [`PARSE_CMD`]: super::commands::PARSE_CMD
+#[property(CONTEXT, default(TXT_PARSE_LIVE_VAR), widget_impl(TextEditMix<P>))]
+pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, TXT_PARSE_LIVE_VAR, enabled)
+}
+
+/// If text has changed but [`txt_parse`] has not tried to parse the new text yet.
+///
+/// This can only be `true` if [`txt_parse_live`] is `false`.
+///
+/// [`txt_parse`]: fn@super::txt_parse
+/// [`txt_parse_live`]: fn@txt_parse_live
+#[property(CONTEXT, default(false), widget_impl(TextEditMix<P>))]
+pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    // reverse context, `txt_parse` sets `TXT_PARSE_PENDING_VAR`
+    with_context_var(child, TXT_PARSE_PENDING_VAR, state)
 }
 
 /// Display info of edit caret position.

@@ -946,7 +946,7 @@ impl std::str::FromStr for Version {
             }
         }
         if split.next().is_some() {
-            return Err("expected maximum of 3 version numbers".into())
+            return Err("expected maximum of 3 version numbers".into());
         }
 
         Ok(r)

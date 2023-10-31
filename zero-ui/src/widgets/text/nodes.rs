@@ -2671,35 +2671,115 @@ where
     T: super::TxtParseValue,
 {
     let value = value.into_var();
+
     let error = var(Txt::from_static(""));
     let mut _error_note = DataNoteHandle::dummy();
+
+    #[derive(Clone, Copy, bytemuck::NoUninit)]
+    #[repr(u8)]
+    enum State {
+        Sync,
+        Requested,
+        Pending,
+    }
+    let state = Arc::new(Atomic::new(State::Sync));
+
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            let _ = PARSE_TXT_VAR.set_from_map(&value, |val| val.to_txt());
-            let binding = PARSE_TXT_VAR.bind_filter_map_bidi(
+            // initial T -> Txt sync
+            let _ = PARSE_TEXT_VAR.set_from_map(&value, |val| val.to_txt());
+
+            // bind `TXT_PARSE_LIVE_VAR` <-> `value` using `bind_filter_map_bidi`:
+            // - in case of parse error, it is set in `error` variable, that is held by the binding.
+            // - on error update the DATA note is updated.
+            // - in case parse is not live, ignores updates (Txt -> None), sets `state` to `Pending`.
+            // - in case of Pending and `PARSE_CMD` state is set to `Requested` and `TXT_PARSE_LIVE_VAR.update()`.
+            // - the pending state is also tracked in `TXT_PARSE_PENDING_VAR` and the `PARSE_CMD` handle.
+
+            let live = TXT_PARSE_LIVE_VAR.actual_var();
+            let is_pending = TXT_PARSE_PENDING_VAR.actual_var();
+            let cmd_handle = Arc::new(super::commands::PARSE_CMD.scoped(WIDGET.id()).subscribe(false));
+
+            let binding = PARSE_TEXT_VAR.bind_filter_map_bidi(
                 &value,
-                clmv!(error, |txt| match T::from_txt(txt) {
-                    Ok(val) => {
-                        error.set(Txt::from_static(""));
-                        Some(val)
-                    }
-                    Err(e) => {
-                        error.set(e);
+                clmv!(state, error, is_pending, cmd_handle, |txt| {
+                    if live.get() || matches!(state.load(Ordering::Relaxed), State::Requested) {
+                        // can try parse
+
+                        if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
+                            // exit pending state, even if it parse fails
+                            let _ = is_pending.set(false);
+                            cmd_handle.set_enabled(false);
+                        }
+
+                        // try parse
+                        match T::from_txt(txt) {
+                            Ok(val) => {
+                                error.set(Txt::from_static(""));
+                                Some(val)
+                            }
+                            Err(e) => {
+                                error.set(e);
+                                None
+                            }
+                        }
+                    } else {
+                        // cannot try parse
+
+                        if !matches!(state.swap(State::Pending, Ordering::Relaxed), State::Pending) {
+                            // enter pending state
+                            let _ = is_pending.set(true);
+                            cmd_handle.set_enabled(true);
+                        }
+
+                        // does not update the value
                         None
                     }
                 }),
-                clmv!(error, |val| {
+                clmv!(state, error, |val| {
+                    // value updated externally, exit error, exit pending.
+
                     error.set(Txt::from_static(""));
+
+                    if !matches!(state.swap(State::Sync, Ordering::Relaxed), State::Sync) {
+                        let _ = is_pending.set(false);
+                        cmd_handle.set_enabled(false);
+                    }
+
                     Some(val.to_txt())
                 }),
             );
-            WIDGET.sub_var(&error).push_var_handles(binding);
+
+            // cmd_handle is held by the binding
+
+            WIDGET.sub_var(&TXT_PARSE_LIVE_VAR).sub_var(&error).push_var_handles(binding);
         }
         UiNodeOp::Deinit => {
             _error_note = DataNoteHandle::dummy();
         }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = super::commands::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                if matches!(state.load(Ordering::Relaxed), State::Pending) {
+                    // requested parse and parse is pending
+
+                    state.store(State::Requested, Ordering::Relaxed);
+                    let _ = PARSE_TEXT_VAR.update();
+                    args.propagation().stop();
+                }
+            }
+        }
         UiNodeOp::Update { .. } => {
+            if let Some(true) = TXT_PARSE_LIVE_VAR.get_new() {
+                if matches!(state.load(Ordering::Relaxed), State::Pending) {
+                    // enabled live parse and parse is pending
+
+                    let _ = PARSE_TEXT_VAR.update();
+                }
+            }
+
             if let Some(error) = error.get_new() {
+                // remove or replace the error
+
                 _error_note = if error.is_empty() {
                     DataNoteHandle::dummy()
                 } else {
@@ -2712,9 +2792,9 @@ where
 }
 
 context_var! {
-    static PARSE_TXT_VAR: Txt = Txt::from_static("");
+    static PARSE_TEXT_VAR: Txt = Txt::from_static("");
 }
 
 pub(super) fn parse_text_ctx(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
-    with_context_var(child, PARSE_TXT_VAR, text)
+    with_context_var(child, PARSE_TEXT_VAR, text)
 }

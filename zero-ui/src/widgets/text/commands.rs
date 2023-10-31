@@ -36,7 +36,12 @@ command! {
         name: "Select All",
         shortcut: shortcut!(CTRL+'A'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
-    };;
+    };
+
+    /// Parse text and update value if [`txt_parse`] is pending.
+    ///
+    /// [`txt_parse`]: fn@super::txt_parse
+    pub static PARSE_CMD;
 }
 
 struct SharedTextEditOp {

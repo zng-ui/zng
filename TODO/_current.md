@@ -45,18 +45,24 @@
 
 # DATA Notes
 
-* Implement `txt_parse`.
-    - Configurable parse moment, real time, with delay or on focus loss.
-        - Can't use a binding for this?
-        - How to avoid infinite update loop AND delay update?
-        - When the value var updates there is no delay, only Txt->T has potential delay.
+* Implement control of when `txt_parse` updates.
+    - `txt_parse_live = false;`.
+    - We could provide `on_inactive`, `on_enter` and use `on_blur`, user can disable live and call the command in these handlers.
+        - `on_inactive` needs a time.
 
 * Implement `required`.
     - It must set error, but not from the start.
-    - Some mechanism triggers a validation even if the field was never touched.
+    - The initial value needs to display as an empty string?
+
+* Define default colors for the 3 levels.
+* Implement error style for `TextInput!`.
+    - Info and warning too.
+    - Implement `get_top_notes` to only get error/warn/info.
 * Implement "What's new" info indicator.
     - Blue dot on the top-end of widgets.
     - Can lead users on a trail into sub-menus, until the new one is shown.
+
+* Implement `RESTORE_CMD` or `CANCEL_CMD` to set the text back to the current value.
 
 # Publish
 
