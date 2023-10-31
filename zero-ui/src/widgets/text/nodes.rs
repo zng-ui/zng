@@ -3,6 +3,7 @@
 use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Instant};
 
 use atomic::{Atomic, Ordering};
+use zero_ui_core::timer::TIMERS;
 
 use super::{
     commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
@@ -2797,4 +2798,48 @@ context_var! {
 
 pub(super) fn parse_text_ctx(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
     with_context_var(child, PARSE_TEXT_VAR, text)
+}
+
+pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
+    let mut pending = None;
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Event { update } => {
+            if pending.is_none() {
+                return;
+            }
+
+            if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
+                if let (KeyState::Pressed, Key::Enter) = (args.state, &args.key) {
+                    if !ACCEPTS_ENTER_VAR.get() {
+                        pending = None;
+                        text::commands::PARSE_CMD.scoped(WIDGET.id()).notify();
+                    }
+                }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                let target = WIDGET.id();
+                if args.is_blur(target) {
+                    pending = None;
+                    text::commands::PARSE_CMD.scoped(target).notify();
+                }
+            }
+        }
+        UiNodeOp::Update { updates } => {
+            let txt = ResolvedText::get();
+            // txt.text // !!: TODO detect text changed
+            // !!: why are we not exposing the `txt` again?
+            // !!: lets add `txt` to `ResolvedText` and remove `PARSE_TEXT_VAR`.
+
+            let target = WIDGET.id();
+            pending = Some(TIMERS.on_deadline(
+                CHANGE_STOP_DELAY_VAR.get(),
+                app_hn_once!(|_| {
+                    text::commands::PARSE_CMD.scoped(target).notify();
+                }),
+            ));
+
+            c.update(updates);
+            handler.update();
+        }
+        _ => {}
+    })
 }

@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZeroU32};
+use std::{fmt, num::NonZeroU32, time::Duration};
 
 use crate::core::{
     l10n::*,
@@ -1096,6 +1096,9 @@ context_var! {
     /// If text parse updated for every text change.
     pub static TXT_PARSE_LIVE_VAR: bool = true;
 
+    /// Debounce time for change stop.
+    pub static CHANGE_STOP_DELAY_VAR: Duration = 1.secs();
+
     pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
 }
 
@@ -1229,6 +1232,67 @@ pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
 pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     // reverse context, `txt_parse` sets `TXT_PARSE_PENDING_VAR`
     with_context_var(child, TXT_PARSE_PENDING_VAR, state)
+}
+
+/// Called after the text changed and interaction has stopped.
+///
+/// The `handler` will be called after change and [`change_stop_delay`] elapses, or the widget loses focus,
+/// or the [`Key::Enter`] is pressed and [`accepts_enter`] is `false`.
+///
+/// [`change_stop_delay`]: fn@change_stop_delay
+/// [`accepts_enter`]: fn@accepts_enter
+/// [`Key::Enter`]: crate::core::keyboard::Key::Enter
+#[property(EVENT, widget_impl(TextEditMix<P>))]
+pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
+    super::nodes::on_change_stop(child, handler)
+}
+
+/// Debounce time for [`on_change_stop`].
+///
+/// After the text stops changing and `delay` is elapsed the change stop handled is called, even
+/// if the widget is still focused.
+///
+/// Is `1.secs()` by default.
+///
+/// Sets [`CHANGE_STOP_DELAY_VAR`].
+///
+/// [`on_change_stop`]: fn@on_change_stop
+#[property(CONTEXT, default(CHANGE_STOP_DELAY_VAR), widget_impl(TextEditMix<P>))]
+pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+    with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
+}
+
+/// Arguments for [`on_change_stop`].
+///
+/// [`on_change_stop`]: fn@on_change_stop
+#[derive(Debug, Clone)]
+pub struct ChangeStopArgs {
+    /// Event cause.
+    pub cause: ChangeStopCause,
+}
+impl ChangeStopArgs {
+    /// Resolved text is available in the handler.
+    pub fn txt(&self) -> std::sync::Arc<super::nodes::ResolvedText> {
+        super::nodes::ResolvedText::get()
+    }
+}
+
+/// Cause of an [`on_change_stop`].
+///
+/// [`on_change_stop`]: fn@on_change_stop
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChangeStopCause {
+    /// The [`change_stop_delay`] elapsed.
+    ///
+    /// [`change_stop_delay`]: fn@change_stop_delay
+    DelayElapsed,
+    /// The [`Key::Enter`] was pressed and [`accepts_enter`] is `false`.
+    ///
+    /// [`Key::Enter`]: crate::core::keyboard::Key::Enter
+    /// [`accepts_enter`]: fn@accepts_enter
+    Enter,
+    /// The widget lost keyboard focus.
+    Blur,
 }
 
 /// Display info of edit caret position.

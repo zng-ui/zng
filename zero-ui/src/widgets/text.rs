@@ -102,7 +102,10 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 /// If the parse operation fails the value variable is not updated and the error display text is set in [`DATA.invalidate`], you
 /// can use [`has_data_error`] and [`get_data_error_txt`] to display the error.
 ///
+/// See also [`txt_parse_live`] for ways to control when the parse attempt happens.
+///
 /// [`txt`]: fn@txt
+/// [`txt_parse_live`]: fn@txt_parse_live
 /// [`DATA.invalidate`]: crate::properties::data_context::DATA::invalidate
 /// [`has_data_error`]: fn@crate::properties::data_context::has_data_error
 /// [`get_data_error_txt`]: fn@crate::properties::data_context::get_data_error_txt
