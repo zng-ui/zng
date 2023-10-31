@@ -2668,14 +2668,53 @@ fn lines_wrap_counter(txt: &ShapedText) -> impl Iterator<Item = u32> + '_ {
 
 pub(super) fn parse_text<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
 where
-    T: VarValue + std::str::FromStr + std::fmt::Display,
+    T: super::TxtParseValue,
 {
     let value = value.into_var();
-    match_node(child, move |c, op| match op {
+    let error = var(Txt::from_static(""));
+    let mut _error_note = DataNoteHandle::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            let _ = PARSE_TXT_VAR.set_from_map(&value, |val| val.to_txt());
+            let binding = PARSE_TXT_VAR.bind_filter_map_bidi(
+                &value,
+                clmv!(error, |txt| match T::from_txt(txt) {
+                    Ok(val) => {
+                        error.set(Txt::from_static(""));
+                        Some(val)
+                    }
+                    Err(e) => {
+                        error.set(e);
+                        None
+                    }
+                }),
+                clmv!(error, |val| {
+                    error.set(Txt::from_static(""));
+                    Some(val.to_txt())
+                }),
+            );
+            WIDGET.sub_var(&error).push_var_handles(binding);
+        }
+        UiNodeOp::Deinit => {
+            _error_note = DataNoteHandle::dummy();
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(error) = error.get_new() {
+                _error_note = if error.is_empty() {
+                    DataNoteHandle::dummy()
+                } else {
+                    DATA.invalidate(error)
+                };
+            }
+        }
         _ => {}
     })
 }
 
+context_var! {
+    static PARSE_TXT_VAR: Txt = Txt::from_static("");
+}
+
 pub(super) fn parse_text_ctx(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
-    child
+    with_context_var(child, PARSE_TXT_VAR, text)
 }

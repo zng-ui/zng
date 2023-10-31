@@ -864,52 +864,29 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     target = "field-version";
                 },
                 {
-                    let version = var(Version::default());
-
-                    let version_err = var(Txt::from_str(""));
-                    let version_ok = version.filter_map_bidi(
-                        clmv!(version_err, |ver| {
-                            version_err.set(Txt::from_str(""));
-                            Some(ver.to_text())
-                        }),
-                        clmv!(version_err, |txt| {
-                            match txt.parse() {
-                                Ok(ver) => {
-                                    version_err.set(Txt::from_str(""));
-                                    Some(ver)
-                                },
-                                Err(e) => {
-                                    version_err.set(e);
-                                    None
-                                }
-                            }
-                        }),
-                        || Version::default().to_text()
-                    );
-
-                    Stack! {
+                    let error = var(Txt::from_static(""));
+                    Container! {
                         grid::cell::row = 2;
                         grid::cell::column = 1;
 
-                        direction = StackDirection::top_to_bottom();
-                        children = ui_vec![
-                            TextInput! {
-                                id = "field-version";
-                                txt = version_ok;
+                        child = TextInput! {
+                            id = "field-version";
+                            txt_parse = var(Version::default());
 
-                                when !#{version_err.clone()}.is_empty() {
-                                    border = {
-                                        widths: 1,
-                                        sides: colors::ROSE,
-                                    };
-                                }
-                            },
-                            Text! {
-                                txt = version_err;
-                                font_color = colors::ROSE;
-                                font_size = 0.8.em();
+                            when #has_data_error {
+                                border = {
+                                    widths: 1,
+                                    sides: colors::ROSE,
+                                };
                             }
-                        ]
+                        };
+
+                        get_data_error_txt = error.clone();
+                        child_insert_below = Text! {
+                            txt = error;
+                            font_color = colors::ROSE;
+                            font_size = 0.8.em();
+                        }, 0;
                     }
                 },
             ];
@@ -954,13 +931,22 @@ impl std::str::FromStr for Version {
 
         let mut split = s.split('.');
         if let Some(major) = split.next() {
-            r.major = u32::from_str(major).map_err(|e| e.to_text())?;
+            if !major.is_empty() {
+                r.major = u32::from_str(major).map_err(|e| e.to_text())?;
+            }
         }
         if let Some(minor) = split.next() {
-            r.minor = u32::from_str(minor).map_err(|e| e.to_text())?;
+            if !minor.is_empty() {
+                r.minor = u32::from_str(minor).map_err(|e| e.to_text())?;
+            }
         }
         if let Some(rev) = split.next() {
-            r.rev = u32::from_str(rev).map_err(|e| e.to_text())?;
+            if !rev.is_empty() {
+                r.rev = u32::from_str(rev).map_err(|e| e.to_text())?;
+            }
+        }
+        if split.next().is_some() {
+            return Err("expected maximum of 3 version numbers".into())
         }
 
         Ok(r)

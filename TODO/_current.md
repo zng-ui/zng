@@ -46,10 +46,11 @@
 # DATA Notes
 
 * Implement `txt_parse`.
-    - It must use `DATA.invalidate`.
     - Configurable parse moment, real time, with delay or on focus loss.
-    - Capture node, but use it? Because of generic.
-        - Node must use resolved text as source.
+        - Can't use a binding for this?
+        - How to avoid infinite update loop AND delay update?
+        - When the value var updates there is no delay, only Txt->T has potential delay.
+
 * Implement `required`.
     - It must set error, but not from the start.
     - Some mechanism triggers a validation even if the field was never touched.

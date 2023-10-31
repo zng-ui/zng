@@ -341,6 +341,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::access::{access_role, accessible};
         #[doc(no_inline)]
+        pub use crate::properties::data_context::{DataNoteHandle, DataNoteLevel};
+        #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
         #[doc(no_inline)]
         pub use crate::properties::filters::*;

@@ -94,13 +94,54 @@ pub struct Text(
 #[property(CHILD, capture, default(""), widget_impl(Text))]
 pub fn txt(txt: impl IntoVar<Txt>) {}
 
-/// The value that is converted to and from text.
+/// Value that is parsed from the text and displayed as the text.
+///
+/// This is an alternative to [`txt`] that converts to and from `T`. If `T: VarValue + Display + FromStr where FromStr::Err: Display`
+/// the type is compatible with this property.
+///
+/// If the parse operation fails the value variable is not updated and the error display text is set in [`DATA.invalidate`], you
+/// can use [`has_data_error`] and [`get_data_error_txt`] to display the error.
+///
+/// [`txt`]: fn@txt
+/// [`DATA.invalidate`]: crate::properties::data_context::DATA::invalidate
+/// [`has_data_error`]: fn@crate::properties::data_context::has_data_error
+/// [`get_data_error_txt`]: fn@crate::properties::data_context::get_data_error_txt
 #[property(CHILD, widget_impl(Text))]
 pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
 where
-    T: VarValue + std::str::FromStr + std::fmt::Display,
+    T: TxtParseValue,
 {
     nodes::parse_text(child, value)
+}
+
+/// A type that can be a var value, parse and display.
+///
+/// This trait is used by [`txt_parse`]. It is implemented for all types that are
+/// `VarValue + FromStr + Display where FromStr::Err: Display`.
+///
+/// [`txt_parse`]: fn@txt_parse
+pub trait TxtParseValue: VarValue {
+    /// Try parse `Self` from `txt`, formats the error for display.
+    ///
+    /// Note that the widget context is not available here as this method is called in the app context.
+    fn from_txt(txt: &Txt) -> Result<Self, Txt>;
+    /// Display the value, the returned text can be parsed back to an equal value.
+    ///
+    /// Note that the widget context is not available here as this method is called in the app context.
+    fn to_txt(&self) -> Txt;
+}
+impl<T> TxtParseValue for T
+where
+    T: VarValue + std::str::FromStr + std::fmt::Display,
+    <Self as std::str::FromStr>::Err: std::fmt::Display,
+{
+    fn from_txt(txt: &Txt) -> Result<Self, Txt> {
+        T::from_str(txt).map_err(|e| e.to_text())
+    }
+
+    fn to_txt(&self) -> Txt {
+        self.to_text()
+    }
 }
 
 impl Text {

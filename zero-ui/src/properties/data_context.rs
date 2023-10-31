@@ -119,7 +119,7 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 ///
 /// This service enables data flow from a context to descendants, a little like an anonymous context var, and
 /// from descendants up-to contexts.
-/// 
+///
 /// Arbitrary data can be set on a context using the [`data`] property and retrieved using [`DATA.get`] or [`DATA.req`],
 /// behaving a little like an anonymous context var. Only one data entry and type can exist in a context, nested
 /// [`data`] properties override the parent data and type in their context.
@@ -130,7 +130,7 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
 /// property gets the error formatted for display. Data notes are aggregated from descendants up-to the context, continuing
 /// up to outer nested contexts too, this means that you can get data errors for a form field by setting [`get_data_error_txt`] on
 /// the field widget, and get all form errors from that field and others by also setting [`get_data_error_txt`] in the form widget.
-/// 
+///
 /// [`data`]: fn@data
 /// [`get_data_notes`]: fn@get_data_notes
 /// [`get_data_error_txt`]: fn@get_data_error_txt
