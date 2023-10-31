@@ -18,8 +18,11 @@ pub use mask::{mask_align, mask_fit, mask_image, mask_mode};
 
 pub mod commands;
 
-mod data_;
-pub use data_::{data, DATA};
+pub mod data_context;
+pub use data_context::{
+    data, get_data_error, get_data_error_txt, get_data_info, get_data_info_txt, get_data_warn, get_data_warn_txt, has_data_error,
+    has_data_info, has_data_warn, DATA,
+};
 
 pub mod events;
 pub mod filters;

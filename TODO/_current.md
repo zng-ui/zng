@@ -43,6 +43,18 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
+# DATA Notes
+
+* Implement `parse` for `TextInput`.
+    - It must use `DATA.invalidate`.
+    - Configurable parse moment, real time, with delay or on focus loss.
+* Implement `required`.
+    - It must set error, but not from the start.
+    - Some mechanism triggers a validation even if the field was never touched.
+* Implement "What's new" info indicator.
+    - Blue dot on the top-end of widgets.
+    - Can lead users on a trail into sub-menus, until the new one is shown.
+
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.
