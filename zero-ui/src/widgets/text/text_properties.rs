@@ -541,7 +541,7 @@ pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
             let l_txt = super::nodes::LayoutText::get();
             if let Some(info) = &l_txt.overflow {
                 let r = super::nodes::ResolvedText::get();
-                let tail = &r.text.text()[info.text_char..];
+                let tail = &r.segmented_text.text()[info.text_char..];
                 if txt.with(|t| t != tail) {
                     let _ = txt.set(Txt::from_str(tail));
                 }
@@ -1440,7 +1440,7 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
         UiNodeOp::Render { frame } => {
             let l_txt = super::nodes::LayoutText::get();
             let r_txt = super::nodes::ResolvedText::get();
-            let r_txt = r_txt.text.text();
+            let r_txt = r_txt.segmented_text.text();
 
             for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {
                 frame.push_color(line_rect, color_key.bind_var(&color, |c| (*c).into()));

@@ -149,10 +149,12 @@ impl CaretInfo {
 }
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
-#[derive(Debug)]
 pub struct ResolvedText {
+    /// The text source variable.
+    pub txt: BoxedVar<Txt>,
+
     /// Text transformed, white space corrected and segmented.
-    pub text: SegmentedText,
+    pub segmented_text: SegmentedText,
     /// Queried font faces.
     pub faces: FontFaceList,
     /// Font synthesis allowed by the text context and required to render the best font match.
@@ -173,10 +175,24 @@ pub struct ResolvedText {
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
     baseline: Atomic<Px>,
 }
+
+impl fmt::Debug for ResolvedText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResolvedText")
+            .field("segmented_text", &self.segmented_text)
+            .field("faces", &self.faces)
+            .field("synthesis", &self.synthesis)
+            .field("pending_layout", &self.pending_layout)
+            .field("pending_edit", &self.pending_edit)
+            .field("caret", &self.caret)
+            .finish_non_exhaustive()
+    }
+}
 impl Clone for ResolvedText {
     fn clone(&self) -> Self {
         Self {
-            text: self.text.clone(),
+            txt: self.txt.clone(),
+            segmented_text: self.segmented_text.clone(),
             faces: self.faces.clone(),
             synthesis: self.synthesis,
             pending_layout: self.pending_layout,
@@ -475,9 +491,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             };
 
             resolved = Some(ResolvedText {
+                txt: text.clone(),
                 synthesis: FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(style, weight),
                 faces: f,
-                text: SegmentedText::new(txt, DIRECTION_VAR.get()),
+                segmented_text: SegmentedText::new(txt, DIRECTION_VAR.get()),
                 pending_layout: PendingLayout::empty(),
                 pending_edit: false,
                 baseline: Atomic::new(Px(0)),
@@ -512,7 +529,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
             if !editable {
                 if let Some(mut a) = info.access() {
-                    a.set_label(resolved.as_ref().unwrap().text.text().clone());
+                    a.set_label(resolved.as_ref().unwrap().segmented_text.text().clone());
                 }
             }
         }
@@ -576,7 +593,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     let r = resolved.as_mut().unwrap();
                                     let caret = r.caret.get_mut();
                                     let caret_idx = caret.index.unwrap_or(CaretIndex::ZERO);
-                                    if caret.selection_index.is_some() || caret_idx.index < r.text.text().len() {
+                                    if caret.selection_index.is_some() || caret_idx.index < r.segmented_text.text().len() {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
@@ -623,7 +640,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         let ctx = resolved.as_mut().unwrap();
                         if let Some(range) = ctx.caret.get_mut().selection_char_range() {
                             args.propagation().stop();
-                            if CLIPBOARD.set_text(Txt::from_str(&ctx.text.text()[range])).is_ok() {
+                            if CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range])).is_ok() {
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                             }
                         }
@@ -688,7 +705,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     let resolved = resolved.as_mut().unwrap();
                     if let Some(range) = resolved.caret.get_mut().selection_char_range() {
                         args.propagation().stop();
-                        let _ = CLIPBOARD.set_text(Txt::from_str(&resolved.text.text()[range]));
+                        let _ = CLIPBOARD.set_text(Txt::from_str(&resolved.segmented_text.text()[range]));
                     }
                 } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update) {
                     if args.start.0 == widget_id && args.caret.0 == widget_id {
@@ -734,20 +751,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
 
                 let direction = DIRECTION_VAR.get();
-                if r.text.text() != &text || r.text.base_direction() != direction {
-                    r.text = SegmentedText::new(text, direction);
+                if r.segmented_text.text() != &text || r.segmented_text.base_direction() != direction {
+                    r.segmented_text = SegmentedText::new(text, direction);
 
                     // prevent invalid indexes
                     let caret = r.caret.get_mut();
                     if let Some(i) = &mut caret.index {
-                        i.index = r.text.snap_grapheme_boundary(i.index);
+                        i.index = r.segmented_text.snap_grapheme_boundary(i.index);
                     }
                     if let Some(i) = &mut caret.selection_index {
-                        i.index = r.text.snap_grapheme_boundary(i.index);
+                        i.index = r.segmented_text.snap_grapheme_boundary(i.index);
                     }
                     if let Some((cr, _)) = &mut caret.initial_selection {
-                        cr.start.index = r.text.snap_grapheme_boundary(cr.start.index);
-                        cr.end.index = r.text.snap_grapheme_boundary(cr.end.index);
+                        cr.start.index = r.segmented_text.snap_grapheme_boundary(cr.start.index);
+                        cr.end.index = r.segmented_text.snap_grapheme_boundary(cr.end.index);
                     }
 
                     if WINDOW.vars().access_enabled().get().is_enabled() {
@@ -829,10 +846,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     });
                 }
 
-                if r.text.text() != &text {
-                    r.text = SegmentedText::new(text, DIRECTION_VAR.get());
+                if r.segmented_text.text() != &text {
+                    r.segmented_text = SegmentedText::new(text, DIRECTION_VAR.get());
                     if let Some(i) = &mut r.caret.get_mut().index {
-                        i.index = r.text.snap_grapheme_boundary(i.index);
+                        i.index = r.segmented_text.snap_grapheme_boundary(i.index);
                     }
 
                     r.pending_layout = PendingLayout::RESHAPE;
@@ -1091,7 +1108,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             */
 
             if self.pending.contains(PendingLayout::RESHAPE) {
-                txt.shaped_text = txt.fonts.shape_text(&t.text, &self.shaping_args);
+                txt.shaped_text = txt.fonts.shape_text(&t.segmented_text, &self.shaping_args);
                 self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
             }
 
@@ -1201,7 +1218,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if let Some(sel) = &mut caret.selection_index {
                             *sel = txt.shaped_text.snap_caret_line(*sel);
                         }
-                        let p = txt.shaped_text.caret_origin(*index, resolved_text.text.text());
+                        let p = txt.shaped_text.caret_origin(*index, resolved_text.segmented_text.text());
                         if !caret.used_retained_x {
                             txt.caret_retained_x = p.x;
                         }
@@ -2227,7 +2244,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
 
             if let Some(range) = r_txt.caret.lock().selection_range() {
                 let l_txt = LayoutText::get();
-                let r_txt = r_txt.text.text();
+                let r_txt = r_txt.segmented_text.text();
 
                 for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
                     frame.push_color(line_rect, FrameValue::Value(SELECTION_COLOR_VAR.get().into()));
@@ -2506,7 +2523,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
                 let t = ResolvedText::get();
                 let _ = status.set(match t.caret.lock().index {
                     None => CaretStatus::none(),
-                    Some(i) => CaretStatus::new(i.index, &t.text),
+                    Some(i) => CaretStatus::new(i.index, &t.segmented_text),
                 });
             }
             UiNodeOp::Deinit => {
@@ -2528,7 +2545,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             if !t.pending_edit && status.get().index() != idx.map(|ci| ci.index) {
                 let _ = status.set(match idx {
                     None => CaretStatus::none(),
-                    Some(i) => CaretStatus::new(i.index, &t.text),
+                    Some(i) => CaretStatus::new(i.index, &t.segmented_text),
                 });
             }
         }
@@ -2687,8 +2704,10 @@ where
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
+            let ctx = ResolvedText::get();
+
             // initial T -> Txt sync
-            let _ = PARSE_TEXT_VAR.set_from_map(&value, |val| val.to_txt());
+            let _ = ctx.txt.set_from_map(&value, |val| val.to_txt());
 
             // bind `TXT_PARSE_LIVE_VAR` <-> `value` using `bind_filter_map_bidi`:
             // - in case of parse error, it is set in `error` variable, that is held by the binding.
@@ -2701,7 +2720,7 @@ where
             let is_pending = TXT_PARSE_PENDING_VAR.actual_var();
             let cmd_handle = Arc::new(super::commands::PARSE_CMD.scoped(WIDGET.id()).subscribe(false));
 
-            let binding = PARSE_TEXT_VAR.bind_filter_map_bidi(
+            let binding = ctx.txt.bind_filter_map_bidi(
                 &value,
                 clmv!(state, error, is_pending, cmd_handle, |txt| {
                     if live.get() || matches!(state.load(Ordering::Relaxed), State::Requested) {
@@ -2764,7 +2783,7 @@ where
                     // requested parse and parse is pending
 
                     state.store(State::Requested, Ordering::Relaxed);
-                    let _ = PARSE_TEXT_VAR.update();
+                    let _ = ResolvedText::get().txt.update();
                     args.propagation().stop();
                 }
             }
@@ -2774,7 +2793,7 @@ where
                 if matches!(state.load(Ordering::Relaxed), State::Pending) {
                     // enabled live parse and parse is pending
 
-                    let _ = PARSE_TEXT_VAR.update();
+                    let _ = ResolvedText::get().txt.update();
                 }
             }
 
@@ -2790,14 +2809,6 @@ where
         }
         _ => {}
     })
-}
-
-context_var! {
-    static PARSE_TEXT_VAR: Txt = Txt::from_static("");
-}
-
-pub(super) fn parse_text_ctx(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode {
-    with_context_var(child, PARSE_TEXT_VAR, text)
 }
 
 pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
@@ -2824,18 +2835,15 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
             }
         }
         UiNodeOp::Update { updates } => {
-            let txt = ResolvedText::get();
-            // txt.text // !!: TODO detect text changed
-            // !!: why are we not exposing the `txt` again?
-            // !!: lets add `txt` to `ResolvedText` and remove `PARSE_TEXT_VAR`.
-
-            let target = WIDGET.id();
-            pending = Some(TIMERS.on_deadline(
-                CHANGE_STOP_DELAY_VAR.get(),
-                app_hn_once!(|_| {
-                    text::commands::PARSE_CMD.scoped(target).notify();
-                }),
-            ));
+            if ResolvedText::get().txt.is_new() {
+                let target = WIDGET.id();
+                pending = Some(TIMERS.on_deadline(
+                    CHANGE_STOP_DELAY_VAR.get(),
+                    app_hn_once!(|_| {
+                        text::commands::PARSE_CMD.scoped(target).notify();
+                    }),
+                ));
+            }
 
             c.update(updates);
             handler.update();

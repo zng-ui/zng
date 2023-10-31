@@ -169,7 +169,6 @@ impl Text {
 
                 wgt.push_intrinsic(NestGroup::EVENT, "resolve_text+parse", move |child| {
                     let child = txt_parse.instantiate(child);
-                    let child = nodes::parse_text_ctx(child, text.clone());
                     nodes::resolve_text(child, text)
                 });
             } else {

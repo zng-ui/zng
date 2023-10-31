@@ -250,7 +250,7 @@ impl TextEditOp {
                 }
 
                 let rmv = match data.selection_state {
-                    SelectionState::Caret(c) => backspace_range(&ctx.text, c.index, data.count),
+                    SelectionState::Caret(c) => backspace_range(&ctx.segmented_text, c.index, data.count),
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
                     SelectionState::Initial => unreachable!(),
                 };
@@ -374,7 +374,7 @@ impl TextEditOp {
 
                 let rmv = match data.selection_state {
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
-                    SelectionState::Caret(c) => delete_range(&ctx.text, c.index, data.count),
+                    SelectionState::Caret(c) => delete_range(&ctx.segmented_text, c.index, data.count),
                     SelectionState::Initial => unreachable!(),
                 };
 
@@ -467,8 +467,8 @@ impl TextEditOp {
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
 
-                select_before.start = ctx.text.snap_grapheme_boundary(select_before.start);
-                select_before.end = ctx.text.snap_grapheme_boundary(select_before.end);
+                select_before.start = ctx.segmented_text.snap_grapheme_boundary(select_before.start);
+                select_before.end = ctx.segmented_text.snap_grapheme_boundary(select_before.end);
 
                 txt.with(|t| {
                     let r = &t[select_before.clone()];
@@ -488,8 +488,8 @@ impl TextEditOp {
             UndoFullOp::Op(UndoOp::Undo) => {
                 let ctx = ResolvedText::get();
 
-                select_after.start = ctx.text.snap_grapheme_boundary(select_after.start);
-                select_after.end = ctx.text.snap_grapheme_boundary(select_after.end);
+                select_after.start = ctx.segmented_text.snap_grapheme_boundary(select_after.start);
+                select_after.end = ctx.segmented_text.snap_grapheme_boundary(select_after.end);
 
                 txt.modify(clmv!(select_after, removed, |args| {
                     args.to_mut().to_mut().replace_range(select_after, removed.as_str());
@@ -884,7 +884,7 @@ impl TextSelectOp {
         Self::new(|| {
             let resolved = ResolvedText::get();
             let mut c = resolved.caret.lock();
-            c.set_char_selection(0, resolved.text.text().len());
+            c.set_char_selection(0, resolved.segmented_text.text().len());
             c.skip_next_scroll = true;
         })
     }
@@ -904,16 +904,16 @@ fn next_prev(
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
         i.index = if let Some(s) = c.selection_range() {
-            selection_index(&resolved.text, s)
+            selection_index(&resolved.segmented_text, s)
         } else {
-            insert_index_fn(&resolved.text, i.index)
+            insert_index_fn(&resolved.segmented_text, i.index)
         };
         c.clear_selection();
     } else {
         if c.selection_index.is_none() {
             c.selection_index = Some(i);
         }
-        i.index = insert_index_fn(&resolved.text, i.index);
+        i.index = insert_index_fn(&resolved.segmented_text, i.index);
     }
     c.set_index(i);
     c.used_retained_x = false;
@@ -943,18 +943,18 @@ fn line_up_down(clear_selection: bool, diff: i8) {
                 Some(l) => {
                     i.line = next_li;
                     i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.text.text()),
+                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.segmented_text.text()),
                         None => l.text_range().end,
                     }
                 }
                 None => i = CaretIndex::ZERO,
             };
-            i.index = resolved.text.snap_grapheme_boundary(i.index);
+            i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
             c.set_index(i);
         } else if diff == -1 {
             c.set_char_index(0);
         } else if diff == 1 {
-            c.set_char_index(resolved.text.text().len());
+            c.set_char_index(resolved.segmented_text.text().len());
         }
     }
 
@@ -984,20 +984,20 @@ fn page_up_down(clear_selection: bool, diff: i8) {
         if diff == -1 && li == 0 {
             c.set_char_index(0);
         } else if diff == 1 && li == layout.shaped_text.lines_len() - 1 {
-            c.set_char_index(resolved.text.text().len());
+            c.set_char_index(resolved.segmented_text.text().len());
         } else if let Some(li) = layout.shaped_text.line(li) {
             let target_line_y = li.rect().origin.y + page_y;
             match layout.shaped_text.nearest_line(target_line_y) {
                 Some(l) => {
                     i.line = l.index();
                     i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.text.text()),
+                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.segmented_text.text()),
                         None => l.text_range().end,
                     }
                 }
                 None => i = CaretIndex::ZERO,
             };
-            i.index = resolved.text.snap_grapheme_boundary(i.index);
+            i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
             c.set_index(i);
         }
     }
@@ -1038,7 +1038,7 @@ fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
         c.selection_index = Some(i);
     }
 
-    i.index = index(resolved.text.text());
+    i.index = index(resolved.segmented_text.text());
 
     c.set_index(i);
     c.used_retained_x = false;
@@ -1074,13 +1074,13 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
             Some(l) => CaretIndex {
                 line: l.index(),
                 index: match l.nearest_seg(pos.x) {
-                    Some(s) => s.nearest_char_index(pos.x, resolved.text.text()),
+                    Some(s) => s.nearest_char_index(pos.x, resolved.segmented_text.text()),
                     None => l.text_range().end,
                 },
             },
             None => CaretIndex::ZERO,
         };
-        i.index = resolved.text.snap_grapheme_boundary(i.index);
+        i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
         c.set_index(i);
     }
 
