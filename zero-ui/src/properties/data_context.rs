@@ -1,6 +1,6 @@
 //! Contextual [`DATA`] and validation.
 
-use std::{any::Any, collections::HashMap, fmt, mem, ops, sync::Arc};
+use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
 
 use zero_ui_core::task::parking_lot::RwLock;
 
@@ -126,7 +126,7 @@ context_var! {
         // (dark, light)
         map.insert(DataNoteLevel::INFO, (colors::AZURE, colors::AZURE).into());
         map.insert(DataNoteLevel::WARN, (colors::YELLOW, colors::ORANGE).into());
-        map.insert(DataNoteLevel::ERROR, (colors::RED, colors::RED).into());
+        map.insert(DataNoteLevel::ERROR, (colors::WHITE.with_alpha(20.pct()).mix_normal(colors::RED), colors::RED).into());
         map
     };
 }
@@ -157,6 +157,43 @@ pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<
             base
         }),
     )
+}
+
+/// Node that inserts a data note color in [`DATA_NOTE_COLORS_VAR`].
+pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: impl IntoVar<ColorPair>) -> impl UiNode {
+    with_context_var(
+        child,
+        DATA_NOTE_COLORS_VAR,
+        merge_var!(DATA_NOTE_COLORS_VAR, color.into_var(), move |base, over| {
+            let mut base = base.clone();
+            base.insert(level, *over);
+            base
+        }),
+    )
+}
+
+/// Set the data note `INFO` color.
+///
+/// The color will be used directly as text color or other bright *foreground* icon.
+#[property(CONTEXT)]
+pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+    with_data_note_color(child, DataNoteLevel::INFO, color)
+}
+
+/// Set the data note `WARN` color.
+///
+/// The color will be used directly as text color or other bright *foreground* icon.
+#[property(CONTEXT)]
+pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+    with_data_note_color(child, DataNoteLevel::WARN, color)
+}
+
+/// Set the data note `ERROR` color.
+///
+/// The color will be used directly as text color or other bright *foreground* icon.
+#[property(CONTEXT)]
+pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+    with_data_note_color(child, DataNoteLevel::ERROR, color)
 }
 
 /// Data context and validation.
@@ -251,6 +288,57 @@ impl DATA {
     pub fn invalidate(&self, note: impl DataNoteValue) -> DataNoteHandle {
         self.annotate(DataNoteLevel::ERROR, note)
     }
+
+    /// Read-only variable that is the best color for the note level in the context of the current color scheme.
+    ///
+    /// If the `level` is not found, gets the nearest less than level, if no color is set in the context gets
+    /// the black/white for dark/light.
+    ///
+    /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
+    pub fn note_color(&self, level: impl IntoVar<DataNoteLevel>) -> impl Var<Rgba> {
+        merge_var!(DATA_NOTE_COLORS_VAR, level.into_var(), COLOR_SCHEME_VAR, |map, level, scheme| {
+            let c = if let Some(c) = map.get(level) {
+                *c
+            } else {
+                let mut nearest = 0u8;
+                let mut color = None;
+
+                for (l, c) in map {
+                    if l.0.get() < level.0.get() && l.0.get() > nearest {
+                        nearest = l.0.get();
+                        color = Some(*c);
+                    }
+                }
+
+                color.unwrap_or_else(|| ColorPair::from((colors::BLACK, colors::WHITE)))
+            };
+            match scheme {
+                ColorScheme::Light => c.light,
+                ColorScheme::Dark => c.dark,
+            }
+        })
+    }
+
+    /// Read-only variable that is the best color for `INFO` notes in the context of the current color scheme.
+    ///
+    /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
+    pub fn info_color(&self) -> impl Var<Rgba> {
+        self.note_color(DataNoteLevel::INFO)
+    }
+
+    /// Read-only variable that is the best color for `WARN` notes in the context of the current color scheme.
+    ///
+    /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
+    pub fn warn_color(&self) -> impl Var<Rgba> {
+        self.note_color(DataNoteLevel::WARN)
+    }
+
+    /// Read-only variable that is the best color for `ERROR` notes in the context of the current color scheme.
+    ///
+    /// The color can be used directly as text color, it probably needs mixing or desaturating to use as background.
+    pub fn error_color(&self) -> impl Var<Rgba> {
+        self.note_color(DataNoteLevel::ERROR)
+    }
 }
 
 context_local! {
@@ -261,14 +349,16 @@ context_local! {
 /// Classifies the kind of information conveyed by a [`DataNote`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
-pub struct DataNoteLevel(pub u8);
+pub struct DataNoteLevel(pub NonZeroU8);
 impl DataNoteLevel {
+    // SAFETY: values are not zero.
+
     /// Entry represents useful information.
-    pub const INFO: Self = Self(0);
+    pub const INFO: Self = Self(unsafe { NonZeroU8::new_unchecked(1) });
     /// Entry represents a data validation warning.
-    pub const WARN: Self = Self(128);
+    pub const WARN: Self = Self(unsafe { NonZeroU8::new_unchecked(128) });
     /// Entry represents a data validation error.
-    pub const ERROR: Self = Self(255);
+    pub const ERROR: Self = Self(unsafe { NonZeroU8::new_unchecked(255) });
 
     /// Gets the level name, if it is one of the `const` levels.
     pub fn name(self) -> &'static str {

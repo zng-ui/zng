@@ -865,6 +865,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                 },
                 {
                     let error = var(Txt::from_static(""));
+                    let error_color = DATA.error_color();
                     Container! {
                         grid::cell::row = 2;
                         grid::cell::column = 1;
@@ -877,7 +878,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                             when #has_data_error {
                                 border = {
                                     widths: 1,
-                                    sides: colors::ROSE,
+                                    sides: error_color.map_into(),
                                 };
                             }
                         };
@@ -885,7 +886,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         get_data_error_txt = error.clone();
                         child_insert_below = Text! {
                             txt = error;
-                            font_color = colors::ROSE;
+                            font_color = error_color;
                             font_size = 0.8.em();
                         }, 0;
                     }

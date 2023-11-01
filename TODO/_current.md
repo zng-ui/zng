@@ -55,9 +55,6 @@
     - It must set error, but not from the start.
     - The initial value needs to display as an empty string?
 
-* Define default colors for the 3 levels.
-    - Similar to button `base_colors`.
-
 * Implement error style for `TextInput!`.
     - Info and warning too.
     - Implement `get_top_notes` to only get error/warn/info.
