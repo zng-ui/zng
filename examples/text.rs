@@ -872,10 +872,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         child = TextInput! {
                             id = "field-version";
                             txt_parse = var(Version::default());
-                            txt_parse_live = false;
-                            on_change_stop = hn!(|_| {
-                                text::commands::PARSE_CMD.scoped(WIDGET.id()).notify();
-                            });
+                            txt_parse_on_stop = true;
 
                             when #has_data_error {
                                 border = {

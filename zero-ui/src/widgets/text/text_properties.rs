@@ -1222,6 +1222,26 @@ pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
     with_context_var(child, TXT_PARSE_LIVE_VAR, enabled)
 }
 
+/// Shorthand property, disables live parsing and parse on change stop.
+///
+/// This property sets [`txt_parse_live`] and [`on_change_stop`] on the widget.
+///
+/// [`txt_parse_live`]: fn@txt_parse_live
+/// [`on_change_stop`]: fn@on_change_stop
+#[property(EVENT, widget_impl(TextEditMix<P>))]
+pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    let enabled = enabled.into_var();
+    let child = txt_parse_live(child, enabled.map(|&b| !b));
+    on_change_stop(
+        child,
+        hn!(|_| {
+            if enabled.get() {
+                super::commands::PARSE_CMD.notify();
+            }
+        }),
+    )
+}
+
 /// If text has changed but [`txt_parse`] has not tried to parse the new text yet.
 ///
 /// This can only be `true` if [`txt_parse_live`] is `false`.

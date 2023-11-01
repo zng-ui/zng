@@ -161,20 +161,13 @@ impl Text {
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
 
-            if let Some(txt_parse) = wgt.capture_property(property_id!(Self::txt_parse)) {
-                let txt_parse = txt_parse.args.clone_boxed();
-                let text = wgt
-                    .capture_var(property_id!(Self::txt))
-                    .unwrap_or_else(|| var(Txt::from_str("")).boxed());
-
-                wgt.push_intrinsic(NestGroup::EVENT, "resolve_text+parse", move |child| {
-                    let child = txt_parse.instantiate(child);
-                    nodes::resolve_text(child, text)
-                });
+            let text = if wgt.property(property_id!(Self::txt_parse)).is_some() {
+                wgt.capture_var(property_id!(Self::txt))
+                    .unwrap_or_else(|| var(Txt::from_str("")).boxed())
             } else {
-                let text = wgt.capture_var_or_default(property_id!(Self::txt));
-                wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
-            }
+                wgt.capture_var_or_default(property_id!(Self::txt))
+            };
+            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
 }
