@@ -45,16 +45,18 @@
 
 # DATA Notes
 
-* Implement control of when `txt_parse` updates.
-    - `txt_parse_live = false;`.
-    - We could provide `on_inactive`, `on_enter` and use `on_blur`, user can disable live and call the command in these handlers.
-        - `on_inactive` needs a time.
+* Property to set error in an widget?
+    - Say if `txt_parse` passes, but the data is invalid.
+    - Same thing can be used for "what's new".
+    - This a `var(vec![notes])` input?
 
 * Implement `required`.
     - It must set error, but not from the start.
     - The initial value needs to display as an empty string?
 
 * Define default colors for the 3 levels.
+    - Similar to button `base_colors`.
+
 * Implement error style for `TextInput!`.
     - Info and warning too.
     - Implement `get_top_notes` to only get error/warn/info.
