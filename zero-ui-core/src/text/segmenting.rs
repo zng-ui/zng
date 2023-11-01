@@ -307,7 +307,7 @@ impl SegmentedText {
         self.base_direction
     }
 
-    /// Returns the text segment and kind if `index` is in bounds.
+    /// Returns the text segment if `index` is in bounds.
     pub fn get(&self, index: usize) -> Option<(&str, TextSegment)> {
         if let Some(&seg) = self.segments.get(index) {
             let text = if index == 0 {

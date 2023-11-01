@@ -10,10 +10,11 @@
     - Set cut and copy enabled flag, they must be always subscribed (when editable/selectable) but only enabled when there is a selection.
 
 * Touch selection.
+    - Test with RTL and bidirectional text.
     - Set a flag that indicates caret or selection from touch.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
     - Not a normal context menu, "floating toolbar"?
-    - Implement `selection_origin`, like `caret_origin` but for the other end of the selection.
+    - On monitor DPI `1.0`, the calculated blinking caret and touch caret positions are off by 1 pixel.
 
 * Configurable caret.
     - Implement `touch_caret` react to selection.

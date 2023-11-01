@@ -295,8 +295,11 @@ pub struct LayoutText {
     /// Computed [`UNDERLINE_THICKNESS_VAR`].
     pub underline_thickness: Px,
 
-    /// Top-middle offset of the caret in the shaped text.
+    /// Top-middle offset of the caret index in the shaped text.
     pub caret_origin: Option<PxPoint>,
+
+    /// Top-middle offset of the caret selection_index in the shaped text.
+    pub caret_selection_origin: Option<PxPoint>,
 
     /// The x offset used when pressing up or down.
     pub caret_retained_x: Px,
@@ -323,6 +326,7 @@ impl Clone for LayoutText {
             underlines: self.underlines.clone(),
             underline_thickness: self.underline_thickness,
             caret_origin: self.caret_origin,
+            caret_selection_origin: self.caret_selection_origin,
             caret_retained_x: self.caret_retained_x,
             render_info: Mutex::new(self.render_info.lock().clone()),
             viewport: PxSize::zero(),
@@ -949,6 +953,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     underlines: vec![],
                     underline_thickness: Px(0),
                     caret_origin: None,
+                    caret_selection_origin: None,
                     caret_retained_x: Px(0),
                     render_info: Mutex::default(),
                     viewport: metrics.viewport(),
@@ -1134,6 +1139,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     txt.shaped_text_version = txt.shaped_text_version.wrapping_add(1);
                     t.baseline.store(txt.shaped_text.baseline(), Ordering::Relaxed);
                     txt.caret_origin = None;
+                    txt.caret_selection_origin = None;
                 }
                 if self.pending.contains(PendingLayout::OVERFLOW) {
                     let txt_size = txt.shaped_text.size();
@@ -1215,14 +1221,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     let caret = &mut *caret;
                     if let Some(index) = &mut caret.index {
                         *index = txt.shaped_text.snap_caret_line(*index);
-                        if let Some(sel) = &mut caret.selection_index {
-                            *sel = txt.shaped_text.snap_caret_line(*sel);
-                        }
+
                         let p = txt.shaped_text.caret_origin(*index, resolved_text.segmented_text.text());
                         if !caret.used_retained_x {
                             txt.caret_retained_x = p.x;
                         }
                         txt.caret_origin = Some(p);
+
+                        if let Some(sel) = &mut caret.selection_index {
+                            *sel = txt.shaped_text.snap_caret_line(*sel);
+                            txt.caret_selection_origin = Some(txt.shaped_text.caret_origin(*sel, resolved_text.segmented_text.text()));
+                        }
 
                         if !mem::take(&mut caret.skip_next_scroll) && SCROLL.try_id().is_some() {
                             let line_height = txt
@@ -2155,9 +2164,23 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 let r_txt = ResolvedText::get();
                 let caret = r_txt.caret.lock();
 
-                if let (Some(index), Some(s_index), Some(mut origin)) = (caret.index, caret.selection_index, t.caret_origin) {
-                    // !!: TODO right-to-left text
-                    let index_is_left = index.index <= s_index.index;
+                if let (Some(index), Some(s_index), Some(mut origin), Some(mut s_origin)) =
+                    (caret.index, caret.selection_index, t.caret_origin, t.caret_selection_origin)
+                {
+                    let mut index_is_left = index.index <= s_index.index;
+                    let seg_txt = &r_txt.segmented_text;
+                    if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(index.index)) {
+                        if seg.direction().is_rtl() {
+                            index_is_left = !index_is_left;
+                        }
+                    }
+
+                    let mut s_index_is_left = s_index.index < index.index;
+                    if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(s_index.index)) {
+                        if seg.direction().is_rtl() {
+                            s_index_is_left = !s_index_is_left;
+                        }
+                    }
 
                     let half_caret = Dip::new(1).to_px(frame.scale_factor().0) / 2; // !!: TODO position in shape, not here;
 
@@ -2167,14 +2190,25 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                     } else {
                         origin.x -= half_caret;
                     }
+                    if s_index_is_left {
+                        s_origin.x -= sizes[0].width - half_caret;
+                    } else {
+                        s_origin.x -= half_caret;
+                    }
                     frame.push_reference_frame(
                         SpatialFrameKey::from_widget_child(id, 1),
                         FrameValue::Value(origin.to_vector().into()),
                         true,
                         true,
                         |frame| children[if index_is_left { 1 } else { 2 }].render(frame),
+                    );
+                    frame.push_reference_frame(
+                        SpatialFrameKey::from_widget_child(id, 2),
+                        FrameValue::Value(s_origin.to_vector().into()),
+                        true,
+                        true,
+                        |frame| children[if s_index_is_left { 1 } else { 2 }].render(frame),
                     )
-                    // !!: other end of the selection
                 } else {
                     tracing::error!("touch caret instances do not match context caret")
                 }
