@@ -294,12 +294,12 @@ impl Align {
     named_aligns! {
         TOP_START = (0.0, true, 0.0);
         TOP_LEFT = (0.0, false, 0.0);
-        BOTTOM_START = (0.0, true, 0.0);
+        BOTTOM_START = (0.0, true, 1.0);
         BOTTOM_LEFT = (0.0, false, 1.0);
 
         TOP_END = (1.0, true, 0.0);
         TOP_RIGHT = (1.0, false, 0.0);
-        BOTTOM_END = (1.0, true, 0.0);
+        BOTTOM_END = (1.0, true, 1.0);
         BOTTOM_RIGHT = (1.0, false, 1.0);
 
         START = (0.0, true, 0.5);
