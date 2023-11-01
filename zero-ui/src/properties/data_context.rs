@@ -1,6 +1,6 @@
 //! Contextual [`DATA`] and validation.
 
-use std::{any::Any, fmt, mem, ops, sync::Arc};
+use std::{any::Any, collections::HashMap, fmt, mem, ops, sync::Arc};
 
 use zero_ui_core::task::parking_lot::RwLock;
 
@@ -113,6 +113,50 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
     with_data_notes(child, move |n| {
         let _ = any.set(n.iter().any(|n| n.level() == DataNoteLevel::ERROR));
     })
+}
+
+context_var! {
+    /// Color pairs for note levels.
+    ///
+    /// The colors can be used directly as text color.
+    ///
+    /// Defaults set only for the named levels.
+    pub static DATA_NOTE_COLORS_VAR: HashMap<DataNoteLevel, ColorPair> = {
+        let mut map = HashMap::new();
+        // (dark, light)
+        map.insert(DataNoteLevel::INFO, (colors::AZURE, colors::AZURE).into());
+        map.insert(DataNoteLevel::WARN, (colors::YELLOW, colors::ORANGE).into());
+        map.insert(DataNoteLevel::ERROR, (colors::RED, colors::RED).into());
+        map
+    };
+}
+
+/// Sets the data note level colors, the parent colors are fully replaced.
+///
+/// The colors will be used directly as text color or other bright *foreground* icon.
+///
+/// This property sets the [`DATA_NOTE_COLORS_VAR`].
+#[property(CONTEXT, default(DATA_NOTE_COLORS_VAR))]
+pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, ColorPair>>) -> impl UiNode {
+    with_context_var(child, DATA_NOTE_COLORS_VAR, colors)
+}
+
+/// Extend the data note level colors, the `colors` extend the parent colors, only entries of the same level are replaced.
+///
+/// The colors will be used directly as text color or other bright *foreground* icon.
+///
+/// This property sets the [`DATA_NOTE_COLORS_VAR`].
+#[property(CONTEXT, default(HashMap::new()))]
+pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, ColorPair>>) -> impl UiNode {
+    with_context_var(
+        child,
+        DATA_NOTE_COLORS_VAR,
+        merge_var!(DATA_NOTE_COLORS_VAR, colors.into_var(), |base, over| {
+            let mut base = base.clone();
+            base.extend(over);
+            base
+        }),
+    )
 }
 
 /// Data context and validation.
