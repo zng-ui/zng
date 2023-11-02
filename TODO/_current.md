@@ -1,8 +1,3 @@
-# Grid Bugs
-
-* Text form example, TextInputs have incorrect height after changing scale_factor from 1.5 to 1.0.
-    - Grid issue?
-
 # Winit Upgrade
 
 * Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256

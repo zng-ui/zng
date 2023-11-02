@@ -1335,8 +1335,19 @@ impl GridLayout {
             }
         });
 
-        // has imaginary columns or rows
-        has_default |= self.columns.len() > columns.len() || self.rows.len() > rows.len();
+        // reset imaginaries
+        for col in &mut self.columns[columns.len()..] {
+            col.meta = ColRowMeta::default();
+            col.x = Px::MIN;
+            col.width = Px::MIN;
+            has_default = true;
+        }
+        for row in &mut self.rows[rows.len()..] {
+            row.meta = ColRowMeta::default();
+            row.y = Px::MIN;
+            row.height = Px::MIN;
+            has_default = true;
+        }
 
         // Measure cells when needed, collect widest/tallest.
         //  - For `Default` columns&rows to get their size.
