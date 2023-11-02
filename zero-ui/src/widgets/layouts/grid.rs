@@ -1335,6 +1335,9 @@ impl GridLayout {
             }
         });
 
+        // has imaginary columns or rows
+        has_default |= self.columns.len() > columns.len() || self.rows.len() > rows.len();
+
         // Measure cells when needed, collect widest/tallest.
         //  - For `Default` columns&rows to get their size.
         //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
