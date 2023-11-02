@@ -46,11 +46,6 @@
 
 # DATA Notes
 
-* Property to set error in an widget?
-    - Say if `txt_parse` passes, but the data is invalid.
-    - Same thing can be used for "what's new".
-    - This a `var(vec![notes])` input?
-
 * Implement `required`.
     - It must set error, but not from the start.
     - The initial value needs to display as an empty string?

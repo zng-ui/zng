@@ -20,8 +20,8 @@ pub mod commands;
 
 pub mod data_context;
 pub use data_context::{
-    data, get_data_error, get_data_error_txt, get_data_info, get_data_info_txt, get_data_warn, get_data_warn_txt, has_data_error,
-    has_data_info, has_data_warn, DATA,
+    data, data_error, data_info, data_warn, get_data_error, get_data_error_txt, get_data_info, get_data_info_txt, get_data_warn,
+    get_data_warn_txt, has_data_error, has_data_info, has_data_warn, DATA,
 };
 
 pub mod events;

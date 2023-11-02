@@ -16,6 +16,76 @@ pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNo
     with_context_local(child, &DATA_CTX, data.into_var().boxed_any())
 }
 
+/// Insert a data note in the context.
+///
+/// This properties synchronizes the `level` and `note` variables with an [`DATA.annotate`] entry. If
+/// the `note` is empty the data note is not inserted.
+///
+/// [`DATA.annotate`]: DATA::annotate
+#[property(CONTEXT, default(DataNoteLevel::INFO, ""))]
+pub fn data_note(child: impl UiNode, level: impl IntoVar<DataNoteLevel>, note: impl IntoVar<Txt>) -> impl UiNode {
+    let level = level.into_var();
+    let note = note.into_var();
+    let mut _handle = DataNoteHandle::dummy();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&level).sub_var(&note);
+
+            let note = note.get();
+            if !note.is_empty() {
+                _handle = DATA.annotate(level.get(), note);
+            }
+        }
+        UiNodeOp::Deinit => {
+            _handle = DataNoteHandle::dummy();
+        }
+        UiNodeOp::Update { .. } => {
+            if level.is_new() || note.is_new() {
+                let note = note.get();
+                _handle = if note.is_empty() {
+                    DataNoteHandle::dummy()
+                } else {
+                    DATA.annotate(level.get(), note)
+                };
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Insert a data INFO note in the context.
+///
+/// This properties synchronizes the `note` variable with an [`DATA.inform`] entry. If
+/// the `note` is empty the data note is not inserted.
+///
+/// [`DATA.inform`]: DATA::inform
+#[property(CONTEXT, default(""))]
+pub fn data_info(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+    data_note(child, DataNoteLevel::INFO, note)
+}
+
+/// Insert a data WARN note in the context.
+///
+/// This properties synchronizes the `note` variable with an [`DATA.warn`] entry. If
+/// the `note` is empty the data note is not inserted.
+///
+/// [`DATA.warn`]: DATA::warn
+#[property(CONTEXT, default(""))]
+pub fn data_warn(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+    data_note(child, DataNoteLevel::WARN, note)
+}
+
+/// Insert a data ERROR note in the context.
+///
+/// This properties synchronizes the `note` variable with an [`DATA.invalidate`] entry. If
+/// the `note` is empty the data note is not inserted.
+///
+/// [`DATA.invalidate`]: DATA::invalidate
+#[property(CONTEXT, default(""))]
+pub fn data_error(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
+    data_note(child, DataNoteLevel::ERROR, note)
+}
+
 /// Get all data notes set on the context.
 #[property(CONTEXT - 1)]
 pub fn get_data_notes(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
