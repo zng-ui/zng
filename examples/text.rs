@@ -868,7 +868,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     grid::cell::row = 2;
                     grid::cell::column = 2;
                     txt_parse = var(Version::default());
-                    txt_parse_on_stop = true;
+                    // txt_parse_on_stop = true;
                 },
             ];
         };

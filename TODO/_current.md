@@ -1,3 +1,6 @@
+* Text form example, TextInputs have incorrect height after changing scale_factor from 1.5 to 1.0.
+    - Grid issue?
+
 # Winit Upgrade
 
 * Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256
@@ -14,7 +17,7 @@
     - Set a flag that indicates caret or selection from touch.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
     - Not a normal context menu, "floating toolbar"?
-    - On monitor DPI `1.0`, the calculated blinking caret and touch caret positions are off by 1 pixel.
+    - Make `TOUCH_CARET_OFFSET` public and document that it needs to be set in layout.
 
 * Configurable caret.
     - Implement `touch_caret` react to selection.

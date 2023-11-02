@@ -168,7 +168,7 @@ impl FieldStyle {
 }
 
 /// Adorner property used by [`FieldStyle`] to show data info, warn and error.
-/// 
+///
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {

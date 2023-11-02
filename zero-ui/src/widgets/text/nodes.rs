@@ -2076,7 +2076,9 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
     // is [child] or [child, SelectionLeft, SelectionRight] or [child, Insert]
     let children = vec![child.boxed()];
 
-    let mut sizes = [PxSize::zero(); 2];
+    let mut sizes = [(PxSize::zero(), Px(0)); 2];
+
+    let mut caret_mid_buf = Some(Arc::new(Atomic::new(Px(0))));
 
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
@@ -2136,8 +2138,9 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 WIDGET.render();
             }
 
-            for (caret, size) in children[1..].iter_mut().zip(&mut sizes) {
-                *size = caret.layout(wl);
+            for (caret, (size, mid)) in children[1..].iter_mut().zip(&mut sizes) {
+                *size = TOUCH_CARET_OFFSET.with_context(&mut caret_mid_buf, || caret.layout(wl));
+                *mid = caret_mid_buf.as_ref().unwrap().load(Ordering::Relaxed);
             }
         }
         UiNodeOp::Render { frame } => {
@@ -2150,7 +2153,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
 
                 if let Some(mut origin) = t.caret_origin {
                     let id = WIDGET.id();
-                    origin.x -= sizes[0].width / 2;
+                    origin.x -= sizes[0].0.width / 2;
                     frame.push_reference_frame(
                         SpatialFrameKey::from_widget_child(id, 1),
                         FrameValue::Value(origin.to_vector().into()),
@@ -2182,18 +2185,16 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                         }
                     }
 
-                    let half_caret = Dip::new(1).to_px(frame.scale_factor().0) / 2; // !!: TODO position in shape, not here;
-
                     let id = WIDGET.id();
                     if index_is_left {
-                        origin.x -= sizes[0].width - half_caret;
+                        origin.x -= sizes[0].1;
                     } else {
-                        origin.x -= half_caret;
+                        origin.x -= sizes[1].1;
                     }
                     if s_index_is_left {
-                        s_origin.x -= sizes[0].width - half_caret;
+                        s_origin.x -= sizes[0].1;
                     } else {
-                        s_origin.x -= half_caret;
+                        s_origin.x -= sizes[1].1;
                     }
                     frame.push_reference_frame(
                         SpatialFrameKey::from_widget_child(id, 1),
@@ -2223,12 +2224,25 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
     use zero_ui::prelude::new_property::*;
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
-            let size = Dip::new(16).to_px(LAYOUT.scale_factor().0);
+            let factor = LAYOUT.scale_factor();
+            let size = Dip::new(16).to_px(factor.0);
             *final_size = PxSize::splat(size);
             final_size.height += LayoutText::get().shaped_text.line_height();
-            if !matches!(shape, CaretShape::Insert) {
-                final_size.width *= 0.8;
-            }
+
+            let caret_thickness = Dip::new(1).to_px(factor.0);
+
+            let caret_offset = match shape {
+                CaretShape::SelectionLeft => {
+                    final_size.width *= 0.8;
+                    final_size.width - caret_thickness / 2.0 // rounds .5 to 1, to match `render_caret`
+                }
+                CaretShape::SelectionRight => {
+                    final_size.width *= 0.8;
+                    caret_thickness / 2 // rounds .5 to 0
+                }
+                CaretShape::Insert => final_size.width / 2 - caret_thickness / 2,
+            };
+            TOUCH_CARET_OFFSET.get().store(caret_offset, Ordering::Relaxed);
         }
         UiNodeOp::Render { frame } => {
             let size = Dip::new(16).to_px(frame.scale_factor().0);
@@ -2252,9 +2266,10 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
             });
 
             let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
+
             let line_pos = match shape {
                 CaretShape::SelectionLeft => PxPoint::new(size.width - caret_thickness, Px(0)),
-                CaretShape::Insert => PxPoint::new((size.width - caret_thickness) / Px(2), Px(0)),
+                CaretShape::Insert => PxPoint::new(size.width / 2 - caret_thickness / 2, Px(0)),
                 CaretShape::SelectionRight => PxPoint::zero(),
             };
 
@@ -2263,6 +2278,10 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
         }
         _ => {}
     })
+}
+
+context_local! {
+    static TOUCH_CARET_OFFSET: Atomic<Px> = Atomic::new(Px(0));
 }
 
 /// An Ui node that renders the text selection background.
