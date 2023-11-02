@@ -37,7 +37,10 @@ impl LAYERS {
     /// are inserted in the same layer the later inserts are on top of the previous.
     ///
     /// If the `widget` is not a full widget after init it is immediately deinited and removed. Only full
-    /// widgets are allowed, and ideally widgets with known IDs, so that they can be removed.
+    /// widgets are allowed, and ideally widgets with known IDs, so that they can be removed. If you don't
+    /// know the widget is use [`insert_node`] instead.
+    ///
+    /// [`insert_node`]: Self::insert_node
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
         let layer = layer.into_var().actual_var();
         let widget = match_widget(widget.boxed(), move |widget, op| match op {
@@ -83,6 +86,18 @@ impl LAYERS {
         }
     }
 
+    /// Like [`insert`], but does not fail if `maybe_widget` is not a full widget.
+    ///
+    /// If the `maybe_widget` is not a full widget after the first init, it is upgraded to a full widget. The
+    /// widget ID is set on a response var that can be used to remove the node.
+    ///
+    /// [`insert`]: Self::insert
+    pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {
+        let (widget, rsp) = layer_widget(maybe_widget);
+        self.insert(layer, widget);
+        rsp
+    }
+
     /// Insert the `widget` in the layer and *anchor* it to the offset/transform of another widget.
     ///
     /// The `anchor` is the ID of another widget, the inserted `widget` will be offset/transform so that it aligns
@@ -90,7 +105,10 @@ impl LAYERS {
     /// receive the full transform or just the offset.
     ///
     /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`). If the `widget`
-    /// is not a full widget after init it is immediately deinited and removed.
+    /// is not a full widget after init it is immediately deinited and removed. If you don't
+    /// know the widget is use [`insert_anchored_node`] instead.
+    ///
+    /// [`insert_anchored_node`]: Self::insert_anchored_node
     pub fn insert_anchored(
         &self,
         layer: impl IntoVar<LayerIndex>,
@@ -552,13 +570,59 @@ impl LAYERS {
         self.insert(layer, widget);
     }
 
+    /// Like [`insert_anchored`], but does not fail if `maybe_widget` is not a full widget.
+    ///
+    /// If the `maybe_widget` is not a full widget after the first init, it is upgraded to a full widget. The
+    /// widget ID is set on a response var that can be used to remove the node.
+    ///
+    /// [`insert_anchored`]: Self::insert_anchored
+    pub fn insert_anchored_node(
+        &self,
+        layer: impl IntoVar<LayerIndex>,
+        anchor: impl IntoVar<WidgetId>,
+        mode: impl IntoVar<AnchorMode>,
+
+        maybe_widget: impl UiNode,
+    ) -> ResponseVar<WidgetId> {
+        let (widget, rsp) = layer_widget(maybe_widget);
+        self.insert_anchored(layer, anchor, mode, widget);
+        rsp
+    }
+
     /// Remove the widget in the next update.
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
+    ///
+    /// See also [`remove_node`] for removing nodes inserted by `_node` variants.
+    ///
+    /// [`remove_node`]: Self::remove_node
     pub fn remove(&self, id: impl Into<WidgetId>) {
         WINDOW.with_state(|s| {
             s.req(&WINDOW_LAYERS_ID).items.remove(id);
         });
+    }
+
+    /// Remove the widget in the next update.
+    ///
+    /// If the `id` has not responded yet it will be removed as soon as it initializes. This can happen if
+    /// the remove request is made before an update cycle allows time for the inserted widget first init.
+    pub fn remove_node(&self, id: ResponseVar<WidgetId>) {
+        if let Some(id) = id.rsp() {
+            self.remove(id);
+        } else {
+            let items = WINDOW.with_state(|s| s.req(&WINDOW_LAYERS_ID).items.clone());
+            id.hook(Box::new(move |a| {
+                match a.downcast_value::<types::Response<WidgetId>>().unwrap() {
+                    types::Response::Waiting => true,
+                    types::Response::Done(id) => {
+                        // remove item and hook
+                        items.remove(*id);
+                        false
+                    }
+                }
+            }))
+            .perm();
+        }
     }
 
     fn cleanup(&self) {
@@ -566,6 +630,28 @@ impl LAYERS {
             s.req(&WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
         });
     }
+}
+
+fn layer_widget(maybe_widget: impl UiNode) -> (impl UiNode, ResponseVar<WidgetId>) {
+    let (responder, response) = response_var();
+    let widget = match_widget(maybe_widget.boxed(), move |c, op| {
+        if let UiNodeOp::Init = op {
+            c.init();
+            let widget_id = if let Some(id) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+                id
+            } else {
+                c.deinit();
+                let not_widget = mem::replace(c.child(), NilUiNode.boxed());
+                *c.child() = not_widget.into_widget();
+
+                c.init();
+                c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap()
+            };
+
+            responder.respond(widget_id);
+        }
+    });
+    (widget, response)
 }
 
 fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {

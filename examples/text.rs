@@ -832,9 +832,9 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             spacing = (5, 10);
             padding = 20;
 
-            label::extend_style = Style! {
-                txt_align = Align::END;
-            };
+            label::extend_style = Style! { txt_align = Align::END; };
+            text_input::replace_style = style_fn!(|_| text_input::FieldStyle!());
+
             cells = ui_vec![
                 Label! {
                     txt = "Name";
@@ -863,33 +863,12 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     txt = "Version";
                     target = "field-version";
                 },
-                {
-                    let error = var(Txt::from_static(""));
-                    let error_color = DATA.error_color();
-                    Container! {
-                        grid::cell::row = 2;
-                        grid::cell::column = 1;
-
-                        child = TextInput! {
-                            id = "field-version";
-                            txt_parse = var(Version::default());
-                            txt_parse_on_stop = true;
-
-                            when #has_data_error {
-                                border = {
-                                    widths: 1,
-                                    sides: error_color.map_into(),
-                                };
-                            }
-                        };
-
-                        get_data_error_txt = error.clone();
-                        child_insert_below = Text! {
-                            txt = error;
-                            font_color = error_color;
-                            font_size = 0.8.em();
-                        }, 0;
-                    }
+                TextInput! {
+                    id = "field-version";
+                    grid::cell::row = 2;
+                    grid::cell::column = 2;
+                    txt_parse = var(Version::default());
+                    txt_parse_on_stop = true;
                 },
             ];
         };

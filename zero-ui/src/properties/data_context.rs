@@ -115,6 +115,19 @@ pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
     })
 }
 
+/// Gets all the notes of highest data level set on the context.
+#[property(CONTEXT - 1)]
+pub fn get_data_notes_top(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
+    let notes = notes.into_var();
+    with_data_notes(child, move |n| {
+        let _ = notes.set(if let Some(top) = n.iter().map(|n| n.level()).max() {
+            n.clone_level(top)
+        } else {
+            DataNotes::default()
+        });
+    })
+}
+
 context_var! {
     /// Color pairs for note levels.
     ///
@@ -347,7 +360,7 @@ context_local! {
 }
 
 /// Classifies the kind of information conveyed by a [`DataNote`].
-#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct DataNoteLevel(pub NonZeroU8);
 impl DataNoteLevel {

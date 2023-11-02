@@ -252,10 +252,68 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// This is the equivalent of setting [`foreground`] to the [`presenter`] node.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
-/// [`foreground`]: fn@background
+/// [`foreground`]: fn@foreground
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     foreground(child, presenter((), wgt_fn))
+}
+
+/// Custom layered foreground generated using a [`WidgetFn<()>`].
+///
+/// If the `adorner_fn` is not nil, the generated node is [layered] anchored to the widget inner bounds,
+/// displaying like a [`foreground`] that is not clipped by the widget and overlays all other widgets
+/// and layers not placed above [`LayerIndex::ADORNER`].
+///
+/// [layered]: crate::widgets::window::layers::LAYERS
+/// [`LayerIndex::ADORNER`]: crate::widgets::window::layers::LayerIndex::ADORNER
+/// [`foreground`]: fn@foreground
+#[property(FILL, default(WidgetFn::nil()))]
+pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    use crate::widgets::window::layers::*;
+
+    let adorner_fn = adorner_fn.into_var();
+    let mut adorner_id = None;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&adorner_fn);
+            let f = adorner_fn.get();
+            if !f.is_nil() {
+                let widget = f(());
+                let id = LAYERS.insert_anchored_node(LayerIndex::ADORNER, WIDGET.id(), AnchorMode::foreground(), widget);
+                adorner_id = Some(id);
+            }
+        }
+        UiNodeOp::Deinit => {
+            if let Some(id) = adorner_id.take() {
+                LAYERS.remove_node(id);
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(f) = adorner_fn.get_new() {
+                if let Some(id) = adorner_id.take() {
+                    LAYERS.remove_node(id);
+                }
+
+                if !f.is_nil() {
+                    let widget = f(());
+                    let id = LAYERS.insert_anchored_node(LayerIndex::ADORNER, WIDGET.id(), AnchorMode::foreground(), widget);
+                    adorner_id = Some(id);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Custom layered foreground.
+///
+/// This is the equivalent of setting [`adorner_fn`] to a [`WidgetFn::singleton`].
+///
+/// [`adorner_fn`]: fn@adorner_fn
+#[property(FILL, default(NilUiNode))]
+pub fn adorner(child: impl UiNode, adorner: impl UiNode) -> impl UiNode {
+    adorner_fn(child, WidgetFn::singleton(adorner))
 }
 
 /// Foreground highlight border overlay.

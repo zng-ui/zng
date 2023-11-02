@@ -55,9 +55,6 @@
     - It must set error, but not from the start.
     - The initial value needs to display as an empty string?
 
-* Implement error style for `TextInput!`.
-    - Info and warning too.
-    - Implement `get_top_notes` to only get error/warn/info.
 * Implement "What's new" info indicator.
     - Blue dot on the top-end of widgets.
     - Can lead users on a trail into sub-menus, until the new one is shown.

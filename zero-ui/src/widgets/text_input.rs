@@ -117,3 +117,60 @@ impl DefaultStyle {
         }
     }
 }
+
+/// Text input style that shows data errors.
+#[widget($crate::widgets::text_input::FieldStyle)]
+pub struct FieldStyle(DefaultStyle);
+impl FieldStyle {
+    fn widget_intrinsic(&mut self) {
+        let top_notes = var(data_context::DataNotes::default());
+
+        let top_level_and_txt = top_notes.map(|ns| {
+            if let Some(n) = ns.first() {
+                return (n.level(), formatx!("{ns}"));
+            }
+            (DataNoteLevel::INFO, "".into())
+        });
+        let top_txt = top_level_and_txt.map_ref(|(_, t)| t);
+        let top_color = DATA.note_color(top_level_and_txt.map_ref(|(l, _)| l));
+
+        let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
+        let adorn = top_txt.map(|t| !t.is_empty());
+
+        widget_set! {
+            self;
+            data_context::get_data_notes_top = top_notes.clone();
+
+            foreground_highlight = {
+                offsets: -2, // -1 border plus -1 to be outside
+                widths: 1,
+                sides: merge_var!(highlight, top_color.clone(), |&h, &c| if h {
+                    c.into()
+                } else {
+                    BorderSides::hidden()
+                }),
+            };
+            data_notes_adorner_fn = adorn.map(move |&a| if a {
+                wgt_fn!(top_txt, top_color, |_| crate::widgets::Text! {
+                    txt = top_txt.clone();
+                    font_color = top_color.clone();
+                    font_size = 0.8.em();
+                    align = Align::BOTTOM_START;
+                    y = 2.dip() + 100.pct();
+                })
+            } else {
+                WidgetFn::nil()
+            });
+
+            margin = (0, 0, 1.em(), 0);
+        }
+    }
+}
+
+/// Adorner property used by [`FieldStyle`] to show data info, warn and error.
+/// 
+/// [`FieldStyle`]: struct@FieldStyle
+#[property(FILL, default(WidgetFn::nil()))]
+pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    self::adorner_fn(child, adorner_fn)
+}
