@@ -264,6 +264,8 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// displaying like a [`foreground`] that is not clipped by the widget and overlays all other widgets
 /// and layers not placed above [`LayerIndex::ADORNER`].
 ///
+/// The full context is captured for adorner widget so you can use context variables inside without issue.
+///
 /// [layered]: crate::widgets::window::layers::LAYERS
 /// [`LayerIndex::ADORNER`]: crate::widgets::window::layers::LayerIndex::ADORNER
 /// [`foreground`]: fn@foreground
@@ -279,7 +281,7 @@ pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) ->
             WIDGET.sub_var(&adorner_fn);
             let f = adorner_fn.get();
             if !f.is_nil() {
-                let widget = f(());
+                let widget = with_context_blend(LocalContext::capture_filtered(CaptureFilter::All), false, f(()));
                 let id = LAYERS.insert_anchored_node(LayerIndex::ADORNER, WIDGET.id(), AnchorMode::foreground(), widget);
                 adorner_id = Some(id);
             }
@@ -296,7 +298,7 @@ pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) ->
                 }
 
                 if !f.is_nil() {
-                    let widget = f(());
+                    let widget = with_context_blend(LocalContext::capture_filtered(CaptureFilter::All), false, f(()));
                     let id = LAYERS.insert_anchored_node(LayerIndex::ADORNER, WIDGET.id(), AnchorMode::foreground(), widget);
                     adorner_id = Some(id);
                 }

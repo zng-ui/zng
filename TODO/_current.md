@@ -36,6 +36,8 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
+* Input filter, only accept digits for example.
+
 # Accessibility
 
 * All examples must be fully useable with a screen reader.

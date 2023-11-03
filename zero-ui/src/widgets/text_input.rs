@@ -118,7 +118,12 @@ impl DefaultStyle {
     }
 }
 
-/// Text input style that shows data errors.
+/// Text input style that shows data notes, info, warn and error.
+///
+/// You can also set the [`field_help`] in text inputs with this style to set a text that
+/// show in the same place as the data notes when there is no note.
+///
+/// [`field_help`]: fn@field_help
 #[widget($crate::widgets::text_input::FieldStyle)]
 pub struct FieldStyle(DefaultStyle);
 impl FieldStyle {
@@ -135,7 +140,7 @@ impl FieldStyle {
         let top_color = DATA.note_color(top_level_and_txt.map_ref(|(l, _)| l));
 
         let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
-        let adorn = top_txt.map(|t| !t.is_empty());
+        let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
 
         widget_set! {
             self;
@@ -150,13 +155,21 @@ impl FieldStyle {
                     BorderSides::hidden()
                 }),
             };
-            data_notes_adorner_fn = adorn.map(move |&a| if a {
+            data_notes_adorner_fn = adorn.map(move |&(top_txt_empty, help_empty)| if !top_txt_empty {
                 wgt_fn!(top_txt, top_color, |_| crate::widgets::Text! {
                     txt = top_txt.clone();
                     font_color = top_color.clone();
                     font_size = 0.8.em();
                     align = Align::BOTTOM_START;
-                    y = 2.dip() + 100.pct();
+                    offset = (4, 2.dip() + 100.pct());
+                })
+            } else if !help_empty {
+                wgt_fn!(|_| crate::widgets::Text! {
+                    txt = FIELD_HELP_VAR;
+                    font_size = 0.8.em();
+                    font_color = crate::widgets::text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
+                    align = Align::BOTTOM_START;
+                    offset = (4, 2.dip() + 100.pct());
                 })
             } else {
                 WidgetFn::nil()
@@ -173,4 +186,19 @@ impl FieldStyle {
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     self::adorner_fn(child, adorner_fn)
+}
+
+context_var! {
+    /// Text shown under a [`FieldStyle`] when it has no data notes (no info, warn or error).
+    ///
+    /// [`FieldStyle`]: struct@FieldStyle
+    pub static FIELD_HELP_VAR: Txt = "";
+}
+
+/// Text shown under a [`FieldStyle`] when it has no data notes (no info, warn or error).
+///
+/// [`FieldStyle`]: struct@FieldStyle
+#[property(CONTEXT, default(""))]
+pub fn field_help(child: impl UiNode, help: impl IntoVar<Txt>) -> impl UiNode {
+    with_context_var(child, FIELD_HELP_VAR, help)
 }
