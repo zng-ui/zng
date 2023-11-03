@@ -470,7 +470,7 @@ pub enum AccessCmd {
     /// Increment by steps.
     ///
     /// Associated value is usually is -1 or 1.
-    Increment(i8),
+    Increment(i32),
 
     /// Show or hide the widget's tooltip.
     SetToolTipVis(bool),

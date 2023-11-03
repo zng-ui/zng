@@ -38,23 +38,9 @@
 
 # Accessibility
 
-* `ACCESS_NUMBER_EVENT` and `ACCESS_INCREMENT_EVENT`.
-    - Implement ParseInput, IntInput.
-
+* Access events need to setup metadata.
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
-
-# DATA Notes
-
-* Implement `required`.
-    - It must set error, but not from the start.
-    - The initial value needs to display as an empty string?
-
-* Implement "What's new" info indicator.
-    - Blue dot on the top-end of widgets.
-    - Can lead users on a trail into sub-menus, until the new one is shown.
-
-* Implement `RESTORE_CMD` or `CANCEL_CMD` to set the text back to the current value.
 
 # Publish
 

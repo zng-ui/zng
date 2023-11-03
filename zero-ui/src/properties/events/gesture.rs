@@ -5,17 +5,8 @@
 
 use super::event_property;
 use crate::core::gesture::*;
+use crate::prelude::events::access::access_click;
 use crate::prelude::new_property::*;
-
-fn access_click(child: impl UiNode, _: bool) -> impl UiNode {
-    match_node(child, |_, op| {
-        if let UiNodeOp::Info { info } = op {
-            if let Some(mut access) = info.access() {
-                access.push_command(crate::core::widget_info::access::AccessCmdName::Click)
-            }
-        }
-    })
-}
 
 event_property! {
     /// On widget click from any source and of any click count and the widget is enabled.

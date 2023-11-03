@@ -58,6 +58,7 @@
 
 use crate::core::event::*;
 
+pub mod access;
 pub mod gesture;
 pub mod keyboard;
 pub mod mouse;

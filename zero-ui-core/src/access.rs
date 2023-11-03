@@ -177,7 +177,7 @@ event_args! {
         /// Increment steps.
         ///
         /// Usually is -1 or 1.
-        pub delta: i8,
+        pub delta: i32,
 
         ..
 
@@ -327,7 +327,7 @@ event! {
     /// Replace the text content.
     pub static ACCESS_TEXT_EVENT: AccessTextArgs;
 
-    /// Replace the number content and reset the selection.
+    /// Replace the number value.
     pub static ACCESS_NUMBER_EVENT: AccessNumberArgs;
 
     /// Select text.
