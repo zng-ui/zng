@@ -38,7 +38,6 @@
 
 # Accessibility
 
-* Access events need to setup metadata.
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
