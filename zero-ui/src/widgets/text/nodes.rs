@@ -221,9 +221,9 @@ impl ResolvedText {
         RESOLVED_TEXT.get()
     }
 
-    fn call_edit_op(ctx: &mut Option<Self>, op: impl FnOnce()) {
-        RESOLVED_TEXT.with_context_opt(ctx, op);
-        ctx.as_mut().unwrap().pending_edit = true;
+    fn call_edit_op(ctx: &mut Option<Self>, op: impl FnOnce() -> bool) {
+        let registered = RESOLVED_TEXT.with_context_opt(ctx, op);
+        ctx.as_mut().unwrap().pending_edit |= registered;
     }
 }
 
@@ -653,16 +653,17 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             if !paste.is_empty() {
                                 args.propagation().stop();
 
-                                ResolvedText::call_edit_op(&mut resolved, || {
-                                    TextEditOp::insert(paste).call(&text);
-                                });
+                                ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(paste).call(&text));
                             }
                         }
                     } else if let Some(args) = EDIT_CMD.scoped(widget.id()).on_unhandled(update) {
                         if let Some(op) = args.param::<UndoTextEditOp>() {
                             args.propagation().stop();
 
-                            ResolvedText::call_edit_op(&mut resolved, || op.call(&text));
+                            ResolvedText::call_edit_op(&mut resolved, || {
+                                op.call(&text);
+                                true
+                            });
                         } else if let Some(op) = args.param::<TextEditOp>() {
                             args.propagation().stop();
 
@@ -680,7 +681,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     let new_len = args.txt.len();
                                     TextEditOp::replace(0..current_len, args.txt.clone(), new_len..new_len)
                                 }
-                                .call(&text);
+                                .call(&text)
                             });
                         }
                     }

@@ -96,6 +96,27 @@ impl TextEditOp {
         };
 
         Self::new(data, move |txt, data, op| match op {
+            UndoFullOp::Init { redo } => {
+                let mut max_count = MAX_COUNT_VAR.get();
+                if max_count > 0 {
+                    let count = txt.with(|t| t.chars().count());
+                    if count < max_count {
+                        max_count -= count;
+
+                        let count = data.insert.chars().count();
+                        if count < max_count {
+                            let max_count = max_count - count;
+                            if max_count < data.insert.len() {
+                                let i = data.insert.char_indices().nth(max_count).unwrap().0;
+                                data.insert.truncate(i);
+                            }
+                        }
+                    } else {
+                        data.insert = Txt::from_static("");
+                        *redo = false;
+                    }
+                }
+            }
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -233,6 +254,7 @@ impl TextEditOp {
         };
 
         Self::new(data, move |txt, data, op| match op {
+            UndoFullOp::Init { .. } => {}
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -356,6 +378,7 @@ impl TextEditOp {
         };
 
         Self::new(data, move |txt, data, op| match op {
+            UndoFullOp::Init { .. } => {}
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
@@ -464,6 +487,9 @@ impl TextEditOp {
         let mut removed = Txt::from_static("");
 
         Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Init { .. } => {
+                // !!: TODO, check max
+            }
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
 
@@ -508,6 +534,7 @@ impl TextEditOp {
         let mut prev = Txt::from_static("");
         let mut transform = None::<(TextTransformFn, WhiteSpace)>;
         Self::new((), move |txt, _, op| match op {
+            UndoFullOp::Init { .. } => {}
             UndoFullOp::Op(UndoOp::Redo) => {
                 let (t, w) = transform.get_or_insert_with(|| (TEXT_TRANSFORM_VAR.get(), WHITE_SPACE_VAR.get()));
 
@@ -540,13 +567,21 @@ impl TextEditOp {
         })
     }
 
-    pub(super) fn call(self, text: &BoxedVar<Txt>) {
+    pub(super) fn call(self, text: &BoxedVar<Txt>) -> bool {
         {
             let mut op = self.0.lock();
             let op = &mut *op;
+
+            let mut redo = true;
+            (op.op)(text, &mut *op.data, UndoFullOp::Init { redo: &mut redo });
+            if !redo {
+                return false;
+            }
+
             (op.op)(text, &mut *op.data, UndoFullOp::Op(UndoOp::Redo));
         }
         UNDO.register(UndoTextEditOp::new(self));
+        true
     }
 }
 /// Used by `TextEditOp::insert`, `backspace` and `delete`.

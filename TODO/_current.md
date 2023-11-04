@@ -38,7 +38,7 @@
 
 * Input filter, only accept digits for example.
 * `max_count`.
-    - Implement for insert operations.
+    - Implement for all commands that insert text.
     - Implement for text variable changes.
     - Implement `FieldStyle` adorner that shows the count when max > 0.
 

@@ -844,6 +844,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     grid::cell::column = 1;
                     id = "field-name";
                     txt = var_from("my-crate");
+                    max_count = 50;
                 },
 
                 Label! {

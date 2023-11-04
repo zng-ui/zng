@@ -209,17 +209,22 @@ impl UNDO {
         })
     }
 
-    /// Run the `op` once with `UndoFullOp::Op(UndoOp::Redo)` and register it for undo in the current scope.
-    pub fn run_full_op<D>(&self, data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static)
+    /// Run the `op` once with `UndoFullOp::Init { .. }` and `UndoFullOp::Op(UndoOp::Redo)` and register it for undo in the current scope.
+    pub fn run_full_op<D>(&self, mut data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static)
     where
         D: Any + Send + 'static,
     {
-        self.run(UndoRedoFullOp {
-            data: Box::new(data),
-            op: Box::new(move |d, o| {
-                op(d.downcast_mut::<D>().unwrap(), o);
-            }),
-        })
+        let mut redo = true;
+        op(&mut data, UndoFullOp::Init { redo: &mut redo });
+
+        if redo {
+            self.run(UndoRedoFullOp {
+                data: Box::new(data),
+                op: Box::new(move |d, o| {
+                    op(d.downcast_mut::<D>().unwrap(), o);
+                }),
+            })
+        }
     }
 
     /// Run `actions` as a [`transaction`] and commits as a group if any undo action is captured.
@@ -621,6 +626,18 @@ pub enum UndoOp {
 
 /// Represents a full closure implementation of undo/redo action.
 pub enum UndoFullOp<'r> {
+    /// Initialize data in the execution context.
+    ///
+    /// This is called once before the initial `Op(UndoOp::Redo)` call, it
+    /// can be used to skip registering no-ops.
+    Init {
+        /// If the op must actually be executed.
+        ///
+        /// This is `true` by default, if set to `false` the OP will be dropped without ever executing and
+        /// will not be registered for undo.
+        redo: &'r mut bool,
+    },
+
     /// Normal undo/redo.
     Op(UndoOp),
     /// Collect display info.
@@ -655,6 +672,7 @@ pub enum UndoFullOp<'r> {
 impl<'r> fmt::Debug for UndoFullOp<'r> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Init { .. } => f.debug_struct("Init").finish_non_exhaustive(),
             Self::Op(arg0) => f.debug_tuple("Op").field(arg0).finish(),
             Self::Info { .. } => f.debug_struct("Info").finish_non_exhaustive(),
             Self::Merge { .. } => f.debug_struct("Merge").finish_non_exhaustive(),
