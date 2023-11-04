@@ -1099,6 +1099,11 @@ context_var! {
     /// Debounce time for change stop.
     pub static CHANGE_STOP_DELAY_VAR: Duration = 1.secs();
 
+    /// Maximum number of characters that can be input.
+    /// 
+    /// Zero means no limit. Is zero by default.
+    pub static MAX_COUNT_VAR: usize = 0;
+
     pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
 }
 
@@ -1240,6 +1245,16 @@ pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> imp
             }
         }),
     )
+}
+
+/// Maximum number of characters that can be input.
+/// 
+/// Zero means no limit. Is zero by default.
+/// 
+/// This property sets the [`MAX_COUNT_VAR`].
+#[property(CONTEXT, default(MAX_COUNT_VAR), widget_impl(TextEditMix<P>))]
+pub fn max_count(child: impl UiNode, max: impl IntoVar<usize>) -> impl UiNode {
+    with_context_var(child, MAX_COUNT_VAR, max)
 }
 
 /// If text has changed but [`txt_parse`] has not tried to parse the new text yet.

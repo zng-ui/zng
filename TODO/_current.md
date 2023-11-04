@@ -37,6 +37,10 @@
     - Issue still open, but after winit update API is ready?
 
 * Input filter, only accept digits for example.
+* `max_count`.
+    - Implement for insert operations.
+    - Implement for text variable changes.
+    - Implement `FieldStyle` adorner that shows the count when max > 0.
 
 # Accessibility
 
