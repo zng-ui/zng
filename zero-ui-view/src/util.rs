@@ -1037,6 +1037,9 @@ pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardErro
 pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_api::ClipboardError {
     if e == clipboard_win::SystemError::unimplemented() {
         clipboard_api::ClipboardError::NotSupported
+    } else if e.is_zero() {
+        // If GetClipboardData fails it returns a NULL, but GetLastError sometimes (always?) returns 0 (ERROR_SUCCESS)
+        clipboard_api::ClipboardError::NotFound
     } else {
         clipboard_api::ClipboardError::Other(format!("{e:?}"))
     }
