@@ -1630,7 +1630,7 @@ impl Window {
 
     /// Pump the accessibility adapter.
     pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
-        let _must_use_why = self.access.on_event(&self.window, event);
+        self.access.process_event(&self.window, event);
     }
 
     /// Update the accessibility info.

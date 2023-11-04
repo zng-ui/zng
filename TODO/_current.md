@@ -1,6 +1,5 @@
 # Winit Upgrade
 
-* Wait for `accesskit` upgrade: https://github.com/AccessKit/accesskit/pull/256
 * Merge.
 
 # TextInput
