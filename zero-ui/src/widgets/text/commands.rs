@@ -91,31 +91,29 @@ impl TextEditOp {
         }
         let data = InsertData {
             insert: insert.into(),
-            selection_state: SelectionState::Initial,
+            selection_state: SelectionState::PreInit,
             removed: Txt::from_static(""),
         };
 
         Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Init { redo } => {
-                let mut max_count = MAX_COUNT_VAR.get();
-                if max_count > 0 {
-                    let count = txt.with(|t| t.chars().count());
-                    if count < max_count {
-                        max_count -= count;
+                let ctx = ResolvedText::get();
+                let caret = ctx.caret.lock();
 
-                        let count = data.insert.chars().count();
-                        if count < max_count {
-                            let max_count = max_count - count;
-                            if max_count < data.insert.len() {
-                                let i = data.insert.char_indices().nth(max_count).unwrap().0;
-                                data.insert.truncate(i);
-                            }
-                        }
+                let mut rmv_range = 0..0;
+
+                if let Some(range) = caret.selection_range() {
+                    rmv_range = range.start.index..range.end.index;
+                    if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                        data.selection_state = SelectionState::CaretSelection(range.start, range.end);
                     } else {
-                        data.insert = Txt::from_static("");
-                        *redo = false;
+                        data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
                     }
+                } else {
+                    data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
                 }
+
+                Self::apply_max_count(redo, txt, rmv_range, &mut data.insert)
             }
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
@@ -123,19 +121,8 @@ impl TextEditOp {
 
                 let insert = &data.insert;
 
-                if let SelectionState::Initial = data.selection_state {
-                    if let Some(range) = caret.selection_range() {
-                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
-                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
-                        } else {
-                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
-                        }
-                    } else {
-                        data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
-                    }
-                }
                 match data.selection_state {
-                    SelectionState::Initial => unreachable!(),
+                    SelectionState::PreInit => unreachable!(),
                     SelectionState::Caret(insert_idx) => {
                         let i = insert_idx.index;
                         txt.modify(clmv!(insert, |args| {
@@ -170,10 +157,10 @@ impl TextEditOp {
             UndoFullOp::Op(UndoOp::Undo) => {
                 let len = data.insert.len();
                 let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
-                    SelectionState::Initial => unreachable!(),
                     SelectionState::Caret(c) => (c, None, c),
                     SelectionState::CaretSelection(start, end) => (start, Some(end), start),
                     SelectionState::SelectionCaret(start, end) => (start, Some(start), end),
+                    SelectionState::PreInit => unreachable!(),
                 };
                 let i = insert_idx.index;
                 let removed = &data.removed;
@@ -248,33 +235,34 @@ impl TextEditOp {
             removed: Txt,
         }
         let data = BackspaceData {
-            selection_state: SelectionState::Initial,
+            selection_state: SelectionState::PreInit,
             count: 1,
             removed: Txt::from_static(""),
         };
 
         Self::new(data, move |txt, data, op| match op {
-            UndoFullOp::Init { .. } => {}
+            UndoFullOp::Init { .. } => {
+                let ctx = ResolvedText::get();
+                let caret = ctx.caret.lock();
+
+                if let Some(range) = caret.selection_range() {
+                    if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                        data.selection_state = SelectionState::CaretSelection(range.start, range.end);
+                    } else {
+                        data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
+                    }
+                } else {
+                    data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
+                }
+            }
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                if let SelectionState::Initial = data.selection_state {
-                    if let Some(range) = caret.selection_range() {
-                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
-                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
-                        } else {
-                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
-                        }
-                    } else {
-                        data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
-                    }
-                }
-
                 let rmv = match data.selection_state {
                     SelectionState::Caret(c) => backspace_range(&ctx.segmented_text, c.index, data.count),
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
-                    SelectionState::Initial => unreachable!(),
+                    SelectionState::PreInit => unreachable!(),
                 };
                 if rmv.is_empty() {
                     data.removed = Txt::from_static("");
@@ -305,7 +293,7 @@ impl TextEditOp {
                     SelectionState::Caret(c) => (c.index - data.removed.len(), None, c),
                     SelectionState::CaretSelection(s, e) => (s.index, Some(e), s),
                     SelectionState::SelectionCaret(s, e) => (s.index, Some(s), e),
-                    SelectionState::Initial => unreachable!(),
+                    SelectionState::PreInit => unreachable!(),
                 };
                 let removed = &data.removed;
 
@@ -372,33 +360,34 @@ impl TextEditOp {
             removed: Txt,
         }
         let data = DeleteData {
-            selection_state: SelectionState::Initial,
+            selection_state: SelectionState::PreInit,
             count: 1,
             removed: Txt::from_static(""),
         };
 
         Self::new(data, move |txt, data, op| match op {
-            UndoFullOp::Init { .. } => {}
+            UndoFullOp::Init { .. } => {
+                let ctx = ResolvedText::get();
+                let caret = ctx.caret.lock();
+
+                if let Some(range) = caret.selection_range() {
+                    if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
+                        data.selection_state = SelectionState::CaretSelection(range.start, range.end);
+                    } else {
+                        data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
+                    }
+                } else {
+                    data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
+                }
+            }
             UndoFullOp::Op(UndoOp::Redo) => {
                 let ctx = ResolvedText::get();
                 let mut caret = ctx.caret.lock();
 
-                if let SelectionState::Initial = data.selection_state {
-                    if let Some(range) = caret.selection_range() {
-                        if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
-                            data.selection_state = SelectionState::CaretSelection(range.start, range.end);
-                        } else {
-                            data.selection_state = SelectionState::SelectionCaret(range.start, range.end);
-                        }
-                    } else {
-                        data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
-                    }
-                }
-
                 let rmv = match data.selection_state {
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
                     SelectionState::Caret(c) => delete_range(&ctx.segmented_text, c.index, data.count),
-                    SelectionState::Initial => unreachable!(),
+                    SelectionState::PreInit => unreachable!(),
                 };
 
                 if rmv.is_empty() {
@@ -435,7 +424,7 @@ impl TextEditOp {
                     SelectionState::Caret(c) => (c.index, None, c),
                     SelectionState::CaretSelection(s, e) => (s.index, Some(e), s),
                     SelectionState::SelectionCaret(s, e) => (s.index, Some(s), e),
-                    SelectionState::Initial => unreachable!(),
+                    SelectionState::PreInit => unreachable!(),
                 };
 
                 txt.modify(clmv!(removed, |args| {
@@ -476,6 +465,30 @@ impl TextEditOp {
         })
     }
 
+    fn apply_max_count(redo: &mut bool, txt: &BoxedVar<Txt>, rmv_range: ops::Range<usize>, insert: &mut Txt) {
+        let max_count = MAX_COUNT_VAR.get();
+        if max_count > 0 {
+            // max count enabled
+            let (txt_count, rmv_count) = txt.with(|t| (t.chars().count(), t[rmv_range].chars().count()));
+            let ins_count = insert.chars().count();
+
+            let final_count = txt_count - rmv_count + ins_count;
+            if final_count > max_count {
+                // need to truncate insert
+                let ins_rmv = final_count - max_count;
+                if ins_rmv < ins_count {
+                    // can truncate insert
+                    let i = insert.char_indices().nth(ins_count - ins_rmv).unwrap().0;
+                    insert.truncate(i);
+                } else {
+                    // cannot insert
+                    debug_assert!(txt_count >= max_count);
+                    *redo = false;
+                }
+            }
+        }
+    }
+
     /// Replace operation.
     ///
     /// The `select_before` is removed, and `insert` inserted at the `select_before.start`, after insertion
@@ -483,25 +496,24 @@ impl TextEditOp {
     ///
     /// All indexes are snapped to the nearest grapheme, you can use empty ranges to just position the caret.
     pub fn replace(mut select_before: ops::Range<usize>, insert: impl Into<Txt>, mut select_after: ops::Range<usize>) -> Self {
-        let insert = insert.into();
+        let mut insert = insert.into();
         let mut removed = Txt::from_static("");
 
         Self::new((), move |txt, _, op| match op {
-            UndoFullOp::Init { .. } => {
-                // !!: TODO, check max
-            }
-            UndoFullOp::Op(UndoOp::Redo) => {
+            UndoFullOp::Init { redo } => {
                 let ctx = ResolvedText::get();
 
                 select_before.start = ctx.segmented_text.snap_grapheme_boundary(select_before.start);
                 select_before.end = ctx.segmented_text.snap_grapheme_boundary(select_before.end);
 
                 txt.with(|t| {
-                    let r = &t[select_before.clone()];
-                    if r != removed {
-                        removed = Txt::from_str(r);
-                    }
+                    removed = Txt::from_str(&t[select_before.clone()]);
                 });
+
+                Self::apply_max_count(redo, txt, select_before.clone(), &mut insert);
+            }
+            UndoFullOp::Op(UndoOp::Redo) => {
+                let ctx = ResolvedText::get();
 
                 txt.modify(clmv!(select_before, insert, |args| {
                     args.to_mut().to_mut().replace_range(select_before, insert.as_str());
@@ -587,7 +599,7 @@ impl TextEditOp {
 /// Used by `TextEditOp::insert`, `backspace` and `delete`.
 #[derive(Clone, Copy)]
 enum SelectionState {
-    Initial,
+    PreInit,
     Caret(CaretIndex),
     CaretSelection(CaretIndex, CaretIndex),
     SelectionCaret(CaretIndex, CaretIndex),
