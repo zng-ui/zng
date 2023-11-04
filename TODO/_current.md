@@ -1,7 +1,3 @@
-# Winit Upgrade
-
-* Merge.
-
 # TextInput
 
 * Implement `txt_selectable` text.
