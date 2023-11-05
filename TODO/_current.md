@@ -34,6 +34,7 @@
 * `max_count`.
     - Implement for text variable changes (not in TextEditOp).
     - Implement `FieldStyle` adorner that shows the count when max > 0.
+        - Use `get_chars_count`.
 
 # Accessibility
 

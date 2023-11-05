@@ -96,8 +96,8 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 
 /// Value that is parsed from the text and displayed as the text.
 ///
-/// This is an alternative to [`txt`] that converts to and from `T`. If `T: VarValue + Display + FromStr where FromStr::Err: Display`
-/// the type is compatible with this property.
+/// This is an alternative to [`txt`] that converts to and from `T` if it can be formatted to display text and can parse, with
+/// parse error that can display.
 ///
 /// If the parse operation fails the value variable is not updated and the error display text is set in [`DATA.invalidate`], you
 /// can use [`has_data_error`] and [`get_data_error_txt`] to display the error.

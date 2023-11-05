@@ -1102,7 +1102,7 @@ context_var! {
     /// Maximum number of characters that can be input.
     ///
     /// Zero means no limit. Is zero by default.
-    pub static MAX_COUNT_VAR: usize = 0;
+    pub static MAX_CHARS_COUNT_VAR: usize = 0;
 
     pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
 }
@@ -1214,6 +1214,19 @@ pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCou
     super::nodes::get_lines_wrap_count(child, lines)
 }
 
+/// Gets the number of character in the text.
+#[property(EVENT, default(0), widget_impl(TextEditMix<P>))]
+pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl UiNode {
+    let chars = chars.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let ctx = super::nodes::ResolvedText::get();
+            let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
+            WIDGET.push_var_handle(handle);
+        }
+    })
+}
+
 /// If [`txt_parse`] tries to parse after any text change immediately.
 ///
 /// This is enabled by default, if disabled the [`PARSE_CMD`] can be used to update pending parse.
@@ -1251,10 +1264,10 @@ pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> imp
 ///
 /// Zero means no limit. Is zero by default.
 ///
-/// This property sets the [`MAX_COUNT_VAR`].
-#[property(CONTEXT, default(MAX_COUNT_VAR), widget_impl(TextEditMix<P>))]
-pub fn max_count(child: impl UiNode, max: impl IntoVar<usize>) -> impl UiNode {
-    with_context_var(child, MAX_COUNT_VAR, max)
+/// This property sets the [`MAX_CHARS_COUNT_VAR`].
+#[property(CONTEXT, default(MAX_CHARS_COUNT_VAR), widget_impl(TextEditMix<P>))]
+pub fn max_chars_count(child: impl UiNode, max: impl IntoVar<usize>) -> impl UiNode {
+    with_context_var(child, MAX_CHARS_COUNT_VAR, max)
 }
 
 /// If text has changed but [`txt_parse`] has not tried to parse the new text yet.

@@ -466,7 +466,7 @@ impl TextEditOp {
     }
 
     fn apply_max_count(redo: &mut bool, txt: &BoxedVar<Txt>, rmv_range: ops::Range<usize>, insert: &mut Txt) {
-        let max_count = MAX_COUNT_VAR.get();
+        let max_count = MAX_CHARS_COUNT_VAR.get();
         if max_count > 0 {
             // max count enabled
             let (txt_count, rmv_count) = txt.with(|t| (t.chars().count(), t[rmv_range].chars().count()));
