@@ -403,6 +403,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     struct EditData {
         events: [EventHandle; 5],
         caret_animation: VarHandle,
+        max_count: VarHandle,
         cut: CommandHandle,
         copy: CommandHandle,
         paste: CommandHandle,
@@ -425,6 +426,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                 self.paste = PASTE_CMD.scoped(id).subscribe(true);
                 self.edit = EDIT_CMD.scoped(id).subscribe(true);
+
+                self.max_count = MAX_CHARS_COUNT_VAR.subscribe(UpdateOp::Update, id);
             }
 
             if TEXT_SELECTABLE_VAR.get() {
@@ -438,6 +441,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     self.events[2] = KEY_INPUT_EVENT.subscribe(id);
                 }
+            }
+        }
+    }
+    fn enforce_max_count(text: &BoxedVar<Txt>) {
+        let max_count = MAX_CHARS_COUNT_VAR.get();
+        if max_count > 0 {
+            let count = text.with(|t| t.chars().count());
+            if count > max_count {
+                tracing::debug!("txt var set to text longer than can be typed");
+                let _ = text.modify(move |t| {
+                    if let Some((i, _)) = t.as_str().char_indices().nth(max_count) {
+                        t.to_mut().truncate(i);
+                    }
+                });
             }
         }
     }
@@ -528,6 +545,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
             if editable || TEXT_SELECTABLE_VAR.get() {
                 EditData::get(&mut edit_data).subscribe();
+            }
+
+            if editable {
+                enforce_max_count(&text);
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
@@ -763,6 +784,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         crate::core::undo::UNDO.clear();
                     }
                     r.pending_edit = false;
+
+                    enforce_max_count(&text);
                 }
                 let mut text = text.get();
 
@@ -860,6 +883,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     r.caret.get_mut().opacity = var(0.fct()).read_only();
                 }
 
+                if editable {
+                    enforce_max_count(&text);
+                }
+
                 let mut text = text.get();
                 if !editable {
                     // toggle text transforms
@@ -884,6 +911,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     r.pending_layout = PendingLayout::RESHAPE;
                     WIDGET.layout();
                 }
+            }
+
+            if TEXT_EDITABLE_VAR.get() && MAX_CHARS_COUNT_VAR.is_new() {
+                enforce_max_count(&text);
             }
 
             if let Some(f) = loading_faces.take() {
