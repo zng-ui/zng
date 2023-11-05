@@ -142,9 +142,13 @@ impl FieldStyle {
         let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
         let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
 
+        let chars_count = var(0usize);
+        let has_max_count = text::MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
+
         widget_set! {
             self;
             data_context::get_data_notes_top = top_notes.clone();
+            text::get_chars_count = chars_count.clone();
 
             foreground_highlight = {
                 offsets: -2, // -1 border plus -1 to be outside
@@ -175,6 +179,18 @@ impl FieldStyle {
                 WidgetFn::nil()
             });
 
+            max_chars_count_adorner_fn = has_max_count.map(move |&has| if has {
+                wgt_fn!(chars_count, |_| crate::widgets::Text! {
+                    txt = merge_var!(chars_count.clone(), text::MAX_CHARS_COUNT_VAR, |c, m| formatx!("{c}/{m}"));
+                    font_color = crate::widgets::text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
+                    font_size = 0.8.em();
+                    align = Align::BOTTOM_END;
+                    offset = (-4, 2.dip() + 100.pct());
+                })
+            } else {
+                WidgetFn::nil()
+            });
+
             margin = (0, 0, 1.em(), 0);
         }
     }
@@ -185,6 +201,14 @@ impl FieldStyle {
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    self::adorner_fn(child, adorner_fn)
+}
+
+/// Adorner property used by [`FieldStyle`] to show the count/max indicator when the number of chars is limited.
+///
+/// [`FieldStyle`]: struct@FieldStyle
+#[property(FILL, default(WidgetFn::nil()))]
+pub fn max_chars_count_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     self::adorner_fn(child, adorner_fn)
 }
 

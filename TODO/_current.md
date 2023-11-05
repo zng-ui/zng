@@ -32,9 +32,6 @@
     - Issue still open, but after winit update API is ready?
 
 * Input filter, only accept digits for example.
-* `max_chars_count`.
-    - Implement `FieldStyle` adorner that shows the count when max > 0.
-        - Use `get_chars_count`.
 
 # Accessibility
 

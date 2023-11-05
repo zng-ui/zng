@@ -1221,6 +1221,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let ctx = super::nodes::ResolvedText::get();
+            let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
             let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
             WIDGET.push_var_handle(handle);
         }
