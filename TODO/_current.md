@@ -1,7 +1,6 @@
 # TextInput
 
-* Test form example:
-    - Can click in help text as if it was editable.
+* Test disabled TextInput.
 
 * Implement `txt_selectable` text.
     - Should `txt_editable=false;txt_selectable=true` really be focusable? It currently is.

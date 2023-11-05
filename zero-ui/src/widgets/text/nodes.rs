@@ -575,7 +575,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
-            } else if TEXT_EDITABLE_VAR.get() {
+            } else if TEXT_EDITABLE_VAR.get() && text.capabilities().can_modify() {
                 let prev_caret = {
                     let caret = resolved.as_mut().unwrap().caret.get_mut();
                     (caret.index, caret.index_version, caret.selection_index)
@@ -590,7 +590,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     }
                 }
 
-                if !resolved.as_mut().unwrap().pending_edit && text.capabilities().can_modify() && widget.interactivity().is_enabled() {
+                if !resolved.as_mut().unwrap().pending_edit && widget.interactivity().is_enabled() {
                     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                         let ctx = resolved.as_mut().unwrap();
                         if let KeyState::Pressed = args.state {
@@ -1403,10 +1403,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
-            let editable = TEXT_EDITABLE_VAR.get();
+            let resolved = RESOLVED_TEXT.get();
+            let editable = TEXT_EDITABLE_VAR.get() && resolved.txt.capabilities().can_modify();
             let selectable = TEXT_SELECTABLE_VAR.get();
             if (editable || selectable) && WIDGET.info().interactivity().is_enabled() && txt.txt.is_some() {
-                let resolved = RESOLVED_TEXT.get();
                 let prev_caret_index = {
                     let caret = resolved.caret.lock();
                     (caret.index, caret.index_version, caret.selection_index)
