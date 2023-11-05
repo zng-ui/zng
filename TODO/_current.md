@@ -1,11 +1,13 @@
 # TextInput
 
+* Test form example:
+    - Can click in help text as if it was editable.
+
 * Implement `txt_selectable` text.
     - Should `txt_editable=false;txt_selectable=true` really be focusable? It currently is.
 
 * Touch selection.
     - Test with RTL and bidirectional text.
-    - Set a flag that indicates caret or selection from touch.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
     - Not a normal context menu, "floating toolbar"?
     - Make `TOUCH_CARET_OFFSET` public and document that it needs to be set in layout.
