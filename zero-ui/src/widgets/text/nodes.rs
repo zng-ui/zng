@@ -2388,7 +2388,9 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
                 let r_txt = r_txt.segmented_text.text();
 
                 for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
-                    frame.push_color(line_rect, FrameValue::Value(SELECTION_COLOR_VAR.get().into()));
+                    if !line_rect.size.is_empty() {
+                        frame.push_color(line_rect, FrameValue::Value(SELECTION_COLOR_VAR.get().into()));
+                    }
                 }
             };
         }
