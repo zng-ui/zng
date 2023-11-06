@@ -68,7 +68,10 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
                         args.target.interactivity().is_enabled()
                     };
                     if apply {
-                        let menu = menu.get()(ContextMenuArgs { anchor_id: WIDGET.id(), disabled: disabled_only });
+                        let menu = menu.get()(ContextMenuArgs {
+                            anchor_id: WIDGET.id(),
+                            disabled: disabled_only,
+                        });
                         let is_shortcut = args.is_from_keyboard();
                         pop_state = POPUP.open_config(
                             menu,

@@ -8,8 +8,9 @@ use crate::{
     handler::WidgetHandler,
     text::Txt,
     var::{types::ArcCowVar, *},
+    widget_info::WidgetInfo,
     widget_instance::{match_node, UiNode, UiNodeOp, WidgetId},
-    window::WindowId, widget_info::WidgetInfo,
+    window::WindowId,
 };
 
 use super::*;

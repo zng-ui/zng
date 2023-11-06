@@ -104,6 +104,14 @@ impl TextEditOp {
 
                 if let Some(range) = caret.selection_range() {
                     rmv_range = range.start.index..range.end.index;
+
+                    txt.with(|t| {
+                        let r = &t[rmv_range.clone()];
+                        if r != data.removed {
+                            data.removed = Txt::from_str(r);
+                        }
+                    });
+
                     if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
                         data.selection_state = SelectionState::CaretSelection(range.start, range.end);
                     } else {
@@ -137,13 +145,6 @@ impl TextEditOp {
                     }
                     SelectionState::CaretSelection(start, end) | SelectionState::SelectionCaret(start, end) => {
                         let char_range = start.index..end.index;
-                        txt.with(|t| {
-                            let r = &t[char_range.clone()];
-                            if r != data.removed {
-                                data.removed = Txt::from_str(r);
-                            }
-                        });
-
                         txt.modify(clmv!(insert, |args| {
                             args.to_mut().to_mut().replace_range(char_range, insert.as_str());
                         }))

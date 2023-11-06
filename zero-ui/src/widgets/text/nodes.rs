@@ -235,7 +235,13 @@ impl ResolvedText {
 
     fn call_edit_op(ctx: &mut Option<Self>, op: impl FnOnce() -> bool) {
         let registered = RESOLVED_TEXT.with_context_opt(ctx, op);
-        ctx.as_mut().unwrap().pending_edit |= registered;
+        if registered {
+            let ctx = ctx.as_mut().unwrap();
+            if !ctx.pending_edit {
+                ctx.pending_edit = true;
+                WIDGET.update(); // in case the edit does not actually change the text.
+            }
+        }
     }
 }
 
@@ -784,6 +790,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if !r.pending_edit && UNDO.scope() == Some(WIDGET.id()) {
                         UNDO.clear();
                     }
+
                     r.pending_edit = false;
 
                     enforce_max_count(&text);
@@ -828,6 +835,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     WIDGET.layout();
                 }
             }
+
+            r.pending_edit = false; // in case the edit did not actually change the text
 
             // update `r.font_face`, affects layout
             if FONT_FAMILY_VAR.is_new()

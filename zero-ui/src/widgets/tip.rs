@@ -231,7 +231,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
         }
 
         if open {
-            let popup = tip.get()(TooltipArgs { anchor_id: WIDGET.id(), disabled: disabled_only });
+            let popup = tip.get()(TooltipArgs {
+                anchor_id: WIDGET.id(),
+                disabled: disabled_only,
+            });
             let anchor_id = WIDGET.id();
             let popup = match_widget(popup, move |c, op| match op {
                 UiNodeOp::Init => {
