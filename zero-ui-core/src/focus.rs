@@ -1175,6 +1175,8 @@ impl FocusService {
                             FocusChangedCause::Recovery,
                         );
                     } else {
+                        // !!:TODO, if ancestor was alt_focus_scope that is also not focusable
+
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to nearest inside focusable parent, or parent
@@ -1192,7 +1194,9 @@ impl FocusService {
                         }
                     }
                 } else {
-                    // widget not found, move to focusable known parent
+                    // !!:TODO, if ancestor was alt_focus_scope that is also removed
+
+                    // widget not found
                     for &parent in focused.path.ancestors().iter().rev() {
                         if let Some(parent) = info
                             .get(parent)

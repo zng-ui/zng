@@ -138,6 +138,8 @@ impl POPUP {
         let state = var(PopupState::Opening);
         let mut _close_handle = CommandHandle::dummy();
 
+        let anchor_id = WIDGET.id();
+
         popup = match_widget(
             popup,
             clmv!(state, |c, op| match op {
@@ -188,7 +190,7 @@ impl POPUP {
                 popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
             }
         }
-        LAYERS.insert_anchored(LayerIndex::TOP_MOST, WIDGET.id(), anchor_mode, popup);
+        LAYERS.insert_anchored(LayerIndex::TOP_MOST, anchor_id, anchor_mode, popup);
 
         state.read_only()
     }

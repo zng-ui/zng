@@ -29,13 +29,6 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
-# ContextMenu
-
-* Focus does not return to anchor widget.
-    - Focus restore goes to nearest previous focus.
-    - Previous is menu that can be over different focusable.
-    - This happens in form example.
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.
