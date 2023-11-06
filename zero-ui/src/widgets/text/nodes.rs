@@ -780,8 +780,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             // update `r.text`, affects layout.
             if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || DIRECTION_VAR.is_new() {
                 if text.is_new() {
-                    if !r.pending_edit {
-                        crate::core::undo::UNDO.clear();
+                    use crate::core::undo::UNDO;
+                    if !r.pending_edit && UNDO.scope() == Some(WIDGET.id()) {
+                        UNDO.clear();
                     }
                     r.pending_edit = false;
 

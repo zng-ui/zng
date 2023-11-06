@@ -29,11 +29,12 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
-* Undo not working in fields with `max_chars_count`.
-
 # ContextMenu
 
 * Focus does not return to anchor widget.
+    - Focus restore goes to nearest previous focus.
+    - Previous is menu that can be over different focusable.
+    - This happens in form example.
 
 # Accessibility
 
