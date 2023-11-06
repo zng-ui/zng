@@ -828,6 +828,8 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         size = (400, 500);
 
         child = Grid! {
+            id = "form";
+
             columns = ui_vec![grid::Column!(), grid::Column!(1.lft())];
             spacing = (5, 10);
             padding = 20;
@@ -877,14 +879,34 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
 
         child_insert_below = {
             insert: Stack! {
+                direction = StackDirection::start_to_end();
                 padding = 10;
-                align = Align::RIGHT;
+                align = Align::END;
                 spacing = 5;
                 children = ui_vec![
                     Button! {
                         child = Text!("Cancel");
                         on_click = hn!(|_| {
                             WINDOW.close();
+                        });
+                    },
+                    Button! {
+                        font_weight = FontWeight::BOLD;
+                        child = Text!("Validate");
+                        on_click = hn!(|_| {
+                            // request parse for all widgets inside the form that
+                            // handle the parse command
+                            let form_id = WidgetId::named("form");
+                            let info = WINDOW.info();
+                            zero_ui::widgets::text::commands::PARSE_CMD.visit_scopes(|parse_cmd| {
+                                if let CommandScope::Widget(id) = parse_cmd.scope() {
+                                    if let Some(w) = info.get(id) {
+                                        if w.ancestors().any(|a| a.id() == form_id) {
+                                            parse_cmd.notify();
+                                        }
+                                    }
+                                }
+                            });
                         });
                     }
                 ]

@@ -31,11 +31,6 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
-* `txt_parse`.
-    - How to call `PARSE_CMD` to all fields inside form.
-    - How to implement a required field that starts empty and without error?
-        - Only on `PARSE_CMD` it shows the error.
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.

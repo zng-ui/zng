@@ -377,6 +377,14 @@ impl Command {
         }
     }
 
+    /// Calls `visitor` for each scope of this command.
+    pub fn visit_scopes(&self, mut visitor: impl FnMut(Command)) {
+        let read = self.local.read();
+        for &scope in read.scopes.keys() {
+            visitor(self.scoped(scope));
+        }
+    }
+
     /// Schedule a command update without param.
     pub fn notify(&self) {
         self.event.notify(CommandArgs::now(None, self.scope, self.is_enabled_value()))
