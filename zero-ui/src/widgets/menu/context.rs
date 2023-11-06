@@ -68,7 +68,7 @@ fn context_menu_node(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenu
                         args.target.interactivity().is_enabled()
                     };
                     if apply {
-                        let menu = menu.get()(ContextMenuArgs { disabled: disabled_only });
+                        let menu = menu.get()(ContextMenuArgs { anchor_id: WIDGET.id(), disabled: disabled_only });
                         let is_shortcut = args.is_from_keyboard();
                         pop_state = POPUP.open_config(
                             menu,
@@ -120,7 +120,10 @@ impl ContextMenu {
 
 /// Arguments for context menu widget functions.
 pub struct ContextMenuArgs {
-    /// Is `true` if the tooltip is for [`disabled_context_menu_fn`], is `false` for [`context_menu_fn`].
+    /// ID of the widget the menu is anchored to.
+    pub anchor_id: WidgetId,
+
+    /// Is `true` if the menu is for [`disabled_context_menu_fn`], is `false` for [`context_menu_fn`].
     ///
     /// [`context_menu_fn`]: fn@context_menu_fn
     /// [`disabled_context_menu_fn`]: fn@disabled_context_menu_fn

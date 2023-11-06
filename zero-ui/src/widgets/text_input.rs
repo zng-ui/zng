@@ -85,15 +85,28 @@ pub fn border_color_focused() -> impl Var<Rgba> {
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
+        use crate::prelude::*;
+
         widget_set! {
             self;
             padding = (7, 15);
-            crate::properties::cursor = CursorIcon::Text;
-            crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
-            crate::properties::border = {
+            cursor = CursorIcon::Text;
+            background_color = color_scheme_pair(BASE_COLORS_VAR);
+            border = {
                 widths: 1,
                 sides: border_color().map_into(),
             };
+
+            context_menu_fn = wgt_fn!(|args: menu::context::ContextMenuArgs| {
+                let id = args.anchor_id;
+                ContextMenu!(ui_vec![
+                    menu::CmdButton!(crate::core::clipboard::CUT_CMD.scoped(id)),
+                    menu::CmdButton!(crate::core::clipboard::COPY_CMD.scoped(id)),
+                    menu::CmdButton!(crate::core::clipboard::PASTE_CMD.scoped(id)),
+                    Hr!(),
+                    menu::CmdButton!(text::commands::SELECT_ALL_CMD.scoped(id)),
+                ])
+            });
 
             when *#is_cap_hovered || *#is_return_focus {
                 border = {

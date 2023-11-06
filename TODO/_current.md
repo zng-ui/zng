@@ -25,11 +25,15 @@
           the text context. Capture context?
     - More expensive than current caret, but we will have two carets max so not a problem.
 
-* Implement default context menu?
-
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
+
+* Undo not working in fields with `max_chars_count`.
+
+# ContextMenu
+
+* Focus does not return to anchor widget.
 
 # Accessibility
 

@@ -231,7 +231,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
         }
 
         if open {
-            let popup = tip.get()(TooltipArgs { disabled: disabled_only });
+            let popup = tip.get()(TooltipArgs { anchor_id: WIDGET.id(), disabled: disabled_only });
             let anchor_id = WIDGET.id();
             let popup = match_widget(popup, move |c, op| match op {
                 UiNodeOp::Init => {
@@ -429,6 +429,9 @@ pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Durati
 
 /// Arguments for tooltip widget functions.
 pub struct TooltipArgs {
+    /// ID of the widget the tooltip is anchored to.
+    pub anchor_id: WidgetId,
+
     /// Is `true` if the tooltip is for [`disabled_tooltip_fn`], is `false` for [`tooltip_fn`].
     ///
     /// [`tooltip_fn`]: fn@tooltip_fn
