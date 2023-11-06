@@ -489,9 +489,7 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets for [`CommandScope::App`].
-        ///
-        /// Broadcast to all widgets in the window for [`CommandScope::Window`].
+        /// Broadcast to all widgets for [`CommandScope::App`] and [`CommandScope::Window`].
         ///
         /// Target ancestors and widget for [`CommandScope::Widget`], if it is found.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {

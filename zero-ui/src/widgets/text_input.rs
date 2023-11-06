@@ -165,7 +165,8 @@ impl FieldStyle {
                     font_color = top_color.clone();
                     font_size = 0.8.em();
                     align = Align::BOTTOM_START;
-                    offset = (4, 2.dip() + 100.pct());
+                    margin = (0, 4);
+                    y = 2.dip() + 100.pct();
                 })
             } else if !help_empty {
                 wgt_fn!(|_| crate::widgets::Text! {
@@ -173,7 +174,8 @@ impl FieldStyle {
                     font_size = 0.8.em();
                     font_color = crate::widgets::text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
                     align = Align::BOTTOM_START;
-                    offset = (4, 2.dip() + 100.pct());
+                    margin = (0, 4);
+                    y = 2.dip() + 100.pct();
                 })
             } else {
                 WidgetFn::nil()

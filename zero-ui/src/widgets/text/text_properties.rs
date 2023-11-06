@@ -1255,7 +1255,7 @@ pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> imp
         child,
         hn!(|_| {
             if enabled.get() {
-                super::commands::PARSE_CMD.notify();
+                super::commands::PARSE_CMD.scoped(WIDGET.id()).notify();
             }
         }),
     )

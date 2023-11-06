@@ -2964,26 +2964,34 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
                 if let (KeyState::Pressed, Key::Enter) = (args.state, &args.key) {
                     if !ACCEPTS_ENTER_VAR.get() {
                         pending = None;
-                        text::commands::PARSE_CMD.scoped(WIDGET.id()).notify();
+                        handler.event(&ChangeStopArgs {
+                            cause: ChangeStopCause::Enter,
+                        });
                     }
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 let target = WIDGET.id();
                 if args.is_blur(target) {
                     pending = None;
-                    text::commands::PARSE_CMD.scoped(target).notify();
+                    handler.event(&ChangeStopArgs {
+                        cause: ChangeStopCause::Blur,
+                    });
                 }
             }
         }
         UiNodeOp::Update { updates } => {
             if ResolvedText::get().txt.is_new() {
-                let target = WIDGET.id();
-                pending = Some(TIMERS.on_deadline(
-                    CHANGE_STOP_DELAY_VAR.get(),
-                    app_hn_once!(|_| {
-                        text::commands::PARSE_CMD.scoped(target).notify();
-                    }),
-                ));
+                let deadline = TIMERS.deadline(CHANGE_STOP_DELAY_VAR.get());
+                deadline.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                pending = Some(deadline);
+            } else if let Some(p) = &pending {
+                if p.get().has_elapsed() {
+                    pending = None;
+
+                    handler.event(&ChangeStopArgs {
+                        cause: ChangeStopCause::DelayElapsed,
+                    });
+                }
             }
 
             c.update(updates);
