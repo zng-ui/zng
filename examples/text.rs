@@ -894,19 +894,8 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         font_weight = FontWeight::BOLD;
                         child = Text!("Validate");
                         on_click = hn!(|_| {
-                            // request parse for all widgets inside the form that
-                            // handle the parse command
-                            let form_id = WidgetId::named("form");
-                            let info = WINDOW.info();
-                            zero_ui::widgets::text::commands::PARSE_CMD.visit_scopes(|parse_cmd| {
-                                if let CommandScope::Widget(id) = parse_cmd.scope() {
-                                    if let Some(w) = info.get(id) {
-                                        if w.ancestors().any(|a| a.id() == form_id) {
-                                            parse_cmd.notify();
-                                        }
-                                    }
-                                }
-                            });
+                            zero_ui::widgets::text::commands::PARSE_CMD
+                                .notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }
                 ]

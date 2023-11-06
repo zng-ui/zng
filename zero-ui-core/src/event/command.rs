@@ -9,7 +9,7 @@ use crate::{
     text::Txt,
     var::{types::ArcCowVar, *},
     widget_instance::{match_node, UiNode, UiNodeOp, WidgetId},
-    window::WindowId,
+    window::WindowId, widget_info::WidgetInfo,
 };
 
 use super::*;
@@ -388,6 +388,19 @@ impl Command {
     /// Schedule a command update without param.
     pub fn notify(&self) {
         self.event.notify(CommandArgs::now(None, self.scope, self.is_enabled_value()))
+    }
+
+    /// Schedule a command update without param for all scopes inside `parent`.
+    pub fn notify_descendants(&self, parent: &WidgetInfo) {
+        self.visit_scopes(|parse_cmd| {
+            if let CommandScope::Widget(id) = parse_cmd.scope() {
+                if let Some(scope) = parent.tree().get(id) {
+                    if scope.is_descendant(parent) {
+                        parse_cmd.notify();
+                    }
+                }
+            }
+        });
     }
 
     /// Schedule a command update with custom `param`.
