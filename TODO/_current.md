@@ -29,6 +29,16 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
+* Implement auto-selection on focus.
+    - `auto_selection = AutoSelection::{None, OnFocus, OnHighlightFocus}`.
+* Implement auto-deselection on blur.
+    - Same property as auto-selection?
+    - Only applies if focus moves to another widget in the same scope?
+        - Browsers don't clear if focus moves to a different iframe.
+    - `auto_deselection = AutoDeselection::{None, OnBlur, OnBlurScope}`.
+
+* Change selection color to gray when not focused.
+
 # Accessibility
 
 * All examples must be fully useable with a screen reader.
