@@ -62,9 +62,8 @@ software = ["swgl"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-# Firefox 118 release
-webrender = { git = "https://github.com/servo/webrender.git", rev = "fc20c758261b73fc22eadfeb7630c3468359eaa2" }
-swgl = { git = "https://github.com/servo/webrender.git", rev = "fc20c758261b73fc22eadfeb7630c3468359eaa2", optional = true }
+webrender = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa" }
+swgl = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa", optional = true }
 
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 

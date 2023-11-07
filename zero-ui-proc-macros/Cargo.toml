@@ -18,4 +18,4 @@ once_cell = "1"
 unic-langid = "0.9"
 fluent-syntax = "0.11"
 
-minifier = "0.2"
+minifier = "0.3"
