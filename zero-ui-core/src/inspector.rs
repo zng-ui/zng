@@ -3,8 +3,8 @@
 //! When compiled with the `"inspector"` feature all widget instances are instrumented with inspection node
 //! that shares a clone of the [`WidgetBuilder`] in the [`WidgetInfo`].
 
-pub mod prompt;
 pub mod live;
+pub mod prompt;
 
 #[cfg(inspector)]
 mod inspector_only {
@@ -231,7 +231,9 @@ impl WidgetInfoInspectorExt for WidgetInfo {
                         let list = args.ui_node_list(i);
                         let mut found = false;
                         list.for_each_ctx(WidgetUpdateMode::Ignore, |_| {
-                            found = WIDGET.id() == id;
+                            if !found {
+                                found = WIDGET.id() == id;
+                            }
                         });
                         if found {
                             return Some((args.id(), i));

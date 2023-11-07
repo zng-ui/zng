@@ -46,9 +46,7 @@
 
 # Inspector
 
-* Widgets in `children` property don't get annotated with the parent property.
-    - Only the last widget is annotated.
-    - After we fix this lets group widgets for the same property in a `[]` visual group.
+* Group widgets for the same property in a `[]` region.
 * Finish implementing live inspector.
 
 # Publish
