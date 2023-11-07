@@ -184,6 +184,11 @@ impl InspectedWidget {
         self.info.read_only()
     }
 
+    /// Widget id.
+    pub fn id(&self) -> WidgetId {
+        self.info.with(|i| i.id())
+    }
+
     /// Count of ancestor widgets.
     pub fn depth(&self) -> impl Var<usize> {
         self.info.map(|w| w.depth())
@@ -208,7 +213,7 @@ impl InspectedWidget {
     }
 
     /// Gets the parent's property that has this widget as an input.
-    /// 
+    ///
     /// Is an empty string if the widget is not inserted by any property.
     pub fn parent_property_name(&self) -> impl Var<Txt> {
         self.info.map(|w| {

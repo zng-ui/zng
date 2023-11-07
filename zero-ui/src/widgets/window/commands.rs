@@ -165,7 +165,12 @@ mod live_inspector {
                             font_weight = FontWeight::BOLD;
                             font_color = colors::AZURE;
                         },
-                        Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" {}") } else { Txt::from_static(" {") })),
+                        Text!(" {{ "),
+                        Text! {
+                            txt = formatx!("id = {:#}; ..", wgt.id());
+                            opacity = 60.pct();
+                        },
+                        Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
                     ]
                 };
 
@@ -179,7 +184,7 @@ mod live_inspector {
                                 padding = (0, 0, 0, 2.em());
                                 direction = StackDirection::top_to_bottom();
                                 children;
-        
+
                                 border = {
                                     widths: (0, 0, 0, 1),
                                     sides: color_scheme_map(
@@ -199,10 +204,10 @@ mod live_inspector {
                             };
                             child_insert_below = Text!("}}"), 0;
                         }.boxed()
-                        
+
                     }
-                    
-                })), 2;                
+
+                })), 2;
             }
         }
     }

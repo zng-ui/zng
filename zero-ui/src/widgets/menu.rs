@@ -257,7 +257,7 @@ impl CmdButton {
                 child = Text!(cmd.name());
 
                 shortcut_txt = Text! {
-                    txt = cmd.shortcut_txt(); 
+                    txt = cmd.shortcut_txt();
                     align = Align::CENTER;
                 };
                 icon_fn = cmd.icon();

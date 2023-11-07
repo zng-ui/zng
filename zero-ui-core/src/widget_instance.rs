@@ -132,6 +132,8 @@ impl fmt::Display for WidgetId {
         let name = self.name();
         if !name.is_empty() {
             write!(f, "{name}")
+        } else if f.alternate() {
+            write!(f, "#{}", self.sequential())
         } else {
             write!(f, "WgtId({})", self.sequential())
         }
