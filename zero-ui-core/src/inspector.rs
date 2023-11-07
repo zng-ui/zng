@@ -4,6 +4,7 @@
 //! that shares a clone of the [`WidgetBuilder`] in the [`WidgetInfo`].
 
 pub mod prompt;
+pub mod live;
 
 #[cfg(inspector)]
 mod inspector_only {

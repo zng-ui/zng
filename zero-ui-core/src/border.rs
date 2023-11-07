@@ -441,6 +441,7 @@ impl BorderSides {
             bottom: top_bottom,
         }
     }
+
     /// New top, right, bottom left.
     pub fn new<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
         top: T,
@@ -454,6 +455,26 @@ impl BorderSides {
             top: top.into(),
             bottom: bottom.into(),
         }
+    }
+
+    /// New top only, other sides hidden.
+    pub fn new_top<T: Into<BorderSide>>(top: T) -> Self {
+        Self::new(top, BorderSide::hidden(), BorderSide::hidden(), BorderSide::hidden())
+    }
+
+    /// New right only, other sides hidden.
+    pub fn new_right<R: Into<BorderSide>>(right: R) -> Self {
+        Self::new(BorderSide::hidden(), right, BorderSide::hidden(), BorderSide::hidden())
+    }
+
+    /// New bottom only, other sides hidden.
+    pub fn new_bottom<B: Into<BorderSide>>(bottom: B) -> Self {
+        Self::new(BorderSide::hidden(), BorderSide::hidden(), bottom, BorderSide::hidden())
+    }
+
+    /// New left only, other sides hidden.
+    pub fn new_left<L: Into<BorderSide>>(left: L) -> Self {
+        Self::new(BorderSide::hidden(), BorderSide::hidden(), BorderSide::hidden(), left)
     }
 
     /// All sides a solid color.

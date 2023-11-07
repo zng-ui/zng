@@ -44,6 +44,13 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
+# Inspector
+
+* Widgets in `children` property don't get annotated with the parent property.
+    - Only the last widget is annotated.
+    - After we fix this lets group widgets for the same property in a `[]` visual group.
+* Finish implementing live inspector.
+
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.

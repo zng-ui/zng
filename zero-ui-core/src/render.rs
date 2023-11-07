@@ -1371,7 +1371,7 @@ impl FrameBuilder {
                 sides.top.into(),
                 sides.right.into(),
                 sides.bottom.into(),
-                sides.bottom.into(),
+                sides.left.into(),
                 radius,
             );
         }
