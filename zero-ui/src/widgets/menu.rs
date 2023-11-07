@@ -256,7 +256,10 @@ impl CmdButton {
 
                 child = Text!(cmd.name());
 
-                shortcut_txt = Text!(cmd.shortcut_txt());
+                shortcut_txt = Text! {
+                    txt = cmd.shortcut_txt(); 
+                    align = Align::CENTER;
+                };
                 icon_fn = cmd.icon();
 
                 on_click = hn!(|args: &ClickArgs| {
