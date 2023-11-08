@@ -100,19 +100,28 @@ mod live_inspector {
                 var(WindowIcon::Default).boxed()
             };
 
-            let selected_wgt = var(None);
+            let selected_wgt = var(None::<InspectedWidget>);
 
             Window! {
                 parent;
                 title;
                 icon;
+                width = 1000;
                 set_inspected = inspected;
                 color_scheme = ColorScheme::Dark;
                 child = Scroll! {
-                    child = tree_view(inspected_tree, selected_wgt);
+                    toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
+                    child = tree_view(inspected_tree);
                     child_align = Align::FILL_TOP;
                     padding = 5;
-                }
+                };
+                child_insert_right = Container! {
+                    width = 400;
+                    child = presenter(selected_wgt, wgt_fn!(|w| {
+                        selected_view(w).boxed()
+                    }));
+                    background_color = color_scheme_map(rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85));
+                }, 0;
             }
         }
 
@@ -134,48 +143,56 @@ mod live_inspector {
 
         pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();
 
-        fn tree_view(tree: InspectedTree, _selected_wgt: ArcVar<Option<InspectedWidget>>) -> impl UiNode {
+        fn tree_view(tree: InspectedTree) -> impl UiNode {
             Container! {
                 text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
 
-                child = wgt_view(tree.inspect_root());
+                child = tree_item_view(tree.inspect_root());
                 data = tree;
             }
         }
 
-        fn wgt_view(wgt: InspectedWidget) -> impl UiNode {
+        fn tree_item_view(wgt: InspectedWidget) -> impl UiNode {
             let parent_property = wgt.parent_property_name();
             Container! {
-                child = Wrap! {
+                child = Toggle! {
+                    toggle::value = wgt.clone();
+
+                    style_fn = StyleFn::nil();
                     padding = 2;
                     when *#is_hovered {
                         background_color = color_scheme_map(rgba(0.3, 0.3, 0.3, 0.2), rgba(0.7, 0.7, 0.7, 0.2));
                     }
+                    when *#toggle::is_checked {
+                        background_color = color_scheme_map(rgba(0.3, 0.3, 0.3, 1.0), rgba(0.7, 0.7, 0.7, 1.0));
+                    }
 
-                    children = ui_vec![
-                        Text! {
-                            txt = parent_property.clone();
-                            font_color = colors::YELLOW;
-                        },
-                        Text! {
-                            txt = parent_property.map(|p| Txt::from_static(if p.is_empty() { "" } else { " = " }));
-                        },
-                        Text! {
-                            txt = wgt.wgt_type_name().map(|n| formatx!("{n}!"));
-                            font_weight = FontWeight::BOLD;
-                            font_color = colors::AZURE;
-                        },
-                        Text!(" {{ "),
-                        Text! {
-                            txt = formatx!("id = {:#}; ..", wgt.id());
-                            opacity = 60.pct();
-                        },
-                        Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
-                    ]
+                    child = Wrap! {
+                        children = ui_vec![
+                            Text! {
+                                txt = parent_property.clone();
+                                font_color = colors::YELLOW;
+                            },
+                            Text! {
+                                txt = parent_property.map(|p| Txt::from_static(if p.is_empty() { "" } else { " = " }));
+                            },
+                            Text! {
+                                txt = wgt.wgt_type_name().map(|n| formatx!("{n}!"));
+                                font_weight = FontWeight::BOLD;
+                                font_color = colors::AZURE;
+                            },
+                            Text!(" {{ "),
+                            Text! {
+                                txt = formatx!("id = {:#}; ..", wgt.id());
+                                opacity = 60.pct();
+                            },
+                            Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
+                        ]
+                    }
                 };
 
                 child_insert_below = presenter(wgt.children(), wgt_fn!(|children: Vec<InspectedWidget>| {
-                    let children: UiNodeVec = children.into_iter().map(wgt_view).collect();
+                    let children: UiNodeVec = children.into_iter().map(tree_item_view).collect();
                     if children.is_empty() {
                         NilUiNode.boxed()
                     } else {
@@ -208,6 +225,35 @@ mod live_inspector {
                     }
 
                 })), 2;
+            }
+        }
+
+        fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
+            if let Some(wgt) = wgt {
+                Scroll! {
+                    mode = ScrollMode::VERTICAL;
+                    child_align = Align::FILL_TOP;
+                    padding = 4;
+                    child = Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
+                        children = ui_vec![
+                            Text! {
+                                txt = wgt.wgt_type_name();
+                                font_size = 1.2.em();
+                                font_weight = FontWeight::BOLD;
+                                font_color = colors::AZURE;
+                            },
+                        ]
+                    }
+                }
+            } else {
+                Text! {
+                    txt_align = Align::TOP;
+                    padding = 20;
+                    font_style = FontStyle::Italic;
+                    txt = formatx!("select a widget to inspect");
+                }
             }
         }
     }

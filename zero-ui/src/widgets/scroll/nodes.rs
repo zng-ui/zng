@@ -109,7 +109,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let constraints = LAYOUT.constraints();
             let vp_unit = constraints.fill_size();
 
-            let has_fill_size = vp_unit.width > Px(0) && vp_unit.height > Px(0) && constraints.max_size() == Some(vp_unit);
+            let has_fill_size = !vp_unit.is_empty() && constraints.max_size() == Some(vp_unit);
             let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
 
             let joiner_size = scroll_info().joiner_size();
@@ -120,7 +120,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
                         // Align::FILL forces the min-size, because we have infinite space in scrollable dimensions.
-                        c = c.with_unbounded_y().with_new_min_y(fill_size.height);
+                        c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
                     } else {
                         // If not scrollable Align::FILL works like normal `Container!` widgets.
                         c = c.with_new_min_y(Px(0));
@@ -129,7 +129,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                         }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
-                        c = c.with_unbounded_x().with_new_min_x(fill_size.width);
+                        c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
                     } else {
                         c = c.with_new_min_x(Px(0));
                         if has_fill_size {
