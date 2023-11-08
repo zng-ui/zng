@@ -476,7 +476,7 @@ impl Window {
             self.cursor_device = device;
         }
 
-        moved && self.cursor_over
+        moved
     }
 
     /// Returns `true` if the touch actually moved.
