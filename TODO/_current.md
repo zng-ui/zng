@@ -46,7 +46,6 @@
 
 # Inspector
 
-* Some times the parent property has no text, but the ` = ` text is rendered.
 * Group widgets for the same property in a `[]` region.
 * Finish implementing live inspector.
 

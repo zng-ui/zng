@@ -119,6 +119,7 @@ impl WeakInspectedTree {
 struct InspectedWidgetCache {
     tree: WeakInspectedTree,
     children: Option<BoxedVar<Vec<InspectedWidget>>>,
+    parent_property_name: Option<BoxedVar<Txt>>,
 }
 
 /// Represents an actively inspected widget.
@@ -150,7 +151,11 @@ impl InspectedWidget {
         Self {
             info: var(info),
             removed: var(false),
-            cache: Arc::new(Mutex::new(InspectedWidgetCache { tree, children: None })),
+            cache: Arc::new(Mutex::new(InspectedWidgetCache {
+                tree,
+                children: None,
+                parent_property_name: None,
+            })),
         }
     }
 
@@ -167,6 +172,11 @@ impl InspectedWidget {
         if let Some(c) = &cache.children {
             if c.strong_count() == 1 {
                 cache.children = None;
+            }
+        }
+        if let Some(c) = &cache.parent_property_name {
+            if c.strong_count() == 1 {
+                cache.parent_property_name = None;
             }
         }
     }
@@ -191,38 +201,49 @@ impl InspectedWidget {
 
     /// Count of ancestor widgets.
     pub fn depth(&self) -> impl Var<usize> {
-        self.info.map(|w| w.depth())
+        self.info.map(|w| w.depth()).actual_var()
     }
 
     /// Count of descendant widgets.
     pub fn descendants_len(&self) -> impl Var<usize> {
-        self.info.map(|w| w.descendants_len())
+        self.info.map(|w| w.descendants_len()).actual_var()
     }
 
     /// Widget type, if the widget was built with inspection info.
     pub fn wgt_type(&self) -> impl Var<Option<WidgetType>> {
-        self.info.map(|w| Some(w.inspector_info()?.builder.widget_type()))
+        self.info.map(|w| Some(w.inspector_info()?.builder.widget_type())).actual_var()
     }
 
     /// Widget type name, or `"<widget>"` if widget was not built with inspection info.
     pub fn wgt_type_name(&self) -> impl Var<Txt> {
-        self.info.map(|w| match w.inspector_info().map(|i| i.builder.widget_type()) {
-            Some(t) => Txt::from_str(t.name()),
-            None => Txt::from_static("<widget>"),
-        })
+        self.info
+            .map(|w| match w.inspector_info().map(|i| i.builder.widget_type()) {
+                Some(t) => Txt::from_str(t.name()),
+                None => Txt::from_static("<widget>"),
+            })
+            .actual_var()
     }
 
     /// Gets the parent's property that has this widget as an input.
     ///
     /// Is an empty string if the widget is not inserted by any property.
     pub fn parent_property_name(&self) -> impl Var<Txt> {
-        self.info.map(|w| {
-            Txt::from_static(
-                w.parent_property()
-                    .map(|(p, _)| w.parent().unwrap().inspect_property(p).unwrap().property().name)
-                    .unwrap_or(""),
-            )
-        })
+        let mut cache = self.cache.lock();
+        cache
+            .parent_property_name
+            .get_or_insert_with(|| {
+                self.info
+                    .map(|w| {
+                        Txt::from_static(
+                            w.parent_property()
+                                .map(|(p, _)| w.parent().unwrap().inspect_property(p).unwrap().property().name)
+                                .unwrap_or(""),
+                        )
+                    })
+                    .actual_var()
+                    .boxed()
+            })
+            .clone()
     }
 
     /// Inspect the widget children.
@@ -241,6 +262,7 @@ impl InspectedWidget {
                             vec![]
                         }
                     })
+                    .actual_var()
                     .boxed()
             })
             .clone()

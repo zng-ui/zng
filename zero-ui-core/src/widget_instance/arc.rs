@@ -275,13 +275,11 @@ impl<L: UiNodeList> ArcNodeList<L> {
         self.take_when(true)
     }
 
-    /// Iterate over node contexts, if the list can be locked and the node is a full widget.
+    /// Iterate over widget contexts.
     pub fn for_each_ctx(&self, update_mode: WidgetUpdateMode, mut f: impl FnMut(usize)) {
-        if let Some(mut list) = self.0.item.try_lock() {
-            list.for_each(|i, n| {
-                n.with_context(update_mode, || f(i));
-            })
-        }
+        self.0.item.lock().for_each(|i, n| {
+            n.with_context(update_mode, || f(i));
+        })
     }
 }
 
