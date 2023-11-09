@@ -50,6 +50,7 @@
 * Add "computed-values/properties" section.
 * Add id in title.
 * Finish implementing live inspector.
+* Inspecting in the `text.rs` example causes infinite measures and layouts.
 
 # Publish
 

@@ -23,7 +23,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
     let binding_key = FrameValueKey::new_unique();
 
     let mut viewport_size = PxSize::zero();
-    let mut viewport_unit = PxSize::zero();
     let mut content_offset = PxVector::zero();
     let mut content_scale = 1.fct();
     let mut auto_hide_extra = PxSideOffsets::zero();
@@ -57,7 +56,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let child_align = child_align.get();
 
             let vp_unit = constraints.fill_size();
-            let has_fill_size = vp_unit.width > Px(0) && vp_unit.height > Px(0) && constraints.max_size() == Some(vp_unit);
+            let has_fill_size = !vp_unit.is_empty() && constraints.max_size() == Some(vp_unit);
             let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
 
             let joiner_size = scroll_info().joiner_size();
@@ -141,10 +140,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                 },
                 || {
                     if define_vp_unit {
-                        LAYOUT.with_viewport(vp_unit, || {
-                            viewport_unit = vp_unit;
-                            child.layout(wl)
-                        })
+                        LAYOUT.with_viewport(vp_unit, || child.layout(wl))
                     } else {
                         child.layout(wl)
                     }
