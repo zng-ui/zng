@@ -311,6 +311,10 @@ mod live_inspector {
                 }
             }
 
+            if !group_items.is_empty() {
+                out.push(nest_group_view(current_group.unwrap(), group_items));
+            }
+
             Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = out;
