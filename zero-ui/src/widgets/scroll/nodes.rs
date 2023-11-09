@@ -59,9 +59,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let has_fill_size = !vp_unit.is_empty() && constraints.max_size() == Some(vp_unit);
             let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
 
-            let joiner_size = scroll_info().joiner_size();
-            let fill_size = vp_unit + joiner_size;
-
             let mut content_size = LAYOUT.with_constraints(
                 {
                     let mut c = constraints;
@@ -70,7 +67,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     } else {
                         c = c.with_new_min_y(Px(0));
                         if has_fill_size {
-                            c = c.with_new_max_y(fill_size.height);
+                            c = c.with_new_max_y(vp_unit.height);
                         }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
@@ -78,7 +75,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     } else {
                         c = c.with_new_min_x(Px(0));
                         if has_fill_size {
-                            c = c.with_new_max_x(fill_size.width);
+                            c = c.with_new_max_x(vp_unit.width);
                         }
                     }
 
@@ -112,7 +109,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
             let define_vp_unit = has_fill_size && DEFINE_VIEWPORT_UNIT_VAR.get();
 
             let joiner_size = scroll_info().joiner_size();
-            let fill_size = vp_unit + joiner_size;
 
             let mut content_size = LAYOUT.with_constraints(
                 {
@@ -124,7 +120,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                         // If not scrollable Align::FILL works like normal `Container!` widgets.
                         c = c.with_new_min_y(Px(0));
                         if has_fill_size {
-                            c = c.with_new_max_y(fill_size.height);
+                            c = c.with_new_max_y(vp_unit.height);
                         }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
@@ -132,7 +128,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     } else {
                         c = c.with_new_min_x(Px(0));
                         if has_fill_size {
-                            c = c.with_new_max_x(fill_size.width);
+                            c = c.with_new_max_x(vp_unit.width);
                         }
                     }
 
@@ -226,20 +222,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
 
             let full_size = viewport_size + joiner_size;
 
-            if content_size.height > full_size.height {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
-                    .set(content_size.width > viewport_size.width)
-                    .unwrap();
-            } else if content_size.width > full_size.width {
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(true).unwrap();
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
-                    .set(content_size.height > viewport_size.height)
-                    .unwrap();
-            } else {
-                SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
-                SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set(false).unwrap();
-            }
+            SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
+                .set(mode.contains(ScrollMode::VERTICAL) && content_size.height > full_size.height)
+                .unwrap();
+            SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
+                .set(mode.contains(ScrollMode::HORIZONTAL) && content_size.width > full_size.width)
+                .unwrap();
 
             *final_size = viewport_size;
         }
