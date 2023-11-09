@@ -80,6 +80,8 @@ mod live_inspector {
     }
 
     pub mod inspector_window {
+        use std::mem;
+
         use crate::core::inspector::live::*;
         use crate::core::{inspector::*, window::*};
         use crate::prelude::new_widget::*;
@@ -106,7 +108,7 @@ mod live_inspector {
                 parent;
                 title;
                 icon;
-                width = 1000;
+                width = 1100;
                 set_inspected = inspected;
                 color_scheme = ColorScheme::Dark;
                 child = Scroll! {
@@ -116,7 +118,7 @@ mod live_inspector {
                     padding = 5;
                 };
                 child_insert_right = Container! {
-                    width = 400;
+                    width = 600;
                     child = presenter(selected_wgt, wgt_fn!(|w| {
                         selected_view(w).boxed()
                     }));
@@ -153,7 +155,6 @@ mod live_inspector {
         }
 
         fn tree_item_view(wgt: InspectedWidget) -> impl UiNode {
-            let parent_property = wgt.parent_property_name();
             Container! {
                 child = Toggle! {
                     toggle::value = wgt.clone();
@@ -170,20 +171,13 @@ mod live_inspector {
                     child = Wrap! {
                         children = ui_vec![
                             Text! {
-                                txt = parent_property.clone();
-                                font_color = colors::YELLOW;
-                            },
-                            Text! {
-                                txt = parent_property.map(|p| Txt::from_static(if p.is_empty() { "" } else { " = " }));
-                            },
-                            Text! {
-                                txt = wgt.wgt_type_name().map(|n| formatx!("{n}!"));
+                                txt = wgt.wgt_macro_name();
                                 font_weight = FontWeight::BOLD;
                                 font_color = colors::AZURE;
                             },
                             Text!(" {{ "),
                             Text! {
-                                txt = formatx!("id = {:#}; ..", wgt.id());
+                                txt = formatx!("{:#}", wgt.id());
                                 opacity = 60.pct();
                             },
                             Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
@@ -238,12 +232,42 @@ mod live_inspector {
                         direction = StackDirection::top_to_bottom();
                         text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
                         children = ui_vec![
-                            Text! {
-                                txt = wgt.wgt_type_name();
-                                font_size = 1.2.em();
-                                font_weight = FontWeight::BOLD;
-                                font_color = colors::AZURE;
+                            Wrap! {
+                                children = ui_vec![
+                                    Text! {
+                                        txt = wgt.wgt_macro_name();
+                                        font_size = 1.2.em();
+                                        font_weight = FontWeight::BOLD;
+                                        font_color = colors::AZURE;
+                                    },
+                                    Text! {
+                                        txt = formatx!(" {:#}", wgt.id());
+                                        opacity = 60.pct();
+                                    },
+                                    {
+                                        let parent_property = wgt.parent_property_name();
+                                        Wrap! {
+                                            visibility = parent_property.map(|p| (!p.is_empty()).into());
+                                            tooltip = Tip!(Text!("parent property"));
+                                            children = ui_vec![
+                                                Text!(" (in "),
+                                                Text! {
+                                                    txt = parent_property;
+                                                    font_color = colors::YELLOW;
+                                                },
+                                                Text!(")"),
+                                            ]
+                                        }
+                                    },
+                                ]
                             },
+                            presenter(wgt.inspector_info(), wgt_fn!(|i| {
+                                if let Some(i) = i {
+                                    inspector_info_view(i).boxed()
+                                } else {
+                                    NilUiNode.boxed()
+                                }
+                            }))
                         ]
                     }
                 }
@@ -254,6 +278,105 @@ mod live_inspector {
                     font_style = FontStyle::Italic;
                     txt = formatx!("select a widget to inspect");
                 }
+            }
+        }
+
+        fn inspector_info_view(info: InspectedInfo) -> impl UiNode {
+            let mut current_group = None;
+            let mut group_items = UiNodeVec::new();
+            let mut out = UiNodeVec::new();
+            let ctx = &info.context;
+
+            for item in info.items.iter() {
+                match item {
+                    InstanceItem::Property { args, captured } => {
+                        let info = args.property();
+                        if current_group.as_ref() != Some(&info.group) {
+                            if let Some(g) = current_group.take() {
+                                out.push(nest_group_view(g, mem::take(&mut group_items)));
+                            }
+                            current_group = Some(info.group);
+                        }
+                        group_items.push(property_view(ctx, &**args, info, *captured));
+                    }
+                    InstanceItem::Intrinsic { group, name } => {
+                        if current_group.as_ref() != Some(group) {
+                            if let Some(g) = current_group.take() {
+                                out.push(nest_group_view(g, mem::take(&mut group_items)));
+                            }
+                            current_group = Some(*group);
+                        }
+                        group_items.push(intrinsic_view(name));
+                    }
+                }
+            }
+
+            Stack! {
+                direction = StackDirection::top_to_bottom();
+                children = out;
+            }
+        }
+
+        fn nest_group_view(group: NestGroup, mut items: UiNodeVec) -> impl UiNode {
+            items.insert(
+                0,
+                Text! {
+                    txt = formatx!("// {}", group.name());
+                    tooltip = Tip!(Text!("nest group"));
+                    margin = (10, 0, 0, 0);
+                    opacity = 60.pct();
+                },
+            );
+
+            Stack! {
+                direction = StackDirection::top_to_bottom();
+                spacing = 3;
+                children = items;
+            }
+        }
+
+        fn property_view(ctx: &InspectorContext, args: &dyn PropertyArgs, info: PropertyInfo, captured: bool) -> impl UiNode {
+            // TODO, indicators for user or widget set properties.
+            let mut ctx = ctx.latest_capture();
+            let mut children = ui_vec![
+                Text! {
+                    txt = info.name;
+                    font_color = colors::YELLOW;
+                },
+                Text!(" = "),
+            ];
+            if info.inputs.len() == 1 {
+                let value = ctx.with_context(|| args.debug(0)); // TODO live
+
+                children.push(Text! {
+                    txt = value;
+                    font_color = colors::ROSE;
+                });
+                children.push(Text!(";"));
+            } else {
+                children.push(Text!("{{\n"));
+                for (i, input) in info.inputs.iter().enumerate() {
+                    children.push(Text!("    {}: ", input.name));
+                    let value = ctx.with_context(|| args.debug(i)); // TODO live
+                    children.push(Text! {
+                        txt = value;
+                        font_color = colors::ROSE;
+                    });
+                    children.push(Text!(",\n"));
+                }
+                children.push(Text!("}};"));
+            }
+
+            Wrap! {
+                children;
+            }
+        }
+
+        fn intrinsic_view(name: &'static str) -> impl UiNode {
+            Text! {
+                txt = name;
+                font_style = FontStyle::Italic;
+                tooltip = Tip!(Text!("intrinsic node"));
             }
         }
     }

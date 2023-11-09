@@ -46,7 +46,9 @@
 
 # Inspector
 
-* Group widgets for the same property in a `[]` region.
+* Change opacity to actual text color.
+* Add "computed-values/properties" section.
+* Add id in title.
 * Finish implementing live inspector.
 
 # Publish

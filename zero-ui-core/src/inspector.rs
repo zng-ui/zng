@@ -44,6 +44,7 @@ pub(super) static INSPECTOR_INFO_ID: StaticStateId<Arc<InspectorInfo>> = StaticS
 /// Widget instance item.
 ///
 /// See [`InspectorInfo::items`].
+#[derive(Debug)]
 pub enum InstanceItem {
     /// Property instance.
     Property {
@@ -68,6 +69,7 @@ pub enum InstanceItem {
 /// Widget instance inspector info.
 ///
 /// Can be accessed and queried using [`WidgetInfoInspectorExt`].
+#[derive(Debug)]
 pub struct InspectorInfo {
     /// Builder that was used to instantiate the widget.
     pub builder: WidgetBuilder,
@@ -96,6 +98,11 @@ impl InspectorInfo {
 /// widget properties read the variable.
 pub struct InspectorContext {
     ctx: Arc<Mutex<LocalContext>>,
+}
+impl std::fmt::Debug for InspectorContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InspectorContext").finish_non_exhaustive()
+    }
 }
 impl InspectorContext {
     /// New with empty context.

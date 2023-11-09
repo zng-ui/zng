@@ -2,12 +2,12 @@
 //!
 //! Interactive UI inspectors can use this module as data source.
 
-use std::{fmt, sync::Arc};
+use std::{fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 
 use crate::{
-    text::Txt,
+    text::*,
     var::*,
     widget_builder::WidgetType,
     widget_info::{WidgetInfo, WidgetInfoTree},
@@ -15,7 +15,7 @@ use crate::{
     IdMap,
 };
 
-use super::WidgetInfoInspectorExt;
+use super::{InspectorInfo, WidgetInfoInspectorExt};
 
 /// Represents an actively inspected widget tree.
 #[derive(Clone)]
@@ -214,12 +214,12 @@ impl InspectedWidget {
         self.info.map(|w| Some(w.inspector_info()?.builder.widget_type())).actual_var()
     }
 
-    /// Widget type name, or `"<widget>"` if widget was not built with inspection info.
-    pub fn wgt_type_name(&self) -> impl Var<Txt> {
+    /// Widget macro name, or `"<widget>!"` if widget was not built with inspection info.
+    pub fn wgt_macro_name(&self) -> impl Var<Txt> {
         self.info
             .map(|w| match w.inspector_info().map(|i| i.builder.widget_type()) {
-                Some(t) => Txt::from_str(t.name()),
-                None => Txt::from_static("<widget>"),
+                Some(t) => formatx!("{}!", t.name()),
+                None => Txt::from_static("<widget>!"),
             })
             .actual_var()
     }
@@ -266,5 +266,33 @@ impl InspectedWidget {
                     .boxed()
             })
             .clone()
+    }
+
+    /// Inspect the builder, properties and intrinsic nodes that make up the widget.
+    ///
+    /// Is `None` when the widget is built without inspector info collection.
+    pub fn inspector_info(&self) -> impl Var<Option<InspectedInfo>> {
+        self.info.map(move |w| w.inspector_info().map(InspectedInfo)).actual_var().boxed()
+    }
+}
+
+///
+#[derive(Clone)]
+pub struct InspectedInfo(pub Arc<InspectorInfo>);
+impl fmt::Debug for InspectedInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+impl PartialEq for InspectedInfo {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl ops::Deref for InspectedInfo {
+    type Target = InspectorInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
