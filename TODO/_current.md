@@ -46,11 +46,13 @@
 
 # Inspector
 
-* Change opacity to actual text color.
-* Add "computed-values/properties" section.
-* Add id in title.
-* Finish implementing live inspector.
 * Inspecting in the `text.rs` example causes infinite measures and layouts.
+* Add "computed-values/properties" section.
+* Finish implementing live inspector.
+
+# Scroll
+
+* "Scroll To Lorem 2 (50%)" -> "Scroll To Lorem 2 (200%)" -> Lorem 2 not in viewport.
 
 # Publish
 

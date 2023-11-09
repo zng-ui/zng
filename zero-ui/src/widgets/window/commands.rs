@@ -122,7 +122,7 @@ mod live_inspector {
                     child = presenter(selected_wgt, wgt_fn!(|w| {
                         selected_view(w).boxed()
                     }));
-                    background_color = color_scheme_map(rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85));
+                    background_color = SELECTED_BKG_VAR;
                 }, 0;
             }
         }
@@ -145,6 +145,19 @@ mod live_inspector {
 
         pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();
 
+        context_var! {
+            static TREE_ITEM_BKG_HOVERED_VAR: Rgba = rgb(0.24, 0.24, 0.24);
+            static TREE_ITEM_BKG_CHECKED_VAR: Rgba = rgb(0.3, 0.3, 0.3);
+            static TREE_ITEM_LINE_VAR: Rgba = rgb(0.21, 0.21, 0.21);
+            static TREE_ITEM_LINE_HOVERED_VAR: Rgba = rgb(0.32, 0.32, 0.32);
+            static WIDGET_ID_COLOR_VAR: Rgba = colors::GRAY;
+            static WIDGET_MACRO_COLOR_VAR: Rgba = colors::AZURE;
+            static PROPERTY_COLOR_VAR: Rgba = colors::YELLOW;
+            static PROPERTY_VALUE_COLOR_VAR: Rgba = colors::ROSE;
+            static NEST_GROUP_COLOR_VAR: Rgba = colors::GRAY;
+            static SELECTED_BKG_VAR: Rgba = rgb(0.15, 0.15, 0.15);
+        }
+
         fn tree_view(tree: InspectedTree) -> impl UiNode {
             Container! {
                 text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
@@ -162,10 +175,10 @@ mod live_inspector {
                     style_fn = StyleFn::nil();
                     padding = 2;
                     when *#is_hovered {
-                        background_color = color_scheme_map(rgba(0.3, 0.3, 0.3, 0.2), rgba(0.7, 0.7, 0.7, 0.2));
+                        background_color = TREE_ITEM_BKG_HOVERED_VAR;
                     }
                     when *#toggle::is_checked {
-                        background_color = color_scheme_map(rgba(0.3, 0.3, 0.3, 1.0), rgba(0.7, 0.7, 0.7, 1.0));
+                        background_color = TREE_ITEM_BKG_CHECKED_VAR;
                     }
 
                     child = Wrap! {
@@ -173,12 +186,12 @@ mod live_inspector {
                             Text! {
                                 txt = wgt.wgt_macro_name();
                                 font_weight = FontWeight::BOLD;
-                                font_color = colors::AZURE;
+                                font_color = WIDGET_MACRO_COLOR_VAR;
                             },
                             Text!(" {{ "),
                             Text! {
                                 txt = formatx!("{:#}", wgt.id());
-                                opacity = 60.pct();
+                                font_color = WIDGET_ID_COLOR_VAR;
                             },
                             Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
                         ]
@@ -198,18 +211,12 @@ mod live_inspector {
 
                                 border = {
                                     widths: (0, 0, 0, 1),
-                                    sides: color_scheme_map(
-                                        BorderSides::new_left(BorderSide::dashed(rgba(0.3, 0.3, 0.3, 0.2))),
-                                        BorderSides::new_left(BorderSide::dashed(rgba(0.7, 0.7, 0.7, 0.2))),
-                                    ),
+                                    sides: TREE_ITEM_LINE_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
                                 };
                                 when *#is_hovered {
                                     border = {
                                         widths: (0, 0, 0, 1),
-                                        sides: color_scheme_map(
-                                            BorderSides::new_left(BorderSide::dashed(rgba(0.3, 0.3, 0.3, 1.0))),
-                                            BorderSides::new_left(BorderSide::dashed(rgba(0.7, 0.7, 0.7, 1.0))),
-                                        ),
+                                        sides: TREE_ITEM_LINE_HOVERED_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
                                     };
                                 }
                             };
@@ -238,11 +245,12 @@ mod live_inspector {
                                         txt = wgt.wgt_macro_name();
                                         font_size = 1.2.em();
                                         font_weight = FontWeight::BOLD;
-                                        font_color = colors::AZURE;
+                                        font_color = WIDGET_MACRO_COLOR_VAR;
                                     },
                                     Text! {
                                         txt = formatx!(" {:#}", wgt.id());
-                                        opacity = 60.pct();
+                                        font_size = 1.2.em();
+                                        font_color = WIDGET_ID_COLOR_VAR;
                                     },
                                     {
                                         let parent_property = wgt.parent_property_name();
@@ -253,7 +261,7 @@ mod live_inspector {
                                                 Text!(" (in "),
                                                 Text! {
                                                     txt = parent_property;
-                                                    font_color = colors::YELLOW;
+                                                    font_color = PROPERTY_COLOR_VAR;
                                                 },
                                                 Text!(")"),
                                             ]
@@ -328,7 +336,7 @@ mod live_inspector {
                     txt = formatx!("// {}", group.name());
                     tooltip = Tip!(Text!("nest group"));
                     margin = (10, 0, 0, 0);
-                    opacity = 60.pct();
+                    font_color = NEST_GROUP_COLOR_VAR;
                 },
             );
 
@@ -345,7 +353,7 @@ mod live_inspector {
             let mut children = ui_vec![
                 Text! {
                     txt = info.name;
-                    font_color = colors::YELLOW;
+                    font_color = PROPERTY_COLOR_VAR;
                 },
                 Text!(" = "),
             ];
@@ -354,7 +362,7 @@ mod live_inspector {
 
                 children.push(Text! {
                     txt = value;
-                    font_color = colors::ROSE;
+                    font_color = PROPERTY_VALUE_COLOR_VAR;
                 });
                 children.push(Text!(";"));
             } else {
@@ -364,7 +372,7 @@ mod live_inspector {
                     let value = ctx.with_context(|| args.debug(i)); // TODO live
                     children.push(Text! {
                         txt = value;
-                        font_color = colors::ROSE;
+                        font_color = PROPERTY_VALUE_COLOR_VAR;
                     });
                     children.push(Text!(",\n"));
                 }
