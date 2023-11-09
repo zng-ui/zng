@@ -39,7 +39,7 @@ mod live_inspector {
 
     pub fn inspect_node(child: impl UiNode, can_inspect: impl IntoVar<bool>) -> impl UiNode {
         let mut inspected_tree = None::<InspectedTree>;
-        let inspector = WindowId::new_unique();
+        let inspector = WindowId::named("zero_ui_inspector");
 
         let can_inspect = can_inspect.into_var();
 
@@ -405,7 +405,7 @@ mod prompt_inspector {
         };
 
         let mut inspector_state = WriteTreeState::new();
-        let inspector = WindowId::new_unique();
+        let inspector = WindowId::named("zero_ui_inspector");
         let inspector_text = var(Txt::from_str(""));
 
         let can_inspect = can_inspect.into_var();
