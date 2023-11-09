@@ -47,6 +47,8 @@
 # Inspector
 
 * Inspecting in the `text.rs` example causes infinite measures and layouts.
+    - "Stack! #39" Text! keeps rendering.
+    - It looks like it is at the bottom edge of the viewport.
 * Add "computed-values/properties" section.
 * Finish implementing live inspector.
 

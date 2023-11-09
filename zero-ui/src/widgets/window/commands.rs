@@ -146,8 +146,8 @@ mod live_inspector {
         pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();
 
         context_var! {
-            static TREE_ITEM_BKG_HOVERED_VAR: Rgba = rgb(0.24, 0.24, 0.24);
-            static TREE_ITEM_BKG_CHECKED_VAR: Rgba = rgb(0.3, 0.3, 0.3);
+            static TREE_ITEM_BKG_HOVERED_VAR: Rgba = rgb(0.21, 0.21, 0.21);
+            static TREE_ITEM_BKG_CHECKED_VAR: Rgba = rgb(0.29, 0.29, 0.29);
             static TREE_ITEM_LINE_VAR: Rgba = rgb(0.21, 0.21, 0.21);
             static TREE_ITEM_LINE_HOVERED_VAR: Rgba = rgb(0.32, 0.32, 0.32);
             static WIDGET_ID_COLOR_VAR: Rgba = colors::GRAY;
