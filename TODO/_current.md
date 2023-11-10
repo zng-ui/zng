@@ -45,6 +45,7 @@
 * Adorn hovered widget.
     - Hover on the inspector list.
     - Adorner on the actual widget.
+* Clicking on a lower item causes scroll (focus issue?)
 
 # Scroll
 

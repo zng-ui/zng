@@ -1144,6 +1144,7 @@ impl WIDGET {
     }
 
     /// Current pending updates.
+    #[cfg(debug_assertions)]
     pub(crate) fn pending_update(&self) -> UpdateFlags {
         WIDGET_CTX.get().flags.load(Relaxed)
     }
