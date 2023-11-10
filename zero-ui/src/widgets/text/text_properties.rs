@@ -1099,6 +1099,9 @@ context_var! {
     /// Debounce time for change stop.
     pub static CHANGE_STOP_DELAY_VAR: Duration = 1.secs();
 
+    /// Auto selection on keyboard focus.
+    pub static AUTO_SELECTION_VAR: AutoSelection = AutoSelection::default();
+
     /// Maximum number of characters that can be input.
     ///
     /// Zero means no limit. Is zero by default.
@@ -1309,6 +1312,33 @@ pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStop
 #[property(CONTEXT, default(CHANGE_STOP_DELAY_VAR), widget_impl(TextEditMix<P>))]
 pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
     with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
+}
+
+/// Auto-selection on focus when the text is editable.
+///
+/// If enabled on keyboard focus all text is selected and on blur any selection is cleared.
+#[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
+pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> impl UiNode {
+    with_context_var(child, AUTO_SELECTION_VAR, mode)
+}
+
+/// Defines when text is auto-selected on focus.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum AutoSelection {
+    /// Does not select-all on focus.
+    Disabled,
+
+    /// Select-all on keyboard focus ([highlight]).
+    ///
+    ///  [highlight]: crate::core::focus::FocusChangedArgs::highlight
+    Enabled,
+
+    /// Select-all on keyboard focus ([highlight]) if the text is not [`accepts_enter`].
+    ///
+    /// [highlight]: crate::core::focus::FocusChangedArgs::highlight
+    /// [`accepts_enter`]: fn@accepts_enter
+    #[default]
+    Auto,
 }
 
 /// Arguments for [`on_change_stop`].

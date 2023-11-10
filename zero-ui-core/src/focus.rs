@@ -207,7 +207,7 @@ impl FocusChangedArgs {
         }
     }
 
-    /// If `widget_id` is the previous focus and was not before.
+    /// If `widget_id` is the previous focus and is not now.
     pub fn is_blur(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() == widget_id && new.widget_id() != widget_id,
@@ -1175,8 +1175,6 @@ impl FocusService {
                             FocusChangedCause::Recovery,
                         );
                     } else {
-                        // !!:TODO, if ancestor was alt_focus_scope that is also not focusable
-
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to nearest inside focusable parent, or parent
@@ -1194,8 +1192,6 @@ impl FocusService {
                         }
                     }
                 } else {
-                    // !!:TODO, if ancestor was alt_focus_scope that is also removed
-
                     // widget not found
                     for &parent in focused.path.ancestors().iter().rev() {
                         if let Some(parent) = info

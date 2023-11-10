@@ -8,7 +8,7 @@ use std::{
 };
 
 use atomic::{Atomic, Ordering};
-use zero_ui_core::timer::TIMERS;
+use zero_ui_core::{focus::WidgetInfoFocusExt, timer::TIMERS};
 
 use super::{
     commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
@@ -684,6 +684,33 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         } else {
                             EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                             caret.opacity = var(0.fct()).read_only();
+                        }
+
+                        let auto_select = match AUTO_SELECTION_VAR.get() {
+                            AutoSelection::Disabled => false,
+                            AutoSelection::Enabled => true,
+                            AutoSelection::Auto => !ACCEPTS_ENTER_VAR.get(),
+                        };
+                        if auto_select && TEXT_SELECTABLE_VAR.get() {
+                            if args.is_blur(widget.id()) {
+                                // deselect if the widget is not the ALT return focus and is not the parent scope return focus.
+
+                                let us = Some(widget.id());
+                                let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
+                                if alt_return != us {
+                                    if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                                        if let Some(scope) = info.scope() {
+                                            let parent_return =
+                                                FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
+                                            if parent_return != us {
+                                                SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if args.highlight && args.is_focus(widget.id()) {
+                                SELECT_ALL_CMD.scoped(widget.id()).notify();
+                            }
                         }
                     } else if let Some(args) = CUT_CMD.scoped(widget.id()).on_unhandled(update) {
                         let ctx = resolved.as_mut().unwrap();
