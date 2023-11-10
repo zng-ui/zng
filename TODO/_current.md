@@ -38,8 +38,15 @@
 
 # Inspector
 
+* Live info?
+    - Auto update after every info rebuild.
 * Add "computed-values/properties" section.
-* Finish implementing live inspector.
+* Format value better?
+    - Don't wrap? text keeps jumping because of wrap on button hover.
+* Flash widget that has property change.
+* Adorn hovered widget.
+    - Hover on the inspector list.
+    - Adorner on the actual widget.
 
 # Scroll
 

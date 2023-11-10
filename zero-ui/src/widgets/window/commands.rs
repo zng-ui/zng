@@ -153,7 +153,7 @@ mod live_inspector {
             static WIDGET_ID_COLOR_VAR: Rgba = colors::GRAY;
             static WIDGET_MACRO_COLOR_VAR: Rgba = colors::AZURE;
             static PROPERTY_COLOR_VAR: Rgba = colors::YELLOW;
-            static PROPERTY_VALUE_COLOR_VAR: Rgba = colors::ROSE;
+            static PROPERTY_VALUE_COLOR_VAR: Rgba = colors::ROSE.lighten(50.pct());
             static NEST_GROUP_COLOR_VAR: Rgba = colors::GRAY;
             static SELECTED_BKG_VAR: Rgba = rgb(0.15, 0.15, 0.15);
         }
@@ -347,6 +347,18 @@ mod live_inspector {
             }
         }
 
+        fn value_background(value: &BoxedVar<Txt>) -> impl Var<Rgba> {
+            let flash = var(rgba(0, 0, 0, 0));
+            let mut flashing = None;
+            value
+                .on_pre_new(app_hn!(flash, |_, _| {
+                    let h = flash.set_ease(colors::BLACK, colors::BLACK.transparent(), 500.ms(), easing::linear);
+                    flashing = Some(h);
+                }))
+                .perm();
+            flash
+        }
+
         fn property_view(ctx: &InspectorContext, args: &dyn PropertyArgs, info: PropertyInfo, captured: bool) -> impl UiNode {
             // TODO, indicators for user or widget set properties.
             let mut ctx = ctx.latest_capture();
@@ -358,21 +370,27 @@ mod live_inspector {
                 Text!(" = "),
             ];
             if info.inputs.len() == 1 {
-                let value = ctx.with_context(|| args.debug(0)); // TODO live
+                let value = ctx.with_context(|| args.live_debug(0));
+                let flash = value_background(&value);
 
                 children.push(Text! {
                     txt = value;
                     font_color = PROPERTY_VALUE_COLOR_VAR;
+                    background_color = flash;
                 });
                 children.push(Text!(";"));
             } else {
                 children.push(Text!("{{\n"));
                 for (i, input) in info.inputs.iter().enumerate() {
                     children.push(Text!("    {}: ", input.name));
-                    let value = ctx.with_context(|| args.debug(i)); // TODO live
+
+                    let value = ctx.with_context(|| args.live_debug(i));
+                    let flash = value_background(&value);
+
                     children.push(Text! {
                         txt = value;
                         font_color = PROPERTY_VALUE_COLOR_VAR;
+                        background_color = flash;
                     });
                     children.push(Text!(",\n"));
                 }

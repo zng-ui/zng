@@ -905,6 +905,8 @@ impl dyn PropertyArgs + '_ {
     /// Gets the property input as a debug variable.
     ///
     /// If the input is a variable the returned variable will update with it, if not it is a static print.
+    ///
+    /// Note that you must call this in the widget context to get the correct value.
     pub fn live_debug(&self, i: usize) -> BoxedVar<Txt> {
         let p = self.property();
         match p.inputs[i].kind {
@@ -931,7 +933,9 @@ impl dyn PropertyArgs + '_ {
         }
     }
 
-    /// Gets the property input current value as a debug
+    /// Gets the property input current value as a debug.
+    ///
+    /// Note that you must call this in the widget context to get the correct value.
     pub fn debug(&self, i: usize) -> Txt {
         let p = self.property();
         match p.inputs[i].kind {
