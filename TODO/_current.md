@@ -41,11 +41,6 @@
 * Live info?
     - Auto update after every info rebuild.
 * Add "computed-values/properties" section.
-* Format value better?
-    - Don't wrap? text keeps jumping because of wrap on button hover.
-    - Without wrap the value is not fully visible.
-    - Fully visible wrapped value is not very readable anyway.
-    - Window context has some big ones CONTEXT, they don't change and are not readable.
 * Flash widget that has property change.
 * Adorn hovered widget.
     - Hover on the inspector list.

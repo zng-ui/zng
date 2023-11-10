@@ -538,8 +538,8 @@ impl animation::Transitionable for BorderSides {
     fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
         self.top = self.top.lerp(&to.top, step);
         self.right = self.right.lerp(&to.right, step);
-        self.bottom = self.right.lerp(&to.bottom, step);
-        self.left = self.right.lerp(&to.left, step);
+        self.bottom = self.bottom.lerp(&to.bottom, step);
+        self.left = self.left.lerp(&to.left, step);
         self
     }
 }
