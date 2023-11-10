@@ -1143,6 +1143,11 @@ impl WIDGET {
         r
     }
 
+    /// Current pending updates.
+    pub(crate) fn pending_update(&self) -> UpdateFlags {
+        WIDGET_CTX.get().flags.load(Relaxed)
+    }
+
     /// Remove the render reuse range if render was not invalidated on this widget.
     pub(crate) fn take_render_reuse(&self, render_widgets: &RenderUpdates, render_update_widgets: &RenderUpdates) -> Option<ReuseRange> {
         let ctx = WIDGET_CTX.get();

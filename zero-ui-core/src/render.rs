@@ -506,10 +506,11 @@ impl FrameBuilder {
         let wgt_info = WIDGET.info();
         let id = wgt_info.id();
 
+        #[cfg(debug_assertions)]
         if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
-                id,
+                WIDGET.trace_id(),
                 self.widget_id
             );
         }
@@ -522,8 +523,16 @@ impl FrameBuilder {
             for info in wgt_info.self_and_descendants() {
                 info.bounds_info().set_rendered(None, tree);
             }
-            let _ = WIDGET.take_update(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+            // LAYOUT can be pending if parent called `collapse_child`, cleanup here.
+            let _ = WIDGET.take_update(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
             return;
+        } else {
+            #[cfg(debug_assertions)]
+            if WIDGET.pending_update().contains(UpdateFlags::LAYOUT) {
+                // pending layout requested from inside the widget should have updated before render,
+                // this indicates that a widget skipped layout without properly collapsing.
+                tracing::error!("called `push_widget` for `{}` with pending layout", WIDGET.trace_id());
+            }
         }
 
         let mut try_reuse = true;
@@ -2495,18 +2504,24 @@ impl FrameUpdate {
         let wgt_info = WIDGET.info();
         let id = wgt_info.id();
 
+        #[cfg(debug_assertions)]
         if self.inner_transform.is_some() && wgt_info.parent().is_some() {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
-                id,
+                WIDGET.trace_id(),
                 self.widget_id
             );
         }
 
         let bounds = wgt_info.bounds_info();
         if bounds.is_collapsed() {
-            let _ = WIDGET.take_update(UpdateFlags::RENDER_UPDATE);
+            let _ = WIDGET.take_update(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
             return;
+        } else {
+            #[cfg(debug_assertions)]
+            if WIDGET.pending_update().contains(UpdateFlags::LAYOUT) {
+                tracing::error!("called `update_widget` for `{}` with pending layout", WIDGET.trace_id());
+            }
         }
 
         let tree = wgt_info.tree();
@@ -2594,7 +2609,7 @@ impl FrameUpdate {
         if self.inner_transform.is_some() {
             tracing::error!(
                 "called `reuse_widget` for `{}` without calling `update_inner` for the parent `{}`",
-                WIDGET.id(),
+                WIDGET.trace_id(),
                 self.widget_id
             );
         }
