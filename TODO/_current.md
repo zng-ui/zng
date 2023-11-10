@@ -55,7 +55,13 @@
 * Publish if there is no missing component that could cause a core API refactor.
 
 * Rename crates (replace zero-ui with something that has no hyphen).
-    - `nestor`: All our nodes and properties are nesting constructors.
+    - `nestor`: All our nodes and properties are nesting constructors. (name already taken)
+    - `ctorx`: Constructor/Context.
+    - `xctor`: Context/Constructor.
+    - `xnest`: Context nesting.
+    - `nestx`: Nesting context.
+    - `nestc`: Nesting constructor. 
+    - `nestcx`, `cxnest`. 
 * Review all docs.
 * Review prebuild distribution.
 * Pick license and code of conduct.
