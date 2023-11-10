@@ -290,9 +290,29 @@ context_var! {
 pub type Lang = unic_langid::LanguageIdentifier;
 
 /// List of languages, in priority order.
-///
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash)]
 pub struct Langs(pub Vec<Lang>);
+impl fmt::Debug for Langs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct DisplayLang<'a>(&'a Lang);
+        impl<'a> fmt::Debug for DisplayLang<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+        struct DisplayLangs<'a>(&'a [Lang]);
+        impl<'a> fmt::Debug for DisplayLangs<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_list().entries(self.0.iter().map(DisplayLang)).finish()
+            }
+        }
+        if f.alternate() {
+            f.debug_tuple("Langs").field(&DisplayLangs(&self.0)).finish()
+        } else {
+            fmt::Debug::fmt(&DisplayLangs(&self.0), f)
+        }
+    }
+}
 impl Langs {
     /// The first lang on the list or `und` if the list is empty.
     pub fn best(&self) -> &Lang {
