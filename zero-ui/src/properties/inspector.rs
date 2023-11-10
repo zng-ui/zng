@@ -68,7 +68,10 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
         |_, wgt, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor().0);
 
-            if wgt.outer_bounds() != wgt.inner_bounds() {
+            let outer_bounds = wgt.outer_bounds();
+            let inner_bounds = wgt.inner_bounds();
+
+            if outer_bounds != inner_bounds && !outer_bounds.is_empty() {
                 frame.push_border(
                     wgt.outer_bounds(),
                     PxSideOffsets::new_all_same(p),
@@ -77,12 +80,14 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
                 );
             }
 
-            frame.push_border(
-                wgt.inner_bounds(),
-                PxSideOffsets::new_all_same(p),
-                BorderSides::solid(web_colors::ROYAL_BLUE),
-                PxCornerRadius::zero(),
-            );
+            if !inner_bounds.size.is_empty() {
+                frame.push_border(
+                    inner_bounds,
+                    PxSideOffsets::new_all_same(p),
+                    BorderSides::solid(web_colors::ROYAL_BLUE),
+                    PxCornerRadius::zero(),
+                );
+            }
         },
         mode,
     )
@@ -102,12 +107,14 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
             if let Some(inline) = wgt.inline() {
                 frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
                     for row in &inline.rows {
-                        frame.push_border(
-                            *row,
-                            PxSideOffsets::new_all_same(p),
-                            BorderSides::dotted(web_colors::LIGHT_SALMON),
-                            PxCornerRadius::zero(),
-                        )
+                        if !row.size.is_empty() {
+                            frame.push_border(
+                                *row,
+                                PxSideOffsets::new_all_same(p),
+                                BorderSides::dotted(web_colors::LIGHT_SALMON),
+                                PxCornerRadius::zero(),
+                            );
+                        }
                     }
                 })
             };
@@ -262,11 +269,15 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
                 frame.with_hit_tests_disabled(|frame| {
                     for fail in &fails {
-                        frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero());
+                        if !fail.size.is_empty() {
+                            frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero());
+                        }
                     }
 
                     for hit in &hits {
-                        frame.push_border(*hit, widths, hits_sides, PxCornerRadius::zero());
+                        if !hit.size.is_empty() {
+                            frame.push_border(*hit, widths, hits_sides, PxCornerRadius::zero());
+                        }
                     }
                 });
             }
@@ -363,7 +374,9 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
                 frame.with_hit_tests_disabled(|frame| {
                     for quad in &search_quads {
-                        frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero());
+                        if !quad.size.is_empty() {
+                            frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero());
+                        }
                     }
                 });
             }
