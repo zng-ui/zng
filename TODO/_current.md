@@ -45,7 +45,11 @@
 
 # Scroll
 
-* "Scroll To Lorem 2 (50%)" -> "Scroll To Lorem 2 (200%)" -> Lorem 2 not in viewport.
+* Scroll to "Lorem 2" not centered -> scroll to it again at 200% scale.
+    - The "Lorem 2" can drift out of viewport.
+    - Only if centered it is ok, slightly off-center shifts a bit too.
+    - The scroll at 200% scale is `Minimal`.
+    - So it should adjust to still be fully visible after zoom.
 
 # Publish
 

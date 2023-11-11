@@ -761,7 +761,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         .map(|b| b.to_rect())
                         .unwrap_or(bounds);
 
-                    let target_bounds_in_content = bounds;
+                    let current_bounds = bounds;
 
                     // remove offset
                     let rendered_offset = SCROLL.rendered_content().origin.to_vector();
@@ -774,7 +774,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         bounds.origin *= s;
                         bounds.size *= s;
                     }
-                    // target bounds is in the content space at future scale
+                    // target bounds is now in the content space at future scale
 
                     let viewport_size = scroll_info.viewport_size();
 
@@ -782,44 +782,44 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            // add minimal margin
-                            let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(bounds.size), || margin.layout());
-                            let inflate_margin = |mut r: PxRect| {
-                                r.origin.x -= margin.left;
-                                r.origin.y -= margin.top;
-                                r.size.width += margin.horizontal();
-                                r.size.height += margin.vertical();
-                                r
+                            // add minimal margin at new scale to target bounds
+                            let scaled_margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(bounds.size), || margin.layout());
+                            let bounds = inflate_margin(bounds, scaled_margin);
+
+                            // add minimal margin, at current scale to the current bounds
+                            let curr_margin = if zoom.is_some() {
+                                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(current_bounds.size), || margin.layout())
+                            } else {
+                                scaled_margin
                             };
-                            let target_bounds = inflate_margin(bounds);
-                            let target_bounds_in_content = inflate_margin(target_bounds_in_content);
+                            let current_bounds = inflate_margin(current_bounds, curr_margin);
 
                             // vertical scroll
-                            if target_bounds.size.height < viewport_size.height {
-                                if target_bounds_in_content.origin.y < Px(0) {
+                            if bounds.size.height < viewport_size.height {
+                                if current_bounds.origin.y < Px(0) {
                                     // scroll up
-                                    offset.y = target_bounds.origin.y;
-                                } else if target_bounds_in_content.max_y() > viewport_size.height {
+                                    offset.y = bounds.origin.y;
+                                } else if current_bounds.max_y() > viewport_size.height {
                                     // scroll down
-                                    offset.y = target_bounds.max_y() - viewport_size.height;
+                                    offset.y = bounds.max_y() - viewport_size.height;
                                 }
                             } else {
                                 // center
-                                offset.y = viewport_size.height / Px(2) - target_bounds.center().y;
+                                offset.y = viewport_size.height / Px(2) - bounds.center().y;
                             };
 
                             // horizontal scroll
-                            if target_bounds.size.width < viewport_size.width {
-                                if target_bounds_in_content.origin.x < Px(0) {
+                            if bounds.size.width < viewport_size.width {
+                                if current_bounds.origin.x < Px(0) {
                                     // scroll left
-                                    offset.x = target_bounds.origin.x;
-                                } else if target_bounds_in_content.max_x() > viewport_size.width {
+                                    offset.x = bounds.origin.x;
+                                } else if current_bounds.max_x() > viewport_size.width {
                                     // scroll right
-                                    offset.x = target_bounds.max_x() - viewport_size.width;
+                                    offset.x = bounds.max_x() - viewport_size.width;
                                 }
                             } else {
                                 // center
-                                offset.x = viewport_size.width / Px(2) - target_bounds.center().x;
+                                offset.x = viewport_size.width / Px(2) - bounds.center().x;
                             };
                         }
                         ScrollToMode::Center {
@@ -862,6 +862,13 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         }
         _ => {}
     })
+}
+fn inflate_margin(mut r: PxRect, margin: PxSideOffsets) -> PxRect {
+    r.origin.x -= margin.left;
+    r.origin.y -= margin.top;
+    r.size.width += margin.horizontal();
+    r.size.height += margin.vertical();
+    r
 }
 
 /// Create a node that implements scroll by touch gestures for the widget.
