@@ -445,6 +445,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if editable {
                     self.cut = CUT_CMD.scoped(id).subscribe(true);
                 } else {
+                    // used in `render_selection`
+                    self.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
+
                     self.events[2] = KEY_INPUT_EVENT.subscribe(id);
                 }
             }
@@ -2413,9 +2416,20 @@ context_local! {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_selection(child: impl UiNode) -> impl UiNode {
+    let mut is_focused = false;
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&SELECTION_COLOR_VAR);
+            is_focused = false;
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                let new_is_focused = args.is_focused(WIDGET.id());
+                if is_focused != new_is_focused {
+                    WIDGET.render();
+                    is_focused = new_is_focused;
+                }
+            }
         }
         UiNodeOp::Render { frame } => {
             let r_txt = ResolvedText::get();
@@ -2424,9 +2438,14 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
                 let l_txt = LayoutText::get();
                 let r_txt = r_txt.segmented_text.text();
 
+                let mut selection_color = SELECTION_COLOR_VAR.get();
+                if !is_focused {
+                    selection_color = selection_color.desaturate(100.pct());
+                }
+
                 for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
                     if !line_rect.size.is_empty() {
-                        frame.push_color(line_rect, FrameValue::Value(SELECTION_COLOR_VAR.get().into()));
+                        frame.push_color(line_rect, FrameValue::Value(selection_color.into()));
                     }
                 }
             };

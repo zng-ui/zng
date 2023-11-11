@@ -1,9 +1,9 @@
+
+* Example `window.rs` freezes sometimes when pressing tab or shift+tab with a text selected in the close dialog.
+
 # TextInput
 
 * Test disabled TextInput.
-
-* Implement `txt_selectable` text.
-    - Should `txt_editable=false;txt_selectable=true` really be focusable? It currently is.
 
 * Touch selection.
     - Test with RTL and bidirectional text.
@@ -29,7 +29,7 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
-* Change selection color to gray when not focused.
+* Change selection color for dark mode.
 
 # Accessibility
 
