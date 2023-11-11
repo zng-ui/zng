@@ -1,6 +1,3 @@
-
-* Example `window.rs` freezes sometimes when pressing tab or shift+tab with a text selected in the close dialog.
-
 # TextInput
 
 * Test disabled TextInput.

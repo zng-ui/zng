@@ -384,10 +384,12 @@ impl RevTreeIter {
                 self.next = prev.get();
             } else {
                 let mut node = node;
+                let mut changed = false;
                 while let Some(parent) = node.parent {
                     let parent = parent.get();
                     if parent == self.end {
                         self.next = self.end;
+                        changed = true;
                         break;
                     }
 
@@ -395,8 +397,13 @@ impl RevTreeIter {
 
                     if let Some(prev) = node.prev_sibling {
                         self.next = prev.get();
+                        changed = true;
                         break;
                     }
+                }
+                if !changed {
+                    // back from root/child
+                    self.next = self.end;
                 }
             }
 
