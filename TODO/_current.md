@@ -48,8 +48,6 @@
 
 # Scroll
 
-* Scroll-to when already scrolled some does not work.
-    - Target inner_bounds is offset, need to correct?
 * "Scroll To Lorem 2 (50%)" -> "Scroll To Lorem 2 (200%)" -> Lorem 2 not in viewport.
 
 # Publish

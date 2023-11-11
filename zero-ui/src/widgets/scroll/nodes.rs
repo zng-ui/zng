@@ -691,7 +691,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                             }
                                         }
 
-                                        scroll_to = Some((Rect::from(target.inner_bounds()), mode, None));
+                                        scroll_to = Some((Rect::from(target.inner_bounds()), mode, None, false));
                                         WIDGET.layout();
                                     }
                                 }
@@ -711,7 +711,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
                                     // target is descendant
                                     if us.is_scroll() {
-                                        scroll_to = Some((Rect::from(target.inner_bounds()), request.mode, request.zoom));
+                                        scroll_to = Some((Rect::from(target.inner_bounds()), request.mode, request.zoom, false));
                                         scroll_to_from_cmd = true;
                                         WIDGET.layout();
 
@@ -721,7 +721,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             }
                         }
                         ScrollToTarget::Rect(rect) => {
-                            scroll_to = Some((rect, request.mode, request.zoom));
+                            scroll_to = Some((rect, request.mode, request.zoom, true));
                             scroll_to_from_cmd = true;
                             WIDGET.layout();
 
@@ -734,7 +734,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            if let Some((bounds, mode, mut zoom)) = scroll_to.take() {
+            if let Some((bounds, mode, mut zoom, in_content)) = scroll_to.take() {
                 scroll_to_from_cmd = false;
                 let tree = WINDOW.info();
                 let us = tree.get(WIDGET.id()).unwrap();
@@ -747,7 +747,9 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let mut bounds = {
                         let content = SCROLL.rendered_content();
                         let mut rect = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(content.size), || bounds.layout());
-                        rect.origin += content.origin.to_vector();
+                        if in_content {
+                            rect.origin += content.origin.to_vector();
+                        }
                         rect
                     };
 
