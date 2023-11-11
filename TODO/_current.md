@@ -45,11 +45,10 @@
 
 # Scroll
 
-* Scroll to "Lorem 2" not centered -> scroll to it again at 200% scale.
-    - The "Lorem 2" can drift out of viewport.
-    - Only if centered it is ok, slightly off-center shifts a bit too.
-    - The scroll at 200% scale is `Minimal`.
-    - So it should adjust to still be fully visible after zoom.
+* Scroll with scale when target is in view at the current scale does not adjust offset to keep in-view after zoom.
+    - What transition looks more natural?
+        - Scale to keep the target center in the same point in viewport, and then adjust the minimal.
+        - All at the same time.
 
 # Publish
 

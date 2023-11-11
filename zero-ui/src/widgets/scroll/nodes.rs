@@ -802,6 +802,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 } else if current_bounds.max_y() > viewport_size.height {
                                     // scroll down
                                     offset.y = bounds.max_y() - viewport_size.height;
+                                } else if zoom.is_some() {
+                                    println!("!!: TODO keep in view after zoom");
                                 }
                             } else {
                                 // center
@@ -816,6 +818,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 } else if current_bounds.max_x() > viewport_size.width {
                                     // scroll right
                                     offset.x = bounds.max_x() - viewport_size.width;
+                                } else if zoom.is_some() {
+                                    println!("!!: TODO keep in view after zoom")
                                 }
                             } else {
                                 // center
