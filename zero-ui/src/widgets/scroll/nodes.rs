@@ -803,7 +803,19 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     // scroll down
                                     offset.y = bounds.max_y() - viewport_size.height;
                                 } else if zoom.is_some() {
-                                    println!("!!: TODO keep in view after zoom");
+                                    // scale around center
+                                    let center_in_vp = current_bounds.center().y;
+                                    let center = bounds.center().y;
+                                    offset.y = center - center_in_vp;
+
+                                    // offset minimal if needed
+                                    let mut bounds_final = bounds;
+                                    bounds_final.origin.y -= offset.y;
+                                    if bounds_final.origin.y < Px(0) {
+                                        offset.y = bounds.origin.y;
+                                    } else if bounds_final.max_y() > viewport_size.height {
+                                        offset.y = bounds.max_y() - viewport_size.height;
+                                    }
                                 }
                             } else {
                                 // center
@@ -819,7 +831,19 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     // scroll right
                                     offset.x = bounds.max_x() - viewport_size.width;
                                 } else if zoom.is_some() {
-                                    println!("!!: TODO keep in view after zoom")
+                                    // scale around center
+                                    let center_in_vp = current_bounds.center().x;
+                                    let center = bounds.center().x;
+                                    offset.x = center - center_in_vp;
+
+                                    // offset minimal if needed
+                                    let mut bounds_final = bounds;
+                                    bounds_final.origin.x -= offset.x;
+                                    if bounds_final.origin.x < Px(0) {
+                                        offset.x = bounds.origin.x;
+                                    } else if bounds_final.max_x() > viewport_size.width {
+                                        offset.x = bounds.max_x() - viewport_size.width;
+                                    }
                                 }
                             } else {
                                 // center

@@ -45,10 +45,11 @@
 
 # Scroll
 
-* Scroll with scale when target is in view at the current scale does not adjust offset to keep in-view after zoom.
-    - What transition looks more natural?
-        - Scale to keep the target center in the same point in viewport, and then adjust the minimal.
-        - All at the same time.
+* Scroll with scale when target is in view not fully working.
+    - Minimal correction not working.
+    - In scroll example Scroll-to 50% -> Scroll-to 200%, x offset is not correct.
+    - Caused by ScrollBar showing and changing the size of the viewport.
+    - If scale is adjusted from 50% up a bit to show the scrollbar then Scroll-to 200% works correctly.
 
 # Publish
 
