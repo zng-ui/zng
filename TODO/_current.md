@@ -43,14 +43,6 @@
     - Hover on the inspector list.
     - Adorner on the actual widget.
 
-# Scroll
-
-* Scroll with scale when target is in view not fully working.
-    - Minimal correction not working.
-    - In scroll example Scroll-to 50% -> Scroll-to 200%, x offset is not correct.
-    - Caused by ScrollBar showing and changing the size of the viewport.
-    - If scale is adjusted from 50% up a bit to show the scrollbar then Scroll-to 200% works correctly.
-
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.

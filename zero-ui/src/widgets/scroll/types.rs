@@ -256,17 +256,6 @@ impl SCROLL {
         SCROLL_CONFIG.get().rendered.load(Ordering::Relaxed).z
     }
 
-    /// Latest rendered content offset and size.
-    ///
-    /// This is the content bounds, scaled and in the viewport space.
-    pub fn rendered_content(&self) -> PxRect {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-        let content = SCROLL_CONTENT_SIZE_VAR.get();
-        let max_scroll = content - viewport;
-        let offset = max_scroll.to_vector() * -self.rendered_offset();
-        PxRect::new(offset.to_point(), content)
-    }
-
     /// Extra vertical offset, requested by touch gesture, that could not be fulfilled because [`vertical_offset`]
     /// is already at `0.fct()` or `1.fct()`.
     ///
@@ -671,7 +660,7 @@ impl SCROLL {
             return;
         }
 
-        let content = SCROLL.rendered_content();
+        let content = WIDGET.info().scroll_info().unwrap().content();
         let mut center_in_content = -content.origin + center_in_viewport.to_vector();
         let mut content_size = content.size;
 
@@ -755,7 +744,7 @@ impl SCROLL {
         let translate_delta = translate_offset - *applied_offset;
         *applied_offset = translate_offset;
 
-        let content = SCROLL.rendered_content();
+        let content = WIDGET.info().scroll_info().unwrap().content();
         let mut center_in_content = -content.origin.cast::<f32>() + center_in_viewport.to_vector();
         let mut content_size = content.size.cast::<f32>();
 
@@ -889,6 +878,7 @@ struct ScrollData {
     viewport_transform: PxTransform,
     viewport_size: PxSize,
     joiner_size: PxSize,
+    content: PxRect,
 }
 
 /// Shared reference to the viewport bounds of a scroll.
@@ -921,6 +911,13 @@ impl ScrollInfo {
         self.0.lock().joiner_size
     }
 
+    /// Latest content offset and size.
+    ///
+    /// This is the content bounds, scaled and in the viewport space.
+    pub fn content(&self) -> PxRect {
+        self.0.lock().content
+    }
+
     pub(super) fn set_viewport_size(&self, size: PxSize) {
         self.0.lock().viewport_size = size;
     }
@@ -931,6 +928,10 @@ impl ScrollInfo {
 
     pub(super) fn set_joiner_size(&self, size: PxSize) {
         self.0.lock().joiner_size = size;
+    }
+
+    pub(super) fn set_content(&self, content: PxRect) {
+        self.0.lock().content = content;
     }
 }
 

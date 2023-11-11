@@ -230,6 +230,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                 .unwrap();
 
             *final_size = viewport_size;
+
+            scroll_info().set_content(PxRect::new(content_offset.to_point(), content_size));
         }
         UiNodeOp::Render { frame } => {
             scroll_info().set_viewport_transform(*frame.transform());
@@ -744,8 +746,10 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         *s = s.clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
                     }
 
+                    let rendered_content = scroll_info.content();
+
                     let mut bounds = {
-                        let content = SCROLL.rendered_content();
+                        let content = rendered_content;
                         let mut rect = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(content.size), || bounds.layout());
                         if in_content {
                             rect.origin += content.origin.to_vector();
@@ -764,7 +768,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let current_bounds = bounds;
 
                     // remove offset
-                    let rendered_offset = SCROLL.rendered_content().origin.to_vector();
+                    let rendered_offset = rendered_content.origin.to_vector();
                     bounds.origin -= rendered_offset;
 
                     // replace scale
