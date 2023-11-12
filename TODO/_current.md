@@ -35,13 +35,11 @@
 
 # Inspector
 
-* Live info?
-    - Auto update after every info rebuild.
+* Live info, auto update after every info rebuild.
 * Add "computed-values/properties" section.
 * Flash widget that has property change.
-* Adorn hovered widget.
-    - Hover on the inspector list.
-    - Adorner on the actual widget.
+* Tool for selecting the widget by pointer hit-test.
+* Test inspecting two windows at the same time.
 
 # Publish
 

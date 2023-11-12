@@ -26,14 +26,17 @@ pub(super) fn inspect_node(
 #[cfg(inspector)]
 mod live_inspector {
     use crate::core::{
+        color::colors,
         context::*,
         handler::async_clmv,
-        inspector::live::InspectedTree,
-        var::IntoVar,
-        widget_instance::UiNode,
+        hn,
+        inspector::live::{InspectedTree, InspectedWidget},
+        render::{SpatialFrameId, SpatialFrameKey},
+        units::*,
+        var::*,
+        widget_instance::*,
         window::{WindowId, WINDOWS},
     };
-    use zero_ui_core::hn;
 
     use super::*;
 
@@ -41,13 +44,14 @@ mod live_inspector {
         let mut inspected_tree = None::<InspectedTree>;
         let inspector = WindowId::named("zero_ui_inspector");
 
-        let can_inspect = can_inspect.into_var();
+        let selected_wgt = var(None);
 
-        on_command(
+        let can_inspect = can_inspect.into_var();
+        let child = on_command(
             child,
             || INSPECT_CMD.scoped(WINDOW.id()),
             move || can_inspect.clone(),
-            hn!(|args: &CommandArgs| {
+            hn!(selected_wgt, |args: &CommandArgs| {
                 if !args.enabled {
                     return;
                 }
@@ -72,11 +76,52 @@ mod live_inspector {
 
                     WINDOWS.focus_or_open(
                         inspector,
-                        async_clmv!(inspected_tree, { inspector_window::new(inspected, inspected_tree) }),
+                        async_clmv!(inspected_tree, selected_wgt, {
+                            inspector_window::new(inspected, inspected_tree, selected_wgt)
+                        }),
                     );
                 }
             }),
-        )
+        );
+
+        adorn_selected(child, selected_wgt)
+    }
+
+    fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<InspectedWidget>>) -> impl UiNode {
+        let selected_info = selected_wgt.flat_map(|s| {
+            if let Some(s) = s {
+                s.info().map(|i| Some(i.clone())).boxed()
+            } else {
+                var(None).boxed()
+            }
+        });
+        let transform_id = SpatialFrameId::new_unique();
+        match_node(child, move |c, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var_render(&selected_info);
+            }
+            UiNodeOp::Render { frame } => {
+                c.render(frame);
+                selected_info.with(|w| {
+                    if let Some(w) = w {
+                        let bounds = w.bounds_info();
+                        let transform = bounds.inner_transform();
+                        let size = bounds.inner_size();
+
+                        frame.push_reference_frame(transform_id.into(), transform.into(), false, false, |frame| {
+                            let widths = Dip::new(3).to_px(frame.scale_factor().0);
+                            frame.push_border(
+                                PxRect::from_size(size).inflate(widths, widths),
+                                PxSideOffsets::new_all_same(widths),
+                                colors::AZURE.into(),
+                                PxCornerRadius::default(),
+                            );
+                        });
+                    }
+                });
+            }
+            _ => {}
+        })
     }
 
     pub mod inspector_window {
@@ -87,7 +132,7 @@ mod live_inspector {
         use crate::prelude::new_widget::*;
         use crate::prelude::*;
 
-        pub fn new(inspected: WindowId, inspected_tree: InspectedTree) -> WindowRoot {
+        pub fn new(inspected: WindowId, inspected_tree: InspectedTree, selected_wgt: impl Var<Option<InspectedWidget>>) -> WindowRoot {
             let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
             let tree = WINDOWS.widget_tree(inspected).unwrap();
@@ -102,8 +147,6 @@ mod live_inspector {
                 var(WindowIcon::Default).boxed()
             };
 
-            let selected_wgt = var(None::<InspectedWidget>);
-
             Window! {
                 parent;
                 title;
@@ -111,6 +154,9 @@ mod live_inspector {
                 width = 1100;
                 set_inspected = inspected;
                 color_scheme = ColorScheme::Dark;
+                on_close = hn!(selected_wgt, |_| {
+                    selected_wgt.set(None);
+                });
                 child = Scroll! {
                     toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
                     child = tree_view(inspected_tree);
@@ -149,7 +195,6 @@ mod live_inspector {
             static TREE_ITEM_BKG_HOVERED_VAR: Rgba = rgb(0.21, 0.21, 0.21);
             static TREE_ITEM_BKG_CHECKED_VAR: Rgba = rgb(0.29, 0.29, 0.29);
             static TREE_ITEM_LINE_VAR: Rgba = rgb(0.21, 0.21, 0.21);
-            static TREE_ITEM_LINE_HOVERED_VAR: Rgba = rgb(0.32, 0.32, 0.32);
             static WIDGET_ID_COLOR_VAR: Rgba = colors::GRAY;
             static WIDGET_MACRO_COLOR_VAR: Rgba = colors::AZURE;
             static PROPERTY_COLOR_VAR: Rgba = colors::YELLOW;
@@ -213,12 +258,6 @@ mod live_inspector {
                                     widths: (0, 0, 0, 1),
                                     sides: TREE_ITEM_LINE_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
                                 };
-                                when *#is_hovered {
-                                    border = {
-                                        widths: (0, 0, 0, 1),
-                                        sides: TREE_ITEM_LINE_HOVERED_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
-                                    };
-                                }
                             };
                             child_insert_below = Text!("}}"), 0;
                         }.boxed()
