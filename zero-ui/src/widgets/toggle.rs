@@ -364,7 +364,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             let id = WIDGET.id();
-            WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR);
+            WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR).sub_var(&checked);
             SELECTOR.get().subscribe();
 
             value.with(|value| {
@@ -486,9 +486,26 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             } else {
                 prev_value = None;
             }
+
+            if let Some(Some(true)) = checked.get_new() {
+                if SCROLL_ON_SELECT_VAR.get() {
+                    use crate::widgets::scroll::commands::*;
+                    scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
+                }
+            }
         }
         _ => {}
     })
+}
+
+/// If the scrolls into view when the [`value`] selected.
+///
+/// This is enabled by default.
+///
+/// [`value`]: fn@value
+#[property(CONTEXT, default(SCROLL_ON_SELECT_VAR), widget_impl(Toggle))]
+pub fn scroll_on_select(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, SCROLL_ON_SELECT_VAR, enabled)
 }
 
 /// Sets the contextual selector that all inner widgets will target from the [`value`] property.
@@ -603,6 +620,13 @@ context_var! {
     /// [`value`]: fn@value
     /// [`select_on_new`]: fn@select_on_new
     pub static DESELECT_ON_NEW_VAR: bool = false;
+
+    /// If [`value`] scrolls into view when selected.
+    ///
+    /// This is enabled by default.
+    ///
+    /// [`value`]: fn@value
+    pub static SCROLL_ON_SELECT_VAR: bool = true;
 }
 
 /// Represents a [`Selector`] implementation.
