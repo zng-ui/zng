@@ -38,7 +38,6 @@
 * Live info, auto update after every info rebuild.
 * Add "computed-values/properties" section.
 * Flash widget that has property change.
-* Test inspecting two windows at the same time.
 * Implement widget search.
 
 # Publish
