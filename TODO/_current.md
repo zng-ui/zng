@@ -35,11 +35,12 @@
 
 # Inspector
 
+* Focus/scroll to selected.
 * Live info, auto update after every info rebuild.
 * Add "computed-values/properties" section.
 * Flash widget that has property change.
-* Tool for selecting the widget by pointer hit-test.
 * Test inspecting two windows at the same time.
+* Implement widget search.
 
 # Publish
 

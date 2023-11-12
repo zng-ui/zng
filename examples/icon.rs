@@ -101,8 +101,8 @@ fn icons() -> impl UiNode {
                     txt = "search icons";
                     opacity = 50.pct();
                     visibility = search.map(|t| t.is_empty().into());
-                    access_role = AccessRole::SearchBox;
                 };
+                access_role = AccessRole::SearchBox;
                 tooltip = Tip!(Text!("search icons (S, Ctrl+F)"));
             },
             Stack! {

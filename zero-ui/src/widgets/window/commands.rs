@@ -25,6 +25,8 @@ pub(super) fn inspect_node(
 #[allow(unused)]
 #[cfg(inspector)]
 mod live_inspector {
+    use zero_ui_core::window::{CursorIcon, WINDOW_Ext};
+
     use crate::core::{
         color::colors,
         context::*,
@@ -45,13 +47,15 @@ mod live_inspector {
         let inspector = WindowId::named("zero_ui_inspector");
 
         let selected_wgt = var(None);
+        let hit_select = var(HitSelect::Disabled);
+        let show_selected = var(true);
 
         let can_inspect = can_inspect.into_var();
         let child = on_command(
             child,
             || INSPECT_CMD.scoped(WINDOW.id()),
             move || can_inspect.clone(),
-            hn!(selected_wgt, |args: &CommandArgs| {
+            hn!(selected_wgt, hit_select, show_selected, |args: &CommandArgs| {
                 if !args.enabled {
                     return;
                 }
@@ -76,18 +80,21 @@ mod live_inspector {
 
                     WINDOWS.focus_or_open(
                         inspector,
-                        async_clmv!(inspected_tree, selected_wgt, {
-                            inspector_window::new(inspected, inspected_tree, selected_wgt)
+                        async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
+                            inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
                         }),
                     );
                 }
             }),
         );
 
-        adorn_selected(child, selected_wgt)
+        let child = adorn_selected(child, selected_wgt, show_selected);
+        select_on_click(child, hit_select)
     }
 
-    fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<InspectedWidget>>) -> impl UiNode {
+    fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<InspectedWidget>>, enabled: impl Var<bool>) -> impl UiNode {
+        use inspector_window::SELECTED_BORDER_VAR;
+
         let selected_info = selected_wgt.flat_map(|s| {
             if let Some(s) = s {
                 s.info().map(|i| Some(i.clone())).boxed()
@@ -98,10 +105,17 @@ mod live_inspector {
         let transform_id = SpatialFrameId::new_unique();
         match_node(child, move |c, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var_render(&selected_info);
+                WIDGET
+                    .sub_var_render(&selected_info)
+                    .sub_var_render(&enabled)
+                    .sub_var_render(&SELECTED_BORDER_VAR);
             }
             UiNodeOp::Render { frame } => {
                 c.render(frame);
+
+                if !enabled.get() {
+                    return;
+                }
                 selected_info.with(|w| {
                     if let Some(w) = w {
                         let bounds = w.bounds_info();
@@ -113,7 +127,7 @@ mod live_inspector {
                             frame.push_border(
                                 PxRect::from_size(size).inflate(widths, widths),
                                 PxSideOffsets::new_all_same(widths),
-                                colors::AZURE.into(),
+                                SELECTED_BORDER_VAR.get().into(),
                                 PxCornerRadius::default(),
                             );
                         });
@@ -124,15 +138,104 @@ mod live_inspector {
         })
     }
 
-    pub mod inspector_window {
+    fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl UiNode {
+        // when `pending` we need to block interaction with window content, as if a modal
+        // overlay was opened, but we can't rebuild info, and we actually want the click target,
+        // so we only manually block common pointer events.
+
+        let mut click_handle = EventHandles::dummy();
+        match_node(child, move |c, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&hit_select);
+            }
+            UiNodeOp::Update { .. } => {
+                if let Some(h) = hit_select.get_new() {
+                    if matches!(h, HitSelect::Enabled) {
+                        WINDOW.vars().cursor().set(CursorIcon::Crosshair);
+                        click_handle.push(crate::core::mouse::MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
+                        click_handle.push(crate::core::touch::TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
+                    } else {
+                        WINDOW.vars().cursor().set(CursorIcon::Default);
+                        click_handle.clear();
+                    }
+                }
+            }
+            UiNodeOp::Event { update } => {
+                if matches!(hit_select.get(), HitSelect::Enabled) {
+                    let mut select = None;
+
+                    if let Some(args) = crate::core::mouse::MOUSE_MOVE_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::mouse::MOUSE_INPUT_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                        select = Some(args.target.widget_id());
+                    } else if let Some(args) = crate::core::mouse::MOUSE_HOVERED_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::mouse::MOUSE_WHEEL_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = CLICK_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::access::ACCESS_CLICK_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::touch::TOUCH_INPUT_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                        select = Some(args.target.widget_id());
+                    } else if let Some(args) = crate::core::touch::TOUCHED_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::touch::TOUCH_MOVE_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::touch::TOUCH_TAP_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::touch::TOUCH_TRANSFORM_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    } else if let Some(args) = crate::core::touch::TOUCH_LONG_PRESS_EVENT.on(update) {
+                        args.propagation().stop();
+                        c.delegated();
+                    }
+
+                    if let Some(id) = select {
+                        hit_select.set(HitSelect::Select(id));
+                    }
+                }
+            }
+            _ => {}
+        })
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    enum HitSelect {
+        Disabled,
+        Enabled,
+        Select(WidgetId),
+    }
+
+    mod inspector_window {
         use std::mem;
 
+        use super::HitSelect;
         use crate::core::inspector::live::*;
         use crate::core::{inspector::*, window::*};
         use crate::prelude::new_widget::*;
         use crate::prelude::*;
 
-        pub fn new(inspected: WindowId, inspected_tree: InspectedTree, selected_wgt: impl Var<Option<InspectedWidget>>) -> WindowRoot {
+        pub(super) fn new(
+            inspected: WindowId,
+            inspected_tree: InspectedTree,
+            selected_wgt: impl Var<Option<InspectedWidget>>,
+            hit_select: impl Var<HitSelect>,
+            adorn_selected: impl Var<bool>,
+        ) -> WindowRoot {
             let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
             let tree = WINDOWS.widget_tree(inspected).unwrap();
@@ -147,21 +250,33 @@ mod live_inspector {
                 var(WindowIcon::Default).boxed()
             };
 
+            let search_wgt = var(Txt::from_static(""));
+
+            let data_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
+                if let HitSelect::Select(id) = a.value {
+                    selected_wgt.set(inspected_tree.inspect(id));
+                }
+            }));
+
             Window! {
                 parent;
                 title;
                 icon;
+                lang = lang!(en_US);
                 width = 1100;
                 set_inspected = inspected;
                 color_scheme = ColorScheme::Dark;
                 on_close = hn!(selected_wgt, |_| {
                     selected_wgt.set(None);
                 });
-                child = Scroll! {
-                    toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
-                    child = tree_view(inspected_tree);
-                    child_align = Align::FILL_TOP;
-                    padding = 5;
+                child = Container! {
+                    child_insert_above = menu(hit_select, adorn_selected, search_wgt), 0;
+                    child = Scroll! {
+                        toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
+                        child = tree_view(inspected_tree);
+                        child_align = Align::FILL_TOP;
+                        padding = 5;
+                    };
                 };
                 child_insert_right = Container! {
                     width = 600;
@@ -170,6 +285,8 @@ mod live_inspector {
                     }));
                     background_color = SELECTED_BKG_VAR;
                 }, 0;
+
+                data = data_handle; // keep alive
             }
         }
 
@@ -201,14 +318,85 @@ mod live_inspector {
             static PROPERTY_VALUE_COLOR_VAR: Rgba = colors::ROSE.lighten(50.pct());
             static NEST_GROUP_COLOR_VAR: Rgba = colors::GRAY;
             static SELECTED_BKG_VAR: Rgba = rgb(0.15, 0.15, 0.15);
+            static MENU_BKG_VAR: Rgba = rgb(0.13, 0.13, 0.13);
+            pub static SELECTED_BORDER_VAR: Rgba = colors::AZURE;
+        }
+
+        fn menu(hit_test_select: impl Var<HitSelect>, adorn_selected: impl Var<bool>, search: impl Var<Txt>) -> impl UiNode {
+            Container! {
+                background_color = MENU_BKG_VAR;
+                child_insert_left = Stack! {
+                    padding = 4;
+                    spacing = 2;
+                    direction = StackDirection::left_to_right();
+                    toggle::extend_style = Style! {
+                        padding = 2;
+                        corner_radius = 2;
+                    };
+                    child_align = Align::CENTER;
+                    children = ui_vec![
+                        Toggle! {
+                            child = crosshair_16x16();
+                            tooltip = Tip!(Text!("select widget (Ctrl+Shift+C)"));
+                            click_shortcut = shortcut!(CTRL|SHIFT+'C');
+                            checked = hit_test_select.map_bidi(
+                                |c| matches!(c, HitSelect::Enabled),
+                                |b| if *b { HitSelect::Enabled } else { HitSelect::Disabled }
+                            );
+                        },
+                        Toggle! {
+                            child = Wgt! {
+                                size = 16;
+                                border = {
+                                    widths: 3,
+                                    sides: SELECTED_BORDER_VAR.map_into(),
+                                }
+                            };
+                            tooltip = Tip!(Text!("highlight selected widget"));
+                            checked = adorn_selected;
+                        },
+
+                    ]
+                }, 0;
+                child = TextInput! {
+                    margin = (0, 0, 0, 50);
+                    padding = (3, 5);
+                    focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
+                    background = Text! {
+                        padding = (4, 6); // +1 border
+                        txt = "search widgets (S)";
+                        opacity = 50.pct();
+                        visibility = search.map(|t| t.is_empty().into());
+                    };
+                    txt = search;
+                }
+            }
+        }
+
+        fn crosshair_16x16() -> impl UiNode {
+            match_node_leaf(|op| match op {
+                UiNodeOp::Layout { final_size, .. } => {
+                    *final_size = DipSize::splat(Dip::new(16)).to_px(LAYOUT.scale_factor().0);
+                }
+                UiNodeOp::Render { frame } => {
+                    let factor = frame.scale_factor().0;
+                    let a = Dip::new(2).to_px(factor);
+                    let b = Dip::new(16).to_px(factor);
+                    let m = b / Px(2) - a / Px(2);
+
+                    let color = FrameValue::Value(RenderColor::from(colors::WHITE));
+
+                    frame.push_color(PxRect::new(PxPoint::new(m, Px(0)), PxSize::new(a, b)), color);
+                    frame.push_color(PxRect::new(PxPoint::new(Px(0), m), PxSize::new(b, a)), color);
+                }
+                _ => {}
+            })
         }
 
         fn tree_view(tree: InspectedTree) -> impl UiNode {
             Container! {
                 text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
-
                 child = tree_item_view(tree.inspect_root());
-                data = tree;
             }
         }
 
