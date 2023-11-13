@@ -56,7 +56,10 @@ mod live_inspector {
         let can_inspect = can_inspect.into_var();
         let mut cmd_handle = CommandHandle::dummy();
 
-        struct InspectorUpdateOnly;
+        enum InspectorUpdateOnly {
+            Info,
+            Render,
+        }
 
         let child = match_node(
             child,
@@ -73,7 +76,7 @@ mod live_inspector {
                 UiNodeOp::Info { info } => {
                     if inspected_tree.is_some() {
                         if WINDOWS.is_open(inspector) {
-                            INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly);
+                            INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Info);
                         } else if !WINDOWS.is_opening(inspector) {
                             inspected_tree = None;
                         }
@@ -85,9 +88,12 @@ mod live_inspector {
                     if let Some(args) = INSPECT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
                         args.propagation().stop();
 
-                        if args.param::<InspectorUpdateOnly>().is_some() {
+                        if let Some(u) = args.param::<InspectorUpdateOnly>() {
                             if let Some(i) = &inspected_tree {
-                                i.update(WINDOW.info());
+                                match u {
+                                    InspectorUpdateOnly::Info => i.update(WINDOW.info()),
+                                    InspectorUpdateOnly::Render => i.update_render(),
+                                }
                             }
                         } else if let Some(inspected) = inspector_window::inspected() {
                             // can't inspect inspector window, redirect command to inspected
@@ -114,6 +120,9 @@ mod live_inspector {
                             );
                         }
                     }
+                }
+                UiNodeOp::Render { .. } => {
+                    INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
                 }
                 _ => {}
             }),
@@ -725,27 +734,43 @@ mod live_inspector {
         fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
             let mut children = UiNodeVec::new();
             children.push(Text! {
-                txt = formatx!("/* INFO */");
-                tooltip = Tip!(Text!("watched widget info"));
-                font_color = NEST_GROUP_COLOR_VAR;
+                txt = "interactivity: ";
+            });
+            children.push(Text! {
+                txt = wgt.info().map(|i| formatx!("{:?}", i.interactivity()));
+                font_color = PROPERTY_VALUE_COLOR_VAR;
             });
 
-            children.push(Wrap! {
-                children = ui_vec![
-                    Text! {
-                        txt = "interactivity: ";
-                    },
-                    Text! {
-                        txt = wgt.info().map(|i| formatx!("{:?}", i.interactivity()));
-                        font_color = PROPERTY_VALUE_COLOR_VAR;
-                    },
-                ]
+            children.push(Text! {
+                txt = ",\nvisibility: ";
+            });
+            children.push(Text! {
+                txt = wgt.render_watcher(|i| formatx!("{:?}", i.visibility()));
+                font_color = PROPERTY_VALUE_COLOR_VAR;
+            });
+
+            children.push(Text! {
+                txt = ",\ninner_bounds: ";
+            });
+            children.push(Text! {
+                txt = wgt.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds()));
+                font_color = PROPERTY_VALUE_COLOR_VAR;
+            });
+            children.push(Text! {
+                txt = ",";
             });
 
             Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 3;
-                children;
+                children = ui_vec![
+                    Text! {
+                        txt = formatx!("/* INFO */");
+                        tooltip = Tip!(Text!("watched widget info"));
+                        font_color = NEST_GROUP_COLOR_VAR;
+                    },
+                    Wrap!(children),
+                ];
             }
         }
 

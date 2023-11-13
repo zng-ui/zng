@@ -5,6 +5,7 @@
 use std::{fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
+use zero_ui_view_api::window::FrameId;
 
 use crate::{
     text::*,
@@ -17,11 +18,17 @@ use crate::{
 
 use super::{InspectorInfo, WidgetInfoInspectorExt};
 
+#[derive(Default)]
+struct InspectedTreeData {
+    widgets: IdMap<WidgetId, InspectedWidget>,
+    latest_frame: Option<ArcVar<FrameId>>,
+}
+
 /// Represents an actively inspected widget tree.
 #[derive(Clone)]
 pub struct InspectedTree {
     tree: ArcVar<WidgetInfoTree>,
-    widgets: Arc<Mutex<IdMap<WidgetId, InspectedWidget>>>,
+    data: Arc<Mutex<InspectedTreeData>>,
 }
 impl fmt::Debug for InspectedTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -39,7 +46,7 @@ impl InspectedTree {
     /// Initial inspection.
     pub fn new(tree: WidgetInfoTree) -> Self {
         Self {
-            widgets: Arc::new(Mutex::new(IdMap::new())),
+            data: Arc::new(Mutex::new(InspectedTreeData::default())),
             tree: var(tree),
         }
     }
@@ -55,9 +62,9 @@ impl InspectedTree {
         // update and retain
         self.tree.set(tree.clone());
 
-        let mut widgets = self.widgets.lock();
+        let mut data = self.data.lock();
         let mut removed = false;
-        for (k, v) in widgets.iter() {
+        for (k, v) in data.widgets.iter() {
             if let Some(w) = tree.get(*k) {
                 v.update(w);
             } else {
@@ -66,14 +73,35 @@ impl InspectedTree {
             }
         }
         // update can drop children inspectors so we can't update inside the retain closure.
-        widgets.retain(|k, v| v.info.strong_count() > 1 && (!removed || tree.get(*k).is_some()));
+        data.widgets
+            .retain(|k, v| v.info.strong_count() > 1 && (!removed || tree.get(*k).is_some()));
+
+        if let Some(f) = &data.latest_frame {
+            if f.strong_count() == 1 {
+                data.latest_frame = None;
+            } else {
+                f.set(tree.stats().last_frame);
+            }
+        }
+    }
+
+    /// Update all render watcher variables.
+    pub fn update_render(&self) {
+        let mut data = self.data.lock();
+        if let Some(f) = &data.latest_frame {
+            if f.strong_count() == 1 {
+                data.latest_frame = None;
+            } else {
+                f.set(self.tree.with(|t| t.stats().last_frame));
+            }
+        }
     }
 
     /// Create a weak reference to this tree.
     pub fn downgrade(&self) -> WeakInspectedTree {
         WeakInspectedTree {
             tree: self.tree.downgrade(),
-            widgets: Arc::downgrade(&self.widgets),
+            data: Arc::downgrade(&self.data),
         }
     }
 
@@ -84,7 +112,7 @@ impl InspectedTree {
 
     /// Gets a widget inspector if the widget is in the latest info.
     pub fn inspect(&self, widget_id: WidgetId) -> Option<InspectedWidget> {
-        match self.widgets.lock().entry(widget_id) {
+        match self.data.lock().widgets.entry(widget_id) {
             hashbrown::hash_map::Entry::Occupied(e) => Some(e.get().clone()),
             hashbrown::hash_map::Entry::Vacant(e) => self.tree.with(|t| {
                 t.get(widget_id)
@@ -97,20 +125,30 @@ impl InspectedTree {
     pub fn inspect_root(&self) -> InspectedWidget {
         self.inspect(self.tree.with(|t| t.root().id())).unwrap()
     }
+
+    /// Latest frame updated using [`update_render`].
+    ///
+    /// [`update_render`]: Self::update_render
+    pub fn last_frame(&self) -> impl Var<FrameId> {
+        let mut data = self.data.lock();
+        data.latest_frame
+            .get_or_insert_with(|| var(self.tree.with(|t| t.stats().last_frame)))
+            .clone()
+    }
 }
 
 /// Represents a weak reference to a [`InspectedTree`].
 #[derive(Clone)]
 pub struct WeakInspectedTree {
     tree: types::WeakArcVar<WidgetInfoTree>,
-    widgets: std::sync::Weak<Mutex<IdMap<WidgetId, InspectedWidget>>>,
+    data: std::sync::Weak<Mutex<InspectedTreeData>>,
 }
 impl WeakInspectedTree {
     /// Try to get a strong reference to the inspected tree.
     pub fn upgrade(&self) -> Option<InspectedTree> {
         Some(InspectedTree {
             tree: self.tree.upgrade()?,
-            widgets: self.widgets.upgrade()?,
+            data: self.data.upgrade()?,
         })
     }
 }
@@ -275,9 +313,18 @@ impl InspectedWidget {
     pub fn inspector_info(&self) -> impl Var<Option<InspectedInfo>> {
         self.info.map(move |w| w.inspector_info().map(InspectedInfo)).actual_var().boxed()
     }
+
+    /// Create a variable that probes info after every frame is rendered.
+    pub fn render_watcher<T: VarValue>(&self, mut probe: impl FnMut(&WidgetInfo) -> T + Send + 'static) -> impl Var<T> {
+        merge_var!(
+            self.info.clone(),
+            self.cache.lock().tree.upgrade().unwrap().last_frame(),
+            move |w, _| probe(w)
+        )
+    }
 }
 
-///
+/// [`InspectorInfo`] that can be placed in a variable.
 #[derive(Clone)]
 pub struct InspectedInfo(pub Arc<InspectorInfo>);
 impl fmt::Debug for InspectedInfo {

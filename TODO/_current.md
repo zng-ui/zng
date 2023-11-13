@@ -35,8 +35,6 @@
 
 # Inspector
 
-* Add more `info_watchers`.
-    - Implement some sort of render watcher thing.
 * Test build without inspector.
 * Property metadata (value source, captured status).
 
