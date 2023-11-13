@@ -37,7 +37,6 @@
 
 * Live info, auto update after every info rebuild.
 * Add "computed-values/properties" section.
-* Flash widget that has property change.
 
 # Publish
 

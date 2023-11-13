@@ -695,7 +695,11 @@ mod live_inspector {
             }
 
             if let Some(t) = wgt_ty {
-                if t.name().contains(filter) {
+                if let Some(tn) = filter.strip_suffix('!') {
+                    if t.name() == tn {
+                        return true;
+                    }
+                } else if t.name().contains(filter) {
                     return true;
                 }
             }

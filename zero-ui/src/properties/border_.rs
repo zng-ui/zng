@@ -165,7 +165,9 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             }
             UiNodeOp::Render { frame } => {
                 let (rect, offsets) = BORDER.border_layout();
-                frame.push_border(rect, offsets, sides.get(), corners);
+                if !rect.size.is_empty() {
+                    frame.push_border(rect, offsets, sides.get(), corners);
+                }
             }
             _ => {}
         }),
