@@ -121,7 +121,7 @@ mod live_inspector {
                         }
                     }
                 }
-                UiNodeOp::Render { .. } => {
+                UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
                     INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
                 }
                 _ => {}
@@ -736,25 +736,35 @@ mod live_inspector {
             children.push(Text! {
                 txt = "interactivity: ";
             });
+
+            let value = wgt.info().map(|i| formatx!("{:?}", i.interactivity())).boxed();
+            let flash = value_background(&value);
             children.push(Text! {
-                txt = wgt.info().map(|i| formatx!("{:?}", i.interactivity()));
+                txt = value;
                 font_color = PROPERTY_VALUE_COLOR_VAR;
+                background_color = flash;
             });
 
             children.push(Text! {
                 txt = ",\nvisibility: ";
             });
+            let value = wgt.render_watcher(|i| formatx!("{:?}", i.visibility())).boxed();
+            let flash = value_background(&value);
             children.push(Text! {
-                txt = wgt.render_watcher(|i| formatx!("{:?}", i.visibility()));
+                txt = value;
                 font_color = PROPERTY_VALUE_COLOR_VAR;
+                background_color = flash;
             });
 
             children.push(Text! {
                 txt = ",\ninner_bounds: ";
             });
+            let value = wgt.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds())).boxed();
+            let flash = value_background(&value);
             children.push(Text! {
-                txt = wgt.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds()));
+                txt = value;
                 font_color = PROPERTY_VALUE_COLOR_VAR;
+                background_color = flash;
             });
             children.push(Text! {
                 txt = ",";
