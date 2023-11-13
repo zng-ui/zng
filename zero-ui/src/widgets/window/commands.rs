@@ -250,7 +250,7 @@ mod live_inspector {
                 var(WindowIcon::Default).boxed()
             };
 
-            let search_wgt = var(Txt::from_static(""));
+            let wgt_filter = var(Txt::from_static(""));
 
             let data_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
                 if let HitSelect::Select(id) = a.value {
@@ -270,10 +270,10 @@ mod live_inspector {
                     selected_wgt.set(None);
                 });
                 child = Container! {
-                    child_insert_above = menu(hit_select, adorn_selected, search_wgt), 0;
+                    child_insert_above = menu(hit_select, adorn_selected, wgt_filter.clone()), 0;
                     child = Scroll! {
                         toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
-                        child = tree_view(inspected_tree);
+                        child = tree_view(inspected_tree, wgt_filter.clone());
                         child_align = Align::FILL_TOP;
                         padding = 5;
                     };
@@ -393,15 +393,61 @@ mod live_inspector {
             })
         }
 
-        fn tree_view(tree: InspectedTree) -> impl UiNode {
+        fn tree_view(tree: InspectedTree, filter: impl Var<Txt>) -> impl UiNode {
             Container! {
                 text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
-                child = tree_item_view(tree.inspect_root());
+                child = tree_item_view(tree.inspect_root(), filter, crate::core::var::LocalVar(0u32).boxed());
             }
         }
 
-        fn tree_item_view(wgt: InspectedWidget) -> impl UiNode {
+        fn tree_item_view(wgt: InspectedWidget, filter: impl Var<Txt>, parent_desc_filter: BoxedVar<u32>) -> impl UiNode {
+            let wgt_type = wgt.wgt_type();
+            let wgt_id = wgt.id();
+
+            let mut pass = false;
+            let pass_filter = merge_var!(
+                filter.clone(),
+                wgt_type,
+                clmv!(parent_desc_filter, |f, t| {
+                    let p = wgt_filter(f, *t, wgt_id);
+                    if p != pass {
+                        pass = p;
+                        let _ = parent_desc_filter.modify(move |c| {
+                            if pass {
+                                *c.to_mut() += 1;
+                            } else {
+                                *c.to_mut() -= 1;
+                            }
+                        });
+                    }
+                    p
+                })
+            );
+
+            let descendants_pass_filter = var(0u32).boxed();
+
+            let prev_any_desc = std::sync::atomic::AtomicBool::new(false);
+            descendants_pass_filter
+                .hook(Box::new(move |a| {
+                    let any_desc = 0 < *a.value().as_any().downcast_ref::<u32>().unwrap();
+                    if any_desc != prev_any_desc.swap(any_desc, atomic::Ordering::Relaxed) {
+                        let _ = parent_desc_filter.modify(move |c| {
+                            if any_desc {
+                                *c.to_mut() += 1;
+                            } else {
+                                *c.to_mut() -= 1;
+                            }
+                        });
+                    }
+                    true
+                }))
+                .perm();
+
             Container! {
+                when !*#{pass_filter.clone()} && *#{descendants_pass_filter.clone()} == 0 {
+                    visibility = Visibility::Collapsed;
+                }
+
                 child = Toggle! {
                     toggle::value = wgt.clone();
 
@@ -420,6 +466,10 @@ mod live_inspector {
                                 txt = wgt.wgt_macro_name();
                                 font_weight = FontWeight::BOLD;
                                 font_color = WIDGET_MACRO_COLOR_VAR;
+
+                                when !*#{pass_filter.clone()} {
+                                    opacity = 50.pct();
+                                }
                             },
                             Text!(" {{ "),
                             Text! {
@@ -427,12 +477,14 @@ mod live_inspector {
                                 font_color = WIDGET_ID_COLOR_VAR;
                             },
                             Text!(wgt.descendants_len().map(|&l| if l == 0 { Txt::from_static(" }") } else { Txt::from_static("") })),
-                        ]
+                        ];
                     }
                 };
 
-                child_insert_below = presenter(wgt.children(), wgt_fn!(|children: Vec<InspectedWidget>| {
-                    let children: UiNodeVec = children.into_iter().map(tree_item_view).collect();
+                child_insert_below = presenter(wgt.children(), wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
+                    let children: UiNodeVec = children.into_iter().map(|c| {
+                        tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
+                    }).collect();
                     if children.is_empty() {
                         NilUiNode.boxed()
                     } else {
@@ -635,6 +687,32 @@ mod live_inspector {
                 font_style = FontStyle::Italic;
                 tooltip = Tip!(Text!("intrinsic node"));
             }
+        }
+
+        fn wgt_filter(filter: &str, wgt_ty: Option<WidgetType>, wgt_id: WidgetId) -> bool {
+            if filter.is_empty() {
+                return true;
+            }
+
+            if let Some(t) = wgt_ty {
+                if t.name().contains(filter) {
+                    return true;
+                }
+            }
+
+            if wgt_id.name().contains(filter) {
+                return true;
+            }
+
+            if let Some(f) = filter.strip_prefix('#') {
+                if let Ok(i) = f.parse::<u64>() {
+                    if wgt_id.sequential() == i {
+                        return true;
+                    }
+                }
+            }
+
+            false
         }
     }
 }
