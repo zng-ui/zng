@@ -35,7 +35,6 @@
 
 # Inspector
 
-* Live info, auto update after every info rebuild.
 * Add "computed-values/properties" section.
 
 # Publish
@@ -49,7 +48,10 @@
     - `xnest`: Context nesting.
     - `nestx`: Nesting context.
     - `nestc`: Nesting constructor. 
-    - `nestcx`, `cxnest`. 
+    - `nestcx`, `cxnest`.
+    - `nidulus` or `nidula`: Small nest fungus name. +Fungus related like Rust, -Fungus disguised as a bird nest, not related with our
+    nesting stuff.
+
 * Review all docs.
 * Review prebuild distribution.
 * Pick license and code of conduct.
