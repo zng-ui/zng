@@ -53,6 +53,7 @@ impl InspectedTree {
         assert_eq!(self.tree.with(|t| t.window_id()), tree.window_id());
 
         // update and retain
+        self.tree.set(tree.clone());
 
         let mut widgets = self.widgets.lock();
         let mut removed = false;
@@ -66,8 +67,6 @@ impl InspectedTree {
         }
         // update can drop children inspectors so we can't update inside the retain closure.
         widgets.retain(|k, v| v.info.strong_count() > 1 && (!removed || tree.get(*k).is_some()));
-
-        self.tree.set(tree);
     }
 
     /// Create a weak reference to this tree.
@@ -257,6 +256,8 @@ impl InspectedWidget {
                 self.info
                     .map(move |w| {
                         if let Some(tree) = tree.upgrade() {
+                            assert_eq!(&tree.tree.get(), w.tree());
+
                             w.children().map(|w| tree.inspect(w.id()).unwrap()).collect()
                         } else {
                             vec![]

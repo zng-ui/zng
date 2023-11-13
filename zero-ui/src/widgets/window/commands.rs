@@ -25,7 +25,10 @@ pub(super) fn inspect_node(
 #[allow(unused)]
 #[cfg(inspector)]
 mod live_inspector {
-    use zero_ui_core::window::{CursorIcon, WINDOW_Ext};
+    use zero_ui_core::{
+        clmv,
+        window::{CursorIcon, WINDOW_Ext},
+    };
 
     use crate::core::{
         color::colors,
@@ -51,40 +54,68 @@ mod live_inspector {
         let show_selected = var(true);
 
         let can_inspect = can_inspect.into_var();
-        let child = on_command(
+        let mut cmd_handle = CommandHandle::dummy();
+
+        struct InspectorUpdateOnly;
+
+        let child = match_node(
             child,
-            || INSPECT_CMD.scoped(WINDOW.id()),
-            move || can_inspect.clone(),
-            hn!(selected_wgt, hit_select, show_selected, |args: &CommandArgs| {
-                if !args.enabled {
-                    return;
+            clmv!(selected_wgt, hit_select, show_selected, |c, op| match op {
+                UiNodeOp::Init => {
+                    WIDGET.sub_var(&can_inspect);
+                    cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
                 }
-                args.propagation().stop();
-
-                if let Some(inspected) = inspector_window::inspected() {
-                    // can't inspect inspector window, redirect command to inspected
-                    INSPECT_CMD.scoped(inspected).notify();
-                } else {
-                    let inspected_tree = match &inspected_tree {
-                        Some(i) => {
-                            i.update(WINDOW.info());
-                            i.clone()
-                        }
-                        None => {
-                            let i = InspectedTree::new(WINDOW.info());
-                            inspected_tree = Some(i.clone());
-                            i
-                        }
-                    };
-                    let inspected = WINDOW.id();
-
-                    WINDOWS.focus_or_open(
-                        inspector,
-                        async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
-                            inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
-                        }),
-                    );
+                UiNodeOp::Update { .. } => {
+                    if let Some(e) = can_inspect.get_new() {
+                        cmd_handle.set_enabled(e);
+                    }
                 }
+                UiNodeOp::Info { info } => {
+                    if inspected_tree.is_some() {
+                        if WINDOWS.is_open(inspector) {
+                            INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly);
+                        } else if !WINDOWS.is_opening(inspector) {
+                            inspected_tree = None;
+                        }
+                    }
+                }
+                UiNodeOp::Event { update } => {
+                    c.event(update);
+
+                    if let Some(args) = INSPECT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
+                        args.propagation().stop();
+
+                        if args.param::<InspectorUpdateOnly>().is_some() {
+                            if let Some(i) = &inspected_tree {
+                                i.update(WINDOW.info());
+                            }
+                        } else if let Some(inspected) = inspector_window::inspected() {
+                            // can't inspect inspector window, redirect command to inspected
+                            INSPECT_CMD.scoped(inspected).notify();
+                        } else {
+                            let inspected_tree = match &inspected_tree {
+                                Some(i) => {
+                                    i.update(WINDOW.info());
+                                    i.clone()
+                                }
+                                None => {
+                                    let i = InspectedTree::new(WINDOW.info());
+                                    inspected_tree = Some(i.clone());
+                                    i
+                                }
+                            };
+
+                            let inspected = WINDOW.id();
+                            WINDOWS.focus_or_open(
+                                inspector,
+                                async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
+                                    inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
+                                }),
+                            );
+                        }
+                    }
+                }
+                _ => {}
             }),
         );
 
