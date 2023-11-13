@@ -1974,7 +1974,7 @@ type InteractivityFilters = Vec<Arc<dyn Fn(&InteractivityFilterArgs) -> Interact
 
 bitflags! {
     /// Represents the level of interaction allowed for a widget.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
     pub struct Interactivity: u8 {
         /// Normal interactions allowed.
@@ -2038,6 +2038,23 @@ impl_from_and_into_var! {
         } else {
             Interactivity::DISABLED
         }
+    }
+}
+impl fmt::Debug for Interactivity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_enabled() {
+            return write!(f, "ENABLED");
+        }
+        if *self == Self::BLOCKED_DISABLED {
+            return write!(f, "BLOCKED_DISABLED");
+        }
+        if *self == Self::DISABLED {
+            return write!(f, "DISABLED");
+        }
+        if *self == Self::BLOCKED {
+            return write!(f, "BLOCKED");
+        }
+        write!(f, "Interactivity({:x})", self.bits())
     }
 }
 

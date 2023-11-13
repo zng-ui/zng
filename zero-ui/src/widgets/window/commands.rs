@@ -585,7 +585,9 @@ mod live_inspector {
                                 } else {
                                     NilUiNode.boxed()
                                 }
-                            }))
+                            })),
+                            Hr!(),
+                            info_watchers(&wgt),
                         ]
                     }
                 }
@@ -717,6 +719,33 @@ mod live_inspector {
                 txt = name;
                 font_style = FontStyle::Italic;
                 tooltip = Tip!(Text!("intrinsic node"));
+            }
+        }
+
+        fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
+            let mut children = UiNodeVec::new();
+            children.push(Text! {
+                txt = formatx!("/* INFO */");
+                tooltip = Tip!(Text!("watched widget info"));
+                font_color = NEST_GROUP_COLOR_VAR;
+            });
+
+            children.push(Wrap! {
+                children = ui_vec![
+                    Text! {
+                        txt = "interactivity: ";
+                    },
+                    Text! {
+                        txt = wgt.info().map(|i| formatx!("{:?}", i.interactivity()));
+                        font_color = PROPERTY_VALUE_COLOR_VAR;
+                    },
+                ]
+            });
+
+            Stack! {
+                direction = StackDirection::top_to_bottom();
+                spacing = 3;
+                children;
             }
         }
 

@@ -219,7 +219,7 @@ impl Calculator {
         } else {
             match mexprp::eval::<f64>(expr) {
                 Ok(new) => {
-                    // squareroot of a positive number is both a positive number and a negative number
+                    // square-root of a positive number is both a positive number and a negative number
                     // we only want the principal square root though, the positive one, which should be the first answer
                     let new = new.to_vec()[0];
                     if new.is_finite() {
