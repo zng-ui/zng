@@ -6,7 +6,6 @@
     - Test with RTL and bidirectional text.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
         - Not a normal context menu, "floating toolbar"?
-    - Make `TOUCH_CARET_OFFSET` public and document that it needs to be set in layout.
     - Implement `touch_carets` touch drag.
         - Implement in the layered shape?
         - Hit-test area full shape rectangle.

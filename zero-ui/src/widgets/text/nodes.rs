@@ -2270,7 +2270,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                         clmv!(c_layout, |c, op| {
                             ctx.with_context_blend(false, || match op {
                                 UiNodeOp::Layout { wl, final_size } => {
-                                    *final_size = TOUCH_CARET_OFFSET.with_context(&mut caret_mid_buf, || c.layout(wl));
+                                    *final_size = TOUCH_CARET_MID.with_context(&mut caret_mid_buf, || c.layout(wl));
                                     let mid = caret_mid_buf.as_ref().unwrap().load(Ordering::Relaxed);
 
                                     *c_layout.lock() = CaretLayout {
@@ -2450,6 +2450,10 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
 }
 
 /// Default touch caret shape.
+///
+/// See [`caret_touch_shape`] for more details.
+///
+/// [`caret_touch_shape`]: fn@super::caret_touch_shape
 pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
     use zero_ui::prelude::new_property::*;
     match_node_leaf(move |op| match op {
@@ -2472,7 +2476,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
                 }
                 CaretShape::Insert => final_size.width / 2 - caret_thickness / 2,
             };
-            TOUCH_CARET_OFFSET.get().store(caret_offset, Ordering::Relaxed);
+            set_touch_caret_mid(caret_offset);
         }
         UiNodeOp::Render { frame } => {
             let size = Dip::new(16).to_px(frame.scale_factor().0);
@@ -2511,7 +2515,16 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
 }
 
 context_local! {
-    static TOUCH_CARET_OFFSET: Atomic<Px> = Atomic::new(Px(0));
+    static TOUCH_CARET_MID: Atomic<Px> = Atomic::new(Px(0));
+}
+
+/// Set the ***x*** offset to the middle of the caret line in the touch caret shape.
+/// ///
+/// See [`caret_touch_shape`] for more details.
+///
+/// [`caret_touch_shape`]: fn@super::caret_touch_shape
+pub fn set_touch_caret_mid(caret_line_middle: Px) {
+    TOUCH_CARET_MID.get().store(caret_line_middle, Ordering::Relaxed);
 }
 
 /// An Ui node that renders the text selection background.
