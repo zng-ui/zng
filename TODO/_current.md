@@ -5,18 +5,11 @@
 * Touch selection.
     - Test with RTL and bidirectional text.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
-    - Not a normal context menu, "floating toolbar"?
+        - Not a normal context menu, "floating toolbar"?
     - Make `TOUCH_CARET_OFFSET` public and document that it needs to be set in layout.
-
-* Configurable caret.
-    - Implement `touch_caret` react to selection.
-    - Property sets a `WidgetFn<CaretPosition>` that generates the caret node.
-    - `enum CaretPosition { SelectionStart, SelectionEnd, Insert }`.
-    - Have a different properties for normal caret and touch caret?
-        - Can make one for touch only to begin with.
-    - Caret node must configure some context data that sets the exact offset of the caret line?
-        - They need to be positioned by the host node.
-    - More expensive than current caret, but we will have two carets max so not a problem.
+    - Implement `touch_carets` touch drag.
+        - Implement in the layered shape?
+        - Hit-test area full shape rectangle.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497

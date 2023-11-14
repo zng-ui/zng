@@ -2242,8 +2242,9 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
 
             let caret = r_txt.caret.lock();
             let mut expected_len = 0;
-            if caret.index.is_some() && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id()))
-            // && r_txt.touch_carets.load(Ordering::Relaxed) // !!: for testing
+            if caret.index.is_some()
+                && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id()))
+                && r_txt.touch_carets.load(Ordering::Relaxed)
             {
                 if caret.selection_index.is_some() {
                     expected_len = 2;
