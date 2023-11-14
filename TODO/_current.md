@@ -26,8 +26,6 @@
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?
 
-* Change selection color for dark mode.
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.

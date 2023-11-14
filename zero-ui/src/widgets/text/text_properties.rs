@@ -1091,7 +1091,7 @@ context_var! {
     pub static CARET_TOUCH_SHAPE_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::nodes::default_touch_caret(s));
 
     /// Selection background color.
-    pub static SELECTION_COLOR_VAR: Rgba = colors::BLUE.with_alpha(20.pct());
+    pub static SELECTION_COLOR_VAR: Rgba = colors::AZURE.with_alpha(30.pct());
 
     /// If text parse updated for every text change.
     pub static TXT_PARSE_LIVE_VAR: bool = true;
