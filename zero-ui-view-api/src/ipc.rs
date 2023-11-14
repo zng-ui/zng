@@ -339,7 +339,11 @@ impl AppInit {
         let (rsp_sender, rsp_recv) = flume::unbounded();
         let (evt_sender, evt_recv) = flume::unbounded();
         chan_sender.send((rsp_sender, evt_sender))?;
-        Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EventReceiver(evt_recv)))
+        Ok((
+            RequestSender(Mutex::new(req_sender)),
+            ResponseReceiver(Mutex::new(rsp_recv)),
+            EventReceiver(Mutex::new(evt_recv)),
+        ))
     }
 }
 
@@ -355,9 +359,9 @@ pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
     let (rsp_sender, evt_sender) = chan_recv.recv().map_err(handle_recv_error)?;
 
     Ok(ViewChannels {
-        request_receiver: RequestReceiver(req_recv),
-        response_sender: ResponseSender(rsp_sender),
-        event_sender: EventSender(evt_sender),
+        request_receiver: RequestReceiver(Mutex::new(req_recv)),
+        response_sender: ResponseSender(Mutex::new(rsp_sender)),
+        event_sender: EventSender(Mutex::new(evt_sender)),
     })
 }
 
