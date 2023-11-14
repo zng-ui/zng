@@ -35,7 +35,6 @@
 
 # Inspector
 
-* Test build without inspector.
 * Property metadata (value source, captured status).
 
 # Publish

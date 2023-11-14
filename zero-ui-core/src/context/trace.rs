@@ -37,7 +37,7 @@ impl<U: UiNode> UpdatesTraceUiNodeExt for U {
         #[cfg(not(inspector))]
         {
             let _ = tag;
-            self.trace(move |op| tracing::Span::none().entered())
+            self.trace(move |_| tracing::Span::none().entered())
         }
     }
 }

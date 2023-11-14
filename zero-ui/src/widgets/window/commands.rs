@@ -816,6 +816,8 @@ mod live_inspector {
     }
 }
 
+/*
+
 #[allow(unused)]
 #[cfg(inspector)]
 mod prompt_inspector {
@@ -921,3 +923,6 @@ mod prompt_inspector {
         pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();
     }
 }
+
+
+*/

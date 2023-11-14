@@ -389,7 +389,7 @@ pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl
     let mut update = update.cfg_boxed();
     let replace = Arc::new(Mutex::new(None));
 
-    match_node(child, move |c, op| match op {
+    match_node(child.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data);
             update.event(&ViewArgs {

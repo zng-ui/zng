@@ -1,11 +1,9 @@
-use path_absolutize::*;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
 use zero_ui_core::focus::FOCUS;
-use zero_ui_core::task::http::Uri;
 use zero_ui_core::widget_info::WidgetInfo;
 use zero_ui_core::window::TransformChangedArgs;
 
@@ -14,6 +12,10 @@ use crate::prelude::new_property::*;
 use crate::widgets::scroll::commands::ScrollToMode;
 
 use super::Markdown;
+
+use path_absolutize::*;
+#[cfg(http)]
+use zero_ui_core::task::http::Uri;
 
 context_var! {
     /// Markdown image resolver.
@@ -141,10 +143,17 @@ impl LinkResolver {
     pub fn base_dir(base: impl Into<PathBuf>) -> Self {
         let base = base.into();
         Self::new(move |url| {
-            if !url.starts_with('#') && url.parse::<Uri>().is_err() {
-                if let Ok(path) = url.parse::<PathBuf>() {
-                    if let Ok(path) = base.join(path).absolutize() {
-                        return path.display().to_text();
+            if !url.starts_with('#') {
+                #[cfg(http)]
+                let is_not_uri = url.parse::<Uri>().is_err();
+                #[cfg(not(http))]
+                let is_not_uri = true;
+
+                if is_not_uri {
+                    if let Ok(path) = url.parse::<PathBuf>() {
+                        if let Ok(path) = base.join(path).absolutize() {
+                            return path.display().to_text();
+                        }
                     }
                 }
             }
@@ -259,13 +268,22 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     }
 
     enum Link {
+        #[cfg(http)]
         Url(Uri),
         Path(PathBuf),
     }
 
+    #[cfg(http)]
     let link = if let Ok(url) = args.url.parse() {
         Link::Url(url)
     } else if let Ok(path) = args.url.parse() {
+        Link::Path(path)
+    } else {
+        return false;
+    };
+
+    #[cfg(not(http))]
+    let link = if let Ok(path) = args.url.parse() {
         Link::Path(path)
     } else {
         return false;
@@ -349,6 +367,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         args.propagation().stop();
 
                         let url = match link {
+                            #[cfg(http)]
                             Link::Url(u) => u.to_string(),
                             Link::Path(p) => {
                                 match p.canonicalize() {

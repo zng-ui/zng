@@ -27,7 +27,10 @@ sharp = []
 two_tone = []
 
 [dependencies]
-zero-ui= { path = "../zero-ui" }
+zero-ui = { path = "../zero-ui", default-features = false }
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "target/doc/zero-ui-material-icons-extensions.html" ]
+rustdoc-args = [
+    "--html-in-header",
+    "target/doc/zero-ui-material-icons-extensions.html",
+]
