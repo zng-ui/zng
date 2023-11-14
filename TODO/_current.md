@@ -22,7 +22,6 @@
     - Moved shape nodes to ADORNER+1 layer.
     - This causes it to render over TextInput border and validation adorners.
     - Layer anchored on TextInput does not fully get the transform (missing padding?)
-    - We need to render the same shape twice in some instances too, this needs an API now.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
