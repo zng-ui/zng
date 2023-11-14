@@ -18,11 +18,6 @@
         - They need to be positioned by the host node.
     - More expensive than current caret, but we will have two carets max so not a problem.
 
-* Finish `touch_carets` LAYERS update.
-    - Moved shape nodes to ADORNER+1 layer.
-    - This causes it to render over TextInput border and validation adorners.
-    - Layer anchored on TextInput does not fully get the transform (missing padding?)
-
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
     - Issue still open, but after winit update API is ready?

@@ -2202,16 +2202,16 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
     let mut carets: Vec<Caret> = vec![];
     struct Caret {
         id: ResponseVar<WidgetId>,
-        layout: Arc<Atomic<CaretLayout>>,
+        layout: Arc<Mutex<CaretLayout>>,
     }
-    #[repr(C)]
-    #[derive(bytemuck::NoUninit, Clone, Copy, Default)]
+    #[derive(Default)]
     struct CaretLayout {
         // set by caret
         width: Px,
-        height: Px,
+        // height: Px,
         mid: Px,
         // set by Text
+        inner_text: PxTransform,
         x: Px,
         y: Px,
         x2: Px, // render twice
@@ -2260,7 +2260,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 // caret shape node, inserted as ADORNER+1, anchored, propagates LocalContext and collects size+caret mid
                 let shape = CARET_TOUCH_SHAPE_VAR.get();
                 let mut open_caret = |s| {
-                    let c_layout = Arc::new(Atomic::new(CaretLayout::default()));
+                    let c_layout = Arc::new(Mutex::new(CaretLayout::default()));
                     let child = shape(s);
                     let mut ctx = LocalContext::capture();
                     let mut caret_mid_buf = Some(Arc::new(Atomic::new(Px(0))));
@@ -2272,29 +2272,29 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                                     *final_size = TOUCH_CARET_OFFSET.with_context(&mut caret_mid_buf, || c.layout(wl));
                                     let mid = caret_mid_buf.as_ref().unwrap().load(Ordering::Relaxed);
 
-                                    c_layout.store(
-                                        CaretLayout {
-                                            width: final_size.width,
-                                            height: final_size.height,
-                                            mid,
-                                            x: Px::MIN,
-                                            y: Px::MIN,
-                                            x2: Px::MIN,
-                                            y2: Px::MIN,
-                                        },
-                                        Ordering::Relaxed,
-                                    );
+                                    *c_layout.lock() = CaretLayout {
+                                        width: final_size.width,
+                                        // height: final_size.height,
+                                        mid,
+                                        x: Px::MIN,
+                                        y: Px::MIN,
+                                        x2: Px::MIN,
+                                        y2: Px::MIN,
+                                        inner_text: PxTransform::identity(),
+                                    };
                                 }
                                 UiNodeOp::Render { frame } => {
-                                    let l = c_layout.load(Ordering::Relaxed);
+                                    let l = c_layout.lock();
 
                                     c.delegated();
 
+                                    let mut transform = l.inner_text;
+
                                     if l.x > Px::MIN && l.y > Px::MIN {
-                                        let offset = PxTransform::from(PxVector::new(l.x, l.y));
+                                        transform = transform.then(&PxTransform::from(PxVector::new(l.x, l.y)));
                                         frame.push_reference_frame(
                                             SpatialFrameKey::from_widget_child(WIDGET.id(), 0),
-                                            FrameValue::Value(offset),
+                                            FrameValue::Value(transform),
                                             true,
                                             true,
                                             |frame| c.render(frame),
@@ -2302,10 +2302,10 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                                     }
 
                                     if l.x2 > Px::MIN && l.y2 > Px::MIN {
-                                        let offset = PxTransform::from(PxVector::new(l.x2, l.y2));
+                                        transform = transform.then(&PxTransform::from(PxVector::new(l.x, l.y)));
                                         frame.push_reference_frame(
                                             SpatialFrameKey::from_widget_child(WIDGET.id(), 1),
-                                            FrameValue::Value(offset),
+                                            FrameValue::Value(transform),
                                             true,
                                             true,
                                             |frame| c.render(frame),
@@ -2333,12 +2333,11 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                 if carets.len() == 1 {
                     let t = LayoutText::get();
                     if let Some(mut origin) = t.caret_origin {
-                        let mut l = carets[0].layout.load(Ordering::Relaxed);
+                        let mut l = carets[0].layout.lock();
                         origin.x -= l.width / 2;
                         if l.x != origin.x || l.y != origin.y {
                             l.x = origin.x;
                             l.y = origin.y;
-                            carets[0].layout.store(l, Ordering::Relaxed);
 
                             if let Some(id) = carets[0].id.rsp() {
                                 UPDATES.render(id);
@@ -2366,7 +2365,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                             }
                         }
 
-                        let mut l = [carets[0].layout.load(Ordering::Relaxed), carets[1].layout.load(Ordering::Relaxed)];
+                        let mut l = [carets[0].layout.lock(), carets[1].layout.lock()];
 
                         if index_is_left {
                             origin.x -= l[0].mid;
@@ -2414,9 +2413,6 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                         }
 
                         if changed {
-                            carets[0].layout.store(l[0], Ordering::Relaxed);
-                            carets[1].layout.store(l[1], Ordering::Relaxed);
-
                             if let Some(id) = carets[0].id.rsp() {
                                 UPDATES.render(id);
                             }
@@ -2426,6 +2422,24 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                         }
                     } else {
                         tracing::error!("touch caret instances do not match context caret")
+                    }
+                }
+            }
+        }
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            if let Some(inner_rev) = WIDGET.info().inner_transform().inverse() {
+                let text = LayoutText::get().render_info.lock().transform.then(&inner_rev);
+
+                for c in &carets {
+                    let mut l = c.layout.lock();
+                    if l.inner_text != text {
+                        l.inner_text = text;
+
+                        if (l.x > Px::MIN && l.y > Px::MIN) || (l.x2 > Px::MIN && l.y2 > Px::MIN) {
+                            if let Some(id) = c.id.rsp() {
+                                UPDATES.render(id);
+                            }
+                        }
                     }
                 }
             }
