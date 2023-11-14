@@ -44,7 +44,17 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         size = (150, 80);
         align = Align::CENTER;
 
-        tooltip = Tip!(Text!("tooltip"));
+        tooltip = Tip!(Text!("tooltip position"));
+        tooltip_anchor = {
+            let mut mode = AnchorMode::tooltip();
+            mode.transform = layers::AnchorTransform::Cursor {
+                offset: AnchorOffset::out_bottom_in_left(),
+                include_touch: true,
+                bounds: None,
+            };
+            mode
+        };
+        tooltip_delay = 0.ms();
 
         margin = 1;
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);

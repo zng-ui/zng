@@ -33,10 +33,6 @@
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# Inspector
-
-* Property metadata (value source, captured status).
-
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.

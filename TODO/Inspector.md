@@ -2,6 +2,9 @@
 
 * Flash widget that has property change.
 
+* Implement expander.
+    - Maybe collapse some inner widgets by default?
+
 * Implement property search.
 
 * Run as separate process?

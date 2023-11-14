@@ -399,6 +399,7 @@ mod live_inspector {
                     ]
                 }, 0;
                 child = TextInput! {
+                    access_role = AccessRole::SearchBox;
                     margin = (0, 0, 0, 50);
                     padding = (3, 5);
                     focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
@@ -619,14 +620,21 @@ mod live_inspector {
             for item in info.items.iter() {
                 match item {
                     InstanceItem::Property { args, captured } => {
-                        let info = args.property();
-                        if current_group.as_ref() != Some(&info.group) {
+                        let p_info = args.property();
+                        let user_assigned = info
+                            .builder
+                            .property(p_info.id)
+                            .map(|p| p.importance == Importance::INSTANCE)
+                            .unwrap_or_default();
+
+                        if current_group.as_ref() != Some(&p_info.group) {
                             if let Some(g) = current_group.take() {
                                 out.push(nest_group_view(g, mem::take(&mut group_items)));
                             }
-                            current_group = Some(info.group);
+                            current_group = Some(p_info.group);
                         }
-                        group_items.push(property_view(ctx, &**args, info, *captured));
+
+                        group_items.push(property_view(ctx, &**args, p_info, *captured, user_assigned));
                     }
                     InstanceItem::Intrinsic { group, name } => {
                         if current_group.as_ref() != Some(group) {
@@ -680,13 +688,24 @@ mod live_inspector {
             flash
         }
 
-        fn property_view(ctx: &InspectorContext, args: &dyn PropertyArgs, info: PropertyInfo, captured: bool) -> impl UiNode {
+        fn property_view(
+            ctx: &InspectorContext,
+            args: &dyn PropertyArgs,
+            info: PropertyInfo,
+            captured: bool,
+            user_assigned: bool,
+        ) -> impl UiNode {
             // TODO, indicators for user or widget set properties.
             let mut ctx = ctx.latest_capture();
             let mut children = ui_vec![
                 Text! {
                     txt = info.name;
                     font_color = PROPERTY_COLOR_VAR;
+                    tooltip = Tip!(Text!(if captured {
+                        "captured property"
+                    } else {
+                        "property"
+                    }));
                 },
                 Text!(" = "),
             ];
@@ -698,6 +717,11 @@ mod live_inspector {
                     txt = value;
                     font_color = PROPERTY_VALUE_COLOR_VAR;
                     background_color = flash;
+                    tooltip = Tip!(Text!(if user_assigned {
+                        "instance value"
+                    } else {
+                        "intrinsic value"
+                    }))
                 });
                 children.push(Text!(";"));
             } else {
