@@ -28,6 +28,11 @@ struct LayersCtx {
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
 ///
+/// Note that this single pass behavior only works automatically in the [`AnchorMode`], for a layered widget
+/// to layout or render in the same pass it must have requested layout or render, either from the inside
+/// using [`WIDGET`] or externally using [`UPDATES`], if not requested the layered widget will reuse layout
+/// or render (at least the default widget implementation will).
+///
 /// [`insert_anchored`]: Self::insert_anchored
 pub struct LAYERS;
 impl LAYERS {
@@ -89,7 +94,7 @@ impl LAYERS {
     /// Like [`insert`], but does not fail if `maybe_widget` is not a full widget.
     ///
     /// If the `maybe_widget` is not a full widget after the first init, it is upgraded to a full widget. The
-    /// widget ID is set on a response var that can be used to remove the node.
+    /// widget ID (existing or upgraded) is set on a response var that can be used to remove the node.
     ///
     /// [`insert`]: Self::insert
     pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {

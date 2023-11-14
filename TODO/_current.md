@@ -16,11 +16,13 @@
         - Can make one for touch only to begin with.
     - Caret node must configure some context data that sets the exact offset of the caret line?
         - They need to be positioned by the host node.
-    - Touch carets must not be clipped by parent widgets.
-        - Use `LAYERS`?
-        - They still need to interact with the parent, if the node is in `LAYERS` it will not be in
-          the text context. Capture context?
     - More expensive than current caret, but we will have two carets max so not a problem.
+
+* Finish `touch_carets` LAYERS update.
+    - Moved shape nodes to ADORNER+1 layer.
+    - This causes it to render over TextInput border and validation adorners.
+    - Layer anchored on TextInput does not fully get the transform (missing padding?)
+    - We need to render the same shape twice in some instances too, this needs an API now.
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
