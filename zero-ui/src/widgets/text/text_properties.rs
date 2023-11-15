@@ -1107,6 +1107,12 @@ context_var! {
     /// Zero means no limit. Is zero by default.
     pub static MAX_CHARS_COUNT_VAR: usize = 0;
 
+    /// Replacement character used when obscuring text.
+    pub static OBSCURING_CHAR_VAR: char = '•';
+
+    /// If text characters are replaced with [`OBSCURING_CHAR_VAR`] for rendering.
+    pub static OBSCURE_TXT_VAR: bool = false;
+
     pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
 }
 
@@ -1319,6 +1325,31 @@ pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> i
 #[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
 pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> impl UiNode {
     with_context_var(child, AUTO_SELECTION_VAR, mode)
+}
+
+/// Replacement character used when obscuring text.
+///
+/// When [`obscure_txt`] is enabled the text characters are replaced by this one.
+///
+/// [`obscure_txt`]: fn@obscure_txt
+#[property(CONTEXT, default(OBSCURING_CHAR_VAR), widget_impl(TextEditMix<P>))]
+pub fn obscuring_char(child: impl UiNode, character: impl IntoVar<char>) -> impl UiNode {
+    with_context_var(child, OBSCURING_CHAR_VAR, character)
+}
+
+/// If the typed text is obscured in render.
+///
+/// When enabled each text character is replaced with [`obscuring_char`], cut, copy and undo commands is disabled.
+///
+/// Note that the text variable is still **plain text** in memory, a memory dump while the widget is filled can leak
+/// the password, this is a potential security problem shared by apps that accept typed passwords. To mitigate the problem
+/// don't use automatic crash reports with memory dump, drop the widget and the text variable as soon as possible,
+/// design the app to show the password widget last to minimize its lifetime.
+///
+/// [`obscuring_char`]: fn@obscuring_char
+#[property(CONTEXT, default(OBSCURE_TXT_VAR), widget_impl(TextEditMix<P>))]
+pub fn obscure_txt(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, OBSCURE_TXT_VAR, enabled)
 }
 
 /// Defines when text is auto-selected on focus.

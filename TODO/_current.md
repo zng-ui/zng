@@ -15,12 +15,7 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
-* Implement password mode.
-    - Just a glyph substitution.
-    - Plain text in memory.
-        - There is no way to encrypt or protect this text from memory dumps.
-        - Encryption key is in memory too.
-        - Attacker needs local access, can just key-log too.
+* Implement `obscure_txt`.
 
 # Accessibility
 
