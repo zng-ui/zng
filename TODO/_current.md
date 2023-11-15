@@ -11,8 +11,14 @@
         - Hit-test area full shape rectangle.
 
 * Implement IME.
-    - See https://github.com/rust-windowing/winit/issues/1497
-    - Issue still open, but after winit update API is ready?
+    - See https://docs.rs/winit/latest/winit/event/enum.Ime.html
+
+* Implement password mode.
+    - Just a glyph substitution.
+    - Plain text in memory.
+        - There is no way to encrypt or protect this text from memory dumps.
+        - Encryption key is in memory too.
+        - Attacker needs local access, can just key-log too.
 
 # Accessibility
 
