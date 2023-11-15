@@ -1170,7 +1170,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 ///
 /// The `shape` node becomes the content of a [layered widget] at the `ADORNER+1` layer, the text widget context is
 /// propagated so contextual variables and value work seamless inside the node.
-/// 
+///
 /// The `shape` node must set one special value during layout, the [`set_touch_caret_mid`] must be called to
 /// set the offset to the middle of the caret line in the shape inner-bounds, this is used to position the caret.
 ///

@@ -8,6 +8,7 @@ use zero_ui_view_api::ViewProcessOffline;
 
 use zero_ui_view_api::clipboard as clipboard_api;
 
+use crate::gesture::ShortcutFilter;
 use crate::{
     app::{
         view_process::{IpcBytes, ViewClipboard, VIEW_PROCESS},
@@ -178,6 +179,7 @@ command! {
         name: "Cut",
         info: "Remove the selection and place it in the clipboard.",
         shortcut: [shortcut!(CTRL+'X'), shortcut!(SHIFT+Delete), shortcut!(Cut)],
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the clipboard **copy** action.
@@ -185,6 +187,7 @@ command! {
         name: "Copy",
         info: "Place a copy of the selection in the clipboard.",
         shortcut: [shortcut!(CTRL+'C'), shortcut!(CTRL+Insert), shortcut!(Copy)],
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
     /// Represents the clipboard **paste** action.
@@ -192,5 +195,6 @@ command! {
         name: "Paste",
         info: "Insert content from the clipboard.",
         shortcut: [shortcut!(CTRL+'V'), shortcut!(SHIFT+Insert), shortcut!(Paste)],
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 }

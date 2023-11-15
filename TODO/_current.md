@@ -1,7 +1,5 @@
 # TextInput
 
-* Test disabled TextInput.
-
 * Touch selection.
     - Test with RTL and bidirectional text.
     - Context menu appears when selecting (or just interacting, if it's an editable field)
