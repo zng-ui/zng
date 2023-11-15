@@ -9,7 +9,11 @@
         - Hit-test area full shape rectangle.
 
 * Implement IME.
-    - See https://docs.rs/winit/latest/winit/event/enum.Ime.html
+    - Add event:
+        - https://docs.rs/winit/latest/winit/event/enum.Ime.html
+    - Add API: 
+        - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
+        - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
 * Implement password mode.
     - Just a glyph substitution.
