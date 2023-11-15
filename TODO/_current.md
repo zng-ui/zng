@@ -16,6 +16,11 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
 * Implement `obscure_txt`.
+    - Just replace chars before segmenting?
+    - Firefox handles composite emoji like 👩🏽‍🎤 weirdly, one char per utf-8 char, but some are selected together.
+        - Chrome also shows one `•` per char, but they all select together.
+        - Chrome is better, but both indicate that the actual text is segmented.
+        - Review other frameworks.
 
 # Accessibility
 

@@ -1339,7 +1339,7 @@ pub fn obscuring_char(child: impl UiNode, character: impl IntoVar<char>) -> impl
 
 /// If the typed text is obscured in render.
 ///
-/// When enabled each text character is replaced with [`obscuring_char`], cut, copy and undo commands is disabled.
+/// When enabled each text character is replaced with [`obscuring_char`], cut, copy and undo commands are disabled.
 ///
 /// Note that the text variable is still **plain text** in memory, a memory dump while the widget is filled can leak
 /// the password, this is a potential security problem shared by apps that accept typed passwords. To mitigate the problem
