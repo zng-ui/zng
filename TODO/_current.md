@@ -15,8 +15,11 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
-* Centered TextInput vanishes when the text is empty.
-    - Padding/borders should still apply.
+* Centered TextInput loses padding when text is empty.
+    - Width is 0, height is still 1 line.
+    - Documented in `margin`, used in `padding`.
+    - Test other frameworks, maybe we should not collapse.
+        - Maybe we should only collapse margin.
 
 * `obscure_txt`:
     - Test bidi text.
