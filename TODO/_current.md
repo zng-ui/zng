@@ -20,7 +20,18 @@
     - Firefox handles composite emoji like 👩🏽‍🎤 weirdly, one char per utf-8 char, but some are selected together.
         - Chrome also shows one `•` per char, but they all select together.
         - Chrome is better, but both indicate that the actual text is segmented.
-        - Review other frameworks.
+        - WPF always edits per-char, even for emoji that is rendered as a single glyph.
+        - Flutter behaves like Firefox in what is selected together (plus the caret does not look well positioned).
+        - Firefox, Chrome and Flutter all use the real text segments for edit operations, Firefox and Flutter only have some
+          bug editing composite emoji.
+    - Lets implement substitution in `ShapedText`?
+        - Must be all in a single line.
+        - Can wrap?
+        - Must be implemented in `ShapedTextBuilder::push_text`, to preserve mapping to segments.
+    - What about accessibility, is the password shared with screen-readers?
+        - They do not, only reads "star" for each char typed.
+        - So we should not share the password text?
+            - Just generate a "•••" text?
 
 # Accessibility
 
