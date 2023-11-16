@@ -1,4 +1,13 @@
 error[E0277]: the trait bound `f32: zero_ui::prelude::new_widget::WidgetImpl` is not satisfied
+ --> cases/widget/parent_not_widget.rs:4:16
+  |
+4 | pub struct Foo(f32);
+  |                ^^^ the trait `zero_ui::prelude::new_widget::WidgetImpl` is not implemented for `f32`
+  |
+  = help: the following other types implement trait `zero_ui::prelude::new_widget::WidgetImpl`:
+            <implementers-list>
+
+error[E0277]: the trait bound `f32: zero_ui::prelude::new_widget::WidgetImpl` is not satisfied
  --> cases/widget/parent_not_widget.rs:3:1
   |
 3 | #[widget($crate::Foo)]

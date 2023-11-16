@@ -576,7 +576,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 FocusInfoBuilder::new(info).focusable(true);
             }
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
-            if !editable {
+            if !editable && !OBSCURE_TXT_VAR.get() {
                 if let Some(mut a) = info.access() {
                     a.set_label(resolved.as_ref().unwrap().segmented_text.text().clone());
                 }
@@ -1893,6 +1893,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
             if OBSCURE_TXT_VAR.is_new() || OBSCURING_CHAR_VAR.is_new() {
+                if edit_data.is_none() && OBSCURE_TXT_VAR.is_new() && WINDOW.info().access_enabled().is_enabled() {
+                    WIDGET.info();
+                }
+
                 let c = if OBSCURE_TXT_VAR.get() {
                     Some(OBSCURING_CHAR_VAR.get())
                 } else {

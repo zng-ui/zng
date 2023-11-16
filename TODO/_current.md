@@ -15,9 +15,6 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
-* `obscure_txt`:
-    - Obscure accessibility?
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.
