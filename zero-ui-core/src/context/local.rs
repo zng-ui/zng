@@ -1207,6 +1207,14 @@ impl ContextValueSet {
         self.0.insert(value.key())
     }
 
+    /// Remove a [`context_local!`].
+    pub fn remove_context_local<T>(&mut self, value: &'static ContextLocal<T>) -> bool
+    where
+        T: Send + Sync + 'static,
+    {
+        self.0.remove(&value.key())
+    }
+
     /// Insert a [`context_var!`].
     ///
     /// [`context_var!`]: crate::var::context_var
@@ -1215,6 +1223,16 @@ impl ContextValueSet {
         T: crate::var::VarValue,
     {
         self.insert_context_local(var.context_local())
+    }
+
+    /// Remove a [`context_var!`].
+    ///
+    /// [`context_var!`]: crate::var::context_var
+    pub fn remove_context_var<T>(&mut self, var: &'static crate::var::ContextVar<T>) -> bool
+    where
+        T: crate::var::VarValue,
+    {
+        self.remove_context_local(var.context_local())
     }
 
     /// Checks if the [`context_local!`] is in the set.
@@ -1243,6 +1261,18 @@ impl ContextValueSet {
     /// If the set has any values.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Extend this set with all `other` contexts.
+    pub fn insert_all(&mut self, other: &Self) {
+        self.0.extend(other.0.iter().copied());
+    }
+
+    /// Removes all `other` contexts from this set.
+    pub fn remove_all(&mut self, other: &Self) {
+        for o in other.0.iter() {
+            self.0.remove(o);
+        }
     }
 }
 impl fmt::Debug for ContextValueSet {

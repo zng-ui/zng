@@ -88,6 +88,23 @@ pub struct Text(
     >>>>>>>>>>
 );
 
+impl Text {
+    /// Context variables used by properties in text.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        FontMix::<()>::context_vars_set(set);
+        TextFillMix::<()>::context_vars_set(set);
+        TextAlignMix::<()>::context_vars_set(set);
+        TextWrapMix::<()>::context_vars_set(set);
+        TextDecorationMix::<()>::context_vars_set(set);
+        TextSpacingMix::<()>::context_vars_set(set);
+        TextTransformMix::<()>::context_vars_set(set);
+        FontFeaturesMix::<()>::context_vars_set(set);
+        TextEditMix::<()>::context_vars_set(set);
+
+        LangMix::<()>::context_vars_set(set);
+    }
+}
+
 /// The text string.
 ///
 /// Set to an empty string (`""`) by default.

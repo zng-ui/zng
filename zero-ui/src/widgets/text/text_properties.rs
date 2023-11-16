@@ -54,6 +54,19 @@ context_var! {
     pub static FONT_AA_VAR: FontAntiAliasing = FontAntiAliasing::Default;
 }
 
+impl FontMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&FONT_FAMILY_VAR);
+        set.insert_context_var(&FONT_SIZE_VAR);
+        set.insert_context_var(&FONT_WEIGHT_VAR);
+        set.insert_context_var(&FONT_STYLE_VAR);
+        set.insert_context_var(&FONT_STRETCH_VAR);
+        set.insert_context_var(&FONT_SYNTHESIS_VAR);
+        set.insert_context_var(&FONT_AA_VAR);
+    }
+}
+
 /// Font family name or list of names for texts in this widget or descendants.
 ///
 /// All fonts in the list are resolved according to the [`font_style`], [`font_weight`] and [`font_stretch`] config.
@@ -186,6 +199,15 @@ context_var! {
     pub static FONT_PALETTE_COLORS_VAR: Vec<(u16, Rgba)> = vec![];
 }
 
+impl TextFillMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&FONT_COLOR_VAR);
+        set.insert_context_var(&FONT_PALETTE_VAR);
+        set.insert_context_var(&FONT_PALETTE_COLORS_VAR);
+    }
+}
+
 /// Defines the color the most text glyphs are filled with.
 ///
 /// Colored glyphs (Emoji) are not affected by this, you can use [`font_palette`] to modify
@@ -269,6 +291,15 @@ context_var! {
     pub static JUSTIFY_VAR: Option<Justify> = None;
 }
 
+impl TextAlignMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&TEXT_ALIGN_VAR);
+        set.insert_context_var(&TEXT_OVERFLOW_ALIGN_VAR);
+        set.insert_context_var(&JUSTIFY_VAR);
+    }
+}
+
 /// Alignment of text inside available space.
 ///
 /// Horizontal alignment is applied for each line independently, vertical alignment is applied for the entire
@@ -346,6 +377,18 @@ context_var! {
 
     /// Text overflow handling.
     pub static TEXT_OVERFLOW_VAR: TextOverflow = TextOverflow::Ignore;
+}
+
+impl TextWrapMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&TEXT_WRAP_VAR);
+        set.insert_context_var(&WORD_BREAK_VAR);
+        set.insert_context_var(&LINE_BREAK_VAR);
+        set.insert_context_var(&HYPHENS_VAR);
+        set.insert_context_var(&HYPHEN_CHAR_VAR);
+        set.insert_context_var(&TEXT_OVERFLOW_VAR);
+    }
 }
 
 /// Defines how text overflow is handled by the text widgets.
@@ -587,6 +630,23 @@ context_var! {
     pub static STRIKETHROUGH_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 }
 
+impl TextDecorationMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&UNDERLINE_THICKNESS_VAR);
+        set.insert_context_var(&UNDERLINE_STYLE_VAR);
+        set.insert_context_var(&UNDERLINE_COLOR_VAR);
+        set.insert_context_var(&UNDERLINE_SKIP_VAR);
+        set.insert_context_var(&UNDERLINE_POSITION_VAR);
+        set.insert_context_var(&OVERLINE_THICKNESS_VAR);
+        set.insert_context_var(&OVERLINE_STYLE_VAR);
+        set.insert_context_var(&OVERLINE_COLOR_VAR);
+        set.insert_context_var(&STRIKETHROUGH_THICKNESS_VAR);
+        set.insert_context_var(&STRIKETHROUGH_STYLE_VAR);
+        set.insert_context_var(&STRIKETHROUGH_COLOR_VAR);
+    }
+}
+
 /// Draw lines *under* each text line.
 ///
 /// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].
@@ -692,6 +752,17 @@ context_var! {
     pub static TAB_LENGTH_VAR: TabLength = 400.pct();
 }
 
+impl TextSpacingMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&LINE_HEIGHT_VAR);
+        set.insert_context_var(&LINE_SPACING_VAR);
+        set.insert_context_var(&LETTER_SPACING_VAR);
+        set.insert_context_var(&WORD_SPACING_VAR);
+        set.insert_context_var(&TAB_LENGTH_VAR);
+    }
+}
+
 /// Height of each text line. If not set inherits the `line_height` from the parent widget.
 ///
 /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
@@ -793,6 +864,14 @@ context_var! {
     pub static TEXT_TRANSFORM_VAR: TextTransformFn = TextTransformFn::None;
 }
 
+impl TextTransformMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&WHITE_SPACE_VAR);
+        set.insert_context_var(&TEXT_TRANSFORM_VAR);
+    }
+}
+
 /// Text white space transform.
 ///
 /// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
@@ -866,6 +945,14 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
     with_context_var(child, DIRECTION_VAR, direction)
 }
 
+impl LangMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&LANG_VAR);
+        set.insert_context_var(&DIRECTION_VAR);
+    }
+}
+
 /// Advanced font config, features, kerning, variations and more.
 ///
 /// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
@@ -884,6 +971,14 @@ context_var! {
     ///
     /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_VARIATIONS_VAR: FontVariations = FontVariations::new();
+}
+
+impl FontFeaturesMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&FONT_FEATURES_VAR);
+        set.insert_context_var(&FONT_VARIATIONS_VAR);
+    }
 }
 
 /// Includes the font variation config in the widget context.
@@ -1114,6 +1209,24 @@ context_var! {
     pub static OBSCURE_TXT_VAR: bool = false;
 
     pub(super) static TXT_PARSE_PENDING_VAR: bool = false;
+}
+
+impl TextEditMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&TEXT_EDITABLE_VAR);
+        set.insert_context_var(&TEXT_SELECTABLE_VAR);
+        set.insert_context_var(&ACCEPTS_ENTER_VAR);
+        set.insert_context_var(&CARET_COLOR_VAR);
+        set.insert_context_var(&CARET_TOUCH_SHAPE_VAR);
+        set.insert_context_var(&SELECTION_COLOR_VAR);
+        set.insert_context_var(&TXT_PARSE_LIVE_VAR);
+        set.insert_context_var(&CHANGE_STOP_DELAY_VAR);
+        set.insert_context_var(&AUTO_SELECTION_VAR);
+        set.insert_context_var(&MAX_CHARS_COUNT_VAR);
+        set.insert_context_var(&OBSCURING_CHAR_VAR);
+        set.insert_context_var(&OBSCURE_TXT_VAR);
+    }
 }
 
 /// Defines the position of a caret in relation to the selection.
@@ -1520,6 +1633,13 @@ pub struct ParagraphMix<P>(P);
 context_var! {
     /// Extra paragraph spacing of text blocks.
     pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = 1.em();
+}
+
+impl ParagraphMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert_context_var(&PARAGRAPH_SPACING_VAR);
+    }
 }
 
 /// Extra spacing in-between paragraphs.

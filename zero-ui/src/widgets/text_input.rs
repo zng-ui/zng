@@ -97,6 +97,21 @@ impl DefaultStyle {
                 sides: border_color().map_into(),
             };
 
+            popup::context_capture = popup::ContextCapture::CaptureBlend {
+                filter: CaptureFilter::ContextVars {
+                    exclude: {
+                        let mut exclude = ContextValueSet::new();
+                        Text::context_vars_set(&mut exclude);
+
+                        let mut allow = ContextValueSet::new();
+                        text::LangMix::<()>::context_vars_set(&mut allow);
+                        exclude.remove_all(&allow);
+
+                        exclude
+                    }
+                },
+                over: false,
+            };
             context_menu_fn = wgt_fn!(|args: menu::context::ContextMenuArgs| {
                 let id = args.anchor_id;
                 ContextMenu!(ui_vec![

@@ -17,7 +17,6 @@
 
 * `obscure_txt`:
     - Test bidi text.
-    - Context menu text also obscured, property should not be contextual?
     - Disable cut, copy commands.
     - Disable selection in read-only?
         - Flutter does this.
