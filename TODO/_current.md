@@ -16,10 +16,7 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
 * `obscure_txt`:
-    - Test bidi text.
-    - Disable selection in read-only?
-        - Flutter does this.
-        - Because there is nothing that can be done with the selection.
+    - Obscure accessibility?
 
 # Accessibility
 
