@@ -1881,6 +1881,8 @@ impl ShapedTextBuilder {
         obscuring_char: char,
     ) {
         if text.is_empty() {
+            self.push_last_line(text);
+            self.push_font(&fonts[0]);
             return;
         }
 

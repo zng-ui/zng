@@ -15,13 +15,10 @@
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
         - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
 
+* Centered TextInput vanishes when the text is empty.
+    - Padding/borders should still apply.
+
 * `obscure_txt`:
-    - Deleting all text causes panic.
-    - Test composite emoji, 👩🏽‍🎤.
-        - Must render multiple characters.
-        - Must select/delete all characters at the same time.
-        - Must backspace one char then the rest?
-            - Compare with editing the emoji not-obscured.
     - Test bidi text.
     - Context menu text also obscured, property should not be contextual?
     - Disable cut, copy commands.
