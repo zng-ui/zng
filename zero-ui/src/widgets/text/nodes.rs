@@ -442,9 +442,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                 self.events[4] = ACCESS_SELECTION_EVENT.subscribe(id);
 
-                self.copy = COPY_CMD.scoped(id).subscribe(true);
+                let obscure = OBSCURE_TXT_VAR.get();
+                self.copy = COPY_CMD.scoped(id).subscribe(!obscure);
                 if editable {
-                    self.cut = CUT_CMD.scoped(id).subscribe(true);
+                    self.cut = CUT_CMD.scoped(id).subscribe(!obscure);
                 } else {
                     // used in `render_selection`
                     self.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
@@ -806,9 +807,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.event(update));
             if let Some(edit_data) = &mut edit_data {
-                let has_selection = resolved.as_mut().unwrap().caret.get_mut().selection_range().is_some();
-                edit_data.cut.set_enabled(has_selection);
-                edit_data.copy.set_enabled(has_selection);
+                let enable = !OBSCURE_TXT_VAR.get() && resolved.as_mut().unwrap().caret.get_mut().selection_range().is_some();
+                edit_data.cut.set_enabled(enable);
+                edit_data.copy.set_enabled(enable);
             }
         }
         UiNodeOp::Update { updates } => {
