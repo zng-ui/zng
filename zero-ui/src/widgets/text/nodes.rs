@@ -1452,6 +1452,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var_layout(&TEXT_ALIGN_VAR).sub_var_layout(&TEXT_OVERFLOW_ALIGN_VAR);
 
             WIDGET.sub_var(&FONT_FEATURES_VAR);
+
+            WIDGET.sub_var(&OBSCURE_TXT_VAR).sub_var(&OBSCURING_CHAR_VAR);
+
             // LANG_VAR already subscribed by `resolve_text`.
 
             txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
@@ -1461,6 +1464,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
             txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
             txt.shaping_args.font_features = FONT_FEATURES_VAR.with(|f| f.finalize());
+
+            if OBSCURE_TXT_VAR.get() {
+                txt.shaping_args.obscuring_char = Some(OBSCURING_CHAR_VAR.get());
+            }
 
             if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
                 EditData::get(&mut edit_data).subscribe();
@@ -1472,6 +1479,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Deinit => {
             txt.with(|| child.deinit());
             txt.txt = None;
+            txt.shaping_args = TextShapingArgs::default();
             edit_data = None;
         }
         UiNodeOp::Event { update } => {
@@ -1879,6 +1887,18 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
+                    txt.pending.insert(PendingLayout::RESHAPE);
+                    WIDGET.layout();
+                }
+            }
+            if OBSCURE_TXT_VAR.is_new() || OBSCURING_CHAR_VAR.is_new() {
+                let c = if OBSCURE_TXT_VAR.get() {
+                    Some(OBSCURING_CHAR_VAR.get())
+                } else {
+                    None
+                };
+                if txt.shaping_args.obscuring_char != c {
+                    txt.shaping_args.obscuring_char = c;
                     txt.pending.insert(PendingLayout::RESHAPE);
                     WIDGET.layout();
                 }

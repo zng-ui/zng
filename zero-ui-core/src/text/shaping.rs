@@ -77,6 +77,9 @@ pub struct TextShapingArgs {
 
     /// Character rendered when text is auto-hyphenated.
     pub hyphen_char: Txt,
+
+    /// Replacement char if the text must be obscured.
+    pub obscuring_char: Option<char>,
 }
 impl Default for TextShapingArgs {
     fn default() -> Self {
@@ -97,6 +100,7 @@ impl Default for TextShapingArgs {
             word_break: Default::default(),
             hyphens: Default::default(),
             hyphen_char: Txt::from_char('-'),
+            obscuring_char: None,
         }
     }
 }
@@ -1851,17 +1855,57 @@ impl ShapedTextBuilder {
             WordBreak::KeepAll => false,
         };
 
-        if !matches!(config.hyphens, Hyphens::None) && t.max_width.is_finite() {
+        if !matches!(config.hyphens, Hyphens::None) && t.max_width.is_finite() && config.obscuring_char.is_none() {
             // "hyphen" can be any char and we need the x-advance for the wrap algorithm.
             t.hyphen_glyphs = fonts.shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s, f| {
                 (s.clone(), f.clone())
             });
         }
 
-        t.push_text(fonts, &config.font_features, &mut word_ctx_key, text);
+        if let Some(c) = config.obscuring_char {
+            t.push_obscured_text(fonts, &config.font_features, &mut word_ctx_key, text, c);
+        } else {
+            t.push_text(fonts, &config.font_features, &mut word_ctx_key, text);
+        }
 
         t.out.debug_assert_ranges();
         t.out
+    }
+
+    fn push_obscured_text(
+        &mut self,
+        fonts: &[Font],
+        features: &RFontFeatures,
+        word_ctx_key: &mut WordContextKey,
+        text: &SegmentedText,
+        obscuring_char: char,
+    ) {
+        if text.is_empty() {
+            return;
+        }
+
+        let (glyphs, font) = fonts.shape_segment(Txt::from_char(obscuring_char).as_str(), word_ctx_key, features, |s, f| {
+            (s.clone(), f.clone())
+        });
+
+        for (seg, info) in text.iter() {
+            let mut seg_glyphs = ShapedSegmentData::default();
+            for cluster in 0..(seg.chars().count() as u32) {
+                let i = seg_glyphs.glyphs.len();
+                seg_glyphs.glyphs.extend(glyphs.glyphs.iter().copied());
+                for g in &mut seg_glyphs.glyphs[i..] {
+                    g.point.0 += seg_glyphs.x_advance;
+                    g.cluster = cluster;
+                }
+                seg_glyphs.x_advance += glyphs.x_advance;
+            }
+            self.push_glyphs(&seg_glyphs, self.letter_spacing);
+            self.push_text_seg(seg, info);
+        }
+
+        self.push_last_line(text);
+
+        self.push_font(&font);
     }
 
     fn push_text(&mut self, fonts: &[Font], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
@@ -1956,6 +2000,12 @@ impl ShapedTextBuilder {
             }
         }
 
+        self.push_last_line(text);
+
+        self.push_font(&fonts[0]);
+    }
+
+    fn push_last_line(&mut self, text: &SegmentedText) {
         let directions = self.finish_current_line_bidi(text);
         self.out.lines.0.push(LineRange {
             end: self.out.segments.0.len(),
@@ -1971,8 +2021,6 @@ impl ShapedTextBuilder {
         if self.out.is_inlined && self.out.lines.0.len() > 1 {
             self.out.last_line.origin.y += self.out.mid_clear;
         }
-
-        self.push_font(&fonts[0]);
     }
 
     fn push_hyphenate(

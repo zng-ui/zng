@@ -869,10 +869,23 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                 TextInput! {
                     id = "field-version";
                     grid::cell::row = 2;
-                    grid::cell::column = 2;
+                    grid::cell::column = 1;
                     txt_parse = var(Version::default());
                     text_input::field_help = "help text";
                     // txt_parse_on_stop = true;
+                },
+
+                Label! {
+                    grid::cell::row = 3;
+                    txt = "Password";
+                    target = "field-password";
+                },
+                TextInput! {
+                    grid::cell::row = 3;
+                    grid::cell::column = 1;
+                    id = "field-password";
+                    txt = var_from("pass");
+                    obscure_txt = true;
                 },
             ];
         };
