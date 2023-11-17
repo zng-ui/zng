@@ -9,11 +9,7 @@
         - Hit-test area full shape rectangle.
 
 * Implement IME.
-    - Add event:
-        - https://docs.rs/winit/latest/winit/event/enum.Ime.html
-    - Add API: 
-        - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_cursor_area
-        - https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_ime_allowed
+    - Implement in the app process, `RAW_IME_EVENT`, `ViewWindow::set_ime_allowed`.
 
 # Accessibility
 

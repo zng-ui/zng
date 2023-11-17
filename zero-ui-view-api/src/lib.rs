@@ -31,6 +31,7 @@ pub mod config;
 pub mod dialog;
 pub mod display_list;
 pub mod image;
+pub mod ime;
 pub mod ipc;
 pub mod keyboard;
 pub mod mouse;
@@ -479,10 +480,16 @@ declare_api! {
     pub fn file_dialog(&mut self, id: WindowId, dialog: dialog::FileDialog) -> DialogId;
 
     /// Get the clipboard content that matches the `data_type`.
-    pub  fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<ClipboardData, ClipboardError>;
+    pub fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<ClipboardData, ClipboardError>;
 
     /// Set the clipboard content.
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
+
+    /// Set the IME cursor editing area, usually the area of the text-box.
+    pub fn set_ime_cursor_area(&mut self, id: WindowId, area: units::DipRect);
+
+    /// Enable or disable IME.
+    pub fn set_ime_allowed(&mut self, id: WindowId, allowed: bool);
 
     /// Call the API extension.
     ///

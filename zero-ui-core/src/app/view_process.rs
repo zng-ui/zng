@@ -12,6 +12,7 @@ pub use zero_ui_view_api::{
     config::{AnimationsConfig, ColorScheme, LocaleConfig},
     dialog::{FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse},
     image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest},
+    ime::Ime,
     ipc::{bytes_channel, IpcBytes, IpcBytesReceiver, IpcBytesSender},
     window::{
         CursorIcon, EventCause, FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
@@ -781,6 +782,16 @@ impl ViewWindow {
     /// Update the window's accessibility info tree.
     pub fn access_update(&self, update: zero_ui_view_api::access::AccessTreeUpdate) -> Result<()> {
         self.0.call(|id, p| p.access_update(id, update))
+    }
+
+    /// Enable or disable IME.
+    pub fn set_ime_allowed(&self, allowed: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_ime_allowed(id, allowed))
+    }
+
+    /// Set the IME cursor editing area, usually the area of the text-box.
+    pub fn set_ime_cursor_area(&self, area: crate::units::DipRect) -> Result<()> {
+        self.0.call(|id, p| p.set_ime_cursor_area(id, area))
     }
 
     /// Drop `self`.

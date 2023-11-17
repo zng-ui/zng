@@ -1645,6 +1645,14 @@ impl Window {
             ext.low_memory();
         }
     }
+
+    pub(crate) fn set_ime_allowed(&self, allowed: bool) {
+        self.window.set_ime_allowed(allowed);
+    }
+
+    pub(crate) fn set_ime_cursor_area(&self, area: DipRect) {
+        self.window.set_ime_cursor_area(area.origin.to_winit(), area.size.to_winit())
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {

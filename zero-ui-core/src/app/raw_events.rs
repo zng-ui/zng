@@ -77,6 +77,22 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RAW_IME_EVENT`].
+    pub struct RawImeArgs {
+        /// Window that received the event.
+        pub window_id: WindowId,
+
+        /// The IME event.
+        pub ime: super::view_process::Ime,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all();
+        }
+    }
+
     /// Arguments for the [`RAW_WINDOW_FOCUS_EVENT`].
     pub struct RawWindowFocusArgs {
         /// Window that load focus.
@@ -639,6 +655,9 @@ event! {
     /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
     /// [`KEY_INPUT_EVENT`]: crate::keyboard::KEY_INPUT_EVENT
     pub static RAW_KEY_INPUT_EVENT: RawKeyInputArgs;
+
+    /// An IME event was received by a window.
+    pub static RAW_IME_EVENT: RawImeArgs;
 
     /// A window received or lost focus.
     pub static RAW_WINDOW_FOCUS_EVENT: RawWindowFocusArgs;

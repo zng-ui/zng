@@ -4,6 +4,7 @@ use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
+use zero_ui_view_api::ime::Ime;
 use zero_ui_view_api::keyboard::NativeKeyCode;
 use zero_ui_view_api::{
     config::ColorScheme,
@@ -1456,5 +1457,14 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         AlertDialog => Role::AlertDialog,
         Dialog => Role::Dialog,
         _ => Role::Unknown,
+    }
+}
+
+pub(crate) fn winit_ime_to_ime(ime: winit::event::Ime) -> Ime {
+    match ime {
+        winit::event::Ime::Enabled => Ime::Enabled,
+        winit::event::Ime::Preedit(s, c) => Ime::PreEdit(s.into(), c),
+        winit::event::Ime::Commit(s) => Ime::Commit(s.into()),
+        winit::event::Ime::Disabled => Ime::Disabled,
     }
 }

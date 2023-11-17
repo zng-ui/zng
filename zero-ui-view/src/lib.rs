@@ -1114,9 +1114,13 @@ impl App {
                 }
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
-            WindowEvent::Ime(_) => {
+            WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
-                // TODO
+
+                self.notify(Event::Ime {
+                    window: id,
+                    ime: util::winit_ime_to_ime(ime),
+                })
             }
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}
@@ -1694,6 +1698,14 @@ impl Api for App {
             },
             || (),
         );
+    }
+
+    fn set_ime_allowed(&mut self, id: WindowId, allowed: bool) {
+        self.with_window(id, |w| w.set_ime_allowed(allowed), || ())
+    }
+
+    fn set_ime_cursor_area(&mut self, id: WindowId, area: zero_ui_view_api::units::DipRect) {
+        self.with_window(id, |w| w.set_ime_cursor_area(area), || ())
     }
 
     fn image_decoders(&mut self) -> Vec<String> {

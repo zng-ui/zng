@@ -1166,6 +1166,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), key_code, state, key, key_modified, text);
                 self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
             }
+            Event::Ime { window: w_id, ime } => {
+                let args = RawImeArgs::now(window_id(w_id), ime);
+                self.notify_event(RAW_IME_EVENT.new_update(args), observer);
+            }
 
             Event::MouseWheel {
                 window: w_id,

@@ -247,6 +247,14 @@ pub enum Event {
         /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
         text: String,
     },
+    /// IME composition event.
+    Ime {
+        /// Window that received the IME event.
+        window: WindowId,
+        /// IME event.
+        ime: crate::ime::Ime,
+    },
+
     /// The mouse cursor has moved on the window.
     ///
     /// This event can be coalesced, i.e. multiple cursor moves packed into the same event.
