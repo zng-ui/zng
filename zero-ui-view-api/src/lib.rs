@@ -485,11 +485,8 @@ declare_api! {
     /// Set the clipboard content.
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
 
-    /// Set the IME cursor editing area, usually the area of the text-box.
-    pub fn set_ime_cursor_area(&mut self, id: WindowId, area: units::DipRect);
-
-    /// Enable or disable IME.
-    pub fn set_ime_allowed(&mut self, id: WindowId, allowed: bool);
+    /// Enable or disable IME by setting a cursor area.
+    pub fn set_ime_area(&mut self, id: WindowId, area: Option<units::DipRect>);
 
     /// Call the API extension.
     ///

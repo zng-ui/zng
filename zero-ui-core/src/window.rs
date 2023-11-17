@@ -3,6 +3,9 @@
 mod control;
 use control::*;
 
+mod ime;
+pub use ime::*;
+
 mod types;
 pub use types::*;
 

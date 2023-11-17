@@ -1646,12 +1646,13 @@ impl Window {
         }
     }
 
-    pub(crate) fn set_ime_allowed(&self, allowed: bool) {
-        self.window.set_ime_allowed(allowed);
-    }
-
-    pub(crate) fn set_ime_cursor_area(&self, area: DipRect) {
-        self.window.set_ime_cursor_area(area.origin.to_winit(), area.size.to_winit())
+    pub(crate) fn set_ime_area(&self, area: Option<DipRect>) {
+        if let Some(a) = area {
+            self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
+            self.window.set_ime_allowed(true);
+        } else {
+            self.window.set_ime_allowed(false);
+        }
     }
 }
 impl Drop for Window {

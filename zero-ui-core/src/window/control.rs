@@ -950,6 +950,7 @@ impl HeadedCtrl {
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
+            ime_area: None, // !!: TODO
 
             extensions: {
                 let mut exts = vec![];
@@ -1075,6 +1076,8 @@ impl HeadedCtrl {
             focus_indicator: self.vars.focus_indicator().get(),
 
             access_root: self.content.root_ctx.id().into(),
+
+            ime_area: None, // !!: TODO
 
             extensions: {
                 let mut exts = vec![];

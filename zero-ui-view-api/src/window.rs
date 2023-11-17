@@ -463,6 +463,9 @@ pub struct WindowRequest {
     ///
     /// [`Event::AccessInit`]: crate::Event::AccessInit
     pub access_root: AccessNodeId,
+
+    /// IME cursor area, if IME is enabled.
+    pub ime_area: Option<DipPoint>,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

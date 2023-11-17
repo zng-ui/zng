@@ -784,14 +784,9 @@ impl ViewWindow {
         self.0.call(|id, p| p.access_update(id, update))
     }
 
-    /// Enable or disable IME.
-    pub fn set_ime_allowed(&self, allowed: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_ime_allowed(id, allowed))
-    }
-
-    /// Set the IME cursor editing area, usually the area of the text-box.
-    pub fn set_ime_cursor_area(&self, area: crate::units::DipRect) -> Result<()> {
-        self.0.call(|id, p| p.set_ime_cursor_area(id, area))
+    /// Enable or disable IME by setting a cursor area.
+    pub fn set_ime_area(&self, area: Option<crate::units::DipRect>) -> Result<()> {
+        self.0.call(|id, p| p.set_ime_area(id, area))
     }
 
     /// Drop `self`.

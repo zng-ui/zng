@@ -72,6 +72,8 @@ pub(super) struct WindowVarsData {
     renderer_debug: ArcVar<RendererDebug>,
 
     pub(super) access_enabled: ArcVar<AccessEnabled>,
+
+    pub(super) is_ime_composing: ArcVar<bool>,
 }
 
 /// Controls properties of an open window using variables.
@@ -148,6 +150,8 @@ impl WindowVars {
             renderer_debug: var(RendererDebug::disabled()),
 
             access_enabled: var(AccessEnabled::empty()),
+
+            is_ime_composing: var(false),
         });
         Self(vars)
     }
@@ -671,6 +675,13 @@ impl WindowVars {
         if self.0.access_enabled.get().is_disabled() {
             self.0.access_enabled.modify(|e| *e.to_mut() |= AccessEnabled::APP);
         }
+    }
+
+    /// Focus is an IME compatible widget and the operating system started composing an input.
+    ///
+    /// When this is `true` the external IME popup is visible or about to be visible.
+    pub fn is_ime_composing(&self) -> ReadOnlyArcVar<bool> {
+        self.0.is_ime_composing.read_only()
     }
 }
 impl PartialEq for WindowVars {

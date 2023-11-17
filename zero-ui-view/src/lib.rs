@@ -1700,12 +1700,8 @@ impl Api for App {
         );
     }
 
-    fn set_ime_allowed(&mut self, id: WindowId, allowed: bool) {
-        self.with_window(id, |w| w.set_ime_allowed(allowed), || ())
-    }
-
-    fn set_ime_cursor_area(&mut self, id: WindowId, area: zero_ui_view_api::units::DipRect) {
-        self.with_window(id, |w| w.set_ime_cursor_area(area), || ())
+    fn set_ime_area(&mut self, id: WindowId, area: Option<zero_ui_view_api::units::DipRect>) {
+        self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 
     fn image_decoders(&mut self) -> Vec<String> {
