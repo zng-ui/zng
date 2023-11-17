@@ -16,15 +16,19 @@
 # Edit
 
 * Edit across multiple texts in the same wrap container.
-    - Each text could have the prev/next text widget explicitly set.
-        - This way the edit can work across "pages/columns" too.
-    - Or could work like a tab_index, `txt_index`?
-        - Resolved in a `txt_edit_scope`.
-        - Better, can still work across "pages", and is more closely connected with the directional nav
-          required for up/down cursor moves.
-    - Better use the `tab_index` nav directly.
-        - For left/right caret jumps.
+    - Have a `txt_edit_scope` that is set in a parent widget and joins all editable text inside.
+    - Use the focus navigation to jump caret across texts.
+        - For left/right use logical nav.
         - For up/down use directional nav.
+    - The `txt_edit_scope` must take-over some text commands:
+        - Undo, select.
+        - Clipboard.
+            - Text is joined for copy across widgets.
+    - Selection is defined locally in each text in selection.
+        - A parent selection type defines the start and end widget only.
+        - The start widget contains a selection from the char start to the widget's text end.
+        - Touch caret observes this and only renders one of the carets.
+            - It knows the direction by the second selection index being in the start or end of the local text.
 
 * Support `white_space` and `txt_transform` in edit mode.
 * Spellchecker.
