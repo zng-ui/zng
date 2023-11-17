@@ -1,10 +1,5 @@
 # TextInput
 
-* view-process panic:
-    - panicked at 'assertion failed: self.nodes.contains_key(&self.focus)', C:\Users\Samuel\.cargo\registry\src\index.crates.io-6f17d22bba15001f\accesskit_consumer-0.16.1\src\tree.rs:35:9
-    
-    - Caused by clicking rapidly between TextInputs in the `text` form example.
-
 * Touch selection.
     - Test with RTL and bidirectional text.
     - Context menu appears when selecting (or just interacting, if it's an editable field)

@@ -735,7 +735,7 @@ impl HeadedCtrl {
         let info = self.content.info(info_widgets);
         if let (Some(info), true) = (&info, self.window.is_some()) {
             // updated widget info and has view-process window
-            if info.access_enabled() == AccessEnabled::VIEW {
+            if info.access_enabled() == AccessEnabled::VIEW && self.render_access_update.is_none() {
                 // view window requires access info, next frame
                 self.render_access_update = Some(prev_tree);
                 UPDATES.render_window(WINDOW.id());
