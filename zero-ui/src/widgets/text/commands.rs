@@ -593,7 +593,10 @@ impl TextEditOp {
 
             (op.op)(text, &mut *op.data, UndoFullOp::Op(UndoOp::Redo));
         }
-        UNDO.register(UndoTextEditOp::new(self));
+
+        if !OBSCURE_TXT_VAR.get() {
+            UNDO.register(UndoTextEditOp::new(self));
+        }
         true
     }
 }

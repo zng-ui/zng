@@ -1892,12 +1892,12 @@ impl ShapedTextBuilder {
 
         for (seg, info) in text.iter() {
             let mut seg_glyphs = ShapedSegmentData::default();
-            for cluster in 0..(seg.chars().count() as u32) {
+            for (cluster, _) in seg.char_indices() {
                 let i = seg_glyphs.glyphs.len();
                 seg_glyphs.glyphs.extend(glyphs.glyphs.iter().copied());
                 for g in &mut seg_glyphs.glyphs[i..] {
                     g.point.0 += seg_glyphs.x_advance;
-                    g.cluster = cluster;
+                    g.cluster = cluster as u32;
                 }
                 seg_glyphs.x_advance += glyphs.x_advance;
             }

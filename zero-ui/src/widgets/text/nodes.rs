@@ -14,6 +14,7 @@ use super::{
     commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
     text_properties::*,
 };
+use crate::core::undo::UNDO;
 use crate::{
     core::{
         access::{ACCESS_SELECTION_EVENT, ACCESS_TEXT_EVENT},
@@ -818,7 +819,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             // update `r.text`, affects layout.
             if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || DIRECTION_VAR.is_new() {
                 if text.is_new() {
-                    use crate::core::undo::UNDO;
                     if !r.pending_edit && UNDO.scope() == Some(WIDGET.id()) {
                         UNDO.clear();
                     }
@@ -1893,8 +1893,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
             if OBSCURE_TXT_VAR.is_new() || OBSCURING_CHAR_VAR.is_new() {
-                if edit_data.is_none() && OBSCURE_TXT_VAR.is_new() && WINDOW.info().access_enabled().is_enabled() {
-                    WIDGET.info();
+                if let Some(obscure) = OBSCURE_TXT_VAR.get_new() {
+                    if edit_data.is_none() && WINDOW.info().access_enabled().is_enabled() {
+                        WIDGET.info();
+                    }
+
+                    if obscure {
+                        UNDO.clear();
+                    }
                 }
 
                 let c = if OBSCURE_TXT_VAR.get() {
