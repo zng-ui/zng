@@ -16,6 +16,16 @@
 # Edit
 
 * Edit across multiple texts in the same wrap container.
+    - Each text could have the prev/next text widget explicitly set.
+        - This way the edit can work across "pages/columns" too.
+    - Or could work like a tab_index, `txt_index`?
+        - Resolved in a `txt_edit_scope`.
+        - Better, can still work across "pages", and is more closely connected with the directional nav
+          required for up/down cursor moves.
+    - Better use the `tab_index` nav directly.
+        - For left/right caret jumps.
+        - For up/down use directional nav.
+
 * Support `white_space` and `txt_transform` in edit mode.
 * Spellchecker.
     - Use https://docs.rs/hunspell-rs
