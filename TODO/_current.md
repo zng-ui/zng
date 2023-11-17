@@ -9,15 +9,10 @@
         - Hit-test area full shape rectangle.
 
 * Implement IME.
-    - Implement in the app process, `RAW_IME_EVENT`, `ViewWindow::set_ime_allowed`.
-    - IME service could monitor focused widget info.
-        - It can have a metadata flag indicating that it is an IME input.
-        - It then manages `set_ime_allowed` and `set_ime_cursor_area` automatically.
-        - How does the service access the view window?
-            - The window itself could do this.
-            - It already uses the FOCUS service.
-
-    - We could unify `set_ime_area(&self, area: Option<DipRect>)`. // None disables.
+    - `set_ime_area` for the focused widget if it is an `IME_EVENT` subscriber.
+    - Update `is_ime_composing`.
+    - Both from `RAW_IME_EVENT` in window.
+    - Review !!:.
 
 # Accessibility
 

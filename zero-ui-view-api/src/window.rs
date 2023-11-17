@@ -465,7 +465,7 @@ pub struct WindowRequest {
     pub access_root: AccessNodeId,
 
     /// IME cursor area, if IME is enabled.
-    pub ime_area: Option<DipPoint>,
+    pub ime_area: Option<DipRect>,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

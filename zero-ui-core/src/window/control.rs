@@ -502,6 +502,12 @@ impl HeadedCtrl {
             }
         }
 
+        if super::IME_EVENT.has_subscribers() {
+            FOCUS.focused().with_new(|f| {
+                // !!: TODO
+            });
+        }
+
         self.content.update(update_widgets);
     }
 
@@ -700,6 +706,20 @@ impl HeadedCtrl {
                 self.respawned = true;
 
                 UPDATES.layout_window(w_id).render_window(w_id);
+            }
+        } else if let Some(args) = crate::app::raw_events::RAW_IME_EVENT.on(update) {
+            let w_id = WINDOW.id();
+            if args.window_id == w_id {
+                match &args.ime {
+                    Ime::Enabled => self.vars.0.is_ime_composing.set(true),
+                    Ime::PreEdit(s, c) => {
+                        // !!: TODO
+                    },
+                    Ime::Commit(s) => {
+                        // !!: TODO
+                    },
+                    Ime::Disabled => self.vars.0.is_ime_composing.set(false),
+                }
             }
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {

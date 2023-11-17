@@ -428,6 +428,8 @@ impl Window {
             win.state.restore_rect.origin = (win.state.global_position - monitor_offset).to_dip(win.scale_factor());
         }
 
+        win.set_ime_area(cfg.ime_area);
+
         win
     }
 
