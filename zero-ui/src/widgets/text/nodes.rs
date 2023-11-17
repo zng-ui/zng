@@ -2235,11 +2235,9 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
         id: ResponseVar<WidgetId>,
         layout: Arc<Mutex<CaretLayout>>,
     }
-    #[derive(Default)]
     struct CaretLayout {
         // set by caret
         width: Px,
-        // height: Px,
         mid: Px,
         // set by Text
         inner_text: PxTransform,
@@ -2247,6 +2245,20 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
         y: Px,
         x2: Px, // render twice
         y2: Px,
+    }
+
+    impl Default for CaretLayout {
+        fn default() -> Self {
+            Self {
+                width: Px::MIN,
+                mid: Px::MIN,
+                inner_text: Default::default(),
+                x: Px::MIN,
+                y: Px::MIN,
+                x2: Px::MIN,
+                y2: Px::MIN,
+            }
+        }
     }
 
     match_node(child, move |c, op| match op {
@@ -2296,6 +2308,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                     let child = shape(s);
                     let mut ctx = LocalContext::capture();
                     let mut caret_mid_buf = Some(Arc::new(Atomic::new(Px(0))));
+                    let parent_id = WIDGET.id();
                     let child = match_node(
                         child,
                         clmv!(c_layout, |c, op| {
@@ -2304,16 +2317,13 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                                     *final_size = TOUCH_CARET_MID.with_context(&mut caret_mid_buf, || c.layout(wl));
                                     let mid = caret_mid_buf.as_ref().unwrap().load(Ordering::Relaxed);
 
-                                    *c_layout.lock() = CaretLayout {
-                                        width: final_size.width,
-                                        // height: final_size.height,
-                                        mid,
-                                        x: Px::MIN,
-                                        y: Px::MIN,
-                                        x2: Px::MIN,
-                                        y2: Px::MIN,
-                                        inner_text: PxTransform::identity(),
-                                    };
+                                    let mut c_layout = c_layout.lock();
+
+                                    if c_layout.width != final_size.width || c_layout.mid != mid {
+                                        UPDATES.layout(parent_id);
+                                        c_layout.width = final_size.width;
+                                        c_layout.mid = mid;
+                                    }
                                 }
                                 UiNodeOp::Render { frame } => {
                                     let l = c_layout.lock();
@@ -2366,6 +2376,11 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                     let t = LayoutText::get();
                     if let Some(mut origin) = t.caret_origin {
                         let mut l = carets[0].layout.lock();
+                        if l.width == Px::MIN {
+                            // wait caret's first layout.
+                            return;
+                        }
+
                         origin.x -= l.width / 2;
                         if l.x != origin.x || l.y != origin.y {
                             l.x = origin.x;
@@ -2382,6 +2397,11 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                     if let (Some(index), Some(s_index), Some(mut origin), Some(mut s_origin)) =
                         (caret.index, caret.selection_index, t.caret_origin, t.caret_selection_origin)
                     {
+                        let mut l = [carets[0].layout.lock(), carets[1].layout.lock()];
+                        if l[0].width == Px::MIN && l[1].width == Px::MIN {
+                            return;
+                        }
+
                         let mut index_is_left = index.index <= s_index.index;
                         let seg_txt = &r_txt.segmented_text;
                         if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(index.index)) {
@@ -2396,8 +2416,6 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                                 s_index_is_left = !s_index_is_left;
                             }
                         }
-
-                        let mut l = [carets[0].layout.lock(), carets[1].layout.lock()];
 
                         if index_is_left {
                             origin.x -= l[0].mid;
