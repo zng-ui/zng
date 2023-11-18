@@ -5,7 +5,7 @@ use crate::{
         l10n::*,
         text::{font_features::*, *},
     },
-    prelude::{new_property::*, new_widget::widget_mixin, AnchorMode},
+    prelude::{new_property::*, new_widget::widget_mixin, AnchorMode, AnchorOffset},
     properties::access,
 };
 
@@ -1692,7 +1692,7 @@ pub fn selection_toolbar(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
 }
 
 #[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
-pub fn selection_toolbar_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
+pub fn selection_toolbar_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     todo!();
     child
 }
