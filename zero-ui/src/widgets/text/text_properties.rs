@@ -1,11 +1,13 @@
 use std::{fmt, num::NonZeroU32, time::Duration};
 
-use crate::core::{
-    l10n::*,
-    text::{font_features::*, *},
+use crate::{
+    core::{
+        l10n::*,
+        text::{font_features::*, *},
+    },
+    prelude::{new_property::*, new_widget::widget_mixin, AnchorMode},
+    properties::access,
 };
-use crate::prelude::{new_property::*, new_widget::widget_mixin};
-use crate::properties::access;
 
 /// Basic text font properties.
 ///
@@ -1682,4 +1684,24 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
         }
         _ => {}
     })
+}
+
+#[property(CHILD_LAYOUT+100)]
+pub fn selection_toolbar(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
+    selection_toolbar_fn(child, WidgetFn::singleton(menu))
+}
+
+#[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
+pub fn selection_toolbar_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<ContextMenuArgs>>) -> impl UiNode {
+    todo!();
+    child
+}
+
+#[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR))]
+pub fn selection_toolbar_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
+    with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, mode)
+}
+
+context_var! {
+    pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorMode = AnchorOffset::out_top();
 }

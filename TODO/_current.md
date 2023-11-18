@@ -2,11 +2,14 @@
 
 * Touch selection.
     - Test with RTL and bidirectional text.
-    - Context menu appears when selecting (or just interacting, if it's an editable field)
-        - Not a normal context menu, "floating toolbar"?
     - Implement `touch_carets` touch drag.
         - Implement in the layered shape?
         - Hit-test area full shape rectangle.
+
+* Implement selection toolbar.
+    - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
+    - Has to be anchored in relation to the selected text.
+    - Implement `selection_toolbar_fn`.
 
 * Implement IME.
     - Only enable for enabled focused that subscribes to IME_EVENT.
