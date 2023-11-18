@@ -12,7 +12,10 @@
     - Implement `selection_toolbar_fn`.
 
 * Implement IME.
-    - Test.
+    - Implement pre-edit preview (!!: TODO IME).
+    - Popup window covers entire widget (area size ignored in Windows?)
+    - Review IME area, we can't just use bounds, a large text area widget may want to
+      set the IME area as the current line.
 
 # Accessibility
 

@@ -26,7 +26,7 @@ use crate::{
         task::parking_lot::Mutex,
         text::{font_features::FontVariations, *},
         touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
-        window::WindowLoadingHandle,
+        window::{WindowLoadingHandle, IME_EVENT},
     },
     prelude::{
         new_widget::*,
@@ -1384,7 +1384,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 3],
+        events: [EventHandle; 4],
         caret_animation: VarHandle,
         select: CommandHandle,
         select_all: CommandHandle,
@@ -1395,9 +1395,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn subscribe(&mut self) {
+            let editable = TEXT_EDITABLE_VAR.get();
             let selectable = TEXT_SELECTABLE_VAR.get();
 
-            if selectable || TEXT_EDITABLE_VAR.get() {
+            if selectable || editable {
                 let id = WIDGET.id();
 
                 self.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
@@ -1411,6 +1412,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 self.select = SELECT_CMD.scoped(id).subscribe(true);
                 self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            }
+
+            if editable {
+                self.events[3] = IME_EVENT.subscribe(WIDGET.id());
             }
         }
     }
@@ -1804,6 +1809,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
                     if args.is_lost(WIDGET.id()) {
                         selection_move_handles.clear();
+                    }
+                } else if let Some(args) = IME_EVENT.on_unhandled(update) {
+                    if editable {
+                        args.propagation().stop();
+
+                        tracing::info!("!!: TODO IME {:?}", args);
                     }
                 } else if selectable {
                     if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
