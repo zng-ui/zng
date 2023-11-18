@@ -22,11 +22,11 @@ use crate::{
     image::{ImageVar, Img, IMAGES},
     l10n::LANG_VAR,
     render::{FrameBuilder, FrameId, FrameUpdate},
-    text::FONTS,
+    text::{Txt, FONTS},
     timer::TIMERS,
     units::*,
     var::*,
-    widget_info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
+    widget_info::{access::AccessEnabled, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::{AutoSize, CursorImage},
 };
@@ -84,8 +84,8 @@ struct HeadedCtrl {
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
     actual_parent: Option<WindowId>,
     root_font_size: Dip,
-
     render_access_update: Option<WidgetInfoTree>, // previous info tree
+    ime_area: Option<WidgetBoundsInfo>,
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
@@ -113,8 +113,8 @@ impl HeadedCtrl {
             actual_parent: None,
             actual_state: None,
             root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.0),
-
             render_access_update: None,
+            ime_area: None,
         }
     }
 
@@ -502,10 +502,8 @@ impl HeadedCtrl {
             }
         }
 
-        if super::IME_EVENT.has_subscribers() {
-            FOCUS.focused().with_new(|f| {
-                // !!: TODO
-            });
+        if super::IME_EVENT.has_subscribers() && FOCUS.focused().is_new() {
+            self.update_ime();
         }
 
         self.content.update(update_widgets);
@@ -711,13 +709,21 @@ impl HeadedCtrl {
             let w_id = WINDOW.id();
             if args.window_id == w_id {
                 match &args.ime {
-                    Ime::Enabled => self.vars.0.is_ime_composing.set(true),
+                    Ime::Enabled => self.vars.0.is_ime_composing.set(self.ime_area.is_some()),
                     Ime::PreEdit(s, c) => {
-                        // !!: TODO
-                    },
+                        if self.ime_area.is_some() {
+                            let target = FOCUS.focused().get().unwrap();
+                            let args = super::ImeArgs::now(target, Txt::from_str(s), *c, false);
+                            super::IME_EVENT.notify(args);
+                        }
+                    }
                     Ime::Commit(s) => {
-                        // !!: TODO
-                    },
+                        if self.ime_area.is_some() {
+                            let target = FOCUS.focused().get().unwrap();
+                            let args = super::ImeArgs::now(target, Txt::from_str(s), None, true);
+                            super::IME_EVENT.notify(args);
+                        }
+                    }
                     Ime::Disabled => self.vars.0.is_ime_composing.set(false),
                 }
             }
@@ -801,6 +807,36 @@ impl HeadedCtrl {
                 });
             }
         }
+    }
+
+    fn update_ime(&mut self) {
+        FOCUS.focused().with(|f| {
+            let mut ime_area_wgt = None;
+            if let Some(f) = f {
+                if f.window_id() == WINDOW.id() && super::IME_EVENT.is_subscriber(f.widget_id()) {
+                    ime_area_wgt = Some(f.widget_id());
+                }
+            }
+
+            if let Some(w) = ime_area_wgt {
+                let info = WINDOW.info();
+                if let Some(w) = info.get(w) {
+                    let bounds = w.bounds_info();
+                    let area = bounds.inner_bounds().to_dip(info.scale_factor().0);
+                    self.ime_area = Some(bounds);
+                    if let Some(w) = &self.window {
+                        let _ = w.set_ime_area(Some(area));
+                    }
+                    return;
+                }
+            }
+
+            if self.ime_area.take().is_some() {
+                if let Some(w) = &self.window {
+                    let _ = w.set_ime_area(None);
+                }
+            }
+        });
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
@@ -970,7 +1006,7 @@ impl HeadedCtrl {
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
-            ime_area: None, // !!: TODO
+            ime_area: self.ime_area.as_ref().map(|a| a.inner_bounds().to_dip(scale_factor.0)),
 
             extensions: {
                 let mut exts = vec![];
@@ -1097,7 +1133,10 @@ impl HeadedCtrl {
 
             access_root: self.content.root_ctx.id().into(),
 
-            ime_area: None, // !!: TODO
+            ime_area: self
+                .ime_area
+                .as_ref()
+                .map(|a| a.inner_bounds().to_dip(self.monitor.as_ref().unwrap().scale_factor().get().0)),
 
             extensions: {
                 let mut exts = vec![];
@@ -1148,6 +1187,13 @@ impl HeadedCtrl {
                         update.focused = self.accessible_focused(&info).unwrap_or_else(|| info.root().id()).into();
                         let _ = view.access_update(update);
                     }
+                }
+            }
+
+            if let Some(ime) = &self.ime_area {
+                if let Some(w) = &self.window {
+                    let area = ime.inner_bounds().to_dip(scale_factor.0);
+                    let _ = w.set_ime_area(Some(area));
                 }
             }
         }

@@ -9,10 +9,8 @@
         - Hit-test area full shape rectangle.
 
 * Implement IME.
-    - `set_ime_area` for the focused widget if it is an `IME_EVENT` subscriber.
-    - Update `is_ime_composing`.
-    - Both from `RAW_IME_EVENT` in window.
-    - Review !!:.
+    - Only enable for enabled focused that subscribes to IME_EVENT.
+    - Right now we enable for all focused that sub, that includes disabled widgets.
 
 # Accessibility
 

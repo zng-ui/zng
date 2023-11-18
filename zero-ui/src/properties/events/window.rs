@@ -9,7 +9,10 @@
 //! event using [`EVENTS`](crate::core::event::EVENTS).
 
 use super::event_property;
-use crate::core::{context::WINDOW, window::*};
+use crate::core::{
+    context::{WIDGET, WINDOW},
+    window::*,
+};
 
 event_property! {
     /// On window opened.
@@ -131,5 +134,12 @@ event_property! {
         event: FRAME_IMAGE_READY_EVENT,
         args: FrameImageReadyArgs,
         filter: |args| args.window_id == WINDOW.id(),
+    }
+
+    /// On IME event.
+    pub fn ime {
+        event: IME_EVENT,
+        args: ImeArgs,
+        filter: |args| args.target.widget_id() == WIDGET.id(),
     }
 }
