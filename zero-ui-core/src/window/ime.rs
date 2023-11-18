@@ -1,10 +1,10 @@
-use crate::{event::*, text::Txt, widget_info::InteractionPath};
+use crate::{event::*, text::Txt, widget_info::WidgetPath};
 
 event_args! {
     /// Arguments for [`IME_EVENT`].
     pub struct ImeArgs {
-        /// Text input widget.
-        pub target: InteractionPath,
+        /// The enabled text input widget.
+        pub target: WidgetPath,
 
         /// The text, preview or actual insert.
         pub txt: Txt,

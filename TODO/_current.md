@@ -12,8 +12,7 @@
     - Implement `selection_toolbar_fn`.
 
 * Implement IME.
-    - Only enable for enabled focused that subscribes to IME_EVENT.
-    - Right now we enable for all focused that sub, that includes disabled widgets.
+    - Test.
 
 # Accessibility
 
