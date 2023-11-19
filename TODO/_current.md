@@ -16,6 +16,8 @@
     - Popup window covers entire widget (area size ignored in Windows?)
     - Review IME area, we can't just use bounds, a large text area widget may want to
       set the IME area as the current line.
+    - Firefox uses the selection rectangles and also sets the "interest point".
+        - Winit sets the point to the exclusion area origin.
 
 # Accessibility
 
