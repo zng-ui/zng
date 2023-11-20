@@ -7,7 +7,7 @@ use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffse
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,
@@ -221,15 +221,5 @@ impl<S: Into<FactorSideOffsets>> ops::DivAssign<S> for SideOffsets {
         self.right /= rhs.right;
         self.bottom /= rhs.bottom;
         self.left /= rhs.left;
-    }
-}
-impl Transitionable for SideOffsets {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            top: self.top.lerp(&to.top, step),
-            right: self.right.lerp(&to.right, step),
-            bottom: self.bottom.lerp(&to.bottom, step),
-            left: self.left.lerp(&to.left, step),
-        }
     }
 }

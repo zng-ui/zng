@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
 
 /// 2D line in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Line {
     /// Start point in length units.
     pub start: Point,
@@ -263,13 +263,5 @@ impl ops::SubAssign for Line {
     fn sub_assign(&mut self, rhs: Self) {
         self.start -= rhs.start;
         self.end -= rhs.end;
-    }
-}
-impl Transitionable for Line {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            start: self.start.lerp(&to.start, step),
-            end: self.end.lerp(&to.end, step),
-        }
     }
 }

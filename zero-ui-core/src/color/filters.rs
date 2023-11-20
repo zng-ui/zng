@@ -7,6 +7,7 @@ use crate::{
     impl_from_and_into_var,
     render::{webrender_api as wr, FilterOp, FrameValue},
     units::*,
+    var::animation::Transitionable,
 };
 
 /// A color filter or combination of filters.
@@ -276,6 +277,115 @@ impl fmt::Debug for FilterData {
     }
 }
 
+impl Transitionable for wr::Shadow {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        self.offset = Transitionable::lerp(self.offset, &to.offset, step);
+        self.color = self.color.lerp(&to.color, step);
+        self.blur_radius = self.blur_radius.lerp(&to.blur_radius, step);
+        self
+    }
+}
+
+impl Transitionable for FilterOp {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        match (&mut self, to) {
+            (FilterOp::Blur(x, y), FilterOp::Blur(xb, yb)) => {
+                *x = x.lerp(xb, step);
+                *y = y.lerp(yb, step);
+            }
+            (FilterOp::Brightness(a), FilterOp::Brightness(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Contrast(a), FilterOp::Contrast(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Grayscale(a), FilterOp::Grayscale(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::HueRotate(a), FilterOp::HueRotate(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Invert(a), FilterOp::Invert(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Opacity(a), FilterOp::Opacity(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Saturate(a), FilterOp::Saturate(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::Sepia(a), FilterOp::Sepia(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::DropShadow(a), FilterOp::DropShadow(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (FilterOp::ColorMatrix(a), FilterOp::ColorMatrix(b)) => {
+                for (a, b) in a.iter_mut().zip(b) {
+                    *a = a.lerp(b, step);
+                }
+            }
+            (FilterOp::Flood(a), FilterOp::Flood(b)) => {
+                *a = a.lerp(b, step);
+            }
+            (a, b) => {
+                if step >= 1.fct() {
+                    *a = *b
+                }
+            }
+        }
+        self
+    }
+}
+
+impl Transitionable for Filter {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        let end = step >= 1.fct();
+
+        for z in self.filters.iter_mut().zip(&to.filters) {
+            match z {
+                (FilterData::Op(a), FilterData::Op(b)) => *a = a.lerp(b, step),
+                (FilterData::Blur(a), FilterData::Blur(b)) => {
+                    *a = a.clone().lerp(b, step);
+                }
+                (
+                    FilterData::DropShadow {
+                        offset,
+                        blur_radius,
+                        color,
+                    },
+                    FilterData::DropShadow {
+                        offset: offset_b,
+                        blur_radius: blur_b,
+                        color: color_b,
+                    },
+                ) => {
+                    *offset = offset.clone().lerp(offset_b, step);
+                    *blur_radius = blur_radius.clone().lerp(blur_b, step);
+                    *color = color.lerp(*color_b, step);
+                }
+                (a, b) => {
+                    if end {
+                        *a = b.clone();
+                    }
+                }
+            }
+        }
+
+        if end {
+            match self.filters.len().cmp(&to.filters.len()) {
+                std::cmp::Ordering::Less => self.filters.truncate(to.filters.len()),
+                std::cmp::Ordering::Greater => self.filters.extend(to.filters[self.filters.len()..].iter().cloned()),
+                std::cmp::Ordering::Equal => {}
+            }
+
+            self.needs_layout = to.needs_layout;
+        }
+
+        self
+    }
+}
+
 /// New [`Filter::opacity`].
 pub fn opacity<A: Into<Factor>>(alpha: A) -> Filter {
     Filter::default().opacity(alpha)
@@ -394,5 +504,13 @@ impl std::hash::Hash for ColorMatrix {
         for f in self.0 {
             about_eq_hash(f, 0.00001, state);
         }
+    }
+}
+impl Transitionable for ColorMatrix {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        for (a, b) in self.0.iter_mut().zip(&to.0) {
+            *a = a.lerp(b, step);
+        }
+        self
     }
 }

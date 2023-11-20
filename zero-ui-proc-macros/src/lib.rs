@@ -20,6 +20,7 @@ mod merge_var;
 mod when_var;
 
 mod property;
+mod transitionable;
 mod ui_node;
 mod wgt_property_attrs;
 mod widget;
@@ -96,6 +97,12 @@ pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
     wgt_property_attrs::expand_easing(args, input)
+}
+
+/// Implement transition by delegating all type parts.
+#[proc_macro_derive(Transitionable)]
+pub fn transitionable(args: TokenStream) -> TokenStream {
+    transitionable::expand(args)
 }
 
 #[doc(hidden)]

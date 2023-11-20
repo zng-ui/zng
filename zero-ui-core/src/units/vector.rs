@@ -8,7 +8,7 @@ use super::{
 };
 
 /// 2D vector in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Vector {
     /// *x* displacement in length units.
     pub x: Length,
@@ -276,13 +276,5 @@ impl<'a> ops::Neg for &'a Vector {
 
     fn neg(self) -> Self::Output {
         -self.clone()
-    }
-}
-impl Transitionable for Vector {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            x: self.x.lerp(&to.x, step),
-            y: self.y.lerp(&to.y, step),
-        }
     }
 }

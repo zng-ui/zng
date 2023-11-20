@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use derive_more as dm;
 
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::Factor;
 
@@ -106,6 +106,7 @@ impl ByteUnits for usize {
     dm::FromStr,
     serde::Serialize,
     serde::Deserialize,
+    Transitionable,
 )]
 #[serde(transparent)]
 pub struct ByteLength(pub usize);

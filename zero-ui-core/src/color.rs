@@ -341,6 +341,12 @@ impl Transitionable for Rgba {
     }
 }
 
+impl Transitionable for RenderColor {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Rgba::from(self).lerp(Rgba::from(*to), step).into()
+    }
+}
+
 /// Pre-multiplied RGB + alpha.
 ///
 /// Use [`Rgba::pre_mul`] to create.
@@ -1238,7 +1244,7 @@ pub fn color_scheme_highlight(pair: impl IntoVar<ColorPair>, highlight: impl Int
 }
 
 /// Represents a dark and light *color*.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct ColorPair {
     /// Color used when [`ColorScheme::Dark`].
     pub dark: Rgba,
@@ -1267,14 +1273,6 @@ impl ColorPair {
     /// [`light`]: ColorPair::light
     pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
         colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
-    }
-}
-impl Transitionable for ColorPair {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        Self {
-            dark: self.dark.lerp(to.dark, step),
-            light: self.light.lerp(to.light, step),
-        }
     }
 }
 

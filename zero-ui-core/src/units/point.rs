@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipPoint, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,
@@ -324,13 +324,5 @@ impl<'a> ops::Neg for &'a Point {
 
     fn neg(self) -> Self::Output {
         -self.clone()
-    }
-}
-impl Transitionable for Point {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            x: self.x.lerp(&to.x, step),
-            y: self.y.lerp(&to.y, step),
-        }
     }
 }

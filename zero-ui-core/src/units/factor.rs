@@ -4,7 +4,7 @@ use super::{
     about_eq, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
     EQ_EPSILON_100,
 };
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use std::{fmt, ops, time::Duration};
 
 /// Multiplication factor in percentage (0%-100%).
@@ -14,7 +14,7 @@ use std::{fmt, ops, time::Duration};
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize, Transitionable)]
 #[serde(transparent)]
 pub struct FactorPercent(pub f32);
 impl FactorPercent {

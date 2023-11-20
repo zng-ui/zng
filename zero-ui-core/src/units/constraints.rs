@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{euclid, FactorUnits, Px, PxSize};
 
@@ -11,7 +11,7 @@ pub use euclid::BoolVector2D;
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length.
 ///
 /// See also the [`PxConstraints2d`].
-#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints {
     #[serde(with = "serde_constraints_max")]
     max: Px,
@@ -318,7 +318,7 @@ mod serde_constraints_max {
 ///
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length for
 /// both the ***x*** and ***y*** axis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints2d {
     /// Constraints of lengths in the *x* or *width* dimension.
     pub x: PxConstraints,

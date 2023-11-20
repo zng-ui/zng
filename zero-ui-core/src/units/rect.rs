@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
 /// 2D rect in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,
@@ -220,14 +220,6 @@ impl ops::SubAssign for Rect {
     fn sub_assign(&mut self, rhs: Self) {
         self.origin -= rhs.origin;
         self.size -= rhs.size;
-    }
-}
-impl Transitionable for Rect {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            origin: self.origin.lerp(&to.origin, step),
-            size: self.size.lerp(&to.size, step),
-        }
     }
 }
 

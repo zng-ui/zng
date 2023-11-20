@@ -3,7 +3,7 @@ use std::{
     ops,
 };
 
-use crate::{context::LayoutDirection, impl_from_and_into_var, widget_info::WidgetLayout};
+use crate::{context::LayoutDirection, impl_from_and_into_var, var::animation::Transitionable, widget_info::WidgetLayout};
 
 use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints2d, PxSize, PxVector};
 
@@ -350,60 +350,30 @@ impl_from_and_into_var! {
     }
 }
 
-impl ops::Add for Align {
-    type Output = Self;
+impl Transitionable for Align {
+    fn lerp(mut self, to: &Self, step: super::EasingStep) -> Self {
+        let end = step >= 1.fct();
 
-    fn add(mut self, rhs: Self) -> Self {
-        self += rhs;
+        if end {
+            self.x_rtl_aware = to.x_rtl_aware;
+        }
+
+        if self.x.0.is_finite() && self.y.0.is_finite() {
+            self.x = self.x.lerp(&to.x, step);
+        } else if end {
+            self.x = to.x;
+        }
+
+        if self.y.0.is_finite() && self.y.0.is_finite() {
+            self.y = self.y.lerp(&to.y, step);
+        } else if end {
+            self.y = to.y;
+        }
+
         self
     }
 }
-impl ops::AddAssign for Align {
-    fn add_assign(&mut self, rhs: Self) {
-        if self.is_fill_x() || rhs.is_fill_x() {
-            self.x = f32::INFINITY.fct();
-        } else {
-            self.x += rhs.x;
-        }
-        self.x_rtl_aware |= rhs.x_rtl_aware;
 
-        if self.is_baseline() || rhs.is_baseline() {
-            self.y = f32::NEG_INFINITY.fct();
-        } else {
-            self.y += rhs.y;
-        }
-    }
-}
-impl ops::Sub for Align {
-    type Output = Self;
-
-    fn sub(mut self, rhs: Self) -> Self {
-        self -= rhs;
-        self
-    }
-}
-impl ops::SubAssign for Align {
-    fn sub_assign(&mut self, rhs: Self) {
-        if self.is_fill_x() {
-            if rhs.is_fill_x() {
-                self.x = 0.fct();
-            }
-            // else stays infinite.
-        } else if rhs.is_fill_x() {
-            self.x = 0.fct();
-        } else {
-            self.x -= rhs.x;
-        }
-        self.x_rtl_aware |= rhs.x_rtl_aware;
-
-        if self.is_baseline() || rhs.is_baseline() {
-            // baseline is an special value.
-            self.y = f32::NEG_INFINITY.fct();
-        } else {
-            self.y -= rhs.y;
-        }
-    }
-}
 impl<S: Into<Factor2d>> ops::Mul<S> for Align {
     type Output = Self;
 
@@ -414,24 +384,12 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Align {
 }
 impl<S: Into<Factor2d>> ops::MulAssign<S> for Align {
     fn mul_assign(&mut self, rhs: S) {
-        let rhs: Self = rhs.into().into();
+        let rhs = rhs.into();
 
-        if self.is_fill_x() {
-            if rhs.is_fill_x() {
-                self.x = 0.fct();
-            }
-            // else stays infinite.
-        } else if rhs.is_fill_x() {
-            self.x = 0.fct();
-        } else {
+        if self.x.0.is_finite() {
             self.x *= rhs.x;
         }
-        self.x_rtl_aware |= rhs.x_rtl_aware;
-
-        if self.is_baseline() || rhs.is_baseline() {
-            // baseline is an special value.
-            self.y = f32::NEG_INFINITY.fct();
-        } else {
+        if self.y.0.is_finite() {
             self.y *= rhs.y;
         }
     }
@@ -446,24 +404,12 @@ impl<S: Into<Factor2d>> ops::Div<S> for Align {
 }
 impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
     fn div_assign(&mut self, rhs: S) {
-        let rhs: Self = rhs.into().into();
+        let rhs = rhs.into();
 
-        if self.is_fill_x() {
-            if rhs.is_fill_x() {
-                self.x = 0.fct();
-            }
-            // else stays infinite.
-        } else if rhs.is_fill_x() {
-            self.x = 0.fct();
-        } else {
+        if self.x.0.is_finite() {
             self.x /= rhs.x;
         }
-        self.x_rtl_aware |= rhs.x_rtl_aware;
-
-        if self.is_baseline() || rhs.is_baseline() {
-            // baseline is an special value.
-            self.y = f32::NEG_INFINITY.fct();
-        } else {
+        if self.y.0.is_finite() {
             self.y /= rhs.y;
         }
     }

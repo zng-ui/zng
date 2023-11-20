@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxSize, Rect, Vector};
 
 /// 2D size in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
@@ -224,13 +224,5 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Size {
         let rhs = rhs.into();
         self.width /= rhs.x;
         self.height /= rhs.y;
-    }
-}
-impl Transitionable for Size {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            width: self.width.lerp(&to.width, step),
-            height: self.height.lerp(&to.height, step),
-        }
     }
 }

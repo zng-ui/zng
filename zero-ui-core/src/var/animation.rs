@@ -7,6 +7,8 @@ use std::{
 
 use crate::{app::LoopTimer, clmv, context_local, crate_util};
 
+pub use zero_ui_proc_macros::Transitionable;
+
 use super::*;
 
 pub mod easing;
@@ -388,7 +390,7 @@ impl_transitionable! {
     f32 => i8, u8, i16, u16, i32, u32,
 }
 impl_transitionable! {
-    f64 => u64, i64, u128, i128,
+    f64 => u64, i64, u128, i128, isize, usize,
 }
 impl Transitionable for Px {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
@@ -499,11 +501,6 @@ impl Transitionable for Factor {
         Factor(self.0.lerp(&to.0, step))
     }
 }
-impl Transitionable for FactorPercent {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        FactorPercent(self.0.lerp(&to.0, step))
-    }
-}
 impl<T, U> Transitionable for euclid::SideOffsets2D<T, U>
 where
     T: Transitionable,
@@ -516,6 +513,64 @@ where
             self.bottom.lerp(&to.bottom, step),
             self.left.lerp(&to.left, step),
         )
+    }
+}
+impl Transitionable for bool {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        if step >= 1.fct() {
+            *to
+        } else {
+            self
+        }
+    }
+}
+impl<T, U> Transitionable for CornerRadius2D<T, U>
+where
+    T: Transitionable,
+    U: Send + Sync + Any,
+{
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self {
+            top_left: self.top_left.lerp(&to.top_left, step),
+            top_right: self.top_right.lerp(&to.top_right, step),
+            bottom_right: self.bottom_right.lerp(&to.bottom_right, step),
+            bottom_left: self.bottom_left.lerp(&to.bottom_left, step),
+        }
+    }
+}
+
+impl<T> Transitionable for crate::render::FrameValue<T>
+where
+    T: Transitionable,
+{
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        let mut bind_data = None;
+        let mut value = match self {
+            Self::Bind { key, value, animating } => {
+                bind_data = Some((key, animating));
+                value
+            }
+            Self::Value(v) => v,
+        };
+
+        value = value.lerp(to.value(), step);
+
+        if step < 1.fct() {
+            if let Some((key, animating)) = bind_data {
+                Self::Bind { key, value, animating }
+            } else {
+                Self::Value(value)
+            }
+        } else {
+            match to {
+                Self::Bind { key, animating, .. } => Self::Bind {
+                    key: key.clone(),
+                    value,
+                    animating: *animating,
+                },
+                Self::Value(_) => Self::Value(value),
+            }
+        }
     }
 }
 

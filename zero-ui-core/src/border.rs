@@ -90,6 +90,20 @@ impl fmt::Debug for LineStyle {
         }
     }
 }
+impl Transitionable for LineStyle {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match (self, *to) {
+            (Self::Wavy(a), Self::Wavy(b)) => Self::Wavy(a.lerp(&b, step)),
+            (a, b) => {
+                if step < 1.fct() {
+                    a
+                } else {
+                    b
+                }
+            }
+        }
+    }
+}
 
 /// The line style for the sides of a widget's border.
 #[repr(u32)]
@@ -151,7 +165,7 @@ impl From<BorderStyle> for w_api::BorderStyle {
         }
     }
 }
-impl animation::Transitionable for BorderStyle {
+impl Transitionable for BorderStyle {
     /// Returns `self` for `step < 1.fct()` or `to` for `step >= 1.fct()`.
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         if step < 1.fct() {
@@ -164,7 +178,7 @@ impl animation::Transitionable for BorderStyle {
 
 /// The line style and color for the sides of a widget's border.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct BorderSide {
     /// Line color.
     pub color: Rgba,
@@ -253,16 +267,9 @@ impl Default for BorderSide {
         Self::hidden()
     }
 }
-impl animation::Transitionable for BorderSide {
-    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
-        self.color = self.color.lerp(to.color, step);
-        self.style = self.style.lerp(&to.style, step);
-        self
-    }
-}
 
 /// Radius of each corner of a border defined from [`Size`] values.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct CornerRadius {
     /// Top-left corner.
     pub top_left: Size,
@@ -388,7 +395,7 @@ impl_from_and_into_var! {
 }
 
 /// The line style and color for each side of a widget's border.
-#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct BorderSides {
     /// Color and style of the left border.
     pub left: BorderSide,
@@ -532,15 +539,6 @@ impl Default for BorderSides {
     /// Returns [`hidden`](BorderSides::hidden).
     fn default() -> Self {
         Self::hidden()
-    }
-}
-impl animation::Transitionable for BorderSides {
-    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
-        self.top = self.top.lerp(&to.top, step);
-        self.right = self.right.lerp(&to.right, step);
-        self.bottom = self.bottom.lerp(&to.bottom, step);
-        self.left = self.left.lerp(&to.left, step);
-        self
     }
 }
 

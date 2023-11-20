@@ -1,9 +1,9 @@
 use std::fmt;
 
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 /// Pixels-per-inch resolution.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Transitionable)]
 #[serde(transparent)]
 pub struct Ppi(pub f32);
 impl Ppi {
@@ -35,7 +35,7 @@ impl std::hash::Hash for Ppi {
 }
 
 /// Pixels-per-meter resolution.
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 #[serde(transparent)]
 pub struct Ppm(pub f32);
 impl Ppm {

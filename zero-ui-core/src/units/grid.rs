@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector};
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,
@@ -148,14 +148,6 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for GridSpacing {
 
         self.column = column / fct.x;
         self.row = row / fct.y;
-    }
-}
-impl Transitionable for GridSpacing {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
-        Self {
-            column: self.column.lerp(&to.column, step),
-            row: self.row.lerp(&to.row, step),
-        }
     }
 }
 
