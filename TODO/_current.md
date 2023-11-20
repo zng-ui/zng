@@ -1,13 +1,3 @@
-# (Re) Factor
-
-* Move `Factor` type to API crate, `to_px` and `to_dip` use it and they don't plug right.
-    - Done.
-* This move breaks `Transitionable`.
-    - "upstream crates may add a new impl of trait".
-    - Need manual impl for all Transitionable.
-        - Review all units.
-* Merge.
-
 # TextInput
 
 * Touch selection.

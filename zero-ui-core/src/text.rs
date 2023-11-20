@@ -42,7 +42,7 @@ pub use font_kit::properties::Style as FontStyle;
 /// The width of a font as an approximate fraction of the normal width.
 ///
 /// Widths range from 0.5 to 2.0 inclusive, with 1.0 as the normal width.
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, Transitionable)]
 #[serde(transparent)]
 pub struct FontStretch(pub f32);
 impl fmt::Debug for FontStretch {
@@ -137,11 +137,6 @@ impl From<FontStretch> for font_kit::properties::Stretch {
         font_kit::properties::Stretch(value.0)
     }
 }
-impl Transitionable for FontStretch {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        FontStretch(self.0.lerp(&to.0, step))
-    }
-}
 impl From<font_kit::properties::Stretch> for FontStretch {
     fn from(value: font_kit::properties::Stretch) -> Self {
         FontStretch(value.0)
@@ -150,7 +145,7 @@ impl From<font_kit::properties::Stretch> for FontStretch {
 
 /// The degree of blackness or stroke thickness of a font. This value ranges from 100.0 to 900.0,
 /// with 400.0 as normal.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Transitionable)]
 pub struct FontWeight(pub f32);
 impl Default for FontWeight {
     fn default() -> FontWeight {
@@ -226,11 +221,6 @@ impl FontWeight {
             BLACK;
         }
         ""
-    }
-}
-impl Transitionable for FontWeight {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        FontWeight(self.0.lerp(&to.0, step))
     }
 }
 impl_from_and_into_var! {

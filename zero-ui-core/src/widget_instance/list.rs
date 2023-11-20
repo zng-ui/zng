@@ -11,7 +11,7 @@ use crate::{
     context_local, property,
     render::FrameValueKey,
     task::{self, ParallelIteratorExt},
-    var::{IntoVar, Var},
+    var::{animation::Transitionable, IntoVar, Var},
 };
 
 use rayon::prelude::*;
@@ -724,7 +724,7 @@ static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 /// See [`z_index`] for more details.
 ///
 /// [`z_index`]: fn@z_index
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Transitionable)]
 pub struct ZIndex(pub u32);
 impl ZIndex {
     /// Widget is rendered first causing all overlapping siblings to render on top of it.

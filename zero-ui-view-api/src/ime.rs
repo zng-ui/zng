@@ -11,9 +11,9 @@ pub enum Ime {
     ///
     /// After getting this event you could receive [`PreEdit`](Self::PreEdit) and
     /// [`Commit`](Self::Commit) events. You should also start performing IME related requests
-    /// like [`Api::set_ime_cursor_area`].
+    /// like [`Api::set_ime_area`].
     ///
-    /// [`Api::set_ime_cursor_area`]: crate::Api::set_ime_cursor_area
+    /// [`Api::set_ime_area`]: crate::Api::set_ime_area
     Enabled,
 
     /// Notifies when a new composing text should be set at the cursor position.
@@ -34,9 +34,9 @@ pub enum Ime {
     ///
     /// After receiving this event you won't get any more [`PreEdit`](Self::PreEdit) or
     /// [`Commit`](Self::Commit) events until the next [`Enabled`](Self::Enabled) event. You should
-    /// also stop issuing IME related requests like [`Api::set_ime_cursor_area`] and clear pending
+    /// also stop issuing IME related requests like [`Api::set_ime_area`] and clear pending
     /// pre-edit text.
     ///
-    /// [`Api::set_ime_cursor_area`]: crate::Api::set_ime_cursor_area
+    /// [`Api::set_ime_area`]: crate::Api::set_ime_area
     Disabled,
 }
