@@ -1686,22 +1686,26 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
     })
 }
 
+/// !!: TODO
 #[property(CHILD_LAYOUT+100)]
 pub fn selection_toolbar(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
     selection_toolbar_fn(child, WidgetFn::singleton(menu))
 }
 
+/// !!: TODO
 #[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
 pub fn selection_toolbar_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     todo!();
     child
 }
 
+/// !!: TODO
 #[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR))]
 pub fn selection_toolbar_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, mode)
 }
 
 context_var! {
+    /// !!: TODO
     pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorMode = AnchorOffset::out_top();
 }

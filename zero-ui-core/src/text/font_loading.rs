@@ -7,7 +7,6 @@ use std::{
     sync::Arc,
 };
 
-use font_kit::properties::Weight;
 use parking_lot::{Mutex, RwLock};
 
 use super::{
@@ -392,8 +391,8 @@ impl FontFace {
             is_monospace: true,
             properties: font_kit::properties::Properties {
                 style: FontStyle::Normal,
-                weight: FontWeight::NORMAL,
-                stretch: FontStretch::NORMAL,
+                weight: FontWeight::NORMAL.into(),
+                stretch: FontStretch::NORMAL.into(),
             },
             // values copied from a monospace font
             metrics: FontFaceMetrics {
@@ -500,8 +499,8 @@ impl FontFace {
             postscript_name: None,
             properties: font_kit::properties::Properties {
                 style: custom_font.style,
-                weight: custom_font.weight,
-                stretch: custom_font.stretch,
+                weight: custom_font.weight.into(),
+                stretch: custom_font.stretch.into(),
             },
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
@@ -684,12 +683,12 @@ impl FontFace {
 
     /// Font weight.
     pub fn weight(&self) -> FontWeight {
-        self.0.properties.weight
+        self.0.properties.weight.into()
     }
 
     /// Font stretch.
     pub fn stretch(&self) -> FontStretch {
-        self.0.properties.stretch
+        self.0.properties.stretch.into()
     }
 
     /// Font is monospace (fixed-width).
@@ -1461,9 +1460,14 @@ impl FontFaceLoader {
     fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<font_kit::handle::Handle> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
-        match font_kit::source::SystemSource::new()
-            .select_best_match(&[family_name], &font_kit::properties::Properties { style, weight, stretch })
-        {
+        match font_kit::source::SystemSource::new().select_best_match(
+            &[family_name],
+            &font_kit::properties::Properties {
+                style,
+                weight: weight.into(),
+                stretch: stretch.into(),
+            },
+        ) {
             Ok(handle) => Some(handle),
             Err(font_kit::error::SelectionError::NotFound) => {
                 tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
@@ -1547,7 +1551,7 @@ impl FontFaceLoader {
         //     then ascending over 500.
         let add_penalty = if weight.0 >= 400.0 && weight.0 <= 500.0 {
             // c:
-            |face: &FontFace, weight: Weight, dist: &mut f64| {
+            |face: &FontFace, weight: FontWeight, dist: &mut f64| {
                 // Add penalty for:
                 if face.weight() < weight {
                     // Not being in search up to 500
@@ -1559,7 +1563,7 @@ impl FontFaceLoader {
             }
         } else if weight.0 < 400.0 {
             // a:
-            |face: &FontFace, weight: Weight, dist: &mut f64| {
+            |face: &FontFace, weight: FontWeight, dist: &mut f64| {
                 if face.weight() > weight {
                     *dist += weight.0 as f64;
                 }
@@ -1567,7 +1571,7 @@ impl FontFaceLoader {
         } else {
             debug_assert!(weight.0 > 500.0);
             // b:
-            |face: &FontFace, weight: Weight, dist: &mut f64| {
+            |face: &FontFace, weight: FontWeight, dist: &mut f64| {
                 if face.weight() < weight {
                     *dist += f32::MAX as f64;
                 }

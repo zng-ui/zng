@@ -520,7 +520,7 @@ pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
                             let factor = WINDOW.info().scale_factor();
                             dragging = Some(Dragging {
                                 _mouse_move: MOUSE_MOVE_EVENT.subscribe(id),
-                                start: args.position.to_px(factor.0),
+                                start: args.position.to_px(factor),
                                 applied_offset: PxVector::zero(),
                                 factor,
                             });
@@ -532,7 +532,7 @@ pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
                     }
                 } else if let Some(d) = &mut dragging {
                     if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                        let offset = d.start - args.position.to_px(d.factor.0);
+                        let offset = d.start - args.position.to_px(d.factor);
                         let delta = d.applied_offset - offset;
                         d.applied_offset = offset;
 

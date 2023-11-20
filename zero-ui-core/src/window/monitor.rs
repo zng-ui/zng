@@ -270,7 +270,7 @@ impl MonitorInfo {
             name: var(info.name.to_text()),
             position: var(info.position),
             size: var(info.size),
-            scale_factor: var(info.scale_factor.fct()),
+            scale_factor: var(info.scale_factor),
             video_modes: var(info.video_modes),
             ppi: var(Ppi::default()),
         }
@@ -289,7 +289,7 @@ impl MonitorInfo {
             | check_set(&self.name, info.name.to_text())
             | check_set(&self.position, info.position)
             | check_set(&self.size, info.size)
-            | check_set(&self.scale_factor, info.scale_factor.fct())
+            | check_set(&self.scale_factor, info.scale_factor)
             | check_set(&self.video_modes, info.video_modes)
     }
 
@@ -346,7 +346,7 @@ impl MonitorInfo {
         let size = self.size.get();
         let factor = self.scale_factor.get();
 
-        PxRect::new(pos, size).to_dip(factor.0)
+        PxRect::new(pos, size).to_dip(factor)
     }
 
     /// Bogus metadata for the [`MonitorId::fallback`].
@@ -359,7 +359,7 @@ impl MonitorInfo {
             is_primary: var(false),
             name: var("<fallback>".into()),
             position: var(PxPoint::zero()),
-            size: var(defaults.size.to_px(fct.0)),
+            size: var(defaults.size.to_px(fct)),
             video_modes: var(vec![]),
             scale_factor: var(fct),
             ppi: var(Ppi::default()),

@@ -37,17 +37,218 @@ pub use self::hyphenation::*;
 
 mod ligature_util;
 
-pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+pub use font_kit::properties::Style as FontStyle;
 
+/// The width of a font as an approximate fraction of the normal width.
+///
+/// Widths range from 0.5 to 2.0 inclusive, with 1.0 as the normal width.
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct FontStretch(pub f32);
+impl fmt::Debug for FontStretch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name();
+        if name.is_empty() {
+            f.debug_tuple("FontStretch").field(&self.0).finish()
+        } else {
+            if f.alternate() {
+                write!(f, "FontStretch::")?;
+            }
+            write!(f, "{name}")
+        }
+    }
+}
+impl PartialOrd for FontStretch {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(about_eq_ord(self.0, other.0, EQ_EPSILON))
+    }
+}
+impl PartialEq for FontStretch {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.0, other.0, EQ_EPSILON)
+    }
+}
+impl Hash for FontStretch {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_EPSILON, state)
+    }
+}
+impl Default for FontStretch {
+    fn default() -> FontStretch {
+        FontStretch::NORMAL
+    }
+}
+impl FontStretch {
+    /// Ultra-condensed width (50%), the narrowest possible.
+    pub const ULTRA_CONDENSED: FontStretch = FontStretch(0.5);
+    /// Extra-condensed width (62.5%).
+    pub const EXTRA_CONDENSED: FontStretch = FontStretch(0.625);
+    /// Condensed width (75%).
+    pub const CONDENSED: FontStretch = FontStretch(0.75);
+    /// Semi-condensed width (87.5%).
+    pub const SEMI_CONDENSED: FontStretch = FontStretch(0.875);
+    /// Normal width (100%).
+    pub const NORMAL: FontStretch = FontStretch(1.0);
+    /// Semi-expanded width (112.5%).
+    pub const SEMI_EXPANDED: FontStretch = FontStretch(1.125);
+    /// Expanded width (125%).
+    pub const EXPANDED: FontStretch = FontStretch(1.25);
+    /// Extra-expanded width (150%).
+    pub const EXTRA_EXPANDED: FontStretch = FontStretch(1.5);
+    /// Ultra-expanded width (200%), the widest possible.
+    pub const ULTRA_EXPANDED: FontStretch = FontStretch(2.0);
+
+    /// Gets the const name, if this value is one of the constants.
+    pub fn name(self) -> &'static str {
+        macro_rules! name {
+            ($($CONST:ident;)+) => {$(
+                if self == Self::$CONST {
+                    return stringify!($CONST);
+                }
+            )+}
+        }
+        name! {
+            ULTRA_CONDENSED;
+            EXTRA_CONDENSED;
+            CONDENSED;
+            SEMI_CONDENSED;
+            NORMAL;
+            SEMI_EXPANDED;
+            EXPANDED;
+            EXTRA_EXPANDED;
+            ULTRA_EXPANDED;
+        }
+        ""
+    }
+}
+impl_from_and_into_var! {
+    fn from(fct: Factor) -> FontStretch {
+        FontStretch(fct.0)
+    }
+    fn from(pct: FactorPercent) -> FontStretch {
+        FontStretch(pct.fct().0)
+    }
+    fn from(fct: f32) -> FontStretch {
+        FontStretch(fct)
+    }
+}
+impl From<FontStretch> for font_kit::properties::Stretch {
+    fn from(value: FontStretch) -> Self {
+        font_kit::properties::Stretch(value.0)
+    }
+}
+impl Transitionable for FontStretch {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        FontStretch(self.0.lerp(&to.0, step))
+    }
+}
+impl From<font_kit::properties::Stretch> for FontStretch {
+    fn from(value: font_kit::properties::Stretch) -> Self {
+        FontStretch(value.0)
+    }
+}
+
+/// The degree of blackness or stroke thickness of a font. This value ranges from 100.0 to 900.0,
+/// with 400.0 as normal.
+#[derive(Clone, Copy)]
+pub struct FontWeight(pub f32);
+impl Default for FontWeight {
+    fn default() -> FontWeight {
+        FontWeight::NORMAL
+    }
+}
+impl fmt::Debug for FontWeight {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name();
+        if name.is_empty() {
+            f.debug_tuple("FontWeight").field(&self.0).finish()
+        } else {
+            if f.alternate() {
+                write!(f, "FontWeight::")?;
+            }
+            write!(f, "{name}")
+        }
+    }
+}
+impl PartialOrd for FontWeight {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(about_eq_ord(self.0, other.0, EQ_EPSILON_100))
+    }
+}
+impl PartialEq for FontWeight {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.0, other.0, EQ_EPSILON_100)
+    }
+}
+impl Hash for FontWeight {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_EPSILON_100, state)
+    }
+}
+impl FontWeight {
+    /// Thin weight (100), the thinnest value.
+    pub const THIN: FontWeight = FontWeight(100.0);
+    /// Extra light weight (200).
+    pub const EXTRA_LIGHT: FontWeight = FontWeight(200.0);
+    /// Light weight (300).
+    pub const LIGHT: FontWeight = FontWeight(300.0);
+    /// Normal (400).
+    pub const NORMAL: FontWeight = FontWeight(400.0);
+    /// Medium weight (500, higher than normal).
+    pub const MEDIUM: FontWeight = FontWeight(500.0);
+    /// Semi-bold weight (600).
+    pub const SEMIBOLD: FontWeight = FontWeight(600.0);
+    /// Bold weight (700).
+    pub const BOLD: FontWeight = FontWeight(700.0);
+    /// Extra-bold weight (800).
+    pub const EXTRA_BOLD: FontWeight = FontWeight(800.0);
+    /// Black weight (900), the thickest value.
+    pub const BLACK: FontWeight = FontWeight(900.0);
+
+    /// Gets the const name, if this value is one of the constants.
+    pub fn name(self) -> &'static str {
+        macro_rules! name {
+                ($($CONST:ident;)+) => {$(
+                    if self == Self::$CONST {
+                        return stringify!($CONST);
+                    }
+                )+}
+            }
+        name! {
+            THIN;
+            EXTRA_LIGHT;
+            LIGHT;
+            NORMAL;
+            MEDIUM;
+            SEMIBOLD;
+            BOLD;
+            EXTRA_BOLD;
+            BLACK;
+        }
+        ""
+    }
+}
 impl Transitionable for FontWeight {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         FontWeight(self.0.lerp(&to.0, step))
     }
 }
-
-impl Transitionable for FontStretch {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        FontStretch(self.0.lerp(&to.0, step))
+impl_from_and_into_var! {
+    fn from(weight: u32) -> FontWeight {
+        FontWeight(weight as f32)
+    }
+    fn from(weight: f32) -> FontWeight {
+        FontWeight(weight)
+    }
+}
+impl From<FontWeight> for font_kit::properties::Weight {
+    fn from(value: FontWeight) -> Self {
+        font_kit::properties::Weight(value.0)
+    }
+}
+impl From<font_kit::properties::Weight> for FontWeight {
+    fn from(value: font_kit::properties::Weight) -> Self {
+        FontWeight(value.0)
     }
 }
 

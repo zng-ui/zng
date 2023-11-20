@@ -404,7 +404,7 @@ impl WindowVars {
     /// [`scale_factor`]: Self::scale_factor
     pub fn actual_size_px(&self) -> BoxedVar<PxSize> {
         merge_var!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
-            PxSize::new(size.width.to_px(factor.0), size.height.to_px(factor.0))
+            PxSize::new(size.width.to_px(*factor), size.height.to_px(*factor))
         })
         .boxed()
     }

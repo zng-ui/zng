@@ -118,7 +118,7 @@ impl HeadedCtrl {
             parent_color_scheme: None,
             actual_parent: None,
             actual_state: None,
-            root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.0),
+            root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.fct()),
             render_access_update: None,
             ime_info: None,
         }
@@ -206,7 +206,7 @@ impl HeadedCtrl {
                         let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
                         let max_size = self.vars.max_size().layout_dft(screen_size);
 
-                        (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
+                        (min_size.to_dip(scale_factor), max_size.to_dip(scale_factor))
                     });
 
                     let size = new_state.restore_rect.size;
@@ -232,7 +232,7 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().get();
                         let screen_size = m.size().get();
                         let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor.0)
+                            self.vars.size().layout_dft(default_size(scale_factor)).to_dip(scale_factor)
                         });
 
                         let size = size.min(new_state.max_size).max(new_state.min_size);
@@ -255,7 +255,7 @@ impl HeadedCtrl {
                     let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
                         pos.layout_dft(PxPoint::new(Px(50), Px(50)))
                     });
-                    new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
+                    new_state.restore_rect.origin = pos.to_dip(scale_factor);
                 }
             }
 
@@ -301,7 +301,7 @@ impl HeadedCtrl {
                     tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
                     font_size_px = Length::pt_to_px(11.0, scale_factor);
                 }
-                let font_size_dip = font_size_px.to_dip(scale_factor.0);
+                let font_size_dip = font_size_px.to_dip(scale_factor);
 
                 if font_size_dip != self.root_font_size {
                     self.root_font_size = font_size_dip;
@@ -828,7 +828,7 @@ impl HeadedCtrl {
                 let info = WINDOW.info();
                 if let Some(w) = info.get(p.widget_id()) {
                     let bounds = w.bounds_info();
-                    let area = bounds.inner_bounds().to_dip(info.scale_factor().0);
+                    let area = bounds.inner_bounds().to_dip(info.scale_factor());
 
                     if let Some(prev) = self.ime_info.take() {
                         if prev.has_pre_edit {
@@ -926,7 +926,7 @@ impl HeadedCtrl {
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
 
-        self.root_font_size = root_font_size.to_dip(scale_factor.0);
+        self.root_font_size = root_font_size.to_dip(scale_factor);
 
         let state = self.vars.state().get();
         if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
@@ -970,8 +970,8 @@ impl HeadedCtrl {
                 if let Some(parent) = self.vars.parent().get() {
                     if let Ok(w) = WINDOWS.vars(parent) {
                         let factor = w.scale_factor().get();
-                        let pos = w.actual_position().get().to_px(factor.0);
-                        let size = w.actual_size().get().to_px(factor.0);
+                        let pos = w.actual_position().get().to_px(factor);
+                        let size = w.actual_size().get().to_px(factor);
 
                         parent_rect = PxRect::new(pos, size);
                     }
@@ -986,16 +986,16 @@ impl HeadedCtrl {
 
         // send view window request:
 
-        let m_position = (position - screen_rect.origin.to_vector()).to_dip(scale_factor.0);
-        let size = size.to_dip(scale_factor.0);
+        let m_position = (position - screen_rect.origin.to_vector()).to_dip(scale_factor);
+        let size = size.to_dip(scale_factor);
 
         let state = WindowStateAll {
             state,
             global_position: position,
             restore_rect: DipRect::new(m_position, size),
             restore_state: WindowState::Normal,
-            min_size: min_size.to_dip(scale_factor.0),
-            max_size: max_size.to_dip(scale_factor.0),
+            min_size: min_size.to_dip(scale_factor),
+            max_size: max_size.to_dip(scale_factor),
             chrome_visible: self.vars.chrome().get().is_default(),
         };
 
@@ -1031,7 +1031,7 @@ impl HeadedCtrl {
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
-            ime_area: self.ime_info.as_ref().map(|a| a.bounds.inner_bounds().to_dip(scale_factor.0)),
+            ime_area: self.ime_info.as_ref().map(|a| a.bounds.inner_bounds().to_dip(scale_factor)),
 
             extensions: {
                 let mut exts = vec![];
@@ -1057,11 +1057,11 @@ impl HeadedCtrl {
 
         let mut state = self.state.clone().unwrap();
 
-        let current_size = self.vars.0.actual_size.get().to_px(scale_factor.0);
+        let current_size = self.vars.0.actual_size.get().to_px(scale_factor);
         let mut size = current_size;
-        let min_size = state.min_size.to_px(scale_factor.0);
-        let max_size = state.max_size.to_px(scale_factor.0);
-        let root_font_size = self.root_font_size.to_px(scale_factor.0);
+        let min_size = state.min_size.to_px(scale_factor);
+        let max_size = state.max_size.to_px(scale_factor);
+        let root_font_size = self.root_font_size.to_px(scale_factor);
 
         let skip_auto_size = !matches!(state.state, WindowState::Normal);
 
@@ -1095,12 +1095,12 @@ impl HeadedCtrl {
                 let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
                     .with_screen_ppi(screen_ppi)
                     .with_direction(DIRECTION_VAR.get());
-                LAYOUT.with_context(metrics, || auto_size_origin.layout().to_dip(scale_factor.0))
+                LAYOUT.with_context(metrics, || auto_size_origin.layout().to_dip(scale_factor))
             };
             let prev_origin = auto_size_origin(current_size);
             let new_origin = auto_size_origin(size);
 
-            let size = size.to_dip(scale_factor.0);
+            let size = size.to_dip(scale_factor);
 
             state.restore_rect.size = size;
             state.restore_rect.origin += prev_origin - new_origin;
@@ -1158,11 +1158,10 @@ impl HeadedCtrl {
 
             access_root: self.content.root_ctx.id().into(),
 
-            ime_area: self.ime_info.as_ref().map(|a| {
-                a.bounds
-                    .inner_bounds()
-                    .to_dip(self.monitor.as_ref().unwrap().scale_factor().get().0)
-            }),
+            ime_area: self
+                .ime_info
+                .as_ref()
+                .map(|a| a.bounds.inner_bounds().to_dip(self.monitor.as_ref().unwrap().scale_factor().get())),
 
             extensions: {
                 let mut exts = vec![];
@@ -1218,7 +1217,7 @@ impl HeadedCtrl {
 
             if let Some(ime) = &self.ime_info {
                 if let Some(w) = &self.window {
-                    let area = ime.bounds.inner_bounds().to_dip(scale_factor.0);
+                    let area = ime.bounds.inner_bounds().to_dip(scale_factor);
                     let _ = w.set_ime_area(Some(area));
                 }
             }
@@ -1470,7 +1469,7 @@ impl HeadlessWithRendererCtrl {
 
         let scale_factor = self.vars.0.scale_factor.get();
         let screen_ppi = self.headless_monitor.ppi;
-        let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
+        let screen_size = self.headless_monitor.size.to_px(scale_factor);
 
         let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
             let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
@@ -1491,7 +1490,7 @@ impl HeadlessWithRendererCtrl {
             root_font_size,
             false,
         );
-        let size = size.to_dip(scale_factor.0);
+        let size = size.to_dip(scale_factor);
 
         if let Some(view) = &self.surface {
             // already has surface, maybe resize:
@@ -1510,7 +1509,7 @@ impl HeadlessWithRendererCtrl {
 
             let r = VIEW_PROCESS.open_headless(HeadlessRequest {
                 id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
-                scale_factor: scale_factor.0,
+                scale_factor,
                 size,
                 render_mode,
                 extensions: {
@@ -1685,7 +1684,7 @@ impl HeadlessCtrl {
 
         let scale_factor = self.vars.0.scale_factor.get();
         let screen_ppi = self.headless_monitor.ppi;
-        let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
+        let screen_size = self.headless_monitor.size.to_px(scale_factor);
 
         let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
             let min_size = self.vars.min_size().layout_dft(default_min_size(scale_factor));
@@ -2244,11 +2243,11 @@ impl WindowCtrl {
 }
 
 fn default_min_size(scale_factor: Factor) -> PxSize {
-    DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0)
+    DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor)
 }
 
 fn default_size(scale_factor: Factor) -> PxSize {
-    DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0)
+    DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor)
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.

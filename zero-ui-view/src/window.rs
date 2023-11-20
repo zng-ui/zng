@@ -177,7 +177,7 @@ impl Window {
                         winit = winit.with_position(pos);
                     }
                 } else {
-                    let mut pos_in_monitor = s.restore_rect.origin.to_px(m.scale_factor() as _);
+                    let mut pos_in_monitor = s.restore_rect.origin.to_px(Factor(m.scale_factor() as _));
 
                     let monitor_size = m.size();
                     if pos_in_monitor.x.0 > monitor_size.width as _ {
@@ -196,7 +196,7 @@ impl Window {
             }
         } else if let Some(m) = monitor {
             // fallback to center.
-            let screen_size = m.size().to_px().to_dip(m.scale_factor() as f32);
+            let screen_size = m.size().to_px().to_dip(Factor(m.scale_factor() as _));
             s.restore_rect.origin.x = (screen_size.width - s.restore_rect.size.width) / 2.0;
             s.restore_rect.origin.y = (screen_size.height - s.restore_rect.size.height) / 2.0;
 
@@ -357,7 +357,7 @@ impl Window {
             id,
             image_use: ImageUseMap::default(),
             prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
-            prev_size: winit_window.inner_size().to_px().to_dip(winit_window.scale_factor() as f32),
+            prev_size: winit_window.inner_size().to_px().to_dip(Factor(winit_window.scale_factor() as _)),
             prev_monitor: winit_window.current_monitor(),
             state: s,
             kiosk: cfg.kiosk,
@@ -1486,8 +1486,8 @@ impl Window {
         self.window.inner_size().to_logical(self.window.scale_factor()).to_dip()
     }
 
-    pub fn scale_factor(&self) -> f32 {
-        self.window.scale_factor() as f32
+    pub fn scale_factor(&self) -> Factor {
+        Factor(self.window.scale_factor() as f32)
     }
 
     /// Window actual render mode.

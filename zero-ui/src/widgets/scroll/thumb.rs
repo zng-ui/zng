@@ -88,20 +88,20 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
                     let bounds = WIDGET.bounds().inner_bounds();
                     let (mut offset, cancel_offset, bounds_min, bounds_max) = match ORIENTATION_VAR.get() {
                         scrollbar::Orientation::Vertical => (
-                            args.position.y.to_px(scale_factor.0),
-                            args.position.x.to_px(scale_factor.0),
+                            args.position.y.to_px(scale_factor),
+                            args.position.x.to_px(scale_factor),
                             bounds.min_x(),
                             bounds.max_x(),
                         ),
                         scrollbar::Orientation::Horizontal => (
-                            args.position.x.to_px(scale_factor.0),
-                            args.position.y.to_px(scale_factor.0),
+                            args.position.x.to_px(scale_factor),
+                            args.position.y.to_px(scale_factor),
                             bounds.min_y(),
                             bounds.max_y(),
                         ),
                     };
 
-                    let cancel_margin = Dip::new(40).to_px(scale_factor.0);
+                    let cancel_margin = Dip::new(40).to_px(scale_factor);
                     let offset = if cancel_offset < bounds_min - cancel_margin || cancel_offset > bounds_max + cancel_margin {
                         // pointer moved outside of the thumb + 40, snap back to initial
                         start_offset
@@ -135,8 +135,8 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_primary() && args.is_mouse_down() {
                     let a = match ORIENTATION_VAR.get() {
-                        scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor.0),
-                        scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor.0),
+                        scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor),
+                        scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor),
                     };
                     mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
 

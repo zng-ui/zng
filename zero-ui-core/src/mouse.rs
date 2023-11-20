@@ -885,7 +885,7 @@ impl MouseManager {
                 }
             };
 
-            let pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor().0));
+            let pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
             self.pos_hits = Some(pos_hits.clone());
 
             let target = if let Some(t) = pos_hits.target() {
@@ -1002,7 +1002,7 @@ impl MouseManager {
         if self.pos_window == Some(window_id) {
             // update hovered if widgets moved under the cursor position.
             let frame_info = WINDOWS.widget_tree(window_id).unwrap();
-            let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
+            let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor()));
             self.pos_hits = Some(pos_hits.clone());
             let target = if let Some(t) = pos_hits.target() {
                 frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
@@ -1130,7 +1130,7 @@ impl AppExtension for MouseManager {
                     if let (Some(dv), Ok(tree)) = (self.pos_device, WINDOWS.widget_tree(info.path.window_id())) {
                         // probably still valid
 
-                        let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor().0));
+                        let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor()));
 
                         // get the hit target, constrained by capture
                         let mut target = None;

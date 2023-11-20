@@ -99,7 +99,7 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
         let orientation = ORIENTATION_VAR.get();
         let bounds = WIDGET.bounds().inner_bounds();
         let scale_factor = WINDOW.vars().scale_factor().get();
-        let position = args.position.to_px(scale_factor.0) - bounds.origin;
+        let position = args.position.to_px(scale_factor) - bounds.origin;
 
         let (offset, mid_pt, mid_offset) = match orientation {
             Orientation::Vertical => (

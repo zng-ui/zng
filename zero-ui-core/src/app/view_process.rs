@@ -607,7 +607,7 @@ pub struct WindowOpenData {
     pub size: DipSize,
 
     /// Final scale factor.
-    pub scale_factor: f32,
+    pub scale_factor: Factor,
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
@@ -840,7 +840,7 @@ impl Eq for ViewHeadless {}
 impl ViewHeadless {
     /// Resize the headless surface.
     pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
-        self.0.call(|id, p| p.set_headless_size(id, size, scale_factor.0))
+        self.0.call(|id, p| p.set_headless_size(id, size, scale_factor))
     }
 
     /// Reference the window renderer.

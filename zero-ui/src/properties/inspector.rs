@@ -66,7 +66,7 @@ pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl 
     show_widget_tree(
         child,
         |_, wgt, frame| {
-            let p = Dip::new(1).to_px(frame.scale_factor().0);
+            let p = Dip::new(1).to_px(frame.scale_factor());
 
             let outer_bounds = wgt.outer_bounds();
             let inner_bounds = wgt.inner_bounds();
@@ -100,7 +100,7 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
     show_widget_tree(
         child,
         move |i, wgt, frame| {
-            let p = Dip::new(1).to_px(frame.scale_factor().0);
+            let p = Dip::new(1).to_px(frame.scale_factor());
 
             let wgt = wgt.bounds_info();
             let transform = wgt.inner_transform();
@@ -209,7 +209,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if valid && enabled.get() {
                     let factor = WINDOW.vars().scale_factor().get();
-                    let pt = args.position.to_px(factor.0);
+                    let pt = args.position.to_px(factor);
 
                     let new_fails = Rc::new(RefCell::new(vec![]));
                     let new_hits = Rc::new(RefCell::new(vec![]));

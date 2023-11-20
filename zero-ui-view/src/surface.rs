@@ -37,7 +37,7 @@ pub(crate) struct Surface {
     document_id: DocumentId,
     api: RenderApi,
     size: DipSize,
-    scale_factor: f32,
+    scale_factor: Factor,
 
     context: GlContext,
     renderer: Option<Renderer>,
@@ -186,8 +186,8 @@ impl Surface {
         self.rendered_frame_id
     }
 
-    pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
-        if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
+    pub fn set_size(&mut self, size: DipSize, scale_factor: Factor) {
+        if self.size != size || (self.scale_factor - scale_factor).abs().0 > 0.001 {
             self.size = size;
             self.scale_factor = scale_factor;
             self.context.make_current();

@@ -1,6 +1,6 @@
 use derive_more as dm;
 
-use super::{about_eq, euclid, EasingStep, Factor, EPSILON, EPSILON_100};
+use super::{about_eq, euclid, EasingStep, Factor, EQ_EPSILON, EQ_EPSILON_100};
 use crate::{
     context_local, impl_from_and_into_var,
     var::animation::{Transition, Transitionable},
@@ -95,7 +95,7 @@ impl Transitionable for AngleRadian {
 }
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON)
+        about_eq(self.0, other.0, EQ_EPSILON)
     }
 }
 impl_from_and_into_var! {
@@ -170,7 +170,7 @@ impl Transitionable for AngleGradian {
 }
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON_100)
+        about_eq(self.0, other.0, EQ_EPSILON_100)
     }
 }
 impl_from_and_into_var! {
@@ -245,7 +245,7 @@ impl Transitionable for AngleDegree {
 }
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON_100)
+        about_eq(self.0, other.0, EQ_EPSILON_100)
     }
 }
 impl_from_and_into_var! {
@@ -338,7 +338,7 @@ impl fmt::Display for AngleTurn {
 }
 impl PartialEq for AngleTurn {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON)
+        about_eq(self.0, other.0, EQ_EPSILON)
     }
 }
 impl_from_and_into_var! {

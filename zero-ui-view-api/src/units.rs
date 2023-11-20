@@ -12,7 +12,7 @@
 //! to [`Px`] units to compute layout and render. Working like this should make the window content have the same apparent
 //! dimensions in all monitor devices. For rendering the [`Px`] unit can be converted to `webrender` units using [`PxToWr`].
 
-use std::{cmp, fmt, marker::PhantomData, ops};
+use std::{cmp, fmt, marker::PhantomData, ops, time::Duration};
 
 use webrender_api::units as wr;
 
@@ -32,8 +32,8 @@ const DIP_TO_PX: i32 = 60;
 pub struct Px(pub i32);
 impl Px {
     /// See [`DipToPx`].
-    pub fn from_dip(dip: Dip, scale_factor: f32) -> Px {
-        Px((dip.0 as f32 / DIP_TO_PX as f32 * scale_factor).round() as i32)
+    pub fn from_dip(dip: Dip, scale_factor: Factor) -> Px {
+        Px((dip.0 as f32 / DIP_TO_PX as f32 * scale_factor.0).round() as i32)
     }
 
     /// Compares and returns the maximum of two pixel values.
@@ -287,8 +287,8 @@ impl Dip {
     }
 
     /// See [`PxToDip`].
-    pub fn from_px(px: Px, scale_factor: f32) -> Dip {
-        Dip((px.0 as f32 / scale_factor * DIP_TO_PX as f32).round() as i32)
+    pub fn from_px(px: Px, scale_factor: Factor) -> Dip {
+        Dip((px.0 as f32 / scale_factor.0 * DIP_TO_PX as f32).round() as i32)
     }
 
     /// Returns `self` as [`f32`].
@@ -1044,7 +1044,7 @@ pub trait PxToDip {
     type AsDip;
 
     /// Divide the [`Px`] self by the scale.
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip;
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip;
 }
 
 /// Conversion from [`Dip`] to [`Px`] units.
@@ -1053,7 +1053,7 @@ pub trait DipToPx {
     type AsPx;
 
     /// Multiply the [`Dip`] self by the scale.
-    fn to_px(self, scale_factor: f32) -> Self::AsPx;
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx;
 }
 
 /// Conversion from [`Px`] to `webrender` units.
@@ -1088,7 +1088,7 @@ pub trait WrToPx {
 impl PxToDip for Px {
     type AsDip = Dip;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         Dip::from_px(self, scale_factor)
     }
 }
@@ -1113,7 +1113,7 @@ impl PxToWr for Px {
 impl DipToPx for Dip {
     type AsPx = Px;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         Px::from_dip(self, scale_factor)
     }
 }
@@ -1121,7 +1121,7 @@ impl DipToPx for Dip {
 impl PxToDip for PxPoint {
     type AsDip = DipPoint;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipPoint::new(self.x.to_dip(scale_factor), self.y.to_dip(scale_factor))
     }
 }
@@ -1152,22 +1152,22 @@ impl WrToPx for wr::LayoutPoint {
 impl DipToPx for DipPoint {
     type AsPx = PxPoint;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxPoint::new(self.x.to_px(scale_factor), self.y.to_px(scale_factor))
     }
 }
 impl DipToPx for euclid::Point2D<f32, Dip> {
     type AsPx = euclid::Point2D<f32, Px>;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
-        euclid::point2(self.x * scale_factor, self.y * scale_factor)
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
+        euclid::point2(self.x * scale_factor.0, self.y * scale_factor.0)
     }
 }
 
 impl PxToDip for PxSize {
     type AsDip = DipSize;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipSize::new(self.width.to_dip(scale_factor), self.height.to_dip(scale_factor))
     }
 }
@@ -1198,7 +1198,7 @@ impl WrToPx for wr::LayoutSize {
 impl DipToPx for DipSize {
     type AsPx = PxSize;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxSize::new(self.width.to_px(scale_factor), self.height.to_px(scale_factor))
     }
 }
@@ -1238,14 +1238,14 @@ impl WrToPx for wr::LayoutVector2D {
 impl DipToPx for DipVector {
     type AsPx = PxVector;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxVector::new(self.x.to_px(scale_factor), self.y.to_px(scale_factor))
     }
 }
 impl PxToDip for PxVector {
     type AsDip = DipVector;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipVector::new(self.x.to_dip(scale_factor), self.y.to_dip(scale_factor))
     }
 }
@@ -1253,7 +1253,7 @@ impl PxToDip for PxVector {
 impl PxToDip for PxRect {
     type AsDip = DipRect;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipRect::new(self.origin.to_dip(scale_factor), self.size.to_dip(scale_factor))
     }
 }
@@ -1293,7 +1293,7 @@ impl WrToPx for euclid::Rect<f32, wr::LayoutPixel> {
 impl DipToPx for DipRect {
     type AsPx = PxRect;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxRect::new(self.origin.to_px(scale_factor), self.size.to_px(scale_factor))
     }
 }
@@ -1301,7 +1301,7 @@ impl DipToPx for DipRect {
 impl PxToDip for PxBox {
     type AsDip = DipBox;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipBox::new(self.min.to_dip(scale_factor), self.max.to_dip(scale_factor))
     }
 }
@@ -1327,7 +1327,7 @@ impl PxToWr for PxBox {
 impl DipToPx for DipBox {
     type AsPx = PxBox;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxBox::new(self.min.to_px(scale_factor), self.max.to_px(scale_factor))
     }
 }
@@ -1335,7 +1335,7 @@ impl DipToPx for DipBox {
 impl DipToPx for DipSideOffsets {
     type AsPx = PxSideOffsets;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxSideOffsets::new(
             self.top.to_px(scale_factor),
             self.right.to_px(scale_factor),
@@ -1347,7 +1347,7 @@ impl DipToPx for DipSideOffsets {
 impl PxToDip for PxSideOffsets {
     type AsDip = DipSideOffsets;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipSideOffsets::new(
             self.top.to_dip(scale_factor),
             self.right.to_dip(scale_factor),
@@ -1389,7 +1389,7 @@ impl PxToWr for PxSideOffsets {
 impl DipToPx for DipCornerRadius {
     type AsPx = PxCornerRadius;
 
-    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+    fn to_px(self, scale_factor: Factor) -> Self::AsPx {
         PxCornerRadius::new(
             self.top_left.to_px(scale_factor),
             self.top_right.to_px(scale_factor),
@@ -1401,7 +1401,7 @@ impl DipToPx for DipCornerRadius {
 impl PxToDip for PxCornerRadius {
     type AsDip = DipCornerRadius;
 
-    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+    fn to_dip(self, scale_factor: Factor) -> Self::AsDip {
         DipCornerRadius::new(
             self.top_left.to_dip(scale_factor),
             self.top_right.to_dip(scale_factor),
@@ -1761,31 +1761,706 @@ mod serde_px_transform3d {
     }
 }
 
+/// Normalized multiplication factor.
+///
+/// Values of this type are normalized to generally be in between `0.0` and `1.0` to indicate a fraction
+/// of a unit. However, values are not clamped to this range, `Factor(2.0)` is a valid value and so are
+/// negative values.
+///
+/// # Equality
+///
+/// Equality is determined to within `0.00001` epsilon.
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize, bytemuck::NoUninit)]
+#[repr(transparent)]
+#[serde(transparent)]
+pub struct Factor(pub f32);
+impl Factor {
+    /// Clamp factor to `[0.0..=1.0]` range.
+    pub fn clamp_range(self) -> Self {
+        Factor(self.0.clamp(0.0, 1.0))
+    }
+
+    /// Returns the maximum of two factors.
+    pub fn max(self, other: impl Into<Factor>) -> Factor {
+        Factor(self.0.max(other.into().0))
+    }
+
+    /// Returns the minimum of two factors.
+    pub fn min(self, other: impl Into<Factor>) -> Factor {
+        Factor(self.0.min(other.into().0))
+    }
+
+    /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
+    pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
+        self.min(max).max(min)
+    }
+
+    /// Computes the absolute value of self.
+    pub fn abs(self) -> Factor {
+        Factor(self.0.abs())
+    }
+
+    /// Flip factor, around `0.5`,
+    ///
+    /// Returns `1.0 - self`.
+    pub fn flip(self) -> Factor {
+        Self(1.0) - self
+    }
+}
+impl fmt::Debug for Factor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("Factor").field(&self.0).finish()
+        } else {
+            write!(f, "{}.fct()", self.0)
+        }
+    }
+}
+impl fmt::Display for Factor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl From<f32> for Factor {
+    fn from(value: f32) -> Self {
+        Factor(value)
+    }
+}
+impl ops::Add for Factor {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+impl ops::AddAssign for Factor {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl ops::Sub for Factor {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+impl ops::SubAssign for Factor {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+impl std::hash::Hash for Factor {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_EPSILON, state)
+    }
+}
+impl PartialEq for Factor {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.0, other.0, EQ_EPSILON)
+    }
+}
+impl std::cmp::PartialOrd for Factor {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(about_eq_ord(self.0, other.0, EQ_EPSILON))
+    }
+}
+impl ops::Mul for Factor {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Factor(self.0 * rhs.0)
+    }
+}
+impl ops::MulAssign for Factor {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div for Factor {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Factor(self.0 / rhs.0)
+    }
+}
+impl ops::DivAssign for Factor {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for Px {
+    type Output = Px;
+
+    fn mul(self, rhs: Factor) -> Px {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for Px {
+    type Output = Px;
+
+    fn div(self, rhs: Factor) -> Px {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for Px {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Px {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for Dip {
+    type Output = Dip;
+
+    fn mul(self, rhs: Factor) -> Dip {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for Dip {
+    type Output = Dip;
+
+    fn div(self, rhs: Factor) -> Dip {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for Dip {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Dip {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for PxPoint {
+    type Output = PxPoint;
+
+    fn mul(mut self, rhs: Factor) -> PxPoint {
+        self *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for PxPoint {
+    type Output = PxPoint;
+
+    fn div(mut self, rhs: Factor) -> PxPoint {
+        self /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for PxPoint {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for PxPoint {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for euclid::Point2D<f32, Px> {
+    type Output = euclid::Point2D<f32, Px>;
+
+    fn mul(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
+        self.x *= rhs.0;
+        self.y *= rhs.0;
+        self
+    }
+}
+impl ops::Div<Factor> for euclid::Point2D<f32, Px> {
+    type Output = euclid::Point2D<f32, Px>;
+
+    fn div(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
+        self.x /= rhs.0;
+        self.y /= rhs.0;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for euclid::Point2D<f32, Px> {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.x *= rhs.0;
+        self.y *= rhs.0;
+    }
+}
+impl ops::DivAssign<Factor> for euclid::Point2D<f32, Px> {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.x /= rhs.0;
+        self.y /= rhs.0;
+    }
+}
+
+impl ops::Mul<Factor> for DipPoint {
+    type Output = DipPoint;
+
+    fn mul(mut self, rhs: Factor) -> DipPoint {
+        self.x *= rhs;
+        self.y *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for DipPoint {
+    type Output = DipPoint;
+
+    fn div(mut self, rhs: Factor) -> DipPoint {
+        self.x /= rhs;
+        self.y /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for DipPoint {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipPoint {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl ops::Mul<Factor> for PxVector {
+    type Output = PxVector;
+
+    fn mul(mut self, rhs: Factor) -> PxVector {
+        self.x *= rhs;
+        self.y *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for PxVector {
+    type Output = PxVector;
+
+    fn div(mut self, rhs: Factor) -> PxVector {
+        self.x /= rhs;
+        self.y /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for PxVector {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for PxVector {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl ops::Mul<Factor> for DipVector {
+    type Output = DipVector;
+
+    fn mul(mut self, rhs: Factor) -> DipVector {
+        self.x *= rhs;
+        self.y *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for DipVector {
+    type Output = DipVector;
+
+    fn div(mut self, rhs: Factor) -> DipVector {
+        self.x /= rhs;
+        self.y /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for DipVector {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipVector {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl ops::Mul<Factor> for PxSize {
+    type Output = PxSize;
+
+    fn mul(mut self, rhs: Factor) -> PxSize {
+        self.width *= rhs;
+        self.height *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for PxSize {
+    type Output = PxSize;
+
+    fn div(mut self, rhs: Factor) -> PxSize {
+        self.width /= rhs;
+        self.height /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for PxSize {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.width *= rhs;
+        self.height *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for PxSize {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.width /= rhs;
+        self.height /= rhs;
+    }
+}
+
+impl ops::Mul<Factor> for euclid::Size2D<f32, Px> {
+    type Output = euclid::Size2D<f32, Px>;
+
+    fn mul(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
+        self.width *= rhs.0;
+        self.height *= rhs.0;
+        self
+    }
+}
+impl ops::Div<Factor> for euclid::Size2D<f32, Px> {
+    type Output = euclid::Size2D<f32, Px>;
+
+    fn div(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
+        self.width /= rhs.0;
+        self.height /= rhs.0;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for euclid::Size2D<f32, Px> {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.width *= rhs.0;
+        self.height *= rhs.0;
+    }
+}
+impl ops::DivAssign<Factor> for euclid::Size2D<f32, Px> {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.width /= rhs.0;
+        self.height /= rhs.0;
+    }
+}
+
+impl ops::Mul<Factor> for DipSize {
+    type Output = DipSize;
+
+    fn mul(mut self, rhs: Factor) -> DipSize {
+        self.width *= rhs;
+        self.height *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for DipSize {
+    type Output = DipSize;
+
+    fn div(mut self, rhs: Factor) -> DipSize {
+        self.width /= rhs;
+        self.height /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for DipSize {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.width *= rhs;
+        self.height *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipSize {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.width /= rhs;
+        self.height /= rhs;
+    }
+}
+impl ops::Mul<Factor> for PxRect {
+    type Output = PxRect;
+
+    fn mul(mut self, rhs: Factor) -> PxRect {
+        self.origin *= rhs;
+        self.size *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for PxRect {
+    type Output = PxRect;
+
+    fn div(mut self, rhs: Factor) -> PxRect {
+        self.origin /= rhs;
+        self.size /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for PxRect {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.origin *= rhs;
+        self.size *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for PxRect {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.origin /= rhs;
+        self.size /= rhs;
+    }
+}
+
+impl ops::Mul<Factor> for DipRect {
+    type Output = DipRect;
+
+    fn mul(mut self, rhs: Factor) -> DipRect {
+        self.origin *= rhs;
+        self.size *= rhs;
+        self
+    }
+}
+impl ops::Div<Factor> for DipRect {
+    type Output = DipRect;
+
+    fn div(mut self, rhs: Factor) -> DipRect {
+        self.origin /= rhs;
+        self.size /= rhs;
+        self
+    }
+}
+impl ops::MulAssign<Factor> for DipRect {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.origin *= rhs;
+        self.size *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipRect {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.origin /= rhs;
+        self.size /= rhs;
+    }
+}
+
+impl ops::Neg for Factor {
+    type Output = Factor;
+
+    fn neg(self) -> Self::Output {
+        Factor(-self.0)
+    }
+}
+impl From<bool> for Factor {
+    fn from(value: bool) -> Self {
+        if value {
+            Factor(1.0)
+        } else {
+            Factor(0.0)
+        }
+    }
+}
+
+macro_rules! impl_for_integer {
+    ($($T:ty,)+) => {$(
+        impl ops::Mul<Factor> for $T {
+            type Output = $T;
+
+            fn mul(self, rhs: Factor) -> $T {
+                (self as f64 * rhs.0 as f64).round() as $T
+            }
+        }
+        impl ops::Div<Factor> for $T {
+            type Output = $T;
+
+            fn div(self, rhs: Factor) -> $T {
+                (self as f64 / rhs.0 as f64).round() as $T
+            }
+        }
+        impl ops::MulAssign<Factor> for $T {
+            fn mul_assign(&mut self, rhs: Factor) {
+                *self = *self * rhs;
+            }
+        }
+        impl ops::DivAssign<Factor> for $T {
+            fn div_assign(&mut self, rhs: Factor) {
+                *self = *self / rhs;
+            }
+        }
+    )+}
+}
+impl_for_integer! {
+    u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128,
+}
+
+impl ops::Mul<Factor> for f32 {
+    type Output = f32;
+
+    fn mul(self, rhs: Factor) -> f32 {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for f32 {
+    type Output = f32;
+
+    fn div(self, rhs: Factor) -> f32 {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for f32 {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for f32 {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for f64 {
+    type Output = f64;
+
+    fn mul(self, rhs: Factor) -> f64 {
+        self * rhs.0 as f64
+    }
+}
+impl ops::Div<Factor> for f64 {
+    type Output = f64;
+
+    fn div(self, rhs: Factor) -> f64 {
+        self / rhs.0 as f64
+    }
+}
+impl ops::MulAssign<Factor> for f64 {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for f64 {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for Duration {
+    type Output = Duration;
+
+    fn mul(self, rhs: Factor) -> Duration {
+        self.mul_f32(rhs.0)
+    }
+}
+impl ops::Div<Factor> for Duration {
+    type Output = Duration;
+
+    fn div(self, rhs: Factor) -> Duration {
+        self.div_f32(rhs.0)
+    }
+}
+impl ops::MulAssign<Factor> for Duration {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Duration {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+/// [`f32`] equality used in floating-point units.
+///
+/// * [`NaN`](f32::is_nan) values are equal.
+/// * [`INFINITY`](f32::INFINITY) values are equal.
+/// * [`NEG_INFINITY`](f32::NEG_INFINITY) values are equal.
+/// * Finite values are equal if the difference is less than `epsilon`.
+///
+/// Note that this definition of equality is symmetric and reflexive, but it is **not** transitive, difference less then
+/// epsilon can *accumulate* over a chain of comparisons breaking the transitive property:
+///
+/// ```
+/// # use zero_ui_core::units::about_eq;
+/// let e = 0.001;
+/// let a = 0.0;
+/// let b = a + e - 0.0001;
+/// let c = b + e - 0.0001;
+///
+/// assert!(
+///     about_eq(a, b, e) &&
+///     about_eq(b, c, e) &&
+///     !about_eq(a, c, e)
+/// )
+/// ```
+///
+/// See also [`about_eq_hash`].
+pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
+    if a.is_nan() {
+        b.is_nan()
+    } else if a.is_infinite() {
+        b.is_infinite() && a.is_sign_positive() == b.is_sign_positive()
+    } else {
+        (a - b).abs() < epsilon
+    }
+}
+
+/// [`f32`] hash compatible with [`about_eq`] equality.
+pub fn about_eq_hash<H: std::hash::Hasher>(f: f32, epsilon: f32, state: &mut H) {
+    let (group, f) = if f.is_nan() {
+        (0u8, 0u64)
+    } else if f.is_infinite() {
+        (1, if f.is_sign_positive() { 1 } else { 2 })
+    } else {
+        let inv_epsi = if epsilon > EQ_EPSILON_100 { 100000.0 } else { 100.0 };
+        (2, ((f as f64) * inv_epsi) as u64)
+    };
+
+    use std::hash::Hash;
+    group.hash(state);
+    f.hash(state);
+}
+
+/// [`f32`] ordering compatible with [`about_eq`] equality.
+pub fn about_eq_ord(a: f32, b: f32, epsilon: f32) -> std::cmp::Ordering {
+    if about_eq(a, b, epsilon) {
+        std::cmp::Ordering::Equal
+    } else if a > b {
+        std::cmp::Ordering::Greater
+    } else {
+        std::cmp::Ordering::Less
+    }
+}
+
+/// Minimal difference between values in around the 0.0..=1.0 scale.
+pub const EQ_EPSILON: f32 = 0.00001;
+/// Minimal difference between values in around the 1.0..=100.0 scale.
+pub const EQ_EPSILON_100: f32 = 0.001;
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn dip_px_1_1_conversion() {
-        let px = Dip::new(100).to_px(1.0);
+        let px = Dip::new(100).to_px(Factor(1.0));
         assert_eq!(px, Px(100));
     }
 
     #[test]
     fn px_dip_1_1_conversion() {
-        let dip = Px(100).to_dip(1.0);
+        let dip = Px(100).to_dip(Factor(1.0));
         assert_eq!(dip, Dip::new(100));
     }
 
     #[test]
     fn dip_px_1_15_conversion() {
-        let px = Dip::new(100).to_px(1.5);
+        let px = Dip::new(100).to_px(Factor(1.5));
         assert_eq!(px, Px(150));
     }
 
     #[test]
     fn px_dip_1_15_conversion() {
-        let dip = Px(150).to_dip(1.5);
+        let dip = Px(150).to_dip(Factor(1.5));
         assert_eq!(dip, Dip::new(100));
     }
 }

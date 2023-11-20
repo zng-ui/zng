@@ -366,7 +366,7 @@ impl LAYERS {
                                 };
 
                                 if let Some(pos) = pos {
-                                    let fct = LAYOUT.scale_factor().0;
+                                    let fct = LAYOUT.scale_factor();
                                     let (cursor_size, cursor_spot) =
                                         WINDOW.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
                                     let cursor_rect = DipRect::new((pos - cursor_spot).to_point(), cursor_size).to_px(fct);

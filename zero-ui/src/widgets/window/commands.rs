@@ -163,7 +163,7 @@ mod live_inspector {
                         let size = bounds.inner_size();
 
                         frame.push_reference_frame(transform_id.into(), transform.into(), false, false, |frame| {
-                            let widths = Dip::new(3).to_px(frame.scale_factor().0);
+                            let widths = Dip::new(3).to_px(frame.scale_factor());
                             frame.push_border(
                                 PxRect::from_size(size).inflate(widths, widths),
                                 PxSideOffsets::new_all_same(widths),
@@ -417,10 +417,10 @@ mod live_inspector {
         fn crosshair_16x16() -> impl UiNode {
             match_node_leaf(|op| match op {
                 UiNodeOp::Layout { final_size, .. } => {
-                    *final_size = DipSize::splat(Dip::new(16)).to_px(LAYOUT.scale_factor().0);
+                    *final_size = DipSize::splat(Dip::new(16)).to_px(LAYOUT.scale_factor());
                 }
                 UiNodeOp::Render { frame } => {
-                    let factor = frame.scale_factor().0;
+                    let factor = frame.scale_factor();
                     let a = Dip::new(2).to_px(factor);
                     let b = Dip::new(16).to_px(factor);
                     let m = b / Px(2) - a / Px(2);

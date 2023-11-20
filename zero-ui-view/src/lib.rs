@@ -1528,7 +1528,7 @@ impl Api for App {
             let id = config.id;
             let data = self.open_headless_impl(HeadlessRequest {
                 id: config.id,
-                scale_factor: 1.0,
+                scale_factor: Factor(1.0),
                 size: config.state.restore_rect.size,
                 render_mode: config.render_mode,
                 extensions: config.extensions,
@@ -1540,7 +1540,7 @@ impl Api for App {
                 monitor: None,
                 position: (PxPoint::zero(), DipPoint::zero()),
                 size: config.state.restore_rect.size,
-                scale_factor: 1.0,
+                scale_factor: Factor(1.0),
                 color_scheme: ColorScheme::Light,
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
@@ -1653,7 +1653,7 @@ impl Api for App {
         }
     }
 
-    fn set_headless_size(&mut self, renderer: WindowId, size: DipSize, scale_factor: f32) {
+    fn set_headless_size(&mut self, renderer: WindowId, size: DipSize, scale_factor: Factor) {
         self.assert_started();
         if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
             surf.set_size(size, scale_factor)

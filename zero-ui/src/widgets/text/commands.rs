@@ -1118,7 +1118,7 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     if let Some(pos) = info
         .transform
         .inverse()
-        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
+        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
     {
         //if has rendered
         i = match layout.shaped_text.nearest_line(pos.y) {
@@ -1152,7 +1152,7 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
     if let Some(pos) = info
         .transform
         .inverse()
-        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor.0)))
+        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
     {
         //if has rendered
         if let Some(l) = layout.shaped_text.nearest_line(pos.y) {

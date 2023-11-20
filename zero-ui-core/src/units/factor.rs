@@ -1,9 +1,8 @@
 use derive_more as dm;
-use zero_ui_view_api::webrender_api::euclid;
 
 use super::{
-    about_eq, about_eq_hash, about_eq_ord, Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Px, PxPoint, PxRect, PxSideOffsets,
-    PxSize, PxVector, Size, EPSILON, EPSILON_100,
+    about_eq, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
+    EQ_EPSILON_100,
 };
 use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
@@ -38,7 +37,7 @@ impl ops::Neg for FactorPercent {
 }
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON_100)
+        about_eq(self.0, other.0, EQ_EPSILON_100)
     }
 }
 impl ops::Mul for FactorPercent {
@@ -65,11 +64,6 @@ impl ops::DivAssign for FactorPercent {
         *self = *self / rhs;
     }
 }
-impl_from_and_into_var! {
-    fn from(n: Factor) -> FactorPercent {
-        FactorPercent(n.0 * 100.0)
-    }
-}
 impl fmt::Debug for FactorPercent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -82,99 +76,6 @@ impl fmt::Debug for FactorPercent {
 impl fmt::Display for FactorPercent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}%", self.0)
-    }
-}
-
-/// Normalized multiplication factor.
-///
-/// Values of this type are normalized to generally be in between `0.0` and `1.0` to indicate a fraction
-/// of a unit. However, values are not clamped to this range, `Factor(2.0)` is a valid value and so are
-/// negative values.
-///
-/// You can use the *suffix method* `1.0.fct()` to init a factor, see [`FactorUnits`] for more details.
-///
-/// # Equality
-///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize, bytemuck::NoUninit)]
-#[repr(transparent)]
-#[serde(transparent)]
-pub struct Factor(pub f32);
-impl Factor {
-    /// Clamp factor to `[0.0..=1.0]` range.
-    pub fn clamp_range(self) -> Self {
-        Factor(self.0.clamp(0.0, 1.0))
-    }
-
-    /// Returns the maximum of two factors.
-    pub fn max(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.max(other.into().0))
-    }
-
-    /// Returns the minimum of two factors.
-    pub fn min(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.min(other.into().0))
-    }
-
-    /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
-    pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
-        self.min(max).max(min)
-    }
-
-    /// Computes the absolute value of self.
-    pub fn abs(self) -> Factor {
-        Factor(self.0.abs())
-    }
-
-    /// Convert to [`FactorPercent`].
-    pub fn pct(self) -> FactorPercent {
-        self.into()
-    }
-
-    /// Flip factor, around `0.5`,
-    ///
-    /// Returns `1.fct() - self`.
-    pub fn flip(self) -> Factor {
-        1.fct() - self
-    }
-}
-impl std::hash::Hash for Factor {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.0, EPSILON, state)
-    }
-}
-impl PartialEq for Factor {
-    fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EPSILON)
-    }
-}
-impl std::cmp::PartialOrd for Factor {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EPSILON))
-    }
-}
-impl ops::Mul for Factor {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Factor(self.0 * rhs.0)
-    }
-}
-impl ops::MulAssign for Factor {
-    fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs;
-    }
-}
-impl ops::Div for Factor {
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Factor(self.0 / rhs.0)
-    }
-}
-impl ops::DivAssign for Factor {
-    fn div_assign(&mut self, rhs: Self) {
-        *self = *self / rhs;
     }
 }
 
@@ -198,264 +99,6 @@ impl ops::MulAssign<Factor> for FactorPercent {
     }
 }
 impl ops::DivAssign<Factor> for FactorPercent {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for Px {
-    type Output = Px;
-
-    fn mul(self, rhs: Factor) -> Px {
-        self * rhs.0
-    }
-}
-impl ops::Div<Factor> for Px {
-    type Output = Px;
-
-    fn div(self, rhs: Factor) -> Px {
-        self / rhs.0
-    }
-}
-impl ops::MulAssign<Factor> for Px {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for Px {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for Dip {
-    type Output = Dip;
-
-    fn mul(self, rhs: Factor) -> Dip {
-        self * rhs.0
-    }
-}
-impl ops::Div<Factor> for Dip {
-    type Output = Dip;
-
-    fn div(self, rhs: Factor) -> Dip {
-        self / rhs.0
-    }
-}
-impl ops::MulAssign<Factor> for Dip {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for Dip {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for PxPoint {
-    type Output = PxPoint;
-
-    fn mul(self, rhs: Factor) -> PxPoint {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for PxPoint {
-    type Output = PxPoint;
-
-    fn div(self, rhs: Factor) -> PxPoint {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for PxPoint {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for PxPoint {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for euclid::Point2D<f32, Px> {
-    type Output = euclid::Point2D<f32, Px>;
-
-    fn mul(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
-        self.x *= rhs;
-        self.y *= rhs;
-        self
-    }
-}
-impl ops::Div<Factor> for euclid::Point2D<f32, Px> {
-    type Output = euclid::Point2D<f32, Px>;
-
-    fn div(mut self, rhs: Factor) -> euclid::Point2D<f32, Px> {
-        self.x /= rhs;
-        self.y /= rhs;
-        self
-    }
-}
-impl ops::MulAssign<Factor> for euclid::Point2D<f32, Px> {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for euclid::Point2D<f32, Px> {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for DipPoint {
-    type Output = DipPoint;
-
-    fn mul(self, rhs: Factor) -> DipPoint {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for DipPoint {
-    type Output = DipPoint;
-
-    fn div(self, rhs: Factor) -> DipPoint {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for DipPoint {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for DipPoint {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for PxVector {
-    type Output = PxVector;
-
-    fn mul(self, rhs: Factor) -> PxVector {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for PxVector {
-    type Output = PxVector;
-
-    fn div(self, rhs: Factor) -> PxVector {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for PxVector {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for PxVector {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for DipVector {
-    type Output = DipVector;
-
-    fn mul(self, rhs: Factor) -> DipVector {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for DipVector {
-    type Output = DipVector;
-
-    fn div(self, rhs: Factor) -> DipVector {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for DipVector {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for DipVector {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for PxSize {
-    type Output = PxSize;
-
-    fn mul(self, rhs: Factor) -> PxSize {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for PxSize {
-    type Output = PxSize;
-
-    fn div(self, rhs: Factor) -> PxSize {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for PxSize {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for PxSize {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for euclid::Size2D<f32, Px> {
-    type Output = euclid::Size2D<f32, Px>;
-
-    fn mul(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
-        self.width *= rhs;
-        self.height *= rhs;
-        self
-    }
-}
-impl ops::Div<Factor> for euclid::Size2D<f32, Px> {
-    type Output = euclid::Size2D<f32, Px>;
-
-    fn div(mut self, rhs: Factor) -> euclid::Size2D<f32, Px> {
-        self.width /= rhs;
-        self.height /= rhs;
-        self
-    }
-}
-impl ops::MulAssign<Factor> for euclid::Size2D<f32, Px> {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for euclid::Size2D<f32, Px> {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for DipSize {
-    type Output = DipSize;
-
-    fn mul(self, rhs: Factor) -> DipSize {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for DipSize {
-    type Output = DipSize;
-
-    fn div(self, rhs: Factor) -> DipSize {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for DipSize {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for DipSize {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
@@ -485,204 +128,35 @@ impl ops::DivAssign<Factor> for Factor2d {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Factor> for PxRect {
-    type Output = PxRect;
-
-    fn mul(self, rhs: Factor) -> PxRect {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for PxRect {
-    type Output = PxRect;
-
-    fn div(self, rhs: Factor) -> PxRect {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for PxRect {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for PxRect {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for DipRect {
-    type Output = DipRect;
-
-    fn mul(self, rhs: Factor) -> DipRect {
-        self * Factor2d::uniform(rhs)
-    }
-}
-impl ops::Div<Factor> for DipRect {
-    type Output = DipRect;
-
-    fn div(self, rhs: Factor) -> DipRect {
-        self / Factor2d::uniform(rhs)
-    }
-}
-impl ops::MulAssign<Factor> for DipRect {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for DipRect {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Neg for Factor {
-    type Output = Factor;
-
-    fn neg(self) -> Self::Output {
-        Factor(-self.0)
-    }
-}
-
-macro_rules! impl_for_integer {
-    ($($T:ty,)+) => {$(
-        impl ops::Mul<Factor> for $T {
-            type Output = $T;
-
-            fn mul(self, rhs: Factor) -> $T {
-                (self as f64 * rhs.0 as f64).round() as $T
-            }
-        }
-        impl ops::Div<Factor> for $T {
-            type Output = $T;
-
-            fn div(self, rhs: Factor) -> $T {
-                (self as f64 / rhs.0 as f64).round() as $T
-            }
-        }
-        impl ops::MulAssign<Factor> for $T {
-            fn mul_assign(&mut self, rhs: Factor) {
-                *self = *self * rhs;
-            }
-        }
-        impl ops::DivAssign<Factor> for $T {
-            fn div_assign(&mut self, rhs: Factor) {
-                *self = *self / rhs;
-            }
-        }
-    )+}
-}
-impl_for_integer! {
-    u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128,
-}
-
-impl ops::Mul<Factor> for f32 {
-    type Output = f32;
-
-    fn mul(self, rhs: Factor) -> f32 {
-        self * rhs.0
-    }
-}
-impl ops::Div<Factor> for f32 {
-    type Output = f32;
-
-    fn div(self, rhs: Factor) -> f32 {
-        self / rhs.0
-    }
-}
-impl ops::MulAssign<Factor> for f32 {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for f32 {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for f64 {
-    type Output = f64;
-
-    fn mul(self, rhs: Factor) -> f64 {
-        self * rhs.0 as f64
-    }
-}
-impl ops::Div<Factor> for f64 {
-    type Output = f64;
-
-    fn div(self, rhs: Factor) -> f64 {
-        self / rhs.0 as f64
-    }
-}
-impl ops::MulAssign<Factor> for f64 {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for f64 {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
-
-impl ops::Mul<Factor> for Duration {
-    type Output = Duration;
-
-    fn mul(self, rhs: Factor) -> Duration {
-        self.mul_f32(rhs.0)
-    }
-}
-impl ops::Div<Factor> for Duration {
-    type Output = Duration;
-
-    fn div(self, rhs: Factor) -> Duration {
-        self.div_f32(rhs.0)
-    }
-}
-impl ops::MulAssign<Factor> for Duration {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for Duration {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
 
 impl_from_and_into_var! {
     fn from(percent: FactorPercent) -> Factor {
         Factor(percent.0 / 100.0)
     }
-
-    fn from(f: f32) -> Factor {
-        Factor(f)
-    }
-
-    fn from(f: f64) -> Factor {
-        Factor(f as f32)
-    }
-
-    /// | Input  | Output  |
-    /// |--------|---------|
-    /// |`true`  | `1.0`   |
-    /// |`false` | `0.0`   |
-    fn from(b: bool) -> Factor {
-        Factor(if b { 1.0 } else { 0.0 })
+    fn from(percent: Factor) -> FactorPercent {
+        FactorPercent(percent.0 * 100.0)
     }
 }
-impl fmt::Debug for Factor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_tuple("Factor").field(&self.0).finish()
-        } else {
-            write!(f, "{}.fct()", self.0)
-        }
+
+impl crate::var::IntoVar<Factor> for f32 {
+    type Var = crate::var::LocalVar<Factor>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.fct())
     }
 }
-impl fmt::Display for Factor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+impl crate::var::IntoVar<Factor> for f64 {
+    type Var = crate::var::LocalVar<Factor>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar((self as f32).fct())
+    }
+}
+impl crate::var::IntoVar<Factor> for bool {
+    type Var = crate::var::LocalVar<Factor>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(Factor(if self { 1.0 } else { 0.0 }))
     }
 }
 
@@ -780,9 +254,9 @@ impl Factor2d {
 impl fmt::Display for Factor2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_uniform() {
-            write!(f, "{}", self.x.pct())
+            write!(f, "{}", FactorPercent::from(self.x))
         } else {
-            write!(f, "({}, {})", self.x.pct(), self.y.pct())
+            write!(f, "({}, {})", FactorPercent::from(self.x), FactorPercent::from(self.y))
         }
     }
 }
@@ -1281,7 +755,7 @@ impl EasingTime {
 
     /// Get the time as a [`FactorPercent`].
     pub fn pct(self) -> FactorPercent {
-        self.0.pct()
+        self.0 .0.pct()
     }
 
     /// Flip the time.

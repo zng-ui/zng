@@ -1116,7 +1116,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
             if scale_delta != 0.fct() {
                 let scroll_info = WIDGET.info().scroll_info().unwrap();
-                let default = scale_position.to_px(LAYOUT.scale_factor().0);
+                let default = scale_position.to_px(LAYOUT.scale_factor());
                 let default = scroll_info
                     .viewport_transform()
                     .inverse()

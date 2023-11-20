@@ -1001,9 +1001,9 @@ impl TouchTransformArgs {
     }
 
     fn inertia(&self, velocity: Px, deceleration: Dip) -> (Px, Duration) {
-        let friction = deceleration.to_px(self.scale_factor.0);
+        let friction = deceleration.to_px(self.scale_factor);
         let cfg = TOUCH.touch_config().get();
-        let min_fling_velocity = cfg.min_fling_velocity.to_px(self.scale_factor.0);
+        let min_fling_velocity = cfg.min_fling_velocity.to_px(self.scale_factor);
 
         let signal = if velocity >= Px(0) { Px(1) } else { Px(-1) };
         let velocity = velocity.abs();
@@ -1011,7 +1011,7 @@ impl TouchTransformArgs {
         if velocity < min_fling_velocity {
             (Px(0), Duration::ZERO)
         } else {
-            let max_fling_velocity = cfg.max_fling_velocity.to_px(self.scale_factor.0);
+            let max_fling_velocity = cfg.max_fling_velocity.to_px(self.scale_factor);
             let velocity = velocity.min(max_fling_velocity).0 as f32;
             let friction = friction.0 as f32;
 
@@ -1240,7 +1240,7 @@ impl AppExtension for TouchManager {
 impl TouchManager {
     fn on_input(&mut self, args: &RawTouchArgs, update: &TouchUpdate) {
         if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-            let hits = w.root().hit_test(update.position.to_px(w.scale_factor().0));
+            let hits = w.root().hit_test(update.position.to_px(w.scale_factor()));
             let target = hits
                 .target()
                 .and_then(|t| w.get(t.widget_id))
@@ -1409,7 +1409,7 @@ impl TouchManager {
             if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
                 let mut window_blocked_remove = vec![];
                 for m in &mut moves {
-                    m.hits = w.root().hit_test(m.position().to_px(w.scale_factor().0));
+                    m.hits = w.root().hit_test(m.position().to_px(w.scale_factor()));
                     let target = m
                         .hits
                         .target()
@@ -1504,7 +1504,7 @@ impl TouchManager {
             }
 
             let tree = tree.get_or_insert_with(|| WINDOWS.widget_tree(window_id).unwrap());
-            info.hits = tree.root().hit_test(info.position.to_px(tree.scale_factor().0));
+            info.hits = tree.root().hit_test(info.position.to_px(tree.scale_factor()));
 
             let target = if let Some(t) = info.hits.target() {
                 tree.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
@@ -1684,7 +1684,7 @@ impl LongPressGesture {
             if !p.canceled && !p.propagation.is_stopped() && p.delay.get().has_elapsed() {
                 if let Ok(w) = WINDOWS.widget_tree(p.window_id) {
                     if let Some(w) = w.get(p.target) {
-                        let hits = w.hit_test(p.position.to_px(w.tree().scale_factor().0));
+                        let hits = w.hit_test(p.position.to_px(w.tree().scale_factor()));
                         if hits.contains(p.target) {
                             p.propagation.stop();
 
@@ -1753,7 +1753,7 @@ impl TapGesture {
 
                     match tree.get(p.target) {
                         Some(t) => {
-                            if !t.hit_test(args.position.to_px(tree.scale_factor().0)).contains(p.target) {
+                            if !t.hit_test(args.position.to_px(tree.scale_factor())).contains(p.target) {
                                 // cancel, touch did not end over target.
                                 return;
                             }
@@ -1884,7 +1884,7 @@ impl TouchTransformInfo {
 
     /// Compute the line info, from device independent pixels.
     pub fn new_dip(touches: [DipPoint; 2], scale_factor: Factor) -> Self {
-        Self::new_f32([touches[0].to_f32().to_px(scale_factor.0), touches[1].to_f32().to_px(scale_factor.0)])
+        Self::new_f32([touches[0].to_f32().to_px(scale_factor), touches[1].to_f32().to_px(scale_factor)])
     }
 }
 impl TouchTransformInfo {
@@ -2183,7 +2183,7 @@ impl TransformGesture {
                     let latest_info = TouchTransformInfo::new_dip([position, position], scale_factor);
                     let capture = POINTER_CAPTURE.current_capture_value();
 
-                    let velocity = velocity.to_px(scale_factor.0);
+                    let velocity = velocity.to_px(scale_factor);
 
                     let args = TouchTransformArgs::now(
                         window_id,
@@ -2234,7 +2234,7 @@ impl TransformGesture {
                     let latest_info = TouchTransformInfo::new_dip(position, scale_factor);
                     let capture = POINTER_CAPTURE.current_capture_value();
 
-                    let velocity = [velocity[0].to_px(scale_factor.0), velocity[1].to_px(scale_factor.0)];
+                    let velocity = [velocity[0].to_px(scale_factor), velocity[1].to_px(scale_factor)];
 
                     let args = TouchTransformArgs::now(
                         window_id,
@@ -2473,7 +2473,7 @@ impl TransformGesture {
                     let latest_info = TouchTransformInfo::new_dip([*position, *position], *scale_factor);
                     let capture = POINTER_CAPTURE.current_capture_value();
 
-                    let velocity = velocity.to_px(scale_factor.0);
+                    let velocity = velocity.to_px(*scale_factor);
 
                     let args = TouchTransformArgs::now(
                         *window_id,
@@ -2518,7 +2518,7 @@ impl TransformGesture {
                     let latest_info = TouchTransformInfo::new_dip(*position, *scale_factor);
                     let capture = POINTER_CAPTURE.current_capture_value();
 
-                    let velocity = [velocity[0].to_px(scale_factor.0), velocity[1].to_px(scale_factor.0)];
+                    let velocity = [velocity[0].to_px(*scale_factor), velocity[1].to_px(*scale_factor)];
 
                     let args = TouchTransformArgs::now(
                         *window_id,

@@ -11,7 +11,7 @@ use webrender::{DebugFlags, RenderApi};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions},
     display_list,
-    units::PxSize,
+    units::{Factor, PxSize},
     webrender_api::{
         units::TexelRect, AsyncBlobImageRasterizer, BlobImageHandler, BlobImageParams, BlobImageRequest, BlobImageResult, DocumentId,
         ExternalImageId, PipelineId,
@@ -206,7 +206,7 @@ pub struct FrameReadyArgs {
 /// Arguments for [`RendererExtension::redraw`].
 pub struct RedrawArgs<'a> {
     /// Scale factor of the screen or window.
-    pub scale_factor: f32,
+    pub scale_factor: Factor,
 
     /// Current size of the surface or window content.
     pub size: PxSize,

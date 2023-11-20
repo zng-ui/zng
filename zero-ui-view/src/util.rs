@@ -255,7 +255,7 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
         name: handle.name().unwrap_or_default(),
         position,
         size,
-        scale_factor: handle.scale_factor() as f32,
+        scale_factor: Factor(handle.scale_factor() as _),
         video_modes: handle.video_modes().map(glutin_video_mode_to_video_mode).collect(),
         is_primary: false,
     }

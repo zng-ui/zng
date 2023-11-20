@@ -180,7 +180,7 @@ pub mod using_display_items {
                     }
 
                     if cursor != DipPoint::splat(Dip::MIN) {
-                        let p = cursor.to_px(LAYOUT.scale_factor().0);
+                        let p = cursor.to_px(LAYOUT.scale_factor());
                         if cursor_px != p {
                             cursor_px = p;
                             WIDGET.render_update();

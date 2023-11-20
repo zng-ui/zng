@@ -1200,7 +1200,7 @@ mod capture {
     use zero_ui_view_api::{
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
         ipc::IpcBytes,
-        units::{PxRect, PxToWr, WrToPx},
+        units::{Factor, PxRect, PxToWr, WrToPx},
         window::{FrameId, WindowId},
         Event,
     };
@@ -1222,7 +1222,7 @@ mod capture {
             capture_mode: bool,
             window_id: WindowId,
             frame_id: FrameId,
-            scale_factor: f32,
+            scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageId {
             if frame_id == FrameId::INVALID {
@@ -1261,7 +1261,7 @@ mod capture {
             renderer: &mut Renderer,
             rect: PxRect,
             capture_mode: bool,
-            scale_factor: f32,
+            scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
             let data = self.frame_image_data_impl(renderer, rect, capture_mode, scale_factor, mask);
@@ -1295,7 +1295,7 @@ mod capture {
             renderer: &mut Renderer,
             rect: PxRect,
             capture_mode: bool,
-            scale_factor: f32,
+            scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
             // Firefox uses this API here:
@@ -1333,7 +1333,7 @@ mod capture {
                     let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
                     let data = IpcBytes::from_vec(buf);
-                    let ppi = 96.0 * scale_factor;
+                    let ppi = 96.0 * scale_factor.0;
                     let ppi = Some(ImagePpi::splat(ppi));
                     let size = s.to_px();
 

@@ -79,7 +79,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let metrics = LAYOUT.metrics();
-            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor());
 
             *desired_size = match orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
@@ -94,7 +94,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         }
         UiNodeOp::Layout { final_size, .. } => {
             let metrics = LAYOUT.metrics();
-            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor());
 
             let b = match orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(

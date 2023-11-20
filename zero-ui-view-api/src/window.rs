@@ -11,7 +11,7 @@ use crate::{
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
-    units::{Dip, DipPoint, DipRect, DipSize, Px, PxPoint, PxSize, PxToDip, PxTransform},
+    units::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform},
 };
 
 crate::declare_id! {
@@ -105,7 +105,7 @@ pub struct HeadlessRequest {
     pub id: WindowId,
 
     /// Scale for the layout units in this config.
-    pub scale_factor: f32,
+    pub scale_factor: Factor,
 
     /// Surface area (viewport size).
     pub size: DipSize,
@@ -127,7 +127,7 @@ pub struct MonitorInfo {
     /// Width/height of the monitor region in the virtual screen, in pixels.
     pub size: PxSize,
     /// The monitor scale factor.
-    pub scale_factor: f32,
+    pub scale_factor: Factor,
     /// Exclusive fullscreen video modes.
     pub video_modes: Vec<VideoMode>,
 
@@ -207,7 +207,7 @@ pub struct WindowOpenData {
     pub size: DipSize,
 
     /// Final scale factor.
-    pub scale_factor: f32,
+    pub scale_factor: Factor,
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,

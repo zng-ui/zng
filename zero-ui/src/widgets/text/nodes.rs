@@ -2211,7 +2211,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = resolved.caret.lock().opacity.get().0;
 
-                    let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
+                    let caret_thickness = Dip::new(1).to_px(frame.scale_factor());
                     origin.x -= caret_thickness / 2;
 
                     let clip_rect = PxRect::new(origin, PxSize::new(caret_thickness, t.shaped_text.line_height()));
@@ -2519,11 +2519,11 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
             let factor = LAYOUT.scale_factor();
-            let size = Dip::new(16).to_px(factor.0);
+            let size = Dip::new(16).to_px(factor);
             *final_size = PxSize::splat(size);
             final_size.height += LayoutText::get().shaped_text.line_height();
 
-            let caret_thickness = Dip::new(1).to_px(factor.0);
+            let caret_thickness = Dip::new(1).to_px(factor);
 
             let caret_offset = match shape {
                 CaretShape::SelectionLeft => {
@@ -2539,7 +2539,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
             set_touch_caret_mid(caret_offset);
         }
         UiNodeOp::Render { frame } => {
-            let size = Dip::new(16).to_px(frame.scale_factor().0);
+            let size = Dip::new(16).to_px(frame.scale_factor());
             let mut size = PxSize::splat(size);
 
             let corners = match shape {
@@ -2559,7 +2559,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
                 frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
             });
 
-            let caret_thickness = Dip::new(1).to_px(frame.scale_factor().0);
+            let caret_thickness = Dip::new(1).to_px(frame.scale_factor());
 
             let line_pos = match shape {
                 CaretShape::SelectionLeft => PxPoint::new(size.width - caret_thickness, Px(0)),
