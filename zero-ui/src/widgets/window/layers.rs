@@ -41,9 +41,9 @@ impl LAYERS {
     /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
     /// are inserted in the same layer the later inserts are on top of the previous.
     ///
-    /// If the `widget` is not a full widget after init it is immediately deinited and removed. Only full
-    /// widgets are allowed, and ideally widgets with known IDs, so that they can be removed. If you don't
-    /// know the widget is use [`insert_node`] instead.
+    /// If the `widget` node is not a full widget after init it is immediately deinited and removed. Only full
+    /// widgets are allowed, use this method when you know the node is an widget and know the widget ID so it can
+    /// be removed later. Use [`insert_node`] to insert nodes that may not always be widgets.
     ///
     /// [`insert_node`]: Self::insert_node
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {

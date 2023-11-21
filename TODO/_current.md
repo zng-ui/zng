@@ -1,3 +1,11 @@
+* Test take_on_init singleton node in LAYERS.
+    - Second open must work and vanishes the first.
+    - It works for `insert_node`, fails for `insert`.
+        - At least document for `insert`?
+* Test take_on_init singleton node in POPUP.
+    - Review `POPUP`, it could use LAYERS `_node`?
+* Review tooltip.
+
 # TextInput
 
 * Touch selection.
@@ -11,15 +19,12 @@
     - Has to be anchored in relation to the selected text.
     - Implement `selection_toolbar_fn`.
         - Should it be a context-var?
-        - Context-menu is not.
-        - Flutter has a SelectableText widget.
-        - Maybe we can have one, with a style property and DefaultStyle.
-            - It sets the context_menu and selection_toolbar.
-    - WidgetFn::singleton uses ArcNode take_on_init.
-        - take_on_init does not provide an widget ID on init for LAYERS
-          because it detects that is already open, it signals it to close
-          so that it can init in the new place. LAYERS does not await this,
-          it removes the new place because it has no widget ID.
+            - Context-menu is not.
+            - Flutter has a SelectableText widget.
+            - Maybe we can have one, with a style property and DefaultStyle.
+                - It sets the context_menu and selection_toolbar.
+        - Needs to open when a selection finishes creating (mouse/touch release)
+            - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
 
 * Implement IME.
     - Implement pre-edit preview (!!: TODO IME).

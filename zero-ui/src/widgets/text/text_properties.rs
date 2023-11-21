@@ -1770,7 +1770,7 @@ pub struct SelectionToolbarArgs {
 /// Position and size of the selection toolbar in relation to the bounding box
 /// of all selection rectangles.
 ///
-/// See [`selection_toolbar_fn`]: fn@selection_toolbar_fn
+/// See [`selection_toolbar_fn`](fn@selection_toolbar_fn)
 #[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR))]
 pub fn selection_toolbar_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, mode)
