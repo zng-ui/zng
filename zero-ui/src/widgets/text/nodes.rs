@@ -763,6 +763,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 .call(&text)
                             });
                         }
+                    } else if let Some(args) = IME_EVENT.on_unhandled(update) {
+                        if args.commit && !args.txt.is_empty() {
+                            args.propagation().stop();
+
+                            *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
+                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
+                        }
                     }
 
                     let resolved = resolved.as_mut().unwrap();
@@ -1811,10 +1818,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         selection_move_handles.clear();
                     }
                 } else if let Some(args) = IME_EVENT.on_unhandled(update) {
-                    if editable {
+                    if editable && !args.commit {
                         args.propagation().stop();
-
-                        tracing::info!("!!: TODO IME {:?}", args);
+                        tracing::info!("!!: TODO preview {:?}", args.txt)
                     }
                 } else if selectable {
                     if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
