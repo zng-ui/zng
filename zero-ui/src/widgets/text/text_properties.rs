@@ -1686,26 +1686,98 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
     })
 }
 
-/// !!: TODO
+/// Defines the floating mini-toolbar that shows near a new text selection.
+///
+/// The `toolbar` is used
 #[property(CHILD_LAYOUT+100)]
-pub fn selection_toolbar(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
-    selection_toolbar_fn(child, WidgetFn::singleton(menu))
+pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNode {
+    selection_toolbar_fn(child, WidgetFn::singleton(toolbar))
 }
 
-/// !!: TODO
+/// Defines the floating mini-toolbar that shows near a new text selection.
 #[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
-pub fn selection_toolbar_fn(child: impl UiNode, menu: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    todo!();
-    child
+pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> impl UiNode {
+    use crate::widgets::popup::*;
+
+    let toolbar = toolbar.into_var();
+    let mut selection_bounds = PxRect::zero();
+    let mut open = None::<ReadOnlyArcVar<PopupState>>;
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&toolbar);
+        }
+        UiNodeOp::Deinit => {
+            if let Some(state) = open.take() {
+                POPUP.close_var(&state);
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if open.is_some() {
+                if let Some(f) = toolbar.get_new() {
+                    selection_bounds = PxRect::zero();
+                    WIDGET.layout();
+                }
+            }
+           
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = c.layout(wl);
+
+            use super::nodes::*;
+
+            let r_txt = ResolvedText::get();
+
+            if let Some(range) = r_txt.caret.lock().selection_range() {
+                let l_txt = LayoutText::get();
+                let r_txt = r_txt.segmented_text.text();
+
+                let mut bounds = PxBox::zero();
+                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                    if !line_rect.size.is_empty() {
+                        let line_box = line_rect.to_box2d();
+                        bounds.min = bounds.min.min(line_box.min);
+                        bounds.max = bounds.max.max(line_box.max);
+                    }
+                }
+                let bounds = bounds.to_rect();
+
+                if bounds != selection_bounds {
+                    selection_bounds = bounds;
+                    
+                    if let Some(state) = open.take() {
+                        POPUP.close_var(&state);
+                    }
+                    
+                    if !selection_bounds.size.is_empty() {
+                        let node = toolbar.get()(SelectionToolbarArgs { });
+                        open = Some(POPUP.open(node));
+                    }
+                    
+                }
+            };
+        }
+        _ => {}
+    })
 }
 
-/// !!: TODO
+/// Arguments for [`selection_toolbar_fn`].
+/// 
+/// [`selection_toolbar_fn`]: fn@selection_toolbar_fn
+pub struct SelectionToolbarArgs {
+
+}
+
+/// Position and size of the selection toolbar in relation to the bounding box
+/// of all selection rectangles.
+///
+/// See [`selection_toolbar_fn`]: fn@selection_toolbar_fn
 #[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR))]
 pub fn selection_toolbar_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, mode)
 }
 
 context_var! {
-    /// !!: TODO
+    /// Position and size of the selection toolbar in relation to the bounding box
+    /// of all selection rectangles.
     pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorMode = AnchorOffset::out_top();
 }
