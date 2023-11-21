@@ -558,11 +558,12 @@ impl FontFace {
             ColorGlyphs::load(&font)?
         };
         let lig_carets = LigatureCaretList::load(&font)?;
-        
-        let mut metrics = FontFaceMetrics::from(font.metrics());
+
+        let metrics = font.metrics();
         if metrics.units_per_em == 0 {
-            tracing::error!("font {:?} units_per_em 0", font.family_name());
-            metrics.units_per_em = 2048;
+            // observed this in Noto Color Emoji
+            tracing::error!("font {:?} units_er_em 0", font.family_name());
+            return Err(FontLoadingError::UnknownFormat);
         }
 
         Ok(FontFace(Arc::new(LoadedFontFace {
@@ -574,7 +575,7 @@ impl FontFace {
             postscript_name: font.postscript_name(),
             properties: font.properties(),
             is_monospace: font.is_monospace(),
-            metrics,
+            metrics: metrics.into(),
             color_palettes,
             color_glyphs,
             lig_carets,
