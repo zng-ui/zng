@@ -409,7 +409,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 5],
+        events: [EventHandle; 6],
         caret_animation: VarHandle,
         max_count: VarHandle,
         cut: CommandHandle,
@@ -431,6 +431,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 self.events[1] = INTERACTIVITY_CHANGED_EVENT.subscribe(id);
                 self.events[2] = KEY_INPUT_EVENT.subscribe(id);
                 self.events[3] = ACCESS_TEXT_EVENT.subscribe(id);
+                self.events[5] = IME_EVENT.subscribe(id);
 
                 self.paste = PASTE_CMD.scoped(id).subscribe(true);
                 self.edit = EDIT_CMD.scoped(id).subscribe(true);
@@ -764,11 +765,15 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             });
                         }
                     } else if let Some(args) = IME_EVENT.on_unhandled(update) {
-                        if args.commit && !args.txt.is_empty() {
-                            args.propagation().stop();
+                        if args.commit {
+                            if !args.txt.is_empty() {
+                                args.propagation().stop();
 
-                            *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
-                            ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
+                                *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
+                                ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
+                            }
+                        } else {
+                            tracing::info!("!!: TODO preview {:?}", args.txt);
                         }
                     }
 
@@ -1391,7 +1396,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     /// Data allocated only when `editable`.
     #[derive(Default)]
     struct EditData {
-        events: [EventHandle; 4],
+        events: [EventHandle; 3],
         caret_animation: VarHandle,
         select: CommandHandle,
         select_all: CommandHandle,
@@ -1419,10 +1424,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 self.select = SELECT_CMD.scoped(id).subscribe(true);
                 self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
-            }
-
-            if editable {
-                self.events[3] = IME_EVENT.subscribe(WIDGET.id());
             }
         }
     }
@@ -1816,11 +1817,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
                     if args.is_lost(WIDGET.id()) {
                         selection_move_handles.clear();
-                    }
-                } else if let Some(args) = IME_EVENT.on_unhandled(update) {
-                    if editable && !args.commit {
-                        args.propagation().stop();
-                        tracing::info!("!!: TODO preview {:?}", args.txt)
                     }
                 } else if selectable {
                     if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {

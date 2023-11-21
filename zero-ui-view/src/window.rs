@@ -1649,7 +1649,16 @@ impl Window {
     }
 
     pub(crate) fn set_ime_area(&self, area: Option<DipRect>) {
-        if let Some(a) = area {
+        if let Some(mut a) = area {
+            if cfg!(windows) {
+                // Windows 10 Emoji IME covers the exclusion area so we force a point
+                // TODO fix this:
+                // - Winit calls ImmSetCandidateWindow, it looks correct
+
+                a.origin.y += a.size.height;
+                a.size = DipSize::splat(Dip::new(1));
+            }
+
             self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
             self.window.set_ime_allowed(true);
         } else {

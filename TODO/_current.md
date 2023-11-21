@@ -30,6 +30,7 @@ TextInput! {
 * Implement IME.
     - Implement pre-edit preview (!!: TODO IME).
     - Popup window covers entire widget (area size ignored in Windows?)
+        - Temporary fix implemented for Windows in `set_ime_area`, need to debug this.
     - Review IME area, we can't just use bounds, a large text area widget may want to
       set the IME area as the current line.
     - Firefox uses the selection rectangles and also sets the "interest point".
