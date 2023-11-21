@@ -159,9 +159,34 @@ impl POPUP {
                         state.set(PopupState::Open(id));
                         _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     } else {
+                        // not widget after init, generate a widget, but can still become
+                        // an widget later, such as a `take_on_init` ArcNode that was already
+                        // in use on init, to support `close_delay` in this scenario the not_widget
+                        // is wrapped in a node that pumps POPUP_CLOSE_REQUESTED_EVENT to the not_widget
+                        // if it is an widget at the time of the event.
                         c.deinit();
 
                         let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());
+                        let not_widget = match_node(not_widget, |c, op| match op {
+                            UiNodeOp::Init => {
+                                WIDGET.sub_event(&FOCUS_CHANGED_EVENT).sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+                            }
+                            UiNodeOp::Event { update } => {
+                                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
+                                    if let Some(now_is_widget) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.info().path()) {
+                                        if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(now_is_widget.widget_id()) {
+                                            // node become widget after init, and it expects POPUP_CLOSE_REQUESTED_EVENT.
+                                            let mut delivery = UpdateDeliveryList::new_any();
+                                            delivery.insert_path(&now_is_widget);
+                                            let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
+                                            c.event(&update);
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        });
+
                         *c.child() = not_widget.into_widget();
 
                         c.init();
@@ -264,7 +289,7 @@ impl POPUP {
 pub enum PopupState {
     /// Popup will open on the next update.
     Opening,
-    /// Popup is open and can close it self, or be closed using the ID.
+    /// Popup is open and can close itself, or be closed using the ID.
     Open(WidgetId),
     /// Popup is closed.
     Closed,

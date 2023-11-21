@@ -1,5 +1,3 @@
-* Review `close_delay` in take_on_init singleton popup.
-
 # TextInput
 
 * Touch selection.
