@@ -1944,7 +1944,8 @@ impl ops::Mul<Factor> for PxPoint {
     type Output = PxPoint;
 
     fn mul(mut self, rhs: Factor) -> PxPoint {
-        self *= rhs;
+        self.x *= rhs;
+        self.y *= rhs;
         self
     }
 }
@@ -1952,18 +1953,21 @@ impl ops::Div<Factor> for PxPoint {
     type Output = PxPoint;
 
     fn div(mut self, rhs: Factor) -> PxPoint {
-        self /= rhs;
+        self.x /= rhs;
+        self.y /= rhs;
         self
     }
 }
 impl ops::MulAssign<Factor> for PxPoint {
     fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
+        self.x *= rhs;
+        self.y *= rhs;
     }
 }
 impl ops::DivAssign<Factor> for PxPoint {
     fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
+        self.x /= rhs;
+        self.y /= rhs;
     }
 }
 
