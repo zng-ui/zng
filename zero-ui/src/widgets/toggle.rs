@@ -1210,7 +1210,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
                     _state_handle = state.subscribe(UpdateOp::Update, WIDGET.id());
                 }
             } else if let PopupState::Open(id) = state.get() {
-                POPUP.close(id);
+                POPUP.close_id(id);
             }
         }
     })

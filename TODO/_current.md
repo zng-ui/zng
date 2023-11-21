@@ -1,10 +1,4 @@
-* Test take_on_init singleton node in LAYERS.
-    - Second open must work and vanishes the first.
-    - It works for `insert_node`, fails for `insert`.
-        - At least document for `insert`?
-* Test take_on_init singleton node in POPUP.
-    - Review `POPUP`, it could use LAYERS `_node`?
-* Review tooltip.
+* Review `close_delay` in take_on_init singleton popup.
 
 # TextInput
 
@@ -25,6 +19,15 @@
                 - It sets the context_menu and selection_toolbar.
         - Needs to open when a selection finishes creating (mouse/touch release)
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
+```rust
+TextInput! {
+    txt = var_from("select text to show toolbar");
+    text::selection_toolbar = Wgt! {
+        size = 40;
+        background_color = colors::GREEN.with_alpha(50.pct());
+    }
+}
+```
 
 * Implement IME.
     - Implement pre-edit preview (!!: TODO IME).

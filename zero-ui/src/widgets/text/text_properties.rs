@@ -1708,7 +1708,7 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
         }
         UiNodeOp::Deinit => {
             if let Some(state) = open.take() {
-                POPUP.close_var(&state);
+                POPUP.close(&state);
             }
         }
         UiNodeOp::Update { .. } => {
@@ -1718,7 +1718,6 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     WIDGET.layout();
                 }
             }
-           
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
@@ -1743,16 +1742,15 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
 
                 if bounds != selection_bounds {
                     selection_bounds = bounds;
-                    
+
                     if let Some(state) = open.take() {
-                        POPUP.close_var(&state);
+                        POPUP.close(&state);
                     }
-                    
+
                     if !selection_bounds.size.is_empty() {
-                        let node = toolbar.get()(SelectionToolbarArgs { });
+                        let node = toolbar.get()(SelectionToolbarArgs {});
                         open = Some(POPUP.open(node));
                     }
-                    
                 }
             };
         }
@@ -1761,11 +1759,9 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
 }
 
 /// Arguments for [`selection_toolbar_fn`].
-/// 
+///
 /// [`selection_toolbar_fn`]: fn@selection_toolbar_fn
-pub struct SelectionToolbarArgs {
-
-}
+pub struct SelectionToolbarArgs {}
 
 /// Position and size of the selection toolbar in relation to the bounding box
 /// of all selection rectangles.

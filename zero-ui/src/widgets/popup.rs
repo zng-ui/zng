@@ -95,8 +95,7 @@ pub fn anchor_mode(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl U
     with_context_var(child, ANCHOR_MODE_VAR, mode)
 }
 
-/// Defines if the popup captures the build/instantiate context and sets it
-/// in the node context.
+/// Defines if the popup captures the local context to load in the popup context.
 ///
 /// This is enabled by default and lets the popup use context values from the widget
 /// that opens it, not just from the window [`LAYERS`] root where it will actually be inited.
@@ -114,12 +113,18 @@ pub fn context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>
 /// Popup service.
 pub struct POPUP;
 impl POPUP {
-    /// Open the `popup` using the current context configuration.
+    /// Open the `popup` using the current context config vars.
+    ///
+    /// If the popup node is not a full widget after init it is upgraded to one. Returns
+    /// a variable that tracks the popup state and ID.
     pub fn open(&self, popup: impl UiNode) -> ReadOnlyArcVar<PopupState> {
         self.open_impl(popup.boxed(), ANCHOR_MODE_VAR, CONTEXT_CAPTURE_VAR.get())
     }
 
     /// Open the `popup` using the custom config vars.
+    ///
+    /// If the popup node is not a full widget after init it is upgraded to one. Returns
+    /// a variable that tracks the popup state and ID.
     pub fn open_config(
         &self,
         popup: impl UiNode,
@@ -154,7 +159,16 @@ impl POPUP {
                         state.set(PopupState::Open(id));
                         _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     } else {
-                        state.set(PopupState::Closed);
+                        c.deinit();
+
+                        let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());
+                        *c.child() = not_widget.into_widget();
+
+                        c.init();
+                        let id = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap();
+
+                        state.set(PopupState::Open(id));
+                        _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     }
                 }
                 UiNodeOp::Deinit => {
@@ -167,15 +181,15 @@ impl POPUP {
 
                         if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                             if args.is_focus_leave(id) && CLOSE_ON_FOCUS_LEAVE_VAR.get() {
-                                POPUP.close(id);
+                                POPUP.close_id(id);
                             }
                         } else if let Some(args) = POPUP_CLOSE_CMD.scoped(id).on_unhandled(update) {
                             match args.param::<PopupCloseMode>() {
                                 Some(s) => match s {
-                                    PopupCloseMode::Request => POPUP.close(id),
+                                    PopupCloseMode::Request => POPUP.close_id(id),
                                     PopupCloseMode::Force => LAYERS.remove(id),
                                 },
-                                None => POPUP.close(id),
+                                None => POPUP.close_id(id),
                             }
                         }
                     });
@@ -195,23 +209,10 @@ impl POPUP {
         state.read_only()
     }
 
-    /// Close the popup widget.
+    /// Close the popup widget when `state` is not already closed.
     ///
     /// Notifies [`POPUP_CLOSE_REQUESTED_EVENT`] and then close if no subscriber stops propagation for it.
-    ///
-    /// You can also use the [`POPUP_CLOSE_CMD`] to request or force close.
-    pub fn close(&self, widget_id: WidgetId) {
-        setup_popup_close_service();
-        POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(widget_id));
-    }
-
-    /// Close the popup widget without notifying the request event.
-    pub fn force_close(&self, widget_id: WidgetId) {
-        POPUP_CLOSE_CMD.scoped(widget_id).notify_param(PopupCloseMode::Force);
-    }
-
-    /// Close the popup widget when `state` is not already closed.
-    pub fn close_var(&self, state: &ReadOnlyArcVar<PopupState>) {
+    pub fn close(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
                 .hook(Box::new(|a| {
@@ -221,12 +222,12 @@ impl POPUP {
                     false
                 }))
                 .perm(),
-            PopupState::Open(id) => self.close(id),
+            PopupState::Open(id) => self.close_id(id),
             PopupState::Closed => {}
         }
     }
 
-    /// Close the popup widget when `state` is not already closed.
+    /// Close the popup widget when `state` is not already closed, without notifying [`POPUP_CLOSE_REQUESTED_EVENT`] first.
     pub fn force_close_var(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
@@ -237,9 +238,24 @@ impl POPUP {
                     false
                 }))
                 .perm(),
-            PopupState::Open(id) => self.force_close(id),
+            PopupState::Open(id) => self.force_close_id(id),
             PopupState::Closed => {}
         }
+    }
+
+    /// Close the popup widget by known ID.
+    ///
+    /// The `widget_id` must be the same in the [`PopupState::Open`] returned on open.
+    ///
+    /// You can also use the [`POPUP_CLOSE_CMD`] scoped on the popup to request or force close.    
+    pub fn close_id(&self, widget_id: WidgetId) {
+        setup_popup_close_service();
+        POPUP_CLOSE_REQUESTED_EVENT.notify(PopupCloseRequestedArgs::now(widget_id));
+    }
+
+    /// Close the popup widget without notifying the request event.
+    pub fn force_close_id(&self, widget_id: WidgetId) {
+        POPUP_CLOSE_CMD.scoped(widget_id).notify_param(PopupCloseMode::Force);
     }
 }
 

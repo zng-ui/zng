@@ -110,7 +110,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 auto_close = None;
                 close_event_handles.clear();
                 if let PopupState::Open(not_closed) = pop_state.get() {
-                    POPUP.force_close(not_closed);
+                    POPUP.force_close_id(not_closed);
                 }
             }
             UiNodeOp::Event { update } => {
@@ -157,7 +157,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                                     .on_pre_new(app_hn_once!(|a: &OnVarArgs<PopupState>| {
                                         match a.value {
                                             PopupState::Open(id) => {
-                                                POPUP.force_close(id);
+                                                POPUP.force_close_id(id);
                                             }
                                             PopupState::Closed => {}
                                             PopupState::Opening => unreachable!(),
@@ -169,7 +169,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         PopupState::Open(id) => {
                             if hide && !hover_target.map(|t| t.contains(id)).unwrap_or(false) {
                                 // mouse not over self and tooltip
-                                POPUP.close(id);
+                                POPUP.close_id(id);
                             }
                         }
                         PopupState::Closed => {
@@ -187,7 +187,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                                 };
 
                                 if let Some(open) = OPEN_TOOLTIP.get() {
-                                    POPUP.force_close(open);
+                                    POPUP.force_close_id(open);
 
                                     // yield an update for the close deinit
                                     // the `tooltip` property is a singleton
@@ -219,7 +219,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 if let Some(d) = &auto_close {
                     if d.get().has_elapsed() {
                         auto_close = None;
-                        POPUP.close_var(&pop_state);
+                        POPUP.close(&pop_state);
                     }
                 }
 
@@ -248,7 +248,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
                         let mut global = OPEN_TOOLTIP.write();
                         if let Some(id) = global.take() {
-                            POPUP.force_close(id);
+                            POPUP.force_close_id(id);
                         }
                         *global = Some(WIDGET.id());
                     });
@@ -278,7 +278,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
                         if let Some(t) = &args.target {
                             if !t.contains(anchor_id) && !t.contains(tooltip_id) {
-                                POPUP.close(tooltip_id);
+                                POPUP.close_id(tooltip_id);
                             }
                         }
                     }
@@ -321,7 +321,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 close_event_handles.push(event.hook(clmv!(pop_state, |_| {
                     let retain = monitor_start.elapsed() <= 200.ms();
                     if !retain {
-                        POPUP.close_var(&pop_state);
+                        POPUP.close(&pop_state);
                     }
                     retain
                 })));

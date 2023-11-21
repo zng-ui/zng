@@ -175,7 +175,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                 args.propagation().stop();
 
                                 FOCUS.focus_widget(m.id(), true);
-                                POPUP.force_close(info.id());
+                                POPUP.force_close_id(info.id());
                             }
                         }
                         Key::ArrowLeft | Key::ArrowRight => {
@@ -200,7 +200,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                             // escape
 
                                             FOCUS.focus_widget(m.id(), true);
-                                            POPUP.force_close(WIDGET.id());
+                                            POPUP.force_close_id(WIDGET.id());
                                         } else if let Some(m) = info.info().submenu_root() {
                                             args.propagation().stop();
                                             // change root
@@ -302,7 +302,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
             if let Some(t) = &close_timer {
                 if t.get().has_elapsed() {
                     close_timer = None;
-                    POPUP.force_close(WIDGET.id());
+                    POPUP.force_close_id(WIDGET.id());
                 }
             }
         }
