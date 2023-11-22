@@ -155,10 +155,27 @@ impl CaretInfo {
     }
 }
 
+/// IME text edit that is not committed yet.
+#[derive(Clone)]
+pub struct ImePreview {
+    /// The inserted text.
+    pub txt: Txt,
+
+    /// Caret index when IME started.
+    pub prev_caret: CaretIndex,
+    /// Selection index when IME started.
+    ///
+    /// If set defines a selection of the text variable that is replaced with the `txt`.
+    pub prev_selection: Option<CaretIndex>,
+}
+
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
 pub struct ResolvedText {
     /// The text source variable.
     pub txt: BoxedVar<Txt>,
+    /// IME text edit that is not committed yet. Only the text in the segmented and shaped text is edited,
+    /// the text variable is not updated yet and undo is not tracking these changes.
+    pub ime_preview: Option<ImePreview>,
 
     /// Text transformed, white space corrected and segmented.
     pub segmented_text: SegmentedText,
@@ -205,6 +222,7 @@ impl Clone for ResolvedText {
     fn clone(&self) -> Self {
         Self {
             txt: self.txt.clone(),
+            ime_preview: self.ime_preview.clone(),
             segmented_text: self.segmented_text.clone(),
             faces: self.faces.clone(),
             synthesis: self.synthesis,
@@ -538,6 +556,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
             resolved = Some(ResolvedText {
                 txt: text.clone(),
+                ime_preview: None,
                 synthesis: FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(style, weight),
                 faces: f,
                 segmented_text: SegmentedText::new(txt, DIRECTION_VAR.get()),
@@ -765,15 +784,105 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             });
                         }
                     } else if let Some(args) = IME_EVENT.on_unhandled(update) {
-                        if args.commit {
-                            if !args.txt.is_empty() {
-                                args.propagation().stop();
+                        let mut resegment = false;
 
+                        if args.commit {
+                            // commit IME insert
+
+                            args.propagation().stop();
+                            {
+                                let resolved = resolved.as_mut().unwrap();
+                                if let Some(preview) = resolved.ime_preview.take() {
+                                    // restore caret
+                                    let caret = resolved.caret.get_mut();
+                                    caret.set_index(preview.prev_caret);
+                                    caret.selection_index = preview.prev_selection;
+
+                                    if args.txt.is_empty() {
+                                        // the actual insert already re-segments, except in this case
+                                        // where there is nothing to insert.
+                                        resegment = true;
+                                    }
+                                }
+                            }
+
+                            if !args.txt.is_empty() {
+                                // actual insert
                                 *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
                             }
                         } else {
-                            tracing::info!("!!: TODO preview {:?}", args.txt);
+                            let resolved = resolved.as_mut().unwrap();
+
+                            // update preview txt
+                            if args.txt.is_empty() {
+                                if let Some(preview) = resolved.ime_preview.take() {
+                                    resegment = true;
+                                    let caret = resolved.caret.get_mut();
+                                    caret.set_index(preview.prev_caret);
+                                    caret.selection_index = preview.prev_selection;
+                                }
+                            } else if let Some(preview) = &mut resolved.ime_preview {
+                                resegment = preview.txt != args.txt;
+                                if resegment {
+                                    preview.txt = args.txt.clone();
+                                }
+                            } else {
+                                resegment = true;
+                                let caret = resolved.caret.get_mut();
+                                resolved.ime_preview = Some(ImePreview {
+                                    txt: args.txt.clone(),
+                                    prev_caret: caret.index.unwrap_or(CaretIndex::ZERO),
+                                    prev_selection: caret.selection_index,
+                                });
+                            }
+
+                            // update preview caret/selection indexes.
+                            if let Some(preview) = &resolved.ime_preview {
+                                let caret = resolved.caret.get_mut();
+                                let (start, end) = args.caret.unwrap_or_else(|| (args.txt.len(), args.txt.len()));
+
+                                let ime_start = if let Some(s) = preview.prev_selection {
+                                    preview.prev_caret.index.min(s.index)
+                                } else {
+                                    preview.prev_caret.index
+                                };
+                                if start != end {
+                                    let start = ime_start + start;
+                                    let end = ime_start + end;
+                                    resegment |= caret.selection_char_range() != Some(start..end);
+                                    caret.set_char_selection(start, end);
+                                } else {
+                                    let start = ime_start + start;
+                                    resegment |= caret.selection_index.is_some() || caret.index.map(|c| c.index) != Some(start);
+                                    caret.set_char_index(start);
+                                    caret.selection_index = None;
+                                }
+                            }
+                        }
+
+                        if resegment {
+                            let resolved = resolved.as_mut().unwrap();
+
+                            // re-segment text to insert or remove the preview
+                            let mut text = resolved.txt.get();
+                            if let Some(preview) = &resolved.ime_preview {
+                                if let Some(s) = preview.prev_selection {
+                                    let range = if preview.prev_caret.index < s.index {
+                                        preview.prev_caret.index..s.index
+                                    } else {
+                                        s.index..preview.prev_caret.index
+                                    };
+                                    text.to_mut().replace_range(range, preview.txt.as_str());
+                                } else {
+                                    text.to_mut().insert_str(preview.prev_caret.index, preview.txt.as_str());
+                                }
+                                text.end_mut();
+                            }
+                            resolved.segmented_text = SegmentedText::new(text, DIRECTION_VAR.get());
+
+                            resolved.pending_layout |= PendingLayout::RESHAPE;
+                            WIDGET.layout();
                         }
                     }
 
