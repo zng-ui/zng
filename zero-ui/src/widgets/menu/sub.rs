@@ -88,7 +88,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             }
             UiNodeOp::Deinit => {
                 if let Some(v) = open.take() {
-                    POPUP.force_close_var(&v);
+                    POPUP.force_close(&v);
                     is_open.set(false);
                 }
                 close_cmd = CommandHandle::dummy();
@@ -221,7 +221,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                             if !closed {
                                 if WIDGET.info().submenu_parent().is_none() {
                                     // root sub-menu, close and return focus
-                                    POPUP.force_close_var(&s);
+                                    POPUP.force_close(&s);
                                     FOCUS.focus_exit();
                                     is_open.set(false);
                                     close_cmd.set_enabled(false);
@@ -241,7 +241,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                 } else if let Some(_args) = POPUP_CLOSE_CMD.scoped(WIDGET.id()).on(update) {
                     if let Some(s) = open.take() {
                         if !matches!(s.get(), PopupState::Closed) {
-                            POPUP.force_close_var(&s);
+                            POPUP.force_close(&s);
                             is_open.set(false);
                             close_cmd.set_enabled(false);
                         }
@@ -259,7 +259,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         if t.get().has_elapsed() {
                             if let Some(s) = open.take() {
                                 if !matches!(s.get(), PopupState::Closed) {
-                                    POPUP.force_close_var(&s);
+                                    POPUP.force_close(&s);
                                     is_open.set(false);
                                     close_cmd.set_enabled(false);
                                 }
