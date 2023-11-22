@@ -683,6 +683,19 @@ impl Event {
             {
                 *new = n_new;
             }
+            // IME commit replaces preview.
+            (
+                Ime {
+                    window,
+                    ime: ime @ self::Ime::Preview(_, _),
+                },
+                Ime {
+                    window: n_window,
+                    ime: n_ime @ self::Ime::Commit(_),
+                },
+            ) if *window == n_window => {
+                *ime = n_ime;
+            }
             // scale factor.
             (
                 ScaleFactorChanged {
