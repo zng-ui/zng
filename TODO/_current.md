@@ -35,9 +35,7 @@ TextInput! {
     - Popup window covers entire widget (area size ignored in Windows?)
         - Temporary fix implemented for Windows in `set_ime_area`, need to debug this.
     - Review IME area, we can't just use bounds, a large text area widget may want to set the IME area as the current line.
-    - If IME_EVENT provides caret position after commit, apply it.
-        - Must be applied in the edit command (captured by undo).
-        - Winit event does not support this, just our design of ImeArgs.
+    - Winit always sends a preview clear event before commit, this causes a flicker on the text.
 
 # Accessibility
 

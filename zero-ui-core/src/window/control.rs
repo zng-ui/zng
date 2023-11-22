@@ -60,7 +60,7 @@ impl Default for ImageResources {
 struct ImeInfo {
     bounds: WidgetBoundsInfo,
     target: WidgetPath,
-    has_pre_edit: bool,
+    has_preview: bool,
 }
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -715,22 +715,20 @@ impl HeadedCtrl {
             let w_id = WINDOW.id();
             if args.window_id == w_id {
                 match &args.ime {
-                    Ime::Enabled => self.vars.0.is_ime_composing.set(self.ime_info.is_some()),
-                    Ime::PreEdit(s, c) => {
+                    Ime::Preview(s, c) => {
                         if let Some(info) = &mut self.ime_info {
-                            info.has_pre_edit = !s.is_empty();
-                            let args = super::ImeArgs::now(info.target.clone(), Txt::from_str(s), *c, false);
+                            info.has_preview = !s.is_empty();
+                            let args = super::ImeArgs::now(info.target.clone(), Txt::from_str(s), *c);
                             super::IME_EVENT.notify(args);
                         }
                     }
                     Ime::Commit(s) => {
                         if let Some(info) = &mut self.ime_info {
-                            info.has_pre_edit = false;
-                            let args = super::ImeArgs::now(info.target.clone(), Txt::from_str(s), None, true);
+                            info.has_preview = false;
+                            let args = super::ImeArgs::now(info.target.clone(), Txt::from_str(s), None);
                             super::IME_EVENT.notify(args);
                         }
                     }
-                    Ime::Disabled => self.vars.0.is_ime_composing.set(false),
                 }
             }
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
@@ -831,16 +829,16 @@ impl HeadedCtrl {
                     let area = bounds.inner_bounds().to_dip(info.scale_factor());
 
                     if let Some(prev) = self.ime_info.take() {
-                        if prev.has_pre_edit {
+                        if prev.has_preview {
                             // clear
-                            let args = super::ImeArgs::now(prev.target, "", None, false);
+                            let args = super::ImeArgs::now(prev.target, "", (0, 0));
                             super::IME_EVENT.notify(args);
                         }
                     }
                     self.ime_info = Some(ImeInfo {
                         bounds,
                         target: p.clone(),
-                        has_pre_edit: false,
+                        has_preview: false,
                     });
 
                     if let Some(w) = &self.window {
@@ -855,9 +853,9 @@ impl HeadedCtrl {
                     let _ = w.set_ime_area(None);
                 }
 
-                if prev.has_pre_edit {
+                if prev.has_preview {
                     // clear
-                    let args = super::ImeArgs::now(prev.target, "", None, false);
+                    let args = super::ImeArgs::now(prev.target, "", (0, 0));
                     super::IME_EVENT.notify(args);
                 }
             }

@@ -786,35 +786,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     } else if let Some(args) = IME_EVENT.on_unhandled(update) {
                         let mut resegment = false;
 
-                        if args.commit {
-                            // commit IME insert
+                        if let Some((start, end)) = args.preview_caret {
+                            // update preview txt
 
-                            args.propagation().stop();
-                            {
-                                let resolved = resolved.as_mut().unwrap();
-                                if let Some(preview) = resolved.ime_preview.take() {
-                                    // restore caret
-                                    let caret = resolved.caret.get_mut();
-                                    caret.set_index(preview.prev_caret);
-                                    caret.selection_index = preview.prev_selection;
-
-                                    if args.txt.is_empty() {
-                                        // the actual insert already re-segments, except in this case
-                                        // where there is nothing to insert.
-                                        resegment = true;
-                                    }
-                                }
-                            }
-
-                            if !args.txt.is_empty() {
-                                // actual insert
-                                *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
-                                ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
-                            }
-                        } else {
                             let resolved = resolved.as_mut().unwrap();
 
-                            // update preview txt
                             if args.txt.is_empty() {
                                 if let Some(preview) = resolved.ime_preview.take() {
                                     resegment = true;
@@ -840,8 +816,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             // update preview caret/selection indexes.
                             if let Some(preview) = &resolved.ime_preview {
                                 let caret = resolved.caret.get_mut();
-                                let (start, end) = args.caret.unwrap_or_else(|| (args.txt.len(), args.txt.len()));
-
                                 let ime_start = if let Some(s) = preview.prev_selection {
                                     preview.prev_caret.index.min(s.index)
                                 } else {
@@ -858,6 +832,31 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     caret.set_char_index(start);
                                     caret.selection_index = None;
                                 }
+                            }
+                        } else {
+                            // commit IME insert
+
+                            args.propagation().stop();
+                            {
+                                let resolved = resolved.as_mut().unwrap();
+                                if let Some(preview) = resolved.ime_preview.take() {
+                                    // restore caret
+                                    let caret = resolved.caret.get_mut();
+                                    caret.set_index(preview.prev_caret);
+                                    caret.selection_index = preview.prev_selection;
+
+                                    if args.txt.is_empty() {
+                                        // the actual insert already re-segments, except in this case
+                                        // where there is nothing to insert.
+                                        resegment = true;
+                                    }
+                                }
+                            }
+
+                            if !args.txt.is_empty() {
+                                // actual insert
+                                *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
+                                ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
                             }
                         }
 

@@ -1117,10 +1117,9 @@ impl App {
             WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
 
-                self.notify(Event::Ime {
-                    window: id,
-                    ime: util::winit_ime_to_ime(ime),
-                })
+                if let Some(ime) = util::winit_ime_to_ime(ime) {
+                    self.notify(Event::Ime { window: id, ime });
+                }
             }
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}

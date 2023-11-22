@@ -14,7 +14,7 @@ use crate::{
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
+use std::{fmt, path::PathBuf, sync::Arc};
 
 macro_rules! declare_id {
     ($(
@@ -138,6 +138,22 @@ pub struct Inited {
     pub extensions: ApiExtensions,
 }
 
+/// IME preview or insert event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Ime {
+    /// Preview an IME insert at the last non-preview caret/selection.
+    ///
+    /// The associated values are the preview string and caret/selection inside the preview string.
+    ///
+    /// The preview must visually replace the last non-preview selection or insert at the last non-preview
+    /// caret index. If the preview string is empty the preview must be cancelled.
+    Preview(Arc<str>, (usize, usize)),
+
+    /// Apply an IME insert at the last non-preview caret/selection. The caret must be moved to
+    /// the end of the inserted sub-string.
+    Commit(Arc<str>),
+}
+
 /// System and User events sent from the View Process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event {
@@ -252,7 +268,7 @@ pub enum Event {
         /// Window that received the IME event.
         window: WindowId,
         /// IME event.
-        ime: crate::ime::Ime,
+        ime: Ime,
     },
 
     /// The mouse cursor has moved on the window.

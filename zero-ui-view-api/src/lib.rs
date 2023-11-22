@@ -31,7 +31,6 @@ pub mod config;
 pub mod dialog;
 pub mod display_list;
 pub mod image;
-pub mod ime;
 pub mod ipc;
 pub mod keyboard;
 pub mod mouse;

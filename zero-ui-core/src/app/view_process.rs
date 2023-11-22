@@ -12,13 +12,12 @@ pub use zero_ui_view_api::{
     config::{AnimationsConfig, ColorScheme, LocaleConfig},
     dialog::{FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse},
     image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi, ImageRequest},
-    ime::Ime,
     ipc::{bytes_channel, IpcBytes, IpcBytesReceiver, IpcBytesSender},
     window::{
         CursorIcon, EventCause, FocusIndicator, FrameCapture, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
         HeadlessRequest, MonitorInfo, RenderMode, VideoMode, WindowId as ApiWindowId, WindowRequest, WindowState, WindowStateAll,
     },
-    Event, ViewProcessGen, ViewProcessOffline,
+    Event, Ime, ViewProcessGen, ViewProcessOffline,
 };
 
 use crate::{
