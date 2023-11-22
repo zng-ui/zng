@@ -1523,8 +1523,8 @@ impl ShapedText {
         }
     }
 
-    /// Yields rectangles of the text encompassed by `range`.
-    pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, txt: &str) -> impl Iterator<Item = PxRect> {
+    /// Rectangles of the text encompassed by `range`.
+    pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, txt: &str) -> Vec<PxRect> {
         let start_x = self.caret_origin(range.start, txt).x;
         let end_x = self.caret_origin(range.end, txt).x;
         let mut rects = vec![];
@@ -1575,7 +1575,95 @@ impl ShapedText {
             rects.push(line_rect);
         }
 
-        rects.into_iter()
+        rects
+    }
+
+    /// Clip under/overline to a text `clip_range` area, if `clip_out` only lines outside the range are visible.
+    pub fn clip_lines(
+        &self,
+        clip_range: ops::Range<CaretIndex>,
+        clip_out: bool,
+        txt: &str,
+        lines: impl Iterator<Item = (PxPoint, Px)>,
+    ) -> Vec<(PxPoint, Px)> {
+        let clips = self.highlight_rects(clip_range, txt);
+
+        let mut out_lines = vec![];
+
+        if clip_out {
+            let mut exclude_buf = vec![];
+            for (origin, width) in lines {
+                let line_max = origin.x + width;
+
+                for clip in clips.iter() {
+                    if origin.y >= clip.origin.y && origin.y <= clip.max_y() {
+                        // line contains
+                        if origin.x < clip.max_x() && line_max > clip.origin.x {
+                            // intersects
+                            exclude_buf.push((clip.origin.x, clip.max_x()));
+                        }
+                    }
+                }
+
+                if !exclude_buf.is_empty() {
+                    // clips don't overlap, enforce LTR
+                    exclude_buf.sort_by_key(|(s, _)| *s);
+
+                    if origin.x < exclude_buf[0].0 {
+                        // bit before the first clip
+                        out_lines.push((origin, exclude_buf[0].0 - origin.x));
+                    }
+                    let mut blank_start = exclude_buf[0].1;
+                    for (clip_start, clip_end) in exclude_buf.drain(..).skip(1) {
+                        if clip_start > blank_start {
+                            // space between clips
+                            if line_max > clip_start {
+                                // bit in-between two clips
+                                out_lines.push((PxPoint::new(blank_start, origin.y), line_max.min(clip_start) - blank_start));
+                            }
+                            blank_start = clip_end;
+                        }
+                    }
+                    if line_max > blank_start {
+                        // bit after the last clip
+                        out_lines.push((PxPoint::new(blank_start, origin.y), line_max - blank_start));
+                    }
+                } else {
+                    // not clipped
+                    out_lines.push((origin, width));
+                }
+            }
+        } else {
+            let mut include_buf = vec![];
+            for (origin, width) in lines {
+                let line_max = origin.x + width;
+
+                for clip in clips.iter() {
+                    if origin.y >= clip.origin.y && origin.y <= clip.max_y() {
+                        // line contains
+                        if origin.x < clip.max_x() && line_max > clip.origin.x {
+                            // intersects
+                            include_buf.push((clip.origin.x, clip.max_x()));
+                        }
+                    }
+                }
+
+                if !include_buf.is_empty() {
+                    include_buf.sort_by_key(|(s, _)| *s);
+
+                    for (clip_start, clip_end) in include_buf.drain(..) {
+                        let start = clip_start.max(origin.x);
+                        let end = clip_end.min(line_max);
+
+                        out_lines.push((PxPoint::new(start, origin.y), end - start));
+                    }
+
+                    include_buf.clear();
+                }
+            }
+        }
+
+        out_lines
     }
 }
 

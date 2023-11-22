@@ -1429,22 +1429,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     } else {
                         0..0
                     };
+                    let caret_ime_range =
+                        if !ime_range.is_empty() && (txt.underline_thickness > Px(0) || txt.ime_underline_thickness > Px(0)) {
+                            let start = txt.shaped_text.snap_caret_line(CaretIndex {
+                                index: ime_range.start,
+                                line: 0,
+                            });
+                            let end = txt.shaped_text.snap_caret_line(CaretIndex {
+                                index: ime_range.end,
+                                line: 0,
+                            });
 
-                    // rectangles that cover the IME text.
-                    let ime_clips = if !ime_range.is_empty() && (txt.underline_thickness > Px(0) || txt.ime_underline_thickness > Px(0)) {
-                        let start = txt.shaped_text.snap_caret_line(CaretIndex {
-                            index: ime_range.start,
-                            line: 0,
-                        });
-                        let end = txt.shaped_text.snap_caret_line(CaretIndex {
-                            index: ime_range.end,
-                            line: 0,
-                        });
-
-                        txt.shaped_text.highlight_rects(start..end, t.segmented_text.text()).collect()
-                    } else {
-                        vec![]
-                    };
+                            start..end
+                        } else {
+                            CaretIndex::ZERO..CaretIndex::ZERO
+                        };
 
                     if txt.underline_thickness > Px(0) {
                         let mut underlines = vec![];
@@ -1495,59 +1494,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
 
                         if !ime_range.is_empty() {
-                            // clip all underlines using the `highlight_rects` selection of the IME text.
-
-                            let mut clip_underlines = Vec::with_capacity(underlines.len());
-                            let mut exclude = vec![];
-
-                            for &(origin, width) in &underlines {
-                                let underline_max = origin.x + width;
-
-                                for clip in ime_clips.iter() {
-                                    if origin.y >= clip.origin.y && origin.y <= clip.max_y() {
-                                        // line contains
-                                        if origin.x < clip.max_x() && underline_max > clip.origin.x {
-                                            // intersects
-                                            exclude.push((clip.origin.x, clip.max_x()));
-                                        }
-                                    }
-                                }
-
-                                if !exclude.is_empty() {
-                                    // clips don't overlap, enforce LTR
-                                    exclude.sort_by_key(|(s, _)| *s);
-
-                                    if origin.x < exclude[0].0 {
-                                        // bit before the first clip
-                                        clip_underlines.push((origin, exclude[0].0 - origin.x));
-                                    }
-                                    let mut blank_start = exclude[0].1;
-                                    for &(clip_start, clip_end) in exclude.iter().skip(1) {
-                                        if clip_start > blank_start {
-                                            // space between clips
-                                            if underline_max > clip_start {
-                                                // bit in-between two clips
-                                                clip_underlines.push((
-                                                    PxPoint::new(blank_start, origin.y),
-                                                    underline_max.min(clip_start) - blank_start,
-                                                ));
-                                            }
-                                            blank_start = clip_end;
-                                        }
-                                    }
-                                    if underline_max > blank_start {
-                                        // bit after the last clip
-                                        clip_underlines.push((PxPoint::new(blank_start, origin.y), underline_max - blank_start));
-                                    }
-
-                                    exclude.clear();
-                                } else {
-                                    // not clipped
-                                    clip_underlines.push((origin, width));
-                                }
-                            }
-
-                            underlines = clip_underlines;
+                            underlines =
+                                txt.shaped_text
+                                    .clip_lines(caret_ime_range.clone(), true, t.segmented_text.text(), underlines.into_iter());
                         }
 
                         txt.underlines = underlines;
@@ -1573,15 +1522,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             }
                         }
 
-                        // clip to IME text, a segment could have committed text and IME preview.
-                        let mut clip_ime_underlines = Vec::with_capacity(ime_underlines.len());
-
-                        for &(origin, width) in &ime_underlines {
-                            // !!: TODO, this time is include mask, can't apply in one pass?
-                            clip_ime_underlines.push((origin, width));
-                        }
-
-                        txt.ime_underlines = clip_ime_underlines;
+                        txt.ime_underlines =
+                            txt.shaped_text
+                                .clip_lines(caret_ime_range, false, t.segmented_text.text(), ime_underlines.into_iter());
                     } else {
                         txt.ime_underlines = vec![];
                     }

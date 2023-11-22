@@ -28,8 +28,6 @@ TextInput! {
 ```
 
 * Implement IME.
-    - Implement pre-edit style.
-        - Some of the text is highlighted (not all of preview, just search?)
     - Cancel IME preview when any other edit happens?
         - Test what happens in other apps.
     - Popup window covers entire widget (area size ignored in Windows?)
