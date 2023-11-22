@@ -630,6 +630,11 @@ context_var! {
     pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Strikethrough color, inherits from [`FONT_COLOR_VAR`].
     pub static STRIKETHROUGH_COLOR_VAR: Rgba = FONT_COLOR_VAR;
+
+    /// Underline thickness for the IME preview underline.
+    pub static IME_UNDERLINE_THICKNESS_VAR: UnderlineThickness = 1;
+    /// Underline style for the IME preview underline.
+    pub static IME_UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Dashed;
 }
 
 impl TextDecorationMix<()> {
@@ -646,6 +651,8 @@ impl TextDecorationMix<()> {
         set.insert_context_var(&STRIKETHROUGH_THICKNESS_VAR);
         set.insert_context_var(&STRIKETHROUGH_STYLE_VAR);
         set.insert_context_var(&STRIKETHROUGH_COLOR_VAR);
+        set.insert_context_var(&IME_UNDERLINE_THICKNESS_VAR);
+        set.insert_context_var(&IME_UNDERLINE_STYLE_VAR);
     }
 }
 
@@ -717,6 +724,15 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
 #[property(CONTEXT, default(STRIKETHROUGH_COLOR_VAR), widget_impl(TextDecorationMix<P>))]
 pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
+}
+
+/// Style and thickness of the line drawn *under* the IME preview text.
+///
+/// Sets the [`IME_UNDERLINE_THICKNESS_VAR`] and [`IME_UNDERLINE_STYLE_VAR`].
+#[property(CONTEXT, default(IME_UNDERLINE_THICKNESS_VAR, IME_UNDERLINE_STYLE_VAR), widget_impl(TextDecorationMix<P>))]
+pub fn ime_underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+    let child = with_context_var(child, IME_UNDERLINE_THICKNESS_VAR, thickness);
+    with_context_var(child, IME_UNDERLINE_STYLE_VAR, style)
 }
 
 /// Text spacing properties.

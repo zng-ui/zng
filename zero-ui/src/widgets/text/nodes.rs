@@ -324,14 +324,22 @@ pub struct LayoutText {
 
     /// List of underline segments, defining origin and width of each line.
     ///
-    /// Note that underlines are only computed if the `underline_thickness` is more than `0`.
+    /// Note that underlines are only computed if the `underline_thickness` is more than `0`. These
+    /// underlines never cover the IME review text range.
     ///
-    /// Default overlines are rendered by [`render_underlines`].
-    ///
-    /// Note that underlines trop down from these lines.
+    /// Default underlines are rendered by [`render_underlines`].
     pub underlines: Vec<(PxPoint, Px)>,
     /// Computed [`UNDERLINE_THICKNESS_VAR`].
     pub underline_thickness: Px,
+
+    /// List of underline segments for IME preview text, defining origin and width of each line.
+    ///
+    /// Note that underlines are only computed if the `ime_underline_thickness` is more than `0`.
+    ///
+    /// Default underlines are rendered by [`render_underlines`].
+    pub ime_underlines: Vec<(PxPoint, Px)>,
+    /// Computed [`IME_UNDERLINE_THICKNESS_VAR`].
+    pub ime_underline_thickness: Px,
 
     /// Top-middle offset of the caret index in the shaped text.
     pub caret_origin: Option<PxPoint>,
@@ -363,6 +371,8 @@ impl Clone for LayoutText {
             strikethrough_thickness: self.strikethrough_thickness,
             underlines: self.underlines.clone(),
             underline_thickness: self.underline_thickness,
+            ime_underlines: self.ime_underlines.clone(),
+            ime_underline_thickness: self.ime_underline_thickness,
             caret_origin: self.caret_origin,
             caret_selection_origin: self.caret_selection_origin,
             caret_retained_x: self.caret_retained_x,
@@ -1169,7 +1179,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     strikethroughs: vec![],
                     strikethrough_thickness: Px(0),
                     underlines: vec![],
+                    ime_underlines: vec![],
                     underline_thickness: Px(0),
+                    ime_underline_thickness: Px(0),
                     caret_origin: None,
                     caret_selection_origin: None,
                     caret_retained_x: Px(0),
@@ -1295,28 +1307,33 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             self.shaping_args.line_spacing = line_spacing;
 
             let dft_thickness = font.metrics().underline_thickness;
-            let (overline, strikethrough, underline) = {
+            let (overline, strikethrough, underline, ime_underline) = {
                 LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || {
                     (
                         OVERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
                         STRIKETHROUGH_THICKNESS_VAR.layout_dft_y(dft_thickness),
                         UNDERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                        IME_UNDERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
                     )
                 })
             };
 
-            if !self.pending.contains(PendingLayout::OVERLINE) && (txt.overline_thickness == Px(0) && overline > Px(0)) {
+            if !self.pending.contains(PendingLayout::OVERLINE) && (txt.overline_thickness == Px(0)) != (overline == Px(0)) {
                 self.pending.insert(PendingLayout::OVERLINE);
             }
-            if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (txt.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+            if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (txt.strikethrough_thickness == Px(0)) != (strikethrough == Px(0)) {
                 self.pending.insert(PendingLayout::STRIKETHROUGH);
             }
-            if !self.pending.contains(PendingLayout::UNDERLINE) && (txt.underline_thickness == Px(0) && underline > Px(0)) {
+            if !self.pending.contains(PendingLayout::UNDERLINE)
+                && ((txt.underline_thickness == Px(0)) != (underline == Px(0))
+                    || (txt.ime_underline_thickness != Px(0)) != (ime_underline != Px(0)))
+            {
                 self.pending.insert(PendingLayout::UNDERLINE);
             }
             txt.overline_thickness = overline;
             txt.strikethrough_thickness = strikethrough;
             txt.underline_thickness = underline;
+            txt.ime_underline_thickness = ime_underline;
 
             let align = TEXT_ALIGN_VAR.get();
             let overflow_align = TEXT_OVERFLOW_ALIGN_VAR.get();
@@ -1397,39 +1414,141 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 }
                 if self.pending.contains(PendingLayout::UNDERLINE) {
+                    let ime_range = if let Some(ime) = &t.ime_preview {
+                        if let Some(s) = ime.prev_selection {
+                            if s.index > ime.prev_caret.index {
+                                ime.prev_caret.index..s.index
+                            } else {
+                                s.index..ime.prev_caret.index
+                            }
+                        } else {
+                            0..0
+                        }
+                    } else {
+                        0..0
+                    };
+
                     if txt.underline_thickness > Px(0) {
+                        let mut underlines = vec![];
+
                         let skip = UNDERLINE_SKIP_VAR.get();
                         match UNDERLINE_POSITION_VAR.get() {
                             UnderlinePosition::Font => {
                                 if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                    txt.underlines = txt
-                                        .shaped_text
-                                        .lines()
-                                        .flat_map(|l| l.underline_skip_glyphs_and_spaces(txt.underline_thickness))
-                                        .collect();
+                                    for line in txt.shaped_text.lines() {
+                                        for und in line.underline_skip_glyphs_and_spaces(txt.underline_thickness) {
+                                            underlines.push(und);
+                                        }
+                                    }
                                 } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                    txt.underlines = txt
-                                        .shaped_text
-                                        .lines()
-                                        .flat_map(|l| l.underline_skip_glyphs(txt.underline_thickness))
-                                        .collect();
+                                    for line in txt.shaped_text.lines() {
+                                        for und in line.underline_skip_glyphs(txt.underline_thickness) {
+                                            underlines.push(und);
+                                        }
+                                    }
                                 } else if skip.contains(UnderlineSkip::SPACES) {
-                                    txt.underlines = txt.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                    for line in txt.shaped_text.lines() {
+                                        for und in line.underline_skip_spaces() {
+                                            underlines.push(und);
+                                        }
+                                    }
                                 } else {
-                                    txt.underlines = txt.shaped_text.lines().map(|l| l.underline()).collect();
+                                    for line in txt.shaped_text.lines() {
+                                        let und = line.underline();
+                                        underlines.push(und);
+                                    }
                                 }
                             }
                             UnderlinePosition::Descent => {
                                 // descent clears all glyphs, so we only need to care about spaces
                                 if skip.contains(UnderlineSkip::SPACES) {
-                                    txt.underlines = txt.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
+                                    for line in txt.shaped_text.lines() {
+                                        for und in line.underline_descent_skip_spaces() {
+                                            underlines.push(und);
+                                        }
+                                    }
                                 } else {
-                                    txt.underlines = txt.shaped_text.lines().map(|l| l.underline_descent()).collect();
+                                    for line in txt.shaped_text.lines() {
+                                        let und = line.underline_descent();
+                                        underlines.push(und);
+                                    }
                                 }
                             }
                         }
+
+                        if !ime_range.is_empty() {
+                            let start = txt.shaped_text.snap_caret_line(CaretIndex {
+                                index: ime_range.start,
+                                line: 0,
+                            });
+                            let end = txt.shaped_text.snap_caret_line(CaretIndex {
+                                index: ime_range.end,
+                                line: 0,
+                            });
+
+                            let clips: Vec<_> = txt.shaped_text.highlight_rects(start..end, t.segmented_text.text()).collect();
+                            let mut clip_underlines = Vec::with_capacity(underlines.len());
+                            let mut exclude = vec![];
+
+                            for &(origin, width) in &underlines {
+                                let underline_max = origin.x + width;
+
+                                for clip in &clips {
+                                    if origin.y >= clip.origin.y && origin.y <= clip.max_y() {
+                                        // line contains
+                                        if origin.x < clip.max_x() && underline_max > clip.origin.x {
+                                            // intersects
+                                            exclude.push((clip.origin.x, clip.max_x()));
+                                        }
+                                    }
+                                }
+
+                                if !exclude.is_empty() {
+                                    // clips don't overlap
+                                    exclude.sort_by_key(|(s, _)| *s);
+
+                                    if origin.x < exclude[0].0 {
+                                        // bit before the first clip
+                                        clip_underlines.push((origin, exclude[0].0 - origin.x));
+                                    }
+                                    let mut blank_start = exclude[0].1;
+                                    for &(clip_start, clip_end) in exclude.iter().skip(1) {
+                                        if clip_start > blank_start {
+                                            // space between clips
+                                            if underline_max > clip_start {
+                                                // bit in-between two clips
+                                                clip_underlines.push((
+                                                    PxPoint::new(blank_start, origin.y),
+                                                    underline_max.min(clip_start) - blank_start,
+                                                ));
+                                            }
+                                            blank_start = clip_end;
+                                        }
+                                    }
+                                    if underline_max > blank_start {
+                                        // bit after the last clip
+                                        clip_underlines.push((PxPoint::new(blank_start, origin.y), underline_max - blank_start));
+                                    }
+
+                                    exclude.clear();
+                                } else {
+                                    // not clipped
+                                    clip_underlines.push((origin, width));
+                                }
+                            }
+
+                            underlines = clip_underlines;
+                        }
+
+                        txt.underlines = underlines;
                     } else {
                         txt.underlines = vec![];
+                    }
+
+                    if txt.ime_underline_thickness > Px(0) && !ime_range.is_empty() {
+                        // !!: TODO
+                    } else {
+                        txt.ime_underlines = vec![];
                     }
                 }
 
@@ -2220,6 +2339,39 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
                 if style != LineStyle::Hidden {
                     let color = UNDERLINE_COLOR_VAR.get().into();
                     for &(origin, width) in &t.underlines {
+                        frame.push_line(
+                            PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
+                            LineOrientation::Horizontal,
+                            color,
+                            style,
+                        );
+                    }
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// An Ui node that renders the default IME preview underline visual using the parent [`LayoutText`].
+///
+///
+/// The lines are rendered before `child`, under it.
+///
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_underlines`] node.
+pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&IME_UNDERLINE_STYLE_VAR).sub_var_render(&FONT_COLOR_VAR);
+        }
+        UiNodeOp::Render { frame } => {
+            let t = LayoutText::get();
+
+            if !t.ime_underlines.is_empty() {
+                let style = IME_UNDERLINE_STYLE_VAR.get();
+                if style != LineStyle::Hidden {
+                    let color = FONT_COLOR_VAR.get().into();
+                    for &(origin, width) in &t.ime_underlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
                             LineOrientation::Horizontal,
