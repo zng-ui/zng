@@ -634,7 +634,7 @@ context_var! {
     /// Underline thickness for the IME preview underline.
     pub static IME_UNDERLINE_THICKNESS_VAR: UnderlineThickness = 1;
     /// Underline style for the IME preview underline.
-    pub static IME_UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Dashed;
+    pub static IME_UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Dotted;
 }
 
 impl TextDecorationMix<()> {

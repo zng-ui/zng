@@ -865,7 +865,15 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                             if !args.txt.is_empty() {
                                 // actual insert
-                                *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
+                                {
+                                    let resolved = resolved.as_mut().unwrap();
+                                    *resolved.touch_carets.get_mut() = false;
+
+                                    // if the committed text is equal the last preview reshape is skipped
+                                    // leaving behind the IME underline highlight.
+                                    resolved.pending_layout |= PendingLayout::UNDERLINE;
+                                    WIDGET.layout();
+                                }
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(args.txt.clone()).call(&text));
                             }
                         }
@@ -1413,19 +1421,29 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         txt.strikethroughs = vec![];
                     }
                 }
+
                 if self.pending.contains(PendingLayout::UNDERLINE) {
                     let ime_range = if let Some(ime) = &t.ime_preview {
-                        if let Some(s) = ime.prev_selection {
-                            if s.index > ime.prev_caret.index {
-                                ime.prev_caret.index..s.index
-                            } else {
-                                s.index..ime.prev_caret.index
-                            }
-                        } else {
-                            0..0
-                        }
+                        let start = ime.prev_selection.unwrap_or(ime.prev_caret).index.min(ime.prev_caret.index);
+                        start..start + ime.txt.len()
                     } else {
                         0..0
+                    };
+
+                    // rectangles that cover the IME text.
+                    let ime_clips = if !ime_range.is_empty() && (txt.underline_thickness > Px(0) || txt.ime_underline_thickness > Px(0)) {
+                        let start = txt.shaped_text.snap_caret_line(CaretIndex {
+                            index: ime_range.start,
+                            line: 0,
+                        });
+                        let end = txt.shaped_text.snap_caret_line(CaretIndex {
+                            index: ime_range.end,
+                            line: 0,
+                        });
+
+                        txt.shaped_text.highlight_rects(start..end, t.segmented_text.text()).collect()
+                    } else {
+                        vec![]
                     };
 
                     if txt.underline_thickness > Px(0) {
@@ -1477,23 +1495,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
 
                         if !ime_range.is_empty() {
-                            let start = txt.shaped_text.snap_caret_line(CaretIndex {
-                                index: ime_range.start,
-                                line: 0,
-                            });
-                            let end = txt.shaped_text.snap_caret_line(CaretIndex {
-                                index: ime_range.end,
-                                line: 0,
-                            });
+                            // clip all underlines using the `highlight_rects` selection of the IME text.
 
-                            let clips: Vec<_> = txt.shaped_text.highlight_rects(start..end, t.segmented_text.text()).collect();
                             let mut clip_underlines = Vec::with_capacity(underlines.len());
                             let mut exclude = vec![];
 
                             for &(origin, width) in &underlines {
                                 let underline_max = origin.x + width;
 
-                                for clip in &clips {
+                                for clip in ime_clips.iter() {
                                     if origin.y >= clip.origin.y && origin.y <= clip.max_y() {
                                         // line contains
                                         if origin.x < clip.max_x() && underline_max > clip.origin.x {
@@ -1504,7 +1514,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 }
 
                                 if !exclude.is_empty() {
-                                    // clips don't overlap
+                                    // clips don't overlap, enforce LTR
                                     exclude.sort_by_key(|(s, _)| *s);
 
                                     if origin.x < exclude[0].0 {
@@ -1546,7 +1556,32 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
 
                     if txt.ime_underline_thickness > Px(0) && !ime_range.is_empty() {
-                        // !!: TODO
+                        let mut ime_underlines = vec![];
+
+                        // collects underlines for all segments that intersect with the IME text.
+                        for line in txt.shaped_text.lines() {
+                            let line_range = line.text_range();
+                            if line_range.start < ime_range.end && line_range.end > ime_range.start {
+                                for seg in line.segs() {
+                                    let seg_range = seg.text_range();
+                                    if seg_range.start < ime_range.end && seg_range.end > ime_range.start {
+                                        for und in seg.underline_skip_glyphs(txt.ime_underline_thickness) {
+                                            ime_underlines.push(und);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // clip to IME text, a segment could have committed text and IME preview.
+                        let mut clip_ime_underlines = Vec::with_capacity(ime_underlines.len());
+
+                        for &(origin, width) in &ime_underlines {
+                            // !!: TODO, this time is include mask, can't apply in one pass?
+                            clip_ime_underlines.push((origin, width));
+                        }
+
+                        txt.ime_underlines = clip_ime_underlines;
                     } else {
                         txt.ime_underlines = vec![];
                     }
@@ -2373,7 +2408,7 @@ pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
                     let color = FONT_COLOR_VAR.get().into();
                     for &(origin, width) in &t.ime_underlines {
                         frame.push_line(
-                            PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
+                            PxRect::new(origin, PxSize::new(width, t.ime_underline_thickness)),
                             LineOrientation::Horizontal,
                             color,
                             style,
