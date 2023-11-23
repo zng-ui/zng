@@ -1713,6 +1713,8 @@ pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNod
 /// Defines the floating mini-toolbar that shows near a new text selection.
 #[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
 pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> impl UiNode {
+    use super::nodes::*;
+    use crate::core::mouse::MOUSE_INPUT_EVENT;
     use crate::widgets::popup::*;
 
     let toolbar = toolbar.into_var();
@@ -1727,48 +1729,45 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                 POPUP.close(&state);
             }
         }
-        UiNodeOp::Update { .. } => {
-            if open.is_some() {
-                if let Some(f) = toolbar.get_new() {
+        UiNodeOp::Event { update } => {
+            c.event(update);
+
+            if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                if let Some(state) = open.take() {
                     selection_bounds = PxRect::zero();
-                    WIDGET.layout();
+                    POPUP.close(&state);
+                }
+                if args.state == ButtonState::Released {
+                    let r_txt = ResolvedText::get();
+
+                    if let Some(range) = r_txt.caret.lock().selection_range() {
+                        let l_txt = LayoutText::get();
+                        let r_txt = r_txt.segmented_text.text();
+
+                        let mut bounds = PxBox::zero();
+                        for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                            if !line_rect.size.is_empty() {
+                                let line_box = line_rect.to_box2d();
+                                bounds.min = bounds.min.min(line_box.min);
+                                bounds.max = bounds.max.max(line_box.max);
+                            }
+                        }
+                        let bounds = bounds.to_rect();
+                        //TODO use bounds
+
+                        let node = toolbar.get()(SelectionToolbarArgs {});
+                        open = Some(POPUP.open(node));
+                    };
                 }
             }
         }
-        UiNodeOp::Layout { wl, final_size } => {
-            *final_size = c.layout(wl);
-
-            use super::nodes::*;
-
-            let r_txt = ResolvedText::get();
-
-            if let Some(range) = r_txt.caret.lock().selection_range() {
-                let l_txt = LayoutText::get();
-                let r_txt = r_txt.segmented_text.text();
-
-                let mut bounds = PxBox::zero();
-                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
-                    if !line_rect.size.is_empty() {
-                        let line_box = line_rect.to_box2d();
-                        bounds.min = bounds.min.min(line_box.min);
-                        bounds.max = bounds.max.max(line_box.max);
-                    }
+        UiNodeOp::Update { .. } => {
+            if toolbar.is_new() {
+                if let Some(id) = &open.take() {
+                    selection_bounds = PxRect::zero();
+                    POPUP.close(id);
                 }
-                let bounds = bounds.to_rect();
-
-                if bounds != selection_bounds {
-                    selection_bounds = bounds;
-
-                    if let Some(state) = open.take() {
-                        POPUP.close(&state);
-                    }
-
-                    if !selection_bounds.size.is_empty() {
-                        let node = toolbar.get()(SelectionToolbarArgs {});
-                        open = Some(POPUP.open(node));
-                    }
-                }
-            };
+            }
         }
         _ => {}
     })
