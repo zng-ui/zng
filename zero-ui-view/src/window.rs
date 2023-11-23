@@ -107,7 +107,10 @@ pub(crate) struct Window {
     render_mode: RenderMode,
 
     modal_dialog_active: Arc<AtomicBool>,
+
     access: accesskit_winit::Adapter,
+
+    ime_area: Option<DipRect>,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -391,6 +394,7 @@ impl Window {
             modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
             access,
+            ime_area: cfg.ime_area,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -403,6 +407,10 @@ impl Window {
 
         win.set_cursor(cfg.cursor);
         win.set_taskbar_visible(cfg.taskbar_visible);
+
+        if win.ime_area.is_some() {
+            win.window.set_ime_allowed(true);
+        }
 
         // settings these in the builder causes flickering
         match win.state.state {
@@ -427,8 +435,6 @@ impl Window {
             // system position.
             win.state.restore_rect.origin = (win.state.global_position - monitor_offset).to_dip(win.scale_factor());
         }
-
-        win.set_ime_area(cfg.ime_area);
 
         win
     }
@@ -1648,7 +1654,7 @@ impl Window {
         }
     }
 
-    pub(crate) fn set_ime_area(&self, area: Option<DipRect>) {
+    pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
         if let Some(mut a) = area {
             if cfg!(windows) {
                 // Windows 10 Emoji IME covers the exclusion area so we force a point
@@ -1659,10 +1665,16 @@ impl Window {
                 a.size = DipSize::splat(Dip::new(1));
             }
 
-            self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
-            self.window.set_ime_allowed(true);
-        } else {
+            if self.ime_area != Some(a) {
+                self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
+
+                if self.ime_area.is_none() {
+                    self.window.set_ime_allowed(true);
+                }
+            }
+        } else if self.ime_area.is_some() {
             self.window.set_ime_allowed(false);
+            self.ime_area = None;
         }
     }
 }
