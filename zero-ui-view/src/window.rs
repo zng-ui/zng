@@ -111,6 +111,7 @@ pub(crate) struct Window {
     access: accesskit_winit::Adapter,
 
     ime_area: Option<DipRect>,
+    ime_active: bool,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -395,6 +396,7 @@ impl Window {
             render_mode,
             access,
             ime_area: cfg.ime_area,
+            ime_active: false,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1654,6 +1656,10 @@ impl Window {
         }
     }
 
+    pub(crate) fn set_ime_active(&mut self, active: bool) {
+        self.ime_active = active;
+    }
+
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
         if let Some(mut a) = area {
             if cfg!(windows) {
@@ -1666,11 +1672,19 @@ impl Window {
             }
 
             if self.ime_area != Some(a) {
-                self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
-
-                if self.ime_area.is_none() {
+                if !self.ime_active && cfg!(windows) {
+                    if self.ime_area.is_some() {
+                        // force a position refresh in Windows
+                        self.window.set_ime_allowed(false);
+                    }
+                    self.window.set_ime_allowed(true);
+                } else if self.ime_area.is_none() {
                     self.window.set_ime_allowed(true);
                 }
+
+                self.ime_area = Some(a);
+
+                self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
             }
         } else if self.ime_area.is_some() {
             self.window.set_ime_allowed(false);

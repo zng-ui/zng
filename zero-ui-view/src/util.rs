@@ -5,7 +5,6 @@ use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::keyboard::NativeKeyCode;
-use zero_ui_view_api::Ime;
 use zero_ui_view_api::{
     config::ColorScheme,
     keyboard::{Key, KeyCode, KeyState},
@@ -1457,17 +1456,5 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         AlertDialog => Role::AlertDialog,
         Dialog => Role::Dialog,
         _ => Role::Unknown,
-    }
-}
-
-pub(crate) fn winit_ime_to_ime(ime: winit::event::Ime) -> Option<Ime> {
-    match ime {
-        winit::event::Ime::Enabled => None,
-        winit::event::Ime::Preedit(s, c) => {
-            let caret = c.unwrap_or((s.len(), s.len()));
-            Some(Ime::Preview(s.into(), caret))
-        }
-        winit::event::Ime::Commit(s) => Some(Ime::Commit(s.into())),
-        winit::event::Ime::Disabled => None,
     }
 }

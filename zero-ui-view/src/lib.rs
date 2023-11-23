@@ -1117,8 +1117,18 @@ impl App {
             WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
 
-                if let Some(ime) = util::winit_ime_to_ime(ime) {
-                    self.notify(Event::Ime { window: id, ime });
+                match ime {
+                    winit::event::Ime::Enabled => self.windows[i].set_ime_active(true),
+                    winit::event::Ime::Preedit(s, c) => {
+                        let caret = c.unwrap_or((s.len(), s.len()));
+                        let ime = Ime::Preview(s.into(), caret);
+                        self.notify(Event::Ime { window: id, ime });
+                    }
+                    winit::event::Ime::Commit(s) => {
+                        let ime = Ime::Commit(s.into());
+                        self.notify(Event::Ime { window: id, ime });
+                    }
+                    winit::event::Ime::Disabled => self.windows[i].set_ime_active(false),
                 }
             }
             WindowEvent::Occluded(_) => {}

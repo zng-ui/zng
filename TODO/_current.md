@@ -32,9 +32,6 @@ TextInput! {
         - Test what happens in other apps.
     - Popup window covers entire widget (area size ignored in Windows?)
         - Temporary fix implemented for Windows in `set_ime_area`, need to debug this.
-    - Position does not update after first open.
-        - New values are being send to winit.
-        - Position updates if the window is moved.
 
 # Accessibility
 
