@@ -1,7 +1,6 @@
 //! Mouse types.
 
 use serde::{Deserialize, Serialize};
-use webrender_api::euclid;
 
 use crate::units::Px;
 

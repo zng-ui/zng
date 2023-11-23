@@ -16,7 +16,7 @@ use std::{cmp, fmt, marker::PhantomData, ops, time::Duration};
 
 use webrender_api::units as wr;
 
-pub use webrender_api::euclid;
+pub use euclid;
 
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ const DIP_TO_PX: i32 = 60;
 /// Device pixel.
 ///
 /// Represents an actual device pixel, not scaled/descaled by the pixel scale factor.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, bytemuck::NoUninit)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Px(pub i32);
@@ -271,9 +271,10 @@ impl std::iter::Sum for Px {
 /// Represent a device pixel descaled by the pixel scale factor.
 ///
 /// Internally this is an `i32` that represents 1/60th of a pixel.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, bytemuck::Zeroable, bytemuck::Pod)]
 #[serde(from = "f32")]
 #[serde(into = "f32")]
+#[repr(transparent)]
 pub struct Dip(i32);
 impl Dip {
     /// New from round integer value.
@@ -1770,7 +1771,7 @@ mod serde_px_transform3d {
 /// # Equality
 ///
 /// Equality is determined to within `0.00001` epsilon.
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize, bytemuck::NoUninit)]
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Factor(pub f32);

@@ -1,4 +1,14 @@
-use crate::{event::*, text::Txt, widget_info::WidgetPath};
+use std::sync::Arc;
+
+use atomic::Atomic;
+
+use crate::{
+    context::StaticStateId,
+    event::*,
+    text::Txt,
+    units::*,
+    widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
+};
 
 event_args! {
     /// Arguments for [`IME_EVENT`].
@@ -48,4 +58,45 @@ impl ImeArgs {
 event! {
     /// IME event targeting a text input widget.
     pub static IME_EVENT: ImeArgs;
+}
+
+/// IME extension methods in widget info.
+pub trait WidgetInfoImeArea {
+    /// IME exclusion area in the window space.
+    ///
+    /// Widgets are IME targets when they are focused and subscribe to [`IME_EVENT`], this
+    /// value is an area the IME window should avoid covering, by default it is the widget inner-bounds,
+    /// but the widget can override it using [`set_ime_area`].
+    ///
+    /// This value can change after every render update.
+    ///
+    /// [`set_ime_area`]: WidgetInfoBuilderImeArea::set_ime_area
+    fn ime_area(&self) -> PxRect;
+}
+
+/// IME extension methods for widget info builder.
+pub trait WidgetInfoBuilderImeArea {
+    /// Set a custom [`ime_area`].
+    ///
+    /// The value can be updated every frame using interior mutability, without needing to rebuild the info.
+    ///
+    /// [`ime_area`]: WidgetInfoImeArea::ime_area
+    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>);
+}
+
+static IME_AREA: StaticStateId<Arc<Atomic<PxRect>>> = StaticStateId::new_unique();
+
+impl WidgetInfoImeArea for WidgetInfo {
+    fn ime_area(&self) -> PxRect {
+        self.meta()
+            .get(&IME_AREA)
+            .map(|r| r.load(atomic::Ordering::Relaxed))
+            .unwrap_or_else(|| self.inner_bounds())
+    }
+}
+
+impl WidgetInfoBuilderImeArea for WidgetInfoBuilder {
+    fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>) {
+        self.set_meta(&IME_AREA, area);
+    }
 }

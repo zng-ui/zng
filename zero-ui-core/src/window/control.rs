@@ -26,16 +26,16 @@ use crate::{
     timer::TIMERS,
     units::*,
     var::*,
-    widget_info::{access::AccessEnabled, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
+    widget_info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::{AutoSize, CursorImage},
 };
 
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, WindowChangedArgs,
-    WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
-    TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, WidgetInfoImeArea,
+    WindowChangedArgs, WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS,
+    MONITORS_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
 };
 
 struct ImageResources {
@@ -58,9 +58,9 @@ impl Default for ImageResources {
 }
 
 struct ImeInfo {
-    bounds: WidgetBoundsInfo,
     target: WidgetPath,
     has_preview: bool,
+    area: DipRect,
 }
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -769,8 +769,11 @@ impl HeadedCtrl {
                 // view window requires access info, next frame
                 self.render_access_update = Some(prev_tree);
                 UPDATES.render_window(WINDOW.id());
+            } else if self.ime_info.is_some() {
+                UPDATES.render_window(WINDOW.id());
             }
         }
+
         info
     }
 
@@ -822,12 +825,13 @@ impl HeadedCtrl {
                 }
             }
 
+            if ime_path.as_ref() == self.ime_info.as_ref().map(|p| &p.target) {
+                return;
+            }
+
             if let Some(p) = ime_path {
                 let info = WINDOW.info();
                 if let Some(w) = info.get(p.widget_id()) {
-                    let bounds = w.bounds_info();
-                    let area = bounds.inner_bounds().to_dip(info.scale_factor());
-
                     if let Some(prev) = self.ime_info.take() {
                         if prev.has_preview {
                             // clear
@@ -835,14 +839,17 @@ impl HeadedCtrl {
                             super::IME_EVENT.notify(args);
                         }
                     }
+
                     self.ime_info = Some(ImeInfo {
-                        bounds,
                         target: p.clone(),
                         has_preview: false,
+                        area: DipRect::zero(),
                     });
 
-                    if let Some(w) = &self.window {
-                        let _ = w.set_ime_area(Some(area));
+                    if let Some(win) = &self.window {
+                        let area = w.ime_area().to_dip(info.scale_factor());
+                        self.ime_info.as_mut().unwrap().area = area;
+                        let _ = win.set_ime_area(Some(area));
                     }
                     return;
                 }
@@ -1029,7 +1036,10 @@ impl HeadedCtrl {
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
-            ime_area: self.ime_info.as_ref().map(|a| a.bounds.inner_bounds().to_dip(scale_factor)),
+            ime_area: self.ime_info.as_ref().and_then(|a| {
+                let area = WINDOW.info().get(a.target.widget_id())?.ime_area().to_dip(scale_factor);
+                Some(area)
+            }),
 
             extensions: {
                 let mut exts = vec![];
@@ -1156,10 +1166,11 @@ impl HeadedCtrl {
 
             access_root: self.content.root_ctx.id().into(),
 
-            ime_area: self
-                .ime_info
-                .as_ref()
-                .map(|a| a.bounds.inner_bounds().to_dip(self.monitor.as_ref().unwrap().scale_factor().get())),
+            ime_area: self.ime_info.as_ref().and_then(|a| {
+                let info = WINDOW.info();
+                let area = info.get(a.target.widget_id())?.ime_area().to_dip(info.scale_factor());
+                Some(area)
+            }),
 
             extensions: {
                 let mut exts = vec![];
@@ -1213,10 +1224,16 @@ impl HeadedCtrl {
                 }
             }
 
-            if let Some(ime) = &self.ime_info {
+            if let Some(ime) = &mut self.ime_info {
                 if let Some(w) = &self.window {
-                    let area = ime.bounds.inner_bounds().to_dip(scale_factor);
-                    let _ = w.set_ime_area(Some(area));
+                    let info = WINDOW.info();
+                    if let Some(wgt) = info.get(ime.target.widget_id()) {
+                        let area = wgt.ime_area().to_dip(scale_factor);
+                        if ime.area != area {
+                            ime.area = area;
+                            let _ = w.set_ime_area(Some(area));
+                        }
+                    }
                 }
             }
         }

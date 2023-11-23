@@ -26,7 +26,7 @@ use crate::{
         task::parking_lot::Mutex,
         text::{font_features::FontVariations, *},
         touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
-        window::{WindowLoadingHandle, IME_EVENT},
+        window::{WidgetInfoBuilderImeArea, WindowLoadingHandle, IME_EVENT},
     },
     prelude::{
         new_widget::*,
@@ -1605,6 +1605,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         caret_animation: VarHandle,
         select: CommandHandle,
         select_all: CommandHandle,
+        ime_area: Arc<Atomic<PxRect>>,
     }
     impl EditData {
         fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
@@ -1629,6 +1630,36 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                 self.select = SELECT_CMD.scoped(id).subscribe(true);
                 self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            }
+        }
+
+        fn update_ime(&self, txt: &mut LayoutText) {
+            let transform = txt.render_info.get_mut().transform;
+            let area;
+
+            if let Some(a) = txt.caret_origin {
+                let (ac, bc) = {
+                    let ctx = ResolvedText::get();
+                    let c = ctx.caret.lock();
+                    (c.index, c.selection_index)
+                };
+                let ac = ac.unwrap_or(CaretIndex::ZERO);
+                let mut a_line = PxRect::new(a, PxSize::new(Px(1), txt.shaped_text.line(ac.line).unwrap().height())).to_box2d();
+
+                if let Some(b) = txt.caret_selection_origin {
+                    let bc = bc.unwrap_or(CaretIndex::ZERO);
+                    let b_line = PxRect::new(b, PxSize::new(Px(1), txt.shaped_text.line(bc.line).unwrap().height())).to_box2d();
+
+                    a_line.min = a_line.min.min(b_line.min);
+                    a_line.max = a_line.max.min(b_line.max);
+                }
+                area = a_line;
+            } else {
+                area = PxBox::from_size(txt.shaped_text.size());
+            }
+
+            if let Some(area) = transform.outer_transformed(area) {
+                self.ime_area.store(area.to_rect(), atomic::Ordering::Relaxed);
             }
         }
     }
@@ -1700,6 +1731,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.txt = None;
             txt.shaping_args = TextShapingArgs::default();
             edit_data = None;
+        }
+        UiNodeOp::Info { info } => {
+            if let Some(data) = &edit_data {
+                info.set_ime_area(data.ime_area.clone());
+            }
         }
         UiNodeOp::Event { update } => {
             let resolved = RESOLVED_TEXT.get();
@@ -2151,10 +2187,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             });
 
             if TEXT_EDITABLE_VAR.is_new() || TEXT_SELECTABLE_VAR.is_new() {
-                edit_data = None;
-
                 if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
-                    EditData::get(&mut edit_data).subscribe();
+                    if edit_data.is_none() {
+                        EditData::get(&mut edit_data).subscribe();
+                        WIDGET.info();
+                    }
+                } else {
+                    edit_data = None;
                 }
             }
 
@@ -2289,11 +2328,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Render { frame } => {
             txt.ensure_layout_for_render();
-            txt.with(|| child.render(frame))
+            txt.with(|| child.render(frame));
+
+            if let Some(data) = &edit_data {
+                let txt = txt.txt.as_mut().unwrap();
+                data.update_ime(txt);
+            }
         }
         UiNodeOp::RenderUpdate { update } => {
             txt.ensure_layout_for_render();
-            txt.with(|| child.render_update(update))
+            txt.with(|| child.render_update(update));
+
+            if let Some(data) = &edit_data {
+                let txt = txt.txt.as_mut().unwrap();
+                data.update_ime(txt);
+            }
         }
         op => txt.with(|| child.op(op)),
     })

@@ -15,8 +15,8 @@ default = ["ipc"]
 ipc = ["ipc-channel", "duct"]
 
 [dependencies]
-# Firefox 118 release
 webrender_api = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa" }
+euclid = { version = "0.22.6", features = ["serde", "bytemuck"] } # same version as webrender, but with bytemuck
 
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
