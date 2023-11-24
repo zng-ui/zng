@@ -111,7 +111,6 @@ pub(crate) struct Window {
     access: accesskit_winit::Adapter,
 
     ime_area: Option<DipRect>,
-    ime_active: bool,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -396,7 +395,6 @@ impl Window {
             render_mode,
             access,
             ime_area: cfg.ime_area,
-            ime_active: false,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1653,13 +1651,6 @@ impl Window {
 
         for (_, ext) in &mut self.renderer_exts {
             ext.low_memory();
-        }
-    }
-
-    pub(crate) fn set_ime_active(&mut self, active: bool) {
-        self.ime_active = active;
-        if !active && self.ime_area.is_some() {
-            self.window.set_ime_allowed(true);
         }
     }
 
