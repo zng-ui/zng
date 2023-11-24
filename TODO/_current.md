@@ -27,11 +27,12 @@ TextInput! {
 }
 ```
 
-* Implement IME.
-    - Cancel IME preview when any other edit happens?
-        - Test what happens in other apps.
-    - Windows Emoji IME does not update position.
-        - Japanese IME does.
+* Cancel IME preview when any other edit happens.
+    - We don't receive events when subscribers are removed.
+    - Don't want to remove it either?
+    - A command?
+        - Only if preview is active.
+    - Lets implement the clear first, then figure out the cancel.
 
 # Accessibility
 

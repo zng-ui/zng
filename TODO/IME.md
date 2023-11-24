@@ -1,5 +1,4 @@
 # IME TODO
 
-* Implement external input methods (IMEs).
-* Placement of external input windows.
-* Receiving event and routing to target.
+* Windows IME (Emoji and Japanese) are positioned inside the exclusion area.
+    - Changed the implementation to collapse the area to the bottom-left corner for now.

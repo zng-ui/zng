@@ -667,7 +667,7 @@ impl TimerHandle {
         self.0.data().deadline.lock().current_deadline()
     }
 
-    /// If the timer is not ticking.
+    /// If the timer is not ticking, but can be started again.
     pub fn is_paused(&self) -> bool {
         self.0.data().paused.load(Ordering::Relaxed)
     }
@@ -679,11 +679,16 @@ impl TimerHandle {
         self.0.data().paused.store(true, Ordering::Relaxed);
     }
 
+    /// If the timer is ticking.
+    pub fn is_playing(&self) -> bool {
+        !self.is_paused() && !self.is_stopped()
+    }
+
     /// Enable the timer, this causes it to start ticking again.
     ///
     /// If `reset` is `true` the last [`timestamp`] is set to now.
     ///
-    /// Note that this method does not awake the app, so if this is called from outside the app
+    /// Note that this method does not wake the app, so if this is called from outside the app
     /// the timer will only start ticking in next app update.
     ///
     /// [`timestamp`]: Self::timestamp
@@ -833,9 +838,14 @@ impl Timer {
         self.0.deadline()
     }
 
-    /// If the timer is not ticking.
+    /// If the timer is not ticking, but can be started again.
     pub fn is_paused(&self) -> bool {
         self.0.is_paused()
+    }
+
+    /// If the timer is ticking.
+    pub fn is_playing(&self) -> bool {
+        self.0.is_playing()
     }
 
     /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
@@ -906,9 +916,14 @@ impl TimerArgs {
         }
     }
 
-    /// If the timer is not ticking.
+    /// If the timer is not ticking, but can be started again.
     pub fn is_paused(&self) -> bool {
         self.handle().map(|h| h.is_paused()).unwrap_or(true)
+    }
+
+    /// If the timer is ticking.
+    pub fn is_playing(&self) -> bool {
+        self.handle().map(|h| h.is_playing()).unwrap_or(false)
     }
 
     /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.

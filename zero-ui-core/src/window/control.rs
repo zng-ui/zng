@@ -849,6 +849,7 @@ impl HeadedCtrl {
                     if let Some(win) = &self.window {
                         let area = w.ime_area().to_dip(info.scale_factor());
                         self.ime_info.as_mut().unwrap().area = area;
+                        let _ = win.set_ime_area(None); // Window 10 Emoji IME does not update position without this.
                         let _ = win.set_ime_area(Some(area));
                     }
                     return;
