@@ -17,7 +17,7 @@ use crate::{
         LAYOUT, UPDATES, WIDGET, WINDOW,
     },
     crate_util::{IdEntry, IdMap},
-    event::{AnyEventArgs, EventUpdate},
+    event::{AnyEventArgs, CommandHandle, EventUpdate},
     focus::FOCUS,
     image::{ImageVar, Img, IMAGES},
     l10n::LANG_VAR,
@@ -92,6 +92,7 @@ struct HeadedCtrl {
     root_font_size: Dip,
     render_access_update: Option<WidgetInfoTree>, // previous info tree
     ime_info: Option<ImeInfo>,
+    cancel_ime_handle: CommandHandle,
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
@@ -121,6 +122,7 @@ impl HeadedCtrl {
             root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.fct()),
             render_access_update: None,
             ime_info: None,
+            cancel_ime_handle: CommandHandle::dummy(),
         }
     }
 
@@ -656,6 +658,8 @@ impl HeadedCtrl {
                 WINDOWS.set_renderer(args.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
+                self.cancel_ime_handle = super::commands::CANCEL_IME_CMD.scoped(WINDOW.id()).subscribe(true);
+
                 self.vars.0.render_mode.set(args.data.render_mode);
                 self.vars.state().set(args.data.state.state);
                 self.actual_state = Some(args.data.state.state);
@@ -742,6 +746,7 @@ impl HeadedCtrl {
                     debug_assert!(args.is_respawn);
 
                     self.window = None;
+                    self.cancel_ime_handle = CommandHandle::dummy();
                     self.waiting_view = false;
                     self.delayed_view_updates = vec![];
                     self.respawned = true;
@@ -753,6 +758,17 @@ impl HeadedCtrl {
         }
 
         self.content.pre_event(update);
+
+        if self.ime_info.is_some() && super::commands::CANCEL_IME_CMD.scoped(WINDOW.id()).has(update) {
+            let prev = self.ime_info.take().unwrap();
+            if prev.has_preview {
+                let args = super::ImeArgs::now(prev.target, "", (0, 0));
+                super::IME_EVENT.notify(args);
+            }
+            if let Some(w) = &self.window {
+                let _ = w.set_ime_area(None);
+            }
+        }
     }
 
     pub fn ui_event(&mut self, update: &EventUpdate) {
@@ -1255,6 +1271,7 @@ impl HeadedCtrl {
     pub fn close(&mut self) {
         self.content.close();
         self.window = None;
+        self.cancel_ime_handle = CommandHandle::dummy();
     }
 
     fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {

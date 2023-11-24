@@ -960,6 +960,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if !r.pending_edit && UNDO.scope() == Some(WIDGET.id()) {
                         UNDO.clear();
                     }
+                    if let Some(p) = r.ime_preview.take() {
+                        let c = r.caret.get_mut();
+                        c.index = Some(p.prev_caret);
+                        c.selection_index = p.prev_selection;
+
+                        crate::core::window::commands::CANCEL_IME_CMD.scoped(WINDOW.id()).notify();
+                    }
 
                     r.pending_edit = false;
 

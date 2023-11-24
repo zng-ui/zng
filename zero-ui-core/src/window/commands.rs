@@ -61,6 +61,9 @@ command! {
         name: "Restore",
         info: "Restores the window to its previous not-minimized state or normal state.",
     };
+
+    /// If any IME preview is active close it without committing.
+    pub static CANCEL_IME_CMD;
 }
 
 pub(super) struct WindowCommands {

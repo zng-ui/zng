@@ -27,13 +27,6 @@ TextInput! {
 }
 ```
 
-* Cancel IME preview when any other edit happens.
-    - We don't receive events when subscribers are removed.
-    - Don't want to remove it either?
-    - A command?
-        - Only if preview is active.
-    - Lets implement the clear first, then figure out the cancel.
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.
