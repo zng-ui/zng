@@ -30,8 +30,8 @@ TextInput! {
 * Implement IME.
     - Cancel IME preview when any other edit happens?
         - Test what happens in other apps.
-    - Popup window covers entire widget (area size ignored in Windows?)
-        - Temporary fix implemented for Windows in `set_ime_area`, need to debug this.
+    - Windows Emoji IME does not update position.
+        - Japanese IME does.
 
 # Accessibility
 

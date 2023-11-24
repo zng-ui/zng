@@ -1658,27 +1658,21 @@ impl Window {
 
     pub(crate) fn set_ime_active(&mut self, active: bool) {
         self.ime_active = active;
+        if !active && self.ime_area.is_some() {
+            self.window.set_ime_allowed(true);
+        }
     }
 
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
         if let Some(mut a) = area {
             if cfg!(windows) {
-                // Windows 10 Emoji IME covers the exclusion area so we force a point
-                // TODO fix this:
-                // - Winit calls ImmSetCandidateWindow, it looks correct
-
+                // Windows IME covers the exclusion area so we pre-compute the exclusion
                 a.origin.y += a.size.height;
                 a.size = DipSize::splat(Dip::new(1));
             }
 
             if self.ime_area != Some(a) {
-                if !self.ime_active && cfg!(windows) {
-                    if self.ime_area.is_some() {
-                        // force a position refresh in Windows
-                        self.window.set_ime_allowed(false);
-                    }
-                    self.window.set_ime_allowed(true);
-                } else if self.ime_area.is_none() {
+                if self.ime_area.is_none() {
                     self.window.set_ime_allowed(true);
                 }
 
