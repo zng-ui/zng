@@ -1714,62 +1714,92 @@ pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNod
 #[property(CHILD_LAYOUT+100, default(WidgetFn::nil()))]
 pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> impl UiNode {
     use super::nodes::*;
-    use crate::core::mouse::MOUSE_INPUT_EVENT;
+    use crate::core::{
+        focus::FOCUS_CHANGED_EVENT,
+        keyboard::KEY_INPUT_EVENT,
+        mouse::MOUSE_INPUT_EVENT,
+        touch::{TouchPhase, TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT},
+    };
     use crate::widgets::popup::*;
 
     let toolbar = toolbar.into_var();
-    let mut selection_bounds = PxRect::zero();
-    let mut open = None::<ReadOnlyArcVar<PopupState>>;
-    match_node(child, move |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&toolbar);
-        }
-        UiNodeOp::Deinit => {
-            if let Some(state) = open.take() {
-                POPUP.close(&state);
+    let mut selection_range = None;
+    let mut popup_state = None::<ReadOnlyArcVar<PopupState>>;
+    match_node(child, move |c, op| {
+        let mut open = false;
+        let mut close = false;
+        match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&toolbar);
             }
-        }
-        UiNodeOp::Event { update } => {
-            c.event(update);
+            UiNodeOp::Deinit => {
+                close = true;
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
 
-            if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                if let Some(state) = open.take() {
-                    selection_bounds = PxRect::zero();
-                    POPUP.close(&state);
+                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    close = true;
+                    if args.state == ButtonState::Released {
+                        open = true;
+                    }
+                } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on(update) {
+                    open = true;
+                } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                    close = true;
+                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                    if args.is_blur(WIDGET.id()) {
+                        close = true;
+                    }
+                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
+                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move) {
+                        close = true;
+                    }
                 }
-                if args.state == ButtonState::Released {
+
+                if popup_state.is_some() {
                     let r_txt = ResolvedText::get();
-
-                    if let Some(range) = r_txt.caret.lock().selection_range() {
-                        let l_txt = LayoutText::get();
-                        let r_txt = r_txt.segmented_text.text();
-
-                        let mut bounds = PxBox::zero();
-                        for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
-                            if !line_rect.size.is_empty() {
-                                let line_box = line_rect.to_box2d();
-                                bounds.min = bounds.min.min(line_box.min);
-                                bounds.max = bounds.max.max(line_box.max);
-                            }
-                        }
-                        let bounds = bounds.to_rect();
-                        //TODO use bounds
-
-                        let node = toolbar.get()(SelectionToolbarArgs {});
-                        open = Some(POPUP.open(node));
-                    };
+                    if selection_range != r_txt.caret.lock().selection_range() {
+                        close = true;
+                    }
                 }
             }
-        }
-        UiNodeOp::Update { .. } => {
-            if toolbar.is_new() {
-                if let Some(id) = &open.take() {
-                    selection_bounds = PxRect::zero();
-                    POPUP.close(id);
+            UiNodeOp::Update { .. } => {
+                if toolbar.is_new() {
+                    close = true;
                 }
             }
+            _ => {}
         }
-        _ => {}
+        if close {
+            if let Some(state) = &popup_state.take() {
+                selection_range = None;
+                POPUP.close(state);
+            }
+        }
+        if open {
+            let r_txt = ResolvedText::get();
+
+            if let Some(range) = r_txt.caret.lock().selection_range() {
+                selection_range = Some(range.clone());
+                let l_txt = LayoutText::get();
+                let r_txt = r_txt.segmented_text.text();
+
+                let mut bounds = PxBox::zero();
+                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                    if !line_rect.size.is_empty() {
+                        let line_box = line_rect.to_box2d();
+                        bounds.min = bounds.min.min(line_box.min);
+                        bounds.max = bounds.max.max(line_box.max);
+                    }
+                }
+                let bounds = bounds.to_rect();
+                //TODO use bounds
+
+                let node = toolbar.get()(SelectionToolbarArgs {});
+                popup_state = Some(POPUP.open(node));
+            };
+        }
     })
 }
 
