@@ -27,9 +27,6 @@ TextInput! {
 }
 ```
 
-* Japanese IME not positioned right after allowed toggle.
-    - https://github.com/rust-windowing/winit/issues/2569
-
 # Accessibility
 
 * All examples must be fully useable with a screen reader.

@@ -18,6 +18,7 @@ use webrender::{
     },
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
 };
+
 use winit::{
     event_loop::EventLoopWindowTarget,
     monitor::{MonitorHandle, VideoMode as GVideoMode},
@@ -111,6 +112,8 @@ pub(crate) struct Window {
     access: accesskit_winit::Adapter,
 
     ime_area: Option<DipRect>,
+    #[cfg(windows)]
+    ime_open: bool,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -395,6 +398,8 @@ impl Window {
             render_mode,
             access,
             ime_area: cfg.ime_area,
+            #[cfg(windows)]
+            ime_open: false,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1654,6 +1659,11 @@ impl Window {
         }
     }
 
+    #[cfg(windows)]
+    pub(crate) fn set_ime_open(&mut self, open: bool) {
+        self.ime_open = dbg!(open);
+    }
+
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
         if let Some(mut a) = area {
             if cfg!(windows) {
@@ -1668,10 +1678,34 @@ impl Window {
                 }
 
                 self.ime_area = Some(a);
-
                 self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
             }
         } else if self.ime_area.is_some() {
+            #[cfg(windows)]
+            if self.ime_open {
+                unsafe {
+                    use windows_sys::Win32::UI::Input::Ime::*;
+
+                    // Cancel IME before disassociating, winit calls `ImmAssociateContextEx(hwnd, 0, IACE_CHILDREN)`,
+                    // if an IME is open it can get confused, the MS Japanese IME for example, will reopen detached at
+                    // a screen corner and showing the old "composition text with green arrow".
+                    //
+                    // DOWNSIDE:
+                    //
+                    // This causes the IME mode to reset for the window, the user will need to set the IME mode again,
+                    // for example, in MS Japanese they will need to press the Hiragana(ctrl+caps) key again.
+                    // Other apps (Chrome, WPF apps) don't have this issue, so there is a better way to fix this that I haven't found.
+
+                    let hwnd = crate::util::winit_to_hwnd(&self.window);
+                    let himc = ImmGetContext(hwnd);
+                    if himc != 0 {
+                        ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+                        ImmSetOpenStatus(himc, 0);
+                        ImmReleaseContext(hwnd, himc);
+                    }
+                }
+            }
+
             self.window.set_ime_allowed(false);
             self.ime_area = None;
         }

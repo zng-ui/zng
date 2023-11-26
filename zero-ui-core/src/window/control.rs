@@ -865,6 +865,10 @@ impl HeadedCtrl {
                     if let Some(win) = &self.window {
                         let area = w.ime_area().to_dip(info.scale_factor());
                         self.ime_info.as_mut().unwrap().area = area;
+
+                        // set to `None` to force a refresh, some IME (MS Emoji) behave like
+                        // they are in the same widget still if only the position changes
+                        let _ = win.set_ime_area(None);
                         let _ = win.set_ime_area(Some(area));
                     }
                     return;

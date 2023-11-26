@@ -1127,7 +1127,14 @@ impl App {
                         let ime = Ime::Commit(s.into());
                         self.notify(Event::Ime { window: id, ime });
                     }
-                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
+                    winit::event::Ime::Enabled => {
+                        #[cfg(windows)]
+                        self.windows[i].set_ime_open(true);
+                    }
+                    winit::event::Ime::Disabled => {
+                        #[cfg(windows)]
+                        self.windows[i].set_ime_open(false);
+                    }
                 }
             }
             WindowEvent::Occluded(_) => {}
