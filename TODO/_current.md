@@ -36,16 +36,9 @@ TextInput! {
 
 * Publish if there is no missing component that could cause a core API refactor.
 
-* Rename crates (replace zero-ui with something that has no hyphen).
-    - `nestor`: All our nodes and properties are nesting constructors. (name already taken)
-    - `ctorx`: Constructor/Context.
-    - `xctor`: Context/Constructor.
-    - `xnest`: Context nesting.
-    - `nestx`: Nesting context.
-    - `nestc`: Nesting constructor. 
-    - `nestcx`, `cxnest`.
-    - `nidulus` or `nidula`: Small nest fungus name. +Fungus related like Rust, -Fungus disguised as a bird nest, not related with our
-    nesting stuff.
+* Rename crates (replace zero-ui with something that has no hyphen). 
+    - Z meaning depth opens some possibilities, unfortunately "zui" is already taken.
+    - `znest`: Z-dimension (depth) + nest, Z-Nest, US pronunciation "zee nest"? 
 
 * Review all docs.
 * Review prebuild distribution.
