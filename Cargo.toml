@@ -3,6 +3,9 @@
 resolver = "2"
 
 members = [
+    # types:
+    "zero-ui-units",
+
     # view:
     "zero-ui-view-api", 
     "zero-ui-view", 

@@ -689,9 +689,9 @@ impl<T> FrameValue<T> {
     /// Returns a webrender binding only if is animating, webrender behaves as if the value is animating
     /// if it is bound, skipping some caching, this can have a large performance impact in software mode, if
     /// a large area of the screen is painted with a bound color.
-    pub fn into_wr<U>(self) -> wr::PropertyBinding<U>
+    pub fn into_wr(self) -> wr::PropertyBinding<T::AsLayout>
     where
-        U: From<T>,
+        T: PxToWr,
     {
         match self {
             FrameValue::Bind {
@@ -703,12 +703,12 @@ impl<T> FrameValue<T> {
                     id: key.id,
                     _phantom: std::marker::PhantomData,
                 },
-                value.into(),
+                value.to_wr(),
             ),
             FrameValue::Bind {
                 value, animating: false, ..
-            } => wr::PropertyBinding::Value(value.into()),
-            FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
+            } => wr::PropertyBinding::Value(value.to_wr()),
+            FrameValue::Value(value) => wr::PropertyBinding::Value(value.to_wr()),
         }
     }
 
@@ -763,9 +763,9 @@ pub struct FrameValueUpdate<T> {
 }
 impl<T> FrameValueUpdate<T> {
     /// Convert to webrender binding update.
-    pub fn into_wr<U>(self) -> Option<wr::PropertyValue<U>>
+    pub fn into_wr(self) -> Option<wr::PropertyValue<T::AsLayout>>
     where
-        U: From<T>,
+        T: PxToWr,
     {
         if self.animating {
             Some(wr::PropertyValue {
@@ -773,11 +773,52 @@ impl<T> FrameValueUpdate<T> {
                     id: self.key.id,
                     _phantom: std::marker::PhantomData,
                 },
-                value: self.value.into(),
+                value: self.value.to_wr(),
             })
         } else {
             None
         }
+    }
+}
+
+// to work with into_wr
+impl PxToWr for f32 {
+    type AsDevice = f32;
+
+    type AsLayout = f32;
+
+    type AsWorld = f32;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        self
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        self
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        self
+    }
+}
+// to work with into_wr
+impl PxToWr for wr::ColorF {
+    type AsDevice = wr::ColorF;
+
+    type AsLayout = wr::ColorF;
+
+    type AsWorld = wr::ColorF;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        self
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        self
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        self
     }
 }
 
