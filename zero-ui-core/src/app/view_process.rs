@@ -6,6 +6,7 @@ use std::{
     sync::{self, Arc},
 };
 
+use zero_ui_txt::Txt;
 pub use zero_ui_view_api::{
     self,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
@@ -213,14 +214,14 @@ impl VIEW_PROCESS {
     /// Returns a list of image decoders supported by the view-process backend.
     ///
     /// Each string is the lower-case file extension.
-    pub fn image_decoders(&self) -> Result<Vec<String>> {
+    pub fn image_decoders(&self) -> Result<Vec<Txt>> {
         self.write().process.image_decoders()
     }
 
     /// Returns a list of image encoders supported by the view-process backend.
     ///
     /// Each string is the lower-case file extension.
-    pub fn image_encoders(&self) -> Result<Vec<String>> {
+    pub fn image_encoders(&self) -> Result<Vec<Txt>> {
         self.write().process.image_encoders()
     }
 
@@ -424,7 +425,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
+    pub(super) fn on_image_error(&self, id: ImageId, error: Txt) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
@@ -470,13 +471,13 @@ impl VIEW_PROCESS {
         i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
     }
 
-    pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: IpcBytes) {
+    pub(super) fn on_image_encoded(&self, id: ImageId, format: Txt, data: IpcBytes) {
         self.on_image_encode_result(id, format, Ok(data));
     }
-    pub(super) fn on_image_encode_error(&self, id: ImageId, format: String, error: String) {
+    pub(super) fn on_image_encode_error(&self, id: ImageId, format: Txt, error: Txt) {
         self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
     }
-    fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<IpcBytes, EncodeError>) {
+    fn on_image_encode_result(&self, id: ImageId, format: Txt, result: std::result::Result<IpcBytes, EncodeError>) {
         let mut app = self.write();
         app.encoding_images.retain(move |r| {
             let done = r.image_id == id && r.format == format;
@@ -509,7 +510,7 @@ impl VIEW_PROCESS {
         let mut app = self.write();
         app.pending_frames = 0;
         for (_, r) in app.message_dialogs.drain(..) {
-            r.respond(MsgDialogResponse::Error("respawn".to_owned()));
+            r.respond(MsgDialogResponse::Error(Txt::from_static("respawn")));
         }
     }
 
@@ -648,7 +649,7 @@ impl ViewWindow {
     }
 
     /// Set the window title.
-    pub fn set_title(&self, title: String) -> Result<()> {
+    pub fn set_title(&self, title: Txt) -> Result<()> {
         self.0.call(|id, p| p.set_title(id, title))
     }
 
@@ -1100,7 +1101,7 @@ struct ViewImageData {
     is_opaque: bool,
 
     partial_pixels: Option<IpcBytes>,
-    pixels: Option<std::result::Result<IpcBytes, String>>,
+    pixels: Option<std::result::Result<IpcBytes, Txt>>,
     is_mask: bool,
 
     done_signal: SignalOnce,
@@ -1151,7 +1152,7 @@ impl ViewImage {
     }
 
     /// Returns the load error if one happened.
-    pub fn error(&self) -> Option<String> {
+    pub fn error(&self) -> Option<Txt> {
         self.0.read().pixels.as_ref().and_then(|s| s.as_ref().err().cloned())
     }
 
@@ -1225,7 +1226,7 @@ impl ViewImage {
     }
 
     /// Create a dummy image in the loaded or error state.
-    pub fn dummy(error: Option<String>) -> Self {
+    pub fn dummy(error: Option<Txt>) -> Self {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: None,
             id: None,
@@ -1255,7 +1256,7 @@ impl ViewImage {
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
     /// [`image_encoders`]: View::image_encoders.
-    pub async fn encode(&self, format: String) -> std::result::Result<IpcBytes, EncodeError> {
+    pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
@@ -1297,7 +1298,7 @@ impl ViewImage {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EncodeError {
     /// Encode error.
-    Encode(String),
+    Encode(Txt),
     /// Attempted to encode dummy image.
     ///
     /// In a headless-app without renderer all images are dummy because there is no
@@ -1306,8 +1307,8 @@ pub enum EncodeError {
     /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
     ViewProcessOffline,
 }
-impl From<String> for EncodeError {
-    fn from(e: String) -> Self {
+impl From<Txt> for EncodeError {
+    fn from(e: Txt) -> Self {
         EncodeError::Encode(e)
     }
 }
@@ -1350,7 +1351,7 @@ impl WeakViewImage {
 
 struct EncodeRequest {
     image_id: ImageId,
-    format: String,
+    format: Txt,
     listeners: Vec<flume::Sender<std::result::Result<IpcBytes, EncodeError>>>,
 }
 
@@ -1360,16 +1361,16 @@ type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
 pub struct ViewClipboard {}
 impl ViewClipboard {
     /// Read [`ClipboardType::Text`].
-    pub fn read_text(&self) -> Result<ClipboardResult<String>> {
+    pub fn read_text(&self) -> Result<ClipboardResult<Txt>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
             Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
             Err(e) => Ok(Err(e)),
-            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
+            _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
     /// Write [`ClipboardType::Text`].
-    pub fn write_text(&self, txt: String) -> Result<ClipboardResult<()>> {
+    pub fn write_text(&self, txt: Txt) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
     }
 
@@ -1379,7 +1380,7 @@ impl ViewClipboard {
         match app.process.read_clipboard(ClipboardType::Image)? {
             Ok(ClipboardData::Image(id)) => {
                 if id == ImageId::INVALID {
-                    Ok(Err(ClipboardError::Other("view-process returned invalid image".to_owned())))
+                    Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned invalid image"))))
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
@@ -1399,7 +1400,7 @@ impl ViewClipboard {
                 }
             }
             Err(e) => Ok(Err(e)),
-            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
+            _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
@@ -1410,7 +1411,7 @@ impl ViewClipboard {
                 return VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Image(id));
             }
         }
-        Ok(Err(ClipboardError::Other("image not loaded".to_owned())))
+        Ok(Err(ClipboardError::Other(Txt::from_static("image not loaded"))))
     }
 
     /// Read [`ClipboardType::FileList`].
@@ -1418,7 +1419,7 @@ impl ViewClipboard {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
             Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
             Err(e) => Ok(Err(e)),
-            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
+            _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
@@ -1428,7 +1429,7 @@ impl ViewClipboard {
     }
 
     /// Read [`ClipboardType::Extension`].
-    pub fn read_extension(&self, data_type: String) -> Result<ClipboardResult<IpcBytes>> {
+    pub fn read_extension(&self, data_type: Txt) -> Result<ClipboardResult<IpcBytes>> {
         match VIEW_PROCESS
             .try_write()?
             .process
@@ -1436,12 +1437,12 @@ impl ViewClipboard {
         {
             Ok(ClipboardData::Extension { data_type: rt, data }) if rt == data_type => Ok(Ok(data)),
             Err(e) => Ok(Err(e)),
-            _ => Ok(Err(ClipboardError::Other("view-process returned incorrect type".to_owned()))),
+            _ => Ok(Err(ClipboardError::Other(Txt::from_static("view-process returned incorrect type")))),
         }
     }
 
     /// Write [`ClipboardType::Extension`].
-    pub fn write_extension(&self, data_type: String, data: IpcBytes) -> Result<ClipboardResult<()>> {
+    pub fn write_extension(&self, data_type: Txt, data: IpcBytes) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS
             .try_write()?
             .process

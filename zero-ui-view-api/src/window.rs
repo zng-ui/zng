@@ -4,6 +4,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use webrender_api::{ColorF, Epoch, PipelineId, RenderReasons};
+use zero_ui_txt::Txt;
 
 use crate::{
     access::AccessNodeId,
@@ -121,7 +122,7 @@ pub struct HeadlessRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorInfo {
     /// Readable name of the monitor.
-    pub name: String,
+    pub name: Txt,
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
     pub position: PxPoint,
     /// Width/height of the monitor region in the virtual screen, in pixels.
@@ -395,7 +396,7 @@ pub struct WindowRequest {
     /// ID that will identify the new window.
     pub id: WindowId,
     /// Title text.
-    pub title: String,
+    pub title: Txt,
 
     /// Window state, position, size and restore rectangle.
     pub state: WindowStateAll,

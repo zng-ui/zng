@@ -626,3 +626,21 @@ impl<T: ToString> ToText for T {
         self.to_string().into()
     }
 }
+
+///<span data-del-macro-root></span> Creates a [`Txt`] by formatting using the [`format_args!`] syntax.
+///
+/// Note that this behaves like a [`format!`] for [`Txt`], but it can be more performant because the
+/// text type can represent `&'static str` and can i
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::text::formatx;
+/// let text = formatx!("Hello {}", "World!");
+/// ```
+#[macro_export]
+macro_rules! formatx {
+    ($($tt:tt)*) => {
+        $crate::Txt::from_fmt(format_args!($($tt)*))
+    };
+}

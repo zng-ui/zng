@@ -139,6 +139,7 @@ pub use gleam;
 
 use webrender::api::*;
 use window::Window;
+use zero_ui_txt::Txt;
 use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -940,7 +941,7 @@ impl App {
                             state,
                             key,
                             key_modified,
-                            text: event.text.map(|s| s.as_str().to_owned()).unwrap_or_default(),
+                            text: event.text.map(|s| Txt::from_str(s.as_str())).unwrap_or_default(),
                         });
                     }
                 }
@@ -1180,7 +1181,7 @@ impl App {
                             state: KeyState::Released,
                             key: key.clone(),
                             key_modified: key.clone(),
-                            text: String::new(),
+                            text: Txt::from_str(""),
                         });
                     }
                     if matches!(key, Key::Shift) && !m.shift_key() {
@@ -1192,7 +1193,7 @@ impl App {
                             state: KeyState::Released,
                             key: key.clone(),
                             key_modified: key.clone(),
-                            text: String::new(),
+                            text: Txt::from_str(""),
                         });
                     }
                     if matches!(key, Key::Alt | Key::AltGraph) && !m.alt_key() {
@@ -1204,7 +1205,7 @@ impl App {
                             state: KeyState::Released,
                             key: key.clone(),
                             key_modified: key.clone(),
-                            text: String::new(),
+                            text: Txt::from_str(""),
                         });
                     }
                     if matches!(key, Key::Ctrl) && !m.control_key() {
@@ -1216,7 +1217,7 @@ impl App {
                             state: KeyState::Released,
                             key: key.clone(),
                             key_modified: key.clone(),
-                            text: String::new(),
+                            text: Txt::from_str(""),
                         });
                     }
                     retain
@@ -1623,7 +1624,7 @@ impl Api for App {
         }
     }
 
-    fn set_title(&mut self, id: WindowId, title: String) {
+    fn set_title(&mut self, id: WindowId, title: Txt) {
         self.with_window(id, |w| w.set_title(title), || ())
     }
 
@@ -1719,12 +1720,12 @@ impl Api for App {
         self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 
-    fn image_decoders(&mut self) -> Vec<String> {
-        image_cache::DECODERS.iter().map(|&s| s.to_owned()).collect()
+    fn image_decoders(&mut self) -> Vec<Txt> {
+        image_cache::DECODERS.iter().map(|&s| Txt::from_static(s)).collect()
     }
 
-    fn image_encoders(&mut self) -> Vec<String> {
-        image_cache::ENCODERS.iter().map(|&s| s.to_owned()).collect()
+    fn image_encoders(&mut self) -> Vec<Txt> {
+        image_cache::ENCODERS.iter().map(|&s| Txt::from_static(s)).collect()
     }
 
     fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
@@ -1739,7 +1740,7 @@ impl Api for App {
         self.image_cache.forget(id)
     }
 
-    fn encode_image(&mut self, id: ImageId, format: String) {
+    fn encode_image(&mut self, id: ImageId, format: Txt) {
         self.image_cache.encode(id, format)
     }
 
@@ -1823,7 +1824,7 @@ impl Api for App {
         if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
             s.message_dialog(dialog, r_id, self.app_sender.clone());
         } else {
-            let r = MsgDialogResponse::Error("window not found".to_owned());
+            let r = MsgDialogResponse::Error(Txt::from_static("window not found"));
             let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
         }
         r_id
@@ -1834,7 +1835,7 @@ impl Api for App {
         if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
             s.file_dialog(dialog, r_id, self.app_sender.clone());
         } else {
-            let r = MsgDialogResponse::Error("window not found".to_owned());
+            let r = MsgDialogResponse::Error(Txt::from_static("window not found"));
             let _ = self.app_sender.send(AppEvent::Notify(Event::MsgDialogResponse(r_id, r)));
         };
         r_id
@@ -1848,7 +1849,7 @@ impl Api for App {
 
                 clipboard_win::get(clipboard_win::formats::Unicode)
                     .map_err(util::clipboard_win_to_clip)
-                    .map(clipboard::ClipboardData::Text)
+                    .map(|s: String| clipboard::ClipboardData::Text(Txt::from_str(&s)))
             }
             clipboard::ClipboardType::Image => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
@@ -1856,7 +1857,7 @@ impl Api for App {
                 let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
 
                 let id = self.image_cache.add(ImageRequest {
-                    format: image::ImageDataFormat::FileExtension("bmp".to_owned()),
+                    format: image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
                     data: IpcBytes::from_vec(bitmap),
                     max_decoded_len: u64::MAX,
                     downscale: None,
@@ -1877,6 +1878,8 @@ impl Api for App {
 
     #[cfg(windows)]
     fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+        use zero_ui_txt::formatx;
+
         match data {
             clipboard::ClipboardData::Text(t) => {
                 let _clip = clipboard_win::Clipboard::new_attempts(10).map_err(util::clipboard_win_to_clip)?;
@@ -1889,10 +1892,10 @@ impl Api for App {
                 if let Some(img) = self.image_cache.get(id) {
                     let mut bmp = vec![];
                     img.encode(::image::ImageFormat::Bmp, &mut bmp)
-                        .map_err(|e| clipboard::ClipboardError::Other(format!("{e:?}")))?;
+                        .map_err(|e| clipboard::ClipboardError::Other(formatx!("{e:?}")))?;
                     clipboard_win::set(clipboard_win::formats::Bitmap, bmp).map_err(util::clipboard_win_to_clip)
                 } else {
-                    Err(clipboard::ClipboardError::Other("image not found".to_owned()))
+                    Err(clipboard::ClipboardError::Other(Txt::from_str("image not found")))
                 }
             }
             clipboard::ClipboardData::FileList(l) => {

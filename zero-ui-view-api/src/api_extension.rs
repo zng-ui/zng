@@ -3,6 +3,7 @@
 use std::{fmt, ops};
 
 use serde::{Deserialize, Serialize};
+use zero_ui_txt::Txt;
 
 /// Custom serialized data, in a format defined by the extension.
 ///
@@ -25,7 +26,7 @@ impl ApiExtensionPayload {
         if let Some((id, error)) = self.parse_invalid_request() {
             Err(ApiExtensionRecvError::InvalidRequest {
                 extension_id: id,
-                error: error.to_owned(),
+                error: Txt::from_str(error),
             })
         } else if let Some(id) = self.parse_unknown_extension() {
             Err(ApiExtensionRecvError::UnknownExtension { extension_id: id })
@@ -116,17 +117,17 @@ impl fmt::Debug for ApiExtensionPayload {
 /// by using the extension payload
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ApiExtensionName {
-    name: String,
+    name: Txt,
 }
 impl ApiExtensionName {
     /// New from unique name.
     ///
     /// The name must contain at least 1 characters, and match the pattern `[a-zA-Z][a-zA-Z0-9-_.]`.
-    pub fn new(name: impl Into<String>) -> Result<Self, ApiExtensionNameError> {
+    pub fn new(name: impl Into<Txt>) -> Result<Self, ApiExtensionNameError> {
         let name = name.into();
         Self::new_impl(name)
     }
-    fn new_impl(name: String) -> Result<ApiExtensionName, ApiExtensionNameError> {
+    fn new_impl(name: Txt) -> Result<ApiExtensionName, ApiExtensionNameError> {
         if name.is_empty() {
             return Err(ApiExtensionNameError::NameCannotBeEmpty);
         }
@@ -316,7 +317,7 @@ pub enum ApiExtensionRecvError {
         /// Is `INVALID` only if error message is corrupted.
         extension_id: ApiExtensionId,
         /// Message from the view-process.
-        error: String,
+        error: Txt,
     },
     /// Failed to deserialize to the expected response type.
     Deserialize(bincode::Error),

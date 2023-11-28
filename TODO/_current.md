@@ -35,7 +35,6 @@ TextInput! {
 # Split Core
 
 * Txt type crate.
-    - Use it in the zero-ui-api crate.
     - Move `NameIdMap` to unique_id crate and make it generate for every ID type?
 
 * Font service, segmenting and shaping.

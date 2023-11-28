@@ -3,6 +3,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use zero_ui_txt::Txt;
 
 use crate::ipc::IpcBytes;
 use zero_ui_units::{Px, PxSize};
@@ -112,17 +113,17 @@ pub enum ImageDataFormat {
 
     /// The image is encoded, a file extension that maybe identifies
     /// the format is known.
-    FileExtension(String),
+    FileExtension(Txt),
 
     /// The image is encoded, MIME type that maybe identifies the format is known.
-    MimeType(String),
+    MimeType(Txt),
 
     /// The image is encoded, a decoder will be selected using the "magic number"
     /// on the beginning of the bytes buffer.
     Unknown,
 }
-impl From<String> for ImageDataFormat {
-    fn from(ext_or_mime: String) -> Self {
+impl From<Txt> for ImageDataFormat {
+    fn from(ext_or_mime: Txt) -> Self {
         if ext_or_mime.contains('/') {
             ImageDataFormat::MimeType(ext_or_mime)
         } else {
@@ -132,7 +133,7 @@ impl From<String> for ImageDataFormat {
 }
 impl From<&str> for ImageDataFormat {
     fn from(ext_or_mime: &str) -> Self {
-        ext_or_mime.to_owned().into()
+        Txt::from_str(ext_or_mime).into()
     }
 }
 impl From<PxSize> for ImageDataFormat {

@@ -18,7 +18,7 @@ context_var! {
     pub static CONTEXT_IMAGE_VAR: Img = no_context_image();
 }
 fn no_context_image() -> Img {
-    Img::dummy(Some("no image source in context".to_owned()))
+    Img::dummy(Some(Txt::from_static("no image source in context")))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].

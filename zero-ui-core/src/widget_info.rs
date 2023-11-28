@@ -35,6 +35,7 @@ pub use iter::TreeFilter;
 
 mod hit;
 pub(crate) use hit::HitTestClips;
+use zero_ui_txt::formatx;
 
 pub use self::hit::RelativeHitZ;
 use self::{access::AccessEnabled, iter::TreeIterator};
@@ -1056,13 +1057,13 @@ impl WidgetInfo {
                 let id = self.id();
                 let name = id.name();
                 if !name.is_empty() {
-                    return crate::formatx!("{mod_ident}!({name:?})");
+                    return formatx!("{mod_ident}!({name:?})");
                 } else {
-                    return crate::formatx!("{mod_ident}!({})", id.sequential());
+                    return formatx!("{mod_ident}!({})", id.sequential());
                 }
             }
         }
-        crate::formatx!("{}", self.id())
+        formatx!("{}", self.id())
     }
 
     /// Full path to this widget with [`interactivity`] values.

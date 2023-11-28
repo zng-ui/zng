@@ -1207,27 +1207,6 @@ pub enum UnderlinePosition {
     Descent,
 }
 
-///<span data-del-macro-root></span> Creates a [`Txt`] by formatting using the [`format_args!`] syntax.
-///
-/// Note that this behaves like a [`format!`] for [`Txt`], but it can be more performant because the
-/// text type can represent `&'static str` and can i
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui_core::text::formatx;
-/// let text = formatx!("Hello {}", "World!");
-/// ```
-///
-/// [`Txt`]: crate::text::Txt
-#[macro_export]
-macro_rules! formatx {
-    ($($tt:tt)*) => {
-        $crate::text::Txt::from_fmt(format_args!($($tt)*))
-    };
-}
-#[doc(inline)]
-pub use crate::formatx;
 use crate::var::{IntoVar, LocalVar};
 
 #[cfg(test)]

@@ -1221,9 +1221,9 @@ impl PartialEq for AccessStateSource {
 impl From<&AccessStateSource> for AccessState {
     fn from(value: &AccessStateSource) -> Self {
         match value {
-            AccessStateSource::Label(l) => AccessState::Label(l.to_string()),
-            AccessStateSource::Placeholder(p) => AccessState::Placeholder(p.to_string()),
-            AccessStateSource::ValueText(v) => AccessState::ValueText(v.to_string()),
+            AccessStateSource::Label(l) => AccessState::Label(l.clone()),
+            AccessStateSource::Placeholder(p) => AccessState::Placeholder(p.clone()),
+            AccessStateSource::ValueText(v) => AccessState::ValueText(v.clone()),
             AccessStateSource::ScrollHorizontal(x) => AccessState::ScrollHorizontal(x.get().0),
             AccessStateSource::ScrollVertical(y) => AccessState::ScrollVertical(y.get().0),
         }

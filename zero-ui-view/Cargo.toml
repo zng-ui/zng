@@ -67,6 +67,7 @@ swgl = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e0606
 
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-txt = { path = "../zero-ui-txt" }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender

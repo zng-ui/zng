@@ -404,10 +404,11 @@ pub(crate) fn locale_config() -> LocaleConfig {
         Foundation::FALSE,
         Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME},
     };
+    use zero_ui_txt::Txt;
 
     // Try newer WinRT COM API (Windows8+)
     if let Ok(r) = GlobalizationPreferences::Languages() {
-        let r: Vec<String> = r.into_iter().map(|l| l.to_string_lossy()).collect();
+        let r: Vec<_> = r.into_iter().map(|l| Txt::from_str(&l.to_string_lossy())).collect();
         if !r.is_empty() {
             return LocaleConfig { langs: r };
         }
@@ -436,6 +437,6 @@ pub(crate) fn locale_config() -> LocaleConfig {
     buffer.pop();
 
     LocaleConfig {
-        langs: String::from_utf16_lossy(&buffer).split('\0').map(|x| x.to_string()).collect(),
+        langs: String::from_utf16_lossy(&buffer).split('\0').map(Txt::from_str).collect(),
     }
 }

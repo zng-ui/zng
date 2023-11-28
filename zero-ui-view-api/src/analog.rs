@@ -1,1 +1,0 @@
-//! Axis analog device types.

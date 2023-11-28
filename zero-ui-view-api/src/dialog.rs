@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use zero_ui_txt::Txt;
+
 crate::declare_id! {
     /// Identifies an ongoing async native dialog with the user.
     pub struct DialogId(_);
@@ -11,9 +13,9 @@ crate::declare_id! {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct MsgDialog {
     /// Message dialog window title.
-    pub title: String,
+    pub title: Txt,
     /// Message text.
-    pub message: String,
+    pub message: Txt,
     /// Kind of message.
     pub icon: MsgDialogIcon,
     /// Message buttons.
@@ -22,8 +24,8 @@ pub struct MsgDialog {
 impl Default for MsgDialog {
     fn default() -> Self {
         Self {
-            title: String::new(),
-            message: String::new(),
+            title: Txt::from_str(""),
+            message: Txt::from_str(""),
             icon: MsgDialogIcon::Info,
             buttons: MsgDialogButtons::Ok,
         }
@@ -75,18 +77,18 @@ pub enum MsgDialogResponse {
     ///
     /// The associated string may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
-    Error(String),
+    Error(Txt),
 }
 
 /// Defines a native file dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FileDialog {
     /// Dialog window title.
-    pub title: String,
+    pub title: Txt,
     /// Selected directory when the dialog opens.
     pub starting_dir: PathBuf,
     /// Starting file name.
-    pub starting_name: String,
+    pub starting_name: Txt,
     /// File extension filters.
     ///
     /// Syntax:
@@ -99,7 +101,7 @@ pub struct FileDialog {
     /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
     ///
     /// [`push_filter`]: Self::push_filter
-    pub filters: String,
+    pub filters: Txt,
 
     /// Defines the file  dialog looks and what kind of result is expected.
     pub kind: FileDialogKind,
@@ -213,10 +215,10 @@ impl FileDialog {
 impl Default for FileDialog {
     fn default() -> Self {
         FileDialog {
-            title: String::new(),
+            title: Txt::from_str(""),
             starting_dir: PathBuf::new(),
-            starting_name: String::new(),
-            filters: String::new(),
+            starting_name: Txt::from_str(""),
+            filters: Txt::from_str(""),
             kind: FileDialogKind::OpenFile,
         }
     }
@@ -250,7 +252,7 @@ pub enum FileDialogResponse {
     ///
     /// The associated string may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
-    Error(String),
+    Error(Txt),
 }
 
 #[cfg(test)]
@@ -260,10 +262,10 @@ mod tests {
     #[test]
     fn file_filters() {
         let mut dlg = FileDialog {
-            title: "".to_owned(),
+            title: "".into(),
             starting_dir: "".into(),
-            starting_name: "".to_owned(),
-            filters: "".to_owned(),
+            starting_name: "".into(),
+            filters: "".into(),
             kind: FileDialogKind::OpenFile,
         };
 

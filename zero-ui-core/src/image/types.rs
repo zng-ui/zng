@@ -124,7 +124,7 @@ impl Img {
     }
 
     /// Create a dummy image in the loaded or error state.
-    pub fn dummy(error: Option<String>) -> Self {
+    pub fn dummy(error: Option<Txt>) -> Self {
         Self::new(ViewImage::dummy(error))
     }
 
@@ -266,10 +266,10 @@ impl Img {
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: String) -> std::result::Result<zero_ui_view_api::ipc::IpcBytes, EncodeError> {
+    pub async fn encode(&self, format: Txt) -> std::result::Result<zero_ui_view_api::ipc::IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
-            Err(EncodeError::Encode(e.into()))
+            Err(EncodeError::Encode(e))
         } else {
             self.view.get().unwrap().encode(format).await
         }
@@ -281,7 +281,7 @@ impl Img {
     pub async fn save(&self, path: impl Into<PathBuf>) -> io::Result<()> {
         let path = path.into();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            self.save_impl(ext.to_owned(), path).await
+            self.save_impl(Txt::from_str(ext), path).await
         } else {
             Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -293,11 +293,11 @@ impl Img {
     /// Encode and write the image to `path`.
     ///
     /// The image is encoded to the `format`, the file extension can be anything.
-    pub async fn save_with_format(&self, format: String, path: impl Into<PathBuf>) -> io::Result<()> {
+    pub async fn save_with_format(&self, format: Txt, path: impl Into<PathBuf>) -> io::Result<()> {
         self.save_impl(format, path.into()).await
     }
 
-    async fn save_impl(&self, format: String, path: PathBuf) -> io::Result<()> {
+    async fn save_impl(&self, format: Txt, path: PathBuf) -> io::Result<()> {
         let view = self.view.get().unwrap();
         let data = view
             .encode(format)

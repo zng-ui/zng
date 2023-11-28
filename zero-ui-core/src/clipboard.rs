@@ -54,7 +54,7 @@ pub enum ClipboardError {
     /// Other error.
     ///
     /// The string can be a debug description of the error, only suitable for logging.
-    Other(String),
+    Other(Txt),
 }
 
 /// Clipboard service.
@@ -99,7 +99,9 @@ impl CLIPBOARD {
             Ok(r) => match r {
                 Ok(()) => Ok(()),
                 Err(e) => match e {
-                    clipboard_api::ClipboardError::NotFound => Err(ClipboardError::Other("not found error in set operation".to_owned())),
+                    clipboard_api::ClipboardError::NotFound => {
+                        Err(ClipboardError::Other(Txt::from_static("not found error in set operation")))
+                    }
                     clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
                     clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
                 },
@@ -118,7 +120,7 @@ impl CLIPBOARD {
     }
     /// Sets the text string on the clipboard, returns `Ok(())` if the operation succeeded.
     pub fn set_text(&self, txt: impl Into<Txt>) -> Result<(), ClipboardError> {
-        self.set(|v| v.write_text(txt.into().into()))
+        self.set(|v| v.write_text(txt.into()))
     }
 
     /// Gets an image from the clipboard.
@@ -161,14 +163,14 @@ impl CLIPBOARD {
     /// Gets custom data from the clipboard.
     ///
     /// The current view-process must support `data_type`.
-    pub fn extension(&self, data_type: impl Into<String>) -> Result<Option<IpcBytes>, ClipboardError> {
+    pub fn extension(&self, data_type: impl Into<Txt>) -> Result<Option<IpcBytes>, ClipboardError> {
         self.get(|v| v.read_extension(data_type.into()))
     }
 
     /// Set a custom data on the clipboard.
     ///
     /// The current view-process must support `data_type`.
-    pub fn set_extension(&self, data_type: impl Into<String>, data: IpcBytes) -> Result<(), ClipboardError> {
+    pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> Result<(), ClipboardError> {
         self.set(|v| v.write_extension(data_type.into(), data))
     }
 }

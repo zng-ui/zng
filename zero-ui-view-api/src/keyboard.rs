@@ -1,8 +1,9 @@
 //!: Keyboard types.
 
-use std::{fmt, mem, sync::Arc};
+use std::{fmt, mem};
 
 use serde::{Deserialize, Serialize};
+use zero_ui_txt::Txt;
 
 /// Contains the platform-native physical key identifier
 ///
@@ -767,7 +768,7 @@ pub enum Key {
     /// A key string that corresponds to the character typed by the user, taking into account the
     /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
     /// effect.
-    Str(Arc<str>),
+    Str(Txt),
 
     /// This variant is used when the key cannot be translated to any other variant.
     ///
@@ -780,6 +781,7 @@ pub enum Key {
     /// - **Web:** Always contains `None`
     Dead(Option<char>),
 
+    /* SAFETY, no associated data after Alt, see `Key::all_named` */
     /// The `Alt` (Alternative) key.
     ///
     /// This key enables the alternate modifier function for interpreting concurrent or subsequent
@@ -1948,9 +1950,9 @@ impl Key {
     pub fn all_named() -> impl ExactSizeIterator<Item = Key> + DoubleEndedIterator {
         unsafe {
             // SAFETY: this is safe because all variants from `Alt` are without associated data.
-            let s: (u16, [u8; 22]) = mem::transmute(Key::Alt);
-            let e: (u16, [u8; 22]) = mem::transmute(Key::F35);
-            (s.0..=e.0).map(|n| mem::transmute((n, [0u8; 22])))
+            let s: (u16, [u8; 38]) = mem::transmute(Key::Alt);
+            let e: (u16, [u8; 38]) = mem::transmute(Key::F35);
+            (s.0..=e.0).map(|n| mem::transmute((n, [0u8; 38])))
         }
     }
 }
@@ -1969,7 +1971,7 @@ impl fmt::Debug for Key {
         let name = self.name();
         match self {
             Self::Char(c) => write!(f, "{name}({c:?})"),
-            Self::Str(s) => write!(f, "{name}({:?})", s.as_ref()),
+            Self::Str(s) => write!(f, "{name}({:?})", s.as_str()),
             Self::Dead(c) => write!(f, "{name}({c:?})"),
             _ => write!(f, "{name}"),
         }

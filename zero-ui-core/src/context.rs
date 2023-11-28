@@ -13,13 +13,13 @@ pub use trace::*;
 
 mod local;
 pub use local::*;
+use zero_ui_txt::formatx;
 
 use crate::{
     app::{AppDisconnected, AppEventSender, LoopTimer},
     context_var,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
-    formatx,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::ReuseRange,
     text::Txt,
@@ -768,7 +768,7 @@ impl WIDGET {
         } else if let Some(id) = self.try_id() {
             formatx!("<no-window>//{id:?}")
         } else {
-            Txt::from("<no-widget>")
+            Txt::from_str("<no-widget>")
         }
     }
 

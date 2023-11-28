@@ -514,8 +514,8 @@ fn native() -> impl UiNode {
                 on_click = async_hn!(|_| {
                     use zero_ui::core::app::view_process::*;
                     let rsp = WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
-                        title: "Question?".to_owned(),
-                        message: "Example message. Yes -> Warn, No -> Error.".to_owned(),
+                        title: Txt::from_static("Question?"),
+                        message: Txt::from_static("Example message. Yes -> Warn, No -> Error."),
                         icon: MsgDialogIcon::Info,
                         buttons: MsgDialogButtons::YesNo,
                     }).wait_rsp().await;
@@ -532,8 +532,8 @@ fn native() -> impl UiNode {
                         },
                     };
                     WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
-                        title: "Title".to_owned(),
-                        message: "Message".to_owned(),
+                        title: Txt::from_static("Title"),
+                        message: Txt::from_static("Message"),
                         icon,
                         buttons: MsgDialogButtons::Ok,
                     });
@@ -594,7 +594,7 @@ fn native() -> impl UiNode {
                     dlg.title = "Save File".into();
                     dlg.kind = FileDialogKind::SaveFile;
                     dlg.starting_dir = first_file.parent().map(|p| p.to_owned()).unwrap_or_default();
-                    dlg.starting_name = first_file.file_name().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+                    dlg.starting_name = first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default();
                     let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
                     let save_file = match res {
                         FileDialogResponse::Selected(mut s) => {

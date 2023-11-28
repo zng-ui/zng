@@ -671,7 +671,7 @@ impl TextEditor {
                         self.txt_touched.set(false);
                     }
                     Err(e) => {
-                        self.handle_error("reading file", e.to_string()).await;
+                        self.handle_error("reading file", e.to_text()).await;
                     }
                 }
             }
@@ -718,7 +718,7 @@ impl TextEditor {
             }
             FileDialogResponse::Cancel => {}
             FileDialogResponse::Error(e) => {
-                self.handle_error("saving file", e.to_string()).await;
+                self.handle_error("saving file", e.to_text()).await;
             }
         }
 
@@ -741,7 +741,7 @@ impl TextEditor {
         match r {
             Ok(()) => true,
             Err(e) => {
-                self.handle_error("writing file", e.to_string()).await;
+                self.handle_error("writing file", e.to_text()).await;
                 false
             }
         }
@@ -768,14 +768,14 @@ impl TextEditor {
         }
     }
 
-    async fn handle_error(&self, context: &'static str, e: String) {
+    async fn handle_error(&self, context: &'static str, e: Txt) {
         tracing::error!("error {context}, {e}");
 
         use zero_ui::core::app::view_process::*;
 
         let dlg = MsgDialog {
             title: "Error".into(),
-            message: format!("Error {context}.\n\n{e}"),
+            message: formatx!("Error {context}.\n\n{e}"),
             icon: MsgDialogIcon::Error,
             buttons: MsgDialogButtons::Ok,
         };

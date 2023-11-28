@@ -5,6 +5,7 @@ use std::{num::NonZeroU32, ops};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
+use zero_ui_txt::Txt;
 use zero_ui_units::{PxRect, PxSize, PxTransform};
 
 /// Accessibility role of a node in the accessibility tree.
@@ -239,7 +240,7 @@ pub enum AccessState {
     Invalid(Invalid),
 
     /// Defines a string value that labels the widget.
-    Label(String),
+    Label(Txt),
 
     /// Defines the hierarchical level of an widget within a structure.
     Level(NonZeroU32),
@@ -250,7 +251,7 @@ pub enum AccessState {
     /// Indicates whether the widget's orientation is horizontal, vertical, or unknown/ambiguous.
     Orientation(Orientation),
     /// Short hint (a word or short phrase) intended to help the user with data entry when a form control has no value.
-    Placeholder(String),
+    Placeholder(Txt),
     /// Indicates that the widget is not editable, but is otherwise operable.
     ReadOnly,
     /// Indicates that user input is required on the widget before a form may be submitted.
@@ -268,7 +269,7 @@ pub enum AccessState {
     /// Defines a human readable version of the [`Value`].
     ///
     /// [`Value`]: Self::Value
-    ValueText(String),
+    ValueText(Txt),
 
     /// Indicate that the widget can change.
     Live {
@@ -479,7 +480,7 @@ pub enum AccessCmd {
     Scroll(ScrollCmd),
 
     /// Insert the text.
-    ReplaceSelectedText(String),
+    ReplaceSelectedText(Txt),
 
     /// Set the text selection.
     ///
@@ -495,7 +496,7 @@ pub enum AccessCmd {
 
     /// Replace the value of the control with the specified value and
     /// reset the selection, if applicable.
-    SetString(String),
+    SetString(Txt),
 
     /// Replace the value of the control with the specified value and
     /// reset the selection, if applicable.

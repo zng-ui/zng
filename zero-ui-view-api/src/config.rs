@@ -4,6 +4,7 @@ use std::{fmt, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
+use zero_ui_txt::Txt;
 use zero_ui_units::{Dip, DipSize};
 
 /// System settings needed for implementing double/triple clicks.
@@ -116,7 +117,7 @@ impl Default for AnimationsConfig {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize, Default)]
 pub struct LocaleConfig {
     /// BCP-47 language tags, if the locale can be obtained.
-    pub langs: Vec<String>,
+    pub langs: Vec<Txt>,
 }
 
 /// Text anti-aliasing.

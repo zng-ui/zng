@@ -2,6 +2,8 @@
 
 use std::{fmt, path::PathBuf};
 
+use zero_ui_txt::Txt;
+
 use crate::{image::ImageId, ipc::IpcBytes};
 
 /// Clipboard data.
@@ -10,7 +12,7 @@ pub enum ClipboardData {
     /// Text string.
     ///
     /// View-process can convert between [`String`] and the text formats of the platform.
-    Text(String),
+    Text(Txt),
     /// Image data.
     ///
     /// View-process reads from clipboard in any format supported and starts an image decode task
@@ -23,7 +25,7 @@ pub enum ClipboardData {
     /// Any data format supported only by the specific view-process implementation.
     Extension {
         /// Type key, must be in a format defined by the view-process.
-        data_type: String,
+        data_type: Txt,
         /// The raw data.
         data: IpcBytes,
     },
@@ -39,7 +41,7 @@ pub enum ClipboardType {
     /// A [`ClipboardData::FileList`].
     FileList,
     /// A [`ClipboardData::Extension`].
-    Extension(String),
+    Extension(Txt),
 }
 
 /// Clipboard read/write error.
@@ -52,7 +54,7 @@ pub enum ClipboardError {
     /// Other error.
     ///
     /// The string can be a debug description of the error, only suitable for logging.
-    Other(String),
+    Other(Txt),
 }
 impl fmt::Display for ClipboardError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

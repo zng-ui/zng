@@ -8,6 +8,8 @@ use std::{
 #[cfg(feature = "ipc")]
 use std::time::Duration;
 
+use zero_ui_txt::Txt;
+
 use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult};
 
 /// The listener returns the closure on join for reuse in respawn.
@@ -208,8 +210,8 @@ impl Controller {
         // create process and spawn it, unless is running in same process mode.
         let process = if ViewConfig::is_awaiting_same_process() {
             ViewConfig::set_same_process(ViewConfig {
-                version: crate::VERSION.to_owned(),
-                server_name: init.name().to_owned(),
+                version: crate::VERSION.into(),
+                server_name: Txt::from_str(init.name()),
                 headless,
             });
             None

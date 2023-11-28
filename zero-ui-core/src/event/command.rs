@@ -1026,7 +1026,7 @@ impl CommandNameExt for Command {
             if shortcut.is_empty() {
                 name.clone()
             } else {
-                crate::formatx!("{name} ({})", shortcut[0])
+                zero_ui_txt::formatx!("{name} ({})", shortcut[0])
             }
         })
         .boxed()

@@ -14,6 +14,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::PathBuf, sync::Arc};
+use zero_ui_txt::Txt;
 use zero_ui_units::{DipPoint, PxRect, PxSize};
 
 macro_rules! declare_id {
@@ -179,7 +180,7 @@ pub enum Event {
         /// Id from the request.
         id: WindowId,
         /// Error message.
-        error: String,
+        error: Txt,
     },
 
     /// A frame finished rendering.
@@ -261,7 +262,7 @@ pub enum Event {
         /// This is usually the `key_modified` char, but is also `'\r'` for `Key::Enter`. On Windows when a dead key was
         /// pressed earlier but cannot be combined with the character from this key press, the produced text
         /// will consist of two characters: the dead-key-character followed by the character resulting from this key press.
-        text: String,
+        text: Txt,
     },
     /// IME composition event.
     Ime {
@@ -413,14 +414,14 @@ pub enum Event {
         /// The image that failed to decode.
         image: ImageId,
         /// The error message.
-        error: String,
+        error: Txt,
     },
     /// An image finished encoding.
     ImageEncoded {
         /// The image that finished encoding.
         image: ImageId,
         /// The format of the encoded data.
-        format: String,
+        format: Txt,
         /// The encoded image data.
         data: IpcBytes,
     },
@@ -429,9 +430,9 @@ pub enum Event {
         /// The image that failed to encode.
         image: ImageId,
         /// The encoded format that was requested.
-        format: String,
+        format: Txt,
         /// The error message.
-        error: String,
+        error: Txt,
     },
 
     /// An image generated from a rendered frame is ready.

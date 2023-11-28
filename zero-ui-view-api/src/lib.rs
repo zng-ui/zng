@@ -24,7 +24,6 @@ use serde::{Deserialize, Serialize};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod access;
-pub mod analog;
 pub mod api_extension;
 pub mod clipboard;
 pub mod config;
@@ -46,6 +45,7 @@ pub use app_process::*;
 
 mod view_process;
 pub use view_process::*;
+use zero_ui_txt::Txt;
 
 use std::fmt;
 use webrender_api::{FontInstanceKey, FontKey, ImageKey};
@@ -288,7 +288,7 @@ declare_api! {
     pub fn close_window(&mut self, id: WindowId);
 
     /// Set window title.
-    pub fn set_title(&mut self, id: WindowId, title: String);
+    pub fn set_title(&mut self, id: WindowId, title: Txt);
 
     /// Set window visible.
     pub fn set_visible(&mut self, id: WindowId, visible: bool);
@@ -393,12 +393,12 @@ declare_api! {
     /// Returns a list of image decoders supported by this implementation.
     ///
     /// Each string is the lower-case file extension.
-    pub fn image_decoders(&mut self) -> Vec<String>;
+    pub fn image_decoders(&mut self) -> Vec<Txt>;
 
     /// Returns a list of image encoders supported by this implementation.
     ///
     /// Each string is the lower-case file extension.
-    pub fn image_encoders(&mut self) -> Vec<String>;
+    pub fn image_encoders(&mut self) -> Vec<Txt>;
 
     /// Encode the image into the `format`.
     ///
@@ -408,7 +408,7 @@ declare_api! {
     /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`].
     ///
     /// [`image_encoders`]: Api::image_encoders
-    pub fn encode_image(&mut self, id: ImageId, format: String);
+    pub fn encode_image(&mut self, id: ImageId, format: Txt);
 
     /// Add a raw font resource to the window renderer.
     ///

@@ -12,6 +12,7 @@ use flume::unbounded as channel;
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use zero_ui_txt::Txt;
 
 pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 
@@ -205,13 +206,16 @@ impl std::error::Error for Disconnected {}
 #[cfg(feature = "ipc")]
 pub(crate) struct AppInit {
     server: IpcOneShotServer<AppInitMsg>,
-    name: String,
+    name: Txt,
 }
 #[cfg(feature = "ipc")]
 impl AppInit {
     pub fn new() -> Self {
         let (server, name) = IpcOneShotServer::new().expect("failed to create init channel");
-        AppInit { server, name }
+        AppInit {
+            server,
+            name: Txt::from_str(&name),
+        }
     }
 
     /// Unique name for the view-process to find this channel.
@@ -246,10 +250,10 @@ impl AppInit {
 
 /// Start the view-process server and waits for `(request, response, event)`.
 #[cfg(feature = "ipc")]
-pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
+pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     let _s = tracing::trace_span!("connect_view_process").entered();
 
-    let app_init_sender = IpcSender::connect(server_name).expect("failed to connect to init channel");
+    let app_init_sender = IpcSender::connect(server_name.into_owned()).expect("failed to connect to init channel");
 
     let (req_sender, req_recv) = channel().map_err(handle_io_error)?;
     // Large messages can only be received in a receiver created in the same process that is receiving (on Windows)
@@ -283,7 +287,7 @@ pub(crate) struct AppInit {
     // )
     #[allow(clippy::type_complexity)]
     init: flume::Receiver<AppInitMsg>,
-    name: String,
+    name: Txt,
 }
 #[cfg(not(feature = "ipc"))]
 mod name_map {
@@ -295,7 +299,7 @@ mod name_map {
 
     use super::AppInitMsg;
 
-    type Map = Mutex<HashMap<String, flume::Sender<AppInitMsg>>>;
+    type Map = Mutex<HashMap<Txt, flume::Sender<AppInitMsg>>>;
 
     pub fn get() -> &'static Map {
         static mut MAP: MaybeUninit<Map> = MaybeUninit::uninit();
@@ -349,7 +353,7 @@ impl AppInit {
 
 /// Start the view-process server and waits for `(request, response, event)`.
 #[cfg(not(feature = "ipc"))]
-pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
+pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     let app_init_sender = name_map::get().lock().unwrap().remove(&server_name).unwrap();
 
     let (req_sender, req_recv) = channel();

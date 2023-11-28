@@ -2,6 +2,7 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
+use zero_ui_txt::Txt;
 use zero_ui_units::*;
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
@@ -251,7 +252,7 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     let position = handle.position().to_px();
     let size = handle.size().to_px();
     MonitorInfo {
-        name: handle.name().unwrap_or_default(),
+        name: Txt::from_str(&handle.name().unwrap_or_default()),
         position,
         size,
         scale_factor: Factor(handle.scale_factor() as _),
@@ -1035,13 +1036,15 @@ pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardErro
 
 #[cfg(windows)]
 pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_api::ClipboardError {
+    use zero_ui_txt::formatx;
+
     if e == clipboard_win::SystemError::unimplemented() {
         clipboard_api::ClipboardError::NotSupported
     } else if e.is_zero() {
         // If GetClipboardData fails it returns a NULL, but GetLastError sometimes (always?) returns 0 (ERROR_SUCCESS)
         clipboard_api::ClipboardError::NotFound
     } else {
-        clipboard_api::ClipboardError::Other(format!("{e:?}"))
+        clipboard_api::ClipboardError::Other(formatx!("{e:?}"))
     }
 }
 
@@ -1080,9 +1083,9 @@ pub(crate) fn accesskit_to_event(
             Action::ShowTooltip => AccessCmd::SetToolTipVis(true),
             Action::ReplaceSelectedText => {
                 if let Some(accesskit::ActionData::Value(s)) = request.data {
-                    AccessCmd::ReplaceSelectedText(s.to_string())
+                    AccessCmd::ReplaceSelectedText(Txt::from_str(&s))
                 } else {
-                    AccessCmd::ReplaceSelectedText(String::new())
+                    AccessCmd::ReplaceSelectedText(Txt::from_str(""))
                 }
             }
             Action::ScrollBackward => AccessCmd::Scroll(ScrollCmd::PageUp),
@@ -1128,7 +1131,7 @@ pub(crate) fn accesskit_to_event(
                 }
             }
             Action::SetValue => match request.data {
-                Some(accesskit::ActionData::Value(s)) => AccessCmd::SetString(s.to_string()),
+                Some(accesskit::ActionData::Value(s)) => AccessCmd::SetString(Txt::from_str(&s)),
                 Some(accesskit::ActionData::NumericValue(n)) => AccessCmd::SetNumber(n),
                 _ => return None,
             },
@@ -1284,7 +1287,7 @@ fn access_node_to_kit(
                     builder.set_invalid(accesskit::Invalid::True)
                 }
             }
-            Label(s) => builder.set_name(s.clone().into_boxed_str()),
+            Label(s) => builder.set_name(s.clone().into_owned().into_boxed_str()),
             Level(n) => builder.set_hierarchical_level(n.get() as usize),
             Modal => builder.set_modal(),
             MultiSelectable => builder.set_multiselectable(),
@@ -1292,7 +1295,7 @@ fn access_node_to_kit(
                 access::Orientation::Horizontal => builder.set_orientation(accesskit::Orientation::Horizontal),
                 access::Orientation::Vertical => builder.set_orientation(accesskit::Orientation::Vertical),
             },
-            Placeholder(p) => builder.set_placeholder(p.clone().into_boxed_str()),
+            Placeholder(p) => builder.set_placeholder(p.clone().into_owned().into_boxed_str()),
             ReadOnly => builder.set_read_only(),
             Required => builder.set_required(),
             Selected => builder.set_selected(true),
@@ -1303,7 +1306,7 @@ fn access_node_to_kit(
             ValueMax(m) => builder.set_max_numeric_value(*m),
             ValueMin(m) => builder.set_min_numeric_value(*m),
             Value(v) => builder.set_numeric_value(*v),
-            ValueText(v) => builder.set_value(v.clone().into_boxed_str()),
+            ValueText(v) => builder.set_value(v.clone().into_owned().into_boxed_str()),
             Live { indicator, atomic, busy } => {
                 builder.set_live(match indicator {
                     access::LiveIndicator::Assertive => accesskit::Live::Assertive,

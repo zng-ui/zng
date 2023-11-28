@@ -24,6 +24,7 @@ use winit::{
     monitor::{MonitorHandle, VideoMode as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
+use zero_ui_txt::Txt;
 use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -263,7 +264,7 @@ impl Window {
                         state: KeyState::Pressed,
                         key: Key::F4,
                         key_modified: Key::F4,
-                        text: String::new(),
+                        text: Txt::from_static(""),
                     }));
                     return Some(0);
                 }
@@ -470,7 +471,7 @@ impl Window {
         self.rendered_frame_id
     }
 
-    pub fn set_title(&self, title: String) {
+    pub fn set_title(&self, title: Txt) {
         self.window.set_title(&title);
     }
 
@@ -1533,7 +1534,7 @@ impl Window {
         if already_open {
             let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
                 id,
-                dlg_api::MsgDialogResponse::Error("dialog already open".to_owned()),
+                dlg_api::MsgDialogResponse::Error(Txt::from_static("dialog already open")),
             )));
         }
         already_open
@@ -1556,8 +1557,8 @@ impl Window {
                 dlg_api::MsgDialogButtons::OkCancel => rfd::MessageButtons::OkCancel,
                 dlg_api::MsgDialogButtons::YesNo => rfd::MessageButtons::YesNo,
             })
-            .set_title(&dialog.title)
-            .set_description(&dialog.message)
+            .set_title(dialog.title.as_str())
+            .set_description(dialog.message.as_str())
             .set_parent(&self.window);
 
         let modal_dialog_active = self.modal_dialog_active.clone();
@@ -1593,9 +1594,9 @@ impl Window {
         }
 
         let mut dlg = rfd::AsyncFileDialog::new()
-            .set_title(&dialog.title)
+            .set_title(dialog.title.as_str())
             .set_directory(&dialog.starting_dir)
-            .set_file_name(&dialog.starting_name)
+            .set_file_name(dialog.starting_name.as_str())
             .set_parent(&self.window);
         for (name, patterns) in dialog.iter_filters() {
             dlg = dlg.add_filter(name, &patterns.map(|s| s.trim_start_matches(['*', '.'])).collect::<Vec<_>>());

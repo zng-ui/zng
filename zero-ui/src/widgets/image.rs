@@ -42,7 +42,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.set_child(node);
 
     let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
-        let error = Img::dummy(Some("no source".to_owned()));
+        let error = Img::dummy(Some(Txt::from_static("no source")));
         let error = ImageSource::Image(var(error).read_only());
         LocalVar(error).boxed()
     });
@@ -60,7 +60,7 @@ mod tests {
     fn error_view_recursion() {
         crate::core::test_log();
 
-        let img = var(crate::core::image::Img::dummy(Some("test error".to_string()))).read_only();
+        let img = var(crate::core::image::Img::dummy(Some(Txt::from_static("test error")))).read_only();
 
         let mut app = App::default().run_headless(false);
         IMAGES.load_in_headless().set(true);

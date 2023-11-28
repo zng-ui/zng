@@ -413,7 +413,7 @@ impl HeadedCtrl {
 
         if let Some(title) = self.vars.title().get_new() {
             self.update_gen(move |view| {
-                let _: Ignore = view.set_title(title.into_owned());
+                let _: Ignore = view.set_title(title);
             });
         }
 
@@ -1026,7 +1026,7 @@ impl HeadedCtrl {
 
         let request = WindowRequest {
             id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
-            title: self.vars.title().get().to_string(),
+            title: self.vars.title().get(),
             state: state.clone(),
             kiosk: self.kiosk.is_some(),
             default_position: system_pos,
@@ -1154,7 +1154,7 @@ impl HeadedCtrl {
 
         let request = WindowRequest {
             id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
-            title: self.vars.title().get_string(),
+            title: self.vars.title().get(),
             state: self.state.clone().unwrap(),
             kiosk: self.kiosk.is_some(),
             default_position: false,

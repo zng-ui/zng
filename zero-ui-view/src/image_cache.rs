@@ -2,6 +2,7 @@ use std::{fmt, sync::Arc};
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
+use zero_ui_txt::{formatx, ToText, Txt};
 use zero_ui_units::{Px, PxPoint, PxSize};
 use zero_ui_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
@@ -60,7 +61,7 @@ impl ImageCache {
                 ImageDataFormat::Bgra8 { size, ppi } => {
                     let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                     if data.len() != expected_len {
-                        Err(format!(
+                        Err(formatx!(
                             "pixels.len() is not width * height * 4, expected {expected_len}, found {}",
                             data.len()
                         ))
@@ -80,7 +81,7 @@ impl ImageCache {
                 ImageDataFormat::A8 { size } => {
                     let expected_len = size.width.0 as usize * size.height.0 as usize;
                     if data.len() != expected_len {
-                        Err(format!(
+                        Err(formatx!(
                             "pixels.len() is not width * height, expected {expected_len}, found {}",
                             data.len()
                         ))
@@ -101,7 +102,7 @@ impl ImageCache {
                     Ok((fmt, size)) => {
                         let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
                         if decoded_len > max_decoded_len {
-                            Err(format!(
+                            Err(formatx!(
                                 "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                             ))
                         } else {
@@ -113,7 +114,7 @@ impl ImageCache {
                             }));
                             match Self::image_decode(&data[..], fmt, downscale) {
                                 Ok(img) => Ok(Self::convert_decoded(img, mask)),
-                                Err(e) => Err(e.to_string()),
+                                Err(e) => Err(e.to_text()),
                             }
                         }
                     }
@@ -172,7 +173,7 @@ impl ImageCache {
                     size = Some(s);
                     None
                 }
-                ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext),
+                ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
                 ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
                 ImageDataFormat::Unknown => None,
             };
@@ -194,7 +195,7 @@ impl ImageCache {
                                 if let Some(s) = size {
                                     let decoded_len = s.width.0 as u64 * s.height.0 as u64 * 4;
                                     if decoded_len > max_decoded_len {
-                                        let error = format!(
+                                        let error = formatx!(
                                             "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                                         );
                                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error }));
@@ -229,7 +230,7 @@ impl ImageCache {
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                             image: id,
-                            error: e.to_string(),
+                            error: e.to_text(),
                         }));
                     }
                 }
@@ -247,7 +248,7 @@ impl ImageCache {
             } else {
                 let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
-                    error: "unknown format".to_string(),
+                    error: Txt::from_static("unknown format"),
                 }));
             }
         });
@@ -287,9 +288,9 @@ impl ImageCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
     }
 
-    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), String> {
+    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), Txt> {
         let fmt = match fmt {
-            ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext),
+            ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
             ImageDataFormat::Unknown => None,
             ImageDataFormat::Bgra8 { .. } => unreachable!(),
@@ -300,7 +301,7 @@ impl ImageCache {
             Some(fmt) => image::io::Reader::with_format(std::io::Cursor::new(data), fmt),
             None => image::io::Reader::new(std::io::Cursor::new(data))
                 .with_guessed_format()
-                .map_err(|e| e.to_string())?,
+                .map_err(|e| e.to_text())?,
         };
 
         match reader.format() {
@@ -308,7 +309,7 @@ impl ImageCache {
                 let (w, h) = reader.into_dimensions().map_err(|e| e.to_string())?;
                 Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32))))
             }
-            None => Err("unknown format".to_string()),
+            None => Err(Txt::from_static("unknown format")),
         }
     }
 
@@ -800,9 +801,9 @@ impl ImageCache {
         )
     }
 
-    pub fn encode(&self, id: ImageId, format: String) {
+    pub fn encode(&self, id: ImageId, format: Txt) {
         if !ENCODERS.contains(&format.as_str()) {
-            let error = format!("cannot encode `{id:?}` to `{format}`, unknown format");
+            let error = formatx!("cannot encode `{id:?}` to `{format}`, unknown format");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -810,7 +811,7 @@ impl ImageCache {
         }
 
         if let Some(img) = self.get(id) {
-            let fmt = image::ImageFormat::from_extension(&format).unwrap();
+            let fmt = image::ImageFormat::from_extension(format.as_str()).unwrap();
             debug_assert!(fmt.can_write());
 
             let img = img.clone();
@@ -826,13 +827,13 @@ impl ImageCache {
                         }));
                     }
                     Err(e) => {
-                        let error = format!("failed to encode `{id:?}` to `{format}`, {e}");
+                        let error = formatx!("failed to encode `{id:?}` to `{format}`, {e}");
                         let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
                     }
                 }
             })
         } else {
-            let error = format!("cannot encode `{id:?}` to `{format}`, image not found");
+            let error = formatx!("cannot encode `{id:?}` to `{format}`, image not found");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -1197,6 +1198,7 @@ mod capture {
         api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat},
         Renderer,
     };
+    use zero_ui_txt::formatx;
     use zero_ui_units::{Factor, PxRect};
     use zero_ui_view_api::{
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
@@ -1230,7 +1232,7 @@ mod capture {
                 let id = self.image_id_gen.incr();
                 let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
-                    error: format!("no frame rendered in window `{window_id:?}`"),
+                    error: formatx!("no frame rendered in window `{window_id:?}`"),
                 }));
                 let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
                     window: window_id,

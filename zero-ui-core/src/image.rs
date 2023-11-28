@@ -12,6 +12,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use zero_ui_txt::{formatx, ToText};
 use zero_ui_view_api::ipc::IpcBytes;
 
 use crate::{
@@ -464,7 +465,7 @@ impl ImagesService {
             ImageSource::Read(path) => {
                 let path = crate::crate_util::absolute_path(&path, || env::current_dir().expect("could not access current dir"), true);
                 if !limits.allow_path.allows(&path) {
-                    let error = format!("limits filter blocked `{}`", path.display());
+                    let error = formatx!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
                     return var(Img::dummy(Some(error))).read_only();
                 }
@@ -473,7 +474,7 @@ impl ImagesService {
             #[cfg(http)]
             ImageSource::Download(uri, accepts) => {
                 if !limits.allow_uri.allows(&uri) {
-                    let error = format!("limits filter blocked `{uri}`");
+                    let error = formatx!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
                     return var(Img::dummy(Some(error))).read_only();
                 }
@@ -552,15 +553,15 @@ impl ImagesService {
                         format: path
                             .extension()
                             .and_then(|e| e.to_str())
-                            .map(|s| ImageDataFormat::FileExtension(s.to_owned()))
+                            .map(|s| ImageDataFormat::FileExtension(Txt::from_str(s)))
                             .unwrap_or(ImageDataFormat::Unknown),
-                        r: Err(String::new()),
+                        r: Err(Txt::from_static("")),
                     };
 
                     let mut file = match fs::File::open(path).await {
                         Ok(f) => f,
                         Err(e) => {
-                            r.r = Err(e.to_string());
+                            r.r = Err(e.to_text());
                             return r;
                         }
                     };
@@ -568,20 +569,20 @@ impl ImagesService {
                     let len = match file.metadata().await {
                         Ok(m) => m.len() as usize,
                         Err(e) => {
-                            r.r = Err(e.to_string());
+                            r.r = Err(e.to_text());
                             return r;
                         }
                     };
 
                     if len > max_encoded_size.0 {
-                        r.r = Err(format!("file size `{}` exceeds the limit of `{max_encoded_size}`", len.bytes()));
+                        r.r = Err(formatx!("file size `{}` exceeds the limit of `{max_encoded_size}`", len.bytes()));
                         return r;
                     }
 
                     let mut data = Vec::with_capacity(len);
                     r.r = match file.read_to_end(&mut data).await {
                         Ok(_) => Ok(IpcBytes::from_vec(data)),
-                        Err(e) => Err(e.to_string()),
+                        Err(e) => Err(e.to_text()),
                     };
 
                     r
@@ -600,7 +601,7 @@ impl ImagesService {
                     task::run(async move {
                         let mut r = ImageData {
                             format: ImageDataFormat::Unknown,
-                            r: Err(String::new()),
+                            r: Err(Txt::from_static("")),
                         };
 
                         let request = task::http::Request::get(uri)
@@ -615,21 +616,21 @@ impl ImagesService {
                                 if let Some(m) = rsp.headers().get(&task::http::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
                                     let m = m.to_lowercase();
                                     if m.starts_with("image/") {
-                                        r.format = ImageDataFormat::MimeType(m);
+                                        r.format = ImageDataFormat::MimeType(Txt::from_str(&m));
                                     }
                                 }
 
                                 match rsp.bytes().await {
                                     Ok(d) => r.r = Ok(IpcBytes::from_vec(d)),
                                     Err(e) => {
-                                        r.r = Err(format!("download error: {e}"));
+                                        r.r = Err(formatx!("download error: {e}"));
                                     }
                                 }
 
                                 let _ = rsp.consume().await;
                             }
                             Err(e) => {
-                                r.r = Err(format!("request error: {e}"));
+                                r.r = Err(formatx!("request error: {e}"));
                             }
                         }
 
@@ -788,7 +789,7 @@ impl IMAGES {
     }
 
     /// Returns a dummy image that reports it is loaded or an error.
-    pub fn dummy(&self, error: Option<String>) -> ImageVar {
+    pub fn dummy(&self, error: Option<Txt>) -> ImageVar {
         var(Img::dummy(error)).read_only()
     }
 
@@ -805,7 +806,7 @@ impl IMAGES {
     pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Txt>) -> ImageVar {
         match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
-            Err(e) => self.dummy(Some(e.to_string())),
+            Err(e) => self.dummy(Some(e.to_text())),
         }
     }
 
@@ -951,5 +952,5 @@ impl IMAGES {
 }
 struct ImageData {
     format: ImageDataFormat,
-    r: std::result::Result<IpcBytes, String>,
+    r: std::result::Result<IpcBytes, Txt>,
 }

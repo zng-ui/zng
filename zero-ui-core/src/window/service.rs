@@ -4,6 +4,7 @@ use std::{fmt, mem};
 
 use parking_lot::Mutex;
 use rayon::prelude::*;
+use zero_ui_txt::{formatx, Txt};
 
 use super::commands::WindowCommands;
 use super::*;
@@ -154,13 +155,13 @@ impl WindowsService {
                         self.frame_images.push(img.clone());
                         img.read_only()
                     }
-                    Err(_) => var(Img::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only(),
+                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
-                var(Img::dummy(Some(format!("window `{window_id}` is headless without renderer")))).read_only()
+                var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Img::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only()
+            var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only()
         }
     }
 
@@ -1127,10 +1128,10 @@ impl WINDOWS {
         WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
             Some(win) => {
                 if let Err(e) = win.message_dialog(dialog, responder.clone()) {
-                    responder.respond(view_process::MsgDialogResponse::Error(format!("{e}")))
+                    responder.respond(view_process::MsgDialogResponse::Error(formatx!("{e}")))
                 }
             }
-            None => responder.respond(view_process::MsgDialogResponse::Error("native window not found".to_owned())),
+            None => responder.respond(view_process::MsgDialogResponse::Error(Txt::from_static("native window not found"))),
         });
         rsp
     }
@@ -1148,10 +1149,10 @@ impl WINDOWS {
         WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
             Some(win) => {
                 if let Err(e) = win.file_dialog(dialog, responder.clone()) {
-                    responder.respond(view_process::FileDialogResponse::Error(format!("{e}")))
+                    responder.respond(view_process::FileDialogResponse::Error(formatx!("{e}")))
                 }
             }
-            None => responder.respond(view_process::FileDialogResponse::Error("native window not found".to_owned())),
+            None => responder.respond(view_process::FileDialogResponse::Error(Txt::from_static("native window not found"))),
         });
         rsp
     }

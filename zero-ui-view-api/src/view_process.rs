@@ -3,6 +3,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use zero_ui_txt::Txt;
+
 use crate::{MODE_VAR, SERVER_NAME_VAR, VERSION_VAR};
 
 /// Configuration for starting a view-process.
@@ -11,13 +13,13 @@ pub struct ViewConfig {
     /// The [`VERSION`] of the API crate in the app-process.
     ///
     /// [`VERSION`]: crate::VERSION
-    pub version: String,
+    pub version: Txt,
 
     /// Name of the initial channel used in [`connect_view_process`] to setup the connections to the
     /// client app-process.
     ///
     /// [`connect_view_process`]: crate::ipc::connect_view_process
-    pub server_name: String,
+    pub server_name: Txt,
 
     /// If the server should consider all window requests, headless window requests.
     pub headless: bool,
@@ -33,8 +35,8 @@ impl ViewConfig {
         if let (Ok(version), Ok(server_name)) = (env::var(VERSION_VAR), env::var(SERVER_NAME_VAR)) {
             let headless = env::var(MODE_VAR).map(|m| m == "headless").unwrap_or(false);
             Some(ViewConfig {
-                version,
-                server_name,
+                version: Txt::from_str(&version),
+                server_name: Txt::from_str(&server_name),
                 headless,
             })
         } else {
@@ -99,8 +101,8 @@ impl ViewConfig {
         );
 
         ViewConfig {
-            version: config[0].to_owned(),
-            server_name: config[1].to_owned(),
+            version: Txt::from_str(config[0]),
+            server_name: Txt::from_str(config[1]),
             headless: config[2] == "true",
         }
     }
