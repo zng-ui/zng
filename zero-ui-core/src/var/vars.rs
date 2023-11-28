@@ -4,8 +4,7 @@ use zero_ui_view_api::config::AnimationsConfig;
 
 use crate::{
     app::LoopTimer,
-    context::{app_local, UpdatesTrace},
-    context_local,
+    context::{app_local, context_local, UpdatesTrace},
     units::Factor,
 };
 

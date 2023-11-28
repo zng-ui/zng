@@ -10,14 +10,13 @@ use zero_ui_view_api::Inited;
 
 use crate::clipboard::ClipboardManager;
 use crate::config::ConfigManager;
-use crate::crate_util::{unique_id_32, unique_id_64, PanicPayload, ReceiverExt};
+use crate::crate_util::{unique_id_64, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::fs_watcher::FsWatcherManager;
 use crate::image::ImageManager;
 use crate::l10n::L10nManager;
 use crate::pointer_capture::PointerCaptureManager;
 use crate::task::ui::UiTask;
-use crate::text::Txt;
 use crate::timer::TimersService;
 use crate::undo::UndoManager;
 use crate::units::Deadline;
@@ -48,40 +47,6 @@ use std::{
     fmt,
     time::Instant,
 };
-
-unique_id_32! {
-    /// Identifies an app instance.
-    ///
-    /// You can get the current app ID from [`App::current_id`].
-    ///
-    /// [`App::current_id`]: crate::app::App::current_id
-    pub struct AppId;
-}
-zero_ui_unique_id::impl_unique_id_name!(AppId);
-zero_ui_unique_id::impl_unique_id_fmt!(AppId);
-
-impl serde::Serialize for AppId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let name = self.name();
-        if name.is_empty() {
-            use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `AppId`"));
-        }
-        name.serialize(serializer)
-    }
-}
-impl<'de> serde::Deserialize<'de> for AppId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let name = Txt::deserialize(deserializer)?;
-        Ok(AppId::named(name))
-    }
-}
 
 /// Error when the app connected to a sender/receiver channel has disconnected.
 ///

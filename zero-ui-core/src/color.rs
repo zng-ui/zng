@@ -1,7 +1,7 @@
 //! Color types, functions and macros, [`Rgba`], [`filters`], [`hex!`](crate::color::hex) and more.
 
 use crate::{
-    context_local,
+    context::context_local,
     units::*,
     var::{
         animation::{Transition, Transitionable},

@@ -6,7 +6,7 @@ use crate::{
         raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT},
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
-    app_local,
+    context::app_local,
     context::WINDOW,
     crate_util::{fx_map_new, unique_id_32, FxHashMap},
     event::{event, AnyEventArgs, EventUpdate},

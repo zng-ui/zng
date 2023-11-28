@@ -59,7 +59,7 @@ test_util = ["multi_app", "deadlock_detection"]
 # depending on the current thread.
 #
 # Not enabled by default, but enabled by `feature="test_util"`.
-multi_app = []
+multi_app = ["zero-ui-app_context/multi_app"]
 
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = []
@@ -92,6 +92,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
 
 # text
 font-kit = "0.11"

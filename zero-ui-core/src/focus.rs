@@ -89,7 +89,7 @@ mod tests;
 use crate::{
     access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     app::AppExtension,
-    app_local,
+    context::app_local,
     context::*,
     crate_util::{IdEntry, IdMap},
     event::*,

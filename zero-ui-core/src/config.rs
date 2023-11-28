@@ -9,7 +9,8 @@ use std::{
 
 use crate::{
     app::{raw_events::LOW_MEMORY_EVENT, AppExtension},
-    app_local, clmv,
+    clmv,
+    context::app_local,
     fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile},
     task,
     text::Txt,

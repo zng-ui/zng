@@ -1316,7 +1316,7 @@ impl<T: VarValue> WhenInputInitData<T> {
         }
     }
 }
-crate::context_local! {
+crate::context::context_local! {
     static WHEN_INPUT_CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
 }
 impl<T: VarValue> AnyWhenInputVarInner for WhenInputInitData<T> {

@@ -59,13 +59,13 @@ context_var! {
 impl FontMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&FONT_FAMILY_VAR);
-        set.insert_context_var(&FONT_SIZE_VAR);
-        set.insert_context_var(&FONT_WEIGHT_VAR);
-        set.insert_context_var(&FONT_STYLE_VAR);
-        set.insert_context_var(&FONT_STRETCH_VAR);
-        set.insert_context_var(&FONT_SYNTHESIS_VAR);
-        set.insert_context_var(&FONT_AA_VAR);
+        set.insert(&FONT_FAMILY_VAR);
+        set.insert(&FONT_SIZE_VAR);
+        set.insert(&FONT_WEIGHT_VAR);
+        set.insert(&FONT_STYLE_VAR);
+        set.insert(&FONT_STRETCH_VAR);
+        set.insert(&FONT_SYNTHESIS_VAR);
+        set.insert(&FONT_AA_VAR);
     }
 }
 
@@ -204,9 +204,9 @@ context_var! {
 impl TextFillMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&FONT_COLOR_VAR);
-        set.insert_context_var(&FONT_PALETTE_VAR);
-        set.insert_context_var(&FONT_PALETTE_COLORS_VAR);
+        set.insert(&FONT_COLOR_VAR);
+        set.insert(&FONT_PALETTE_VAR);
+        set.insert(&FONT_PALETTE_COLORS_VAR);
     }
 }
 
@@ -296,9 +296,9 @@ context_var! {
 impl TextAlignMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&TEXT_ALIGN_VAR);
-        set.insert_context_var(&TEXT_OVERFLOW_ALIGN_VAR);
-        set.insert_context_var(&JUSTIFY_VAR);
+        set.insert(&TEXT_ALIGN_VAR);
+        set.insert(&TEXT_OVERFLOW_ALIGN_VAR);
+        set.insert(&JUSTIFY_VAR);
     }
 }
 
@@ -384,12 +384,12 @@ context_var! {
 impl TextWrapMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&TEXT_WRAP_VAR);
-        set.insert_context_var(&WORD_BREAK_VAR);
-        set.insert_context_var(&LINE_BREAK_VAR);
-        set.insert_context_var(&HYPHENS_VAR);
-        set.insert_context_var(&HYPHEN_CHAR_VAR);
-        set.insert_context_var(&TEXT_OVERFLOW_VAR);
+        set.insert(&TEXT_WRAP_VAR);
+        set.insert(&WORD_BREAK_VAR);
+        set.insert(&LINE_BREAK_VAR);
+        set.insert(&HYPHENS_VAR);
+        set.insert(&HYPHEN_CHAR_VAR);
+        set.insert(&TEXT_OVERFLOW_VAR);
     }
 }
 
@@ -640,19 +640,19 @@ context_var! {
 impl TextDecorationMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&UNDERLINE_THICKNESS_VAR);
-        set.insert_context_var(&UNDERLINE_STYLE_VAR);
-        set.insert_context_var(&UNDERLINE_COLOR_VAR);
-        set.insert_context_var(&UNDERLINE_SKIP_VAR);
-        set.insert_context_var(&UNDERLINE_POSITION_VAR);
-        set.insert_context_var(&OVERLINE_THICKNESS_VAR);
-        set.insert_context_var(&OVERLINE_STYLE_VAR);
-        set.insert_context_var(&OVERLINE_COLOR_VAR);
-        set.insert_context_var(&STRIKETHROUGH_THICKNESS_VAR);
-        set.insert_context_var(&STRIKETHROUGH_STYLE_VAR);
-        set.insert_context_var(&STRIKETHROUGH_COLOR_VAR);
-        set.insert_context_var(&IME_UNDERLINE_THICKNESS_VAR);
-        set.insert_context_var(&IME_UNDERLINE_STYLE_VAR);
+        set.insert(&UNDERLINE_THICKNESS_VAR);
+        set.insert(&UNDERLINE_STYLE_VAR);
+        set.insert(&UNDERLINE_COLOR_VAR);
+        set.insert(&UNDERLINE_SKIP_VAR);
+        set.insert(&UNDERLINE_POSITION_VAR);
+        set.insert(&OVERLINE_THICKNESS_VAR);
+        set.insert(&OVERLINE_STYLE_VAR);
+        set.insert(&OVERLINE_COLOR_VAR);
+        set.insert(&STRIKETHROUGH_THICKNESS_VAR);
+        set.insert(&STRIKETHROUGH_STYLE_VAR);
+        set.insert(&STRIKETHROUGH_COLOR_VAR);
+        set.insert(&IME_UNDERLINE_THICKNESS_VAR);
+        set.insert(&IME_UNDERLINE_STYLE_VAR);
     }
 }
 
@@ -773,11 +773,11 @@ context_var! {
 impl TextSpacingMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&LINE_HEIGHT_VAR);
-        set.insert_context_var(&LINE_SPACING_VAR);
-        set.insert_context_var(&LETTER_SPACING_VAR);
-        set.insert_context_var(&WORD_SPACING_VAR);
-        set.insert_context_var(&TAB_LENGTH_VAR);
+        set.insert(&LINE_HEIGHT_VAR);
+        set.insert(&LINE_SPACING_VAR);
+        set.insert(&LETTER_SPACING_VAR);
+        set.insert(&WORD_SPACING_VAR);
+        set.insert(&TAB_LENGTH_VAR);
     }
 }
 
@@ -885,8 +885,8 @@ context_var! {
 impl TextTransformMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&WHITE_SPACE_VAR);
-        set.insert_context_var(&TEXT_TRANSFORM_VAR);
+        set.insert(&WHITE_SPACE_VAR);
+        set.insert(&TEXT_TRANSFORM_VAR);
     }
 }
 
@@ -966,8 +966,8 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
 impl LangMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&LANG_VAR);
-        set.insert_context_var(&DIRECTION_VAR);
+        set.insert(&LANG_VAR);
+        set.insert(&DIRECTION_VAR);
     }
 }
 
@@ -994,8 +994,8 @@ context_var! {
 impl FontFeaturesMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&FONT_FEATURES_VAR);
-        set.insert_context_var(&FONT_VARIATIONS_VAR);
+        set.insert(&FONT_FEATURES_VAR);
+        set.insert(&FONT_VARIATIONS_VAR);
     }
 }
 
@@ -1232,18 +1232,18 @@ context_var! {
 impl TextEditMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&TEXT_EDITABLE_VAR);
-        set.insert_context_var(&TEXT_SELECTABLE_VAR);
-        set.insert_context_var(&ACCEPTS_ENTER_VAR);
-        set.insert_context_var(&CARET_COLOR_VAR);
-        set.insert_context_var(&CARET_TOUCH_SHAPE_VAR);
-        set.insert_context_var(&SELECTION_COLOR_VAR);
-        set.insert_context_var(&TXT_PARSE_LIVE_VAR);
-        set.insert_context_var(&CHANGE_STOP_DELAY_VAR);
-        set.insert_context_var(&AUTO_SELECTION_VAR);
-        set.insert_context_var(&MAX_CHARS_COUNT_VAR);
-        set.insert_context_var(&OBSCURING_CHAR_VAR);
-        set.insert_context_var(&OBSCURE_TXT_VAR);
+        set.insert(&TEXT_EDITABLE_VAR);
+        set.insert(&TEXT_SELECTABLE_VAR);
+        set.insert(&ACCEPTS_ENTER_VAR);
+        set.insert(&CARET_COLOR_VAR);
+        set.insert(&CARET_TOUCH_SHAPE_VAR);
+        set.insert(&SELECTION_COLOR_VAR);
+        set.insert(&TXT_PARSE_LIVE_VAR);
+        set.insert(&CHANGE_STOP_DELAY_VAR);
+        set.insert(&AUTO_SELECTION_VAR);
+        set.insert(&MAX_CHARS_COUNT_VAR);
+        set.insert(&OBSCURING_CHAR_VAR);
+        set.insert(&OBSCURE_TXT_VAR);
     }
 }
 
@@ -1656,7 +1656,7 @@ context_var! {
 impl ParagraphMix<()> {
     /// Insert context variables used by properties in this mix-in.
     pub fn context_vars_set(set: &mut ContextValueSet) {
-        set.insert_context_var(&PARAGRAPH_SPACING_VAR);
+        set.insert(&PARAGRAPH_SPACING_VAR);
     }
 }
 
@@ -1829,7 +1829,9 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     UiNodeOp::Render { frame } => {
                         let l_txt = LayoutText::get();
                         let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
-                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| c.render(frame));
+                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| {
+                            c.render(frame)
+                        });
                     }
                     _ => {}
                 });

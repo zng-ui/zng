@@ -6,8 +6,9 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["name"]
+default = ["name", "bytemuck" ]
 name = ["zero-ui-txt", "parking_lot"]
+bytemuck = []
 
 [dependencies]
 zero-ui-txt = { path = "../zero-ui-txt", optional = true }

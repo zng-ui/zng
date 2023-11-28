@@ -1,4 +1,4 @@
-use crate::context::ContextLocal;
+use crate::context::{ContextLocal, ContextLocalKeyProvider};
 
 use super::*;
 
@@ -70,6 +70,12 @@ pub fn context_var_init<T: VarValue>(init: impl IntoVar<T>) -> BoxedVar<T> {
     init.into_var().boxed()
 }
 
+impl<T: VarValue> ContextLocalKeyProvider for ContextVar<T> {
+    fn context_local_key(&'static self) -> TypeId {
+        self.0.context_local_key()
+    }
+}
+
 /// Represents another variable in a context.
 ///
 /// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own
@@ -109,10 +115,6 @@ impl<T: VarValue> ContextVar<T> {
     pub fn with_context_var<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> R {
         let mut var = Some(Arc::new(var.into_var().actual_var().boxed()));
         self.with_context(id, &mut var, action)
-    }
-
-    pub(crate) fn context_local(&'static self) -> &'static ContextLocal<BoxedVar<T>> {
-        self.0
     }
 }
 impl<T: VarValue> Copy for ContextVar<T> {}
@@ -264,7 +266,7 @@ pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 /// [`ContextualizedVar`]: crate::var::types::ContextualizedVar
 #[derive(Clone, Default)]
 pub struct ContextInitHandle(Arc<()>);
-crate::context_local! {
+crate::context::context_local! {
     static CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
 }
 impl ContextInitHandle {

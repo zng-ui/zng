@@ -7,6 +7,7 @@ members = [
     "zero-ui-txt",
     "zero-ui-unique_id",
     "zero-ui-units",
+    "zero-ui-app_context",
 
     # view:
     "zero-ui-view-api", 

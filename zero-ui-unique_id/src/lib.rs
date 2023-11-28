@@ -117,6 +117,25 @@ macro_rules! unique_id_64 {
     };
 }
 
+#[cfg(feature = "bytemuck")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_bytemuck {
+    ($Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)?) => {
+        // SAFETY: $Type a transparent wrapper on a std non-zero integer.
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::NoUninit for $Type $(<$T>)? { }
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::ZeroableInOption for $Type $(<$T>)? { }
+        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::PodInOption for $Type $(<$T>)? { }
+    }
+}
+
+#[cfg(not(feature = "bytemuck"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! impl_bytemuck {
+    ($Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)?) => {};
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! unique_id {
@@ -148,10 +167,7 @@ macro_rules! unique_id {
         #[repr(transparent)]
         $vis struct $Type $(<$T $(: $($bounds)+)?>)? ($non_zero $(, std::marker::PhantomData<$T>)?);
 
-        // SAFETY: $Type a transparent wrapper on a std non-zero integer.
-        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::NoUninit for $Type $(<$T>)? { }
-        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::ZeroableInOption for $Type $(<$T>)? { }
-        unsafe impl$(<$T $(: $($bounds)+)?>)? bytemuck::PodInOption for $Type $(<$T>)? { }
+        $crate::impl_bytemuck!{ $Type $(<$T $(: ( $($bounds)+ ) )?>)? }
 
         impl$(<$T $(: $($bounds)+)?>)? Clone for $Type $(<$T>)? {
             fn clone(&self) -> Self {

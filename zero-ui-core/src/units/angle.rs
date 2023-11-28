@@ -2,7 +2,8 @@ use derive_more as dm;
 
 use super::{about_eq, euclid, EasingStep, Factor, EQ_EPSILON, EQ_EPSILON_100};
 use crate::{
-    context_local, impl_from_and_into_var,
+    context::context_local,
+    impl_from_and_into_var,
     var::animation::{Transition, Transitionable},
 };
 

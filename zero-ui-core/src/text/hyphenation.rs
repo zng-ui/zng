@@ -4,7 +4,7 @@ use hyphenation::{Hyphenator as _, Load as _};
 use parking_lot::Mutex;
 
 use super::Lang;
-use crate::app_local;
+use crate::context::app_local;
 
 app_local! {
     static HYPHENATION: Hyphenation = Hyphenation {

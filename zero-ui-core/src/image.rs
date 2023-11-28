@@ -21,7 +21,6 @@ use crate::{
         view_process::{ImageRequest, ViewImage, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
-    app_local,
     crate_util::IdMap,
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},
@@ -29,6 +28,7 @@ use crate::{
     units::*,
     var::{types::WeakArcVar, *},
 };
+use zero_ui_app_context::app_local;
 
 mod types;
 pub use types::*;

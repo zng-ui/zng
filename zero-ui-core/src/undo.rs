@@ -13,9 +13,9 @@ use parking_lot::Mutex;
 
 use crate::{
     app::AppExtension,
-    app_local, clmv, command,
+    clmv, command,
+    context::{app_local, context_local},
     context::{StateMapRef, StaticStateId, WIDGET},
-    context_local,
     crate_util::RunOnDrop,
     event::{AnyEventArgs, Command, CommandNameExt, CommandScope},
     focus::commands::CommandFocusExt,

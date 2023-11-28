@@ -41,9 +41,6 @@ TextInput! {
     - Needs `context_local`.
     - VARS needs a hidden public API for the app?
 
-* app_local and context_local crate (zero-ui-app_context).
-    - Needs AppId, that needs unique_id_u32! util.
-
 * Length types in units crate.
     - Needs impl_from_and_into_var.
         - Will depend on vars crate, that depends on the Txt crate.

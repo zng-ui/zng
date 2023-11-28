@@ -4,8 +4,8 @@ use std::{fmt, mem};
 
 use crate::{
     color::*,
-    context::{LAYOUT, WIDGET},
-    context_local, property,
+    context::{context_local, LAYOUT, WIDGET},
+    property,
     render::{webrender_api as w_api, FrameValueKey},
     ui_vec,
     units::*,

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use zero_ui::core::{app_local, config::*};
+use zero_ui::core::{config::*, context::app_local};
 use zero_ui::prelude::units::*;
 use zero_ui::prelude::*;
 
@@ -178,9 +178,7 @@ fn test_view_api_types() {
 }
 
 fn test_core_app() {
-    use zero_ui::core::app::*;
-
-    let id = AppId::named("app-name");
+    let id = zero_ui::core::context::AppId::named("app-name");
     test_config!("AppId" => id);
 }
 

@@ -13,7 +13,7 @@ use crate::{
         view_process::VIEW_PROCESS_INITED_EVENT,
         AppExtension, DeviceId,
     },
-    app_local,
+    context::app_local,
     context::{UPDATES, WIDGET, WINDOW},
     event::{event, event_args, EventUpdate},
     mouse::{ButtonState, MouseButton},

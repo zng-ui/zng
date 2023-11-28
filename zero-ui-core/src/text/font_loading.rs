@@ -20,7 +20,7 @@ use crate::{
         view_process::{ViewProcessOffline, ViewRenderer, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
-    app_local,
+    context::app_local,
     context::UPDATES,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},

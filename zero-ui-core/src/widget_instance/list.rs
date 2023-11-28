@@ -8,7 +8,8 @@ use std::{
 };
 
 use crate::{
-    context_local, property,
+    context::context_local,
+    property,
     render::FrameValueKey,
     task::{self, ParallelIteratorExt},
     var::{animation::Transitionable, IntoVar, Var},

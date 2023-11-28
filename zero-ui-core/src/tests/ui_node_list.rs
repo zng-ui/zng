@@ -114,8 +114,8 @@ mod util {
     use std::thread::{self, ThreadId};
 
     use crate::{
-        context::{with_context_local, StaticStateId, WidgetUpdateMode, WIDGET},
-        context_local, property,
+        context::{context_local, with_context_local, StaticStateId, WidgetUpdateMode, WIDGET},
+        property,
         var::IntoValue,
         widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
     };

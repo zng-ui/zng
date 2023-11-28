@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{app::LoopTimer, clmv, context_local, crate_util};
+use crate::{app::LoopTimer, clmv, context::context_local, crate_util};
 
 pub use zero_ui_proc_macros::Transitionable;
 
