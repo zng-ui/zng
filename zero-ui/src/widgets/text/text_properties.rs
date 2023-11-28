@@ -1794,10 +1794,26 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     }
                 }
                 let bounds = bounds.to_rect();
-                //TODO use bounds (.init_widget and LAYERS directly?)
+                //TODO use bounds (.init_widget and wrap with custom)
 
                 let node = toolbar.get()(SelectionToolbarArgs {});
-                popup_state = Some(POPUP.open(node));
+
+                // capture all context including LayoutText, exclude text style properties.
+                let capture = ContextCapture::CaptureBlend {
+                    filter: CaptureFilter::Exclude({
+                        let mut exclude = ContextValueSet::new();
+                        super::Text::context_vars_set(&mut exclude);
+
+                        let mut allow = ContextValueSet::new();
+                        super::LangMix::<()>::context_vars_set(&mut allow);
+                        exclude.remove_all(&allow);
+
+                        exclude
+                    }),
+                    over: false,
+                };
+
+                popup_state = Some(POPUP.open_config(node, SELECTION_TOOLBAR_ANCHOR_VAR, capture));
             };
         }
     })
@@ -1820,5 +1836,9 @@ pub fn selection_toolbar_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMod
 context_var! {
     /// Position and size of the selection toolbar in relation to the bounding box
     /// of all selection rectangles.
-    pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorMode = AnchorOffset::out_top();
+    pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorMode = {
+        let mut m = AnchorMode::tooltip();
+        m.transform = AnchorOffset::out_top().into();
+        m
+    };
 }
