@@ -9,6 +9,15 @@ use std::{
 
 use rayon::iter::{FromParallelIterator, IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator};
 
+#[cfg(feature = "name")]
+mod name;
+
+#[cfg(feature = "name")]
+pub use name::*;
+
+#[doc(hidden)]
+pub use paste::paste;
+
 /// Declare a new unique id type that is backed by a `NonZeroU32`.
 #[macro_export]
 macro_rules! unique_id_32 {
@@ -181,7 +190,7 @@ macro_rules! unique_id {
                 }
             }
 
-            paste::paste! {
+            $crate::paste! {
                 /// New static ID that will be generated on the first get.
                 pub const fn new_static() -> [<Static $Type>] $(<$T>)? {
                     [<Static $Type>] $(::<$T>)? ::new_unique()
@@ -227,7 +236,7 @@ macro_rules! unique_id {
             }
         }
 
-        paste::paste! {
+        $crate::paste! {
             #[doc = "Lazy inited [`" $Type "`]."]
             #[allow(dead_code)]
             $vis struct [<Static $Type>] $(<$T $(: $($bounds)+)?>)? ($atomic $(, std::marker::PhantomData<fn() -> $T>)?);

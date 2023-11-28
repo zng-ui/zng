@@ -5,7 +5,15 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+default = ["name"]
+name = ["zero-ui-txt", "parking_lot"]
+
 [dependencies]
+zero-ui-txt = { path = "../zero-ui-txt", optional = true }
+parking_lot = { version = "0.12", optional = true }
+
 rayon = "1"
 hashbrown = { version = "0.14", features = ["rayon"] }
 tracing = "0.1"
+paste = "1"

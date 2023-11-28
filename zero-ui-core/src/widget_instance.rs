@@ -8,6 +8,7 @@ use std::{
 
 use parking_lot::Mutex;
 
+use crate::units::*;
 use crate::{
     context::*,
     event::EventUpdate,
@@ -15,7 +16,6 @@ use crate::{
     widget_base::{Parallel, PARALLEL_VAR},
     widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
-use crate::{crate_util::NameIdMap, units::*};
 use crate::{
     render::{FrameBuilder, FrameUpdate},
     text::Txt,
@@ -53,92 +53,9 @@ unique_id_64! {
     /// [`name`]: WidgetId::name
     pub struct WidgetId;
 }
-static WIDGET_ID_NAMES: parking_lot::RwLock<NameIdMap<WidgetId>> = parking_lot::const_rwlock(NameIdMap::new());
-impl WidgetId {
-    /// Get or generate an id with associated name.
-    ///
-    /// If the `name` is already associated with an id, returns it.
-    /// If the `name` is new, generates a new id and associated it with the name.
-    /// If `name` is an empty string just returns a new id.
-    pub fn named(name: impl Into<Txt>) -> Self {
-        WIDGET_ID_NAMES.write().get_id_or_insert(name.into(), Self::new_unique)
-    }
+zero_ui_unique_id::impl_unique_id_name!(WidgetId);
+zero_ui_unique_id::impl_unique_id_fmt!(WidgetId);
 
-    /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
-    ///
-    /// The [`named`] function causes a hash-map lookup, but if you are only naming a widget to find
-    /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
-    /// to this function call instead.
-    ///
-    /// [`named`]: WidgetId::named
-    /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: fn@crate::widget_base::id
-    pub fn debug_named(name: impl Into<Txt>) -> Self {
-        #[cfg(debug_assertions)]
-        return Self::named(name);
-
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = name;
-            Self::new_unique()
-        }
-    }
-
-    /// Generate a new id with associated name.
-    ///
-    /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
-    /// If the `name` is an empty string just returns a new id.
-    ///
-    /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
-        WIDGET_ID_NAMES.write().new_named(name.into(), Self::new_unique)
-    }
-
-    /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Txt {
-        WIDGET_ID_NAMES.read().get_name(self)
-    }
-
-    /// Associate a `name` with the id, if it is not named.
-    ///
-    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
-    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
-    /// If the `name` is an empty string or already is the name of the id, does nothing.
-    ///
-    /// [`NameUsed`]: IdNameError::NameUsed
-    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
-        WIDGET_ID_NAMES.write().set(name.into(), self)
-    }
-}
-impl fmt::Debug for WidgetId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.name();
-        if f.alternate() {
-            f.debug_struct("WidgetId")
-                .field("id", &self.get())
-                .field("sequential", &self.sequential())
-                .field("name", &name)
-                .finish()
-        } else if !name.is_empty() {
-            write!(f, r#"WidgetId("{name}")"#)
-        } else {
-            write!(f, "WidgetId({})", self.sequential())
-        }
-    }
-}
-impl fmt::Display for WidgetId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.name();
-        if !name.is_empty() {
-            write!(f, "{name}")
-        } else if f.alternate() {
-            write!(f, "#{}", self.sequential())
-        } else {
-            write!(f, "WgtId({})", self.sequential())
-        }
-    }
-}
 impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].
     fn from(name: &'static str) -> WidgetId {

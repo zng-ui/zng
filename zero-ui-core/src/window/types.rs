@@ -10,7 +10,7 @@ use zero_ui_view_api::webrender_api::DebugFlags;
 use crate::{
     app::view_process::ApiExtensionId,
     context::WINDOW,
-    crate_util::{unique_id_32, IdSet, NameIdMap},
+    crate_util::{unique_id_32, IdSet},
     event::{event, event_args},
     image::{ImageDataFormat, ImageMaskMode, ImageSource, ImageVar, Img},
     render::{FrameId, RenderMode},
@@ -18,7 +18,7 @@ use crate::{
     units::*,
     var::*,
     widget_info::{Interactivity, WidgetInfoTree, WidgetPath},
-    widget_instance::{BoxedUiNode, IdNameError, UiNode, WidgetId},
+    widget_instance::{BoxedUiNode, UiNode, WidgetId},
 };
 
 pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState};
@@ -33,92 +33,9 @@ unique_id_32! {
     /// [`WINDOW.id`]: crate::context::WINDOW::id
     pub struct WindowId;
 }
-static WINDOW_ID_NAMES: parking_lot::RwLock<NameIdMap<WindowId>> = parking_lot::const_rwlock(NameIdMap::new());
-impl WindowId {
-    /// Get or generate an id with associated name.
-    ///
-    /// If the `name` is already associated with an id, returns it.
-    /// If the `name` is new, generates a new id and associated it with the name.
-    /// If `name` is an empty string just returns a new id.
-    pub fn named(name: impl Into<Txt>) -> Self {
-        WINDOW_ID_NAMES.write().get_id_or_insert(name.into(), Self::new_unique)
-    }
+zero_ui_unique_id::impl_unique_id_name!(WindowId);
+zero_ui_unique_id::impl_unique_id_fmt!(WindowId);
 
-    /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
-    ///
-    /// The [`named`] function causes a hash-map lookup, but if you are only naming a window to find
-    /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
-    /// to this function call instead.
-    ///
-    /// [`named`]: WidgetId::named
-    /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: fn@crate::widget_base::id
-    pub fn debug_named(name: impl Into<Txt>) -> Self {
-        #[cfg(debug_assertions)]
-        return Self::named(name);
-
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = name;
-            Self::new_unique()
-        }
-    }
-
-    /// Generate a new id with associated name.
-    ///
-    /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
-    /// If the `name` is an empty string just returns a new id.
-    ///
-    /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
-        WINDOW_ID_NAMES.write().new_named(name.into(), Self::new_unique)
-    }
-
-    /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Txt {
-        WINDOW_ID_NAMES.read().get_name(self)
-    }
-
-    /// Associate a `name` with the id, if it is not named.
-    ///
-    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
-    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
-    /// If the `name` is an empty string or already is the name of the id, does nothing.
-    ///
-    /// [`NameUsed`]: IdNameError::NameUsed
-    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
-        WINDOW_ID_NAMES.write().set(name.into(), self)
-    }
-}
-impl fmt::Debug for WindowId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.name();
-        if f.alternate() {
-            f.debug_struct("WindowId")
-                .field("id", &self.get())
-                .field("sequential", &self.sequential())
-                .field("name", &name)
-                .finish()
-        } else if !name.is_empty() {
-            write!(f, r#"WindowId("{name}")"#)
-        } else {
-            write!(f, "WindowId({})", self.sequential())
-        }
-    }
-}
-impl fmt::Display for WindowId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.name();
-        if !name.is_empty() {
-            write!(f, "{name}")
-        } else if f.alternate() {
-            write!(f, "#{}", self.sequential())
-        } else {
-            write!(f, "WinId({})", self.sequential())
-        }
-    }
-}
 impl_from_and_into_var! {
     /// Calls [`WindowId::named`].
     fn from(name: &'static str) -> WindowId {
