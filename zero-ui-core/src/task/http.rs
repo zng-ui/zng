@@ -116,11 +116,6 @@ where
         header::HeaderName::try_from(self).map_err(|e| e.into().into())
     }
 }
-impl TryHeaderName for Txt {
-    fn try_header_name(self) -> Result<header::HeaderName, Error> {
-        <header::HeaderName as TryFrom<&str>>::try_from(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
-    }
-}
 
 /// Marker trait for types that try-to-convert to [`header::HeaderValue`].
 ///
@@ -137,11 +132,6 @@ where
 {
     fn try_header_value(self) -> Result<header::HeaderValue, Error> {
         header::HeaderValue::try_from(self).map_err(|e| e.into().into())
-    }
-}
-impl TryHeaderValue for Txt {
-    fn try_header_value(self) -> Result<header::HeaderValue, Error> {
-        header::HeaderValue::from_str(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }
 }
 

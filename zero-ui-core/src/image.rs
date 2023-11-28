@@ -605,7 +605,7 @@ impl ImagesService {
 
                         let request = task::http::Request::get(uri)
                             .unwrap()
-                            .header(task::http::header::ACCEPT, accept)
+                            .header(task::http::header::ACCEPT, accept.as_str())
                             .unwrap()
                             .max_length(max_encoded_size)
                             .build();

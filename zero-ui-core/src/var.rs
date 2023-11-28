@@ -2518,3 +2518,62 @@ unique_id_32! {
     #[derive(Debug)]
     pub(crate)struct BindMapBidiTag;
 }
+
+// trait Var depends on this type, so to avoid cyclical dependency we
+// impl IntoVar and IntoValue for Txt for all the From<T> in the zero-ui-txt crate.
+
+impl crate::var::IntoVar<crate::text::Txt> for &'static str {
+    type Var = crate::var::LocalVar<crate::text::Txt>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<crate::text::Txt> for &'static str {}
+
+impl crate::var::IntoVar<crate::text::Txt> for String {
+    type Var = crate::var::LocalVar<crate::text::Txt>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<crate::text::Txt> for String {}
+
+impl crate::var::IntoVar<crate::text::Txt> for Cow<'static, str> {
+    type Var = crate::var::LocalVar<crate::text::Txt>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<crate::text::Txt> for Cow<'static, str> {}
+
+impl crate::var::IntoVar<crate::text::Txt> for char {
+    type Var = crate::var::LocalVar<crate::text::Txt>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<crate::text::Txt> for char {}
+
+impl crate::var::IntoVar<String> for crate::text::Txt {
+    type Var = crate::var::LocalVar<String>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<String> for crate::text::Txt {}
+
+impl crate::var::IntoVar<Cow<'static, str>> for crate::text::Txt {
+    type Var = crate::var::LocalVar<Cow<'static, str>>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<Cow<'static, str>> for crate::text::Txt {}
+
+impl crate::var::IntoVar<std::path::PathBuf> for crate::text::Txt {
+    type Var = crate::var::LocalVar<std::path::PathBuf>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<std::path::PathBuf> for crate::text::Txt {}

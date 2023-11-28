@@ -4,6 +4,7 @@ resolver = "2"
 
 members = [
     # types:
+    "zero-ui-txt",
     "zero-ui-unique_id",
     "zero-ui-units",
 

@@ -91,6 +91,7 @@ zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-txt = { path = "../zero-ui-txt" }
 
 # text
 font-kit = "0.11"
