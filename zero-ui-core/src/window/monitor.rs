@@ -8,7 +8,7 @@ use crate::{
     },
     app_local,
     context::WINDOW,
-    crate_util::{fx_map_new, FxHashMap},
+    crate_util::{fx_map_new, unique_id_32, FxHashMap},
     event::{event, AnyEventArgs, EventUpdate},
     event_args,
     text::*,

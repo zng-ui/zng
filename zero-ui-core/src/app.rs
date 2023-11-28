@@ -10,7 +10,7 @@ use zero_ui_view_api::Inited;
 
 use crate::clipboard::ClipboardManager;
 use crate::config::ConfigManager;
-use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
+use crate::crate_util::{unique_id_32, unique_id_64, IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::fs_watcher::FsWatcherManager;
 use crate::image::ImageManager;

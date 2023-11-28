@@ -40,7 +40,7 @@ pub use when::*;
 mod list;
 pub use list::*;
 
-pub use crate::crate_util::IdNameError;
+pub use crate::crate_util::{unique_id_64, IdNameError};
 
 unique_id_64! {
     /// Unique id of a widget.

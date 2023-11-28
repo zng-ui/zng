@@ -3,7 +3,7 @@ use std::{any::TypeId, mem};
 use crate::{
     app::{App, AppId},
     context::*,
-    crate_util::FxHashMap,
+    crate_util::{unique_id_64, FxHashMap},
     gesture::CommandShortcutExt,
     handler::WidgetHandler,
     text::Txt,

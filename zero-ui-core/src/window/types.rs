@@ -10,7 +10,7 @@ use zero_ui_view_api::webrender_api::DebugFlags;
 use crate::{
     app::view_process::ApiExtensionId,
     context::WINDOW,
-    crate_util::{IdSet, NameIdMap},
+    crate_util::{unique_id_32, IdSet, NameIdMap},
     event::{event, event_args},
     image::{ImageDataFormat, ImageMaskMode, ImageSource, ImageVar, Img},
     render::{FrameId, RenderMode},

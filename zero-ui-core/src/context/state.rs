@@ -2,6 +2,7 @@ use std::{any::Any, fmt, marker::PhantomData};
 
 use crate::{
     context::WIDGET,
+    crate_util::unique_id_64,
     var::{IntoVar, Var, VarValue},
     widget_instance::{match_node, UiNode, UiNodeOp},
 };

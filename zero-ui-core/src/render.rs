@@ -5,7 +5,7 @@ use crate::{
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor, RenderMixBlendMode},
     context::{RenderUpdates, UpdateFlags, WIDGET, WINDOW},
-    crate_util::ParallelSegmentOffsets,
+    crate_util::{unique_id_32, ParallelSegmentOffsets},
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,

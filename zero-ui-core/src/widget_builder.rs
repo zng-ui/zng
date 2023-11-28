@@ -9,7 +9,7 @@ use std::{
 use parking_lot::Mutex;
 
 use crate::{
-    crate_util::{FxEntry, FxHashMap, FxHashSet},
+    crate_util::{unique_id_32, FxEntry, FxHashMap, FxHashSet},
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Txt},

@@ -1,0 +1,11 @@
+[package]
+name = "zero-ui-unique_id"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+rayon = "1"
+hashbrown = { version = "0.14", features = ["rayon"] }
+tracing = "0.1"

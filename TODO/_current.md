@@ -32,10 +32,10 @@ TextInput! {
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-
 # Split Core
 
 * Txt type crate.
+    - Move `NameIdMap` to unique_id crate and make `unique_id_32/64_named` macros.
 
 * Font service, segmenting and shaping.
     - Needs AppExtension.
@@ -46,8 +46,6 @@ TextInput! {
 
 * app_local and context_local crate (zero-ui-app_context).
     - Needs AppId, that needs unique_id_u32! util.
-
-* uid crate.
 
 * Length types in units crate.
     - Needs impl_from_and_into_var.
