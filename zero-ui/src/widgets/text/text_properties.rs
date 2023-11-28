@@ -1721,6 +1721,7 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
         touch::{TouchPhase, TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT},
     };
     use crate::widgets::popup::*;
+    use crate::widgets::window::layers::AnchorTransform;
 
     let toolbar = toolbar.into_var();
     let mut selection_range = None;
@@ -1796,7 +1797,7 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                             let l_txt = LayoutText::get();
                             let r_txt = r_txt.segmented_text.text();
 
-                            let mut bounds = PxBox::zero();
+                            let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
                             for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
                                 if !line_rect.size.is_empty() {
                                     let line_box = line_rect.to_box2d();
@@ -1826,13 +1827,9 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                         };
                     }
                     UiNodeOp::Render { frame } => {
-                        frame.push_reference_frame(
-                            transform_key.into(),
-                            FrameValue::Value(PxTransform::Offset(translate.cast())),
-                            true,
-                            true,
-                            |frame| c.render(frame),
-                        );
+                        let l_txt = LayoutText::get();
+                        let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
+                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| c.render(frame));
                     }
                     _ => {}
                 });
@@ -1853,7 +1850,7 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                 };
 
                 let mut base_mode = AnchorMode::tooltip();
-                base_mode.transform = AnchorOffset::in_top_left().into();
+                base_mode.transform = AnchorTransform::None;
                 popup_state = Some(POPUP.open_config(node, base_mode, capture));
             };
         }
