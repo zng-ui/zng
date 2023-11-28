@@ -358,10 +358,16 @@ pub trait UiNode: Any + Send {
         None
     }
 
-    /// Gets this node as a [`BoxedUiNode`], if the node [`is_widget`] this is the same node, otherwise a
-    /// new widget is generated with the node as the *inner*.
+    /// Gets a [`BoxedUiNode`] that is a full widget.
+    ///
+    /// If this node [`is_widget`] returns `self` boxed. Otherwise returns a new minimal widget
+    /// that has `self` as a child node.
+    ///
+    /// Use this if you know that the widget is not a full widget or you don't mind that some
+    /// nodes become full widgets only after init, otherwise use [`init_widget`].
     ///
     /// [`is_widget`]: UiNode::is_widget
+    /// [`init_widget`]: UiNode::init_widget
     fn into_widget(self) -> BoxedUiNode
     where
         Self: Sized,
@@ -374,6 +380,48 @@ pub trait UiNode: Any + Send {
             crate::widget_base::child = self;
         }
         .boxed()
+    }
+
+    /// Gets a [`BoxedUiNode`] that already is a full widget or will be after init and a response var that
+    /// already is the widget ID or will update once after init with the ID.
+    ///
+    /// If this node [`is_widget`] returns `self` boxed and an already responded var. Otherwise returns
+    /// a node that will ensure `self` is a full widget after init and update the response var with the
+    /// widget ID.
+    ///
+    /// Some nodes become full widgets only after init, the [`ArcNode::take_on_init`] for example, this node
+    /// supports these cases at the expense of having to reinit inside the generated widget when `self` is
+    /// not a full widget even after init.
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    /// [`ArcNode::take_on_init`]: crate::widget_instance::ArcNode::take_on_init
+    fn init_widget(mut self) -> (BoxedUiNode, crate::var::ResponseVar<WidgetId>)
+    where
+        Self: Sized,
+    {
+        if let Some(id) = self.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+            return (self.boxed(), crate::var::response_done_var(id));
+        }
+
+        let (responder, response) = crate::var::response_var();
+        let widget = match_widget(self.boxed(), move |c, op| {
+            if let UiNodeOp::Init = op {
+                c.init();
+                let widget_id = if let Some(id) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+                    id
+                } else {
+                    c.deinit();
+                    let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());
+                    *c.child() = not_widget.into_widget();
+
+                    c.init();
+                    c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap()
+                };
+
+                responder.respond(widget_id);
+            }
+        });
+        (widget.boxed(), response)
     }
 
     /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.

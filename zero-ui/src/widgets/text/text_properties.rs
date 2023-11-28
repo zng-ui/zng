@@ -1743,9 +1743,9 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     if args.state == ButtonState::Released {
                         open = true;
                     }
-                } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on(update) {
+                } else if TOUCH_LONG_PRESS_EVENT.has(update) {
                     open = true;
-                } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                } else if KEY_INPUT_EVENT.has(update) {
                     close = true;
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                     if args.is_blur(WIDGET.id()) {
@@ -1794,7 +1794,7 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     }
                 }
                 let bounds = bounds.to_rect();
-                //TODO use bounds
+                //TODO use bounds (.init_widget and LAYERS directly?)
 
                 let node = toolbar.get()(SelectionToolbarArgs {});
                 popup_state = Some(POPUP.open(node));

@@ -28,10 +28,11 @@ struct LayersCtx {
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
 ///
-/// Note that this single pass behavior only works automatically in the [`AnchorMode`], for a layered widget
-/// to layout or render in the same pass it must have requested layout or render, either from the inside
-/// using [`WIDGET`] or externally using [`UPDATES`], if not requested the layered widget will reuse layout
-/// or render (at least the default widget implementation will).
+/// Note that this single pass behavior only works automatically in the [`AnchorMode`], to implement custom
+/// sizing and positioning based on the anchor you must wrap the layered widget with a custom widget node, this
+/// is because the default widget implementation skips layout and render when it was not requested for the widget
+/// or descendants. See the [`insert_anchored`] source code for an example.
+///
 ///
 /// [`insert_anchored`]: Self::insert_anchored
 pub struct LAYERS;
@@ -96,9 +97,11 @@ impl LAYERS {
     /// If the `maybe_widget` is not a full widget after the first init, it is upgraded to a full widget. The
     /// widget ID (existing or upgraded) is set on a response var that can be used to remove the node.
     ///
+    /// This is the equivalent of calling [`insert`] with the node wrapped in [`UiNode::init_widget`].
+    ///
     /// [`insert`]: Self::insert
     pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {
-        let (widget, rsp) = layer_widget(maybe_widget);
+        let (widget, rsp) = maybe_widget.init_widget();
         self.insert(layer, widget);
         rsp
     }
@@ -580,6 +583,10 @@ impl LAYERS {
     /// If the `maybe_widget` is not a full widget after the first init, it is upgraded to a full widget. The
     /// widget ID is set on a response var that can be used to remove the node.
     ///
+    /// This is the equivalent of calling [`insert_anchored`] with the node wrapped in [`UiNode::init_widget`].
+    ///
+    /// [`insert`]: Self::insert
+    ///
     /// [`insert_anchored`]: Self::insert_anchored
     pub fn insert_anchored_node(
         &self,
@@ -589,7 +596,7 @@ impl LAYERS {
 
         maybe_widget: impl UiNode,
     ) -> ResponseVar<WidgetId> {
-        let (widget, rsp) = layer_widget(maybe_widget);
+        let (widget, rsp) = maybe_widget.init_widget();
         self.insert_anchored(layer, anchor, mode, widget);
         rsp
     }
@@ -635,28 +642,6 @@ impl LAYERS {
             s.req(&WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
         });
     }
-}
-
-fn layer_widget(maybe_widget: impl UiNode) -> (impl UiNode, ResponseVar<WidgetId>) {
-    let (responder, response) = response_var();
-    let widget = match_widget(maybe_widget.boxed(), move |c, op| {
-        if let UiNodeOp::Init = op {
-            c.init();
-            let widget_id = if let Some(id) = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                id
-            } else {
-                c.deinit();
-                let not_widget = mem::replace(c.child(), NilUiNode.boxed());
-                *c.child() = not_widget.into_widget();
-
-                c.init();
-                c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()).unwrap()
-            };
-
-            responder.respond(widget_id);
-        }
-    });
-    (widget, response)
 }
 
 fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
