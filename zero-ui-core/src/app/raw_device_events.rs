@@ -13,7 +13,8 @@ use crate::{
     mouse::{ButtonState, MouseScrollDelta},
 };
 
-pub use zero_ui_view_api::{mouse::ButtonId, units::euclid, AxisId};
+use zero_ui_units::euclid;
+pub use zero_ui_view_api::{mouse::ButtonId, AxisId};
 
 event_args! {
     /// Arguments for [`DEVICE_ADDED_EVENT`] and [`DEVICE_REMOVED_EVENT`].

@@ -55,8 +55,8 @@ use clipboard::{ClipboardData, ClipboardError};
 use dialog::DialogId;
 use image::{ImageId, ImageMaskMode, ImageRequest};
 use ipc::{IpcBytes, IpcBytesReceiver};
-use units::{DipSize, Px, PxRect};
 use window::WindowId;
+use zero_ui_units::{DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -312,7 +312,7 @@ declare_api! {
     pub fn set_state(&mut self, id: WindowId, state: window::WindowStateAll);
 
     /// Set the headless surface or document area size (viewport size).
-    pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: units::Factor);
+    pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: Factor);
 
     /// Set the window icon.
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
@@ -485,7 +485,7 @@ declare_api! {
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
 
     /// Enable or disable IME by setting a cursor area.
-    pub fn set_ime_area(&mut self, id: WindowId, area: Option<units::DipRect>);
+    pub fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>);
 
     /// Call the API extension.
     ///

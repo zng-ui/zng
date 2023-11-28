@@ -171,11 +171,11 @@ impl UiNode for WhenUiNode {
         self.with(|c| c.update(updates));
     }
 
-    fn measure(&mut self, wm: &mut crate::widget_info::WidgetMeasure) -> zero_ui_view_api::units::PxSize {
+    fn measure(&mut self, wm: &mut crate::widget_info::WidgetMeasure) -> crate::units::PxSize {
         self.with(|c| c.measure(wm))
     }
 
-    fn layout(&mut self, wl: &mut crate::widget_info::WidgetLayout) -> zero_ui_view_api::units::PxSize {
+    fn layout(&mut self, wl: &mut crate::widget_info::WidgetLayout) -> crate::units::PxSize {
         self.with(|c| c.layout(wl))
     }
 

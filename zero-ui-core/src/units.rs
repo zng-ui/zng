@@ -3,6 +3,9 @@
 #[doc(inline)]
 pub use zero_ui_view_api::units::*;
 
+#[doc(inline)]
+pub use zero_ui_units::*;
+
 mod alignment;
 pub use alignment::*;
 

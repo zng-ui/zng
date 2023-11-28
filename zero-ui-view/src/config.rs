@@ -179,7 +179,7 @@ pub fn multi_click_config() -> MultiClickConfig {
     use std::time::Duration;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
-    use zero_ui_view_api::units::*;
+    use zero_ui_units::*;
 
     unsafe {
         MultiClickConfig {

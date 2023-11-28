@@ -139,6 +139,7 @@ pub use gleam;
 
 use webrender::api::*;
 use window::Window;
+use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
@@ -148,7 +149,6 @@ use zero_ui_view_api::{
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
     touch::{TouchId, TouchUpdate},
-    units::*,
     window::{
         CursorIcon, CursorImage, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
         HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
@@ -1715,7 +1715,7 @@ impl Api for App {
         );
     }
 
-    fn set_ime_area(&mut self, id: WindowId, area: Option<zero_ui_view_api::units::DipRect>) {
+    fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>) {
         self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 

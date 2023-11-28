@@ -4,10 +4,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    ipc::IpcBytes,
-    units::{Px, PxSize},
-};
+use crate::ipc::IpcBytes;
+use zero_ui_units::{Px, PxSize};
 
 crate::declare_id! {
     /// Id of a decoded image in the cache.

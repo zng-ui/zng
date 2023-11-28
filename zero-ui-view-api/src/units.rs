@@ -1,20 +1,8 @@
 //! Pixel units.
-//!
-//! This module defines two pixel units [`Px`] that is dependent on the monitor device, and [`Dip`] that is not.
-//!
-//! All windowing and monitor API uses [`Dip`] units with the scale-factor reported separately and all rendering API uses [`Px`] units.
-//!
-//! The `webrender` crate only operates in pixel scale 1.0,
-//! even thought the documentation of [`webrender_api::units`] indicates that the `LayoutPixel` unit is equivalent to [`Dip`],
-//! **it isn't**.
-//
-//! The recommended way of using these units is defining your own public API to only use [`Dip`] units, and then convert
-//! to [`Px`] units to compute layout and render. Working like this should make the window content have the same apparent
-//! dimensions in all monitor devices. For rendering the [`Px`] unit can be converted to `webrender` units using [`PxToWr`].
 
 use webrender_api::units as wr;
 
-pub use zero_ui_units::*;
+use zero_ui_units::*;
 
 /// Conversion from [`Px`] to `webrender` units.
 ///
