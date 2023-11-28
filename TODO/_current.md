@@ -32,6 +32,30 @@ TextInput! {
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
+
+# Split Core
+
+* Txt type crate.
+
+* Font service, segmenting and shaping.
+    - Needs AppExtension.
+
+* Var crate.
+    - Needs `context_local`.
+    - VARS needs a hidden public API for the app?
+
+* app_local and context_local crate (zero-ui-app_context).
+    - Needs AppId, that needs unique_id_u32! util.
+
+* uid crate.
+
+* Length types in units crate.
+    - Needs impl_from_and_into_var.
+        - Will depend on vars crate, that depends on the Txt crate.
+        - We are suddenly importing a lot of dependencies.
+        - Should be pretty small still, or we could make a "var-api" crate.
+    - Needs LAYOUT context? Otherwise can't implement Layout2d and Layout1d.
+
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.
