@@ -165,10 +165,6 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).hook_animation_stop(handler)
     }
 
-    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        (**self).subscribe(op, widget_id)
-    }
-
     fn strong_count(&self) -> usize {
         (**self).strong_count()
     }

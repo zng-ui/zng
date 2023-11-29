@@ -52,10 +52,6 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Err(handler)
     }
 
-    fn subscribe(&self, _: UpdateOp, _: WidgetId) -> VarHandle {
-        VarHandle::dummy()
-    }
-
     fn strong_count(&self) -> usize {
         0
     }

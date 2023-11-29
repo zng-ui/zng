@@ -73,10 +73,6 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.hook_animation_stop(handler)
     }
 
-    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        self.1.subscribe(op, widget_id)
-    }
-
     fn strong_count(&self) -> usize {
         self.1.strong_count()
     }

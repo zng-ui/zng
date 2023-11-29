@@ -26,7 +26,7 @@ use crate::{
     text::Txt,
     timer::TIMERS_SV,
     units::*,
-    var::{AnyVar, Var, VarHandle, VarHandles, VarValue, VARS},
+    var::{AnyVar, AnyVarSubscribe, Var, VarHandle, VarHandles, VarSubscribe, VarValue, VARS},
     widget_info::{
         InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
         WidgetPath,

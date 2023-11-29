@@ -564,15 +564,6 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [`is_animating`]: AnyVar::is_animating
     fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>>;
 
-    /// Register the widget to receive an [`UpdateOp`] when this variable is new.
-    ///
-    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
-    ///
-    /// [`NEW`]: VarCapabilities::NEW
-    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        self.hook(var_subscribe(op, widget_id))
-    }
-
     /// Gets the number of strong references to the variable.
     ///
     /// This is the [`Arc::strong_count`] for *Arc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
@@ -661,6 +652,48 @@ impl<'a> fmt::Debug for VarPtr<'a> {
         } else {
             fmt::Debug::fmt(&self.eq, f)
         }
+    }
+}
+
+/// Extension method to subscribe any widget to a variable.
+///
+/// Also see [`WIDGET`] methods for the primary way to subscribe from inside an widget.
+///
+/// [`WIDGET`]: crate::context::WIDGET
+pub trait AnyVarSubscribe: AnyVar {
+    /// Register the widget to receive an [`UpdateOp`] when this variable is new.
+    ///
+    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
+    ///
+    /// [`NEW`]: VarCapabilities::NEW
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle;
+}
+impl<V: AnyVar> AnyVarSubscribe for V {
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        if !self.capabilities().is_always_static() {
+            self.hook(var_subscribe(op, widget_id))
+        } else {
+            VarHandle::dummy()
+        }
+    }
+}
+
+/// Extension method to subscribe any widget to a variable.
+///
+/// Also see [`WIDGET`] methods for the primary way to subscribe from inside an widget.
+///
+/// [`WIDGET`]: crate::context::WIDGET
+pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
+    /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.
+    ///
+    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
+    ///
+    /// [`NEW`]: VarCapabilities::NEW
+    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
+}
+impl<T: VarValue, V: Var<T>> VarSubscribe<T> for V {
+    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
+        self.hook(var_subscribe_when(op, widget_id, predicate))
     }
 }
 
@@ -2308,15 +2341,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: Layout1d,
     {
         self.with(move |s| s.layout_dft_z(default))
-    }
-
-    /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.
-    ///
-    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
-    ///
-    /// [`NEW`]: VarCapabilities::NEW
-    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
-        self.hook(var_subscribe_when(op, widget_id, predicate))
     }
 
     /*

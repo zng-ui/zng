@@ -42,12 +42,6 @@ TextInput! {
 
 * Var crate.
     - Needs `context_local` for context_var. Ready.
-    - Need `UPDATES` for AnyVar::subscribe.
-        - Could be changed into an extension trait.
-        - UPDATES uses UpdateOp that is modelled on UiNode.
-        - UiNode and UPDATES should be part of `zero-ui-app-api`.
-            - A larger crate to match zero-ui-view-api.
-            - This does not help with var, lets make an extension trait.
     - VARS::apply_updates needs to become public.
 
 * Length types in units crate.

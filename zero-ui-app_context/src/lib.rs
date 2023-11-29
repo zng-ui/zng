@@ -872,7 +872,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 
     /// Same as [`with_context`], but `value` represents a variable.
-    /// 
+    ///
     /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
