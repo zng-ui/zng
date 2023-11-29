@@ -1,7 +1,6 @@
 use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_app_context::{app_local, context_local};
-use zero_ui_view_api::config::AnimationsConfig;
 
 use super::{
     animation::{Animations, ModifyInfo},
@@ -47,6 +46,8 @@ pub(crate) struct VarsService {
     updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
     modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
+
+    app_waker: Option<Box<dyn Fn() + Send + Sync>>,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
@@ -57,6 +58,7 @@ impl VarsService {
             updating_thread: None,
             updates_after: Mutex::new(vec![]),
             modify_receivers: Mutex::new(vec![]),
+            app_waker: None,
         }
     }
 }
@@ -227,7 +229,15 @@ impl VARS {
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn, type_name: &'static str) {
-        UpdatesTrace::log_var(type_name);
+        {
+            // same as UpdatesTrace::log_var(type_name), without the dependency.
+            const UPDATES_TARGET: &str = "zero-ui-updates";
+            tracing::event!(
+                target: UPDATES_TARGET,
+                tracing::Level::TRACE,
+                { kind = "update var", type_name }
+            );
+        }
 
         let vars = VARS_SV.read();
         let curr_modify = match VARS_MODIFY_CTX.get_clone() {
@@ -246,11 +256,35 @@ impl VARS {
         } else {
             // request from any app thread,
             vars.updates.lock().push((curr_modify, update));
-            UPDATES.send_awake();
+            if let Some(w) = &vars.app_waker {
+                w();
+            }
         }
     }
 
-    pub(crate) fn apply_updates(&self) {
+    pub(crate) fn wake_app(&self) {
+        if let Some(h) = VARS_SV.read().app_waker {
+            h();
+        }
+    }
+
+    /// Register a closure called when [`apply_updates`] should be called because there are changes pending.
+    ///
+    /// # Panics
+    ///
+    /// Panics if already called for the current app. This must be called by app implementers only.
+    ///
+    /// [`apply_updates`]: Self::apply_updates
+    pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
+        let mut vars = VARS_SV.write();
+        assert!(vars.app_waker.is_none());
+        vars.app_waker = Some(Box::new(waker));
+    }
+
+    /// Apply all pending updates, call hooks and update bindings.
+    ///
+    /// This must be called by app implementers only.
+    pub fn apply_updates(&self) {
         let _s = tracing::trace_span!("VARS").entered();
         Self::apply_updates_and_after(0)
     }
@@ -338,7 +372,7 @@ impl VARS {
         Animations::update_animations(timer)
     }
 
-    /// Returns the next animation frame, if there are any active animations.
+    /// Register the next animation frame, if there are any active animations.
     pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
         Animations::next_deadline(timer)
     }

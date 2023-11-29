@@ -290,13 +290,13 @@ impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakContextualizedVar<T, S> {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::App;
+    use zero_ui_app_context::{AppId, LocalContext};
 
     use super::*;
 
     #[test]
     fn nested_contextualized_vars() {
-        let mut app = App::default().run_headless(false);
+        let _app_scope = LocalContext::start_app(AppId::new_unique());
 
         let source = var(0u32);
         let mapped = source.map(|n| n + 1);
@@ -308,24 +308,16 @@ mod tests {
         assert_eq!(0, mapped2_copy.get());
 
         source.set(10u32);
-        let mut updated = false;
-        app.update_observe(
-            || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(10), mapped2.get_new());
-                assert_eq!(Some(10), mapped2_copy.get_new());
-            },
-            false,
-        )
-        .assert_wait();
 
-        assert!(updated);
+        VARS.apply_updates();
+
+        assert_eq!(Some(10), mapped2.get_new());
+        assert_eq!(Some(10), mapped2_copy.get_new());
     }
 
     #[test]
     fn nested_contextualized_vars_diff_contexts() {
-        let mut app = App::default().run_headless(false);
+        let _app_scope = LocalContext::start_app(AppId::new_unique());
 
         let source = var(0u32);
         let mapped = source.map(|n| n + 1);
@@ -340,20 +332,12 @@ mod tests {
         });
 
         source.set(10u32);
-        let mut updated = false;
-        app.update_observe(
-            || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(10), mapped2.get_new());
-                other_ctx.with_context(|| {
-                    assert_eq!(Some(10), mapped2_copy.get_new());
-                });
-            },
-            false,
-        )
-        .assert_wait();
 
-        assert!(updated);
+        VARS.apply_updates();
+
+        assert_eq!(Some(10), mapped2.get_new());
+        other_ctx.with_context(|| {
+            assert_eq!(Some(10), mapped2_copy.get_new());
+        });
     }
 }

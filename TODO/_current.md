@@ -42,13 +42,19 @@ TextInput! {
 
 * Var crate.
     - Uses AnimationsConfig.
-    - Uses UpdatesTrace.
+        - Copy type?
 
     - ArcWhenVar (and others, CowVar) sends an UPDATES.update(None); directly.
         - Refactor into a VARS thing where app can register a callback that calls update.
         - The idea is that there is "update ready now".
-    - Needs `Deadline`.
-    - Needs `LoopTimer`.
+        
+    - Needs `Deadline` and `LoopTimer`.
+        - Move to units?
+        - LoopTimer not a public type currently.
+        - Can move TimeUnits too.
+
+    - Needs `crate_util::Handle` for AnimationHandle.
+        - We already implement VarHandle, lets implement this one too.
 
     - Channels needs `AppDisconnected`.
 

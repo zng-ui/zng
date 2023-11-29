@@ -8,13 +8,12 @@ use std::{
 use zero_ui_app_context::context_local;
 use zero_ui_clone_move::clmv;
 
-use zero_ui_units::{Px, Dip, euclid, CornerRadius2D};
+use zero_ui_units::{euclid, CornerRadius2D, Dip, Px};
 pub use zero_ui_var_proc_macros::Transitionable;
 
 use super::*;
 
 pub mod easing;
-
 
 #[derive(Default)]
 pub(super) struct AnimationHandleData {
@@ -37,7 +36,7 @@ impl Drop for AnimationHandleData {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
-pub struct AnimationHandle(crate_util::Handle<AnimationHandleData>);
+pub struct AnimationHandle(Option<Arc<AnimationHandleData>>);
 impl Default for AnimationHandle {
     /// `dummy`.
     fn default() -> Self {
@@ -45,17 +44,14 @@ impl Default for AnimationHandle {
     }
 }
 impl AnimationHandle {
-    pub(super) fn new() -> (crate_util::HandleOwner<AnimationHandleData>, Self) {
-        let (owner, handle) = crate_util::Handle::new(AnimationHandleData::default());
-        (owner, AnimationHandle(handle))
+    pub(super) fn new() -> (WeakAnimationHandle, Self) {
+        let handle = AnimationHandle(Some(Arc::new(AnimationHandleData::default())));
+        (handle.downgrade(), handle)
     }
 
     /// Create dummy handle that is always in the *stopped* state.
-    ///
-    /// Note that `Option<AnimationHandle>` takes up the same space as `AnimationHandle` and avoids an allocation.
     pub fn dummy() -> Self {
-        assert_non_null!(AnimationHandle);
-        AnimationHandle(crate_util::Handle::dummy(AnimationHandleData::default()))
+        AnimationHandle(None)
     }
 
     /// Drop the handle but does **not** stop.
@@ -105,16 +101,16 @@ impl AnimationHandle {
 
 /// Weak [`AnimationHandle`].
 #[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakAnimationHandle(pub(super) crate_util::WeakHandle<AnimationHandleData>);
+pub struct WeakAnimationHandle(std::sync::Weak<AnimationHandleData>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.
     pub fn new() -> Self {
-        Self(crate_util::WeakHandle::new())
+        Self(std::sync::Weak::new())
     }
 
     /// Get the animation handle if it is still animating.
     pub fn upgrade(&self) -> Option<AnimationHandle> {
-        self.0.upgrade().map(AnimationHandle)
+        Some(AnimationHandle(self.0.upgrade()))?;
     }
 }
 
@@ -477,7 +473,6 @@ where
         }
     }
 }
-
 
 /// Represents a simple transition between two values.
 pub struct Transition<T> {
