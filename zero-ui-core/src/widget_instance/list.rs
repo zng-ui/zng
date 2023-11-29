@@ -284,23 +284,23 @@ pub trait UiNodeListChain: UiNodeList {
     /// Creates a new [`UiNodeList`] that chains `self` and `other`.
     ///
     /// Special features of each inner list type is preserved.
-    fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
+    fn chain<B>(self, other: B) -> UiNodeListChainImpl
     where
         B: UiNodeList,
         Self: Sized;
 }
 impl<A: UiNodeList> UiNodeListChain for A {
-    fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
+    fn chain<B>(self, other: B) -> UiNodeListChainImpl
     where
         B: UiNodeList,
     {
-        UiNodeListChainImpl(self, other)
+        UiNodeListChainImpl(self.boxed(), other.boxed())
     }
 }
 
 /// Implements [`UiNodeListChain`].
-pub struct UiNodeListChainImpl<A: UiNodeList, B: UiNodeList>(pub A, pub B);
-impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
+pub struct UiNodeListChainImpl(pub BoxedUiNodeList, pub BoxedUiNodeList);
+impl UiNodeList for UiNodeListChainImpl {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
