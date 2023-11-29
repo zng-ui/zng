@@ -1,6 +1,4 @@
-#![cfg(test)]
-
-use super::*;
+use zero_ui::core::var::*;
 
 mod any {
     use super::*;
@@ -49,8 +47,8 @@ mod any {
 
 mod bindings {
     use super::*;
-    use crate::app::App;
-    use crate::text::ToText;
+    use zero_ui::core::app::App;
+    use zero_ui::core::text::ToText;
 
     #[test]
     fn one_way_binding() {
@@ -482,9 +480,14 @@ mod bindings {
 }
 
 mod context {
-    use when::AnyWhenVarBuilder;
-
-    use crate::{app::*, context::*, text::*, var::*, widget_instance::*, *};
+    use zero_ui::core::{
+        app::*,
+        context::*,
+        text::*,
+        var::{types::AnyWhenVarBuilder, *},
+        widget_instance::*,
+        *,
+    };
 
     context_var! {
         static TEST_VAR: Txt = "";
@@ -541,8 +544,8 @@ mod context {
         })
     }
 
-    #[widget($crate::var::tests::context::TestWgt)]
-    struct TestWgt(crate::widget_base::WidgetBase);
+    #[widget($crate::context::TestWgt)]
+    struct TestWgt(zero_ui::core::widget_base::WidgetBase);
     impl TestWgt {
         fn widget_intrinsic(&mut self) {
             self.widget_builder().push_build_action(|wgt| {
@@ -557,9 +560,9 @@ mod context {
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
         test_log();
 
-        use crate::window::*;
+        use zero_ui::core::window::*;
         let mut app = app.run_headless(false);
-        WINDOWS.open(async move { crate::window::WindowRoot::new_test(root) });
+        WINDOWS.open(async move { zero_ui::core::window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }
@@ -810,8 +813,8 @@ mod context {
 }
 
 mod flat_map {
-    use crate::{app::App, var::*};
     use std::fmt;
+    use zero_ui::core::{app::App, var::*};
 
     #[derive(Clone)]
     pub struct Foo {
@@ -871,9 +874,9 @@ mod flat_map {
 }
 
 mod modify_importance {
-    use zero_ui_clone_move::{async_clmv, clmv};
+    use zero_ui::core::handler::{async_clmv, clmv};
 
-    use crate::{app::App, text::Txt, var::*};
+    use zero_ui::core::{app::App, text::Txt, units::TimeUnits, var::*};
 
     #[test]
     pub fn set_same_importance() {
@@ -982,9 +985,12 @@ mod modify_importance {
 }
 
 mod cow {
-    use zero_ui_clone_move::clmv;
+    use std::sync::Arc;
 
-    use crate::app::App;
+    use zero_ui::core::handler::clmv;
+
+    use zero_ui::core::app::App;
+    use zero_ui::core::task::parking_lot::Mutex;
 
     use super::*;
 
@@ -1053,9 +1059,12 @@ mod cow {
 }
 
 mod multi {
-    use zero_ui_clone_move::clmv;
+    use std::sync::Arc;
 
-    use crate::app::App;
+    use zero_ui::core::handler::clmv;
+
+    use zero_ui::core::app::App;
+    use zero_ui::core::task::parking_lot::Mutex;
 
     use super::*;
 
@@ -1092,9 +1101,9 @@ mod multi {
 }
 
 mod threads {
-    use zero_ui_clone_move::async_clmv;
+    use zero_ui::core::handler::async_clmv;
 
-    use crate::{app::App, task};
+    use zero_ui::core::{app::App, task, units::TimeUnits};
 
     use super::*;
 

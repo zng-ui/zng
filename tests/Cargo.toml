@@ -33,3 +33,7 @@ path = "config.rs"
 [[test]]
 name = "text"
 path = "text.rs"
+
+[[test]]
+name = "var"
+path = "var.rs"

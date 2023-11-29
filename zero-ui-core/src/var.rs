@@ -47,8 +47,6 @@ use parking_lot::Mutex;
 #[doc(inline)]
 pub use util::impl_from_and_into_var;
 
-mod tests;
-
 pub use animation::easing;
 
 pub use arc::{var, var_default, var_from, ArcVar};
