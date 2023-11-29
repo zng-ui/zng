@@ -1,5 +1,7 @@
 //! Angle, factor, length, time, byte and resolution units.
 
+use std::time::{Duration, Instant};
+
 #[doc(inline)]
 pub use zero_ui_view_api::units::*;
 
@@ -47,9 +49,6 @@ pub use size::*;
 
 mod text;
 pub use text::*;
-
-mod time;
-pub use time::*;
 
 mod transform;
 pub use transform::*;
@@ -437,3 +436,19 @@ mod tests {
         assert!(Orientation2D::Right.box_is(a, b));
     }
 }
+
+impl crate::var::IntoVar<Deadline> for Instant {
+    type Var = crate::var::LocalVar<Deadline>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<Deadline> for Instant {}
+
+impl crate::var::IntoVar<Deadline> for Duration {
+    type Var = crate::var::LocalVar<Deadline>;
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
+impl crate::var::IntoValue<Deadline> for Duration {}

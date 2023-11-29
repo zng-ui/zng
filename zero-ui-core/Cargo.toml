@@ -94,6 +94,7 @@ zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-handle = { path = "../zero-ui-handle" }
 
 # text
 font-kit = "0.11"

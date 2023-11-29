@@ -1,4 +1,5 @@
 use derive_more as dm;
+use zero_ui_units::FactorUnits;
 
 use super::{
     DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
@@ -64,46 +65,6 @@ impl crate::var::IntoVar<Factor> for bool {
 
     fn into_var(self) -> Self::Var {
         crate::var::LocalVar(Factor(if self { 1.0 } else { 0.0 }))
-    }
-}
-
-/// Extension methods for initializing factor units.
-///
-/// This trait is implemented for [`f32`] and [`u32`] allowing initialization of factor unit types using the `<number>.<unit>()` syntax.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui_core::units::*;
-/// let percent = 100.pct();
-/// ```
-pub trait FactorUnits {
-    /// Percent factor.
-    fn pct(self) -> FactorPercent;
-
-    /// Normalized factor.
-    ///
-    /// # Note
-    ///
-    /// [`Factor`] implements `From<f32>`.
-    fn fct(self) -> Factor;
-}
-impl FactorUnits for f32 {
-    fn pct(self) -> FactorPercent {
-        FactorPercent(self)
-    }
-
-    fn fct(self) -> Factor {
-        self.into()
-    }
-}
-impl FactorUnits for i32 {
-    fn pct(self) -> FactorPercent {
-        FactorPercent(self as f32)
-    }
-
-    fn fct(self) -> Factor {
-        Factor(self as f32)
     }
 }
 

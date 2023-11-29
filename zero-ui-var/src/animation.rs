@@ -8,7 +8,8 @@ use std::{
 use zero_ui_app_context::context_local;
 use zero_ui_clone_move::clmv;
 
-use zero_ui_units::{euclid, CornerRadius2D, Dip, Px};
+use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
+use zero_ui_units::{euclid, CornerRadius2D, Deadline, Dip, Px, TimeUnits};
 pub use zero_ui_var_proc_macros::Transitionable;
 
 use super::*;
@@ -26,7 +27,6 @@ impl Drop for AnimationHandleData {
         }
     }
 }
-
 /// Represents a running animation created by [`Animations.animate`].
 ///
 /// Drop all clones of this handle to stop the animation, or call [`perm`] to drop the handle
@@ -36,7 +36,7 @@ impl Drop for AnimationHandleData {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
-pub struct AnimationHandle(Option<Arc<AnimationHandleData>>);
+pub struct AnimationHandle(Handle<AnimationHandleData>);
 impl Default for AnimationHandle {
     /// `dummy`.
     fn default() -> Self {
@@ -44,14 +44,16 @@ impl Default for AnimationHandle {
     }
 }
 impl AnimationHandle {
-    pub(super) fn new() -> (WeakAnimationHandle, Self) {
-        let handle = AnimationHandle(Some(Arc::new(AnimationHandleData::default())));
-        (handle.downgrade(), handle)
+    pub(super) fn new() -> (HandleOwner<AnimationHandleData>, Self) {
+        let (owner, handle) = Handle::new(AnimationHandleData::default());
+        (owner, AnimationHandle(handle))
     }
 
     /// Create dummy handle that is always in the *stopped* state.
+    ///
+    /// Note that `Option<AnimationHandle>` takes up the same space as `AnimationHandle` and avoids an allocation.
     pub fn dummy() -> Self {
-        AnimationHandle(None)
+        AnimationHandle(Handle::dummy(AnimationHandleData::default()))
     }
 
     /// Drop the handle but does **not** stop.
@@ -101,16 +103,16 @@ impl AnimationHandle {
 
 /// Weak [`AnimationHandle`].
 #[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakAnimationHandle(std::sync::Weak<AnimationHandleData>);
+pub struct WeakAnimationHandle(pub(super) WeakHandle<AnimationHandleData>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.
     pub fn new() -> Self {
-        Self(std::sync::Weak::new())
+        Self(WeakHandle::new())
     }
 
     /// Get the animation handle if it is still animating.
     pub fn upgrade(&self) -> Option<AnimationHandle> {
-        Some(AnimationHandle(self.0.upgrade()))?;
+        self.0.upgrade().map(AnimationHandle)
     }
 }
 
@@ -583,7 +585,7 @@ impl Animations {
         }
     }
 
-    pub(super) fn update_animations(timer: &mut LoopTimer) {
+    pub(super) fn update_animations(timer: &mut impl AnimationTimer) {
         let mut vars = VARS_SV.write();
         if let Some(next_frame) = vars.ans.next_frame {
             if timer.elapsed(next_frame) {
@@ -629,7 +631,7 @@ impl Animations {
         }
     }
 
-    pub(super) fn next_deadline(timer: &mut LoopTimer) {
+    pub(super) fn next_deadline(timer: &mut impl AnimationTimer) {
         if let Some(next_frame) = VARS_SV.read().ans.next_frame {
             timer.register(next_frame);
         }
@@ -762,7 +764,7 @@ impl Animations {
 
         vars.ans.next_frame = Some(Deadline(Instant::now()));
 
-        UPDATES.send_awake();
+        vars.wake_app();
 
         handle
     }
@@ -1116,4 +1118,41 @@ context_local! {
         let r: Box<dyn AnimationController> = Box::new(NilAnimationObserver);
         r
     };
+}
+
+/// System settings that control animations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnimationsConfig {
+    /// If animation are enabled.
+    ///
+    /// People with photo-sensitive epilepsy usually disable animations system wide.
+    pub enabled: bool,
+
+    /// Interval of the caret blink animation.
+    pub caret_blink_interval: Duration,
+    /// Duration after which the blink animation stops.
+    pub caret_blink_timeout: Duration,
+}
+impl Default for AnimationsConfig {
+    /// true, 530ms, 5s.
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            caret_blink_interval: Duration::from_millis(530),
+            caret_blink_timeout: Duration::from_secs(5),
+        }
+    }
+}
+
+/// View on an app loop timer.
+pub trait AnimationTimer {
+    /// Returns `true` if the `deadline` has elapsed, `false` if the `deadline` was
+    /// registered for future waking.
+    fn elapsed(&mut self, deadline: Deadline) -> bool;
+
+    /// Register the future `deadline` for waking.
+    fn register(&mut self, deadline: Deadline);
+
+    /// Frame timestamp.
+    fn now(&self) -> Instant;
 }

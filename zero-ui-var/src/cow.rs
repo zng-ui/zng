@@ -74,7 +74,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         if notify {
                             let hook_args = VarHookArgs::new(&value, update, &tags);
                             hooks.retain(|h| h.call(&hook_args));
-                            UPDATES.update_internal(None);
+                            VARS.wake_app();
                         }
                         *data = Data::Owned {
                             value,
@@ -110,7 +110,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                             *last_update = VARS.update_id();
                             let hook_args = VarHookArgs::new(value, update, &tags);
                             hooks.retain(|h| h.call(&hook_args));
-                            UPDATES.update_internal(None);
+                            VARS.wake_app();
                         }
                     }
                 }

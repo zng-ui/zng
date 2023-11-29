@@ -340,7 +340,7 @@ impl<T: VarValue> VarData<T> {
                 meta.hooks = hooks;
             }
 
-            UPDATES.update_internal(None);
+            VARS.wake_app();
         }
     }
 }

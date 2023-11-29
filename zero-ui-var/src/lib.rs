@@ -1,5 +1,8 @@
 //! Batch updated variables in an app context.
 
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
+
 use animation::{
     easing::{EasingStep, EasingTime},
     Transitionable,
@@ -22,12 +25,12 @@ use zero_ui_app_context::ContextLocal;
 use zero_ui_clone_move::clmv;
 use zero_ui_txt::{formatx, ToText, Txt};
 use zero_ui_unique_id::unique_id_32;
-use zero_ui_units::Factor;
+use zero_ui_units::{Factor, FactorUnits};
 
 pub mod animation;
 mod arc;
 mod boxed;
-mod channel;
+
 mod context;
 mod contextualized;
 mod cow;
@@ -45,13 +48,10 @@ mod when;
 #[macro_use]
 mod util;
 
-mod tests;
-
 pub use animation::easing;
 
 pub use arc::{var, var_default, var_from, ArcVar};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
-pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
 #[doc(inline)]
 pub use context::{ContextInitHandle, ContextVar, ReadOnlyContextVar};
 pub use local::LocalVar;
@@ -1716,33 +1716,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T>,
     {
         self.bind_map_bidi(other, Clone::clone, Clone::clone)
-    }
-
-    /// Creates a sender that can set `self` from other threads and without access to [`VARS`].
-    ///
-    /// If the variable is read-only when a value is received it is silently dropped.
-    fn sender(&self) -> VarSender<T>
-    where
-        T: Send,
-    {
-        VarSender::new(self)
-    }
-
-    /// Creates a sender that modify `self` from other threads and without access to [`VARS`].
-    ///
-    /// If the variable is read-only when a modification is received it is silently dropped.
-    fn modify_sender(&self) -> VarModifySender<T> {
-        VarModifySender::new(self)
-    }
-
-    /// Creates a channel that can receive `var` updates from another thread.
-    ///
-    /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
-    fn receiver<V>(&self) -> VarReceiver<T>
-    where
-        T: Send,
-    {
-        VarReceiver::new(self, true)
     }
 
     /// Debug helper for tracing the lifetime of a value in this variable.

@@ -2,6 +2,8 @@ use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_app_context::{app_local, context_local};
 
+use crate::animation::{AnimationTimer, AnimationsConfig};
+
 use super::{
     animation::{Animations, ModifyInfo},
     *,
@@ -45,8 +47,6 @@ pub(crate) struct VarsService {
     updating_thread: Option<ThreadId>,
     updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
-    modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
-
     app_waker: Option<Box<dyn Fn() + Send + Sync>>,
 }
 impl VarsService {
@@ -57,8 +57,13 @@ impl VarsService {
             updates: Mutex::new(vec![]),
             updating_thread: None,
             updates_after: Mutex::new(vec![]),
-            modify_receivers: Mutex::new(vec![]),
             app_waker: None,
+        }
+    }
+
+    pub(crate) fn wake_app(&self) {
+        if let Some(w) = &self.app_waker {
+            w()
         }
     }
 }
@@ -256,15 +261,7 @@ impl VARS {
         } else {
             // request from any app thread,
             vars.updates.lock().push((curr_modify, update));
-            if let Some(w) = &vars.app_waker {
-                w();
-            }
-        }
-    }
-
-    pub(crate) fn wake_app(&self) {
-        if let Some(h) = VARS_SV.read().app_waker {
-            h();
+            vars.wake_app();
         }
     }
 
@@ -272,7 +269,7 @@ impl VARS {
     ///
     /// # Panics
     ///
-    /// Panics if already called for the current app. This must be called by app implementers only.
+    /// Panics if already called for the current app. This must be called by app framework implementers only.
     ///
     /// [`apply_updates`]: Self::apply_updates
     pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
@@ -281,9 +278,13 @@ impl VARS {
         vars.app_waker = Some(Box::new(waker));
     }
 
+    pub(crate) fn wake_app(&self) {
+        VARS_SV.read().wake_app();
+    }
+
     /// Apply all pending updates, call hooks and update bindings.
     ///
-    /// This must be called by app implementers only.
+    /// This must be called by app framework implementers only.
     pub fn apply_updates(&self) {
         let _s = tracing::trace_span!("VARS").entered();
         Self::apply_updates_and_after(0)
@@ -350,34 +351,29 @@ impl VARS {
         }
     }
 
-    pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn() -> bool + Send>) {
-        VARS_SV.read().modify_receivers.lock().push(recv_modify);
-    }
-
-    pub(crate) fn receive_sended_modify(&self) {
-        let mut rcvs = mem::take(&mut *VARS_SV.read().modify_receivers.lock());
-        rcvs.retain(|rcv| rcv());
-
-        let mut vars = VARS_SV.write();
-        rcvs.append(vars.modify_receivers.get_mut());
-        *vars.modify_receivers.get_mut() = rcvs;
-    }
-
-    pub(crate) fn update_animations_config(&self, cfg: &AnimationsConfig) {
+    /// Update animations config.
+    pub fn update_animations_config(&self, cfg: &AnimationsConfig) {
         VARS_SV.read().ans.animations_enabled.set(cfg.enabled);
     }
 
-    /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
-    pub(crate) fn update_animations(&self, timer: &mut LoopTimer) {
+    /// Does one animation frame if the frame duration has elapsed.
+    ///
+    /// This must be called by app framework implementers only.
+    pub fn update_animations(&self, timer: &mut impl AnimationTimer) {
         Animations::update_animations(timer)
     }
 
     /// Register the next animation frame, if there are any active animations.
-    pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
+    ///
+    /// This must be called by app framework implementers only.
+    pub fn next_deadline(&self, timer: &mut impl AnimationTimer) {
         Animations::next_deadline(timer)
     }
 
-    pub(crate) fn has_pending_updates(&self) -> bool {
+    /// If [`apply_updates`] will do anything.
+    ///
+    /// [`apply_updates`]: Self::apply_updates
+    pub fn has_pending_updates(&self) -> bool {
         !VARS_SV.write().updates.get_mut().is_empty()
     }
 }

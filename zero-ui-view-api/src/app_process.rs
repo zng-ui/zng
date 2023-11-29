@@ -9,6 +9,7 @@ use std::{
 use std::time::Duration;
 
 use zero_ui_txt::Txt;
+use zero_ui_units::TimeUnits;
 
 use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult};
 
@@ -354,7 +355,7 @@ impl Controller {
             killed_by_us = true;
         } else if !matches!(process.try_wait(), Ok(Some(_))) {
             // if not exited, give the process 300ms to close with the preferred exit code.
-            thread::sleep(Duration::from_millis(300));
+            thread::sleep(300.ms());
 
             if !matches!(process.try_wait(), Ok(Some(_))) {
                 // if still not exited, kill it.

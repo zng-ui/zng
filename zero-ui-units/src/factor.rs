@@ -5,6 +5,46 @@ use crate::{
     EQ_EPSILON_100,
 };
 
+/// Extension methods for initializing factor units.
+///
+/// This trait is implemented for [`f32`] and [`u32`] allowing initialization of factor unit types using the `<number>.<unit>()` syntax.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::units::*;
+/// let percent = 100.pct();
+/// ```
+pub trait FactorUnits {
+    /// Percent factor.
+    fn pct(self) -> FactorPercent;
+
+    /// Normalized factor.
+    ///
+    /// # Note
+    ///
+    /// [`Factor`] implements `From<f32>`.
+    fn fct(self) -> Factor;
+}
+impl FactorUnits for f32 {
+    fn pct(self) -> FactorPercent {
+        FactorPercent(self)
+    }
+
+    fn fct(self) -> Factor {
+        self.into()
+    }
+}
+impl FactorUnits for i32 {
+    fn pct(self) -> FactorPercent {
+        FactorPercent(self as f32)
+    }
+
+    fn fct(self) -> Factor {
+        Factor(self as f32)
+    }
+}
+
 /// Normalized multiplication factor.
 ///
 /// Values of this type are normalized to generally be in between `0.0` and `1.0` to indicate a fraction

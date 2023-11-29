@@ -3,8 +3,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::impl_from_and_into_var;
-
 /// Extension methods for initializing [`Duration`] values.
 pub trait TimeUnits {
     /// Milliseconds.
@@ -104,13 +102,14 @@ impl fmt::Debug for Deadline {
         write!(f, "Deadline({self})")
     }
 }
-impl_from_and_into_var! {
-    fn from(deadline: Instant) -> Deadline {
-        Deadline(deadline)
+impl From<Instant> for Deadline {
+    fn from(value: Instant) -> Self {
+        Deadline(value)
     }
-
-    fn from(timeout: Duration) -> Deadline {
-        Deadline::timeout(timeout)
+}
+impl From<Duration> for Deadline {
+    fn from(value: Duration) -> Self {
+        Deadline::timeout(value)
     }
 }
 impl ops::Add<Duration> for Deadline {

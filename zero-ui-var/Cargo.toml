@@ -13,6 +13,7 @@ zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-handle = { path = "../zero-ui-handle" }
 
 bitflags = { version = "2", features = ["serde"] }
 bytemuck = { version = "1", features = ["derive"] }

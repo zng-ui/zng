@@ -368,7 +368,7 @@ impl<T: VarValue> ArcWhenVar<T> {
                 let args = VarHookArgs::new(value, update, &tags);
                 data.hooks.retain(|h| h.call(&args));
             });
-            UPDATES.update(None);
+            VARS.wake_app();
         })
     }
 

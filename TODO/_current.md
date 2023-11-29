@@ -41,34 +41,24 @@ TextInput! {
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
-    - Uses AnimationsConfig.
-        - Copy type?
-
-    - ArcWhenVar (and others, CowVar) sends an UPDATES.update(None); directly.
-        - Refactor into a VARS thing where app can register a callback that calls update.
-        - The idea is that there is "update ready now".
-        
-    - Needs `Deadline` and `LoopTimer`.
-        - Move to units?
-        - LoopTimer not a public type currently.
-        - Can move TimeUnits too.
-
-    - Needs `crate_util::Handle` for AnimationHandle.
-        - We already implement VarHandle, lets implement this one too.
-
-    - Channels needs `AppDisconnected`.
-
-    - VARS::apply_updates needs to become public.
+    - Some tests should be integration tests.
+        - All tests really, we can work around some need for app.
+        - First thing to do.
 
     - Once public replace all core code with re-exports, except VarSubscribe, state module, easing attribute macro, property_build_action, Transitionable for crate::render::FrameValue, context::helpers.
         - Also remove EasingStep from units.
+        - Also implement AnimationTimer for AppLoopTimer.
+        - Review if we need var channels.
+            - Only needed to communicate with vars from non app threads.
+            - This API is not really useful after app became multi-threaded.
 
-    - Add a typed hook now that we decoupled on_new?
+    - Add a strong typed hook now that we decoupled on_new?
         - This is something we already needed.
 
     - How will IntoVar be implemented on foreign types after?
         - Vars depends on both txt and units crate so we can cover those, but we implement it for other crates in core.
         - Will need wrapper types.
+        - Make macro that implements into_var only (uses into).
 
 * Length types in units crate.
     - Needs impl_from_and_into_var.

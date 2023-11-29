@@ -1,5 +1,5 @@
 //! Proc-macros for the `zero-ui-var` crate.
-//! 
+//!
 //! Don't use directly.
 
 use proc_macro::TokenStream;
@@ -10,10 +10,10 @@ extern crate quote;
 #[macro_use]
 mod util;
 
-mod transitionable;
 mod expr_var;
-mod when_var;
 mod merge_var;
+mod transitionable;
+mod when_var;
 
 /// Implement transition by delegating all type parts.
 #[proc_macro_derive(Transitionable)]

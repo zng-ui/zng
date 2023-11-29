@@ -1,4 +1,4 @@
-use proc_macro2::{TokenStream, TokenTree, Span};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
 /// Returns `true` if `a` and `b` have the same tokens in the same order (ignoring span).
@@ -39,7 +39,6 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     tokens
 }
 
-
 /// Collection of compile errors.
 #[derive(Default)]
 pub struct Errors {
@@ -69,7 +68,6 @@ impl ToTokens for Errors {
         self.tokens
     }
 }
-
 
 const RECOVERABLE_TAG: &str = "<recoverable>";
 fn recoverable_tag() -> syn::Error {
