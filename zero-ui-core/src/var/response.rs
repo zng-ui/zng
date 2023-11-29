@@ -149,60 +149,6 @@ impl<T: VarValue> ResponseVar<T> {
         self.into_value().into()
     }
 
-    /// Add a `handler` that is called once when the response is received,
-    /// the handler is called before all other UI updates.
-    ///
-    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
-    ///
-    /// [`is_done`]: Self::is_done
-    pub fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
-        if self.is_done() {
-            return VarHandle::dummy();
-        }
-
-        self.on_pre_new(app_hn!(|args: &OnVarArgs<Response<T>>, handler_args| {
-            if let Response::Done(value) = &args.value {
-                handler.event(
-                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
-                    &crate::handler::AppHandlerArgs {
-                        handle: handler_args,
-                        is_preview: true,
-                    },
-                )
-            }
-        }))
-    }
-
-    /// Add a `handler` that is called once when the response is received,
-    /// the handler is called after all other UI updates.
-    ///
-    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
-    ///
-    /// [`is_done`]: Self::is_done
-    pub fn on_rsp<H>(&self, mut handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
-        if self.is_done() {
-            return VarHandle::dummy();
-        }
-
-        self.on_new(app_hn!(|args: &OnVarArgs<Response<T>>, handler_args| {
-            if let Response::Done(value) = &args.value {
-                handler.event(
-                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
-                    &crate::handler::AppHandlerArgs {
-                        handle: handler_args,
-                        is_preview: false,
-                    },
-                )
-            }
-        }))
-    }
-
     /// Map the response value using `map`, if the variable is awaiting a response uses the `waiting_value` first.
     pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
     where

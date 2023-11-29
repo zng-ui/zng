@@ -2,6 +2,7 @@ use std::{fmt, ops, time::Duration};
 
 use crate::{
     about_eq, about_eq_hash, about_eq_ord, Dip, DipPoint, DipRect, DipSize, DipVector, Px, PxPoint, PxRect, PxSize, PxVector, EQ_EPSILON,
+    EQ_EPSILON_100,
 };
 
 /// Normalized multiplication factor.
@@ -48,6 +49,11 @@ impl Factor {
     /// Returns `1.0 - self`.
     pub fn flip(self) -> Factor {
         Self(1.0) - self
+    }
+
+    /// Factor as percentage.
+    pub fn pct(self) -> FactorPercent {
+        self.into()
     }
 }
 impl fmt::Debug for Factor {
@@ -611,6 +617,138 @@ impl ops::MulAssign<Factor> for Duration {
     }
 }
 impl ops::DivAssign<Factor> for Duration {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl From<Factor> for FactorPercent {
+    fn from(value: Factor) -> Self {
+        Self(value.0 * 100.0)
+    }
+}
+impl From<FactorPercent> for Factor {
+    fn from(value: FactorPercent) -> Self {
+        Self(value.0 / 100.0)
+    }
+}
+
+/// Multiplication factor in percentage (0%-100%).
+///
+/// See [`FactorUnits`] for more details.
+///
+/// # Equality
+///
+/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct FactorPercent(pub f32);
+impl FactorPercent {
+    /// Clamp factor to [0.0..=100.0] range.
+    pub fn clamp_range(self) -> Self {
+        FactorPercent(self.0.clamp(0.0, 100.0))
+    }
+
+    /// Convert to [`Factor`].
+    pub fn fct(self) -> Factor {
+        self.into()
+    }
+}
+impl ops::Add for FactorPercent {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+impl ops::AddAssign for FactorPercent {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl ops::Sub for FactorPercent {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+impl ops::SubAssign for FactorPercent {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+impl ops::Neg for FactorPercent {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        FactorPercent(-self.0)
+    }
+}
+impl PartialEq for FactorPercent {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.0, other.0, EQ_EPSILON_100)
+    }
+}
+impl ops::Mul for FactorPercent {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+impl ops::MulAssign for FactorPercent {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div for FactorPercent {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self(self.0 / rhs.0)
+    }
+}
+impl ops::DivAssign for FactorPercent {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+impl fmt::Debug for FactorPercent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_tuple("FactorPercent").field(&self.0).finish()
+        } else {
+            write!(f, "{}.pct()", self.0)
+        }
+    }
+}
+impl fmt::Display for FactorPercent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}%", self.0)
+    }
+}
+
+impl ops::Mul<Factor> for FactorPercent {
+    type Output = FactorPercent;
+
+    fn mul(self, rhs: Factor) -> Self {
+        Self(self.0 * rhs.0)
+    }
+}
+impl ops::Div<Factor> for FactorPercent {
+    type Output = FactorPercent;
+
+    fn div(self, rhs: Factor) -> Self {
+        Self(self.0 / rhs.0)
+    }
+}
+impl ops::MulAssign<Factor> for FactorPercent {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for FactorPercent {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }

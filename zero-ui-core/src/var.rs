@@ -676,7 +676,7 @@ impl<V: AnyVar> AnyVarSubscribe for V {
     }
 }
 
-/// Extension method to subscribe any widget to a variable.
+/// Extension methods to subscribe any widget to a variable or app handlers to a variable.
 ///
 /// Also see [`WIDGET`] methods for the primary way to subscribe from inside an widget.
 ///
@@ -714,6 +714,72 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
 impl<T: VarValue, V: Var<T>> VarSubscribe<T> for V {
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
         self.hook(var_subscribe_when(op, widget_id, predicate))
+    }
+}
+
+/// Extension methods to subscribe app handlers to a response variable.
+pub trait ResponseVarSubscribe<T: VarValue> {
+    /// Add a `handler` that is called once when the response is received,
+    /// the handler is called before all other UI updates.
+    ///
+    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
+    ///
+    /// [`is_done`]: Self::is_done
+    fn on_pre_rsp<H>(&self, handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>;
+
+    /// Add a `handler` that is called once when the response is received,
+    /// the handler is called after all other UI updates.
+    ///
+    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
+    ///
+    /// [`is_done`]: Self::is_done
+    fn on_rsp<H>(&self, handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>;
+}
+impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
+    fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>,
+    {
+        if self.is_done() {
+            return VarHandle::dummy();
+        }
+
+        self.on_pre_new(app_hn!(|args: &OnVarArgs<types::Response<T>>, handler_args| {
+            if let types::Response::Done(value) = &args.value {
+                handler.event(
+                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
+                    &crate::handler::AppHandlerArgs {
+                        handle: handler_args,
+                        is_preview: true,
+                    },
+                )
+            }
+        }))
+    }
+
+    fn on_rsp<H>(&self, mut handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>,
+    {
+        if self.is_done() {
+            return VarHandle::dummy();
+        }
+
+        self.on_new(app_hn!(|args: &OnVarArgs<types::Response<T>>, handler_args| {
+            if let types::Response::Done(value) = &args.value {
+                handler.event(
+                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
+                    &crate::handler::AppHandlerArgs {
+                        handle: handler_args,
+                        is_preview: false,
+                    },
+                )
+            }
+        }))
     }
 }
 
@@ -2261,6 +2327,19 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             _t: PhantomData,
         }
     }
+
+    /*
+    after https://github.com/rust-lang/rust/issues/20041
+
+    /// Replaces `self` with the current [`actual_var`] if both are the same type.
+    fn actualize_in_place(&mut self) where Self::ActualVar = Self {
+        take_mut::take(self, Var::actual_var)
+    }
+    */
+}
+
+/// Extension methods to layout var values.
+pub trait VarLayout<T: VarValue>: Var<T> {
     /// Compute the pixel value in the current [`LAYOUT`] context.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
@@ -2340,16 +2419,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     {
         self.with(move |s| s.layout_dft_z(default))
     }
-
-    /*
-    after https://github.com/rust-lang/rust/issues/20041
-
-    /// Replaces `self` with the current [`actual_var`] if both are the same type.
-    fn actualize_in_place(&mut self) where Self::ActualVar = Self {
-        take_mut::take(self, Var::actual_var)
-    }
-    */
 }
+impl<T: VarValue, V: Var<T>> VarLayout<T> for V {}
 
 // Closure type independent of the variable type, hopefully reduces LLVM lines:
 

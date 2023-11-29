@@ -1,108 +1,10 @@
 use derive_more as dm;
 
 use super::{
-    about_eq, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
-    EQ_EPSILON_100,
+    DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
 };
-use crate::{impl_from_and_into_var, var::animation::Transitionable};
+use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
-
-/// Multiplication factor in percentage (0%-100%).
-///
-/// See [`FactorUnits`] for more details.
-///
-/// # Equality
-///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize, Transitionable)]
-#[serde(transparent)]
-pub struct FactorPercent(pub f32);
-impl FactorPercent {
-    /// Clamp factor to [0.0..=100.0] range.
-    pub fn clamp_range(self) -> Self {
-        FactorPercent(self.0.clamp(0.0, 100.0))
-    }
-
-    /// Convert to [`Factor`].
-    pub fn fct(self) -> Factor {
-        self.into()
-    }
-}
-impl ops::Neg for FactorPercent {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        FactorPercent(-self.0)
-    }
-}
-impl PartialEq for FactorPercent {
-    fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
-    }
-}
-impl ops::Mul for FactorPercent {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self(self.0 * rhs.0)
-    }
-}
-impl ops::MulAssign for FactorPercent {
-    fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs;
-    }
-}
-impl ops::Div for FactorPercent {
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
-    }
-}
-impl ops::DivAssign for FactorPercent {
-    fn div_assign(&mut self, rhs: Self) {
-        *self = *self / rhs;
-    }
-}
-impl fmt::Debug for FactorPercent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_tuple("FactorPercent").field(&self.0).finish()
-        } else {
-            write!(f, "{}.pct()", self.0)
-        }
-    }
-}
-impl fmt::Display for FactorPercent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}%", self.0)
-    }
-}
-
-impl ops::Mul<Factor> for FactorPercent {
-    type Output = FactorPercent;
-
-    fn mul(self, rhs: Factor) -> Self {
-        Self(self.0 * rhs.0)
-    }
-}
-impl ops::Div<Factor> for FactorPercent {
-    type Output = FactorPercent;
-
-    fn div(self, rhs: Factor) -> Self {
-        Self(self.0 / rhs.0)
-    }
-}
-impl ops::MulAssign<Factor> for FactorPercent {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for FactorPercent {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
-    }
-}
 
 impl ops::Mul<Factor> for Factor2d {
     type Output = Factor2d;
@@ -129,15 +31,20 @@ impl ops::DivAssign<Factor> for Factor2d {
     }
 }
 
-impl_from_and_into_var! {
-    fn from(percent: FactorPercent) -> Factor {
-        Factor(percent.0 / 100.0)
-    }
-    fn from(percent: Factor) -> FactorPercent {
-        FactorPercent(percent.0 * 100.0)
+impl crate::var::IntoVar<Factor> for FactorPercent {
+    type Var = crate::var::LocalVar<Factor>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
     }
 }
+impl crate::var::IntoVar<FactorPercent> for Factor {
+    type Var = crate::var::LocalVar<FactorPercent>;
 
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(self.into())
+    }
+}
 impl crate::var::IntoVar<Factor> for f32 {
     type Var = crate::var::LocalVar<Factor>;
 
