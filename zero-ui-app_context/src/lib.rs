@@ -553,9 +553,7 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
 ///
 /// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 ///
-/// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
-///
-/// [`App::is_running`]: crate::app::App::is_running
+/// Note that an app local can only be used if an app is running in the thread, if no app is running read and write **will panic**.
 pub struct AppLocal<T: Send + Sync + 'static> {
     inner: &'static dyn AppLocalImpl<T>,
 }
@@ -571,9 +569,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// # Panics
     ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
+    /// Panics if no app is running.
     #[inline]
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         self.inner.read()
@@ -585,9 +581,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// # Panics
     ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
+    /// Panics if no app is running.
     #[inline]
     pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
         self.inner.try_read()
@@ -599,9 +593,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// # Panics
     ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
+    /// Panics if no app is running.
     #[inline]
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         self.inner.write()
@@ -613,9 +605,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// # Panics
     ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
+    /// Panics if no app is running.
     pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
         self.inner.try_write()
     }
@@ -882,6 +872,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 
     /// Same as [`with_context`], but `value` represents a variable.
+    /// 
+    /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);

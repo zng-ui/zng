@@ -297,6 +297,8 @@ mod name_map {
         sync::{Mutex, Once},
     };
 
+    use zero_ui_txt::Txt;
+
     use super::AppInitMsg;
 
     type Map = Mutex<HashMap<Txt, flume::Sender<AppInitMsg>>>;
@@ -318,10 +320,11 @@ mod name_map {
 impl AppInit {
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU32, Ordering};
+        use zero_ui_txt::formatx;
 
         static NAME_COUNT: AtomicU32 = AtomicU32::new(0);
 
-        let name = format!("<not-ipc-{}>", NAME_COUNT.fetch_add(1, Ordering::Relaxed));
+        let name = formatx!("<not-ipc-{}>", NAME_COUNT.fetch_add(1, Ordering::Relaxed));
 
         let (init_sender, init_recv) = flume::bounded(1);
 
