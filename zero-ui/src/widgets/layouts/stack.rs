@@ -539,9 +539,17 @@ pub fn stack_nodes_layout_by(
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
 ) -> impl UiNode {
-    let index = index.into_var();
     #[cfg(dyn_closure)]
     let constraints: Box<dyn Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send> = Box::new(constraints);
+    stack_nodes_layout_by_impl(nodes, index, constraints)
+}
+
+fn stack_nodes_layout_by_impl(
+    nodes: impl UiNodeList,
+    index: impl IntoVar<usize>,
+    constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
+) -> impl UiNode {
+    let index = index.into_var();
 
     match_node_list(nodes, move |children, op| match op {
         UiNodeOp::Init => {
