@@ -1,3 +1,5 @@
+* Review all #[cfg(dyn_closure)].
+
 # TextInput
 
 * Touch selection.
@@ -8,7 +10,6 @@
 
 * Implement selection toolbar.
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
-    - Has to be anchored in relation to the selected text.
     - Implement `selection_toolbar_fn`.
         - Should it be a context-var?
             - Context-menu is not.
