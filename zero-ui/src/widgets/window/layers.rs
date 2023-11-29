@@ -1378,12 +1378,10 @@ impl_from_and_into_var! {
 }
 
 pub(super) fn node(child: impl UiNode) -> impl UiNode {
-    type SortFn = fn(&mut BoxedUiNode, &mut BoxedUiNode) -> std::cmp::Ordering;
-
     let layers = EditableUiNodeList::new();
     let layered = layers.reference();
 
-    let sorting_layers = SortingList::<_, SortFn>::new(layers, |a, b| {
+    fn sort(a: &mut BoxedUiNode, b: &mut BoxedUiNode) -> std::cmp::Ordering {
         let a = a
             .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(&LAYER_INDEX_ID))
             .unwrap_or(LayerIndex::DEFAULT);
@@ -1392,7 +1390,8 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
             .unwrap_or(LayerIndex::DEFAULT);
 
         a.cmp(&b)
-    });
+    }
+    let sorting_layers = SortingList::new(layers, sort);
     let children = ui_vec![child].chain(sorting_layers);
 
     match_node_list(children, move |c, op| match op {

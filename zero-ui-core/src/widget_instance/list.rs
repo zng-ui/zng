@@ -285,23 +285,23 @@ pub trait UiNodeListChain: UiNodeList {
     /// Creates a new [`UiNodeList`] that chains `self` and `other`.
     ///
     /// Special features of each inner list type is preserved.
-    fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
+    fn chain<B>(self, other: B) -> UiNodeListChainImpl
     where
         B: UiNodeList,
         Self: Sized;
 }
 impl<A: UiNodeList> UiNodeListChain for A {
-    fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
+    fn chain<B>(self, other: B) -> UiNodeListChainImpl
     where
         B: UiNodeList,
     {
-        UiNodeListChainImpl(self, other)
+        UiNodeListChainImpl(self.boxed(), other.boxed())
     }
 }
 
 /// Implements [`UiNodeListChain`].
-pub struct UiNodeListChainImpl<A: UiNodeList, B: UiNodeList>(pub A, pub B);
-impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
+pub struct UiNodeListChainImpl(pub BoxedUiNodeList, pub BoxedUiNodeList);
+impl UiNodeList for UiNodeListChainImpl {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
@@ -475,24 +475,20 @@ context_local! {
 /// and gets invalidated on every init and every time there are changes observed in [`update_all`].
 ///
 /// [`update_all`]: UiNodeList
-pub struct SortingList<L, S>
-where
-    L: UiNodeList,
-    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
-{
-    list: L,
+pub struct SortingList {
+    list: BoxedUiNodeList,
 
     map: Vec<usize>,
-    sort: S,
+    sort: Box<dyn Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static>,
 }
-impl<L, S> SortingList<L, S>
-where
-    L: UiNodeList,
-    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
-{
+impl SortingList {
     /// New from list and sort function.
-    pub fn new(list: L, sort: S) -> Self {
-        Self { list, map: vec![], sort }
+    pub fn new(list: impl UiNodeList, sort: impl Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static) -> Self {
+        Self {
+            list: list.boxed(),
+            map: vec![],
+            sort: Box::new(sort),
+        }
     }
 
     fn update_map(&mut self) {
@@ -519,7 +515,7 @@ where
     /// You must call [`invalidate_sort`] if any modification may have affected sort without changing the list length.
     ///
     /// [`invalidate_sort`]: Self::invalidate_sort
-    pub fn list(&mut self) -> &mut L {
+    pub fn list(&mut self) -> &mut BoxedUiNodeList {
         &mut self.list
     }
 
@@ -530,7 +526,7 @@ where
         self.map.clear()
     }
 
-    fn with_map<R>(&mut self, f: impl FnOnce(&[usize], &mut L) -> R) -> R {
+    fn with_map<R>(&mut self, f: impl FnOnce(&[usize], &mut BoxedUiNodeList) -> R) -> R {
         self.update_map();
 
         let (r, resort) = SortingListParent::with(|| f(&self.map, &mut self.list));
@@ -542,11 +538,7 @@ where
         r
     }
 }
-impl<L, S> UiNodeList for SortingList<L, S>
-where
-    L: UiNodeList,
-    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
-{
+impl UiNodeList for SortingList {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
