@@ -9,7 +9,6 @@ use std::{
 use std::time::Duration;
 
 use zero_ui_txt::Txt;
-use zero_ui_units::TimeUnits;
 
 use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult};
 
@@ -316,6 +315,8 @@ impl Controller {
     }
     #[cfg(feature = "ipc")]
     fn respawn_impl(&mut self, is_crash: bool) {
+        use zero_ui_units::TimeUnits;
+
         self.online = false;
         self.is_respawn = true;
 

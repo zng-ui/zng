@@ -22,7 +22,7 @@ pub type ResponderVar<T> = ArcVar<Response<T>>;
 /// Use [`response_var`] or [`response_done_var`] to init.
 
 pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
-/// Raw value in a [`ResponseVar`] or [`ResponseSender`].
+/// Raw value in a [`ResponseVar`].
 #[derive(Clone, Copy, PartialEq)]
 pub enum Response<T: VarValue> {
     /// Responder has not set the response yet.

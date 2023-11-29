@@ -722,7 +722,7 @@ pub trait ResponseVarSubscribe<T: VarValue> {
     ///
     /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
-    /// [`is_done`]: Self::is_done
+    /// [`is_done`]: ResponseVar::is_done
     fn on_pre_rsp<H>(&self, handler: H) -> VarHandle
     where
         H: AppHandler<OnVarArgs<T>>;
@@ -732,7 +732,7 @@ pub trait ResponseVarSubscribe<T: VarValue> {
     ///
     /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
-    /// [`is_done`]: Self::is_done
+    /// [`is_done`]: ResponseVar::is_done
     fn on_rsp<H>(&self, handler: H) -> VarHandle
     where
         H: AppHandler<OnVarArgs<T>>;

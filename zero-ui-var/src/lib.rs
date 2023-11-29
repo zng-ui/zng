@@ -545,9 +545,6 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
-    /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_new`].
-    ///
-    /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle;
 
@@ -1104,8 +1101,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a future that awaits for the [`last_update`] to change.
     ///
-    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in [`UiTask`] updated
-    /// by the UI tree, but the future will elapse in any thread when the variable updates after the future is instantiated.
+    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only when polled
+    /// in sync with the UI, but it will elapse in any thread when the variable updates after the future is instantiated.
     ///
     /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
     /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_is_new`.
@@ -1113,7 +1110,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`get`]: Var::get
     /// [`last_update`]: AnyVar::last_update
     /// [`is_new`]: AnyVar::is_new
-    /// [`UiTask`]: crate::task::ui::UiTask
     fn wait_update(&self) -> types::WaitUpdateFut<Self> {
         types::WaitUpdateFut::new(self)
     }

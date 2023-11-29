@@ -13,7 +13,7 @@
 /// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
 ///
-/// [`LocalVar<U>`]: crate::var::LocalVar
+/// [`LocalVar<U>`]: crate::LocalVar
 ///
 /// # Examples
 ///

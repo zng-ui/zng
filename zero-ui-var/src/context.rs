@@ -257,7 +257,7 @@ pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 /// records this ID, and rebuilds when it has changed. The contextualized inner vars are retained when the ID has at least one
 /// clone.
 ///
-/// [`ContextualizedVar`]: crate::var::types::ContextualizedVar
+/// [`ContextualizedVar`]: crate::types::ContextualizedVar
 #[derive(Clone, Default)]
 pub struct ContextInitHandle(Arc<()>);
 context_local! {

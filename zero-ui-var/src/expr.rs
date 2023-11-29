@@ -54,10 +54,10 @@
 ///
 /// An expression with multiple variables is transformed into a [`merge_var!`] call.
 ///
-/// [`Var::get`]: crate::var::Var::get
-/// [`map`]: crate::var::Var::map
-/// [`IntoVar`]: crate::var::IntoVar
-/// [`merge_var!`]: crate::var::merge_var
+/// [`Var::get`]: crate::Var::get
+/// [`map`]: crate::Var::map
+/// [`IntoVar`]: crate::IntoVar
+/// [`merge_var!`]: crate::merge_var
 #[macro_export]
 macro_rules! expr_var {
     ($($expr:tt)+) => {

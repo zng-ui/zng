@@ -6,14 +6,14 @@ use std::{
 
 use super::{util::VarData, *};
 
-///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
+///<span data-del-macro-root></span> Initializes a new [`Var`](crate::Var) with value made
 /// by merging multiple other variables.
 ///
 /// # Arguments
 ///
 /// All arguments are separated by comma like a function call.
 ///
-/// * `var0..N`: A list of [vars](crate::var::Var), minimal 2.
+/// * `var0..N`: A list of [vars](crate::Var), minimal 2.
 /// * `merge`: A new closure that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
 /// # Contextualized
