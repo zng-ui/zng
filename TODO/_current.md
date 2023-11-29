@@ -41,8 +41,11 @@ TextInput! {
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
-    - Needs `context_local` for context_var. Ready.
     - VARS::apply_updates needs to become public.
+    - Once public replace all core code with re-exports, except VarSubscribe and property_build_action.
+        - Also remove EasingStep from units.
+    - Add a typed hook now that we decoupled on_new?
+        - This is something we already needed.
 
 * Length types in units crate.
     - Needs impl_from_and_into_var.

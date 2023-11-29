@@ -14,10 +14,9 @@ use std::{
 };
 
 use crate::{
-    clmv,
     context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap, IdSet},
-    handler::{AppHandler, AppHandlerArgs},
+    handler::{clmv, AppHandler, AppHandlerArgs},
     widget_instance::WidgetId,
 };
 

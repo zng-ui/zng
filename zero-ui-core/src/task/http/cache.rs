@@ -650,6 +650,8 @@ mod file_cache {
 mod tests {
     use std::{path::PathBuf, time::SystemTime};
 
+    use zero_ui_clone_move::async_clmv;
+
     use crate::{
         crate_util::{test_log, TestTempDir},
         task::{

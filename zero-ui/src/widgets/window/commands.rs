@@ -26,7 +26,7 @@ pub(super) fn inspect_node(
 #[cfg(inspector)]
 mod live_inspector {
     use zero_ui_core::{
-        clmv,
+        handler::clmv,
         window::{CursorIcon, WINDOW_Ext},
     };
 

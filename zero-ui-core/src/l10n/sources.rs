@@ -6,6 +6,8 @@ use std::{
     sync::Arc,
 };
 
+use zero_ui_clone_move::clmv;
+
 use crate::{
     fs_watcher::WATCHER,
     l10n::FluentParserErrors,

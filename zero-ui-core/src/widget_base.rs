@@ -279,6 +279,7 @@ macro_rules! WidgetBaseMacro__ {
         }
     }
 }
+use zero_ui_clone_move::clmv;
 #[doc(hidden)]
 pub use WidgetBaseMacro__ as WidgetBase;
 

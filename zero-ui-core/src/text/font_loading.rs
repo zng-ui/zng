@@ -8,6 +8,7 @@ use std::{
 };
 
 use parking_lot::{Mutex, RwLock};
+use zero_ui_clone_move::clmv;
 
 use super::{
     emoji_util::ColorPalettes, font_features::RFontVariations, font_kit_cache::FontKitCache, lang, ligature_util::LigatureCaretList,

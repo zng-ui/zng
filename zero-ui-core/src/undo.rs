@@ -13,13 +13,14 @@ use parking_lot::Mutex;
 
 use crate::{
     app::AppExtension,
-    clmv, command,
+    command,
     context::{app_local, context_local},
     context::{StateMapRef, StaticStateId, WIDGET},
     crate_util::RunOnDrop,
     event::{AnyEventArgs, Command, CommandNameExt, CommandScope},
     focus::commands::CommandFocusExt,
     gesture::CommandShortcutExt,
+    handler::clmv,
     keyboard::KEYBOARD,
     shortcut,
     text::Txt,

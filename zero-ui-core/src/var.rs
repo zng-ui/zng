@@ -67,6 +67,7 @@ pub use state::*;
 pub use vars::*;
 #[doc(inline)]
 pub use when::when_var;
+use zero_ui_clone_move::clmv;
 
 use crate::widget_instance::WidgetId;
 
@@ -545,9 +546,6 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
-    /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_new`].
-    ///
-    /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle;
 
@@ -690,6 +688,28 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     ///
     /// [`NEW`]: VarCapabilities::NEW
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
+
+    /// Add a preview `handler` that is called every time this variable updates,
+    /// the handler is called before all other UI updates.
+    ///
+    /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
+    fn on_pre_new<H>(&self, handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>,
+    {
+        var_on_new(self, handler, true)
+    }
+
+    /// Add a `handler` that is called every time this variable updates,
+    /// the handler is called after all other UI updates.
+    ///
+    /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
+    fn on_new<H>(&self, handler: H) -> VarHandle
+    where
+        H: AppHandler<OnVarArgs<T>>,
+    {
+        var_on_new(self, handler, false)
+    }
 }
 impl<T: VarValue, V: Var<T>> VarSubscribe<T> for V {
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
@@ -1847,28 +1867,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: Send,
     {
         VarReceiver::new(self, true)
-    }
-
-    /// Add a preview `handler` that is called every time this variable updates,
-    /// the handler is called before all other UI updates.
-    ///
-    /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
-    fn on_pre_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
-        var_on_new(self, handler, true)
-    }
-
-    /// Add a `handler` that is called every time this variable updates,
-    /// the handler is called after all other UI updates.
-    ///
-    /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
-    fn on_new<H>(&self, handler: H) -> VarHandle
-    where
-        H: AppHandler<OnVarArgs<T>>,
-    {
-        var_on_new(self, handler, false)
     }
 
     /// Debug helper for tracing the lifetime of a value in this variable.

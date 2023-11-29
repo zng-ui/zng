@@ -3,9 +3,13 @@
 resolver = "2"
 
 members = [
+    # macros:
+    "zero-ui-unique_id",
+    "zero-ui-clone_move",
+    "zero-ui-proc-macros", 
+
     # types:
     "zero-ui-txt",
-    "zero-ui-unique_id",
     "zero-ui-units",
     "zero-ui-app_context",
 
@@ -14,8 +18,7 @@ members = [
     "zero-ui-view", 
     "zero-ui-view-prebuilt", 
 
-    # main:
-    "zero-ui-proc-macros", 
+    # app:
     "zero-ui-core", 
     "zero-ui",
     "zero-ui-material-icons",

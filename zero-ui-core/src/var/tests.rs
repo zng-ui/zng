@@ -871,6 +871,8 @@ mod flat_map {
 }
 
 mod modify_importance {
+    use zero_ui_clone_move::{async_clmv, clmv};
+
     use crate::{app::App, text::Txt, var::*};
 
     #[test]
@@ -980,6 +982,8 @@ mod modify_importance {
 }
 
 mod cow {
+    use zero_ui_clone_move::clmv;
+
     use crate::app::App;
 
     use super::*;
@@ -1049,6 +1053,8 @@ mod cow {
 }
 
 mod multi {
+    use zero_ui_clone_move::clmv;
+
     use crate::app::App;
 
     use super::*;
@@ -1086,6 +1092,8 @@ mod multi {
 }
 
 mod threads {
+    use zero_ui_clone_move::async_clmv;
+
     use crate::{app::App, task};
 
     use super::*;

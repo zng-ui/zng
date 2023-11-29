@@ -400,11 +400,11 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 ///
 /// The output type is a [`StyleFn`], the closure is [`clmv!`].
 ///
-/// [`clmv!`]: crate::core::clmv
+/// [`clmv!`]: crate::core::handler::clmv
 #[macro_export]
 macro_rules! style_fn {
     ($($tt:tt)+) => {
-        $crate::widgets::style::StyleFn::new($crate::core::clmv! {
+        $crate::widgets::style::StyleFn::new($crate::core::handler::clmv! {
             $($tt)+
         })
     }

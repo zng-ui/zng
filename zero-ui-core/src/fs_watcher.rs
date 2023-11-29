@@ -18,6 +18,7 @@ use hashbrown::HashMap;
 use notify::Watcher as _;
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
+use zero_ui_clone_move::clmv;
 
 use crate::{
     app::{raw_events::LOW_MEMORY_EVENT, AppExtension},
