@@ -1829,7 +1829,9 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
                     UiNodeOp::Render { frame } => {
                         let l_txt = LayoutText::get();
                         let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
-                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| c.render(frame));
+                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| {
+                            c.render(frame)
+                        });
                     }
                     _ => {}
                 });
