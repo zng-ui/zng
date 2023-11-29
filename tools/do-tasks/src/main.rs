@@ -108,8 +108,15 @@ fn doc(mut args: Vec<&str>) {
 
         let mut name = String::new();
         let mut rustdoc_flags = String::new();
+        let mut is_in_package = false;
         for line in toml.lines() {
-            if line.starts_with("name = ") {
+            let line = line.trim();
+
+            if line.starts_with('[') {
+                is_in_package = line == "[package]";
+            }
+
+            if is_in_package && line.starts_with("name = ") {
                 name = line["name = ".len()..].trim_matches('"').to_owned();
             }
             if line.starts_with("rustdoc-args = ") {

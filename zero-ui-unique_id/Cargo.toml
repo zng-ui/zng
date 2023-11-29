@@ -6,8 +6,8 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["name", "bytemuck" ]
-name = ["zero-ui-txt", "parking_lot"]
+default = ["named", "bytemuck" ]
+named = ["zero-ui-txt", "parking_lot"]
 bytemuck = []
 
 [dependencies]

@@ -35,8 +35,10 @@ TextInput! {
 # Split Core
 
 * Each app extension.
+    - They are mostly contained.
     - Needs `AppExtension` and update types.
     - We need a `zero-ui-app-api` and zero-ui-app pair?
+    - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
     - Needs `context_local` for context_var. Ready.
@@ -54,6 +56,10 @@ TextInput! {
         - We are suddenly importing a lot of dependencies.
         - Should be pretty small still, or we could make a "var-api" crate.
     - Needs LAYOUT context? Otherwise can't implement Layout2d and Layout1d.
+
+## Split Main
+
+* Per widget?
 
 # Publish
 

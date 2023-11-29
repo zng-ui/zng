@@ -9,11 +9,11 @@ use std::{
 
 use rayon::iter::{FromParallelIterator, IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator};
 
-#[cfg(feature = "name")]
-mod name;
+#[cfg(feature = "named")]
+mod named;
 
-#[cfg(feature = "name")]
-pub use name::*;
+#[cfg(feature = "named")]
+pub use named::*;
 
 #[doc(hidden)]
 pub use paste::paste;
