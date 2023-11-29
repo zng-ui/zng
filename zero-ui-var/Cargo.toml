@@ -1,0 +1,21 @@
+[package]
+name = "zero-ui-var"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-var-proc-macros = { path = "../zero-ui-var-proc-macros" }
+
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-unique_id = { path = "../zero-ui-unique_id" }
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+
+bitflags = { version = "2", features = ["serde"] }
+bytemuck = { version = "1", features = ["derive"] }
+parking_lot = "0.12"
+tracing = "0.1"
+take_mut = "0.2"
