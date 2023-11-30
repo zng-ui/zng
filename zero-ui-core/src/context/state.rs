@@ -558,11 +558,18 @@ where
     I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
-    let id = id.into();
-    let value = value.into_var();
-
     #[cfg(dyn_closure)]
     let default: Box<dyn Fn() -> T + Send> = Box::new(default);
+    with_widget_state_impl(child.cfg_boxed(), id.into(), default, value.into_var()).cfg_boxed()
+}
+fn with_widget_state_impl<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+where
+    U: UiNode,
+    I: Fn() -> T + Send + 'static,
+    T: StateValue + VarValue,
+{
+    let id = id.into();
+    let value = value.into_var();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -605,14 +612,29 @@ where
     I: Fn() -> S + Send + 'static,
     M: FnMut(&mut S, &V) + Send + 'static,
 {
-    let id = id.into();
-    let value = value.into_var();
-
     #[cfg(dyn_closure)]
     let default: Box<dyn Fn() -> S + Send> = Box::new(default);
-
     #[cfg(dyn_closure)]
-    let mut modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
+    let modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
+
+    with_widget_state_modify_impl(child.cfg_boxed(), id.into(), value.into_var(), default, modify)
+}
+fn with_widget_state_modify_impl<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    mut modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    let id = id.into();
+    let value = value.into_var();
 
     #[cfg(not(dyn_closure))]
     let mut modify = modify;

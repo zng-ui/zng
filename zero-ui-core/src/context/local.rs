@@ -29,10 +29,14 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
     init_value: impl FnMut() -> T + Send + 'static,
 ) -> impl UiNode {
     #[cfg(dyn_closure)]
-    let mut init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
-    #[cfg(not(dyn_closure))]
-    let mut init_value = init_value;
-
+    let init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
+    with_context_local_init_impl(child.cfg_boxed(), context, init_value).cfg_boxed()
+}
+fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    mut init_value: impl FnMut() -> T + Send + 'static,
+) -> impl UiNode {
     let mut value = None;
 
     match_node(child, move |child, op| {

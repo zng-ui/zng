@@ -1186,19 +1186,24 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
+    #[cfg(dyn_closure)]
+    let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
+    #[cfg(dyn_closure)]
+    let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
+
+    on_command_impl(child.boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_command_impl<U, CB, E, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+where
+    U: UiNode,
+    CB: FnMut() -> Command + Send + 'static,
+    E: Var<bool>,
+    EB: FnMut() -> E + Send + 'static,
+    H: WidgetHandler<CommandArgs>,
+{
     let mut enabled = None;
     let mut handle = None;
     let mut command = None;
-
-    #[cfg(dyn_closure)]
-    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
-    #[cfg(not(dyn_closure))]
-    let mut command_builder = command_builder;
-
-    #[cfg(dyn_closure)]
-    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
-    #[cfg(not(dyn_closure))]
-    let mut enabled_builder = enabled_builder;
 
     let mut handler = handler.cfg_boxed();
 
@@ -1274,7 +1279,7 @@ where
 /// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///  
 /// [`propagation`]: AnyEventArgs::propagation
-pub fn on_pre_command<U, CB, E, EB, H>(child: U, cmd: CB, enabled: EB, handler: H) -> impl UiNode
+pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
@@ -1283,15 +1288,20 @@ where
     H: WidgetHandler<CommandArgs>,
 {
     #[cfg(dyn_closure)]
-    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(cmd);
-    #[cfg(not(dyn_closure))]
-    let mut command_builder = cmd;
-
+    let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
     #[cfg(dyn_closure)]
-    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled);
-    #[cfg(not(dyn_closure))]
-    let mut enabled_builder = enabled;
+    let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
 
+    on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_pre_command_impl<U, CB, E, EB, H>(child: U, mut command_builder: CB, mut enabled_builder: EB, handler: H) -> impl UiNode
+where
+    U: UiNode,
+    CB: FnMut() -> Command + Send + 'static,
+    E: Var<bool>,
+    EB: FnMut() -> E + Send + 'static,
+    H: WidgetHandler<CommandArgs>,
+{
     let mut handler = handler.cfg_boxed();
 
     let mut enabled = None;

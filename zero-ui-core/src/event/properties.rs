@@ -251,13 +251,16 @@ where
     H: WidgetHandler<A>,
 {
     #[cfg(dyn_closure)]
-    let mut filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-
-    #[cfg(not(dyn_closure))]
-    let mut filter = filter;
-
-    let mut handler = handler.cfg_boxed();
-
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+    on_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&event);
@@ -316,13 +319,16 @@ where
     H: WidgetHandler<A>,
 {
     #[cfg(dyn_closure)]
-    let mut filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-
-    #[cfg(not(dyn_closure))]
-    let mut filter = filter;
-
-    let mut handler = handler.cfg_boxed();
-
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+    on_pre_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_pre_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&event);

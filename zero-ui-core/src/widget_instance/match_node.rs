@@ -287,7 +287,6 @@ pub fn match_node_typed<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeC
     match_node_impl(child, closure)
 }
 
-#[inline(always)]
 fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static) -> impl UiNode {
     #[ui_node(struct MatchNode<C: UiNode> {
         child: MatchNodeChild<C>,

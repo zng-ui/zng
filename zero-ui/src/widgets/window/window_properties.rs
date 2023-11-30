@@ -18,10 +18,20 @@ where
     T: VarValue + PartialEq,
     V: Var<T>,
 {
-    let user_var = user_var.into_var();
-
     #[cfg(dyn_closure)]
     let select: Box<dyn Fn(&WindowVars) -> V + Send> = Box::new(select);
+    bind_window_var_impl(child.cfg_boxed(), user_var.into_var(), select).cfg_boxed()
+}
+fn bind_window_var_impl<T, V>(
+    child: impl UiNode,
+    user_var: impl IntoVar<T>,
+    select: impl Fn(&WindowVars) -> V + Send + 'static,
+) -> impl UiNode
+where
+    T: VarValue + PartialEq,
+    V: Var<T>,
+{
+    let user_var = user_var.into_var();
 
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
