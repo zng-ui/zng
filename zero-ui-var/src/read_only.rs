@@ -152,6 +152,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     type Downgrade = WeakReadOnlyVar<T, V::Downgrade>;
 
     type Map<O: VarValue> = V::Map<O>;
+    type MapBidi<O: VarValue> = V::Map<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -197,6 +198,14 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
+        self.1.map(map)
+    }
+
+    fn map_bidi<O, M, B>(&self, map: M, _: B) -> Self::MapBidi<O>
+        where
+            O: VarValue,
+            M: FnMut(&T) -> O + Send + 'static,
+            B: FnMut(&O) -> T + Send + 'static {
         self.1.map(map)
     }
 }

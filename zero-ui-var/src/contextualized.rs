@@ -251,6 +251,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     type Downgrade = WeakContextualizedVar<T, S>;
 
     type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
+    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -288,6 +289,15 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         M: FnMut(&T) -> O + Send + 'static,
     {
         var_map(self, map)
+    }
+
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static,
+    {
+        var_map_bidi(self, map, map_back)
     }
 }
 impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakContextualizedVar<T, S> {

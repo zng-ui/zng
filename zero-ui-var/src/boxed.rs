@@ -224,6 +224,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     type Downgrade = BoxedWeakVar<T>;
 
     type Map<O: VarValue> = BoxedVar<O>;
+    type MapBidi<O: VarValue> = BoxedVar<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -283,6 +284,19 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
             LocalVar(self.with(map)).boxed()
         } else {
             var_map(self, map).boxed()
+        }
+    }
+
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static,
+    {
+        if self.capabilities().is_always_static() {
+            LocalVar(self.with(map)).boxed()
+        } else {
+            var_map_bidi(self, map, map_back).boxed()
         }
     }
 }

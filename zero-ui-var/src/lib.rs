@@ -54,6 +54,7 @@ pub use arc::{var, var_default, var_from, ArcVar};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 #[doc(inline)]
 pub use context::{ContextInitHandle, ContextVar, ReadOnlyContextVar};
+pub use cow::VarCow;
 pub use local::LocalVar;
 #[doc(inline)]
 pub use merge::MergeVarBuilder;
@@ -1047,6 +1048,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Output of [`Var::map`].
     type Map<O: VarValue>: Var<O>;
+    
+    /// Output of [`Var::map_bidi`].
+    type MapBidi<O: VarValue>: Var<O>;
 
     /// Visit the current value of the variable, inside `read` the variable is locked/borrowed and cannot
     /// be modified.
@@ -1286,16 +1290,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         }
     }
 
-    /// Create a ref-counted var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
-    ///
-    /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
-    /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
-    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not update the cloned value it is dropped and the cow
-    /// continues to redirect to the source variable.
-    fn cow(&self) -> types::ArcCowVar<T, Self> {
-        types::ArcCowVar::new(self.clone())
-    }
-
     /// Creates a ref-counted var that maps from this variable.
     ///
     /// The `map` closure is called once on initialization, and then once every time
@@ -1303,11 +1297,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping variable is read-only, you can use [`map_bidi`] to map back.
     ///
-    /// Note that the mapping var is [contextualized] for context vars, meaning the map binding will initialize in 
-    /// the fist usage context, not the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with 
-    /// the `CONTEXT_VAR` in the `property` context, not the property instantiation. The `map` closure itself runs in 
+    /// Note that the mapping var is [contextualized] for context vars, meaning the map binding will initialize in
+    /// the fist usage context, not the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with
+    /// the `CONTEXT_VAR` in the `property` context, not the property instantiation. The `map` closure itself runs in
     /// the root app context, trying to read other context variables inside it will only read the default value.
-    /// 
+    ///
     /// For other variables types the `map` can run once in the caller context.
     ///
     /// [`map_bidi`]: Var::map_bidi
@@ -1358,23 +1352,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, ArcVar<O>>
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
     where
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
-        B: FnMut(&O) -> T + Send + 'static,
-    {
-        let me = self.clone();
-        let map = Arc::new(Mutex::new(map));
-        let map_back = Arc::new(Mutex::new(map_back));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let other = var(me.with(&mut *map.lock()));
-            let map = map.clone();
-            let map_back = map_back.clone();
-            me.bind_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o)).perm();
-            other
-        }))
-    }
+        B: FnMut(&O) -> T + Send + 'static;
 
     /// Create a ref-counted var that maps to an inner variable that is found inside the value of this variable.
     ///
@@ -2111,6 +2093,25 @@ fn var_map<T: VarValue, O: VarValue>(
         let map = map.clone();
         source.bind_map(&other, move |t| map.lock()(t)).perm();
         other.read_only()
+    }))
+}
+
+fn var_map_bidi<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O, ArcVar<O>>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> O + Send + 'static,
+    B: FnMut(&O) -> T + Send + 'static,
+{
+    let me = source.clone();
+    let map = Arc::new(Mutex::new(map));
+    let map_back = Arc::new(Mutex::new(map_back));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let other = var(me.with(&mut *map.lock()));
+        let map = map.clone();
+        let map_back = map_back.clone();
+        me.bind_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o)).perm();
+        other
     }))
 }
 

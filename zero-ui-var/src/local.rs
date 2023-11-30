@@ -142,6 +142,7 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
     type Downgrade = WeakArcVar<T>;
 
     type Map<O: VarValue> = LocalVar<O>;
+    type MapBidi<O: VarValue> = LocalVar<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -181,5 +182,14 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
     {
         LocalVar(self.with(map))
+    }
+
+    fn map_bidi<O, M, B>(&self, map: M, _: B) -> Self::MapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static,
+    {
+        self.map(map)
     }
 }
