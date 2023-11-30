@@ -1048,9 +1048,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Output of [`Var::map`].
     type Map<O: VarValue>: Var<O>;
-    
+
     /// Output of [`Var::map_bidi`].
     type MapBidi<O: VarValue>: Var<O>;
+
+    /// Output of [`Var::map_bidi`].
+    type FlatMap<O: VarValue, V: Var<O>>: Var<O>;
 
     /// Visit the current value of the variable, inside `read` the variable is locked/borrowed and cannot
     /// be modified.
@@ -1368,19 +1371,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn flat_map<O, V, M>(&self, map: M) -> types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>
+    fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
     where
         O: VarValue,
         V: Var<O>,
-        M: FnMut(&T) -> V + Send + 'static,
-    {
-        let me = self.clone();
-        let map = Arc::new(Mutex::new(map));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let map = map.clone();
-            types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
-        }))
-    }
+        M: FnMut(&T) -> V + Send + 'static;
 
     /// Creates a ref-counted var that maps from this variable, but can retain a previous mapped value.
     ///
@@ -2112,6 +2107,21 @@ where
         let map_back = map_back.clone();
         me.bind_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o)).perm();
         other
+    }))
+}
+
+fn var_flat_map<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>
+where
+    T: VarValue,
+    O: VarValue,
+    V: Var<O>,
+    M: FnMut(&T) -> V + Send + 'static,
+{
+    let me = source.clone();
+    let map = Arc::new(Mutex::new(map));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let map = map.clone();
+        types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
     }))
 }
 

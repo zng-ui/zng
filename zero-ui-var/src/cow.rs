@@ -303,6 +303,8 @@ impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
     type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
     type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
 
+    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -357,6 +359,15 @@ impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
         B: FnMut(&O) -> T + Send + 'static,
     {
         var_map_bidi(self, map, map_back)
+    }
+
+    fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
+    where
+        O: VarValue,
+        V: Var<O>,
+        M: FnMut(&T) -> V + Send + 'static,
+    {
+        var_flat_map(self, map)
     }
 }
 

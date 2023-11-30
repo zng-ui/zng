@@ -226,6 +226,8 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     type Map<O: VarValue> = BoxedVar<O>;
     type MapBidi<O: VarValue> = BoxedVar<O>;
 
+    type FlatMap<O: VarValue, V: Var<O>> = BoxedVar<O>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -298,6 +300,15 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         } else {
             var_map_bidi(self, map, map_back).boxed()
         }
+    }
+
+    fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
+    where
+        O: VarValue,
+        V: Var<O>,
+        M: FnMut(&T) -> V + Send + 'static,
+    {
+        var_flat_map(self, map).boxed()
     }
 }
 

@@ -144,6 +144,8 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
     type Map<O: VarValue> = LocalVar<O>;
     type MapBidi<O: VarValue> = LocalVar<O>;
 
+    type FlatMap<O: VarValue, V: Var<O>> = V;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -191,5 +193,14 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
         B: FnMut(&O) -> T + Send + 'static,
     {
         self.map(map)
+    }
+
+    fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
+    where
+        O: VarValue,
+        V: Var<O>,
+        M: FnMut(&T) -> V + Send + 'static,
+    {
+        self.with(map)
     }
 }

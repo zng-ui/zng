@@ -254,6 +254,7 @@ where
 
     type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
     type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type FlatMap<O: VarValue, VF: Var<O>> = contextualized::ContextualizedVar<O, types::ArcFlatMapVar<O, VF>>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -303,6 +304,15 @@ where
         B: FnMut(&O) -> T + Send + 'static,
     {
         var_map_bidi(self, map, map_back)
+    }
+
+    fn flat_map<O, VF, M>(&self, map: M) -> Self::FlatMap<O, VF>
+    where
+        O: VarValue,
+        VF: Var<O>,
+        M: FnMut(&T) -> VF + Send + 'static,
+    {
+        var_flat_map(self, map)
     }
 }
 

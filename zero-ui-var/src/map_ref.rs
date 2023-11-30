@@ -170,6 +170,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
     type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
     type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO, ArcVar<MO>>;
 
+    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF, types::ArcFlatMapVar<OF, V>>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&O) -> R,
@@ -226,6 +228,15 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         B: FnMut(&MO) -> O + Send + 'static,
     {
         var_map_bidi(self, map, map_back)
+    }
+
+    fn flat_map<OF, V, M>(&self, map: M) -> Self::FlatMap<OF, V>
+    where
+        OF: VarValue,
+        V: Var<OF>,
+        M: FnMut(&O) -> V + Send + 'static,
+    {
+        var_flat_map(self, map)
     }
 }
 
@@ -412,6 +423,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
     type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
     type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO, ArcVar<MO>>;
 
+    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF, types::ArcFlatMapVar<OF, V>>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&O) -> R,
@@ -485,6 +498,15 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         B: FnMut(&MO) -> O + Send + 'static,
     {
         var_map_bidi(self, map, map_back)
+    }
+
+    fn flat_map<OF, V, M>(&self, map: M) -> Self::FlatMap<OF, V>
+    where
+        OF: VarValue,
+        V: Var<OF>,
+        M: FnMut(&O) -> V + Send + 'static,
+    {
+        var_flat_map(self, map)
     }
 }
 

@@ -154,6 +154,8 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     type Map<O: VarValue> = V::Map<O>;
     type MapBidi<O: VarValue> = V::Map<O>;
 
+    type FlatMap<O: VarValue, VF: Var<O>> = V::FlatMap<O, VF>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -202,11 +204,21 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     }
 
     fn map_bidi<O, M, B>(&self, map: M, _: B) -> Self::MapBidi<O>
-        where
-            O: VarValue,
-            M: FnMut(&T) -> O + Send + 'static,
-            B: FnMut(&O) -> T + Send + 'static {
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static,
+    {
         self.1.map(map)
+    }
+
+    fn flat_map<O, VF, M>(&self, map: M) -> Self::FlatMap<O, VF>
+    where
+        O: VarValue,
+        VF: Var<O>,
+        M: FnMut(&T) -> VF + Send + 'static,
+    {
+        self.1.flat_map(map)
     }
 }
 

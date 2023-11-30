@@ -12,7 +12,7 @@
 /// with multiple generic types and constraints, but not `where` constraints. You can also destruct the input
 /// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
-/// 
+///
 /// The `U: From<T>` implement is optional, you can use the syntax `fn from(t: T) -> U;` to only generate
 /// the `T: IntoVar<U>` and `T: IntoValue<U>` implementations using an already implemented `U: From<T>`.
 ///
@@ -31,7 +31,7 @@
 ///     Off,
 ///     NotSet
 /// }
-/// 
+///
 /// impl_from_and_into_var! {
 ///     fn from(b: bool) -> FooValue {
 ///         if b {
@@ -48,15 +48,15 @@
 ///             _ => FooValue::NotSet
 ///         }
 ///     }
-/// 
+///
 ///     fn from(f: Foo) -> FooValue;
 /// }
-/// 
+///
 /// impl From<Foo> for FooValue {
 ///     fn from(foo: Foo) -> Self {
 ///         Self::On
 ///     }
-/// }/// 
+/// }///
 /// # pub struct Foo;
 /// # fn assert(_: impl zero_ui_var::IntoVar<FooValue> + Into<FooValue>) { }
 /// # assert(true);
@@ -283,7 +283,7 @@ macro_rules! __impl_from_and_into_var {
             $($rest)*
         }
     };
-    
+
     () => {
         // END
     };
