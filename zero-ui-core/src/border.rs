@@ -9,7 +9,10 @@ use crate::{
     render::{webrender_api as w_api, FrameValueKey},
     ui_vec,
     units::*,
-    var::{animation::Transitionable, impl_from_and_into_var, *},
+    var::{
+        animation::{easing::EasingStep, Transitionable},
+        impl_from_and_into_var, *,
+    },
     widget_info::WidgetBorderInfo,
     widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp, WidgetId},
 };

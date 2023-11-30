@@ -7,7 +7,7 @@ use crate::{
     impl_from_and_into_var,
     render::{webrender_api as wr, FilterOp, FrameValue},
     units::*,
-    var::animation::Transitionable,
+    var::animation::{easing::EasingStep, Transitionable},
 };
 
 /// A color filter or combination of filters.

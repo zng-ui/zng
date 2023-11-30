@@ -1,7 +1,10 @@
 use crate::core::{
     context::*,
     units::*,
-    var::{animation::Transitionable, impl_from_and_into_var},
+    var::{
+        animation::{easing::EasingStep, Transitionable},
+        impl_from_and_into_var,
+    },
 };
 use std::{fmt, mem, ops};
 

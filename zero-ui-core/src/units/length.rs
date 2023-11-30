@@ -3,7 +3,13 @@ use super::{
 };
 use std::{fmt, mem, ops};
 
-use crate::{context::LAYOUT, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{
+    context::LAYOUT,
+    var::{
+        animation::{easing::EasingStep, Transitionable},
+        impl_from_and_into_var,
+    },
+};
 
 /// 1D length units.
 ///
@@ -215,7 +221,7 @@ impl<F: Into<Factor>> ops::DivAssign<F> for Length {
     }
 }
 impl Transitionable for Length {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
         use Length::*;
 
         if step == 0.fct() {

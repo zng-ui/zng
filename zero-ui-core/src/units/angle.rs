@@ -1,10 +1,12 @@
 use derive_more as dm;
 
-use super::{about_eq, euclid, EasingStep, Factor, EQ_EPSILON, EQ_EPSILON_100};
+use super::{about_eq, euclid, Factor, EQ_EPSILON, EQ_EPSILON_100};
 use crate::{
     context::context_local,
-    impl_from_and_into_var,
-    var::animation::{Transition, Transitionable},
+    var::{
+        animation::{easing::EasingStep, Transition, Transitionable},
+        impl_from_and_into_var,
+    },
 };
 
 use std::{
@@ -24,7 +26,7 @@ use std::{
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
 /// [`Var::easing_with`]: crate::var::Var::easing_with
-pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: super::EasingStep) -> T {
+pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     slerp_enabled(true, || t.sample(step))
 }
 

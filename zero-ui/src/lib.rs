@@ -141,11 +141,14 @@ pub mod prelude {
         },
         timer::TIMERS,
         units::{
-            self, Align, AngleUnits, ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder,
-            LineHeight, Point, Px, PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
+            self, Align, AngleUnits, ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,
+            PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{
-            animation::{self, easing},
+            animation::{
+                self, easing,
+                easing::{EasingStep, EasingTime},
+            },
             expr_var, merge_var, state_var, var, var_default, var_from, AnyVar, ArcVar, BoxedVar, IntoVar, Var, VarReceiver, VarSender,
             VarValue, VARS,
         },

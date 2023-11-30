@@ -1,8 +1,11 @@
 use super::{euclid, Px};
 
-use crate::{impl_from_and_into_var, var::animation::Transitionable};
+use crate::var::{
+    animation::{easing::EasingStep, Transitionable},
+    impl_from_and_into_var,
+};
 
-use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, EasingStep, Factor, FactorUnits, Layout1d, Length, PxTransform};
+use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, Factor, FactorUnits, Layout1d, Length, PxTransform};
 
 /// A transform builder type.
 ///

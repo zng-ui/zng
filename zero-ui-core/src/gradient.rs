@@ -6,7 +6,7 @@ use crate::color::*;
 use crate::context::*;
 use crate::render::webrender_api::{self as wr, euclid};
 use crate::units::*;
-use crate::var::*;
+use crate::var::{animation::easing::EasingStep, *};
 
 /// Specifies how to draw the gradient outside the first and last stop.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

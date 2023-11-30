@@ -4,7 +4,7 @@ use crate::{
     context::context_local,
     units::*,
     var::{
-        animation::{Transition, Transitionable},
+        animation::{easing::EasingStep, Transition, Transitionable},
         *,
     },
     widget_instance::UiNode,

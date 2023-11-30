@@ -1776,6 +1776,19 @@ impl LoopTimer {
         self.now
     }
 }
+impl zero_ui_var::animation::AnimationTimer for LoopTimer {
+    fn elapsed(&mut self, deadline: Deadline) -> bool {
+        self.elapsed(deadline)
+    }
+
+    fn register(&mut self, deadline: Deadline) {
+        self.register(deadline)
+    }
+
+    fn now(&self) -> Instant {
+        self.now()
+    }
+}
 
 #[derive(Default)]
 struct LoopMonitor {

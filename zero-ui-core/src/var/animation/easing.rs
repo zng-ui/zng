@@ -4,6 +4,8 @@
 
 use std::f32::consts::{FRAC_PI_2, TAU};
 
+pub use zero_ui_var::animation::easing::{EasingStep, EasingTime};
+
 use super::*;
 
 /// Common easing modifier functions as an enum.

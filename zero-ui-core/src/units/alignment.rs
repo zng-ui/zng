@@ -3,7 +3,14 @@ use std::{
     ops,
 };
 
-use crate::{context::LayoutDirection, impl_from_and_into_var, var::animation::Transitionable, widget_info::WidgetLayout};
+use crate::{
+    context::LayoutDirection,
+    var::{
+        animation::{easing::EasingStep, Transitionable},
+        impl_from_and_into_var,
+    },
+    widget_info::WidgetLayout,
+};
 
 use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints2d, PxSize, PxVector};
 
@@ -351,7 +358,7 @@ impl_from_and_into_var! {
 }
 
 impl Transitionable for Align {
-    fn lerp(mut self, to: &Self, step: super::EasingStep) -> Self {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
         let end = step >= 1.fct();
 
         if end {

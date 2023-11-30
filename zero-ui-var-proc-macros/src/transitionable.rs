@@ -70,7 +70,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         quote! {
             impl #impl_generics #path for #ident #ty_generics #where_clause {
-                fn lerp(self, to: &Self, step: #crate_::EasingStep) -> Self #lerp_block
+                fn lerp(self, to: &Self, step: #crate_::animation::easing::EasingStep) -> Self #lerp_block
             }
         }
     } else {

@@ -1,11 +1,10 @@
-use derive_more as dm;
 use zero_ui_units::FactorUnits;
 
 use super::{
     DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
 };
 use crate::impl_from_and_into_var;
-use std::{fmt, ops, time::Duration};
+use std::{fmt, ops};
 
 impl ops::Mul<Factor> for Factor2d {
     type Output = Factor2d;
@@ -544,92 +543,5 @@ impl_from_and_into_var! {
         )
         -> FactorSideOffsets {
         FactorSideOffsets::new(top, right, bottom, left)
-    }
-}
-
-/// Easing function output.
-///
-/// Usually in the [0..=1] range, but can overshoot. An easing function converts a [`EasingTime`]
-/// into this factor.
-///
-/// # Examples
-///
-/// ```
-/// use zero_ui_core::units::*;
-///
-/// /// Cubic animation curve.
-/// fn cubic(time: EasingTime) -> EasingStep {
-///     let f = time.fct();
-///     f * f * f
-/// }
-/// ```
-///
-/// Note that all the common easing functions are implemented in [`var::easing`].
-///
-/// [`var::easing`]: mod@crate::var::easing
-pub type EasingStep = Factor;
-
-/// Easing function input.
-///
-/// An easing function converts this time into a [`EasingStep`] factor.
-///
-/// The time is always in the [0..=1] range, factors are clamped to this range on creation.
-#[derive(Debug, PartialEq, Copy, Clone, Hash, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
-pub struct EasingTime(Factor);
-impl_from_and_into_var! {
-    fn from(factor: Factor) -> EasingTime {
-        EasingTime::new(factor)
-    }
-}
-impl EasingTime {
-    /// New from [`Factor`].
-    ///
-    /// The `factor` is clamped to the [0..=1] range.
-    pub fn new(factor: Factor) -> Self {
-        EasingTime(factor.clamp_range())
-    }
-
-    /// New easing time from total `duration`, `elapsed` time and `time_scale`.
-    ///
-    /// If `elapsed >= duration` the time is 1.
-    pub fn elapsed(duration: Duration, elapsed: Duration, time_scale: Factor) -> Self {
-        EasingTime::new(elapsed.as_secs_f32().fct() / duration.as_secs_f32().fct() * time_scale)
-    }
-
-    /// Gets the start time, zero.
-    pub fn start() -> Self {
-        EasingTime(0.fct())
-    }
-
-    /// Gets the end time, one.
-    pub fn end() -> Self {
-        EasingTime(1.fct())
-    }
-
-    /// If the time represents the start of the animation.
-    pub fn is_start(self) -> bool {
-        self == Self::start()
-    }
-
-    /// If the time represents the end of the animation.
-    pub fn is_end(self) -> bool {
-        self == Self::end()
-    }
-
-    /// Get the time as a [`Factor`].
-    pub fn fct(self) -> Factor {
-        self.0
-    }
-
-    /// Get the time as a [`FactorPercent`].
-    pub fn pct(self) -> FactorPercent {
-        self.0 .0.pct()
-    }
-
-    /// Flip the time.
-    ///
-    /// Returns `1 - self`.
-    pub fn reverse(self) -> Self {
-        EasingTime(self.0.flip())
     }
 }

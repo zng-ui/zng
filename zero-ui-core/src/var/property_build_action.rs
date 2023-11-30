@@ -6,7 +6,13 @@ use crate::{
     widget_builder::{AnyPropertyBuildAction, PropertyBuildAction, PropertyInputTypes, WhenBuildAction},
 };
 
-use super::{animation::Transitionable, types, BoxedVar, ReadOnlyArcVar, Var, VarValue};
+use super::{
+    animation::{
+        easing::{EasingStep, EasingTime},
+        Transitionable,
+    },
+    types, BoxedVar, ReadOnlyArcVar, Var, VarValue,
+};
 
 type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 

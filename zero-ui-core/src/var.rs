@@ -20,6 +20,8 @@ use crate::{
     units::*,
 };
 
+use animation::easing::{EasingStep, EasingTime};
+
 pub mod animation;
 mod arc;
 mod boxed;

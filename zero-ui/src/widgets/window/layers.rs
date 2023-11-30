@@ -1046,7 +1046,7 @@ impl_from_and_into_var! {
     }
 }
 impl animation::Transitionable for AnchorOffset {
-    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+    fn lerp(self, to: &Self, step: animation::easing::EasingStep) -> Self {
         Self {
             place: self.place.lerp(&to.place, step),
             origin: self.origin.lerp(&to.place, step),

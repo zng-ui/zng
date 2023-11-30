@@ -42,11 +42,8 @@ TextInput! {
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
-    - Delete channels to review errors.
-
     - Once public replace all core code with re-exports, except VarSubscribe, state module, easing attribute macro, property_build_action, Transitionable for crate::render::FrameValue, context::helpers.
-        - Also remove EasingStep from units.
-        - Also implement AnimationTimer for AppLoopTimer.        
+        - Also remove EasingStep from units.     
 
     - Add a strong typed hook now that we decoupled on_new?
         - This is something we already needed.

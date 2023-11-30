@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{app::LoopTimer, context::context_local, crate_util, handler::clmv};
+use easing::{EasingStep, EasingTime};
 
 pub use zero_ui_proc_macros::Transitionable;
 

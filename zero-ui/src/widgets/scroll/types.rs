@@ -6,7 +6,10 @@ use crate::core::{
     touch::TouchPhase,
     units::*,
     var::{
-        animation::{ChaseAnimation, *},
+        animation::{
+            easing::{EasingStep, EasingTime},
+            ChaseAnimation, *,
+        },
         *,
     },
     widget_info::WidgetInfo,
