@@ -109,8 +109,8 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         Var::modify(self, var_update)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
-        Var::map(self, var_debug)
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        Var::map(self, var_debug).boxed()
     }
 }
 
@@ -151,6 +151,8 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
 
     type Downgrade = WeakReadOnlyVar<T, V::Downgrade>;
 
+    type Map<O: VarValue> = V::Map<O>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -188,6 +190,14 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
 
     fn read_only(&self) -> Self::ReadOnly {
         self.clone()
+    }
+
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        self.1.map(map)
     }
 }
 

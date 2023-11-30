@@ -203,7 +203,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).update()
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
+    fn map_debug(&self) -> BoxedVar<Txt> {
         (**self).map_debug()
     }
 }
@@ -222,6 +222,8 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     type ActualVar = BoxedVar<T>;
 
     type Downgrade = BoxedWeakVar<T>;
+
+    type Map<O: VarValue> = BoxedVar<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -269,6 +271,18 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
             self.clone()
         } else {
             (**self).read_only_boxed()
+        }
+    }
+
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        if self.capabilities().is_always_static() {
+            LocalVar(self.with(map)).boxed()
+        } else {
+            var_map(self, map).boxed()
         }
     }
 }

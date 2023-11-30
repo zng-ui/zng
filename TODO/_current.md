@@ -42,17 +42,18 @@ TextInput! {
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
-    - Once public replace all core code with re-exports, except VarSubscribe, state module, easing attribute macro, property_build_action, context::helpers.  
-
-    - Add a strong typed hook now that we decoupled on_new?
-        - This is something we already needed.
-
-    - How will IntoVar be implemented on foreign types after?
-        - Vars depends on both txt and units crate so we can cover those, but we implement it for other crates in core.
-        - Will need wrapper types.
-            - Even for our own types?
-                - We implement `Transitionable for crate::render::FrameValue<T>`, this is in view-api crate.
-        - We need `zero-ui-var-api`.
+    - Use GATs to decouple Var<T> from any return var type.
+    - Implement `zero-ui-var-api` with just the traits, BoxedVar, LocalVar and impl_from_and_into_var.
+    - Var not sealed anymore, impl is limited, but not forbidden.
+    - Replace code var, except:
+        - VarSubscribe.
+        - state module.
+        - easing attribute macro.
+        - property_build_action.
+        - context::helpers.
+    - Implement strong type hook.
+        - Review all hook usages.
+    - Implement specialized maps now that it is GATs.
 
 * Length types in units crate.
     - Needs impl_from_and_into_var.

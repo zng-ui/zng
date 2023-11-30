@@ -604,7 +604,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// [`map`]: Var::map
     /// [`Txt`]: Txt
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>>;
+    fn map_debug(&self) -> BoxedVar<Txt>;
 }
 
 #[derive(Debug)]
@@ -753,13 +753,13 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         LocalVar(Size { width: self.0, height: self.1 })
 ///     }
 /// }
-/// # macro_rules! _demo { () => { 
+/// # macro_rules! _demo { () => {
 /// #[property(SIZE)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///     // ...
 ///     # child
 /// }
-/// 
+///
 /// // shorthand #1:
 /// let w = Wgt! {
 ///     size = (800, 600);
@@ -1045,6 +1045,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::downgrade`].
     type Downgrade: WeakVar<T>;
 
+    /// Output of [`Var::map`].
+    type Map<O: VarValue>: Var<O>;
+
     /// Visit the current value of the variable, inside `read` the variable is locked/borrowed and cannot
     /// be modified.
     fn with<R, F>(&self, read: F) -> R
@@ -1300,35 +1303,24 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping variable is read-only, you can use [`map_bidi`] to map back.
     ///
-    /// Note that the mapping var is [contextualized], meaning the map binding will initialize in the fist usage context, not
-    /// the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with the `CONTEXT_VAR` in the `property` context,
-    /// not the property instantiation. The `map` closure itself runs in the root app context, trying to read other context variables
-    /// inside it will only read the default value.
+    /// Note that the mapping var is [contextualized] for context vars, meaning the map binding will initialize in 
+    /// the fist usage context, not the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with 
+    /// the `CONTEXT_VAR` in the `property` context, not the property instantiation. The `map` closure itself runs in 
+    /// the root app context, trying to read other context variables inside it will only read the default value.
+    /// 
+    /// For other variables types the `map` can run once in the caller context.
     ///
     /// [`map_bidi`]: Var::map_bidi
     /// [contextualized]: types::ContextualizedVar
-    fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
     where
         O: VarValue,
-        M: FnMut(&T) -> O + Send + 'static,
-    {
-        #[cfg(dyn_closure)]
-        let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
-
-        let me = self.clone();
-        let map = Arc::new(Mutex::new(map));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let other = var(me.with(&mut *map.lock()));
-            let map = map.clone();
-            me.bind_map(&other, move |t| map.lock()(t)).perm();
-            other.read_only()
-        }))
-    }
+        M: FnMut(&T) -> O + Send + 'static;
 
     /// Creates a [`map`] that converts from `T` to `O` using [`Into<O>`].
     ///
     /// [`map`]: Var::map
-    fn map_into<O>(&self) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    fn map_into<O>(&self) -> Self::Map<O>
     where
         O: VarValue,
         T: Into<O>,
@@ -1341,7 +1333,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`map`]: Var::map
     /// [`Txt`]: Txt
     /// [`ToText`]: ToText
-    fn map_to_text(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>>
+    fn map_to_text(&self) -> Self::Map<Txt>
     where
         T: ToText,
     {
@@ -1351,7 +1343,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a [`map`] that converts from `T` to [`String`] using [`ToString`].
     ///
     /// [`map`]: Var::map
-    fn map_to_string(&self) -> types::ContextualizedVar<String, ReadOnlyArcVar<String>>
+    fn map_to_string(&self) -> Self::Map<String>
     where
         T: ToString,
     {
@@ -2103,15 +2095,23 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             _t: PhantomData,
         }
     }
+}
 
-    /*
-    after https://github.com/rust-lang/rust/issues/20041
+fn var_map<T: VarValue, O: VarValue>(
+    source: &impl Var<T>,
+    map: impl FnMut(&T) -> O + Send + 'static,
+) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
 
-    /// Replaces `self` with the current [`actual_var`] if both are the same type.
-    fn actualize_in_place(&mut self) where Self::ActualVar = Self {
-        take_mut::take(self, Var::actual_var)
-    }
-    */
+    let source = source.clone();
+    let map = Arc::new(Mutex::new(map));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let other = var(source.with(&mut *map.lock()));
+        let map = map.clone();
+        source.bind_map(&other, move |t| map.lock()(t)).perm();
+        other.read_only()
+    }))
 }
 
 // Closure type independent of the variable type, hopefully reduces LLVM lines:

@@ -90,8 +90,8 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Var::modify(self, var_update)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
-        Var::map(self, var_debug)
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        Var::map(self, var_debug).boxed()
     }
 }
 
@@ -141,6 +141,8 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
 
     type Downgrade = WeakArcVar<T>;
 
+    type Map<O: VarValue> = LocalVar<O>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -171,5 +173,13 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
 
     fn read_only(&self) -> Self::ReadOnly {
         self.clone()
+    }
+
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        LocalVar(self.with(map))
     }
 }

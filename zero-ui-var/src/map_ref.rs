@@ -126,8 +126,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         Var::modify(self, var_update)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
-        Var::map(self, var_debug)
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        Var::map(self, var_debug).boxed()
     }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRef<I, O, S> {
@@ -166,6 +166,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
     type ActualVar = MapRef<I, O, S::ActualVar>;
 
     type Downgrade = WeakMapRef<I, O, S::Downgrade>;
+
+    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -206,6 +208,14 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
 
     fn read_only(&self) -> Self::ReadOnly {
         self.clone()
+    }
+
+    fn map<MO, M>(&self, map: M) -> Self::Map<MO>
+    where
+        MO: VarValue,
+        M: FnMut(&O) -> MO + Send + 'static,
+    {
+        var_map(self, map)
     }
 }
 
@@ -348,8 +358,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         Var::modify(self, var_update)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
-        Var::map(self, var_debug)
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        Var::map(self, var_debug).boxed()
     }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRefBidi<I, O, S> {
@@ -388,6 +398,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
     type ActualVar = MapRefBidi<I, O, S::ActualVar>;
 
     type Downgrade = WeakMapRefBidi<I, O, S::Downgrade>;
+
+    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -445,6 +457,14 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
 
     fn read_only(&self) -> Self::ReadOnly {
         self.clone()
+    }
+
+    fn map<MO, M>(&self, map: M) -> Self::Map<MO>
+    where
+        MO: VarValue,
+        M: FnMut(&O) -> MO + Send + 'static,
+    {
+        var_map(self, map)
     }
 }
 

@@ -197,8 +197,8 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         Var::modify(self, var_update)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<Txt, ReadOnlyArcVar<Txt>> {
-        Var::map(self, var_debug)
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        Var::map(self, var_debug).boxed()
     }
 }
 
@@ -216,6 +216,8 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     type ActualVar = BoxedVar<T>;
 
     type Downgrade = BoxedWeakVar<T>;
+
+    type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -245,6 +247,14 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn read_only(&self) -> Self::ReadOnly {
         types::ReadOnlyVar::new(*self)
+    }
+
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        var_map(self, map)
     }
 }
 
