@@ -1055,6 +1055,21 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::map_bidi`].
     type FlatMap<O: VarValue, V: Var<O>>: Var<O>;
 
+    /// Output of [`Var::filter_map`].
+    type FilterMap<O: VarValue>: Var<O>;
+
+    /// Output of [`Var::filter_map_bidi`].
+    type FilterMapBidi<O: VarValue>: Var<O>;
+
+    /// Output of [`Var::map_ref`].
+    type MapRef<O: VarValue>: Var<O>;
+
+    /// Output of [`Var::map_ref_bidi`].
+    type MapRefBidi<O: VarValue>: Var<O>;
+
+    /// Output of [`Var::easing`].
+    type Easing: Var<T>;
+
     /// Visit the current value of the variable, inside `read` the variable is locked/borrowed and cannot
     /// be modified.
     fn with<R, F>(&self, read: F) -> R
@@ -1391,26 +1406,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [contextualized]: types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
     /// [`filter_map_bidi`]: Var::filter_map_bidi
-    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + Send + 'static,
-        I: Fn() -> O + Send + Sync + 'static,
-    {
-        let me = self.clone();
-        let map = Arc::new(Mutex::new(map));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
-            let map = map.clone();
-            me.bind_filter_map(&other, move |i| map.lock()(i)).perm();
-            other.read_only()
-        }))
-    }
+        I: Fn() -> O + Send + Sync + 'static;
 
     /// Create a [`filter_map`] that tries to convert from `T` to `O` using [`TryInto<O>`].
     ///
     /// [`filter_map`]: Var::filter_map
-    fn filter_try_into<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    fn filter_try_into<O, I>(&self, fallback: I) -> Self::FilterMap<O>
     where
         O: VarValue,
         T: TryInto<O>,
@@ -1423,7 +1428,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`filter_map`]: Var::filter_map
     /// [`FromStr`]: std::str::FromStr
-    fn filter_parse<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    fn filter_parse<O, I>(&self, fallback: I) -> Self::FilterMap<O>
     where
         O: VarValue + std::str::FromStr,
         T: AsRef<str>,
@@ -1444,48 +1449,28 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, ArcVar<O>>
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + Send + 'static,
         B: FnMut(&O) -> Option<T> + Send + 'static,
-        I: Fn() -> O + Send + Sync + 'static,
-    {
-        let me = self.clone();
-        let map = Arc::new(Mutex::new(map));
-        let map_back = Arc::new(Mutex::new(map_back));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
-            let map = map.clone();
-            let map_back = map_back.clone();
-            me.bind_filter_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o))
-                .perm();
-            other
-        }))
-    }
+        I: Fn() -> O + Send + Sync + 'static;
 
     /// Create a mapping wrapper around `self`. The `map` closure is called for each value access, it must reference the
     /// value `O` that already exists in `T`.
-    fn map_ref<O, M>(&self, map: M) -> types::MapRef<T, O, Self>
+    fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
     where
         O: VarValue,
-        M: Fn(&T) -> &O + Send + Sync + 'static,
-    {
-        types::MapRef::new(self.clone(), Arc::new(map))
-    }
+        M: Fn(&T) -> &O + Send + Sync + 'static;
 
     /// Create a mapping wrapper around `self`. The `map` closure is called for each value access, it must reference the
     /// value `O` that already exists in `T`, the `map_mut` closure is called for every modify request, it must do the same
     /// as `map` but with mutable access.
-    fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> types::MapRefBidi<T, O, Self>
+    fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> Self::MapRefBidi<O>
     where
         O: VarValue,
         M: Fn(&T) -> &O + Send + Sync + 'static,
-        B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
-    {
-        types::MapRefBidi::new(self.clone(), Arc::new(map), Arc::new(map_mut))
-    }
-
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static;
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`.
     ///
     /// Only a weak reference to the `other` variable is held, both variables update in the same app update cycle.
@@ -1993,29 +1978,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
-    fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+    fn easing<F>(&self, duration: Duration, easing: F) -> Self::Easing
     where
         T: Transitionable,
-        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
-    {
-        let source = self.clone();
-        let easing_fn = Arc::new(easing);
-        types::ContextualizedVar::new(Arc::new(move || {
-            let easing_var = var(source.get());
-
-            let easing_fn = easing_fn.clone();
-            let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, args, easing_var| {
-                let easing_fn = easing_fn.clone();
-                _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
-                if args.update {
-                    easing_var.update();
-                }
-            })
-            .perm();
-            easing_var.read_only()
-        }))
-    }
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static;
 
     /// Create a vars that [`ease_with`] to each new value of `self`.
     ///
@@ -2025,34 +1991,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease_with`]: Var::ease_with
-    fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+    fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
     where
         T: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
-        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
-    {
-        let source = self.clone();
-        let fns = Arc::new((easing, sampler));
-        types::ContextualizedVar::new(Arc::new(move || {
-            let easing_var = var(source.get());
-
-            let fns = fns.clone();
-            let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, args, easing_var| {
-                _anim_handle = easing_var.ease_with(
-                    value.clone(),
-                    duration,
-                    clmv!(fns, |t| (fns.0)(t)),
-                    clmv!(fns, |t, s| (fns.1)(t, s)),
-                );
-                if args.update {
-                    easing_var.update();
-                }
-            })
-            .perm();
-            easing_var.read_only()
-        }))
-    }
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static;
 
     /// Returns a wrapper that implements [`fmt::Debug`] to write the var value.
     fn debug(&self) -> types::VarDebug<T, Self> {
@@ -2122,6 +2065,123 @@ where
     types::ContextualizedVar::new(Arc::new(move || {
         let map = map.clone();
         types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
+    }))
+}
+
+fn var_filter_map<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    let me = source.clone();
+    let map = Arc::new(Mutex::new(map));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
+        let map = map.clone();
+        me.bind_filter_map(&other, move |i| map.lock()(i)).perm();
+        other.read_only()
+    }))
+}
+
+fn var_filter_map_bidi<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, ArcVar<O>>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    B: FnMut(&O) -> Option<T> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    let me = source.clone();
+    let map = Arc::new(Mutex::new(map));
+    let map_back = Arc::new(Mutex::new(map_back));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
+        let map = map.clone();
+        let map_back = map_back.clone();
+        me.bind_filter_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o))
+            .perm();
+        other
+    }))
+}
+
+fn var_map_ref<T, S, O, M>(source: &S, map: M) -> types::MapRef<T, O, S>
+where
+    T: VarValue,
+    S: Var<T>,
+    O: VarValue,
+    M: Fn(&T) -> &O + Send + Sync + 'static,
+{
+    types::MapRef::new(source.clone(), Arc::new(map))
+}
+
+fn var_map_ref_bidi<T, S, O, M, B>(source: &S, map: M, map_mut: B) -> types::MapRefBidi<T, O, S>
+where
+    T: VarValue,
+    S: Var<T>,
+    O: VarValue,
+    M: Fn(&T) -> &O + Send + Sync + 'static,
+    B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
+{
+    types::MapRefBidi::new(source.clone(), Arc::new(map), Arc::new(map_mut))
+}
+
+fn var_easing<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+{
+    let source = source.clone();
+    let easing_fn = Arc::new(easing);
+    types::ContextualizedVar::new(Arc::new(move || {
+        let easing_var = var(source.get());
+
+        let easing_fn = easing_fn.clone();
+        let mut _anim_handle = animation::AnimationHandle::dummy();
+        var_bind(&source, &easing_var, move |value, args, easing_var| {
+            let easing_fn = easing_fn.clone();
+            _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
+            if args.update {
+                easing_var.update();
+            }
+        })
+        .perm();
+        easing_var.read_only()
+    }))
+}
+
+fn var_easing_with<T, F, S>(
+    source: &impl Var<T>,
+    duration: Duration,
+    easing: F,
+    sampler: S,
+) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+{
+    let source = source.clone();
+    let fns = Arc::new((easing, sampler));
+    types::ContextualizedVar::new(Arc::new(move || {
+        let easing_var = var(source.get());
+
+        let fns = fns.clone();
+        let mut _anim_handle = animation::AnimationHandle::dummy();
+        var_bind(&source, &easing_var, move |value, args, easing_var| {
+            _anim_handle = easing_var.ease_with(
+                value.clone(),
+                duration,
+                clmv!(fns, |t| (fns.0)(t)),
+                clmv!(fns, |t, s| (fns.1)(t, s)),
+            );
+            if args.update {
+                easing_var.update();
+            }
+        })
+        .perm();
+        easing_var.read_only()
     }))
 }
 

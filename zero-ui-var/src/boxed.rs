@@ -228,6 +228,14 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     type FlatMap<O: VarValue, V: Var<O>> = BoxedVar<O>;
 
+    type FilterMap<O: VarValue> = BoxedVar<O>;
+    type FilterMapBidi<O: VarValue> = BoxedVar<O>;
+
+    type MapRef<O: VarValue> = BoxedVar<O>;
+    type MapRefBidi<O: VarValue> = BoxedVar<O>;
+
+    type Easing = BoxedVar<T>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -309,6 +317,67 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         M: FnMut(&T) -> V + Send + 'static,
     {
         var_flat_map(self, map).boxed()
+    }
+
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        if self.capabilities().is_always_static() {
+            LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
+        } else {
+            var_filter_map(self, map, fallback).boxed()
+        }
+    }
+
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        B: FnMut(&O) -> Option<T> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        if self.capabilities().is_always_static() {
+            LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
+        } else {
+            var_filter_map_bidi(self, map, map_back, fallback).boxed()
+        }
+    }
+
+    fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+    {
+        var_map_ref(self, map).boxed()
+    }
+
+    fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> Self::MapRefBidi<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
+    {
+        var_map_ref_bidi(self, map, map_mut).boxed()
+    }
+
+    fn easing<F>(&self, duration: Duration, easing: F) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    {
+        var_easing(self, duration, easing).boxed()
+    }
+
+    fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+    {
+        var_easing_with(self, duration, easing, sampler).boxed()
     }
 }
 

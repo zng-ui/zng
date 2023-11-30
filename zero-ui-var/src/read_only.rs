@@ -156,6 +156,14 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
 
     type FlatMap<O: VarValue, VF: Var<O>> = V::FlatMap<O, VF>;
 
+    type FilterMap<O: VarValue> = V::FilterMap<O>;
+    type FilterMapBidi<O: VarValue> = V::FilterMap<O>;
+
+    type MapRef<O: VarValue> = V::MapRef<O>;
+    type MapRefBidi<O: VarValue> = V::MapRef<O>;
+
+    type Easing = <V::Easing as Var<T>>::ReadOnly;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -219,6 +227,59 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
         M: FnMut(&T) -> VF + Send + 'static,
     {
         self.1.flat_map(map)
+    }
+
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        self.1.filter_map(map, fallback)
+    }
+
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, _: B, fallback: I) -> Self::FilterMapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        B: FnMut(&O) -> Option<T> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        self.1.filter_map(map, fallback)
+    }
+
+    fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+    {
+        self.1.map_ref(map)
+    }
+
+    fn map_ref_bidi<O, M, B>(&self, map: M, _: B) -> Self::MapRefBidi<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
+    {
+        self.1.map_ref(map)
+    }
+
+    fn easing<F>(&self, duration: Duration, easing: F) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    {
+        self.1.easing(duration, easing).read_only()
+    }
+
+    fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+    {
+        self.1.easing_with(duration, easing, sampler).read_only()
     }
 }
 

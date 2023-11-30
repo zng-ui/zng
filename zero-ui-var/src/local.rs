@@ -146,6 +146,14 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
 
     type FlatMap<O: VarValue, V: Var<O>> = V;
 
+    type FilterMap<O: VarValue> = LocalVar<O>;
+    type FilterMapBidi<O: VarValue> = LocalVar<O>;
+
+    type MapRef<O: VarValue> = LocalVar<O>;
+    type MapRefBidi<O: VarValue> = LocalVar<O>;
+
+    type Easing = LocalVar<T>;
+
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -202,5 +210,58 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
         M: FnMut(&T) -> V + Send + 'static,
     {
         self.with(map)
+    }
+
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        LocalVar(self.with(map).unwrap_or_else(fallback))
+    }
+
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, _: B, fallback: I) -> Self::FilterMapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        B: FnMut(&O) -> Option<T> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+    {
+        self.filter_map(map, fallback)
+    }
+
+    fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+    {
+        LocalVar(self.with(|v| map(v).clone()))
+    }
+
+    fn map_ref_bidi<O, M, B>(&self, map: M, _: B) -> Self::MapRefBidi<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
+    {
+        self.map_ref(map)
+    }
+
+    fn easing<F>(&self, _: Duration, _: F) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    {
+        self.clone()
+    }
+
+    fn easing_with<F, S>(&self, _: Duration, _: F, _: S) -> Self::Easing
+    where
+        T: Transitionable,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+    {
+        self.clone()
     }
 }
