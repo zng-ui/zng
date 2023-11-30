@@ -1937,7 +1937,7 @@ where
     V2: Var<T2>,
     M: FnMut(&T) -> T2 + Send + 'static,
 {
-    #[cfg(feature = "dyn_closure")]
+    #[cfg(dyn_closure)]
     let map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
     var_bind_map_impl(source, other, map)
 }
@@ -1967,8 +1967,8 @@ where
     V2: Var<T2>,
     F: FnMut(&T) -> Option<T2> + Send + 'static,
 {
-    #[cfg(feature = "dyn_closure")]
-    let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
     var_bind_filter_map_impl(source, other, map)
 }
 fn var_bind_filter_map_impl<T, T2, V2, F>(source: &impl Var<T>, other: &V2, mut map: F) -> VarHandle
@@ -1999,10 +1999,10 @@ where
     M: FnMut(&T) -> T2 + Send + 'static,
     B: FnMut(&T2) -> T + Send + 'static,
 {
-    #[cfg(feature = "dyn_closure")]
-    let mut map: Box<dyn FnMut(&T) -> T2 + Send + 'static> = Box::new(map);
-    #[cfg(feature = "dyn_closure")]
-    let mut map_back: Box<dyn FnMut(&T2) -> T + Send + 'static> = Box::new(map_back);
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> T2 + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&T2) -> T + Send + 'static> = Box::new(map_back);
 
     var_bind_map_bidi_impl(source, other, map, map_back)
 }
@@ -2058,10 +2058,10 @@ where
     M: FnMut(&T) -> Option<T2> + Send + 'static,
     B: FnMut(&T2) -> Option<T> + Send + 'static,
 {
-    #[cfg(feature = "dyn_closure")]
-    let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send + 'static> = Box::new(map);
-    #[cfg(feature = "dyn_closure")]
-    let mut map_back: Box<dyn FnMut(&T2) -> Option<T> + Send + 'static> = Box::new(map_back);
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<T2> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&T2) -> Option<T> + Send + 'static> = Box::new(map_back);
 
     var_bind_filter_map_bidi_impl(source, other, map, map_back)
 }
@@ -2115,7 +2115,7 @@ fn var_map<T: VarValue, O: VarValue>(
     source: &impl Var<T>,
     map: impl FnMut(&T) -> O + Send + 'static,
 ) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
-    #[cfg(feature = "dyn_closure")]
+    #[cfg(dyn_closure)]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
     var_map_impl(source, map)
 }

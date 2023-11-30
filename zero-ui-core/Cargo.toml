@@ -21,7 +21,7 @@ http = ["isahc", "http-cache-semantics", "http-serde"]
 # Signal the build script to enable the `dyn_*`, `inspector` and `trace_widget` features for debug builds.
 #
 # Enabled by default.
-debug_default = []
+debug_default = ["zero-ui-var/debug_default"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
 #
@@ -95,7 +95,7 @@ zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-handle = { path = "../zero-ui-handle" }
-zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-var = { path = "../zero-ui-var", default-features = false }
 
 # text
 font-kit = "0.11"
