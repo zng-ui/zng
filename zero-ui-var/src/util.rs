@@ -1,10 +1,10 @@
-///<span data-del-macro-root></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
+///Implements `T: IntoVar<U>`, `T: IntoValue<U>` and optionally `U: From<T>` without boilerplate.
 ///
-/// Unfortunately we cannot provide a widget impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
-/// that would block all manual implementations of the trait, so you need to implement then manually to
-/// enable the easy-to-use properties that are expected.
+/// Unfortunately we cannot provide a trait impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
+/// that would block all manual implementations of the trait, so you need to implement it manually to
+/// enable the easy-to-use parameters.
 ///
-/// You can use this macro to implement both `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` at the same time.
+/// You can use this macro to implement `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` at the same time.
 /// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`LocalVar<U>`]
 /// type is selected for variables.
 ///
@@ -12,6 +12,9 @@
 /// with multiple generic types and constraints, but not `where` constraints. You can also destruct the input
 /// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
+/// 
+/// The `U: From<T>` implement is optional, you can use the syntax `fn from(t: T) -> U;` to only generate
+/// the `T: IntoVar<U>` and `T: IntoValue<U>` implementations using an already implemented `U: From<T>`.
 ///
 /// [`LocalVar<U>`]: crate::LocalVar
 ///
@@ -21,13 +24,14 @@
 /// then implements conversions from literals the user may want to type in a widget:
 ///
 /// ```
-/// # use zero_ui_core::var::impl_from_and_into_var;
+/// # use zero_ui_var::impl_from_and_into_var;
 /// #[derive(Debug, Clone, PartialEq)]
 /// pub enum FooValue {
 ///     On,
 ///     Off,
 ///     NotSet
 /// }
+/// 
 /// impl_from_and_into_var! {
 ///     fn from(b: bool) -> FooValue {
 ///         if b {
@@ -44,8 +48,17 @@
 ///             _ => FooValue::NotSet
 ///         }
 ///     }
+/// 
+///     fn from(f: Foo) -> FooValue;
 /// }
-/// # fn assert(_: impl zero_ui_core::var::IntoVar<FooValue> + Into<FooValue>) { }
+/// 
+/// impl From<Foo> for FooValue {
+///     fn from(foo: Foo) -> Self {
+///         Self::On
+///     }
+/// }/// 
+/// # pub struct Foo;
+/// # fn assert(_: impl zero_ui_var::IntoVar<FooValue> + Into<FooValue>) { }
 /// # assert(true);
 /// # assert("on");
 /// ```
@@ -53,24 +66,12 @@
 /// The value then can be used in a property:
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*, var::*};
-/// # #[derive(Debug, Clone, PartialEq)]
-/// # pub struct FooValue;
-/// # impl_from_and_into_var! { fn from(b: bool) -> FooValue { FooValue } }
-/// # #[widget($crate::Bar)] pub struct Bar(widget_base::WidgetBase);
+/// # macro_rules! _demo { () => {
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<FooValue>) -> impl UiNode {
 ///     // ..
-/// #   child
 /// }
-///
-/// # fn main() {
-/// # let _ =
-/// Bar! {
-///     foo = true;
-/// }
-/// # ;
-/// # }
+/// # }}
 /// ```
 #[macro_export]
 macro_rules! impl_from_and_into_var {
@@ -211,7 +212,40 @@ macro_rules! __impl_from_and_into_var {
             $($rest)+
         }
     };
-    // OUTPUT:
+
+    // OUTPUT (without From):
+    (
+        =output=>
+        [
+            input_type { $Input:ty }
+            input { $($input:tt)+ }
+            generics { $($generics:tt)* }
+            docs { $($docs:tt)* }
+        ]
+        -> $Output:ty
+        ;
+
+        $($rest:tt)*
+    ) => {
+        impl $($generics)* $crate::IntoVar<$Output> for $Input {
+            type Var = $crate::LocalVar<$Output>;
+
+            $($docs)*
+
+            fn into_var(self) -> Self::Var {
+                $crate::LocalVar(self.into())
+            }
+        }
+
+        impl $($generics)* $crate::IntoValue<$Output> for $Input { }
+
+        // NEXT CONVERSION:
+        $crate::__impl_from_and_into_var! {
+            $($rest)*
+        }
+    };
+
+    // OUTPUT (with From):
     (
         =output=>
         [
@@ -249,6 +283,7 @@ macro_rules! __impl_from_and_into_var {
             $($rest)*
         }
     };
+    
     () => {
         // END
     };

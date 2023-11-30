@@ -180,9 +180,7 @@ impl<T: VarValue> AnyVarValue for T {
 /// The example property receives the input `a` and `b`, they cannot change.
 ///
 /// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, widget_instance::*, var::IntoValue};
-/// #
+/// # macro_rules! _demo { () => {
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl IntoValue<bool>) -> impl UiNode {
 ///     let a = a.into();
@@ -195,6 +193,7 @@ impl<T: VarValue> AnyVarValue for T {
 ///         _ => {}
 ///     })
 /// }
+/// # }}
 /// ```
 ///
 /// # Implementing
@@ -734,7 +733,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// A value type using [`IntoVar<T>`] twice to support a shorthand initialization syntax:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, widget_instance::*};
+/// # use zero_ui_var::*;
 /// #[derive(Debug, Clone, PartialEq)]
 /// pub struct Size {
 ///     width: f32,
@@ -754,14 +753,13 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         LocalVar(Size { width: self.0, height: self.1 })
 ///     }
 /// }
+/// # macro_rules! _demo { () => { 
 /// #[property(SIZE)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///     // ...
 ///     # child
 /// }
-/// # #[widget($crate::Wgt)] pub struct Wgt(widget_base::WidgetBase);
-/// # fn main() {
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// 
 /// // shorthand #1:
 /// let w = Wgt! {
 ///     size = (800, 600);
@@ -776,13 +774,13 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// let w = Wgt! {
 ///     size = Size { width: 800.0, height: 600.0 };
 /// };
-/// # }
+/// # }}
 /// ```
 ///
 /// A property implemented using [`IntoVar`]:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*, widget_base::is_enabled};
+/// # macro_rules! _demo { () => {
 /// #[property(LAYOUT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
 ///     let bar = bar.into_var();
@@ -800,9 +798,6 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     })
 /// }
 ///
-/// # #[widget($crate::Wgt)] struct Wgt(widget_base::WidgetBase);
-/// # fn main() {
-/// # let _scope = zero_ui_core::app::App::minimal();
 /// // literal assign:
 /// let wgt = Wgt! {
 ///     foo = 42;
@@ -822,7 +817,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         foo = 32;
 ///     }
 /// };
-/// # }
+/// # }}
 /// ```
 ///
 /// The property implementation is minimal and yet it supports a variety of different inputs that
@@ -1219,9 +1214,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Starting a *set-bind* with `set` can cause unexpected initial value:
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, app::*, task};
-    /// let mut app = App::minimal().run_headless(false);
-    /// app.run_task(async {
+    /// # use zero_ui_var::*;
+    /// # mod task { pub async fn yield_one() { } }
+    /// # async {
     /// let a = var(0);
     /// let b = var(0);
     ///
@@ -1237,15 +1232,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// assert_eq!(1, a.get());
     /// assert_eq!(0, b.get()); // not 1!
-    /// });
+    /// # };
     /// ```
     ///
     /// Starting the binding with `set_from`:
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, app::*, task};
-    /// let mut app = App::minimal().run_headless(false);
-    /// app.run_task(async {
+    /// # use zero_ui_var::*;
+    /// # mod task { pub async fn yield_one() { } }
+    /// # async {
     /// let a = var(0);
     /// let b = var(0);
     ///
@@ -1261,7 +1256,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// assert_eq!(1, a.get());
     /// assert_eq!(1, b.get());
-    /// });
+    /// # };
     /// ```
     fn set_from<I>(&self, other: &I) -> Result<(), VarIsReadOnlyError>
     where
@@ -1733,7 +1728,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::*;
+    /// # use zero_ui_var::*;
     /// # struct Fake; impl Fake { pub fn entered(self) { } }
     /// # #[macro_export]
     /// # macro_rules! info_span { ($($tt:tt)*) => { Fake }; }
@@ -1748,7 +1743,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Note that you don't need to use any external tracing crate, this method also works with the standard printing:
     ///
     /// ```
-    /// # use zero_ui_core::var::*;
+    /// # use zero_ui_var::*;
     /// # fn trace_var(var: &impl Var<u32>) {
     /// var.trace_value(|a| println!("value: {:?}", a.value())).perm();
     /// # }
@@ -1985,7 +1980,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a variable that outputs text every 5% of a 5 seconds animation, advanced linearly.
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, units::*, text::*};
+    /// # use zero_ui_var::*;
+    /// # use zero_ui_txt::*;
+    /// # use zero_ui_units::*;
     /// # fn demo(text_var: impl Var<Txt>) {
     /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
     /// # let _ =

@@ -9,7 +9,7 @@
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::var::*;
+/// # use zero_ui_var::*;
 /// let var_a = var(10);
 /// let var_b = var(10);
 /// let name = "var_eq";
@@ -61,7 +61,7 @@
 #[macro_export]
 macro_rules! expr_var {
     ($($expr:tt)+) => {
-        $crate::types::__expr_var! { $crate::var, $($expr)+ }
+        $crate::types::__expr_var! { $crate, $($expr)+ }
     };
 }
 

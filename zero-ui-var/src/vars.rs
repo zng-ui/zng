@@ -142,7 +142,10 @@ impl VARS {
     /// stops the `completed` variable is set to `true`.
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// # use zero_ui_var::*;
+    /// # use zero_ui_txt::*;
+    /// # use zero_ui_units::*;
+    /// # use zero_ui_clone_move::*;
     /// #
     /// fn animate_text(text: &impl Var<Txt>, completed: &impl Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
@@ -173,7 +176,9 @@ impl VARS {
     /// methods.
     ///
     /// ```
-    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// # use zero_ui_var::*;
+    /// # use zero_ui_txt::*;
+    /// # use zero_ui_units::*;
     /// # fn demo() {
     /// let value = var(0u8);
     /// let text = value.map(|v| formatx!("Animation at {v}%"));

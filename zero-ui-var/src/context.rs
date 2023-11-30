@@ -7,7 +7,7 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::var::context_var;
+/// # use zero_ui_var::context_var;
 /// # #[derive(Debug, Clone, PartialEq)]
 /// # struct NotConst(u8);
 /// # fn init_val() -> NotConst { NotConst(10) }

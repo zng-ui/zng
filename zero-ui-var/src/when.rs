@@ -17,9 +17,9 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::text::*;
-/// # macro_rules! Text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+/// # use zero_ui_var::*;
+/// # use zero_ui_txt::ToText;
+/// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
 ///
@@ -36,9 +36,9 @@ use super::*;
 /// Every condition can be annotated with attributes, including `#[cfg(..)]`.
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::text::*;
-/// # macro_rules! Text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+/// # use zero_ui_var::*;
+/// # use zero_ui_txt::*;
+/// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
 /// let t = Text!(when_var! {

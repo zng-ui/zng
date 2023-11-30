@@ -14,7 +14,8 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::units::*;
+/// use zero_ui_units::*;
+/// use zero_ui_var::animation::easing::{EasingStep, EasingTime};
 ///
 /// /// Cubic animation curve.
 /// fn cubic(time: EasingTime) -> EasingStep {
