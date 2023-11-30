@@ -484,7 +484,7 @@ mod context {
         app::*,
         context::*,
         text::*,
-        var::{types::AnyWhenVarBuilder, *},
+        var::{helpers::with_context_var, types::AnyWhenVarBuilder, *},
         widget_instance::*,
         *,
     };
@@ -1154,5 +1154,75 @@ mod threads {
         };
 
         app.run_task(task::with_deadline(test, 5.secs())).unwrap().unwrap();
+    }
+}
+
+mod contextualized {
+
+    use zero_ui::core::app::App;
+
+    use super::*;
+
+    #[test]
+    fn nested_contextualized_vars() {
+        let mut app = App::default().run_headless(false);
+
+        let source = var(0u32);
+        let mapped = source.map(|n| n + 1);
+        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+        let mapped2_copy = mapped2.clone();
+
+        // init, same effect as subscribe in widgets, the last to init breaks the other.
+        assert_eq!(0, mapped2.get());
+        assert_eq!(0, mapped2_copy.get());
+
+        source.set(10u32);
+        let mut updated = false;
+        app.update_observe(
+            || {
+                assert!(!updated, "expected one update");
+                updated = true;
+                assert_eq!(Some(10), mapped2.get_new());
+                assert_eq!(Some(10), mapped2_copy.get_new());
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
+    }
+
+    #[test]
+    fn nested_contextualized_vars_diff_contexts() {
+        let mut app = App::default().run_headless(false);
+
+        let source = var(0u32);
+        let mapped = source.map(|n| n + 1);
+        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+        let mapped2_copy = mapped2.clone();
+
+        // init, same effect as subscribe in widgets, the last to init breaks the other.
+        assert_eq!(0, mapped2.get());
+        let other_ctx = ContextInitHandle::new();
+        other_ctx.with_context(|| {
+            assert_eq!(0, mapped2_copy.get());
+        });
+
+        source.set(10u32);
+        let mut updated = false;
+        app.update_observe(
+            || {
+                assert!(!updated, "expected one update");
+                updated = true;
+                assert_eq!(Some(10), mapped2.get_new());
+                other_ctx.with_context(|| {
+                    assert_eq!(Some(10), mapped2_copy.get_new());
+                });
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
     }
 }

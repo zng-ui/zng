@@ -18,7 +18,6 @@ use zero_ui_txt::formatx;
 
 use crate::{
     app::{AppDisconnected, AppEventSender, LoopTimer},
-    context_var,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -26,6 +25,7 @@ use crate::{
     text::Txt,
     timer::TIMERS_SV,
     units::*,
+    var::context_var,
     var::{AnyVar, AnyVarSubscribe, Var, VarHandle, VarHandles, VarSubscribe, VarValue, VARS},
     widget_info::{
         InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,

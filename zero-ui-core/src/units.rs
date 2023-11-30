@@ -1,7 +1,5 @@
 //! Angle, factor, length, time, byte and resolution units.
 
-use std::time::{Duration, Instant};
-
 #[doc(inline)]
 pub use zero_ui_view_api::units::*;
 
@@ -90,15 +88,6 @@ macro_rules! impl_length_comp_conversions {
     };
 }
 use impl_length_comp_conversions;
-
-impl crate::var::IntoVar<Option<Orientation2D>> for Orientation2D {
-    type Var = crate::var::LocalVar<Option<Orientation2D>>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(Some(self))
-    }
-}
-impl crate::var::IntoValue<Option<Orientation2D>> for Orientation2D {}
 
 /// Represents a two-dimensional value that can be converted to a pixel value in a [`LAYOUT`] context.
 ///
@@ -436,19 +425,3 @@ mod tests {
         assert!(Orientation2D::Right.box_is(a, b));
     }
 }
-
-impl crate::var::IntoVar<Deadline> for Instant {
-    type Var = crate::var::LocalVar<Deadline>;
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.into())
-    }
-}
-impl crate::var::IntoValue<Deadline> for Instant {}
-
-impl crate::var::IntoVar<Deadline> for Duration {
-    type Var = crate::var::LocalVar<Deadline>;
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.into())
-    }
-}
-impl crate::var::IntoValue<Deadline> for Duration {}

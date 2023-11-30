@@ -92,6 +92,11 @@ impl RenderMode {
     }
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: RenderMode) -> Option<RenderMode>;
+}
+
 /// Configuration of a new headless surface.
 ///
 /// Headless surfaces are always [`capture_mode`] enabled.
@@ -712,6 +717,11 @@ pub enum CursorIcon {
     /// Indicates that something can be zoomed in. Often rendered as a
     /// magnifying glass with a "-" in the center of the glass.
     ZoomOut,
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: CursorIcon) -> Option<CursorIcon>;
 }
 
 impl CursorIcon {

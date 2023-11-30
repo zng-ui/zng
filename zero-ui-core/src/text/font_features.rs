@@ -2,7 +2,7 @@
 
 use crate::{
     crate_util::{FxEntry, FxHashMap, FxHashSet},
-    var::{impl_from_and_into_var, IntoVar},
+    var::impl_from_and_into_var,
 };
 use std::{fmt, marker::PhantomData, num::NonZeroU32};
 
@@ -1179,12 +1179,8 @@ impl fmt::Debug for FontStyleSet {
         }
     }
 }
-impl IntoVar<FontStyleSet> for u8 {
-    type Var = crate::var::LocalVar<FontStyleSet>;
-
-    fn into_var(self) -> Self::Var {
-        FontStyleSet::from(self).into_var()
-    }
+impl_from_and_into_var! {
+    fn from(set: u8) -> FontStyleSet;
 }
 
 impl FontFeatureExclusiveSetState for FontStyleSet {

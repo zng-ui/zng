@@ -3,7 +3,7 @@ use zero_ui_units::FactorUnits;
 use super::{
     DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
 };
-use crate::impl_from_and_into_var;
+use crate::var::impl_from_and_into_var;
 use std::{fmt, ops};
 
 impl ops::Mul<Factor> for Factor2d {
@@ -28,42 +28,6 @@ impl ops::MulAssign<Factor> for Factor2d {
 impl ops::DivAssign<Factor> for Factor2d {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
-    }
-}
-
-impl crate::var::IntoVar<Factor> for FactorPercent {
-    type Var = crate::var::LocalVar<Factor>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.into())
-    }
-}
-impl crate::var::IntoVar<FactorPercent> for Factor {
-    type Var = crate::var::LocalVar<FactorPercent>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.into())
-    }
-}
-impl crate::var::IntoVar<Factor> for f32 {
-    type Var = crate::var::LocalVar<Factor>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(self.fct())
-    }
-}
-impl crate::var::IntoVar<Factor> for f64 {
-    type Var = crate::var::LocalVar<Factor>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar((self as f32).fct())
-    }
-}
-impl crate::var::IntoVar<Factor> for bool {
-    type Var = crate::var::LocalVar<Factor>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(Factor(if self { 1.0 } else { 0.0 }))
     }
 }
 

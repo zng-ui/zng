@@ -2,8 +2,7 @@ use std::sync::atomic::AtomicBool;
 
 use parking_lot::Mutex;
 use zero_ui_clone_move::clmv;
-
-use crate::var::*;
+use zero_ui_unique_id::unique_id_32;
 
 use super::*;
 
@@ -281,4 +280,10 @@ impl<S: Config, F: Config> FallbackConfigData<S, F> {
         // reset when it changes to `false`.
         d.config.remove(key);
     }
+}
+
+unique_id_32! {
+    /// Used to stop an extra "map_back" caused by "map" itself
+    #[derive(Debug)]
+    struct BindMapBidiTag;
 }

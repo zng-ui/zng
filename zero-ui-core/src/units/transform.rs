@@ -299,7 +299,7 @@ impl Transform {
 
         for (to, step, slerp) in self.lerp_to.iter() {
             let to = to.layout();
-            r = slerp_enabled(*slerp, || r.lerp(&to, *step));
+            r = slerp_enabled(*slerp, || lerp_px_transform(r, &to, *step));
         }
 
         r
@@ -354,38 +354,6 @@ impl super::Layout2d for Transform {
     }
 }
 
-impl Transitionable for PxTransform {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        if step == 0.fct() {
-            self
-        } else if step == 1.fct() {
-            *to
-        } else {
-            match (self, to) {
-                (PxTransform::Offset(from), PxTransform::Offset(to)) => PxTransform::Offset(from.lerp(*to, step.0)),
-                (from, to) => {
-                    match (
-                        MatrixDecomposed3D::decompose(from.to_transform()),
-                        MatrixDecomposed3D::decompose(to.to_transform()),
-                    ) {
-                        (Some(from), Some(to)) => {
-                            let l = from.lerp(&to, step);
-                            PxTransform::Transform(l.recompose())
-                        }
-                        _ => {
-                            if step.0 < 0.5 {
-                                self
-                            } else {
-                                *to
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 impl Transitionable for Transform {
     fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
         if step == 0.fct() {
@@ -399,9 +367,39 @@ impl Transitionable for Transform {
             } else {
                 let a = self.layout();
                 let b = to.layout();
-                self = Transform::from(a.lerp(&b, step));
+                self = Transform::from(lerp_px_transform(a, &b, step));
             }
             self
+        }
+    }
+}
+
+fn lerp_px_transform(s: PxTransform, to: &PxTransform, step: EasingStep) -> PxTransform {
+    if step == 0.fct() {
+        s
+    } else if step == 1.fct() {
+        *to
+    } else {
+        match (s, to) {
+            (PxTransform::Offset(from), PxTransform::Offset(to)) => PxTransform::Offset(from.lerp(*to, step.0)),
+            (from, to) => {
+                match (
+                    MatrixDecomposed3D::decompose(from.to_transform()),
+                    MatrixDecomposed3D::decompose(to.to_transform()),
+                ) {
+                    (Some(from), Some(to)) => {
+                        let l = from.lerp(&to, step);
+                        PxTransform::Transform(l.recompose())
+                    }
+                    _ => {
+                        if step.0 < 0.5 {
+                            s
+                        } else {
+                            *to
+                        }
+                    }
+                }
+            }
         }
     }
 }

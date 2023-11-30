@@ -55,7 +55,6 @@ pub use arc::{var, var_default, var_from, ArcVar};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 #[doc(inline)]
 pub use context::{ContextInitHandle, ContextVar, ReadOnlyContextVar};
-pub use cow::VarCow;
 pub use local::LocalVar;
 #[doc(inline)]
 pub use merge::MergeVarBuilder;
@@ -1307,6 +1306,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         } else {
             self.modify(var_set_from_map(other.clone().actual_var(), map))
         }
+    }
+
+    /// Create a ref-counted var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
+    ///
+    /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
+    /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
+    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not update the cloned value it is dropped and the cow
+    /// continues to redirect to the source variable.
+    fn cow(&self) -> types::ArcCowVar<T, Self> {
+        types::ArcCowVar::new(self.clone())
     }
 
     /// Creates a ref-counted var that maps from this variable.

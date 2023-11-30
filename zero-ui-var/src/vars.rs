@@ -2,7 +2,7 @@ use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_app_context::{app_local, context_local};
 
-use crate::animation::{AnimationTimer, AnimationsConfig};
+use crate::animation::AnimationTimer;
 
 use super::{
     animation::{Animations, ModifyInfo},
@@ -356,9 +356,9 @@ impl VARS {
         }
     }
 
-    /// Update animations config.
-    pub fn update_animations_config(&self, cfg: &AnimationsConfig) {
-        VARS_SV.read().ans.animations_enabled.set(cfg.enabled);
+    /// Enable or disable animations.
+    pub fn set_animations_enabled(&self, enabled: bool) {
+        VARS_SV.read().ans.animations_enabled.set(enabled);
     }
 
     /// Does one animation frame if the frame duration has elapsed.

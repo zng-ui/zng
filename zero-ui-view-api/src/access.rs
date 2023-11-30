@@ -177,6 +177,10 @@ pub enum AccessRole {
     /// Identifies a widget that has content separate from the normal window and is presented as an overlay.
     Dialog,
 }
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: AccessRole) -> Option<AccessRole>;
+}
 
 /// Kind of current item a widget represents.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -194,6 +198,11 @@ pub enum CurrentKind {
     Time,
     /// Represents the current item within a set.
     Item,
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: CurrentKind) -> Option<CurrentKind>;
 }
 
 /// Accessibility attribute of a node in the accessibility tree.
@@ -346,6 +355,11 @@ pub enum AccessState {
     ScrollVertical(f32),
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: AccessState) -> Option<AccessState>;
+}
+
 /// Defines how a live update is communicated to the user.
 ///
 /// See [`AccessState::Sort`]
@@ -360,6 +374,11 @@ pub enum LiveIndicator {
     Polite,
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: LiveIndicator) -> Option<LiveIndicator>;
+}
+
 /// Sort direction.
 ///
 /// See [`AccessState::Sort`]
@@ -371,6 +390,11 @@ pub enum SortDirection {
     Descending,
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: SortDirection) -> Option<SortDirection>;
+}
+
 /// Widget orientation.
 ///
 /// See [`AccessState::Orientation`].
@@ -380,6 +404,11 @@ pub enum Orientation {
     Horizontal,
     /// Widget is vertical.
     Vertical,
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: Orientation) -> Option<Orientation>;
 }
 
 /// Popup type.
@@ -397,6 +426,11 @@ pub enum Popup {
     Grid,
     /// The popup is a dialog.
     Dialog,
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: Popup) -> Option<Popup>;
 }
 
 bitflags! {
@@ -439,6 +473,11 @@ bitflags! {
 /// Note IDs are defined by the app-process, usually they are the `WidgetId`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AccessNodeId(pub u64);
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: AccessNodeId) -> Option<AccessNodeId>;
+}
 
 /// Accessibility command.
 ///
@@ -521,6 +560,11 @@ impl AccessCmd {
     }
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: AccessCmd) -> Option<AccessCmd>;
+}
+
 /// Accessibility command without associated data.
 ///
 /// See [`AccessCmd::name`] for more details.
@@ -560,6 +604,11 @@ pub enum AccessCmdName {
     SetNumber,
 }
 
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: AccessCmdName) -> Option<AccessCmdName>;
+}
+
 /// Accessibility scroll command.
 ///
 /// The command must run in the context of the target widow and widget, see [`AccessCmd::Scroll`] for more details.
@@ -582,6 +631,11 @@ pub enum ScrollCmd {
     ScrollTo,
     /// Scroll until the rectangle (in the widget space) is fully visible.
     ScrollToRect(PxRect),
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: ScrollCmd) -> Option<ScrollCmd>;
 }
 
 /// Represents a widget in the access info tree.

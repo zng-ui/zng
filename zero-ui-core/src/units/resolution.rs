@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{impl_from_and_into_var, var::animation::Transitionable};
+use crate::{var::animation::Transitionable, var::impl_from_and_into_var};
 
 /// Pixels-per-inch resolution.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Transitionable)]

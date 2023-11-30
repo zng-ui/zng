@@ -8,7 +8,7 @@ use crate::{
     property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey},
     units::{PxCornerRadius, PxRect, PxSize},
-    var::*,
+    var::{helpers::*, *},
     widget_builder::*,
     widget_info::*,
     widget_instance::*,

@@ -11,12 +11,11 @@ use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
     context::{LayoutMetrics, WINDOW},
-    impl_from_and_into_var,
     render::RenderMode,
     task::{self, SignalOnce},
     text::Txt,
     units::*,
-    var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
+    var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar},
     widget_instance::UiNode,
     window::{FrameCaptureMode, WINDOW_Ext, WindowId, WindowRoot},
 };
@@ -1154,65 +1153,6 @@ impl Default for ImageLimits {
         }
     }
 }
-impl IntoVar<Option<ImageLimits>> for ImageLimits {
-    type Var = LocalVar<Option<ImageLimits>>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self))
-    }
-}
-impl IntoValue<Option<ImageLimits>> for ImageLimits {}
-
-impl IntoVar<Option<ImageDownscale>> for ImageDownscale {
-    type Var = LocalVar<Option<ImageDownscale>>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self))
-    }
-}
-impl IntoValue<Option<ImageDownscale>> for ImageDownscale {}
-impl IntoVar<Option<ImageDownscale>> for PxSize {
-    type Var = LocalVar<Option<ImageDownscale>>;
-
-    /// Fit
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self.into()))
-    }
-}
-impl IntoVar<Option<ImageDownscale>> for Px {
-    type Var = LocalVar<Option<ImageDownscale>>;
-
-    /// Fit
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self.into()))
-    }
-}
-
-impl IntoVar<ImagePpi> for f32 {
-    type Var = LocalVar<ImagePpi>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoVar<ImagePpi> for (f32, f32) {
-    type Var = LocalVar<ImagePpi>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoVar<Option<ImagePpi>> for f32 {
-    type Var = LocalVar<Option<ImagePpi>>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self.into()))
-    }
-}
-impl IntoVar<Option<ImagePpi>> for (f32, f32) {
-    type Var = LocalVar<Option<ImagePpi>>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self.into()))
-    }
+impl_from_and_into_var! {
+    fn from(some: ImageLimits) -> Option<ImageLimits>;
 }

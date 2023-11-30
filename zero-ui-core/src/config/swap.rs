@@ -1,5 +1,3 @@
-use crate::var::*;
-
 use super::*;
 
 use parking_lot::Mutex;

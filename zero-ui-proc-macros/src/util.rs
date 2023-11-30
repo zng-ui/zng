@@ -431,44 +431,6 @@ pub fn path_span(path: &syn::Path) -> Span {
     path.segments.last().map(|s| s.span()).unwrap_or_else(|| path.span())
 }
 
-/// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
-pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
-    let tokens = tokens.to_string();
-    let max = tokens.len().min(40);
-    let mut tokens = tokens[(tokens.len() - max)..]
-        .replace(&['.', ':', ' '][..], "_")
-        .replace('!', "not")
-        .replace("&&", "and")
-        .replace("||", "or")
-        .replace('(', "p")
-        .replace(')', "b")
-        .replace("==", "eq");
-
-    tokens.retain(|c| c == '_' || c.is_alphanumeric());
-
-    tokens
-}
-
-/// Returns `true` if `a` and `b` have the same tokens in the same order (ignoring span).
-pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
-    let mut a = a.into_iter();
-    let mut b = b.into_iter();
-    use TokenTree::*;
-    loop {
-        match (a.next(), b.next()) {
-            (Some(a), Some(b)) => match (a, b) {
-                (Group(a), Group(b)) if a.delimiter() == b.delimiter() && token_stream_eq(a.stream(), b.stream()) => continue,
-                (Ident(a), Ident(b)) if a == b => continue,
-                (Punct(a), Punct(b)) if a.as_char() == b.as_char() && a.spacing() == b.spacing() => continue,
-                (Literal(a), Literal(b)) if a.to_string() == b.to_string() => continue,
-                _ => return false,
-            },
-            (None, None) => return true,
-            _ => return false,
-        }
-    }
-}
-
 struct CfgCondition {
     tokens: TokenStream,
 }

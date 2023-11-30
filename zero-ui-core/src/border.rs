@@ -11,6 +11,7 @@ use crate::{
     units::*,
     var::{
         animation::{easing::EasingStep, Transitionable},
+        helpers::with_context_var,
         impl_from_and_into_var, *,
     },
     widget_info::WidgetBorderInfo,

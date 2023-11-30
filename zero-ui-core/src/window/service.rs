@@ -29,7 +29,10 @@ use crate::task::ParallelIteratorExt;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::{WidgetInfo, WidgetInfoTree};
 use crate::widget_instance::{BoxedUiNode, NilUiNode, UiNode};
-use crate::{context::app_local, var::*};
+use crate::{
+    context::app_local,
+    var::{helpers::with_context_var_init, *},
+};
 use crate::{units::*, widget_instance::WidgetId};
 
 app_local! {

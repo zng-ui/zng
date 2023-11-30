@@ -1229,13 +1229,6 @@ impl Default for ClickMode {
         }
     }
 }
-impl IntoVar<Option<ClickMode>> for ClickMode {
-    type Var = crate::var::LocalVar<Option<ClickMode>>;
-
-    fn into_var(self) -> Self::Var {
-        Some(self).into_var()
-    }
-}
 impl IntoVar<Option<ClickMode>> for ClickTrigger {
     type Var = crate::var::LocalVar<Option<ClickMode>>;
 
@@ -1251,6 +1244,8 @@ impl_from_and_into_var! {
             repeat: false,
         }
     }
+
+    fn from(some: ClickMode) -> Option<ClickMode>;
 }
 impl ClickMode {
     /// Click on [`ClickTrigger::Press`].

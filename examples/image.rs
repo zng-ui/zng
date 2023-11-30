@@ -3,7 +3,7 @@
 use zero_ui::core::task::http;
 use zero_ui::widgets::image::{img_error_fn, img_loading_fn, ImgErrorArgs};
 use zero_ui::{
-    core::image::{ImageLimits, IMAGES},
+    core::image::{ImageDownscale, ImageLimits, IMAGES},
     prelude::*,
 };
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -299,7 +299,7 @@ fn large_image() -> impl UiNode {
                     child = Image! {
                         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
-                        img_downscale = Px(8000);
+                        img_downscale = ImageDownscale::from(Px(8000));
 
                         on_error = hn!(|args: &ImgErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);

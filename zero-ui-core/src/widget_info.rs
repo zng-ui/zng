@@ -10,10 +10,10 @@ use std::{
 use crate::{
     context::{LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
     crate_util::{IdMap, ParallelSegmentId, ParallelSegmentOffsets},
-    impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate, TransformStyle},
     text::Txt,
     units::*,
+    var::impl_from_and_into_var,
     widget_instance::{WidgetId, ZIndex},
     window::WindowId,
 };

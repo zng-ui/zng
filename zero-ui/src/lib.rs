@@ -149,8 +149,9 @@ pub mod prelude {
                 self, easing,
                 easing::{EasingStep, EasingTime},
             },
-            expr_var, merge_var, state_var, var, var_default, var_from, AnyVar, ArcVar, BoxedVar, IntoVar, Var, VarReceiver, VarSender,
-            VarValue, VARS,
+            expr_var,
+            helpers::{easing, state_var},
+            merge_var, var, var_default, var_from, AnyVar, ArcVar, BoxedVar, IntoVar, Var, VarValue, VARS,
         },
         widget_base::HitTestMode,
         widget_info::{access::AccessRole, InteractionPath, Visibility, WidgetPath},
@@ -252,7 +253,13 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::units::{self, *};
         #[doc(no_inline)]
-        pub use crate::core::var::*;
+        pub use crate::core::var::{
+            helpers::{
+                bind_is_state, event_is_state, event_is_state2, event_is_state3, event_is_state4, state_var, widget_state_get_state,
+                widget_state_is_state, with_context_var, with_context_var_init,
+            },
+            *,
+        };
         #[doc(no_inline)]
         pub use crate::core::widget_base::HitTestMode;
         #[doc(no_inline)]
@@ -318,7 +325,13 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::units::*;
         #[doc(no_inline)]
-        pub use crate::core::var::*;
+        pub use crate::core::var::{
+            helpers::{
+                bind_is_state, easing, event_is_state, event_is_state2, event_is_state3, event_is_state4, state_var,
+                widget_state_get_state, widget_state_is_state, with_context_var, with_context_var_init,
+            },
+            *,
+        };
         #[doc(no_inline)]
         pub use crate::core::widget_builder::*;
         #[doc(no_inline)]

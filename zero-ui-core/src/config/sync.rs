@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use atomic::{Atomic, Ordering};
 use zero_ui_clone_move::clmv;
 
-use crate::{fs_watcher::WATCHER, var::*};
+use crate::fs_watcher::WATCHER;
 
 use super::*;
 

@@ -11,8 +11,8 @@ use parking_lot::Mutex;
 use crate::{
     crate_util::{unique_id_32, FxEntry, FxHashMap, FxHashSet},
     handler::WidgetHandler,
-    impl_from_and_into_var,
     text::{formatx, Txt},
+    var::impl_from_and_into_var,
     var::{types::AnyWhenVarBuilder, *},
     widget_base::{WidgetBase, WidgetExt},
     widget_instance::{
@@ -2592,7 +2592,7 @@ impl WidgetBuilding {
         }
 
         // ensure `when` reuse works, by forcing input refresh on (re)init.
-        node = types::with_new_context_init_id(node).boxed();
+        node = crate::var::helpers::with_new_context_init_id(node).boxed();
 
         if let Some(handle) = when_init_context_handle {
             // ensure shared/cloned when input expressions work.

@@ -4,10 +4,12 @@ use std::fmt;
 
 use crate::{
     color::{RenderColor, Rgba},
-    impl_from_and_into_var,
     render::{webrender_api as wr, FilterOp, FrameValue},
     units::*,
-    var::animation::{easing::EasingStep, Transitionable},
+    var::{
+        animation::{easing::EasingStep, Transitionable},
+        impl_from_and_into_var,
+    },
 };
 
 /// A color filter or combination of filters.
@@ -277,65 +279,95 @@ impl fmt::Debug for FilterData {
     }
 }
 
-impl Transitionable for wr::Shadow {
-    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
-        self.offset = Transitionable::lerp(self.offset, &to.offset, step);
-        self.color = self.color.lerp(&to.color, step);
-        self.blur_radius = self.blur_radius.lerp(&to.blur_radius, step);
-        self
+fn lerp_wr_color(s: RenderColor, to: &RenderColor, step: EasingStep) -> RenderColor {
+    Rgba::from(s).lerp(Rgba::from(*to), step).into()
+}
+
+fn lerp_wr_shadow(mut s: wr::Shadow, to: &wr::Shadow, step: EasingStep) -> wr::Shadow {
+    s.offset = Transitionable::lerp(s.offset, &to.offset, step);
+    s.color = lerp_wr_color(s.color, &to.color, step);
+    s.blur_radius = s.blur_radius.lerp(&to.blur_radius, step);
+    s
+}
+
+fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, step: EasingStep) -> FrameValue<T> {
+    let mut bind_data = None;
+    let mut value = match s {
+        FrameValue::Bind { key, value, animating } => {
+            bind_data = Some((key, animating));
+            value
+        }
+        FrameValue::Value(v) => v,
+    };
+
+    value = value.lerp(to.value(), step);
+
+    if step < 1.fct() {
+        if let Some((key, animating)) = bind_data {
+            FrameValue::Bind { key, value, animating }
+        } else {
+            FrameValue::Value(value)
+        }
+    } else {
+        match to {
+            FrameValue::Bind { key, animating, .. } => FrameValue::Bind {
+                key: key.clone(),
+                value,
+                animating: *animating,
+            },
+            FrameValue::Value(_) => FrameValue::Value(value),
+        }
     }
 }
 
-impl Transitionable for FilterOp {
-    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
-        match (&mut self, to) {
-            (FilterOp::Blur(x, y), FilterOp::Blur(xb, yb)) => {
-                *x = x.lerp(xb, step);
-                *y = y.lerp(yb, step);
-            }
-            (FilterOp::Brightness(a), FilterOp::Brightness(b)) => {
+fn lerp_filter_op(mut s: FilterOp, to: &FilterOp, step: EasingStep) -> FilterOp {
+    match (&mut s, to) {
+        (FilterOp::Blur(x, y), FilterOp::Blur(xb, yb)) => {
+            *x = x.lerp(xb, step);
+            *y = y.lerp(yb, step);
+        }
+        (FilterOp::Brightness(a), FilterOp::Brightness(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::Contrast(a), FilterOp::Contrast(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::Grayscale(a), FilterOp::Grayscale(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::HueRotate(a), FilterOp::HueRotate(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::Invert(a), FilterOp::Invert(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::Opacity(a), FilterOp::Opacity(b)) => {
+            *a = lerp_frame_value(*a, b, step);
+        }
+        (FilterOp::Saturate(a), FilterOp::Saturate(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::Sepia(a), FilterOp::Sepia(b)) => {
+            *a = a.lerp(b, step);
+        }
+        (FilterOp::DropShadow(a), FilterOp::DropShadow(b)) => {
+            *a = lerp_wr_shadow(*a, b, step);
+        }
+        (FilterOp::ColorMatrix(a), FilterOp::ColorMatrix(b)) => {
+            for (a, b) in a.iter_mut().zip(b) {
                 *a = a.lerp(b, step);
-            }
-            (FilterOp::Contrast(a), FilterOp::Contrast(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::Grayscale(a), FilterOp::Grayscale(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::HueRotate(a), FilterOp::HueRotate(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::Invert(a), FilterOp::Invert(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::Opacity(a), FilterOp::Opacity(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::Saturate(a), FilterOp::Saturate(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::Sepia(a), FilterOp::Sepia(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::DropShadow(a), FilterOp::DropShadow(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (FilterOp::ColorMatrix(a), FilterOp::ColorMatrix(b)) => {
-                for (a, b) in a.iter_mut().zip(b) {
-                    *a = a.lerp(b, step);
-                }
-            }
-            (FilterOp::Flood(a), FilterOp::Flood(b)) => {
-                *a = a.lerp(b, step);
-            }
-            (a, b) => {
-                if step >= 1.fct() {
-                    *a = *b
-                }
             }
         }
-        self
+        (FilterOp::Flood(a), FilterOp::Flood(b)) => {
+            *a = lerp_wr_color(*a, b, step);
+        }
+        (a, b) => {
+            if step >= 1.fct() {
+                *a = *b
+            }
+        }
     }
+    s
 }
 
 impl Transitionable for Filter {
@@ -344,7 +376,7 @@ impl Transitionable for Filter {
 
         for z in self.filters.iter_mut().zip(&to.filters) {
             match z {
-                (FilterData::Op(a), FilterData::Op(b)) => *a = a.lerp(b, step),
+                (FilterData::Op(a), FilterData::Op(b)) => *a = lerp_filter_op(*a, b, step),
                 (FilterData::Blur(a), FilterData::Blur(b)) => {
                     *a = a.clone().lerp(b, step);
                 }

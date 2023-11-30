@@ -10,6 +10,7 @@ use zero_ui_clone_move::clmv;
 
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
 use zero_ui_units::{Deadline, TimeUnits};
+
 pub use zero_ui_var_proc_macros::Transitionable;
 
 use super::*;
@@ -947,30 +948,6 @@ context_local! {
         let r: Box<dyn AnimationController> = Box::new(NilAnimationObserver);
         r
     };
-}
-
-/// System settings that control animations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AnimationsConfig {
-    /// If animation are enabled.
-    ///
-    /// People with photo-sensitive epilepsy usually disable animations system wide.
-    pub enabled: bool,
-
-    /// Interval of the caret blink animation.
-    pub caret_blink_interval: Duration,
-    /// Duration after which the blink animation stops.
-    pub caret_blink_timeout: Duration,
-}
-impl Default for AnimationsConfig {
-    /// true, 530ms, 5s.
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            caret_blink_interval: Duration::from_millis(530),
-            caret_blink_timeout: Duration::from_secs(5),
-        }
-    }
 }
 
 /// View on an app loop timer.

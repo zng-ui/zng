@@ -81,14 +81,10 @@ impl_from_and_into_var! {
         zero_ui_view_api::access::AccessNodeId(id.get())
     }
 }
-impl crate::var::IntoVar<Option<WidgetId>> for WidgetId {
-    type Var = crate::var::LocalVar<Option<WidgetId>>;
-
-    fn into_var(self) -> Self::Var {
-        crate::var::LocalVar(Some(self))
-    }
+impl_from_and_into_var! {
+    fn from(some: WidgetId) -> Option<WidgetId>;
 }
-impl crate::var::IntoValue<Option<WidgetId>> for WidgetId {}
+
 impl fmt::Debug for StaticWidgetId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.get(), f)

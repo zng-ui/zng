@@ -262,7 +262,7 @@ impl WgtWhen {
             errors.push("expected when expression", when.span());
             return None;
         }
-        let condition_expr = crate::expr_var::parse_without_eager_brace(input);
+        let condition_expr = parse_without_eager_brace(input);
 
         let (brace_token, assigns) = if input.peek(syn::token::Brace) {
             let (brace, inner) = util::parse_braces(input).unwrap();
@@ -343,6 +343,87 @@ impl WgtWhen {
             assigns,
         })
     }
+}
+
+/// Like [`syn::Expr::parse_without_eager_brace`] but does not actually parse anything and includes
+/// the braces of interpolation.
+fn parse_without_eager_brace(input: parse::ParseStream) -> TokenStream {
+    let mut r = TokenStream::default();
+    let mut is_start = true;
+    while !input.is_empty() {
+        if input.peek(Token![match]) || input.peek(Token![while]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // expr
+            r.extend(parse_without_eager_brace(input));
+            // block
+            if input.peek(token::Brace) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+        } else if input.peek(Token![if]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // expr
+            r.extend(parse_without_eager_brace(input));
+            // block
+            if input.peek(token::Brace) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+
+                if input.peek(Token![else]) {
+                    input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                    if input.peek(token::Brace) {
+                        // else { }
+                        input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                    } else {
+                        // maybe another if
+                        continue;
+                    }
+                }
+            }
+        } else if input.peek(Token![loop]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // block
+            if input.peek(token::Brace) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+        } else if input.peek(Token![for]) {
+            // keyword (for)
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            while !input.is_empty() && !input.peek(Token![in]) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+            if !input.is_empty() {
+                // keyword (in)
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                //expr
+                r.extend(parse_without_eager_brace(input));
+                // block
+                if input.peek(token::Brace) {
+                    input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                }
+            }
+        } else if input.peek2(token::Brace) {
+            if let Some(p) = input.cursor().punct() {
+                if p.0.as_char() != '.' {
+                    let tt = input.parse::<TokenTree>().unwrap();
+                    tt.to_tokens(&mut r);
+                    let tt = input.parse::<TokenTree>().unwrap();
+                    tt.to_tokens(&mut r);
+                    continue; // found #{ }
+                }
+            }
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            break; // found { } after expr or Struct { }
+        } else if !is_start && input.peek(token::Brace) {
+            break; // found { } after expr
+        } else {
+            let tt = input.parse::<TokenTree>().unwrap();
+            tt.to_tokens(&mut r);
+        }
+        is_start = false;
+    }
+    r
 }
 
 #[derive(PartialEq, Eq, Hash)]

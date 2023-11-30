@@ -41,23 +41,9 @@ TextInput! {
     - We need a `zero-ui-app-api` and zero-ui-app pair?
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
-* Var crate.
-    - Replace code var, except:
-        - VarSubscribe.
-        - state module.
-        - easing attribute macro.
-        - property_build_action.
-        - context::helpers.
-    - Implement strong type hook.
-        - Review all hook usages.
-    - Implement specialized maps now that it is GATs.
-
-* Length types in units crate.
-    - Needs impl_from_and_into_var.
-        - Will depend on vars crate, that depends on the Txt crate.
-        - We are suddenly importing a lot of dependencies.
-        - Should be pretty small still, or we could make a "var-api" crate.
+* Length types in layout crate.
     - Needs LAYOUT context? Otherwise can't implement Layout2d and Layout1d.
+    - Needs var too, for impl_into_var.
 
 ## Split Main
 

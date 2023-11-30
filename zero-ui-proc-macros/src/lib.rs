@@ -14,13 +14,9 @@ use proc_macro::TokenStream;
 #[macro_use]
 mod util;
 
-mod expr_var;
 mod hex_color;
-mod merge_var;
-mod when_var;
 
 mod property;
-mod transitionable;
 mod ui_node;
 mod wgt_property_attrs;
 mod widget;
@@ -99,34 +95,10 @@ pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
     wgt_property_attrs::expand_easing(args, input)
 }
 
-/// Implement transition by delegating all type parts.
-#[proc_macro_derive(Transitionable)]
-pub fn transitionable(args: TokenStream) -> TokenStream {
-    transitionable::expand(args)
-}
-
 #[doc(hidden)]
 #[proc_macro]
 pub fn widget_new(input: TokenStream) -> TokenStream {
     widget::expand_new(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn expr_var(input: TokenStream) -> TokenStream {
-    expr_var::expand(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn when_var(input: TokenStream) -> TokenStream {
-    when_var::expand(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn merge_var(input: TokenStream) -> TokenStream {
-    merge_var::expand(input)
 }
 
 #[doc(hidden)]

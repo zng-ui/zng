@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops};
 
-use crate::{impl_from_and_into_var, var::animation::Transitionable};
+use crate::{var::animation::Transitionable, var::impl_from_and_into_var};
 
 use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector};
 

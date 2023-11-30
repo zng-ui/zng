@@ -25,7 +25,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let is_unset = args.is_unset();
 
     let core = crate_core();
-    let name = "zero_ui::core::var::easing";
+    let name = "zero_ui::core::var::helpers::easing";
 
     let property_ident = &property.segments.last().unwrap().ident;
     let meta_ident = ident!("{property_ident}_");
@@ -50,7 +50,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
 
         return quote! {
             {
-                let __data__ = #core::var::types::easing_property::easing_when_data(
+                let __data__ = #core::var::helpers::easing_property::easing_when_data(
                     #property_meta.input_types(),
                     {
                         use #core::units::TimeUnits as _;
@@ -75,7 +75,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
 
     let r = if is_unset {
         quote! {
-            #core::var::types::easing_property::easing_property_unset(
+            #core::var::helpers::easing_property::easing_property_unset(
                 #property_meta.input_types()
             );
             let id__ = #property_meta.id();
@@ -88,7 +88,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     } else {
         quote! {
             {
-                let __actions__ = #core::var::types::easing_property::easing_property(
+                let __actions__ = #core::var::helpers::easing_property::easing_property(
                     #property_meta.input_types(),
                     {
                         use #core::units::TimeUnits as _;

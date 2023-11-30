@@ -87,6 +87,12 @@ impl From<Px> for ImageDownscale {
         ImageDownscale::Fit(PxSize::splat(fit))
     }
 }
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(fit: PxSize) -> ImageDownscale;
+    fn from(fit: Px) -> ImageDownscale;
+    fn from(some: ImageDownscale) -> Option<ImageDownscale>;
+}
 
 /// Format of the image bytes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,6 +250,7 @@ impl fmt::Debug for ImagePpi {
         }
     }
 }
+
 impl From<f32> for ImagePpi {
     fn from(xy: f32) -> Self {
         ImagePpi::splat(xy)
@@ -253,4 +260,10 @@ impl From<(f32, f32)> for ImagePpi {
     fn from((x, y): (f32, f32)) -> Self {
         ImagePpi::new(x, y)
     }
+}
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(xy: f32) -> ImagePpi;
+    fn from(xy: (f32, f32)) -> ImagePpi;
 }

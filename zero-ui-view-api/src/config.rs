@@ -166,3 +166,8 @@ impl Default for ColorScheme {
         ColorScheme::Light
     }
 }
+
+#[cfg(feature = "var")]
+zero_ui_var::impl_from_and_into_var! {
+    fn from(some: ColorScheme) -> Option<ColorScheme>;
+}

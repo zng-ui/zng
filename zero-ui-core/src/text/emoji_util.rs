@@ -8,7 +8,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use icu_properties::sets;
 use zero_ui_view_api::webrender_api::GlyphIndex;
 
-use crate::{color::Rgba, impl_from_and_into_var};
+use crate::{color::Rgba, var::impl_from_and_into_var};
 
 pub(super) fn maybe_emoji(c: char) -> bool {
     sets::emoji().contains(c)

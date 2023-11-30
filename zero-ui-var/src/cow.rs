@@ -21,22 +21,6 @@ enum Data<T: VarValue, S> {
     },
 }
 
-/// Cow extension method.
-pub trait VarCow<T: VarValue>: Var<T> {
-    /// Create a ref-counted var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
-    ///
-    /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
-    /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
-    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not update the cloned value it is dropped and the cow
-    /// continues to redirect to the source variable.
-    fn cow(&self) -> types::ArcCowVar<T, Self>;
-}
-impl<T: VarValue, V: Var<T>> VarCow<T> for V {
-    fn cow(&self) -> types::ArcCowVar<T, Self> {
-        ArcCowVar::new(self.clone())
-    }
-}
-
 /// See [`Var::cow`].
 pub struct ArcCowVar<T: VarValue, S>(Arc<RwLock<Data<T, S>>>);
 

@@ -427,14 +427,9 @@ impl Default for ScrollToMode {
         Self::minimal(10)
     }
 }
-impl IntoVar<Option<ScrollToMode>> for ScrollToMode {
-    type Var = crate::core::var::LocalVar<Option<ScrollToMode>>;
-
-    fn into_var(self) -> Self::Var {
-        crate::core::var::LocalVar(Some(self))
-    }
+impl_from_and_into_var! {
+    fn from(some: ScrollToMode) -> Option<ScrollToMode>;
 }
-impl IntoValue<Option<ScrollToMode>> for ScrollToMode {}
 
 /// Scroll all parent [`is_scroll`] widgets of `target` so that it becomes visible.
 ///

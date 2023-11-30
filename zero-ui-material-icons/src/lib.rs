@@ -15,8 +15,8 @@ use std::{fmt, mem};
 use zero_ui::{
     core::{
         app::AppExtension,
-        impl_from_and_into_var,
         text::{CustomFont, FontDataRef, FontName, FONTS},
+        var::impl_from_and_into_var,
     },
     widgets::icon::GlyphIcon,
 };

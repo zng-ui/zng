@@ -920,6 +920,10 @@ impl<E: AppExtension> RunningApp<E> {
 
         UPDATES.init(sender);
 
+        VARS.init_app_waker(|| {
+            UPDATES.update(None);
+        });
+
         let mut info = AppExtensionsInfo::start();
         extensions.register(&mut info);
         APP_PROCESS_SV.write().set_extensions(info);
@@ -1246,7 +1250,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::AnimationsConfigChanged(cfg) => {
-                VARS.update_animations_config(&cfg);
+                VARS.set_animations_enabled(cfg.enabled);
                 let args = RawAnimationsConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
@@ -1381,7 +1385,7 @@ impl<E: AppExtension> RunningApp<E> {
                         .map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info))
                         .collect();
 
-                    VARS.update_animations_config(&animations_config);
+                    VARS.set_animations_enabled(animations_config.enabled);
 
                     let args = ViewProcessInitedArgs::now(
                         generation,
@@ -1414,7 +1418,6 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             },
             AppEvent::Event(ev) => EVENTS.notify(ev.get()),
-            AppEvent::Var => VARS.receive_sended_modify(),
             AppEvent::Update(op, target) => {
                 UPDATES.update_op(op, target);
             }
@@ -2340,8 +2343,6 @@ pub(crate) enum AppEvent {
     ViewEvent(zero_ui_view_api::Event),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::EventUpdateMsg),
-    /// Notify [`VARS`](crate::var::VARS).
-    Var,
     /// Do an update cycle.
     Update(UpdateOp, Option<WidgetId>),
     /// Resume a panic in the app thread.
@@ -2378,11 +2379,6 @@ impl AppEventSender {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(op, target.into()))
             .map_err(|_| AppDisconnected(()))
-    }
-
-    /// [`VarSender`](crate::var::VarSender) util.
-    pub(crate) fn send_var(&self) -> Result<(), AppDisconnected<()>> {
-        self.send_app_event(AppEvent::Var).map_err(|_| AppDisconnected(()))
     }
 
     /// [`EventSender`](crate::event::EventSender) util.

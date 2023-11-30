@@ -1,9 +1,14 @@
 //! zero-ui-var depends on zero-ui-[units, txt] so we need to implement these traits here.
 
-use std::{any::Any, borrow::Cow, path::PathBuf};
+use std::{
+    any::Any,
+    borrow::Cow,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use zero_ui_txt::Txt;
-use zero_ui_units::{euclid, CornerRadius2D, Dip, Factor, FactorUnits, Px};
+use zero_ui_units::{euclid, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
 
 use crate::{animation::Transitionable, easing::EasingStep, impl_from_and_into_var};
 
@@ -187,4 +192,29 @@ impl_from_and_into_var! {
     fn from(t: Txt) -> PathBuf;
     fn from(t: Txt) -> String;
     fn from(t: Txt) -> Cow<'static, str>;
+
+    fn from(f: f32) -> Factor;
+    fn from(one_or_zero: bool) -> Factor;
+    fn from(f: FactorPercent) -> Factor;
+    fn from(f: Factor) -> FactorPercent;
+
+    fn from(d: Instant) -> Deadline;
+    fn from(d: Duration) -> Deadline;
+}
+
+macro_rules! impl_into_var_option {
+    (
+        $($T:ty),* $(,)?
+    ) => {
+        impl_from_and_into_var! { $(
+            fn from(some: $T) -> Option<$T>;
+        )* }
+    }
+}
+impl_into_var_option! {
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize,
+    f32, f64,
+    char, bool,
+    zero_ui_units::Orientation2D,
 }

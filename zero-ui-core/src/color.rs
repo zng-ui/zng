@@ -5,6 +5,7 @@ use crate::{
     units::*,
     var::{
         animation::{easing::EasingStep, Transition, Transitionable},
+        helpers::with_context_var,
         *,
     },
     widget_instance::UiNode,
@@ -338,12 +339,6 @@ impl ops::SubAssign<Self> for Rgba {
 impl Transitionable for Rgba {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         self.lerp(*to, step)
-    }
-}
-
-impl Transitionable for RenderColor {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        Rgba::from(self).lerp(Rgba::from(*to), step).into()
     }
 }
 
@@ -1183,15 +1178,6 @@ pub fn lerp_render_color(a: RenderColor, b: RenderColor, amount: f32) -> RenderC
     let b = Rgba::from(b);
     a.lerp(b, amount.fct()).into()
 }
-
-impl IntoVar<Option<ColorScheme>> for ColorScheme {
-    type Var = LocalVar<Option<ColorScheme>>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(Some(self))
-    }
-}
-impl IntoValue<Option<ColorScheme>> for ColorScheme {}
 
 context_var! {
     /// Defines the preferred color scheme in a context.
