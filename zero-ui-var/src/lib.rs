@@ -30,6 +30,7 @@ use zero_ui_units::{Factor, FactorUnits};
 pub mod animation;
 mod arc;
 mod boxed;
+mod impls;
 
 mod context;
 mod contextualized;
@@ -2311,65 +2312,6 @@ unique_id_32! {
     #[derive(Debug)]
     pub(crate)struct BindMapBidiTag;
 }
-
-// trait Var depends on this type, so to avoid cyclical dependency we
-// impl IntoVar and IntoValue for Txt for all the From<T> in the zero-ui-txt crate.
-
-impl IntoVar<Txt> for &'static str {
-    type Var = LocalVar<Txt>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<Txt> for &'static str {}
-
-impl IntoVar<Txt> for String {
-    type Var = LocalVar<Txt>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<Txt> for String {}
-
-impl IntoVar<Txt> for Cow<'static, str> {
-    type Var = LocalVar<Txt>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<Txt> for Cow<'static, str> {}
-
-impl IntoVar<Txt> for char {
-    type Var = LocalVar<Txt>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<Txt> for char {}
-
-impl IntoVar<String> for Txt {
-    type Var = LocalVar<String>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<String> for Txt {}
-
-impl IntoVar<Cow<'static, str>> for Txt {
-    type Var = LocalVar<Cow<'static, str>>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<Cow<'static, str>> for Txt {}
-
-impl IntoVar<std::path::PathBuf> for Txt {
-    type Var = LocalVar<std::path::PathBuf>;
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
-    }
-}
-impl IntoValue<std::path::PathBuf> for Txt {}
 
 macro_rules! impl_infallible_write {
     (for<$T:ident>) => {

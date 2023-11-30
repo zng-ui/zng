@@ -42,9 +42,6 @@ TextInput! {
     - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
 
 * Var crate.
-    - Use GATs to decouple Var<T> from any return var type.
-    - Implement `zero-ui-var-api` with just the traits, BoxedVar, LocalVar and impl_from_and_into_var.
-    - Var not sealed anymore, impl is limited, but not forbidden.
     - Replace code var, except:
         - VarSubscribe.
         - state module.
