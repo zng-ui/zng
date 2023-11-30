@@ -5,6 +5,12 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_closure = []
+
 [dependencies]
 zero-ui-var-proc-macros = { path = "../zero-ui-var-proc-macros" }
 

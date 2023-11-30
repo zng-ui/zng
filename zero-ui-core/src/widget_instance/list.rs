@@ -1914,12 +1914,28 @@ where
     where
         F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
     {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce(&mut BoxedUiNode, &mut D) -> R> = Box::new(f);
+        self.with_node_impl(index, f)
+    }
+    fn with_node_impl<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
+    {
         let data = self.data[index].get_mut();
         self.list.with_node(index, move |n| f(n, data))
     }
 
     /// Calls `f` for each node in the list with the index and associated data.
-    pub fn for_each<F>(&mut self, mut f: F)
+    pub fn for_each<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode, &mut D),
+    {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnMut(usize, &mut BoxedUiNode, &mut D)> = Box::new(f);
+        self.for_each_impl(f)
+    }
+    fn for_each_impl<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode, &mut D),
     {
@@ -1929,6 +1945,15 @@ where
 
     /// Calls `f` for each node in the list with the index and associated data in parallel.
     pub fn par_each<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
+        D: Sync,
+    {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync> = Box::new(f);
+        self.par_each_impl(f)
+    }
+    fn par_each_impl<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
         D: Sync,
@@ -1947,6 +1972,22 @@ where
     ///
     /// This method behaves the same as [`UiNodeList::par_fold_reduce`], with the added data.
     pub fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    where
+        T: Send + 'static,
+        I: Fn() -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
+    {
+        #[cfg(dyn_closure)]
+        let identity: Box<dyn Fn() -> T + Send + Sync> = Box::new(identity);
+        #[cfg(dyn_closure)]
+        let fold: Box<dyn Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync> = Box::new(fold);
+        #[cfg(dyn_closure)]
+        let reduce: Box<dyn Fn(T, T) -> T + Send + Sync> = Box::new(reduce);
+
+        self.par_fold_reduce_impl(identity, fold, reduce)
+    }
+    fn par_fold_reduce_impl<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
         T: Send + 'static,
         I: Fn() -> T + Send + Sync,
@@ -1976,6 +2017,18 @@ where
         F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
+        #[cfg(dyn_closure)]
+        let measure: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync> = Box::new(measure);
+        #[cfg(dyn_closure)]
+        let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
+
+        self.measure_each_impl(wm, measure, fold_size)
+    }
+    fn measure_each_impl<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
         let data = &self.data;
         self.list.measure_each(
             wm,
@@ -1999,6 +2052,18 @@ where
         F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
+        #[cfg(dyn_closure)]
+        let layout: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync> = Box::new(layout);
+        #[cfg(dyn_closure)]
+        let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
+
+        self.layout_each_impl(wl, layout, fold_size)
+    }
+    fn layout_each_impl<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
         let data = &self.data;
         self.list.layout_each(
             wl,
@@ -2015,7 +2080,12 @@ where
     }
 
     /// Iterate over the list in the Z order.
-    pub fn for_each_z_sorted(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode, &mut D)) {
+    pub fn for_each_z_sorted(&mut self, f: impl FnMut(usize, &mut BoxedUiNode, &mut D)) {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnMut(usize, &mut BoxedUiNode, &mut D)> = Box::new(f);
+        self.for_each_z_sorted_impl(f)
+    }
+    fn for_each_z_sorted_impl(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode, &mut D)) {
         if self.z_naturally_sorted {
             self.for_each(f)
         } else {

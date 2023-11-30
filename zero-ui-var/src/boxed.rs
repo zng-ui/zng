@@ -240,7 +240,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let read: Box<dyn FnOnce(&T) -> R> = Box::new(read);
         boxed_var_with(self, read)
     }

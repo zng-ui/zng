@@ -1,4 +1,5 @@
 * Review all #[cfg(dyn_closure)].
+* ERROR zero_ui_core::widget_builder: when input not inited
 
 # TextInput
 

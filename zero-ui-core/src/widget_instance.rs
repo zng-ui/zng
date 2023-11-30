@@ -589,35 +589,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+        Self: Sized,
     {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            // fold a tuple of `(wm, size)`
-            let (pwm, size) = self.par_fold_reduce(
-                || (wm.parallel_split(), PxSize::zero()),
-                |(mut awm, asize), i, n| {
-                    let bsize = measure(i, n, &mut awm);
-                    (awm, fold_size(asize, bsize))
-                },
-                |(mut awm, asize), (bwm, bsize)| {
-                    (
-                        {
-                            awm.parallel_fold(bwm);
-                            awm
-                        },
-                        fold_size(asize, bsize),
-                    )
-                },
-            );
-            wm.parallel_fold(pwm);
-            size
-        } else {
-            let mut size = PxSize::zero();
-            self.for_each(|i, n| {
-                let b = measure(i, n, wm);
-                size = fold_size(size, b);
-            });
-            size
-        }
+        default_measure_each(self, wm, measure, fold_size)
     }
 
     /// Call `layout` for each node and combines the final size using `fold_size`.
@@ -628,35 +602,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+        Self: Sized,
     {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            // fold a tuple of `(wl, size)`
-            let (pwl, size) = self.par_fold_reduce(
-                || (wl.parallel_split(), PxSize::zero()),
-                |(mut awl, asize), i, n| {
-                    let bsize = layout(i, n, &mut awl);
-                    (awl, fold_size(asize, bsize))
-                },
-                |(mut awl, asize), (bwl, bsize)| {
-                    (
-                        {
-                            awl.parallel_fold(bwl);
-                            awl
-                        },
-                        fold_size(asize, bsize),
-                    )
-                },
-            );
-            wl.parallel_fold(pwl);
-            size
-        } else {
-            let mut size = PxSize::zero();
-            self.for_each(|i, n| {
-                let b = layout(i, n, wl);
-                size = fold_size(size, b);
-            });
-            size
-        }
+        default_layout_each(self, wl, layout, fold_size)
     }
 
     /// Render all nodes.
@@ -758,6 +706,100 @@ pub trait UiNodeList: UiNodeListBoxed {
             UiNodeOp::Render { frame } => ui_node_list_default::render_all(self, frame),
             UiNodeOp::RenderUpdate { update } => ui_node_list_default::render_update_all(self, update),
         }
+    }
+}
+
+fn default_measure_each<F, S>(self_: &mut impl UiNodeList, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+where
+    F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
+    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+{
+    #[cfg(dyn_closure)]
+    let measure: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync> = Box::new(measure);
+    #[cfg(dyn_closure)]
+    let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
+
+    default_measure_each_impl(self_, wm, measure, fold_size)
+}
+fn default_measure_each_impl<F, S>(self_: &mut impl UiNodeList, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+where
+    F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
+    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+{
+    if self_.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        // fold a tuple of `(wm, size)`
+        let (pwm, size) = self_.par_fold_reduce(
+            || (wm.parallel_split(), PxSize::zero()),
+            |(mut awm, asize), i, n| {
+                let bsize = measure(i, n, &mut awm);
+                (awm, fold_size(asize, bsize))
+            },
+            |(mut awm, asize), (bwm, bsize)| {
+                (
+                    {
+                        awm.parallel_fold(bwm);
+                        awm
+                    },
+                    fold_size(asize, bsize),
+                )
+            },
+        );
+        wm.parallel_fold(pwm);
+        size
+    } else {
+        let mut size = PxSize::zero();
+        self_.for_each(|i, n| {
+            let b = measure(i, n, wm);
+            size = fold_size(size, b);
+        });
+        size
+    }
+}
+
+fn default_layout_each<F, S>(self_: &mut impl UiNodeList, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+where
+    F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
+    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+{
+    #[cfg(dyn_closure)]
+    let layout: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync> = Box::new(layout);
+    #[cfg(dyn_closure)]
+    let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
+
+    default_layout_each_impl(self_, wl, layout, fold_size)
+}
+fn default_layout_each_impl<F, S>(self_: &mut impl UiNodeList, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+where
+    F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
+    S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+{
+    if self_.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+        // fold a tuple of `(wl, size)`
+        let (pwl, size) = self_.par_fold_reduce(
+            || (wl.parallel_split(), PxSize::zero()),
+            |(mut awl, asize), i, n| {
+                let bsize = layout(i, n, &mut awl);
+                (awl, fold_size(asize, bsize))
+            },
+            |(mut awl, asize), (bwl, bsize)| {
+                (
+                    {
+                        awl.parallel_fold(bwl);
+                        awl
+                    },
+                    fold_size(asize, bsize),
+                )
+            },
+        );
+        wl.parallel_fold(pwl);
+        size
+    } else {
+        let mut size = PxSize::zero();
+        self_.for_each(|i, n| {
+            let b = layout(i, n, wl);
+            size = fold_size(size, b);
+        });
+        size
     }
 }
 

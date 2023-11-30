@@ -1495,22 +1495,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         M: FnMut(&T) -> T2 + Send + 'static,
     {
-        #[cfg(dyn_closure)]
-        let mut map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
-
-        #[cfg(not(dyn_closure))]
-        let mut map = map;
-
-        var_bind(self, other, move |value, args, other| {
-            let value = map(value);
-            let update = args.update;
-            let _ = other.modify(move |vm| {
-                vm.set(value);
-                if update {
-                    vm.update();
-                }
-            });
-        })
+        var_bind_map(self, other, map)
     }
 
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`, if the closure returns a value.
@@ -1525,23 +1510,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         F: FnMut(&T) -> Option<T2> + Send + 'static,
     {
-        #[cfg(dyn_closure)]
-        let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
-
-        #[cfg(not(dyn_closure))]
-        let mut map = map;
-
-        var_bind(self, other, move |value, args, other| {
-            if let Some(value) = map(value) {
-                let update = args.update;
-                let _ = other.modify(move |vm| {
-                    vm.set(value);
-                    if update {
-                        vm.update();
-                    }
-                });
-            }
-        })
+        var_bind_filter_map(self, other, map)
     }
 
     /// Bind `self` to `other` and back without causing an infinite loop.
@@ -1552,46 +1521,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and `self` and then bind to fully sync the variables.
-    fn bind_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> VarHandles
+    fn bind_map_bidi<T2, V2, M, B>(&self, other: &V2, map: M, map_back: B) -> VarHandles
     where
         T2: VarValue,
         V2: Var<T2>,
         M: FnMut(&T) -> T2 + Send + 'static,
         B: FnMut(&T2) -> T + Send + 'static,
     {
-        let binding_tag = BindMapBidiTag::new_unique();
-
-        let self_to_other = var_bind(self, other, move |value, args, other| {
-            let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-            if !is_from_other {
-                let value = map(value);
-                let update = args.update;
-                let _ = other.modify(move |vm| {
-                    vm.set(value);
-                    vm.push_tag(binding_tag);
-                    if update {
-                        vm.update();
-                    }
-                });
-            }
-        });
-
-        let other_to_self = var_bind(other, self, move |value, args, self_| {
-            let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-            if !is_from_self {
-                let value = map_back(value);
-                let update = args.update;
-                let _ = self_.modify(move |vm| {
-                    vm.set(value);
-                    vm.push_tag(binding_tag);
-                    if update {
-                        vm.update();
-                    }
-                });
-            }
-        });
-
-        [self_to_other, other_to_self].into_iter().collect()
+        var_bind_map_bidi(self, other, map, map_back)
     }
 
     /// Bind `self` to `other` and back with the new values of `self` transformed by `map` and the new values of `other` transformed
@@ -1601,48 +1538,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
-    fn bind_filter_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> VarHandles
+    fn bind_filter_map_bidi<T2, V2, M, B>(&self, other: &V2, map: M, map_back: B) -> VarHandles
     where
         T2: VarValue,
         V2: Var<T2>,
         M: FnMut(&T) -> Option<T2> + Send + 'static,
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
-        let binding_tag = BindMapBidiTag::new_unique();
-
-        let self_to_other = var_bind(self, other, move |value, args, other| {
-            let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-            if !is_from_other {
-                if let Some(value) = map(value) {
-                    let update = args.update;
-                    let _ = other.modify(move |vm| {
-                        vm.set(value);
-                        vm.push_tag(binding_tag);
-                        if update {
-                            vm.update();
-                        }
-                    });
-                }
-            }
-        });
-
-        let other_to_self = var_bind(other, self, move |value, args, self_| {
-            let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-            if !is_from_self {
-                if let Some(value) = map_back(value) {
-                    let update = args.update;
-                    let _ = self_.modify(move |vm| {
-                        vm.set(value);
-                        vm.push_tag(binding_tag);
-                        if update {
-                            vm.update();
-                        }
-                    });
-                }
-            }
-        });
-
-        [self_to_other, other_to_self].into_iter().collect()
+        var_bind_filter_map_bidi(self, other, map, map_back)
     }
 
     /// Setup a hook that assigns `other` with the new values of `self`.
@@ -2027,13 +1930,199 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 }
 
+fn var_bind_map<T, T2, V2, M>(source: &impl Var<T>, other: &V2, map: M) -> VarHandle
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> T2 + Send + 'static,
+{
+    #[cfg(feature = "dyn_closure")]
+    let map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
+    var_bind_map_impl(source, other, map)
+}
+fn var_bind_map_impl<T, T2, V2, M>(source: &impl Var<T>, other: &V2, mut map: M) -> VarHandle
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> T2 + Send + 'static,
+{
+    var_bind(source, other, move |value, args, other| {
+        let value = map(value);
+        let update = args.update;
+        let _ = other.modify(move |vm| {
+            vm.set(value);
+            if update {
+                vm.update();
+            }
+        });
+    })
+}
+
+fn var_bind_filter_map<T, T2, V2, F>(source: &impl Var<T>, other: &V2, map: F) -> VarHandle
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    F: FnMut(&T) -> Option<T2> + Send + 'static,
+{
+    #[cfg(feature = "dyn_closure")]
+    let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
+    var_bind_filter_map_impl(source, other, map)
+}
+fn var_bind_filter_map_impl<T, T2, V2, F>(source: &impl Var<T>, other: &V2, mut map: F) -> VarHandle
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    F: FnMut(&T) -> Option<T2> + Send + 'static,
+{
+    var_bind(source, other, move |value, args, other| {
+        if let Some(value) = map(value) {
+            let update = args.update;
+            let _ = other.modify(move |vm| {
+                vm.set(value);
+                if update {
+                    vm.update();
+                }
+            });
+        }
+    })
+}
+
+fn var_bind_map_bidi<T, T2, V2, M, B>(source: &impl Var<T>, other: &V2, map: M, map_back: B) -> VarHandles
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> T2 + Send + 'static,
+    B: FnMut(&T2) -> T + Send + 'static,
+{
+    #[cfg(feature = "dyn_closure")]
+    let mut map: Box<dyn FnMut(&T) -> T2 + Send + 'static> = Box::new(map);
+    #[cfg(feature = "dyn_closure")]
+    let mut map_back: Box<dyn FnMut(&T2) -> T + Send + 'static> = Box::new(map_back);
+
+    var_bind_map_bidi_impl(source, other, map, map_back)
+}
+
+fn var_bind_map_bidi_impl<T, T2, V2, M, B>(source: &impl Var<T>, other: &V2, mut map: M, mut map_back: B) -> VarHandles
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> T2 + Send + 'static,
+    B: FnMut(&T2) -> T + Send + 'static,
+{
+    let binding_tag = BindMapBidiTag::new_unique();
+
+    let self_to_other = var_bind(source, other, move |value, args, other| {
+        let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+        if !is_from_other {
+            let value = map(value);
+            let update = args.update;
+            let _ = other.modify(move |vm| {
+                vm.set(value);
+                vm.push_tag(binding_tag);
+                if update {
+                    vm.update();
+                }
+            });
+        }
+    });
+
+    let other_to_self = var_bind(other, source, move |value, args, self_| {
+        let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+        if !is_from_self {
+            let value = map_back(value);
+            let update = args.update;
+            let _ = self_.modify(move |vm| {
+                vm.set(value);
+                vm.push_tag(binding_tag);
+                if update {
+                    vm.update();
+                }
+            });
+        }
+    });
+
+    [self_to_other, other_to_self].into_iter().collect()
+}
+
+fn var_bind_filter_map_bidi<T, T2, V2, M, B>(source: &impl Var<T>, other: &V2, map: M, map_back: B) -> VarHandles
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> Option<T2> + Send + 'static,
+    B: FnMut(&T2) -> Option<T> + Send + 'static,
+{
+    #[cfg(feature = "dyn_closure")]
+    let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send + 'static> = Box::new(map);
+    #[cfg(feature = "dyn_closure")]
+    let mut map_back: Box<dyn FnMut(&T2) -> Option<T> + Send + 'static> = Box::new(map_back);
+
+    var_bind_filter_map_bidi_impl(source, other, map, map_back)
+}
+
+fn var_bind_filter_map_bidi_impl<T, T2, V2, M, B>(source: &impl Var<T>, other: &V2, mut map: M, mut map_back: B) -> VarHandles
+where
+    T: VarValue,
+    T2: VarValue,
+    V2: Var<T2>,
+    M: FnMut(&T) -> Option<T2> + Send + 'static,
+    B: FnMut(&T2) -> Option<T> + Send + 'static,
+{
+    let binding_tag = BindMapBidiTag::new_unique();
+
+    let self_to_other = var_bind(source, other, move |value, args, other| {
+        let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+        if !is_from_other {
+            if let Some(value) = map(value) {
+                let update = args.update;
+                let _ = other.modify(move |vm| {
+                    vm.set(value);
+                    vm.push_tag(binding_tag);
+                    if update {
+                        vm.update();
+                    }
+                });
+            }
+        }
+    });
+
+    let other_to_self = var_bind(other, source, move |value, args, self_| {
+        let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+        if !is_from_self {
+            if let Some(value) = map_back(value) {
+                let update = args.update;
+                let _ = self_.modify(move |vm| {
+                    vm.set(value);
+                    vm.push_tag(binding_tag);
+                    if update {
+                        vm.update();
+                    }
+                });
+            }
+        }
+    });
+
+    [self_to_other, other_to_self].into_iter().collect()
+}
+
 fn var_map<T: VarValue, O: VarValue>(
     source: &impl Var<T>,
     map: impl FnMut(&T) -> O + Send + 'static,
 ) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
-
+    var_map_impl(source, map)
+}
+fn var_map_impl<T: VarValue, O: VarValue>(
+    source: &impl Var<T>,
+    map: impl FnMut(&T) -> O + Send + 'static,
+) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
     let source = source.clone();
     let map = Arc::new(Mutex::new(map));
     types::ContextualizedVar::new(Arc::new(move || {
