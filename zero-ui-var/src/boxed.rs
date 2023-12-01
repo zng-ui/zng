@@ -107,7 +107,7 @@ impl<T: VarValue> AnyWeakVar for BoxedWeakVar<T> {
     }
 
     fn as_any(&self) -> &dyn Any {
-        (**self).as_any()
+        self
     }
 }
 impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
@@ -282,7 +282,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 
     fn read_only(&self) -> Self::ReadOnly {
-        if !self.is_contextual() && self.capabilities().is_always_read_only() {
+        if self.capabilities().is_always_read_only() {
             self.clone()
         } else {
             (**self).read_only_boxed()

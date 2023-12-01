@@ -1,6 +1,3 @@
-* `easing` attribute in when conditions not working.
-    - They don't apply.
-
 # TextInput
 
 * Touch selection.
