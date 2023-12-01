@@ -612,9 +612,8 @@ impl InlineLayout {
                             child_last.size.width = last_bidi_width;
                         }
 
-                        let (_, define_ref_frame) = wl.with_child(|wl| {
-                            LAYOUT.layout_inline(wl, child_first, child_mid, child_last, bidi_segs, last_bidi_segs, child)
-                        });
+                        let (_, define_ref_frame) =
+                            wl.with_child(|wl| wl.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, child));
                         o.child_offset = PxVector::new(Px(0), row.origin.y);
                         o.define_reference_frame = define_ref_frame;
 
@@ -660,7 +659,7 @@ impl InlineLayout {
 
                         let (_, define_ref_frame) = wl.with_child(|wl| {
                             LAYOUT.with_constraints(child_constraints.with_fill(false, false).with_max_size(max_size), || {
-                                LAYOUT.layout_inline(wl, child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, child)
+                                wl.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, child)
                             })
                         });
                         o.child_offset = row.origin.to_vector() + offset;
@@ -680,7 +679,7 @@ impl InlineLayout {
                     };
                     let (size, define_ref_frame) = LAYOUT.with_constraints(
                         child_constraints.with_fill(false, false).with_max(max_width, row.size.height),
-                        || wl.with_child(|wl| LAYOUT.layout_block(wl, child)),
+                        || wl.with_child(|wl| wl.layout_block(child)),
                     );
                     if size.is_empty() {
                         // collapsed, continue.
@@ -752,7 +751,7 @@ impl InlineLayout {
                     inline_constrain -= row.size.width;
                 }
 
-                let (inline, size) = LAYOUT.measure_inline(wm, inline_constrain, row.size.height - spacing.row, child);
+                let (inline, size) = wm.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                 if size.is_empty() {
                     row.item_segs.push(ItemSegsInfo::new_collapsed());

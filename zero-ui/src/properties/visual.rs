@@ -623,7 +623,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    LAYOUT.disable_inline(wm, child)
+                    wm.measure_block(child)
                 }
             };
         }
@@ -642,7 +642,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 InlineMode::Block => {
                     if wl.inline().is_some() {
                         tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`");
-                        LAYOUT.layout_block(wl, child)
+                        wl.layout_block(child)
                     } else {
                         child.layout(wl)
                     }

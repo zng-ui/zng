@@ -1,7 +1,7 @@
 use std::{fmt, sync::Arc};
 
 use zero_ui_app_context::context_local;
-use zero_ui_units::{euclid, Factor, Px, PxRect, PxSize};
+use zero_ui_units::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
 use zero_ui_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
@@ -126,87 +126,14 @@ impl LAYOUT {
         LAYOUT_CTX.get().metrics.inline_constraints()
     }
 
-    /// Disable inline on the calling widget and measure the child node without inline constraints.
-    ///
-    /// Note that this disables inline for the calling widget's next layout too, every property that affects layout and does
-    /// not support inline layout must propagate measure using this method to correctly configure the widget.
-    ///
-    /// Returns the child desired size.
-    pub fn disable_inline(&self, wm: &mut WidgetMeasure, child: &mut impl UiNode) -> PxSize {
-        wm.disable_inline();
+    /// Calls `f` with no inline constraints.
+    pub fn with_no_inline<R>(&self, f: impl FnOnce() -> R) -> R {
         let metrics = self.metrics();
         if metrics.inline_constraints().is_none() {
-            child.measure(wm)
+            f()
         } else {
-            self.with_context(metrics.with_inline_constraints(None), || child.measure(wm))
+            self.with_context(metrics.with_inline_constraints(None), f)
         }
-    }
-
-    /// Measure the child node with inline enabled for the `child` node context.
-    ///
-    /// The `first_max` and `mid_clear_min` parameters match the [`InlineConstraintsMeasure`] members, and will be set in
-    /// the `child` context.
-    ///
-    /// Note that this does not enabled inline in the calling widget if inlining was disabled by the parent nodes, it creates
-    /// a new inlining context.
-    ///
-    /// Returns the inline requirements of the child and its desired bounds size, returns `None` requirements if the child
-    /// disables inline or is not a full widget.
-    pub fn measure_inline(
-        &self,
-        wm: &mut WidgetMeasure,
-        first_max: Px,
-        mid_clear_min: Px,
-        child: &mut impl UiNode,
-    ) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
-        let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        let size = self.with_context(metrics, || child.measure(wm));
-        let inline = child
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
-            .flatten();
-        (inline, size)
-    }
-
-    /// Layout the child node in a context without inline constraints.
-    ///
-    /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constraints from
-    /// the calling widget propagate to the child.
-    pub fn layout_block(&self, wl: &mut WidgetLayout, child: &mut impl UiNode) -> PxSize {
-        let metrics = self.metrics();
-        if metrics.inline_constraints().is_none() {
-            child.layout(wl)
-        } else {
-            self.with_context(metrics.with_inline_constraints(None), || child.layout(wl))
-        }
-    }
-
-    /// Layout the child node with inline enabled in the `child` node context.
-    ///
-    /// The `mid_clear`, `last`, `first_segs` and `last_segs` parameters match the [`InlineConstraintsLayout`] members, and will be set in
-    /// the `child` context.
-    ///
-    /// Returns the child final size.
-    #[allow(clippy::too_many_arguments)]
-    pub fn layout_inline(
-        &self,
-        wl: &mut WidgetLayout,
-        first: PxRect,
-        mid_clear: Px,
-        last: PxRect,
-        first_segs: Arc<Vec<InlineSegmentPos>>,
-        last_segs: Arc<Vec<InlineSegmentPos>>,
-        child: &mut impl UiNode,
-    ) -> PxSize {
-        let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
-            first,
-            mid_clear,
-            last,
-            first_segs,
-            last_segs,
-        });
-        let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        self.with_context(metrics, || child.layout(wl))
     }
 
     /// Root font size.
@@ -354,6 +281,28 @@ pub struct InlineConstraintsMeasure {
     /// this minimum or zero if the first how is taller. The widget must use this value to estimate the `mid_clear`
     /// value and include it in the overall measured height of the widget.
     pub mid_clear_min: Px,
+}
+
+/// Represents an [`InlineSegment`] positioned by the inlining parent.
+///
+/// See [`InlineConstraintsLayout::first_segs`] for more details.
+///
+/// [`InlineConstraintsLayout::first_segs`]: crate::context::InlineConstraintsLayout::first_segs
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+pub struct InlineSegmentPos {
+    /// Seg offset to the right from the row origin, in pixels.
+    pub x: f32,
+}
+impl PartialEq for InlineSegmentPos {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.x, other.x, 0.001)
+    }
+}
+impl Eq for InlineSegmentPos {}
+impl std::hash::Hash for InlineSegmentPos {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.x, 0.001, state);
+    }
 }
 
 /// Constraints for inline layout.

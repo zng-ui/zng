@@ -873,7 +873,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = offsets.layout();
             *desired_size = BORDER.measure_with_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
+                    children.with_node(0, |n| wm.measure_block(n))
                 })
             });
         }

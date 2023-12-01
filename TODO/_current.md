@@ -37,15 +37,8 @@ TextInput! {
 
 * LAYOUT and units that layout.
     - Steps before merge:
-        - Refactor each issue in core first.
-        - Use refactored code copy in layout crate.
         - Replace types in core, re-exported at the same place so no breaking change happens.
         - Merge.
-
-    - Depends on widget stuff, helpers only?
-        - Yes, only widget measure and layout stuff, including inline constraints.
-        - Replace with LAYOUT extension methods?
-        - Inline stuff part of constraints snapshot.
 
 * Each app extension.
     - They are mostly contained.

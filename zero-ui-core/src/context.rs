@@ -27,11 +27,8 @@ use crate::{
     units::*,
     var::context_var,
     var::{AnyVar, AnyVarSubscribe, Var, VarHandle, VarHandles, VarSubscribe, VarValue, VARS},
-    widget_info::{
-        InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
-        WidgetPath,
-    },
-    widget_instance::{UiNode, WidgetId},
+    widget_info::{InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
 
@@ -432,7 +429,7 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to init the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_init(&self, content: &mut impl UiNode) -> ContextUpdates {
+    pub fn test_init(&self, content: &mut impl crate::widget_instance::UiNode) -> ContextUpdates {
         content.init();
         WIDGET.test_root_updates();
         UPDATES.apply()
@@ -441,7 +438,7 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to deinit the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_deinit(&self, content: &mut impl UiNode) -> ContextUpdates {
+    pub fn test_deinit(&self, content: &mut impl crate::widget_instance::UiNode) -> ContextUpdates {
         content.deinit();
         WIDGET.test_root_updates();
         UPDATES.apply()
@@ -450,7 +447,7 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to rebuild info the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_info(&self, content: &mut impl UiNode) -> ContextUpdates {
+    pub fn test_info(&self, content: &mut impl crate::widget_instance::UiNode) -> ContextUpdates {
         let l_size = self.test_window_size();
         let mut info = crate::widget_info::WidgetInfoBuilder::new(
             Arc::default(),
@@ -471,7 +468,7 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to delivery an event to the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
+    pub fn test_event(&self, content: &mut impl crate::widget_instance::UiNode, update: &mut EventUpdate) -> ContextUpdates {
         update.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
         content.event(update);
         WIDGET.test_root_updates();
@@ -483,7 +480,7 @@ impl WINDOW {
     /// The `updates` can be set to a custom delivery list, otherwise window root and `content` widget are flagged for update.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_update(&self, content: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
+    pub fn test_update(&self, content: &mut impl crate::widget_instance::UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
         if let Some(updates) = updates {
             updates.delivery_list_mut().fulfill_search([&WINDOW.info()].into_iter());
             content.update(updates)
@@ -506,7 +503,11 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to layout the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_layout(&self, content: &mut impl UiNode, constraints: Option<PxConstraints2d>) -> (PxSize, ContextUpdates) {
+    pub fn test_layout(
+        &self,
+        content: &mut impl crate::widget_instance::UiNode,
+        constraints: Option<PxConstraints2d>,
+    ) -> (PxSize, ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
         let mut metrics = LayoutMetrics::new(1.fct(), viewport, font_size);
@@ -529,7 +530,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_layout_inline(
         &self,
-        content: &mut impl UiNode,
+        content: &mut impl crate::widget_instance::UiNode,
         measure_constraints: (PxConstraints2d, InlineConstraintsMeasure),
         layout_constraints: (PxConstraints2d, InlineConstraintsLayout),
     ) -> ((PxSize, PxSize), ContextUpdates) {
@@ -539,7 +540,9 @@ impl WINDOW {
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size)
             .with_constraints(measure_constraints.0)
             .with_inline_constraints(Some(InlineConstraints::Measure(measure_constraints.1)));
-        let measure_size = LAYOUT.with_context(metrics, || content.measure(&mut WidgetMeasure::new(Arc::default())));
+        let measure_size = LAYOUT.with_context(metrics, || {
+            content.measure(&mut crate::widget_info::WidgetMeasure::new(Arc::default()))
+        });
 
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size)
             .with_constraints(layout_constraints.0)
@@ -558,7 +561,7 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to render the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_render(&self, content: &mut impl UiNode) -> (crate::render::BuiltFrame, ContextUpdates) {
+    pub fn test_render(&self, content: &mut impl crate::widget_instance::UiNode) -> (crate::render::BuiltFrame, ContextUpdates) {
         use crate::render::*;
 
         let mut frame = {
@@ -594,7 +597,10 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to render_update the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_render_update(&self, content: &mut impl UiNode) -> (crate::render::BuiltFrameUpdate, ContextUpdates) {
+    pub fn test_render_update(
+        &self,
+        content: &mut impl crate::widget_instance::UiNode,
+    ) -> (crate::render::BuiltFrameUpdate, ContextUpdates) {
         use crate::render::*;
 
         let mut update = {
@@ -1328,87 +1334,14 @@ impl LAYOUT {
         LAYOUT_CTX.get().metrics.inline_constraints()
     }
 
-    /// Disable inline on the calling widget and measure the child node without inline constraints.
-    ///
-    /// Note that this disables inline for the calling widget's next layout too, every property that affects layout and does
-    /// not support inline layout must propagate measure using this method to correctly configure the widget.
-    ///
-    /// Returns the child desired size.
-    pub fn disable_inline(&self, wm: &mut WidgetMeasure, child: &mut impl UiNode) -> PxSize {
-        wm.disable_inline();
+    /// Calls `f` with no inline constraints.
+    pub fn with_no_inline(&self, f: impl FnOnce() -> PxSize) -> PxSize {
         let metrics = self.metrics();
         if metrics.inline_constraints().is_none() {
-            child.measure(wm)
+            f()
         } else {
-            self.with_context(metrics.with_inline_constraints(None), || child.measure(wm))
+            self.with_context(metrics.with_inline_constraints(None), f)
         }
-    }
-
-    /// Measure the child node with inline enabled for the `child` node context.
-    ///
-    /// The `first_max` and `mid_clear_min` parameters match the [`InlineConstraintsMeasure`] members, and will be set in
-    /// the `child` context.
-    ///
-    /// Note that this does not enabled inline in the calling widget if inlining was disabled by the parent nodes, it creates
-    /// a new inlining context.
-    ///
-    /// Returns the inline requirements of the child and its desired bounds size, returns `None` requirements if the child
-    /// disables inline or is not a full widget.
-    pub fn measure_inline(
-        &self,
-        wm: &mut WidgetMeasure,
-        first_max: Px,
-        mid_clear_min: Px,
-        child: &mut impl UiNode,
-    ) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
-        let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        let size = self.with_context(metrics, || child.measure(wm));
-        let inline = child
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
-            .flatten();
-        (inline, size)
-    }
-
-    /// Layout the child node in a context without inline constraints.
-    ///
-    /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constraints from
-    /// the calling widget propagate to the child.
-    pub fn layout_block(&self, wl: &mut WidgetLayout, child: &mut impl UiNode) -> PxSize {
-        let metrics = self.metrics();
-        if metrics.inline_constraints().is_none() {
-            child.layout(wl)
-        } else {
-            self.with_context(metrics.with_inline_constraints(None), || child.layout(wl))
-        }
-    }
-
-    /// Layout the child node with inline enabled in the `child` node context.
-    ///
-    /// The `mid_clear`, `last`, `first_segs` and `last_segs` parameters match the [`InlineConstraintsLayout`] members, and will be set in
-    /// the `child` context.
-    ///
-    /// Returns the child final size.
-    #[allow(clippy::too_many_arguments)]
-    pub fn layout_inline(
-        &self,
-        wl: &mut WidgetLayout,
-        first: PxRect,
-        mid_clear: Px,
-        last: PxRect,
-        first_segs: Arc<Vec<InlineSegmentPos>>,
-        last_segs: Arc<Vec<InlineSegmentPos>>,
-        child: &mut impl UiNode,
-    ) -> PxSize {
-        let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
-            first,
-            mid_clear,
-            last,
-            first_segs,
-            last_segs,
-        });
-        let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        self.with_context(metrics, || child.layout(wl))
     }
 
     /// Root font size.

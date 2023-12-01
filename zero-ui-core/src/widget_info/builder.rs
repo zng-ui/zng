@@ -4,9 +4,10 @@ use crate::{
     border::BORDER,
     context::{
         InfoUpdates, InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutUpdates, StateId, StateMapMut, StateValue,
-        UpdateFlags, LAYOUT, WIDGET, WINDOW,
+        UpdateFlags, WidgetUpdateMode, LAYOUT, WIDGET, WINDOW,
     },
     text::TextSegmentKind,
+    widget_instance::UiNode,
 };
 
 pub use zero_ui_view_api::access::AccessRole;
@@ -759,11 +760,43 @@ impl WidgetMeasure {
     /// Must be called before child delegation, otherwise children that inline may render expecting to fit in
     /// the inline flow.
     ///
+    /// Note that this disables inline for the calling widget's next layout too, every property that affects layout and does
+    /// not support inline layout must propagate measure using this method to correctly configure the widget.
+    ///
+    /// Prefer [`measure_block`] as if also clears the layout constraints.
+    ///
     /// [`is_inline`]: Self::is_inline
-    pub(crate) fn disable_inline(&mut self) {
+    /// [`measure_block`]: Self::measure_block
+    pub fn disable_inline(&mut self) {
         if !self.inline_locked {
             self.inline = None;
         }
+    }
+
+    /// Disable inline and measure child with no inline constraints.
+    pub fn measure_block(&mut self, child: &mut impl UiNode) -> PxSize {
+        self.disable_inline();
+        LAYOUT.with_no_inline(|| child.measure(self))
+    }
+
+    /// Measure the child node with inline enabled for the `child` node context.
+    ///
+    /// The `first_max` and `mid_clear_min` parameters match the [`InlineConstraintsMeasure`] members, and will be set in
+    /// the `child` context.
+    ///
+    /// Note that this does not enabled inline in the calling widget if inlining was disabled by the parent nodes, it creates
+    /// a new inlining context.
+    ///
+    /// Returns the inline requirements of the child and its desired bounds size, returns `None` requirements if the child
+    /// disables inline or is not a full widget.
+    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &mut impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
+        let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
+        let size = LAYOUT.with_context(metrics, || child.measure(self));
+        let inline = child
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().measure_inline())
+            .flatten();
+        (inline, size)
     }
 
     /// Measure an widget.
@@ -1316,6 +1349,41 @@ impl WidgetLayout {
             inline,
             inline_locked: false,
         }
+    }
+
+    /// Layout the child node in a context without inline constraints.
+    ///
+    /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constraints from
+    /// the calling widget propagate to the child.
+    pub fn layout_block(&mut self, child: &mut impl UiNode) -> PxSize {
+        LAYOUT.with_no_inline(|| child.layout(self))
+    }
+
+    /// Layout the child node with inline enabled in the `child` node context.
+    ///
+    /// The `mid_clear`, `last`, `first_segs` and `last_segs` parameters match the [`InlineConstraintsLayout`] members, and will be set in
+    /// the `child` context.
+    ///
+    /// Returns the child final size.
+    #[allow(clippy::too_many_arguments)]
+    pub fn layout_inline(
+        &mut self,
+        first: PxRect,
+        mid_clear: Px,
+        last: PxRect,
+        first_segs: Arc<Vec<InlineSegmentPos>>,
+        last_segs: Arc<Vec<InlineSegmentPos>>,
+        child: &mut impl UiNode,
+    ) -> PxSize {
+        let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
+            first,
+            mid_clear,
+            last,
+            first_segs,
+            last_segs,
+        });
+        let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
+        LAYOUT.with_context(metrics, || child.layout(self))
     }
 }
 
