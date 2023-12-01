@@ -1,3 +1,5 @@
+* Focus example, press Alt does not focus menu first time.
+
 # TextInput
 
 * Touch selection.
