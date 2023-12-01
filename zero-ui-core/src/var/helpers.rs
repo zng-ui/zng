@@ -2,11 +2,10 @@
 
 use std::{any::Any, sync::Arc, time::Duration};
 
-use parking_lot::Mutex;
 use zero_ui_var::{
     animation::{
         easing::{EasingStep, EasingTime},
-        AnimationHandle, Transitionable,
+        Transitionable,
     },
     *,
 };
@@ -317,99 +316,6 @@ macro_rules! impl_easing_property_inputs {
 }
 impl_easing_property_inputs! {
     I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15,
-}
-
-/// Easing when extension for ArcWhenVar.
-pub trait VarEasingWhen<T: VarValue>: Var<T> {
-    /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
-    ///
-    /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
-    /// is the first entry that corresponds to a `true` condition, or falls-back to the `default_easing`.
-    fn easing_when(
-        &self,
-        condition_easing: Vec<Option<(Duration, EasingFn)>>,
-        default_easing: (Duration, EasingFn),
-    ) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
-    where
-        T: Transitionable;
-}
-impl<T: VarValue> VarEasingWhen<T> for super::types::ArcWhenVar<T> {
-    fn easing_when(
-        &self,
-        condition_easing: Vec<Option<(Duration, EasingFn)>>,
-        default_easing: (Duration, EasingFn),
-    ) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
-    where
-        T: Transitionable,
-    {
-        let source = self.clone();
-        types::ContextualizedVar::new(Arc::new(move || {
-            debug_assert_eq!(source.conditions().len(), condition_easing.len());
-
-            let source_wk = source.downgrade();
-            let easing_var = super::var(source.get());
-
-            let condition_easing = condition_easing.clone();
-            let default_easing = default_easing.clone();
-            let mut _anim_handle = AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, _, easing_var| {
-                let source = source_wk.upgrade().unwrap();
-                for ((c, _), easing) in source.conditions().iter().zip(&condition_easing) {
-                    if let Some((duration, func)) = easing {
-                        if c.get() {
-                            let func = func.clone();
-                            _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
-                            return;
-                        }
-                    }
-                }
-
-                let (duration, func) = &default_easing;
-                let func = func.clone();
-                _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
-            })
-            .perm();
-            easing_var.read_only()
-        }))
-    }
-}
-
-fn var_bind<I, O, V>(
-    input: &impl Var<I>,
-    output: &V,
-    update_output: impl FnMut(&I, &VarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
-) -> VarHandle
-where
-    I: VarValue,
-    O: VarValue,
-    V: Var<O>,
-{
-    var_bind_ok(input, output.downgrade(), update_output)
-}
-
-fn var_bind_ok<I, O, W>(
-    input: &impl Var<I>,
-    wk_output: W,
-    update_output: impl FnMut(&I, &VarHookArgs, W::Upgrade) + Send + 'static,
-) -> VarHandle
-where
-    I: VarValue,
-    O: VarValue,
-    W: WeakVar<O>,
-{
-    let update_output = Mutex::new(update_output);
-    input.hook(Box::new(move |args| {
-        if let Some(output) = wk_output.upgrade() {
-            if output.capabilities().contains(VarCapabilities::MODIFY) {
-                if let Some(value) = args.downcast_value::<I>() {
-                    update_output.lock()(value, args, output);
-                }
-            }
-            true
-        } else {
-            false
-        }
-    }))
 }
 
 /// Variable for state properties (`is_*`, `has_*`).

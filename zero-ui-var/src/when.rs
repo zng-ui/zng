@@ -1,5 +1,7 @@
 use std::sync::{Arc, Weak};
 
+use crate::animation::AnimationHandle;
+
 use super::*;
 
 ///<span data-del-macro-root></span> Initializes a new conditional var.
@@ -384,6 +386,49 @@ impl<T: VarValue> ArcWhenVar<T> {
     /// When no condition is active this is the backing var.
     pub fn default(&self) -> &BoxedVar<T> {
         &self.0.default
+    }
+
+    /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
+    ///
+    /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
+    /// is the first entry that corresponds to a `true` condition, or falls-back to the `default_easing`.
+    pub fn easing_when(
+        &self,
+        condition_easing: Vec<Option<(Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>)>>,
+        default_easing: (Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>),
+    ) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+    where
+        T: Transitionable,
+    {
+        let source = self.clone();
+        types::ContextualizedVar::new(Arc::new(move || {
+            debug_assert_eq!(source.conditions().len(), condition_easing.len());
+
+            let source_wk = source.downgrade();
+            let easing_var = super::var(source.get());
+
+            let condition_easing = condition_easing.clone();
+            let default_easing = default_easing.clone();
+            let mut _anim_handle = AnimationHandle::dummy();
+            var_bind(&source, &easing_var, move |value, _, easing_var| {
+                let source = source_wk.upgrade().unwrap();
+                for ((c, _), easing) in source.conditions().iter().zip(&condition_easing) {
+                    if let Some((duration, func)) = easing {
+                        if c.get() {
+                            let func = func.clone();
+                            _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
+                            return;
+                        }
+                    }
+                }
+
+                let (duration, func) = &default_easing;
+                let func = func.clone();
+                _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
+            })
+            .perm();
+            easing_var.read_only()
+        }))
     }
 }
 
