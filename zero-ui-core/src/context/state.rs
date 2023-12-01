@@ -636,9 +636,6 @@ where
     let id = id.into();
     let value = value.into_var();
 
-    #[cfg(not(dyn_closure))]
-    let mut modify = modify;
-
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             child.init();
