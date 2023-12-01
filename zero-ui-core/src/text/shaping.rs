@@ -3363,11 +3363,11 @@ impl WordContextKey {
     }
 
     pub fn harfbuzz_direction(&self) -> harfbuzz_rs::Direction {
-        self.direction.into()
+        crate::context::into_harf_direction(self.direction)
     }
 
     pub fn lang(&self) -> Lang {
-        Lang::from_parts(self.lang, self.script, None, &[])
+        Lang(unic_langid::LanguageIdentifier::from_parts(self.lang, self.script, None, &[]))
     }
 }
 

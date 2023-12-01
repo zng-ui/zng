@@ -889,13 +889,13 @@ impl FontNames {
         // source: VSCode
         // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
 
-        if lang!("zh-Hans").matches(&lang, true, false) {
+        if lang!("zh-Hans").matches(lang, true, false) {
             ["Segoe UI", "Microsoft YaHei", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!("zh-Hant").matches(&lang, true, false) {
+        } else if lang!("zh-Hant").matches(lang, true, false) {
             ["Segoe UI", "Microsoft Jhenghei", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!(ja).matches(&lang, true, false) {
+        } else if lang!(ja).matches(lang, true, false) {
             ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!(ko).matches(&lang, true, false) {
+        } else if lang!(ko).matches(lang, true, false) {
             ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into()
         } else {
             ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into()
@@ -906,7 +906,7 @@ impl FontNames {
     pub fn mac_ui(lang: &Lang) -> Self {
         // source: VSCode
 
-        if lang!("zh-Hans").matches(&lang, true, false) {
+        if lang!("zh-Hans").matches(lang, true, false) {
             [
                 "-apple-system",
                 "PingFang SC",
@@ -915,11 +915,11 @@ impl FontNames {
                 "sans-serif",
             ]
             .into()
-        } else if lang!("zh-Hant").matches(&lang, true, false) {
+        } else if lang!("zh-Hant").matches(lang, true, false) {
             ["-apple-system", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
-        } else if lang!(ja).matches(&lang, true, false) {
+        } else if lang!(ja).matches(lang, true, false) {
             ["-apple-system", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
-        } else if lang!(ko).matches(&lang, true, false) {
+        } else if lang!(ko).matches(lang, true, false) {
             [
                 "-apple-system",
                 "Nanum Gothic",
@@ -938,7 +938,7 @@ impl FontNames {
     pub fn linux_ui(lang: &Lang) -> Self {
         // source: VSCode
 
-        if lang!("zh-Hans").matches(&lang, true, false) {
+        if lang!("zh-Hans").matches(lang, true, false) {
             [
                 "Ubuntu",
                 "Droid Sans",
@@ -949,7 +949,7 @@ impl FontNames {
                 "sans-serif",
             ]
             .into()
-        } else if lang!("zh-Hant").matches(&lang, true, false) {
+        } else if lang!("zh-Hant").matches(lang, true, false) {
             [
                 "Ubuntu",
                 "Droid Sans",
@@ -960,7 +960,7 @@ impl FontNames {
                 "sans-serif",
             ]
             .into()
-        } else if lang!(ja).matches(&lang, true, false) {
+        } else if lang!(ja).matches(lang, true, false) {
             [
                 "system-ui",
                 "Ubuntu",
@@ -972,7 +972,7 @@ impl FontNames {
                 "sans-serif",
             ]
             .into()
-        } else if lang!(ko).matches(&lang, true, false) {
+        } else if lang!(ko).matches(lang, true, false) {
             [
                 "system-ui",
                 "Ubuntu",

@@ -3012,7 +3012,7 @@ impl LayoutMetrics {
 
 context_var! {
     /// Wrap direction of text in a widget context.
-    pub static DIRECTION_VAR: LayoutDirection = crate::l10n::LANG_VAR.map(|l| l.best().character_direction().into());
+    pub static DIRECTION_VAR: LayoutDirection = crate::l10n::LANG_VAR.map(|l| from_unic_char_direction(l.best().character_direction()));
 }
 
 /// Defines the layout flow direction.
@@ -3059,55 +3059,32 @@ impl fmt::Debug for LayoutDirection {
         }
     }
 }
-impl From<unic_langid::CharacterDirection> for LayoutDirection {
-    fn from(value: unic_langid::CharacterDirection) -> Self {
-        match value {
-            unic_langid::CharacterDirection::LTR => Self::LTR,
-            unic_langid::CharacterDirection::RTL => Self::RTL,
-        }
-    }
-}
-impl From<unicode_bidi::Level> for LayoutDirection {
-    fn from(value: unicode_bidi::Level) -> Self {
-        if value.is_ltr() {
-            Self::LTR
-        } else {
-            Self::RTL
-        }
-    }
-}
-impl TryFrom<harfbuzz_rs::Direction> for LayoutDirection {
-    type Error = harfbuzz_rs::Direction;
 
-    fn try_from(value: harfbuzz_rs::Direction) -> Result<Self, Self::Error> {
-        match value {
-            harfbuzz_rs::Direction::Ltr => Ok(Self::LTR),
-            harfbuzz_rs::Direction::Rtl => Ok(Self::RTL),
-            other => Err(other),
-        }
+pub(crate) fn from_unic_char_direction(d: unic_langid::CharacterDirection) -> LayoutDirection {
+    match d {
+        unic_langid::CharacterDirection::LTR => LayoutDirection::LTR,
+        unic_langid::CharacterDirection::RTL => LayoutDirection::RTL,
     }
 }
-impl From<LayoutDirection> for unic_langid::CharacterDirection {
-    fn from(value: LayoutDirection) -> Self {
-        match value {
-            LayoutDirection::LTR => Self::LTR,
-            LayoutDirection::RTL => Self::RTL,
-        }
+
+pub(crate) fn from_unic_level(d: unicode_bidi::Level) -> LayoutDirection {
+    if d.is_ltr() {
+        LayoutDirection::LTR
+    } else {
+        LayoutDirection::RTL
     }
 }
-impl From<LayoutDirection> for unicode_bidi::Level {
-    fn from(value: LayoutDirection) -> Self {
-        match value {
-            LayoutDirection::LTR => Self::ltr(),
-            LayoutDirection::RTL => Self::rtl(),
-        }
+
+pub(crate) fn into_unic_level(d: LayoutDirection) -> unicode_bidi::Level {
+    match d {
+        LayoutDirection::LTR => unicode_bidi::Level::ltr(),
+        LayoutDirection::RTL => unicode_bidi::Level::rtl(),
     }
 }
-impl From<LayoutDirection> for harfbuzz_rs::Direction {
-    fn from(value: LayoutDirection) -> Self {
-        match value {
-            LayoutDirection::LTR => Self::Ltr,
-            LayoutDirection::RTL => Self::Rtl,
-        }
+
+pub(crate) fn into_harf_direction(d: LayoutDirection) -> harfbuzz_rs::Direction {
+    match d {
+        LayoutDirection::LTR => harfbuzz_rs::Direction::Ltr,
+        LayoutDirection::RTL => harfbuzz_rs::Direction::Rtl,
     }
 }

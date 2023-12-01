@@ -287,23 +287,55 @@ context_var! {
 /// type is just an alias for the core struct of that crate.
 ///
 /// [`unic_langid`]: https://docs.rs/unic-langid
-pub type Lang = unic_langid::LanguageIdentifier;
+#[derive(PartialEq, Eq, Hash, Clone, Default, PartialOrd, Ord)]
+pub struct Lang(pub unic_langid::LanguageIdentifier);
+impl Lang {
+    /// Returns character direction of the language.
+    pub fn direction(&self) -> crate::context::LayoutDirection {
+        crate::context::from_unic_char_direction(self.0.character_direction())
+    }
+
+    /// Compares a language to another allowing for either side to use the missing fields as wildcards.
+    ///
+    /// This allows for matching between `en` (treated as `en-*-*-*`) and `en-US`.
+    pub fn matches(&self, other: &Self, self_as_range: bool, other_as_range: bool) -> bool {
+        self.0.matches(&other.0, self_as_range, other_as_range)
+    }
+}
+impl ops::Deref for Lang {
+    type Target = unic_langid::LanguageIdentifier;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl fmt::Debug for Lang {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl fmt::Display for Lang {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::str::FromStr for Lang {
+    type Err = unic_langid::LanguageIdentifierError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        unic_langid::LanguageIdentifier::from_str(s).map(Lang)
+    }
+}
 
 /// List of languages, in priority order.
 #[derive(Clone, PartialEq, Eq, Default, Hash)]
 pub struct Langs(pub Vec<Lang>);
 impl fmt::Debug for Langs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        struct DisplayLang<'a>(&'a Lang);
-        impl<'a> fmt::Debug for DisplayLang<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
         struct DisplayLangs<'a>(&'a [Lang]);
         impl<'a> fmt::Debug for DisplayLangs<'a> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_list().entries(self.0.iter().map(DisplayLang)).finish()
+                f.debug_list().entries(self.0.iter()).finish()
             }
         }
         if f.alternate() {

@@ -408,7 +408,7 @@ macro_rules! lang {
     ($($tt:tt)+) => {
         {
             let lang: $crate::l10n::unic_langid::LanguageIdentifier = $crate::l10n::__lang!($($tt)+);
-            lang
+            $crate::l10n::Lang(lang)
         }
     }
 }

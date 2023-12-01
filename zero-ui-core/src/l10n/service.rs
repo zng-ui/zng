@@ -203,7 +203,7 @@ impl L10nService {
             let lang = langs[0].clone();
             let res = source.lang_resource(lang.clone(), file.clone());
             res.map(move |r| {
-                let mut bundle = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
+                let mut bundle = ConcurrentFluentBundle::new_concurrent(vec![lang.0.clone()]);
                 if let Some(r) = r {
                     bundle.add_resource_overriding(r.0.clone());
                 }
@@ -220,7 +220,7 @@ impl L10nService {
                 res.push(source.lang_resource(l.clone(), file.clone()));
             }
             res.build(move |res| {
-                let mut bundle = ConcurrentFluentBundle::new_concurrent(langs.clone());
+                let mut bundle = ConcurrentFluentBundle::new_concurrent(langs.iter().map(|l| l.0.clone()).collect());
                 for r in res.iter().flatten() {
                     bundle.add_resource_overriding(r.0.clone());
                 }

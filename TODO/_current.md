@@ -47,8 +47,6 @@ TextInput! {
         - Replace with LAYOUT extension methods?
         - Inline stuff part of constraints snapshot.
 
-    - LayoutDirection type has conversions with Unicode and Harfbuzz crates.
-        - Only used internally refactor to helper functions.
     - Align::layout requires WidgetLayout.
         - For translation and underline flag only.
         - Refactor to return translation and flag.

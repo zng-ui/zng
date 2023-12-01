@@ -161,7 +161,7 @@ impl TextSegment {
     /// Segments iterate in the logical order, that is, the order the text is typed. If two segments
     /// in the same line have direction `RTL` they must be layout the first to the right of the second.
     pub fn direction(self) -> LayoutDirection {
-        self.level.into()
+        crate::context::from_unic_level(self.level)
     }
 }
 
@@ -183,7 +183,7 @@ impl SegmentedText {
     fn new_text(text: Txt, base_direction: LayoutDirection) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
         let text_str: &str = &text;
-        let bidi = BidiInfo::new(text_str, Some(base_direction.into()));
+        let bidi = BidiInfo::new(text_str, Some(crate::context::into_unic_level(base_direction)));
 
         for (offset, kind) in unicode_linebreak::linebreaks(text_str) {
             // a hard-break is a '\n', '\r', "\r\n" or text end.
@@ -747,7 +747,7 @@ fn unicode_bidi_levels_impl(
     brackets: FxHashMap<usize, char>,
 ) {
     levels.clear();
-    let para_level = BidiLevel::from(base_direction);
+    let para_level = crate::context::into_unic_level(base_direction);
     levels.resize(original_classes.len(), para_level);
 
     if !original_classes.is_empty() {
@@ -786,7 +786,8 @@ pub fn unicode_bidi_sort(
     }
 
     if !levels.is_empty() {
-        let (directions, vis_ranges) = super::unicode_bidi_util::visual_runs(levels, line_classes, base_direction.into());
+        let (directions, vis_ranges) =
+            super::unicode_bidi_util::visual_runs(levels, line_classes, crate::context::into_unic_level(base_direction));
 
         for vis_range in vis_ranges {
             if directions[vis_range.start].is_rtl() {

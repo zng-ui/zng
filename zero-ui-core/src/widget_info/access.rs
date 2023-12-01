@@ -244,7 +244,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Defines the language used by screen-readers to read text in this widget and descendants.
     pub fn set_lang(&mut self, lang: Lang) {
-        self.with_access(|a| a.set_state(AccessState::Lang(lang)))
+        self.with_access(|a| a.set_state(AccessState::Lang(lang.0)))
     }
 
     /// Sets the amount scrolled on the horizontal if the content can be scrolled horizontally.
@@ -703,7 +703,7 @@ impl WidgetAccessInfo {
     ///
     /// If not set it is the parents language.
     pub fn lang(&self) -> Option<Lang> {
-        get_state!(self.Lang).cloned()
+        get_state!(self.Lang).cloned().map(Lang)
     }
     /// Normalized (0..1) horizontal scroll, 0 is showing the content leftmost edge, 1 is showing the content the rightmost edge.
     ///

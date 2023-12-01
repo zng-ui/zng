@@ -936,7 +936,7 @@ pub struct LangMix<P>(P);
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
-    let child = direction(child, lang.map(|l| l.best().character_direction().into()));
+    let child = direction(child, lang.map(|l| l.best().direction()));
     let child = access::lang(child, lang.map(|l| l.best().clone()));
     with_context_var(child, LANG_VAR, lang)
 }

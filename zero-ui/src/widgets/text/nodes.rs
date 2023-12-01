@@ -1715,7 +1715,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             // LANG_VAR already subscribed by `resolve_text`.
 
             txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
-            txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
+            txt.shaping_args.direction = txt.shaping_args.lang.direction();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
             txt.shaping_args.word_break = WORD_BREAK_VAR.get();
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
@@ -2112,7 +2112,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || LANG_VAR.is_new()
             {
                 txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
-                txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
+                txt.shaping_args.direction = txt.shaping_args.lang.direction(); // will be set in layout too.
                 if let Some(t) = &mut txt.txt {
                     t.overflow_suffix = None;
                 }
