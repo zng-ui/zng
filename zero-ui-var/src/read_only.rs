@@ -38,6 +38,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self
     }
 
+    fn as_unboxed_any(&self) -> &dyn Any {
+        self
+    }
+
     fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         let me: BoxedVar<T> = self;
         Box::new(me)

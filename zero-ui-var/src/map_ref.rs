@@ -47,6 +47,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self
     }
 
+    fn as_unboxed_any(&self) -> &dyn Any {
+        self
+    }
+
     fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         let me: BoxedVar<O> = self;
         Box::new(me)
@@ -364,6 +368,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
     }
 
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_unboxed_any(&self) -> &dyn Any {
         self
     }
 

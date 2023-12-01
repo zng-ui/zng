@@ -255,7 +255,10 @@ pub trait easing_property_input_Transitionable: Any + Send {
 }
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
-        if let Some(when) = self.as_any().downcast_ref::<types::ContextualizedVar<T, types::ArcWhenVar<T>>>() {
+        if let Some(when) = (*self)
+            .as_unboxed_any()
+            .downcast_ref::<types::ContextualizedVar<T, types::ArcWhenVar<T>>>()
+        {
             let conditions: Vec<_> = when_conditions_data
                 .iter()
                 .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))

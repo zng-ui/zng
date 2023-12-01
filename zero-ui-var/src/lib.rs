@@ -476,6 +476,9 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;
 
+    /// Access to `dyn Any` methods, on the underlying variable type if boxed.
+    fn as_unboxed_any(&self) -> &dyn Any;
+
     /// Access to `Box<dyn Any>` methods, with the [`BoxedVar<T>`] type.
     ///
     /// This is a double-boxed to allow downcast to [`BoxedVar<T>`].

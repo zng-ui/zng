@@ -135,6 +135,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         self
     }
 
+    fn as_unboxed_any(&self) -> &dyn Any {
+        (**self).as_unboxed_any()
+    }
+
     fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
