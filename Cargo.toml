@@ -6,23 +6,24 @@ members = [
     # macros:
     "zero-ui-unique_id",
     "zero-ui-clone_move",
-    "zero-ui-proc-macros", 
-    "zero-ui-var-proc-macros", 
+    "zero-ui-proc-macros",
+    "zero-ui-var-proc-macros",
 
     # types:
+    "zero-ui-handle",
     "zero-ui-txt",
     "zero-ui-units",
     "zero-ui-app_context",
     "zero-ui-var",
-    "zero-ui-handle",
+    "zero-ui-layout",
 
     # view:
-    "zero-ui-view-api", 
-    "zero-ui-view", 
-    "zero-ui-view-prebuilt", 
+    "zero-ui-view-api",
+    "zero-ui-view",
+    "zero-ui-view-prebuilt",
 
     # app:
-    "zero-ui-core", 
+    "zero-ui-core",
     "zero-ui",
     "zero-ui-material-icons",
 
@@ -38,9 +39,7 @@ members = [
     "tests/build",
 ]
 
-exclude = [
-    "dependencies/webrender"
-]
+exclude = ["dependencies/webrender"]
 
 [profile.dev]
 debug = 1

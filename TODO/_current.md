@@ -35,6 +35,24 @@ TextInput! {
 
 # Split Core
 
+* LAYOUT and units that layout.
+    - Steps before merge:
+        - Refactor each issue in core first.
+        - Use refactored code copy in layout crate.
+        - Replace types in core, re-exported at the same place so no breaking change happens.
+        - Merge.
+
+    - Depends on widget stuff, helpers only?
+        - Yes, only widget measure and layout stuff, including inline constraints.
+        - Replace with LAYOUT extension methods?
+        - Inline stuff part of constraints snapshot.
+
+    - LayoutDirection type has conversions with Unicode and Harfbuzz crates.
+        - Only used internally refactor to helper functions.
+    - Align::layout requires WidgetLayout.
+        - For translation and underline flag only.
+        - Refactor to return translation and flag.
+
 * Each app extension.
     - They are mostly contained.
     - Needs `AppExtension` and update types.
