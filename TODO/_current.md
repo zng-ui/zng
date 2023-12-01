@@ -1,5 +1,3 @@
-* ERROR zero_ui_core::widget_builder: when input not inited
-
 # TextInput
 
 * Touch selection.

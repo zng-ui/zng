@@ -149,6 +149,10 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        true
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         self.0.get().capabilities() | VarCapabilities::CAPS_CHANGE
     }

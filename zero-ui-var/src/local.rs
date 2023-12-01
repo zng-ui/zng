@@ -42,6 +42,10 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarUpdateId::never()
     }
 
+    fn is_contextual(&self) -> bool {
+        false
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         VarCapabilities::empty()
     }

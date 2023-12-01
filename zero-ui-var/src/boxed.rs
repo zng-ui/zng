@@ -155,6 +155,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        (**self).is_contextual()
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         (**self).capabilities()
     }
@@ -278,7 +282,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 
     fn read_only(&self) -> Self::ReadOnly {
-        if self.capabilities().is_always_read_only() {
+        if !self.is_contextual() && self.capabilities().is_always_read_only() {
             self.clone()
         } else {
             (**self).read_only_boxed()
@@ -290,7 +294,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        if self.capabilities().is_always_static() {
+        if !self.is_contextual() && self.capabilities().is_always_static() {
             LocalVar(self.with(map)).boxed()
         } else {
             var_map(self, map).boxed()
@@ -303,7 +307,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
-        if self.capabilities().is_always_static() {
+        if !self.is_contextual() && self.capabilities().is_always_static() {
             LocalVar(self.with(map)).boxed()
         } else {
             var_map_bidi(self, map, map_back).boxed()
@@ -325,7 +329,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         M: FnMut(&T) -> Option<O> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        if self.capabilities().is_always_static() {
+        if !self.is_contextual() && self.capabilities().is_always_static() {
             LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
         } else {
             var_filter_map(self, map, fallback).boxed()
@@ -339,7 +343,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         B: FnMut(&O) -> Option<T> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        if self.capabilities().is_always_static() {
+        if !self.is_contextual() && self.capabilities().is_always_static() {
             LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
         } else {
             var_filter_map_bidi(self, map, map_back, fallback).boxed()

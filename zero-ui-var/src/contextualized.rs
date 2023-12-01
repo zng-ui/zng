@@ -161,6 +161,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        true
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         self.borrow_init().capabilities()
     }

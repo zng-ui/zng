@@ -75,6 +75,10 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         self.0.last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        false
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         VarCapabilities::MODIFY
     }

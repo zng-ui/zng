@@ -173,6 +173,13 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         }
     }
 
+    fn is_contextual(&self) -> bool {
+        match &*self.0.read_recursive() {
+            Data::Source { source, .. } => source.is_contextual(),
+            Data::Owned { .. } => false,
+        }
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         VarCapabilities::MODIFY
     }

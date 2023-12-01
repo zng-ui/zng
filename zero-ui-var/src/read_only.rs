@@ -61,6 +61,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        self.1.is_contextual()
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         self.1.capabilities().as_read_only()
     }

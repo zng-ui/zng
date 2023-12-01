@@ -499,6 +499,9 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Last update ID a variable was modified, if the ID is equal to [`VARS.update_id`] the variable is *new*.
     fn last_update(&self) -> VarUpdateId;
 
+    /// If the variable represents different values depending on the context where they are read.
+    fn is_contextual(&self) -> bool;
+
     /// Flags that indicate what operations the variable is capable of.
     fn capabilities(&self) -> VarCapabilities;
 

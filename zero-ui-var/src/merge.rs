@@ -204,6 +204,10 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         self.0.value.last_update()
     }
 
+    fn is_contextual(&self) -> bool {
+        true
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         if self.0.m.lock().inputs.is_empty() {
             VarCapabilities::empty()

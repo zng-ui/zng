@@ -148,6 +148,10 @@ where
         self.0.read().last_update
     }
 
+    fn is_contextual(&self) -> bool {
+        self.0.read().var.is_contextual()
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }

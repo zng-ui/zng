@@ -431,6 +431,14 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         self.0.w.lock().last_update
     }
 
+    fn is_contextual(&self) -> bool {
+        if self.0.conditions.is_empty() {
+            self.0.default.is_contextual()
+        } else {
+            self.active().is_contextual()
+        }
+    }
+
     fn capabilities(&self) -> VarCapabilities {
         if self.0.conditions.is_empty() {
             self.0.default.capabilities()
