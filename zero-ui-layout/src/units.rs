@@ -243,10 +243,9 @@ pub trait Layout1d {
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use crate::{
-        app::App,
-        context::{LayoutMetrics, LAYOUT},
-    };
+    use zero_ui_app_context::{AppId, LocalContext};
+
+    use crate::context::{LayoutMetrics, LAYOUT};
 
     use super::*;
 
@@ -310,7 +309,7 @@ mod tests {
 
     #[test]
     pub fn length_expr_eval() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
 
         let l = (Length::from(200) - 100.pct()).abs();
         let metrics = LayoutMetrics::new(1.fct(), PxSize::new(Px(600), Px(400)), Px(0));
@@ -321,7 +320,7 @@ mod tests {
 
     #[test]
     pub fn length_expr_clamp() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
 
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));

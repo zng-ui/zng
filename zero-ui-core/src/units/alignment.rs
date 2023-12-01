@@ -9,7 +9,6 @@ use crate::{
         animation::{easing::EasingStep, Transitionable},
         impl_from_and_into_var,
     },
-    widget_info::WidgetLayout,
 };
 
 use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints2d, PxSize, PxVector};
@@ -182,26 +181,15 @@ impl Align {
         parent_constraints.clamp_size(size)
     }
 
-    /// Applies the alignment transform to `wl` and returns the size of the parent align node.
-    pub fn layout(
-        self,
-        child_size: PxSize,
-        parent_constraints: PxConstraints2d,
-        direction: LayoutDirection,
-        wl: &mut WidgetLayout,
-    ) -> PxSize {
+    /// Applies the alignment transform to `wl` and returns the size of the parent align node, the translate offset and if
+    /// baseline must be translated.
+    pub fn layout(self, child_size: PxSize, parent_constraints: PxConstraints2d, direction: LayoutDirection) -> (PxSize, PxVector, bool) {
         let size = parent_constraints.fill_size().max(child_size);
         let size = parent_constraints.clamp_size(size);
 
         let offset = self.child_offset(child_size, size, direction);
 
-        wl.translate(offset);
-
-        if self.is_baseline() {
-            wl.translate_baseline(true);
-        }
-
-        size
+        (size, offset, self.is_baseline())
     }
 }
 impl_from_and_into_var! {

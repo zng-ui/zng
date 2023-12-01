@@ -47,10 +47,6 @@ TextInput! {
         - Replace with LAYOUT extension methods?
         - Inline stuff part of constraints snapshot.
 
-    - Align::layout requires WidgetLayout.
-        - For translation and underline flag only.
-        - Refactor to return translation and flag.
-
 * Each app extension.
     - They are mostly contained.
     - Needs `AppExtension` and update types.

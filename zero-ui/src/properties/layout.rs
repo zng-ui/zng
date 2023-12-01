@@ -118,7 +118,12 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         UiNodeOp::Layout { wl, final_size } => {
             let align = alignment.get();
             let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || child.layout(wl));
-            *final_size = align.layout(child_size, LAYOUT.constraints(), LAYOUT.direction(), wl);
+            let (size, offset, baseline) = align.layout(child_size, LAYOUT.constraints(), LAYOUT.direction());
+            wl.translate(offset);
+            if baseline {
+                wl.translate_baseline(true);
+            }
+            *final_size = size;
         }
         _ => {}
     })
