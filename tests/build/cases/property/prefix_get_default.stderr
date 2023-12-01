@@ -7,12 +7,12 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
    = help: the trait `PartialEq` is not implemented for `NotDefault`
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `IntoVar`
-  --> $WORKSPACE/zero-ui-core/src/var.rs
+  --> $WORKSPACE/zero-ui-var/src/lib.rs
    |
    | pub trait IntoVar<T: VarValue> {
    |                      ^^^^^^^^ required by this bound in `IntoVar`
 help: consider annotating `NotDefault` with `#[derive(PartialEq)]`
-    |
+   |
 16  + #[derive(PartialEq)]
 17  | pub struct NotDefault {}
     |
