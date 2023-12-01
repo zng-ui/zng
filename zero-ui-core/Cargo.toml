@@ -90,15 +90,15 @@ yaml = ["serde_yaml"]
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false, features = ["var"]}
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }
-zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-var = { path = "../zero-ui-var", default-features = false }
+zero-ui-layout = { path = "../zero-ui-layout" }
 
 # text
-font-kit = "0.11"
+font-kit = "0.12"
 unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2"
 harfbuzz_rs = "2"
@@ -119,7 +119,7 @@ futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"], optional = true }
 futures-lite = "2"
 async-fs = "2"
-http-cache-semantics = { version = "1", optional = true }
+http-cache-semantics = { version = "1", optional = true } # isahc needs this version
 http-serde = { version = "1", optional = true }
 
 # util

@@ -9,11 +9,11 @@ use super::{
     SegmentedText, TextSegment, TextSegmentKind, Txt, WordBreak,
 };
 use crate::{
-    context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
+    context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection},
     crate_util::{f32_cmp, IndexRange},
     text::BidiLevel,
     units::*,
-    widget_info::{InlineSegmentInfo, InlineSegmentPos},
+    widget_info::InlineSegmentInfo,
 };
 
 pub use font_kit::error::GlyphLoadingError;

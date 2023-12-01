@@ -20,9 +20,7 @@ use std::{
 /// mode, types that don't support this use the normal linear interpolation. All angle and transform units
 /// implement this.
 ///
-/// Samplers can be set in animations using the [`Var::easing_with`] method.
-///
-/// [`Var::easing_with`]: crate::var::Var::easing_with
+/// Samplers can be set in animations using the `Var::easing_with` method.
 pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     slerp_enabled(true, || t.sample(step))
 }
@@ -473,7 +471,7 @@ impl From<AngleRadian> for LayoutAngle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::units::*;
+/// # use zero_ui_layout::units::*;
 /// let radians = 6.28318.rad();
 /// let gradians = 400.grad();
 /// let degrees = 360.deg();

@@ -41,9 +41,6 @@ pub use side_offsets::*;
 mod size;
 pub use size::*;
 
-mod text;
-pub use text::*;
-
 mod transform;
 pub use transform::*;
 

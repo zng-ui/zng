@@ -32,6 +32,9 @@ pub use crate_util::{IdMap, IdSet};
 #[doc(hidden)]
 pub use paste::paste;
 
+#[doc(inline)]
+pub use zero_ui_layout::units;
+
 #[macro_use]
 pub mod handler;
 
@@ -57,7 +60,6 @@ pub mod render;
 pub mod task;
 pub mod text;
 pub mod timer;
-pub mod units;
 pub mod var;
 pub mod widget_base;
 pub mod widget_builder;

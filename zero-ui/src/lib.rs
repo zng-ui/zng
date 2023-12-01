@@ -141,8 +141,8 @@ pub mod prelude {
         },
         timer::TIMERS,
         units::{
-            self, Align, AngleUnits, ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,
-            PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
+            self, Align, AngleUnits, ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, Point, Px, PxPoint, PxSize,
+            Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{
             animation::{
@@ -342,8 +342,8 @@ pub mod prelude {
             widget_base::{self, EnabledMix, HitTestMode, WidgetBase, WidgetImpl},
             widget_impl,
             widget_info::{
-                access::AccessRole, InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility,
-                WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
+                access::AccessRole, InlineSegment, InlineSegmentInfo, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
+                WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
             },
             widget_instance::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, z_index, AdoptiveNode, BoxedUiNode,

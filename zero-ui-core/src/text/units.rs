@@ -1,3 +1,5 @@
+//! Text units.
+
 use super::Length;
 
 /// Text font size.

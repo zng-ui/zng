@@ -10,6 +10,7 @@ use crate::{
     widget_instance::UiNode,
 };
 
+use zero_ui_layout::context::InlineSegmentPos;
 pub use zero_ui_view_api::access::AccessRole;
 
 use super::*;
@@ -365,28 +366,6 @@ impl Hash for InlineSegment {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.width, 0.001, state);
         self.kind.hash(state);
-    }
-}
-
-/// Represents an [`InlineSegment`] positioned by the inlining parent.
-///
-/// See [`InlineConstraintsLayout::first_segs`] for more details.
-///
-/// [`InlineConstraintsLayout::first_segs`]: crate::context::InlineConstraintsLayout::first_segs
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
-pub struct InlineSegmentPos {
-    /// Seg offset to the right from the row origin, in pixels.
-    pub x: f32,
-}
-impl PartialEq for InlineSegmentPos {
-    fn eq(&self, other: &Self) -> bool {
-        about_eq(self.x, other.x, 0.001)
-    }
-}
-impl Eq for InlineSegmentPos {}
-impl Hash for InlineSegmentPos {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.x, 0.001, state);
     }
 }
 
@@ -865,7 +844,7 @@ impl WidgetMeasure {
     /// The widget will be inlining even if the parent widget is not inlining, if properties request [`disable_inline`]
     /// these requests are ignored.
     ///
-    /// [`disable_inline`]: LAYOUT::disable_inline
+    /// [`disable_inline`]: crate::widget_info::WidgetMeasure::disable_inline
     pub fn with_inline_visual(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.inline_locked = true;
         if self.inline.is_none() {

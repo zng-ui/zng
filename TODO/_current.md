@@ -35,11 +35,6 @@ TextInput! {
 
 # Split Core
 
-* LAYOUT and units that layout.
-    - Steps before merge:
-        - Replace types in core, re-exported at the same place so no breaking change happens.
-        - Merge.
-
 * Each app extension.
     - They are mostly contained.
     - Needs `AppExtension` and update types.

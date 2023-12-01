@@ -243,8 +243,8 @@ pub mod using_display_items {
         use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::ApiExtensionId,
-            prelude::{units::PxToWr, PxPoint},
+            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
+            core::units::PxPoint,
         };
         use zero_ui_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
@@ -426,8 +426,8 @@ pub mod using_blob {
         use std::{collections::HashMap, sync::Arc};
 
         use zero_ui::{
-            core::app::view_process::ApiExtensionId,
-            prelude::{task::parking_lot::Mutex, units::PxToWr, PxPoint, PxSize},
+            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
+            prelude::{task::parking_lot::Mutex, PxPoint, PxSize},
         };
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
@@ -1069,8 +1069,8 @@ pub mod using_gl_texture {
     /// View-process stuff, the actual extension.
     pub mod view_side {
         use zero_ui::{
-            core::app::view_process::ApiExtensionId,
-            prelude::units::{PxRect, PxToWr},
+            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
+            prelude::units::PxRect,
         };
         use zero_ui_view::{
             extensions::{RenderItemArgs, RendererExtension, ViewExtensions},

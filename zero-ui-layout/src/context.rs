@@ -214,6 +214,7 @@ impl LAYOUT {
     /// Context leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
     ///
     /// [`leftover_count`]: Self::leftover_count
+    /// [`Length::Leftover`]: crate::units::Length::Leftover
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         LAYOUT_CTX.get().metrics.leftover()
     }
@@ -283,7 +284,7 @@ pub struct InlineConstraintsMeasure {
     pub mid_clear_min: Px,
 }
 
-/// Represents an [`InlineSegment`] positioned by the inlining parent.
+/// Position of an inline segment set by the inlining parent.
 ///
 /// See [`InlineConstraintsLayout::first_segs`] for more details.
 ///
@@ -354,8 +355,7 @@ impl InlineConstraints {
 
 /// Layout metrics snapshot.
 ///
-/// A snapshot can be taken using the [`LayoutMetrics::snapshot`], you can also
-/// get the metrics used during the last layout of a widget using the [`WidgetBoundsInfo::metrics`] method.
+/// A snapshot can be taken using the [`LayoutMetrics::snapshot`].
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LayoutMetricsSnapshot {
     /// The [`constraints`].
@@ -542,21 +542,16 @@ impl LayoutMetrics {
 
     /// The current screen "pixels-per-inch" resolution.
     ///
-    /// This value is dependent in the actual physical size of the screen that the user must manually measure.
-    /// For most of the UI you only need the [`scale_factor`].
-    ///
-    /// If you are implementing some feature like a "print size preview", you need to use this value, and you
-    /// can configure a PPI per screen in the [`MONITORS`] service.
+    /// This value is dependent in the actual physical size of the screen.
     ///
     /// Default is `96.0`.
-    ///
-    /// [`MONITORS`]: crate::window::MONITORS
-    /// [`scale_factor`]: LayoutMetrics::scale_factor
     pub fn screen_ppi(&self) -> Ppi {
         self.s.screen_ppi
     }
 
     /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
+    ///
+    /// [`Length::Leftover`]: crate::units::Length::Leftover
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         LAYOUT.register_metrics_use(LayoutMask::LEFTOVER);
         self.s.leftover
@@ -656,6 +651,8 @@ context_var! {
 /// layout direction.
 ///
 /// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
+///
+/// [`Align`]: crate::units::Align
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LayoutDirection {
     /// left-to-right.

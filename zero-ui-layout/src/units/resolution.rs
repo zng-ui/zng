@@ -61,7 +61,7 @@ impl Default for Ppm {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::units::*;
+/// use zero_ui_layout::units::*;
 ///
 /// let ppm: Ppm = 96.dpi().into();
 /// ```
