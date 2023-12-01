@@ -3529,3 +3529,148 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
         _ => {}
     })
 }
+
+/// Implements the selection toolbar.
+pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
+    use super::nodes::*;
+    use crate::core::{
+        mouse::ButtonState,
+        touch::{TouchPhase, TOUCH_INPUT_EVENT},
+    };
+    use crate::widgets::popup::*;
+    use crate::widgets::window::layers::AnchorTransform;
+
+    let mut selection_range = None;
+    let mut popup_state = None::<ReadOnlyArcVar<PopupState>>;
+    match_node(child, move |c, op| {
+        let mut open = false;
+        let mut close = false;
+        match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&SELECTION_TOOLBAR_FN_VAR);
+            }
+            UiNodeOp::Deinit => {
+                close = true;
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
+
+                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    close = true;
+                    if args.state == ButtonState::Released {
+                        open = true;
+                    }
+                } else if TOUCH_LONG_PRESS_EVENT.has(update) {
+                    open = true;
+                } else if KEY_INPUT_EVENT.has(update) {
+                    close = true;
+                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                    if args.is_blur(WIDGET.id()) {
+                        close = true;
+                    }
+                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
+                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move) {
+                        close = true;
+                    }
+                }
+
+                if popup_state.is_some() {
+                    let r_txt = ResolvedText::get();
+                    if selection_range != r_txt.caret.lock().selection_range() {
+                        close = true;
+                    }
+                }
+            }
+            UiNodeOp::Update { .. } => {
+                if SELECTION_TOOLBAR_FN_VAR.is_new() {
+                    close = true;
+                }
+            }
+            _ => {}
+        }
+        if close {
+            if let Some(state) = &popup_state.take() {
+                selection_range = None;
+                POPUP.close(state);
+            }
+        }
+        if open {
+            if let Some(range) = ResolvedText::get().caret.lock().selection_range() {
+                selection_range = Some(range);
+
+                let (node, _) = SELECTION_TOOLBAR_FN_VAR.get()(SelectionToolbarArgs {}).init_widget();
+
+                let mut translate = PxVector::zero();
+                let transform_key = FrameValueKey::new_unique();
+                let node = match_widget(node, move |c, op| match op {
+                    UiNodeOp::Init => {
+                        c.init();
+                        // c.with_context(|| );// SELECTION_TOOLBAR_ANCHOR_VAR subscribe TODO
+                    }
+                    UiNodeOp::Layout { wl, final_size } => {
+                        let r_txt = ResolvedText::get();
+                        if let Some(range) = r_txt.caret.lock().selection_range() {
+                            let l_txt = LayoutText::get();
+                            let r_txt = r_txt.segmented_text.text();
+
+                            let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
+                            for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                                if !line_rect.size.is_empty() {
+                                    let line_box = line_rect.to_box2d();
+                                    bounds.min = bounds.min.min(line_box.min);
+                                    bounds.max = bounds.max.max(line_box.max);
+                                }
+                            }
+                            let selection_bounds = bounds.to_rect();
+
+                            *final_size = c.layout(wl);
+
+                            let offset = SELECTION_TOOLBAR_ANCHOR_VAR.get();
+
+                            fn layout_offset(size: PxSize, point: Point) -> PxVector {
+                                LAYOUT
+                                    .with_constraints(PxConstraints2d::new_exact_size(size), || point.layout())
+                                    .to_vector()
+                            }
+                            let place = layout_offset(selection_bounds.size, offset.place);
+                            let origin = layout_offset(*final_size, offset.origin);
+
+                            translate = selection_bounds.origin.to_vector() + place - origin;
+                        } else {
+                            // no selection, must be closing
+                            wl.collapse();
+                            *final_size = PxSize::zero();
+                        };
+                    }
+                    UiNodeOp::Render { frame } => {
+                        let l_txt = LayoutText::get();
+                        let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
+                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| {
+                            c.render(frame)
+                        });
+                    }
+                    _ => {}
+                });
+
+                // capture all context including LayoutText, exclude text style properties.
+                let capture = ContextCapture::CaptureBlend {
+                    filter: CaptureFilter::Exclude({
+                        let mut exclude = ContextValueSet::new();
+                        super::Text::context_vars_set(&mut exclude);
+
+                        let mut allow = ContextValueSet::new();
+                        super::LangMix::<()>::context_vars_set(&mut allow);
+                        exclude.remove_all(&allow);
+
+                        exclude
+                    }),
+                    over: false,
+                };
+
+                let mut base_mode = AnchorMode::tooltip();
+                base_mode.transform = AnchorTransform::None;
+                popup_state = Some(POPUP.open_config(node, base_mode, capture));
+            };
+        }
+    })
+}

@@ -82,9 +82,6 @@ macro_rules! impl_from_and_into_var {
 
 use parking_lot::RwLock;
 
-#[doc(inline)]
-pub use crate::impl_from_and_into_var;
-
 use super::{animation::ModifyInfo, VarHandle, VarHook, VarHookArgs, VarModify, VarUpdateId, VarValue, VARS};
 
 #[doc(hidden)]

@@ -7,13 +7,9 @@
         - Hit-test area full shape rectangle.
 
 * Implement selection toolbar.
+    - Panics if there is a popup::close_delay and you hover one when there is more than one open at a time.
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
     - Implement `selection_toolbar_fn`.
-        - Should it be a context-var?
-            - Context-menu is not.
-            - Flutter has a SelectableText widget.
-            - Maybe we can have one, with a style property and DefaultStyle.
-                - It sets the context_menu and selection_toolbar.
         - Needs to open when a selection finishes creating (mouse/touch release)
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
 ```rust
