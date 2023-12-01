@@ -710,7 +710,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{app::*, context::*};
+/// # use zero_ui_app_context::*;
 /// app_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = const { 10u8 };
@@ -719,7 +719,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 ///     static BAR: String = "Into!";
 /// }
 ///
-/// let app = App::minimal();
+/// let app = LocalContext::start_app(AppId::new_unique());
 ///
 /// assert_eq!(10, FOO.get());
 /// ```
@@ -975,7 +975,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::context::context_local;
+/// # use zero_ui_app_context::*;
 /// context_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = 10u8;
@@ -996,7 +996,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 /// After you declare the contextual value you can use it by loading a context, calling a closure and inside it *visiting* the value.
 ///
 /// ```
-/// # use zero_ui_core::{context::context_local, app::App};
+/// # use zero_ui_app_context::*;
 /// # use std::sync::Arc;
 /// context_local! { static FOO: String = "default"; }
 ///
@@ -1004,7 +1004,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 ///     println!("value is {}!", FOO.get());
 /// }
 ///
-/// let _scope = App::minimal();
+/// let _scope = LocalContext::start_app(AppId::new_unique());
 ///
 /// let mut value = Some(Arc::new(String::from("other")));
 /// FOO.with_context(&mut value, || {

@@ -612,7 +612,7 @@ pub trait ToText {
     /// Basic usage:
     ///
     /// ```
-    /// use zero_ui_core::text::*;
+    /// use zero_ui_txt::*;
     ///
     /// let expected = formatx!("10");
     /// let actual = 10.to_text();
@@ -635,7 +635,7 @@ impl<T: ToString> ToText for T {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::text::formatx;
+/// # use zero_ui_txt::formatx;
 /// let text = formatx!("Hello {}", "World!");
 /// ```
 #[macro_export]

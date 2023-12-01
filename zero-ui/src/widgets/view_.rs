@@ -74,7 +74,7 @@ impl<D> WidgetFn<D> {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui::{core::context_var, widgets::WidgetFn};
+    /// # use zero_ui::{core::var::context_var, widgets::WidgetFn};
     /// # pub struct Foo;
     /// context_var! {
     ///     /// Widget function for `Foo` items.

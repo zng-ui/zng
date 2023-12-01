@@ -58,7 +58,7 @@ impl TimeUnits for f32 {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::units::*;
+/// # use zero_ui_units::*;
 /// fn timer(deadline: impl Into<Deadline>) { }
 ///
 /// timer(5.secs());

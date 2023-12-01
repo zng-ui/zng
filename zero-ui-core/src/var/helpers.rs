@@ -54,7 +54,7 @@ use crate::{
 /// The example demonstrates setting and removing easing animations.
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*, units::SideOffsets};
+/// # use zero_ui_core::{*, var::{*, helpers::*}, color::*, widget_instance::*, units::SideOffsets};
 /// # #[widget($crate::Foo)] pub struct Foo(widget_base::WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -97,7 +97,7 @@ pub use zero_ui_proc_macros::easing;
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zero_ui_core::{*, widget_instance::*, var::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::{*, helpers::*}};
 /// context_var! {
 ///     pub static FOO_VAR: u32 = 0u32;
 /// }
@@ -120,8 +120,8 @@ pub use zero_ui_proc_macros::easing;
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zero_ui_core::{*, widget_instance::*, var::*};
-///
+/// # use zero_ui_core::{*, widget_instance::*, var::{*, helpers::*}};
+/// #
 /// #[derive(Debug, Clone, Default, PartialEq)]
 /// pub struct Config {
 ///     pub foo: bool,
@@ -422,7 +422,7 @@ where
 /// Example of manual usage to show a state as text:
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*, var::*, text::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::{*, helpers::*}, text::*};
 /// # #[property(CONTEXT)]
 /// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = state;
@@ -457,7 +457,7 @@ pub fn state_var() -> ArcVar<bool> {
 /// Example of manual usage to map the state to a color:
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*, var::*, text::*, color::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::{*, helpers::*}, text::*, color::*};
 /// # #[property(CONTEXT)]
 /// # pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
 /// #   let _ = state;
