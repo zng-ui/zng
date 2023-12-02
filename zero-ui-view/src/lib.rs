@@ -206,10 +206,6 @@ pub fn init() {
 /// Like [`init`] but with custom API extensions.
 #[cfg(feature = "ipc")]
 pub fn init_extended(ext: fn() -> ViewExtensions) {
-    if !is_main_thread::is_main_thread().unwrap_or(true) {
-        panic!("only call `init` in the main thread, this is a requirement of some operating systems");
-    }
-
     if let Some(config) = ViewConfig::from_env() {
         std::panic::set_hook(Box::new(init_abort));
 
@@ -288,10 +284,6 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 
 /// Like [`run_same_process`] but with custom API extensions.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
-    if !is_main_thread::is_main_thread().unwrap_or(true) {
-        panic!("only call `run_same_process` in the main thread, this is a requirement of some operating systems");
-    }
-
     thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
 
     let config = ViewConfig::wait_same_process();
