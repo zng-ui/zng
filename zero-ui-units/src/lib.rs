@@ -1,3 +1,4 @@
+mod byte;
 mod corner_radius;
 mod distance_key;
 mod factor;
@@ -10,6 +11,7 @@ mod transform;
 
 pub use euclid;
 
+pub use byte::*;
 pub use corner_radius::*;
 pub use distance_key::*;
 pub use factor::*;

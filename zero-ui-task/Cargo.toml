@@ -1,0 +1,56 @@
+[package]
+name = "zero-ui-task"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+# Enables http tasks.
+http = [
+    "serde",
+    "serde_json",
+    "isahc",
+    "http-cache-semantics",
+    "http-serde",
+    "once_cell",
+    "zero-ui-txt",
+    "async-recursion",
+    "async-trait",
+    "sha2",
+    "base64",
+    "fs4",
+    "remove_dir_all",
+]
+
+[dependencies]
+zero-ui-task-proc-macros = { path = "../zero-ui-task-proc-macros" }
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-var = { path = "../zero-ui-var" }
+
+zero-ui-txt = { path = "../zero-ui-txt", optional = true }
+
+tracing = "0.1"
+pretty-type-name = "1"
+flume = { version = "0.11", default-features = false, features = ["async"] }
+rayon = "1"
+blocking = "1"
+parking_lot = "0.12"
+futures-timer = "3"
+
+isahc = { version = "1", features = ["cookies", "json"], optional = true }
+futures-lite = "2"
+async-fs = "2"
+serde = { version = "1", optional = true }
+serde_json = { version = "1", optional = true }
+http-cache-semantics = { version = "1", optional = true }                  # isahc needs this version
+http-serde = { version = "1", optional = true }
+once_cell = { version = "1", optional = true }
+async-recursion = { version = "1", optional = true }
+async-trait = { version = "0.1", optional = true }
+sha2 = { version = "0.10", optional = true }
+base64 = { version = "0.21", optional = true }
+fs4 = { version = "0.7", optional = true }
+remove_dir_all = { version = "0.8", optional = true }

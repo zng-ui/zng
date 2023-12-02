@@ -22,6 +22,7 @@ use crate::{
         view_process::{ImageRequest, ViewImage, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
+    context::UiTaskWidget,
     crate_util::IdMap,
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},

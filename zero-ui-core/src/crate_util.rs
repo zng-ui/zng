@@ -51,22 +51,8 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
     }
 }
 
-/// Converts a [`std::panic::catch_unwind`] payload to a str.
-pub fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
-    if let Some(s) = payload.downcast_ref::<&str>() {
-        s
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        s
-    } else {
-        "<unknown-panic-message-type>"
-    }
-}
-
 /// Type alias for the *error* of [`PanicResult`].
 pub type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
-
-/// The result that is returned by [`std::panic::catch_unwind`].
-pub type PanicResult<R> = thread::Result<R>;
 
 // this is the FxHasher with random const init.
 #[derive(Clone)]
@@ -304,7 +290,6 @@ pub fn test_log() {
 }
 
 /// Calls [`fs4::FileExt::unlock`] and ignores "already unlocked" errors.
-#[allow(unused)] // http only
 pub fn unlock_ok(file: &impl fs4::FileExt) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(code) = e.raw_os_error() {

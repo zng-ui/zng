@@ -8,7 +8,7 @@ use std::{
 };
 
 use zero_ui_txt::Txt;
-use zero_ui_units::{euclid, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
+use zero_ui_units::{euclid, ByteLength, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
 
 use crate::{animation::Transitionable, easing::EasingStep, impl_from_and_into_var};
 
@@ -184,6 +184,12 @@ where
     }
 }
 
+impl Transitionable for ByteLength {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self(self.0.lerp(&to.0, step))
+    }
+}
+
 impl_from_and_into_var! {
     fn from(s: &'static str) -> Txt;
     fn from(s: String) -> Txt;
@@ -200,6 +206,8 @@ impl_from_and_into_var! {
 
     fn from(d: Instant) -> Deadline;
     fn from(d: Duration) -> Deadline;
+
+    fn from(b: usize) -> ByteLength;
 }
 
 macro_rules! impl_into_var_option {

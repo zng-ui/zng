@@ -11,9 +11,6 @@ pub use angle::*;
 mod constraints;
 pub use constraints::*;
 
-mod byte;
-pub use byte::*;
-
 mod factor;
 pub use factor::*;
 

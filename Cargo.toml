@@ -8,6 +8,7 @@ members = [
     "zero-ui-clone_move",
     "zero-ui-proc-macros",
     "zero-ui-var-proc-macros",
+    "zero-ui-task-proc-macros",
 
     # types:
     "zero-ui-handle",
@@ -17,6 +18,7 @@ members = [
     "zero-ui-app_context",
     "zero-ui-var",
     "zero-ui-layout",
+    "zero-ui-task",
 
     # view:
     "zero-ui-view-api",

@@ -7,14 +7,12 @@ use std::{
     task::{Poll, Waker},
 };
 
-use crate::{context::*, widget_instance::WidgetId};
-
 enum UiTaskState<R> {
     Pending {
         future: Pin<Box<dyn Future<Output = R> + Send>>,
         event_loop_waker: Waker,
         #[cfg(debug_assertions)]
-        last_update: Option<crate::var::VarUpdateId>,
+        last_update: Option<zero_ui_var::VarUpdateId>,
     },
     Ready(R),
 }
@@ -37,21 +35,16 @@ impl<R: fmt::Debug> fmt::Debug for UiTaskState<R> {
 #[derive(Debug)]
 pub struct UiTask<R>(UiTaskState<R>);
 impl<R> UiTask<R> {
-    /// Create a UI bound future executor.
+    /// New task with already build event-loop waker.
     ///
-    /// The `task` is inert and must be polled using [`update`] to start, and it must be polled every
-    /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
-    ///
-    /// [`update`]: UiTask::update
-    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
-    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
-    pub fn new<F>(target: Option<WidgetId>, task: F) -> Self
+    /// App crate provides an integrated `UiTaskWidget::new` that creates the waker for widgets.
+    pub fn new_raw<F>(event_loop_waker: Waker, task: F) -> Self
     where
         F: Future<Output = R> + Send + 'static,
     {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
-            event_loop_waker: UPDATES.waker(target),
+            event_loop_waker,
             #[cfg(debug_assertions)]
             last_update: None,
         })
@@ -69,7 +62,7 @@ impl<R> UiTask<R> {
     ///
     /// In debug builds this is validated and an error message is logged if incorrect updates are detected.
     ///
-    /// [`task::yield_now`]: crate::task::yield_now
+    /// [`task::yield_now`]: crate::yield_now
     pub fn update(&mut self) -> Option<&R> {
         if let UiTaskState::Pending {
             future,
@@ -81,7 +74,7 @@ impl<R> UiTask<R> {
         {
             #[cfg(debug_assertions)]
             {
-                let update = Some(crate::var::VARS.update_id());
+                let update = Some(zero_ui_var::VARS.update_id());
                 if *last_update == update {
                     tracing::error!("UiTask::update called twice in the same update");
                 }

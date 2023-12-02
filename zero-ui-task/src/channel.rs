@@ -32,7 +32,7 @@ use std::{convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
-use crate::units::Deadline;
+use zero_ui_units::Deadline;
 
 /// The transmitting end of an unbounded channel.
 ///
@@ -289,7 +289,7 @@ impl<T> Receiver<T> {
 ///
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
-/// [spawns]: crate::task::spawn
+/// [spawns]: crate::spawn
 pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
     let (s, r) = flume::unbounded();
     (UnboundSender(s), Receiver(r))
@@ -336,7 +336,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 ///
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
-/// [spawns]: crate::task::spawn
+/// [spawns]: crate::spawn
 pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
     let (s, r) = flume::bounded(capacity);
     (Sender(s), Receiver(r))
@@ -386,7 +386,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 ///
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
-/// [spawns]: crate::task::spawn
+/// [spawns]: crate::spawn
 pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
     bounded::<T>(0)
 }

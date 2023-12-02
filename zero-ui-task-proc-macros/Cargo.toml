@@ -1,10 +1,14 @@
 [package]
-name = "zero-ui-txt"
+name = "zero-ui-task-proc-macros"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[lib]
+proc-macro = true
 
 [dependencies]
-serde = "1"
+proc-macro2 = "1"
+quote = "1"
+syn = "2"

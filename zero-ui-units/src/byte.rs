@@ -1,7 +1,5 @@
 use std::{fmt, ops};
 
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
-
 use super::Factor;
 
 /// Extension methods for initializing [`ByteLength`] values.
@@ -88,12 +86,12 @@ impl ByteUnits for usize {
 ///
 /// The value is stored in bytes, you can use associated functions to convert from other units or
 /// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct ByteLength(pub usize);
-impl_from_and_into_var! {
-    fn from(bytes: usize) -> ByteLength {
-        ByteLength(bytes)
+impl From<usize> for ByteLength {
+    fn from(value: usize) -> Self {
+        Self(value)
     }
 }
 impl ops::Add for ByteLength {

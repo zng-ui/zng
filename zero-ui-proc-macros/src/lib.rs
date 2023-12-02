@@ -22,8 +22,6 @@ mod wgt_property_attrs;
 mod widget;
 mod widget_util;
 
-mod any_all;
-
 mod l10n;
 mod lang;
 
@@ -99,12 +97,6 @@ pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn widget_new(input: TokenStream) -> TokenStream {
     widget::expand_new(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn task_any_all(input: TokenStream) -> TokenStream {
-    any_all::expand(input)
 }
 
 #[doc(hidden)]

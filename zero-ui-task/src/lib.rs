@@ -3,21 +3,16 @@
 //! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
 //! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
 //!
-//! All functions of this module propagate the [`LocalContext`].
+//! All functions of this crate propagate the [`LocalContext`].
 //!
-//! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
+//! This crate also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
 //! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`LocalContext`]. You can
 //! also use [`join`] to propagate thread context for a raw rayon join operation.
 //!
 //! # Examples
 //!
 //! ```
-//! # use zero_ui_core::{*, var::*, gesture::*, task::{self, rayon::prelude::*}, widget_instance::*};
-//! # #[widget($crate::Button)] pub struct Button(widget_base::WidgetBase);
-//! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
-//! # #[property(CONTEXT)]
-//! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
-//! # fn main() {
+//! # macro_rules! demo { () => {
 //! let enabled = var(false);
 //! Button! {
 //!     on_click = async_hn!(enabled, |_| {
@@ -34,12 +29,13 @@
 //!     });
 //!     enabled;
 //! }
-//! # ; }
 //!
 //! async fn read_numbers() -> Vec<usize> {
 //!     let raw = task::wait(|| std::fs::read_to_string("numbers.txt").unwrap()).await;
 //!     raw.par_split(',').map(|s| s.trim().parse::<usize>().unwrap()).collect()
 //! }
+//! 
+//! # }}
 //! ```
 //!
 //! The example demonstrates three different ***tasks***, the first is a [`ui::UiTask`] in the `async_hn` handler,
@@ -87,13 +83,7 @@
 //! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
-//! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*, widget_instance::*};
-//! # #[widget($crate::Button)]
-//! # pub struct Button(widget_base::WidgetBase);
-//! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
-//! # #[property(CONTEXT)]
-//! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
-//! # fn main() {
+//! # macro_rules! demo { () => {
 //! let enabled = var(false);
 //! let msg = var("loading..".to_text());
 //! Button! {
@@ -108,7 +98,7 @@
 //!         enabled.set(true);
 //!     });
 //! }
-//! # ; }
+//! # }}
 //! ```
 //!
 //! For other protocols or alternative HTTP clients you can use [external crates](#async-crates-integration).
@@ -157,12 +147,12 @@ use std::{
 pub use parking_lot;
 use parking_lot::Mutex;
 
-use crate::{
-    context::LocalContext,
-    crate_util::{panic_str, PanicResult},
-    units::Deadline,
-    var::{response_done_var, response_var, ResponseVar, VarValue},
-};
+mod crate_util;
+
+use crate::crate_util::PanicResult;
+use zero_ui_app_context::LocalContext;
+use zero_ui_units::Deadline;
+use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
 
 #[doc(no_inline)]
 pub use rayon;
@@ -170,14 +160,14 @@ pub use rayon;
 #[doc(no_inline)]
 pub use async_fs as fs;
 
-pub use crate::handler::async_clmv;
+pub use zero_ui_clone_move::async_clmv;
 
 pub mod channel;
 pub mod io;
+pub mod ui;
 
 pub mod http;
 mod rayon_ctx;
-pub mod ui;
 
 pub use rayon_ctx::*;
 
@@ -328,7 +318,7 @@ impl RayonTask {
                         }
                     }));
                     if let Err(p) = r {
-                        tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
+                        tracing::error!("panic in `task::spawn`: {}", crate_util::panic_str(&p));
                     }
                 });
             }
@@ -658,7 +648,7 @@ where
 {
     enum QuickResponse<R: VarValue> {
         Quick(Option<R>),
-        Response(crate::var::ResponderVar<R>),
+        Response(zero_ui_var::ResponderVar<R>),
     }
 
     let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
@@ -769,7 +759,7 @@ where
 {
     spawn(async move {
         if let Err(p) = wait_catch(task).await {
-            tracing::error!("parallel `spawn_wait` task panicked: {}", panic_str(&p))
+            tracing::error!("parallel `spawn_wait` task panicked: {}", crate_util::panic_str(&p))
         }
     });
 }
@@ -791,7 +781,7 @@ where
 /// Blocks the thread until the `task` future finishes.
 ///
 /// This function is useful for implementing async tests, using it in an app will probably cause
-/// the app to stop responding. To test UI task use [`HeadlessApp::block_on`].
+/// the app to stop responding.
 ///
 /// The crate [`futures-lite`] is used to execute the task.
 ///
@@ -818,7 +808,6 @@ where
 /// # run_ok();
 /// ```
 ///
-/// [`HeadlessApp::block_on`]: crate::app::HeadlessApp::block_on
 /// [`futures-lite`]: https://docs.rs/futures-lite/
 pub fn block_on<F>(task: F) -> F::Output
 where
@@ -857,7 +846,7 @@ pub fn doc_test<F>(spin: bool, task: F) -> F::Output
 where
     F: Future,
 {
-    use crate::units::TimeUnits;
+    use zero_ui_units::TimeUnits;
 
     if spin {
         spin_on(with_deadline(task, 500.ms())).expect("async doc-test timeout")
@@ -943,12 +932,11 @@ pub async fn yield_now() {
 ///
 /// # UI Async
 ///
-/// This timer works in UI async tasks too, but you should use the [`TIMERS`] instead, as they are implemented using only
-/// the app loop they use the same *executor* as the app or widget tasks.
+/// This timer works in UI async tasks too, but in a full app prefer `TIMERS` instead, as it is implemented using only
+/// the app loop it avoids spawning the [`futures_timer`] executor.
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
-/// [`TIMERS`]: crate::timer::TIMERS#async
 pub async fn deadline(deadline: impl Into<Deadline>) {
     let deadline = deadline.into();
     if let Some(timeout) = deadline.time_left() {
@@ -1103,10 +1091,8 @@ macro_rules! all {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__all; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::all;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1114,7 +1100,7 @@ macro_rules! __all {
     ($($ident:ident: $fut:expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1240,10 +1226,8 @@ macro_rules! any {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__any; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::any;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1251,7 +1235,7 @@ macro_rules! __any {
     ($($ident:ident: $fut:expr;)+) => {
         {
             $(let mut $ident = $fut;)+
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
                 $(
@@ -1270,7 +1254,7 @@ macro_rules! __any {
 }
 
 #[doc(hidden)]
-pub use zero_ui_proc_macros::task_any_all as __proc_any_all;
+pub use zero_ui_task_proc_macros::task_any_all as __proc_any_all;
 
 /// <span data-del-macro-root></span> A future that waits for the first future that is ready with an `Ok(T)` result.
 ///
@@ -1371,10 +1355,8 @@ macro_rules! any_ok {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any_ok; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__any_ok; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::any_ok;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1382,7 +1364,7 @@ macro_rules! __any_ok {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1516,10 +1498,8 @@ macro_rules! any_some {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__any_some; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__any_some; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::any_some;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1527,7 +1507,7 @@ macro_rules! __any_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = Some($fut);)+
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1674,10 +1654,8 @@ macro_rules! all_ok {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all_ok; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__all_ok; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::all_ok;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1686,7 +1664,7 @@ macro_rules! __all_ok {
         {
             $(let mut $ident = (Some($fut), None);)+
 
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1834,10 +1812,8 @@ macro_rules! all_some {
             fut7: $fut7;
         }
     };
-    ($($fut:expr),+ $(,)?) => { $crate::task::__proc_any_all!{ $crate::__all_some; $($fut),+ } }
+    ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__all_some; $($fut),+ } }
 }
-#[doc(inline)]
-pub use crate::all_some;
 
 #[doc(hidden)]
 #[macro_export]
@@ -1845,7 +1821,7 @@ macro_rules! __all_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::future_fn(move |cx| {
+            $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -2028,7 +2004,7 @@ pub mod tests {
     use rayon::prelude::*;
 
     use super::*;
-    use crate::units::TimeUnits;
+    use zero_ui_units::TimeUnits;
 
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output

@@ -24,6 +24,7 @@ use crate::{
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::ReuseRange,
+    task::ui::UiTask,
     text::Txt,
     timer::TIMERS_SV,
     var::{AnyVar, AnyVarSubscribe, Var, VarHandle, VarHandles, VarSubscribe, VarValue, VARS},
@@ -2353,5 +2354,28 @@ pub(crate) fn into_harf_direction(d: LayoutDirection) -> harfbuzz_rs::Direction 
     match d {
         LayoutDirection::LTR => harfbuzz_rs::Direction::Ltr,
         LayoutDirection::RTL => harfbuzz_rs::Direction::Rtl,
+    }
+}
+
+/// Integrate [`UiTask`] with widget updates.
+pub trait UiTaskWidget<R> {
+    /// Create a UI bound future executor.
+    ///
+    /// The `task` is inert and must be polled using [`update`] to start, and it must be polled every
+    /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
+    ///
+    /// [`update`]: UiTask::update
+    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
+    fn new<F>(target: Option<WidgetId>, task: F) -> Self
+    where
+        F: std::future::Future<Output = R> + Send + 'static;
+}
+impl<R> UiTaskWidget<R> for UiTask<R> {
+    fn new<F>(target: Option<WidgetId>, task: F) -> Self
+    where
+        F: std::future::Future<Output = R> + Send + 'static,
+    {
+        UiTask::new_raw(UPDATES.waker(target), task)
     }
 }

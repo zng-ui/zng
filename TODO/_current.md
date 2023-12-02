@@ -31,9 +31,11 @@ TextInput! {
 
 # Split Core
 
-- Tasks.
-    - Mostly decoupled, need app_context.
-    - UiTask needs WidgetId, can be decoupled. 
+* Color.
+    - Filter needs layout::Length.
+    - Needs impl_from_and_into_var.
+    - Into view_api::RenderColor.
+        - Can be decoupled.
 
 * App API.
     - Needs UpdateDeliveryList, that needs WidgetInfo.
@@ -53,12 +55,6 @@ TextInput! {
     - Provides App, HeadlessApp.
     - Does not provide App::default()?
         - Could be on a feature flag.
-
-* Color.
-    - Filter needs layout::Length.
-    - Needs impl_from_and_into_var.
-    - Into view_api::RenderColor.
-        - Can be decoupled.
 
 * Config.
     - Needs app API.

@@ -35,6 +35,9 @@ pub use paste::paste;
 #[doc(inline)]
 pub use zero_ui_layout::units;
 
+#[doc(inline)]
+pub use zero_ui_task as task;
+
 #[macro_use]
 pub mod handler;
 
@@ -57,7 +60,6 @@ pub mod l10n;
 pub mod mouse;
 pub mod pointer_capture;
 pub mod render;
-pub mod task;
 pub mod text;
 pub mod timer;
 pub mod var;

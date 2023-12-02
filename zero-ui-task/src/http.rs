@@ -1,4 +1,6 @@
-#![cfg(http)]
+#![cfg(feature = "http")]
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
 
 //! HTTP client.
 //!
@@ -20,6 +22,7 @@
 //! [`isahc`]: https://docs.rs/isahc
 
 mod cache;
+mod util;
 
 pub use cache::*;
 
@@ -41,8 +44,8 @@ use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
-use crate::text::Txt;
-use crate::units::*;
+use zero_ui_txt::Txt;
+use zero_ui_units::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///

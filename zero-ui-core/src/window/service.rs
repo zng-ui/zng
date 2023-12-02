@@ -18,7 +18,7 @@ use crate::app::{
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::color::COLOR_SCHEME_VAR;
 use crate::context::{RenderUpdates, UpdateOp, WidgetUpdates, WindowCtx};
-use crate::context::{UPDATES, WINDOW};
+use crate::context::{UiTaskWidget, UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::ImageMaskMode;

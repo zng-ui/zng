@@ -3,7 +3,7 @@ use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
 };
 
-use crate::context::LocalContext;
+use zero_ui_app_context::LocalContext;
 
 /// Extends [`ParallelIterator`] with thread context.
 pub trait ParallelIteratorExt: ParallelIterator {
@@ -13,8 +13,8 @@ pub trait ParallelIteratorExt: ParallelIterator {
     /// Without this adapter all closures in the iterator chain that use [`context_local!`] and
     /// [`app_local!`] will probably not work correctly.
     ///
-    /// [`context_local!`]: crate::context::context_local
-    /// [`app_local!`]: crate::context::app_local
+    /// [`context_local!`]: zero_ui_app_context::context_local
+    /// [`app_local!`]: zero_ui_app_context::app_local
     fn with_ctx(self) -> ParallelIteratorWithCtx<Self> {
         ParallelIteratorWithCtx {
             base: self,
@@ -230,7 +230,7 @@ mod tests {
     use super::*;
     use rayon::prelude::*;
 
-    use crate::{app::App, context::*};
+    use zero_ui_app_context::*;
 
     context_local! {
         static VALUE: u32 = 0u32;
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn map_and_sum_with_context() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn for_each_with_context() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn chain_for_each_with_context() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn chain_for_each_with_context_inverted() {
-        let _app = App::minimal().run_headless(false);
+        let _app = LocalContext::start_app(AppId::new_unique());
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 

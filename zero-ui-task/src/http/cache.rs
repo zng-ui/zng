@@ -4,9 +4,9 @@ use std::{
 };
 
 use super::{Body, Error};
-use crate::units::*;
 use async_trait::async_trait;
 use serde::*;
+use zero_ui_units::*;
 
 use http_cache_semantics as hcs;
 
@@ -139,7 +139,7 @@ impl From<hcs::AfterResponse> for AfterResponse {
 ///
 /// Cache implementers must store a [`CachePolicy`] and [`Body`] for a given [`CacheKey`].
 ///
-/// [`Client`]: crate::task::http::Client
+/// [`Client`]: crate::http::Client
 #[async_trait]
 pub trait CacheDb: Send + Sync + 'static {
     /// Dynamic clone.
@@ -181,9 +181,9 @@ pub trait CacheDb: Send + Sync + 'static {
 ///
 /// See [`ClientBuilder::cache_mode`] for more information.
 ///
-/// [`Uri`]: crate::task::http::Uri
+/// [`Uri`]: crate::http::Uri
 ///
-/// [`ClientBuilder::cache_mode`]: crate::task::http::ClientBuilder::cache_mode
+/// [`ClientBuilder::cache_mode`]: crate::http::ClientBuilder::cache_mode
 #[derive(Debug, Clone, Default)]
 pub enum CacheMode {
     /// Always requests the server, never caches the response.
@@ -260,16 +260,14 @@ mod file_cache {
         path::{Path, PathBuf},
     };
 
+    use crate::http::util::{lock_exclusive, lock_shared, unlock_ok};
     use crate::{
-        crate_util::{lock_exclusive, lock_shared, unlock_ok},
-        task::{
-            self,
-            io::{McBufErrorExt, McBufReader},
-        },
-        units::TimeUnits,
+        self as task,
+        io::{McBufErrorExt, McBufReader},
     };
     use async_trait::async_trait;
     use fs4::FileExt;
+    use zero_ui_units::TimeUnits;
 
     use super::*;
 
@@ -289,8 +287,8 @@ mod file_cache {
     /// The cache does not pull data, only data read by the returned body is written to the cache, dropping the body without reading
     /// to end cancels the cache entry.
     ///
-    /// [`Client`]: crate::task::http::Client
-    /// [`set`]: crate::task::http::CacheDb::set
+    /// [`Client`]: crate::http::Client
+    /// [`set`]: crate::http::CacheDb::set
     #[derive(Clone)]
     pub struct FileSystemCache {
         dir: PathBuf,
@@ -653,13 +651,10 @@ mod tests {
     use zero_ui_clone_move::async_clmv;
 
     use crate::{
-        crate_util::{test_log, TestTempDir},
-        task::{
-            self,
-            http::{header::*, *},
-        },
-        units::*,
+        self as task,
+        http::{header::*, util::*, *},
     };
+    use zero_ui_units::*;
 
     #[test]
     pub fn file_cache_miss() {

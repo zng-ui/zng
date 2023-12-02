@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 use std::{mem, thread};
 
 use crate::app::HeadlessApp;
-use crate::context::{UPDATES, WIDGET};
+use crate::context::{UiTaskWidget, UPDATES, WIDGET};
 use crate::crate_util::{Handle, WeakHandle};
 use crate::task;
 use crate::task::ui::UiTask;

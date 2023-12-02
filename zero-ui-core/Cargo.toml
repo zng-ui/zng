@@ -16,7 +16,7 @@ ipc = ["zero-ui-view-api/ipc"]
 # Enables http tasks.
 #
 # Enabled by default.
-http = ["isahc", "http-cache-semantics", "http-serde"]
+http = ["zero-ui-task/http"]
 
 # Signal the build script to enable the `dyn_*`, `inspector` and `trace_widget` features for debug builds.
 #
@@ -97,6 +97,7 @@ zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-var = { path = "../zero-ui-var", default-features = false }
 zero-ui-layout = { path = "../zero-ui-layout" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-task = { path = "../zero-ui-task" }
 
 # text
 font-kit = "0.12"
