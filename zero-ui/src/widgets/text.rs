@@ -177,7 +177,10 @@ impl Text {
             let child = nodes::render_selection(child);
             wgt.set_child(child.boxed());
 
-            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", |child| {
+                let child = nodes::selection_toolbar_node(child);
+                nodes::layout_text(child)
+            });
 
             let text = if wgt.property(property_id!(Self::txt_parse)).is_some() {
                 wgt.capture_var(property_id!(Self::txt))
