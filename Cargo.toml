@@ -13,6 +13,7 @@ members = [
     "zero-ui-handle",
     "zero-ui-txt",
     "zero-ui-units",
+    "zero-ui-state_map",
     "zero-ui-app_context",
     "zero-ui-var",
     "zero-ui-layout",

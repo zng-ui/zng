@@ -31,15 +31,87 @@ TextInput! {
 
 # Split Core
 
-* Each app extension.
-    - They are mostly contained.
-    - Needs `AppExtension` and update types.
-    - We need a `zero-ui-app-api` and zero-ui-app pair?
-    - They need events, like ConfigManager needs LOW_MEMORY_EVENT.
+- Tasks.
+    - Mostly decoupled, need app_context.
+    - UiTask needs WidgetId, can be decoupled. 
 
-* Length types in layout crate.
-    - Needs LAYOUT context? Otherwise can't implement Layout2d and Layout1d.
-    - Needs var too, for impl_into_var.
+* App API.
+    - Needs UpdateDeliveryList, that needs WidgetInfo.
+        - WidgetInfo only to iter over path (without alloc).
+        - Can be decoupled by taking a trusted Iterator and WindowId.
+    - Needs AnyEventArgs.
+        - Must include events?
+        - Could be just this trait.
+    - Implementers of AppExtension will very likely import all the other stuff anyway.
+    - App API is core without App::default?
+        - Can we make it more similar to view-api?
+        - It must include AppExtension and all it pulls, but not include view-api.
+            - But must include raw events that view-api is mapped too.
+            - Extensions need view-api as much as they need raw events.
+* App.
+    - Implements view controller and raw events.
+    - Provides App, HeadlessApp.
+    - Does not provide App::default()?
+        - Could be on a feature flag.
+
+* Color.
+    - Filter needs layout::Length.
+    - Needs impl_from_and_into_var.
+    - Into view_api::RenderColor.
+        - Can be decoupled.
+
+* Config.
+    - Needs app API.
+    - Needs var.
+
+* L10n.
+    - Needs app API.
+    - Needs var.
+
+* Text Shaping.
+    - Mostly decoupled, needs l10n's Lang.
+
+* Focus.
+    - Needs app API.
+    - Needs WINDOWS.
+
+- File-System Watcher
+    - Needs app API.
+    - Needs timers.
+
+- Gesture
+    - Needs app API.
+    - Needs WINDOWS, keyboard and mouse.
+
+- Image
+    - Needs app API.
+    - Needs ViewImage.
+
+- Keyboard, mouse and touch.
+    - Needs app API.
+    - Needs FOCUS.
+    - Needs TIMERS.
+
+- Pointer Capture.
+    - Needs mouse and touch.
+    - Needs WINDOWS.
+
+- TIMERS.
+    - Could decouple like VARS maybe.
+    - UPDATES controls it, and is called by it.
+
+- Undo.
+    - Needs app API.
+
+- WINDOWS.
+    - Needs app API.
+    - Needs ViewWindow.
+    - Needs UiNode.
+
+- UiNode, widget_base, widget_info, widget_builder.
+    - Needs app API for update types?
+    - Needs to implement Var::subscribe.
+
 
 ## Split Main
 
@@ -52,6 +124,7 @@ TextInput! {
 * Rename crates (replace zero-ui with something that has no hyphen). 
     - Z meaning depth opens some possibilities, unfortunately "zui" is already taken.
     - `znest`: Z-dimension (depth) + nest, Z-Nest, US pronunciation "zee nest"? 
+    - `zerui`.
 
 * Review all docs.
 * Review prebuild distribution.

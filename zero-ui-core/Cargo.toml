@@ -96,6 +96,7 @@ zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-var = { path = "../zero-ui-var", default-features = false }
 zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-state_map = { path = "../zero-ui-state_map" }
 
 # text
 font-kit = "0.12"
