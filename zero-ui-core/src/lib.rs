@@ -38,6 +38,9 @@ pub use zero_ui_layout::units;
 #[doc(inline)]
 pub use zero_ui_task as task;
 
+#[doc(inline)]
+pub use zero_ui_color as color;
+
 #[macro_use]
 pub mod handler;
 
@@ -45,14 +48,12 @@ pub mod access;
 pub mod app;
 pub mod border;
 pub mod clipboard;
-pub mod color;
 pub mod config;
 pub mod context;
 pub mod event;
 pub mod focus;
 pub mod fs_watcher;
 pub mod gesture;
-pub mod gradient;
 pub mod image;
 pub mod inspector;
 pub mod keyboard;

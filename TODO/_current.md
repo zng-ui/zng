@@ -31,12 +31,6 @@ TextInput! {
 
 # Split Core
 
-* Color.
-    - Filter needs layout::Length.
-    - Needs impl_from_and_into_var.
-    - Into view_api::RenderColor.
-        - Can be decoupled.
-
 * App API.
     - Needs UpdateDeliveryList, that needs WidgetInfo.
         - WidgetInfo only to iter over path (without alloc).

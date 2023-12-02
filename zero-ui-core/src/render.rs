@@ -3,10 +3,14 @@
 use crate::{
     app::view_process::{ApiExtensionId, ViewRenderer},
     border::BorderSides,
-    color::{self, filters::RenderFilter, RenderColor, RenderMixBlendMode},
+    color::{
+        self,
+        filters::RenderFilter,
+        gradient::{RenderExtendMode, RenderGradientStop},
+        RenderColor, RenderMixBlendMode,
+    },
     context::{RenderUpdates, UpdateFlags, WIDGET, WINDOW},
     crate_util::{unique_id_32, ParallelSegmentOffsets},
-    gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,
     var::{self, impl_from_and_into_var, Var},

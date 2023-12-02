@@ -5,8 +5,8 @@ use crate::prelude::new_widget::*;
 
 use crate::core::{
     access::ACCESS_SCROLL_EVENT,
+    color::gradient::{ExtendMode, RenderGradientStop},
     focus::FOCUS_CHANGED_EVENT,
-    gradient::{ExtendMode, RenderGradientStop},
     mouse::{MouseScrollDelta, MOUSE_WHEEL_EVENT},
     touch::{TouchPhase, TOUCH_TRANSFORM_EVENT},
 };

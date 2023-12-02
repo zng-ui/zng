@@ -1,0 +1,19 @@
+[package]
+name = "zero-ui-color"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-color-proc-macros = { path = "../zero-ui-color-proc-macros" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+
+paste = "1"
+serde = "1"
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "zero-ui-color/doc/html-in-header.html" ]

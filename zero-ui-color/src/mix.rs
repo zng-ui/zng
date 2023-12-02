@@ -1,11 +1,9 @@
-use zero_ui_view_api::webrender_api;
-
 use super::{Hsla, PreMulRgba, Rgba};
 
 use paste::*;
 
 /// Webrender [`MixBlendMode`].
-pub type RenderMixBlendMode = webrender_api::MixBlendMode;
+pub type RenderMixBlendMode = zero_ui_view_api::webrender_api::MixBlendMode;
 
 macro_rules! impl_mix {
     (
@@ -41,6 +39,7 @@ macro_rules! impl_mix {
                 }
             }
         }
+
 
         impl PreMulRgba {
             /// Mix `background` over `self` using the `mode`.

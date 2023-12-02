@@ -98,6 +98,7 @@ zero-ui-var = { path = "../zero-ui-var", default-features = false }
 zero-ui-layout = { path = "../zero-ui-layout" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
 zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-color = { path = "../zero-ui-color" }
 
 # text
 font-kit = "0.12"
@@ -158,4 +159,4 @@ intl-memoizer = "0.5"
 pretty_assertions = "1"
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]
+rustdoc-args = [ "--html-in-header", "zero-ui-core/doc/html-in-header.html" ]

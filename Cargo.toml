@@ -9,6 +9,7 @@ members = [
     "zero-ui-proc-macros",
     "zero-ui-var-proc-macros",
     "zero-ui-task-proc-macros",
+    "zero-ui-color-proc-macros",
 
     # types:
     "zero-ui-handle",
@@ -19,6 +20,7 @@ members = [
     "zero-ui-var",
     "zero-ui-layout",
     "zero-ui-task",
+    "zero-ui-color",
 
     # view:
     "zero-ui-view-api",

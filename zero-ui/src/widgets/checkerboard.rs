@@ -1,7 +1,7 @@
 //! Checkerboard widget, properties and nodes..
 
+use crate::core::color::gradient::RenderGradientStop;
 use crate::prelude::new_widget::*;
-use zero_ui_core::gradient::RenderGradientStop;
 
 /// A checkerboard visual.
 ///
@@ -65,7 +65,7 @@ pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNod
 ///
 /// The node is configured by the contextual variables defined in the widget.
 pub fn node() -> impl UiNode {
-    use crate::core::gradient::RenderExtendMode;
+    use crate::core::color::gradient::RenderExtendMode;
 
     let mut render_size = PxSize::zero();
     let mut tile_size = PxSize::zero();

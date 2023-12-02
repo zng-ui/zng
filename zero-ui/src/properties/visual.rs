@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::core::gradient::{GradientRadius, GradientStops, LinearGradientAxis};
+use crate::core::color::gradient::{GradientRadius, GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{conic_gradient, flood, linear_gradient, radial_gradient};
 
@@ -120,7 +120,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// [`background`]: fn@background
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
-    crate::core::gradient::stops![c, c]
+    crate::core::color::gradient::stops![c, c]
 }))]
 pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     background(child, linear_gradient(axis, stops))
@@ -151,7 +151,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 100.pct(), {
     let c = colors::BLACK.transparent();
-    crate::core::gradient::stops![c, c]
+    crate::core::color::gradient::stops![c, c]
 }))]
 pub fn background_radial(
     child: impl UiNode,
@@ -187,7 +187,7 @@ pub fn background_radial(
 /// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 0.deg(), {
     let c = colors::BLACK.transparent();
-    crate::core::gradient::stops![c, c]
+    crate::core::color::gradient::stops![c, c]
 }))]
 pub fn background_conic(
     child: impl UiNode,
@@ -450,10 +450,10 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// The example adds a *shadow* gradient to a 10px strip in the top part of the container content.
 ///
 /// [`foreground`]: fn@foreground
-/// [`Clamp`]: crate::core::gradient::ExtendMode::Clamp
+/// [`Clamp`]: crate::core::color::gradient::ExtendMode::Clamp
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
-    crate::core::gradient::stops![c, c]
+    crate::core::color::gradient::stops![c, c]
 }))]
 pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     foreground(child, linear_gradient(axis, stops))
@@ -651,4 +651,10 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
         }
         _ => {}
     })
+}
+
+/// Defines the preferred color scheme in the widget and descendants.
+#[property(CONTEXT, default(COLOR_SCHEME_VAR))]
+pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl UiNode {
+    with_context_var(child, COLOR_SCHEME_VAR, pref)
 }

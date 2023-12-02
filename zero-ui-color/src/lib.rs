@@ -1,23 +1,28 @@
-//! Color types, functions and macros, [`Rgba`], [`filters`], [`hex!`](crate::color::hex) and more.
+//! Color and gradient types, functions and macros, [`Rgba`], [`filters`], [`hex!`] and more.
 
-use crate::{
-    context::context_local,
-    units::*,
-    var::{
-        animation::{easing::EasingStep, Transition, Transitionable},
-        helpers::with_context_var,
-        *,
-    },
-    widget_instance::UiNode,
-};
 use std::{fmt, ops};
+use zero_ui_app_context::context_local;
 
-pub use crate::app::view_process::ColorScheme;
+use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
+use zero_ui_var::{
+    animation::{Transition, Transitionable},
+    context_var,
+    easing::EasingStep,
+    impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
+};
+use zero_ui_view_api::webrender_api;
+
+pub use zero_ui_view_api::config::ColorScheme;
+
+#[doc(hidden)]
+pub use zero_ui_color_proc_macros::hex_color;
 
 pub mod colors;
 pub mod filters;
-mod mix;
+pub mod gradient;
 pub mod web_colors;
+
+mod mix;
 pub use mix::*;
 
 ///<span data-del-macro-root></span> Hexadecimal color literal.
@@ -35,7 +40,7 @@ pub use mix::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::color::hex;
+/// # use zero_ui_color::hex;
 /// let red = hex!(#FF0000);
 /// let green = hex!(#00FF00);
 /// let blue = hex!(#0000FF);
@@ -49,22 +54,17 @@ pub use mix::*;
 #[macro_export]
 macro_rules! hex {
     ($($tt:tt)+) => {
-        $crate::color::hex_color!{$crate, $($tt)*}
+        $crate::hex_color!{$crate, $($tt)*}
     };
 }
-#[doc(inline)]
-pub use crate::hex;
-
-#[doc(hidden)]
-pub use zero_ui_proc_macros::hex_color;
-
-/// Webrender RGBA.
-pub type RenderColor = crate::render::webrender_api::ColorF;
 
 /// Minimal difference between values in around the 0.0..=1.0 scale.
 const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
 const EPSILON_100: f32 = 0.001;
+
+/// Webrender RGBA.
+pub type RenderColor = webrender_api::ColorF;
 
 /// RGB + alpha.
 ///
@@ -182,8 +182,8 @@ impl Rgba {
     /// Add `10%` of the current lightness to the `DARK_RED` color:
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// web_colors::DARK_RED.lighten(10.pct())
     /// # ;
     /// ```
@@ -200,8 +200,8 @@ impl Rgba {
     /// Removes `10%` of the current lightness from the `DARK_RED` color:
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// web_colors::DARK_RED.darken(10.pct())
     /// # ;
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
@@ -217,8 +217,8 @@ impl Rgba {
     /// Removes `10%` of the current saturation from the `RED` color:
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// colors::RED.desaturate(10.pct())
     /// # ;
     pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
@@ -435,8 +435,8 @@ impl Hsla {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// web_colors::DARK_RED.to_hsla().lighten(10.pct())
     /// # ;
     /// ```
@@ -455,8 +455,8 @@ impl Hsla {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// colors::RED.to_hsla().darken(10.pct())
     /// # ;
     /// ```
@@ -477,8 +477,8 @@ impl Hsla {
     /// Removes `10%` of the current saturation from the `RED` color:
     ///
     /// ```
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::units::*;
+    /// # use zero_ui_color::*;
+    /// # use zero_ui_layout::units::*;
     /// colors::RED.to_hsla().desaturate(10.pct())
     /// # ;
     pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
@@ -995,7 +995,7 @@ fn clamp_normal(i: f32) -> f32 {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::rgb;
+/// use zero_ui_color::rgb;
 ///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
@@ -1016,7 +1016,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::rgba;
+/// use zero_ui_color::rgba;
 ///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
@@ -1035,7 +1035,7 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 ///
 /// # Arguments
 ///
-/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
 /// range or a [percentage](FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
@@ -1043,12 +1043,14 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::hsl;
-/// use zero_ui_core::units::*;
+/// use zero_ui_color::hsl;
+/// use zero_ui_layout::units::*;
 ///
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
 /// ```
+///
+/// [angle unit]: zero_ui_layout::units::AngleUnits
 pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightness: N) -> Hsla {
     hsla(hue, saturation, lightness, 1.0)
 }
@@ -1057,7 +1059,7 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 ///
 /// # Arguments
 ///
-/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
 /// range or a [percentage](FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
@@ -1065,13 +1067,15 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::hsla;
-/// use zero_ui_core::units::*;
+/// use zero_ui_color::hsla;
+/// use zero_ui_layout::units::*;
 ///
 /// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
 /// ```
+///
+/// [angle unit]: zero_ui_layout::units::AngleUnits
 pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
     Hsla {
         hue: hue.into().0,
@@ -1085,7 +1089,7 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 ///
 /// # Arguments
 ///
-/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
 /// range or a [percentage](FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
@@ -1093,12 +1097,14 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::hsv;
-/// use zero_ui_core::units::*;
+/// use zero_ui_color::hsv;
+/// use zero_ui_layout::units::*;
 ///
 /// let red = hsv(0.deg(), 100.pct(), 50.pct());
 /// let green = hsv(115.deg(), 1.0, 0.5);
 /// ```
+///
+/// [angle unit]: zero_ui_layout::units::AngleUnits
 pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
@@ -1107,7 +1113,7 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 ///
 /// # Arguments
 ///
-/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
 /// range or a [percentage](FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
@@ -1115,13 +1121,15 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::hsva;
-/// use zero_ui_core::units::*;
+/// use zero_ui_color::hsva;
+/// use zero_ui_layout::units::*;
 ///
 /// let red = hsva(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsva(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
 /// ```
+///
+/// [angle unit]: zero_ui_layout::units::AngleUnits
 pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
@@ -1186,12 +1194,6 @@ context_var! {
     ///
     /// [`color_scheme`]: fn@color_scheme
     pub static COLOR_SCHEME_VAR: ColorScheme = ColorScheme::default();
-}
-
-/// Defines the preferred color scheme in the widget and descendants.
-#[crate::property(CONTEXT, default(COLOR_SCHEME_VAR))]
-pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl UiNode {
-    with_context_var(child, COLOR_SCHEME_VAR, pref)
 }
 
 /// Create a variable that maps to `dark` or `light` depending on the contextual [`COLOR_SCHEME_VAR`].
@@ -1292,7 +1294,7 @@ pub fn with_lerp_space<R>(space: LerpSpace, f: impl FnOnce() -> R) -> R {
 ///
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
-/// [`Var::easing_with`]: crate::var::Var::easing_with
+/// [`Var::easing_with`]: zero_ui_var::Var::easing_with
 pub fn rgba_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     with_lerp_space(LerpSpace::Rgba, || t.sample(step))
 }
@@ -1308,7 +1310,7 @@ pub fn hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T
 ///
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
-/// [`Var::easing_with`]: crate::var::Var::easing_with
+/// [`Var::easing_with`]: zero_ui_var::Var::easing_with
 pub fn linear_hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     with_lerp_space(LerpSpace::LinearHsla, || t.sample(step))
 }
@@ -1320,6 +1322,7 @@ context_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use zero_ui_layout::units::AngleUnits;
 
     #[test]
     fn hsl_red() {

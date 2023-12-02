@@ -34,28 +34,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         6 => {
             let rgb = pair_to_f32(&hex_only);
             quote! {
-                #crate_::color::Rgba::new(#rgb 1.0)
+                #crate_::Rgba::new(#rgb 1.0)
             }
         }
         // RRGGBBAA
         8 => {
             let rgba = pair_to_f32(&hex_only);
             quote! {
-                #crate_::color::Rgba::new(#rgba)
+                #crate_::Rgba::new(#rgba)
             }
         }
         // RGB
         3 => {
             let rgb = single_to_f32(&hex_only);
             quote! {
-                #crate_::color::Rgba::new(#rgb 1.0)
+                #crate_::Rgba::new(#rgb 1.0)
             }
         }
         // RGBA
         4 => {
             let rgba = single_to_f32(&hex_only);
             quote! {
-                #crate_::color::Rgba::new(#rgba)
+                #crate_::Rgba::new(#rgba)
             }
         }
         // error

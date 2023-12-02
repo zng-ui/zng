@@ -14,8 +14,6 @@ use proc_macro::TokenStream;
 #[macro_use]
 mod util;
 
-mod hex_color;
-
 mod property;
 mod ui_node;
 mod wgt_property_attrs;
@@ -55,12 +53,6 @@ pub fn property_meta(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn property_impl(input: TokenStream) -> TokenStream {
     property::expand_impl(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
-pub fn hex_color(input: TokenStream) -> TokenStream {
-    hex_color::expand(input)
 }
 
 /// Expands a struct to a widget and macro.

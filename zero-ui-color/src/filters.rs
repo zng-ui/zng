@@ -2,31 +2,26 @@
 
 use std::fmt;
 
-use zero_ui_view_api::units::PxToWr;
-
-use crate::{
-    color::{RenderColor, Rgba},
-    render::{webrender_api as wr, FilterOp, FrameValue},
-    units::*,
-    var::{
-        animation::{easing::EasingStep, Transitionable},
-        impl_from_and_into_var,
-    },
+use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, LayoutMask, Length, Point};
+use zero_ui_var::{animation::Transitionable, easing::EasingStep, impl_from_and_into_var};
+use zero_ui_view_api::{
+    display_list::{FilterOp, FrameValue},
+    units::PxToWr,
+    webrender_api::Shadow,
 };
+
+use crate::{RenderColor, Rgba};
 
 /// A color filter or combination of filters.
 ///
 /// You can start a filter from one of the standalone filter functions, and then combine more filters using
 /// the builder call style.
 ///
-/// The standalone filter functions are all in the [`color`](crate::color) module and have the same name
-/// as methods of this type.
-///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::filters;
-/// use zero_ui_core::units::*;
+/// use zero_ui_color::filters;
+/// use zero_ui_layout::units::*;
 ///
 /// let filter = filters::opacity(50.pct()).blur(3);
 /// ```
@@ -50,7 +45,7 @@ impl Filter {
     ///
     /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
     ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
     pub fn layout(&self) -> RenderFilter {
         self.filters
             .iter()
@@ -64,7 +59,7 @@ impl Filter {
                     offset,
                     blur_radius,
                     color,
-                } => FilterOp::DropShadow(wr::Shadow {
+                } => FilterOp::DropShadow(Shadow {
                     offset: offset.layout().to_wr().to_vector(),
                     color: RenderColor::from(*color),
                     blur_radius: blur_radius.layout_f32_x(),
@@ -154,7 +149,7 @@ impl Filter {
 
     /// Add a filter that adds the `angle` to each color [`hue`] value.
     ///
-    /// [`hue`]: crate::color::Hsla::hue
+    /// [`hue`]: crate::Hsla::hue
     pub fn hue_rotate<A: Into<AngleDegree>>(self, angle: A) -> Self {
         self.op(FilterOp::HueRotate(angle.into().0))
     }
@@ -285,7 +280,7 @@ fn lerp_wr_color(s: RenderColor, to: &RenderColor, step: EasingStep) -> RenderCo
     Rgba::from(s).lerp(Rgba::from(*to), step).into()
 }
 
-fn lerp_wr_shadow(mut s: wr::Shadow, to: &wr::Shadow, step: EasingStep) -> wr::Shadow {
+fn lerp_wr_shadow(mut s: Shadow, to: &Shadow, step: EasingStep) -> Shadow {
     s.offset = Transitionable::lerp(s.offset, &to.offset, step);
     s.color = lerp_wr_color(s.color, &to.color, step);
     s.blur_radius = s.blur_radius.lerp(&to.blur_radius, step);

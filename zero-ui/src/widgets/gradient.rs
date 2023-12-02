@@ -1,12 +1,14 @@
 //! Gradient nodes and builders.
 
-use crate::core::gradient::*;
+use crate::core::color::gradient::*;
 use crate::crate_util::tile_leftover;
 use crate::prelude::new_widget::*;
 
 /// Gradient builder start.
 ///
 /// Use [`gradient`] to start building.
+///
+/// [`gradient`]: fn@gradient
 pub struct GradientBuilder<S> {
     stops: S,
 }
@@ -117,6 +119,8 @@ where
 /// gradient.
 ///
 /// Use [`gradient`] or [`linear_gradient`] to build.
+///
+/// [`gradient`]: fn@gradient
 pub struct LinearGradient<S, A, E> {
     stops: S,
     axis: A,
@@ -188,6 +192,8 @@ where
 ///
 ///
 /// Use [`gradient`], [`linear_gradient`] to build.
+///
+/// [`gradient`]: fn@gradient
 pub struct TiledLinearGradient<S, A, E, T, TS> {
     stops: S,
     axis: A,
@@ -236,6 +242,8 @@ where
 /// gradient.
 ///
 /// Use [`gradient`] or [`radial_gradient`] to build.
+///  
+/// [`gradient`]: fn@gradient
 pub struct RadialGradient<S, C, R, E> {
     stops: S,
     center: C,
@@ -307,6 +315,8 @@ where
 ///
 ///
 /// Use [`gradient`], [`radial_gradient`] to build.
+///  
+/// [`gradient`]: fn@gradient
 pub struct TiledRadialGradient<S, C, R, E, T, TS> {
     stops: S,
     center: C,
@@ -358,6 +368,8 @@ where
 /// gradient.
 ///
 /// Use [`gradient`] or [`conic_gradient`] to build.
+///  
+/// [`gradient`]: fn@gradient
 pub struct ConicGradient<S, C, A, E> {
     stops: S,
     center: C,
@@ -428,6 +440,8 @@ where
 /// Can be used as a node that fills the available space with the gradient tiles, or can continue building the gradient.
 ///
 /// Use [`gradient`], [`conic_gradient`] to build.
+///  
+/// [`gradient`]: fn@gradient
 pub struct TiledConicGradient<S, C, A, E, T, TS> {
     stops: S,
     center: C,

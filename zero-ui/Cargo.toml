@@ -108,4 +108,4 @@ bytemuck = { version = "1", features = ["derive"] }
 pretty_assertions = "1"
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]
+rustdoc-args = [ "--html-in-header", "zero-ui-core/doc/html-in-header.html" ]
