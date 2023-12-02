@@ -8,7 +8,8 @@
 //! # Examples
 //!
 //! ```no_run
-//! use zero_ui_core::{task::{self, channel}, units::*};
+//! use zero_ui_task::{self as task, channel};
+//! # use zero_ui_units::*;
 //!
 //! let (sender, receiver) = channel::bounded(5);
 //!
@@ -257,7 +258,8 @@ impl<T> Receiver<T> {
 /// rapidly consumes all messages in the buffer and new messages as they are send.
 ///
 /// ```no_run
-/// use zero_ui_core::{task::{self, channel}, units::*};
+/// use zero_ui_task::{self as task, channel};
+/// # use zero_ui_units::*;
 ///
 /// let (sender, receiver) = channel::unbounded();
 ///
@@ -306,7 +308,8 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 /// rapidly consumes the 2 messages in the buffer and unblocks the sender to send more messages.
 ///
 /// ```no_run
-/// use zero_ui_core::{task::{self, channel}, units::*};
+/// use zero_ui_task::{self as task, channel};
+/// # use zero_ui_units::*;
 ///
 /// let (sender, receiver) = channel::bounded(2);
 ///
@@ -352,8 +355,9 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// receiver takes 2 seconds to receive, so the sender takes 2 seconds to send.
 ///
 /// ```no_run
-/// use zero_ui_core::{task::{self, channel}, units::*};
-/// use std::time::*;
+/// use zero_ui_task::{self as task, channel};
+/// # use zero_ui_units::*;
+/// # use std::time::*;
 ///
 /// let (sender, receiver) = channel::rendezvous();
 ///

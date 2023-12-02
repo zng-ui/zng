@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-# 
+# Enables parking_lot deadlock detection.
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Enables http tasks.
@@ -25,6 +25,9 @@ http = [
     "fs4",
     "remove_dir_all",
 ]
+
+# Enabled by doc tests.
+test_util = []
 
 [dependencies]
 zero-ui-task-proc-macros = { path = "../zero-ui-task-proc-macros" }

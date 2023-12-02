@@ -12,7 +12,7 @@
 //! Get some text:
 //!
 //! ```
-//! # use zero_ui_core::task;
+//! # use zero_ui_task as task;
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
 //! println!("{text}!");
@@ -152,7 +152,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let request = http::Request::builder().method(http::Method::PUT)?.uri("https://httpbin.org/put")?.build();
@@ -173,7 +173,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let get = http::Request::get("https://httpbin.org/get")?.build();
@@ -188,7 +188,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let put = http::Request::put("https://httpbin.org/put")?.header("accept", "application/json")?.build();
@@ -203,7 +203,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let post = http::Request::post("https://httpbin.org/post")?.header("accept", "application/json")?.build();
@@ -218,7 +218,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let delete = http::Request::delete("https://httpbin.org/delete")?.header("accept", "application/json")?.build();
@@ -233,7 +233,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let patch = http::Request::patch("https://httpbin.org/patch")?.header("accept", "application/json")?.build();
@@ -248,7 +248,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_core::task::http;
+    /// use zero_ui_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let head = http::Request::head("https://httpbin.org")?.build();
@@ -1473,7 +1473,7 @@ impl From<isahc::HttpClient> for Client {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::task::http::*;
+/// use zero_ui_task::http::*;
 ///
 /// let client = Client::builder().metrics(true).build();
 /// ```

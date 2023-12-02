@@ -63,7 +63,7 @@
 //! so we recommend blob importing [`io`] to start implementing async IO.
 //!
 //! ```
-//! use zero_ui_core::task::{io::*, fs, rayon::prelude::*};
+//! use zero_ui_task::{io::*, fs, rayon::prelude::*};
 //!
 //! async fn read_numbers() -> Vec<usize> {
 //!     let mut file = fs::File::open("numbers.txt").await.unwrap();
@@ -198,7 +198,8 @@ pub use rayon_ctx::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::{ResponseVar, response_var}};
+/// # use zero_ui_task::{self as task, *, rayon::iter::*};
+/// # use zero_ui_var::*;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
 /// fn on_event(&mut self) {
@@ -463,7 +464,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{task::{self, rayon::iter::*}};
+/// # use zero_ui_task::{self as task, rayon::iter::*};
 /// # struct SomeStruct { sum: usize }
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
@@ -593,7 +594,8 @@ where
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::ResponseVar};
+/// # use zero_ui_task::{self as task, rayon::iter::*};
+/// # use zero_ui_var::*;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
@@ -684,7 +686,7 @@ where
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::task;
+/// # use zero_ui_task as task;
 /// # async fn example() {
 /// task::wait(|| std::fs::read_to_string("file.txt")).await
 /// # ; }
@@ -790,8 +792,8 @@ where
 /// Test a [`run`] call:
 ///
 /// ```
-/// use zero_ui_core::task;
-/// # use zero_ui_core::units::*;
+/// use zero_ui_task as task;
+/// # use zero_ui_units::*;
 /// # async fn foo(u: u8) -> Result<u8, ()> { task::deadline(1.ms()).await; Ok(u) }
 ///
 /// #[test]
@@ -918,7 +920,8 @@ pub async fn yield_now() {
 /// Await 5 seconds in a [`spawn`] parallel task:
 ///
 /// ```
-/// use zero_ui_core::{task, units::*};
+/// use zero_ui_task as task;
+/// use zero_ui_units::*;
 ///
 /// task::spawn(async {
 ///     println!("waiting 5 seconds..");
@@ -951,7 +954,7 @@ pub async fn deadline(deadline: impl Into<Deadline>) {
 /// A future that is ready with a closure returns `Some(R)`.
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// use std::task::Poll;
 ///
 /// async fn ready_some<R>(mut closure: impl FnMut() -> Option<R>) -> R {
@@ -1015,7 +1018,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into
 /// Await for three different futures to complete:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 ///
 /// # task::doc_test(false, async {
 /// let (a, b, c) = task::all!(
@@ -1148,7 +1151,8 @@ macro_rules! __all {
 /// Await for the first of three futures to complete:
 ///
 /// ```
-/// use zero_ui_core::{task, units::*};
+/// use zero_ui_task as task;
+/// use zero_ui_units::*;
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
@@ -1276,7 +1280,7 @@ pub use zero_ui_task_proc_macros::task_any_all as __proc_any_all;
 /// Await for the first of three futures to complete with `Ok`:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # pub struct FooError;
 /// # task::doc_test(false, async {
@@ -1421,7 +1425,7 @@ macro_rules! __any_ok {
 /// Await for the first of three futures to complete with `Some`:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::any_some!(
 ///     task::run(async { None::<char> }),
@@ -1559,7 +1563,7 @@ macro_rules! __any_some {
 /// Await for the first of three futures to complete with `Ok(T)`:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # struct FooError;
 /// # task::doc_test(false, async {
@@ -1576,7 +1580,7 @@ macro_rules! __any_some {
 /// And in if any completes with `Err(E)`:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # struct FooError;
 /// # task::doc_test(false, async {
@@ -1720,7 +1724,7 @@ macro_rules! __all_ok {
 /// Await for the first of three futures to complete with `Some`:
 ///
 /// ```
-/// use zero_ui_core::task;
+/// use zero_ui_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::all_some!(
 ///     task::run(async { Some('a') }),
@@ -1735,7 +1739,7 @@ macro_rules! __all_ok {
 /// Completes with `None` if any future completes with `None`:
 ///
 /// ```
-/// # use zero_ui_core::task;
+/// # use zero_ui_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::all_some!(
 ///     task::run(async { Some('a') }),
@@ -1864,7 +1868,7 @@ macro_rules! __all_some {
 /// Spawns a parallel task that only writes to stdout after the main thread sets the signal:
 ///
 /// ```
-/// use zero_ui_core::task::{self, *};
+/// use zero_ui_task::{self as task, *};
 ///
 /// let signal = SignalOnce::default();
 ///

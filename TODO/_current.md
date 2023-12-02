@@ -66,6 +66,7 @@ TextInput! {
 
 * Text Shaping.
     - Mostly decoupled, needs l10n's Lang.
+        - Can use underlying type LanguageIdentifier?
 
 * Focus.
     - Needs app API.
