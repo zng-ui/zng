@@ -1035,12 +1035,10 @@ pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardErro
 }
 
 #[cfg(windows)]
-pub(crate) fn clipboard_win_to_clip(e: clipboard_win::SystemError) -> clipboard_api::ClipboardError {
+pub(crate) fn clipboard_win_to_clip(e: clipboard_win::ErrorCode) -> clipboard_api::ClipboardError {
     use zero_ui_txt::formatx;
 
-    if e == clipboard_win::SystemError::unimplemented() {
-        clipboard_api::ClipboardError::NotSupported
-    } else if e.is_zero() {
+    if e.raw_code() == 0 {
         // If GetClipboardData fails it returns a NULL, but GetLastError sometimes (always?) returns 0 (ERROR_SUCCESS)
         clipboard_api::ClipboardError::NotFound
     } else {
