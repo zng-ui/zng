@@ -3,7 +3,7 @@
 //! The primary `struct` of this module is [`TIMERS`]. You can use it to
 //! create UI bound timers that run using only the main thread and can awake the app event loop
 //! to notify updates.
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use std::{
     fmt, mem,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},

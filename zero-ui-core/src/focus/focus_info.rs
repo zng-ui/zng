@@ -1,5 +1,5 @@
+use crate::task::parking_lot::Mutex;
 use atomic::{Atomic, Ordering::Relaxed};
-use parking_lot::Mutex;
 
 use crate::{
     context::*, crate_util::IdSet, units::*, var::impl_from_and_into_var, widget_info::*, widget_instance::WidgetId, window::FocusIndicator,

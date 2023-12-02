@@ -4,8 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::task::parking_lot::Mutex;
 use once_cell::sync::OnceCell;
-use parking_lot::Mutex;
 use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 
 use crate::{

@@ -17,7 +17,7 @@ use crate::{
 
 use std::{marker::PhantomData, mem, sync::Arc};
 
-use rayon::prelude::*;
+use crate::task::rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
 use zero_ui_view_api::{
     api_extension::ApiExtensionPayload,

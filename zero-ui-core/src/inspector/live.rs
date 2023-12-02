@@ -4,7 +4,7 @@
 
 use std::{fmt, ops, sync::Arc};
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use zero_ui_view_api::window::FrameId;
 
 use crate::{

@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 
 use crate::{
     crate_util::{unique_id_32, FxEntry, FxHashMap, FxHashSet},

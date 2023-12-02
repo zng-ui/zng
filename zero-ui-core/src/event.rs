@@ -33,7 +33,7 @@ mod channel;
 pub use channel::*;
 
 mod properties;
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 pub use properties::*;
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] keys.

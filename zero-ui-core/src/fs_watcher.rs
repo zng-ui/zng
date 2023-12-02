@@ -12,11 +12,11 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+use crate::task::parking_lot::Mutex;
 use atomic::{Atomic, Ordering};
 use fs4::FileExt as _;
 use hashbrown::HashMap;
 use notify::Watcher as _;
-use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use zero_ui_clone_move::clmv;
 

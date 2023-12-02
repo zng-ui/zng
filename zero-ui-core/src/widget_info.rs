@@ -21,7 +21,7 @@ use crate::{
 pub mod access;
 
 mod tree;
-use parking_lot::{Mutex, RwLock};
+use crate::task::parking_lot::{Mutex, RwLock};
 use tree::Tree;
 
 mod path;
@@ -512,10 +512,10 @@ impl WidgetBoundsInfo {
     /// Exclusive read the latest inline layout info.
     ///
     /// Returns `None` if the latest widget layout was not in an inlining context.
-    pub fn inline(&self) -> Option<parking_lot::MappedMutexGuard<WidgetInlineInfo>> {
+    pub fn inline(&self) -> Option<crate::task::parking_lot::MappedMutexGuard<WidgetInlineInfo>> {
         let me = self.0.lock();
         if me.inline.is_some() {
-            Some(parking_lot::MutexGuard::map(me, |m| m.inline.as_mut().unwrap()))
+            Some(crate::task::parking_lot::MutexGuard::map(me, |m| m.inline.as_mut().unwrap()))
         } else {
             None
         }

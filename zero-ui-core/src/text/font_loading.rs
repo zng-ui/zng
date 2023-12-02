@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::{Mutex, RwLock};
+use crate::task::parking_lot::{Mutex, RwLock};
 use zero_ui_clone_move::clmv;
 
 use super::{

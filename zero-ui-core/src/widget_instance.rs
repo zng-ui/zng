@@ -6,7 +6,7 @@ use std::{
     fmt,
 };
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 
 use crate::units::*;
 use crate::{

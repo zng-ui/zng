@@ -15,7 +15,7 @@ use crate::{
     var::{animation::Transitionable, IntoVar, Var},
 };
 
-use rayon::prelude::*;
+use crate::task::rayon::prelude::*;
 
 use super::*;
 

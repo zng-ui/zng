@@ -2,8 +2,8 @@ use std::future::Future;
 use std::sync::Arc;
 use std::{fmt, mem};
 
-use parking_lot::Mutex;
-use rayon::prelude::*;
+use crate::task::parking_lot::Mutex;
+use crate::task::rayon::prelude::*;
 use zero_ui_txt::{formatx, Txt};
 
 use super::commands::WindowCommands;

@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU32;
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 pub use zero_ui_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };

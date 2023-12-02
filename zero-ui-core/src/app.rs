@@ -626,7 +626,7 @@ fn assert_not_view_process() {
 
 #[cfg(feature = "deadlock_detection")]
 fn check_deadlock() {
-    use parking_lot::deadlock;
+    use crate::task::parking_lot::deadlock;
     use std::{
         sync::atomic::{self, AtomicBool},
         thread,

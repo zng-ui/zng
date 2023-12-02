@@ -1,6 +1,6 @@
 use super::*;
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use zero_ui_clone_move::clmv;
 
 /// Represents a config source that swap its backend without disconnecting any bound keys.

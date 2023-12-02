@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use tracing::span;
 
 use crate::{

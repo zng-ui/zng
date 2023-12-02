@@ -34,7 +34,7 @@
 //!     let raw = task::wait(|| std::fs::read_to_string("numbers.txt").unwrap()).await;
 //!     raw.par_split(',').map(|s| s.trim().parse::<usize>().unwrap()).collect()
 //! }
-//! 
+//!
 //! # }}
 //! ```
 //!

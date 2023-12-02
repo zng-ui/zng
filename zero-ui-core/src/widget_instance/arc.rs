@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use std::sync::{Arc, Weak};
 
 use crate::{

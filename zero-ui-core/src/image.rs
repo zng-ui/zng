@@ -11,7 +11,7 @@ use std::{
     },
 };
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use zero_ui_clone_move::clmv;
 use zero_ui_txt::{formatx, ToText};
 use zero_ui_view_api::ipc::IpcBytes;

@@ -6,6 +6,9 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
+# 
+deadlock_detection = ["parking_lot/deadlock_detection"]
+
 # Enables http tasks.
 http = [
     "serde",

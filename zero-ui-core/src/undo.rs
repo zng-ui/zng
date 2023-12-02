@@ -8,8 +8,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::task::parking_lot::Mutex;
 use atomic::{Atomic, Ordering};
-use parking_lot::Mutex;
 
 use crate::{
     app::AppExtension,

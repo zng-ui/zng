@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use crate::task::parking_lot::Mutex;
 use zero_ui_layout::units::Px;
 pub use zero_ui_var::*;
 

@@ -195,7 +195,7 @@ pub fn default_no_child() {
 }
 
 mod util {
-    use parking_lot::Mutex;
+    use crate::task::parking_lot::Mutex;
     use std::sync::Arc;
 
     use crate::{

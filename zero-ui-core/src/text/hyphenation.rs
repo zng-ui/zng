@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
+use crate::task::parking_lot::Mutex;
 use hyphenation::{Hyphenator as _, Load as _};
-use parking_lot::Mutex;
 
 use super::Lang;
 use crate::context::app_local;

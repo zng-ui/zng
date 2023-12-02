@@ -27,9 +27,9 @@ mod inspector_only {
         })
     }
 }
+use crate::task::parking_lot::Mutex;
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
-use parking_lot::Mutex;
 
 use std::{any::TypeId, sync::Arc};
 

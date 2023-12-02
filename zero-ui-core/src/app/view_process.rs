@@ -21,6 +21,7 @@ pub use zero_ui_view_api::{
     Event, Ime, ViewProcessGen, ViewProcessOffline,
 };
 
+use crate::task::parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use crate::{
     app::{app_local, DeviceId},
     crate_util::FxHashMap,
@@ -33,7 +34,6 @@ use crate::{
     var::ResponderVar,
     window::{MonitorId, WindowId},
 };
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zero_ui_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     config::KeyRepeatConfig,

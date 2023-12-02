@@ -2,8 +2,8 @@
 
 use std::{fmt, mem, sync::Arc, task::Waker};
 
+use crate::task::parking_lot::{Mutex, RwLock};
 use atomic::{Atomic, Ordering::Relaxed};
-use parking_lot::{Mutex, RwLock};
 
 pub use zero_ui_layout::context::*;
 
