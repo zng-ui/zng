@@ -93,7 +93,7 @@ accesskit = "0.12"
 accesskit_winit = "0.16"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.48.0"
+version = "0.48.0" # matches winit, glutin, other crates
 features = [
     "Win32_UI_Shell",
     "Win32_System_Com",
@@ -109,11 +109,11 @@ features = [
     "Win32_System_Power",
 ]
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.51.0"
+version = "0.48.0" # matches accesskit, other crates
 features = ["Foundation_Collections", "System_UserProfile"]
 
 [target.'cfg(windows)'.dependencies]
-clipboard-win = { version = "4", features = ["std"] }
+clipboard-win = { version = "5", features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
 arboard = "3"
