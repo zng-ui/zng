@@ -1,0 +1,24 @@
+[package]
+name = "zero-ui-app"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-unique_id ={ path = "../zero-ui-unique_id" }
+zero-ui-handle ={ path = "../zero-ui-handle" }
+zero-ui-clone_move ={ path = "../zero-ui-clone_move" }
+zero-ui-app_context ={ path = "../zero-ui-app_context" }
+zero-ui-var ={ path = "../zero-ui-var" }
+zero-ui-txt ={ path = "../zero-ui-txt" }
+zero-ui-task ={ path = "../zero-ui-task" }
+zero-ui-view-api ={ path = "../zero-ui-view-api" }
+zero-ui-state_map = { path = "../zero-ui-state_map" }
+
+tracing = "0.1"
+pretty-type-name = "1"
+parking_lot = "0.12"
+serde = "1"
+bytemuck = "1"
+flume = "0.11"

@@ -28,6 +28,7 @@ members = [
     "zero-ui-view-prebuilt",
 
     # app:
+    "zero-ui-app",
     "zero-ui-core",
     "zero-ui",
     "zero-ui-material-icons",

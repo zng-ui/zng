@@ -31,31 +31,24 @@ TextInput! {
 
 # Split Core
 
-* App API.
-    - Needs UpdateDeliveryList, that needs WidgetInfo.
-        - WidgetInfo only to iter over path (without alloc).
-        - Can be decoupled by taking a trusted Iterator and WindowId.
-    - Needs AnyEventArgs.
-        - Must include events?
-        - Could be just this trait.
-    - Implementers of AppExtension will very likely import all the other stuff anyway.
-    - App API is core without App::default?
-        - Can we make it more similar to view-api?
-        - It must include AppExtension and all it pulls, but not include view-api.
-            - But must include raw events that view-api is mapped too.
-            - Extensions need view-api as much as they need raw events.
-* App.
-    - Implements view controller and raw events.
-    - Provides App, HeadlessApp.
-    - Does not provide App::default()?
-        - Could be on a feature flag.
+* App crate.
+    - Includes AppExtension, App, HeadlessApp, UPDATES, event, handler, raw events and view API.
+    - Does not include default extensions.
+    - Does not contain UiNode and widgets?
+        - Async handler needs WIDGET.id().
+        - Other usages decoupled using Provider traits.
+        - Widget separation just to parallelize build?
+        - No reason to separate, most extensions will need it, and since it will need app crate anyway
+        - Include WINDOW too?
+            - Yes.
+            
 
 * Config.
-    - Needs app API.
+    - Needs app crate.
     - Needs var.
 
 * L10n.
-    - Needs app API.
+    - Needs app crate.
     - Needs var.
 
 * Text Shaping.
@@ -63,23 +56,23 @@ TextInput! {
         - Can use underlying type LanguageIdentifier?
 
 * Focus.
-    - Needs app API.
+    - Needs app crate.
     - Needs WINDOWS.
 
 - File-System Watcher
-    - Needs app API.
+    - Needs app crate.
     - Needs timers.
 
 - Gesture
-    - Needs app API.
+    - Needs app crate.
     - Needs WINDOWS, keyboard and mouse.
 
 - Image
-    - Needs app API.
+    - Needs app crate.
     - Needs ViewImage.
 
 - Keyboard, mouse and touch.
-    - Needs app API.
+    - Needs app crate.
     - Needs FOCUS.
     - Needs TIMERS.
 
@@ -92,17 +85,12 @@ TextInput! {
     - UPDATES controls it, and is called by it.
 
 - Undo.
-    - Needs app API.
+    - Needs app crate.
 
 - WINDOWS.
-    - Needs app API.
+    - Needs app crate.
     - Needs ViewWindow.
     - Needs UiNode.
-
-- UiNode, widget_base, widget_info, widget_builder.
-    - Needs app API for update types?
-    - Needs to implement Var::subscribe.
-
 
 ## Split Main
 
