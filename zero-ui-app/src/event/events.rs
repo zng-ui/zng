@@ -1,6 +1,6 @@
 use zero_ui_app_context::app_local;
 
-use crate::update::UpdatesTrace;
+use crate::update::{UpdatesTrace, UPDATES};
 
 use super::*;
 

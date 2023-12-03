@@ -9,8 +9,6 @@ use unicode_bidi::{BidiClass, BidiDataSource, Level};
 
 use crate::crate_util::FxHashMap;
 
-use super::TextSegmentKind;
-
 pub(super) fn visual_runs(
     mut levels: Vec<unicode_bidi::Level>,
     line_classes: Vec<unicode_bidi::BidiClass>,
@@ -382,80 +380,6 @@ pub(super) fn prepare_isolating_run_sequences(
             result
         })
         .collect()
-}
-
-impl From<unicode_bidi::BidiClass> for TextSegmentKind {
-    fn from(value: unicode_bidi::BidiClass) -> Self {
-        use unicode_bidi::BidiClass::*;
-        use TextSegmentKind::*;
-
-        match value {
-            WS => Space,
-            L => LeftToRight,
-            R => RightToLeft,
-            AL => ArabicLetter,
-            AN => ArabicNumber,
-            CS => CommonSeparator,
-            B => LineBreak,
-            EN => EuropeanNumber,
-            ES => EuropeanSeparator,
-            ET => EuropeanTerminator,
-            S => Tab,
-            ON => OtherNeutral,
-            BN => BoundaryNeutral,
-            NSM => NonSpacingMark,
-            RLE => BidiCtrl('\u{202B}'),
-            LRI => BidiCtrl('\u{2066}'),
-            RLI => BidiCtrl('\u{2067}'),
-            LRO => BidiCtrl('\u{202D}'),
-            FSI => BidiCtrl('\u{2068}'),
-            PDF => BidiCtrl('\u{202C}'),
-            LRE => BidiCtrl('\u{202A}'),
-            PDI => BidiCtrl('\u{2069}'),
-            RLO => BidiCtrl('\u{202E}'),
-        }
-    }
-}
-impl From<TextSegmentKind> for unicode_bidi::BidiClass {
-    fn from(value: TextSegmentKind) -> Self {
-        use unicode_bidi::BidiClass::*;
-        use TextSegmentKind::*;
-
-        match value {
-            Space => WS,
-            LeftToRight => L,
-            RightToLeft => R,
-            ArabicLetter => AL,
-            ArabicNumber => AN,
-            CommonSeparator => CS,
-            LineBreak => B,
-            EuropeanNumber => EN,
-            EuropeanSeparator => ES,
-            EuropeanTerminator => ET,
-            Tab => S,
-            OtherNeutral | Emoji | Bracket(_) => ON,
-            BoundaryNeutral => BN,
-            NonSpacingMark => NSM,
-            BidiCtrl(c) => match c {
-                '\u{202A}' => LRE,
-                '\u{202D}' => LRO,
-                '\u{202B}' => RLE,
-                '\u{202E}' => RLO,
-                '\u{202C}' => PDF,
-                '\u{2066}' => LRI,
-                '\u{2067}' => RLI,
-                '\u{2068}' => FSI,
-                '\u{2069}' => PDI,
-                _c => {
-                    #[cfg(debug_assertions)]
-                    {
-                        tracing::error!("invalid bidi ctrl char '{_c}'");
-                    }
-                    ON
-                }
-            },
-        }
-    }
 }
 
 /// Entries in the directional status stack:
@@ -1111,8 +1035,4 @@ pub(super) fn assign_levels_to_removed_chars(para_level: Level, classes: &[BidiC
             levels[i] = if i > 0 { levels[i - 1] } else { para_level };
         }
     }
-}
-
-pub(super) fn bidi_bracket_data(char: char) -> Option<unicode_bidi::data_source::BidiMatchedOpeningBracket> {
-    unicode_bidi::HardcodedBidiData.bidi_matched_opening_bracket(char)
 }

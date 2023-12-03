@@ -76,8 +76,8 @@ impl EventPropagationHandle {
     /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
     /// must check if this is `true`.
     ///
-    /// [`UiNode`]: crate::widget_instance::UiNode
-    /// [`AppExtension`]: crate::app::AppExtension
+    /// [`UiNode`]: crate::widget::instance::UiNode
+    /// [`AppExtension`]: crate::AppExtension
     pub fn is_stopped(&self) -> bool {
         self.0.load(Relaxed)
     }
@@ -105,8 +105,9 @@ impl std::hash::Hash for EventPropagationHandle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{event::event_args, widget_info::WidgetPath, text::{Txt, formatx}};
-///
+/// # use zero_ui_app::{event::event_args, widget::info::WidgetPath};
+/// # use zero_ui_txt::*;
+/// #
 /// event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
@@ -118,7 +119,7 @@ impl std::hash::Hash for EventPropagationHandle {
 ///         ..
 ///         
 ///         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-///             list.insert_path(&self.target);
+///             list.insert_wgt(&self.target);
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -353,9 +354,9 @@ macro_rules! __event_args {
 
 
             $(#[$delivery_list_outer])*
-            fn delivery_list(&$self, $delivery_list_ident: &mut $crate::UpdateDeliveryList) {
+            fn delivery_list(&$self, $delivery_list_ident: &mut $crate::update::UpdateDeliveryList) {
                 #[allow(unused_imports)]
-                use $crate::UpdateDeliveryList;
+                use $crate::update::UpdateDeliveryList;
 
                 $($delivery_list)*
             }

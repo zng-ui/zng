@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use std::{mem, thread};
 
 pub use zero_ui_clone_move::*;
+use zero_ui_handle::{Handle, WeakHandle};
 use zero_ui_task::{self as task, ui::UiTask};
 
 /// Represents a handler in a widget context.
@@ -29,7 +30,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Returns `true` when the event handler is async and it has not finished handing the event.
     ///
     /// [`update`]: WidgetHandler::update
-    /// [`info`]: crate::widget_instance::UiNode::info
+    /// [`info`]: crate::widget::instance::UiNode::info
     /// [`subscribe`]: WidgetHandler::subscribe
     fn event(&mut self, args: &A) -> bool;
 
@@ -133,10 +134,10 @@ where
 /// The example declares an event handler for the `on_click` property.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::hn;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_| {
 ///     println!("Clicked!");
@@ -148,10 +149,10 @@ where
 /// if you want to use the event args you must annotate the input type, the context type is inferred.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # #[derive(Clone)] pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize }
+/// # use zero_ui_app::handler::hn;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|args: &ClickArgs| {
 ///     println!("Clicked {}!", args.click_count);
@@ -162,12 +163,12 @@ where
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::text::formatx;
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # #[derive(Clone)] pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize }
+/// # use zero_ui_txt::formatx;
+/// # use zero_ui_var::{var, Var};
+/// # use zero_ui_app::handler::hn;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let foo = var(0);
 ///
 /// // ..
@@ -193,6 +194,7 @@ macro_rules! hn {
 }
 #[doc(inline)]
 pub use crate::hn;
+use crate::{ControlFlow, HeadlessApp};
 
 #[doc(hidden)]
 pub struct FnOnceWidgetHandler<H> {
@@ -243,10 +245,9 @@ where
 /// are ignored by the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::hn_once;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # use zero_ui_app::handler::hn_once;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<()> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(|_| {
@@ -261,10 +262,11 @@ where
 /// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::hn_once;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # use zero_ui_app::handler::hn_once;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # #[derive(Clone)]
+/// # pub struct ClickArgs { click_count: usize }
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(data, |args: &ClickArgs| {
@@ -347,11 +349,11 @@ where
 /// The example declares an async event handler for the `on_click` property.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|_| {
 ///     println!("Clicked!");
@@ -369,11 +371,11 @@ where
 /// if you want to use the event args you must annotate the input type.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn;
-/// # use zero_ui_core::context::WIDGET;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn;
+/// # use zero_ui_app::widget::WIDGET;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|args: ClickArgs| {
 ///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
@@ -385,13 +387,13 @@ where
 /// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn;
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::task;
-/// # use zero_ui_core::text::formatx;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn;
+/// # use zero_ui_var::{var, Var};
+/// # use zero_ui_task as task;
+/// # use zero_ui_txt::formatx;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let enabled = var(true);
 ///
 /// // ..
@@ -517,11 +519,11 @@ where
 /// *clone-move* here just to use `data`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn_once;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn_once;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -540,11 +542,11 @@ where
 /// but will just be moved to the other thread, avoiding a needless clone.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn_once;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn_once;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {
@@ -609,7 +611,7 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
     /// their tasks to run somewhere in the app, usually in the [`UPDATES.on_update`]. The `handle` is
     /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
     ///
-    /// [`UPDATES.on_update`]: crate::context::UPDATES::on_update
+    /// [`UPDATES.on_update`]: crate::update::UPDATES::on_update
     fn event(&mut self, args: &A, handler_args: &AppHandlerArgs);
 
     /// Boxes the handler.
@@ -699,9 +701,10 @@ where
 /// The example declares an event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::CLICK_EVENT;
-/// # use zero_ui_core::handler::app_hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::app_hn;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -716,9 +719,10 @@ where
 /// will be dropped some time before the next event update.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
-/// # use zero_ui_core::handler::app_hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::app_hn;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -730,11 +734,12 @@ where
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
-/// # use zero_ui_core::text::{formatx, ToText};
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::handler::app_hn;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_txt::{formatx, ToText};
+/// # use zero_ui_var::{var, Var};
+/// # use zero_ui_app::handler::app_hn;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// let foo = var("".to_text());
 ///
@@ -810,9 +815,10 @@ where
 /// are ignored by the handler and it automatically requests unsubscribe.
 ///
 /// ```
-/// # use zero_ui_core::gesture::CLICK_EVENT;
-/// # use zero_ui_core::handler::app_hn_once;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::app_hn_once;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -828,9 +834,10 @@ where
 /// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
-/// # use zero_ui_core::handler::app_hn_once;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::app_hn_once;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -917,7 +924,7 @@ where
 /// the input is the same syntax.
 ///
 /// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
-/// to update in [`on_pre_update`](crate::context::UPDATES::on_pre_update) or [`on_update`](crate::context::UPDATES::on_update) depending
+/// to update in [`on_pre_update`](crate::update::UPDATES::on_pre_update) or [`on_update`](crate::update::UPDATES::on_update) depending
 /// on if the handler was assigned to a *preview* event or not.
 ///
 /// Note that this means [`propagation`](crate::event::AnyEventArgs::propagation) can only be meaningfully stopped before the
@@ -928,10 +935,11 @@ where
 /// The example declares an async event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::CLICK_EVENT;
-/// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::async_app_hn;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -953,10 +961,11 @@ where
 /// then is by returning early inside the async blocks.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
-/// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::async_app_hn;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -970,12 +979,14 @@ where
 /// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
-/// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::task;
-/// # use zero_ui_core::text::{formatx, ToText};
-/// # let _scope = zero_ui_core::app::App::minimal();
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zero_ui_app::handler::async_app_hn;
+/// # use zero_ui_var::{var, Var};
+/// # use zero_ui_task as task;
+/// # use zero_ui_txt::{formatx, ToText};
+/// #
+/// # let _scope = zero_ui_app::App::minimal();
 /// # fn assert_type() {
 /// let status = var("pending..".to_text());
 ///
@@ -1092,11 +1103,11 @@ where
 /// to capture by *clone-move* just to use `data`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn_once;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn_once;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -1115,11 +1126,11 @@ where
 /// but will just be moved to the other thread, avoiding a needless clone.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickArgs;
-/// # use zero_ui_core::handler::async_hn_once;
-/// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
+/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zero_ui_app::handler::async_hn_once;
+/// # use zero_ui_task as task;
+/// # let _scope = zero_ui_app::App::minimal();
+/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {
@@ -1142,6 +1153,8 @@ macro_rules! async_app_hn_once {
 }
 #[doc(inline)]
 pub use crate::async_app_hn_once;
+use crate::update::UPDATES;
+use crate::widget::{UiTaskWidget, WIDGET};
 
 /// Widget handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
 pub struct FilteWidgetHandler<A, H, F> {
@@ -1265,7 +1278,6 @@ impl HeadlessApp {
                     ));
                 }
 
-                use crate::app::ControlFlow;
                 match flow {
                     ControlFlow::Poll => continue,
                     ControlFlow::Wait => {
@@ -1308,17 +1320,17 @@ impl HeadlessApp {
             }
 
             match flow {
-                crate::app::ControlFlow::Poll => continue,
-                crate::app::ControlFlow::Wait => {
+                ControlFlow::Poll => continue,
+                ControlFlow::Wait => {
                     thread::yield_now();
                     continue;
                 }
-                crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
+                ControlFlow::Exit => return Err("app exited".to_owned()),
             }
         }
     }
 
-    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the default headless app.
+    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the minimal headless app.
     ///
     /// [`block_on`]: Self::block_on.
     #[track_caller]
@@ -1328,7 +1340,7 @@ impl HeadlessApp {
         A: Clone + 'static,
         H: AppHandler<A>,
     {
-        let mut app = crate::app::App::default().run_headless(false);
+        let mut app = crate::App::minimal().run_headless(false);
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
     }
 
@@ -1341,7 +1353,7 @@ impl HeadlessApp {
     where
         A: Clone + 'static,
     {
-        let mut app = crate::app::App::default().run_headless(false);
+        let mut app = crate::App::minimal().run_headless(false);
         app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }

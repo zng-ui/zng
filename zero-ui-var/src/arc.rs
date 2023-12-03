@@ -323,3 +323,20 @@ impl<T: VarValue> WeakVar<T> for WeakArcVar<T> {
         self.0.upgrade().map(|rc| ArcVar(rc))
     }
 }
+
+/// Variable for state properties (`is_*`, `has_*`).
+///
+/// State variables are `bool` probes that are set by the property, they are created automatically
+/// by the property default when used in `when` expressions, but can be created manually.
+pub fn state_var() -> ArcVar<bool> {
+    var(false)
+}
+
+/// Variable for getter properties (`get_*`, `actual_*`).
+///
+/// Getter variables are inited with a default value that is overridden by the property on node init and updated
+/// by the property when the internal state they track changes. They are created automatically by the property
+/// default when used in `when` expressions, but can be created manually.
+pub fn getter_var<T: VarValue + Default>() -> ArcVar<T> {
+    var(T::default())
+}

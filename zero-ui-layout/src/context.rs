@@ -1,5 +1,6 @@
 use std::{fmt, sync::Arc};
 
+use unicode_bidi::BidiDataSource as _;
 use zero_ui_app_context::context_local;
 use zero_ui_units::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
 use zero_ui_var::context_var;
@@ -685,6 +686,238 @@ impl fmt::Debug for LayoutDirection {
         match self {
             Self::LTR => write!(f, "LTR"),
             Self::RTL => write!(f, "RTL"),
+        }
+    }
+}
+
+/// Represents a segment in an inlined widget first or last row.
+///
+/// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+pub struct InlineSegment {
+    /// Width of the segment, in pixels.
+    pub width: f32,
+    /// Info for bidirectional reorder.
+    pub kind: TextSegmentKind,
+}
+impl PartialEq for InlineSegment {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.width, other.width, 0.001) && self.kind == other.kind
+    }
+}
+impl Eq for InlineSegment {}
+impl std::hash::Hash for InlineSegment {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.width, 0.001, state);
+        self.kind.hash(state);
+    }
+}
+
+/// The type of an inline/text segment.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum TextSegmentKind {
+    /// Any strong left-to-right character.
+    LeftToRight,
+    /// Any strong right-to-left (non-Arabic-type) character.
+    RightToLeft,
+    /// Any strong right-to-left (Arabic-type) character.
+    ArabicLetter,
+
+    /// Any ASCII digit or Eastern Arabic-Indic digit.
+    EuropeanNumber,
+    /// Plus and minus signs.
+    EuropeanSeparator,
+    /// A terminator in a numeric format context, includes currency signs.
+    EuropeanTerminator,
+    /// Any Arabic-Indic digit.
+    ArabicNumber,
+    /// Commas, colons, and slashes.
+    CommonSeparator,
+    /// Any non-spacing mark.
+    NonSpacingMark,
+    /// Most format characters, control codes, or noncharacters.
+    BoundaryNeutral,
+
+    /// Emoji chars, components and zero-width-joiner between emoji.
+    Emoji,
+
+    /// Various newline characters.
+    LineBreak,
+    /// A sequence of `'\t', '\v'` or `'\u{1F}'`.
+    Tab,
+    /// Spaces.
+    Space,
+    /// Most other symbols and punctuation marks.
+    OtherNeutral,
+    /// Open or close bidi bracket.
+    ///
+    /// Can be any chars in <https://unicode.org/Public/UNIDATA/BidiBrackets.txt>.
+    Bracket(char),
+
+    /// Bidi control character.
+    ///
+    /// Chars can be:
+    ///
+    /// * `\u{202A}`: The LR embedding control.
+    /// * `\u{202D}`: The LR override control.
+    /// * `\u{202B}`: The RL embedding control.
+    /// * `\u{202E}`: The RL override control.
+    /// * `\u{202C}`: Terminates an embedding or override control.
+    ///
+    /// * `\u{2066}`: The LR isolate control.
+    /// * `\u{2067}`: The RL isolate control.
+    /// * `\u{2068}`: The first strong isolate control.
+    /// * `\u{2069}`: Terminates an isolate control.
+    BidiCtrl(char),
+}
+impl TextSegmentKind {
+    /// Returns `true` if the segment can be considered part of a word for the purpose of inserting letter spacing.
+    pub fn is_word(self) -> bool {
+        use TextSegmentKind::*;
+        matches!(
+            self,
+            LeftToRight
+                | RightToLeft
+                | ArabicLetter
+                | EuropeanNumber
+                | EuropeanSeparator
+                | EuropeanTerminator
+                | ArabicNumber
+                | CommonSeparator
+                | NonSpacingMark
+                | BoundaryNeutral
+                | OtherNeutral
+                | Bracket(_)
+                | Emoji
+        )
+    }
+
+    /// Returns `true` if the segment can be considered part of space between words for the purpose of inserting word spacing.
+    pub fn is_space(self) -> bool {
+        matches!(self, Self::Space | Self::Tab)
+    }
+
+    /// Returns `true` if the segment terminates the current line.
+    ///
+    /// Line break segments are the last segment of their line and explicitly start a new line.
+    pub fn is_line_break(self) -> bool {
+        matches!(self, Self::LineBreak)
+    }
+
+    /// If multiple segments of this same kind can be represented by a single segment in the Unicode bidi algorithm.
+    pub fn can_merge(self) -> bool {
+        use TextSegmentKind::*;
+        !matches!(self, Bracket(_) | BidiCtrl(_))
+    }
+
+    /// Get more info about the bracket char if `self` is `Bracket(_)` with a valid char.
+    pub fn bracket_info(self) -> Option<unicode_bidi::data_source::BidiMatchedOpeningBracket> {
+        if let TextSegmentKind::Bracket(c) = self {
+            unicode_bidi::HardcodedBidiData.bidi_matched_opening_bracket(c)
+        } else {
+            None
+        }
+    }
+
+    /// Gets the layout direction this segment will always be in, independent of the base direction.
+    ///
+    /// Returns `None` if the segment direction depends on the line context.
+    pub fn strong_direction(self) -> Option<LayoutDirection> {
+        use TextSegmentKind::*;
+
+        match self {
+            LeftToRight => Some(LayoutDirection::LTR),
+            RightToLeft | ArabicLetter => Some(LayoutDirection::RTL),
+            BidiCtrl(_) => {
+                use unicode_bidi::BidiClass::*;
+                match unicode_bidi::BidiClass::from(self) {
+                    LRE | LRO | LRI => Some(LayoutDirection::LTR),
+                    RLE | RLO | RLI => Some(LayoutDirection::RTL),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+}
+impl From<char> for TextSegmentKind {
+    fn from(c: char) -> Self {
+        use unicode_bidi::*;
+
+        unicode_bidi::HardcodedBidiData.bidi_class(c).into()
+    }
+}
+
+impl From<unicode_bidi::BidiClass> for TextSegmentKind {
+    fn from(value: unicode_bidi::BidiClass) -> Self {
+        use unicode_bidi::BidiClass::*;
+        use TextSegmentKind::*;
+
+        match value {
+            WS => Space,
+            L => LeftToRight,
+            R => RightToLeft,
+            AL => ArabicLetter,
+            AN => ArabicNumber,
+            CS => CommonSeparator,
+            B => LineBreak,
+            EN => EuropeanNumber,
+            ES => EuropeanSeparator,
+            ET => EuropeanTerminator,
+            S => Tab,
+            ON => OtherNeutral,
+            BN => BoundaryNeutral,
+            NSM => NonSpacingMark,
+            RLE => BidiCtrl('\u{202B}'),
+            LRI => BidiCtrl('\u{2066}'),
+            RLI => BidiCtrl('\u{2067}'),
+            LRO => BidiCtrl('\u{202D}'),
+            FSI => BidiCtrl('\u{2068}'),
+            PDF => BidiCtrl('\u{202C}'),
+            LRE => BidiCtrl('\u{202A}'),
+            PDI => BidiCtrl('\u{2069}'),
+            RLO => BidiCtrl('\u{202E}'),
+        }
+    }
+}
+impl From<TextSegmentKind> for unicode_bidi::BidiClass {
+    fn from(value: TextSegmentKind) -> Self {
+        use unicode_bidi::BidiClass::*;
+        use TextSegmentKind::*;
+
+        match value {
+            Space => WS,
+            LeftToRight => L,
+            RightToLeft => R,
+            ArabicLetter => AL,
+            ArabicNumber => AN,
+            CommonSeparator => CS,
+            LineBreak => B,
+            EuropeanNumber => EN,
+            EuropeanSeparator => ES,
+            EuropeanTerminator => ET,
+            Tab => S,
+            OtherNeutral | Emoji | Bracket(_) => ON,
+            BoundaryNeutral => BN,
+            NonSpacingMark => NSM,
+            BidiCtrl(c) => match c {
+                '\u{202A}' => LRE,
+                '\u{202D}' => LRO,
+                '\u{202B}' => RLE,
+                '\u{202E}' => RLO,
+                '\u{202C}' => PDF,
+                '\u{2066}' => LRI,
+                '\u{2067}' => RLI,
+                '\u{2068}' => FSI,
+                '\u{2069}' => PDI,
+                _c => {
+                    #[cfg(debug_assertions)]
+                    {
+                        tracing::error!("invalid bidi ctrl char '{_c}'");
+                    }
+                    ON
+                }
+            },
         }
     }
 }

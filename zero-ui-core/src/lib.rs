@@ -1153,7 +1153,7 @@ macro_rules! widget_set {
 
 /// Implement a property on the widget to strongly associate it with the widget.
 ///
-/// This is equivalent of the `impl(Widget)` directive in the [`property`] macro, but generates
+/// This is equivalent of the `impl(Widget)` directive in the [`property`] macro.
 #[macro_export]
 macro_rules! widget_impl {
     (

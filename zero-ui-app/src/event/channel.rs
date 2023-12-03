@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{future::Future, time::Duration};
 
-use crate::update::UpdatesTrace;
+use crate::{update::UpdatesTrace, AppEventSender};
 
 use super::*;
 
@@ -190,5 +190,85 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.receiver.into_iter()
+    }
+}
+
+/// Error when the app connected to a sender/receiver channel has disconnected.
+///
+/// Contains the value that could not be send or `()` for receiver errors.
+pub struct AppDisconnected<T>(pub T);
+impl From<flume::RecvError> for AppDisconnected<()> {
+    fn from(_: flume::RecvError) -> Self {
+        AppDisconnected(())
+    }
+}
+impl<T> From<flume::SendError<T>> for AppDisconnected<T> {
+    fn from(e: flume::SendError<T>) -> Self {
+        AppDisconnected(e.0)
+    }
+}
+impl<T> fmt::Debug for AppDisconnected<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AppDisconnected<{}>", pretty_type_name::pretty_type_name::<T>())
+    }
+}
+impl<T> fmt::Display for AppDisconnected<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cannot send/receive because the app has disconnected")
+    }
+}
+impl<T> std::error::Error for AppDisconnected<T> {}
+
+/// Error when the app connected to a sender channel has disconnected or taken to long to respond.
+pub enum TimeoutOrAppDisconnected {
+    /// Connected app has not responded.
+    Timeout,
+    /// Connected app has disconnected.
+    AppDisconnected,
+}
+impl From<flume::RecvTimeoutError> for TimeoutOrAppDisconnected {
+    fn from(e: flume::RecvTimeoutError) -> Self {
+        match e {
+            flume::RecvTimeoutError::Timeout => TimeoutOrAppDisconnected::Timeout,
+            flume::RecvTimeoutError::Disconnected => TimeoutOrAppDisconnected::AppDisconnected,
+        }
+    }
+}
+impl fmt::Debug for TimeoutOrAppDisconnected {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TimeoutOrAppDisconnected::")?;
+        }
+        match self {
+            TimeoutOrAppDisconnected::Timeout => write!(f, "Timeout"),
+            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "AppDisconnected"),
+        }
+    }
+}
+impl fmt::Display for TimeoutOrAppDisconnected {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TimeoutOrAppDisconnected::Timeout => write!(f, "failed send, timeout"),
+            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "cannot send because the app has disconnected"),
+        }
+    }
+}
+impl std::error::Error for TimeoutOrAppDisconnected {}
+
+/// A future that receives a single message from a running app.
+pub struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
+impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
+    fn from(f: flume::r#async::RecvFut<'a, M>) -> Self {
+        Self(f)
+    }
+}
+impl<'a, M> Future for RecvFut<'a, M> {
+    type Output = Result<M, AppDisconnected<()>>;
+
+    fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        match std::pin::Pin::new(&mut self.0).poll(cx) {
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppDisconnected(()))),
+            std::task::Poll::Pending => std::task::Poll::Pending,
+        }
     }
 }

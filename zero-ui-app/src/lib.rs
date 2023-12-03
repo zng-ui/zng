@@ -1,12 +1,44 @@
-use std::{fmt, ops, any::{TypeId, type_name}, borrow::Cow};
+#![recursion_limit = "256"]
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
 
-pub mod update;
+use std::{
+    any::{type_name, TypeId},
+    fmt,
+    future::Future,
+    ops,
+    path::PathBuf,
+    sync::Arc,
+};
+
+pub mod access;
 pub mod event;
 pub mod handler;
+pub mod render;
+pub mod timer;
+pub mod update;
+pub mod view_process;
 pub mod widget;
+pub mod window;
 
-use update::{EventUpdate, InfoUpdates, WidgetUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace};
-use zero_ui_txt::Txt;
+// to make the proc-macro $crate substitute work in doc-tests.
+#[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui_app;
+use view_process::VIEW_PROCESS;
+use widget::UiTaskWidget;
+#[doc(hidden)]
+pub use zero_ui_layout as layout;
+#[doc(hidden)]
+pub use zero_ui_var as var;
+
+mod running;
+pub use running::*;
+
+use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates, UPDATES};
+use window::WindowMode;
+use zero_ui_app_context::{AppId, AppScope, LocalContext};
+use zero_ui_task::ui::UiTask;
 
 /// An [`App`] extension.
 ///
@@ -32,7 +64,7 @@ use zero_ui_txt::Txt;
 /// # 4 - Layout
 ///
 /// The [`layout`] method is called if during [init], [events] or [updates] a layout was requested, extensions should also remember which
-/// unit requested layout, to avoid unnecessary work, for example the [`WindowManager`] remembers witch window requested layout.
+/// unit requested layout, to avoid unnecessary work, for example the `WindowManager` remembers witch window requested layout.
 ///
 /// If the [`layout`] call requests updates the app goes back to [updates], requests for render are again deferred.
 ///
@@ -75,7 +107,7 @@ use zero_ui_txt::Txt;
 /// [updates]: #3-updates
 /// [layout]: #3-layout
 /// [render]: #5-render
-/// [`RAW_FRAME_RENDERED_EVENT`]: raw_events::RAW_FRAME_RENDERED_EVENT
+/// [`RAW_FRAME_RENDERED_EVENT`]: crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT
 pub trait AppExtension: 'static {
     /// Register info abound this extension on the info list.
     fn register(&self, info: &mut AppExtensionsInfo)
@@ -113,7 +145,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`event`](Self::event).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget_instance::UiNode::event)
+    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget::instance::UiNode::event)
     /// method is called here.
     fn event_ui(&mut self, update: &mut EventUpdate) {
         let _ = update;
@@ -128,7 +160,7 @@ pub trait AppExtension: 'static {
 
     /// Called before and after an update cycle. The [`UiNode::info`] method is called here.
     ///
-    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
+    /// [`UiNode::info`]: crate::widget::instance::UiNode::info
     fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _ = info_widgets;
     }
@@ -146,7 +178,7 @@ pub trait AppExtension: 'static {
     /// Only extensions that manage windows must handle this method. The [`UiNode::update`]
     /// method is called here.
     ///
-    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
+    /// [`UiNode::update`]: crate::widget::instance::UiNode::update
     fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
         let _ = update_widgets;
     }
@@ -161,7 +193,7 @@ pub trait AppExtension: 'static {
     ///
     /// The [`UiNode::layout`] method is called here by extensions that manage windows.
     ///
-    /// [`UiNode::layout`]: crate::widget_instance::UiNode::layout
+    /// [`UiNode::layout`]: crate::widget::instance::UiNode::layout
     fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
@@ -170,8 +202,8 @@ pub trait AppExtension: 'static {
     ///
     /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here by extensions that manage windows.
     ///
-    /// [`UiNode::render`]: crate::widget_instance::UiNode::render
-    /// [`UiNode::render_update`]: crate::widget_instance::UiNode::render_update
+    /// [`UiNode::render`]: crate::widget::instance::UiNode::render
+    /// [`UiNode::render_update`]: crate::widget::instance::UiNode::render_update
     fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _ = (render_widgets, render_update_widgets);
     }
@@ -398,8 +430,6 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
 /// Info about an app-extension.
 ///
 /// See [`App::extensions`] for more details.
-///
-/// [`App::extensions`]: crate::app::App::extensions
 #[derive(Clone, Copy)]
 pub struct AppExtensionInfo {
     /// Extension type ID.
@@ -439,7 +469,7 @@ impl fmt::Debug for AppExtensionsInfo {
     }
 }
 impl AppExtensionsInfo {
-    pub fn start() -> Self {
+    pub(crate) fn start() -> Self {
         Self { infos: vec![] }
     }
 
@@ -475,135 +505,692 @@ impl ops::Deref for AppExtensionsInfo {
     }
 }
 
-zero_ui_unique_id::unique_id_64! {
-    /// Unique id of a widget.
+/// Desired next step of app main loop.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[must_use = "methods that return `ControlFlow` expect to be inside a controlled loop"]
+pub enum ControlFlow {
+    /// Immediately try to receive more app events.
+    Poll,
+    /// Sleep until an app event is received.
     ///
-    /// # Name
-    ///
-    /// Widget ids are very fast but are just a number that is only unique for the same process that generated then.
-    /// You can associate a [`name`] with an id to give it a persistent identifier.
-    ///
-    /// [`name`]: WidgetId::name
-    pub struct WidgetId;
+    /// Note that a deadline might be set in case a timer is running.
+    Wait,
+    /// Exit the loop and drop the app.
+    Exit,
 }
-zero_ui_unique_id::impl_unique_id_name!(WidgetId);
-zero_ui_unique_id::impl_unique_id_fmt!(WidgetId);
-
-zero_ui_var::impl_from_and_into_var! {
-    /// Calls [`WidgetId::named`].
-    fn from(name: &'static str) -> WidgetId {
-        WidgetId::named(name)
-    }
-    /// Calls [`WidgetId::named`].
-    fn from(name: String) -> WidgetId {
-        WidgetId::named(name)
-    }
-    /// Calls [`WidgetId::named`].
-    fn from(name: Cow<'static, str>) -> WidgetId {
-        WidgetId::named(name)
-    }
-    /// Calls [`WidgetId::named`].
-    fn from(name: char) -> WidgetId {
-        WidgetId::named(name)
-    }
-    /// Calls [`WidgetId::named`].
-    fn from(name: Txt) -> WidgetId {
-        WidgetId::named(name)
-    }
-    fn from(id: WidgetId) -> zero_ui_view_api::access::AccessNodeId {
-        zero_ui_view_api::access::AccessNodeId(id.get())
+impl ControlFlow {
+    /// Assert that the value is [`ControlFlow::Wait`].
+    #[track_caller]
+    pub fn assert_wait(self) {
+        assert_eq!(ControlFlow::Wait, self)
     }
 
-    fn from(some: WidgetId) -> Option<WidgetId>;
-}
-
-impl fmt::Debug for StaticWidgetId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.get(), f)
+    /// Assert that the value is [`ControlFlow::Exit`].
+    #[track_caller]
+    pub fn assert_exit(self) {
+        assert_eq!(ControlFlow::Exit, self)
     }
 }
-impl zero_ui_var::IntoValue<WidgetId> for &'static StaticWidgetId {}
-impl serde::Serialize for WidgetId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let name = self.name();
-        if name.is_empty() {
-            use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `WidgetId`"));
+
+/// A headless app controller.
+///
+/// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
+/// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
+pub struct HeadlessApp {
+    app: RunningApp<Box<dyn AppExtensionBoxed>>,
+}
+impl HeadlessApp {
+    /// If headless rendering is enabled.
+    ///
+    /// When enabled windows are still not visible but frames will be rendered and the frame
+    /// image can be requested. Renderer is disabled by default in a headless app.
+    ///
+    /// Apps with render enabled can only be initialized in the main thread due to limitations of some operating systems,
+    /// this means you cannot run a headless renderer in units tests.
+    ///
+    /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
+    /// query the latest frame from `WINDOWS.widget_tree`. The only thing that
+    /// is disabled is WebRender and the generation of frame textures.
+    ///
+    /// [`UiNode::render`]: crate::widget::instance::UiNode::render
+    pub fn renderer_enabled(&mut self) -> bool {
+        VIEW_PROCESS.is_available()
+    }
+
+    /// If device events are enabled in this app.
+    pub fn device_events(&self) -> bool {
+        self.app.device_events()
+    }
+
+    /// Does updates unobserved.
+    ///
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`update_observed`]: HeadlessApp::update
+    pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
+        self.update_observed(&mut (), wait_app_event)
+    }
+
+    /// Does updates observing [`update`] only.
+    ///
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`update`]: AppEventObserver::update
+    /// [`update_observed`]: HeadlessApp::update
+    pub fn update_observe(&mut self, on_update: impl FnMut(), wait_app_event: bool) -> ControlFlow {
+        struct Observer<F>(F);
+        impl<F: FnMut()> AppEventObserver for Observer<F> {
+            fn update(&mut self) {
+                (self.0)()
+            }
         }
-        name.serialize(serializer)
-    }
-}
-impl<'de> serde::Deserialize<'de> for WidgetId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let name = Txt::deserialize(deserializer)?;
-        Ok(WidgetId::named(name))
-    }
-}
+        let mut observer = Observer(on_update);
 
-zero_ui_unique_id::unique_id_32! {
-    /// Unique identifier of an open window.
-    ///
-    /// Can be obtained from [`WINDOW.id`] inside a window.
-    ///
-    /// [`WINDOW.id`]: crate::context::WINDOW::id
-    pub struct WindowId;
-}
-zero_ui_unique_id::impl_unique_id_name!(WindowId);
-zero_ui_unique_id::impl_unique_id_fmt!(WindowId);
+        self.update_observed(&mut observer, wait_app_event)
+    }
 
-zero_ui_var::impl_from_and_into_var! {
-    /// Calls [`WindowId::named`].
-    fn from(name: &'static str) -> WindowId {
-        WindowId::named(name)
-    }
-    /// Calls [`WindowId::named`].
-    fn from(name: String) -> WindowId {
-        WindowId::named(name)
-    }
-    /// Calls [`WindowId::named`].
-    fn from(name: Cow<'static, str>) -> WindowId {
-        WindowId::named(name)
-    }
-    /// Calls [`WindowId::named`].
-    fn from(name: char) -> WindowId {
-        WindowId::named(name)
-    }
-    /// Calls [`WindowId::named`].
-    fn from(name: Txt) -> WindowId {
-        WindowId::named(name)
-    }
-}
-impl fmt::Debug for StaticWindowId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.get(), f)
-    }
-}
-impl serde::Serialize for WindowId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let name = self.name();
-        if name.is_empty() {
-            use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `WindowId`"));
+    /// Does updates observing [`event`] only.
+    ///
+    /// See [`update_observed`] for more details.
+    ///
+    /// [`event`]: AppEventObserver::event
+    /// [`update_observed`]: HeadlessApp::update
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut EventUpdate), wait_app_event: bool) -> ControlFlow {
+        struct Observer<F>(F);
+        impl<F: FnMut(&mut EventUpdate)> AppEventObserver for Observer<F> {
+            fn event(&mut self, update: &mut EventUpdate) {
+                (self.0)(update);
+            }
         }
-        name.serialize(serializer)
+        let mut observer = Observer(on_event);
+        self.update_observed(&mut observer, wait_app_event)
     }
-}
-impl<'de> serde::Deserialize<'de> for WindowId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+
+    /// Does updates with an [`AppEventObserver`].
+    ///
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
+    /// if it is `false` only responds to app events already in the buffer.
+    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
+        loop {
+            match self.app.poll(wait_app_event, observer) {
+                ControlFlow::Poll => {
+                    wait_app_event = false;
+                    continue;
+                }
+                flow => return flow,
+            }
+        }
+    }
+
+    /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
+    ///
+    /// Returns the task result if the app has not shut-down.
+    pub fn run_task<R, T>(&mut self, task: T) -> Option<R>
     where
-        D: serde::Deserializer<'de>,
+        R: 'static,
+        T: Future<Output = R> + Send + Sync + 'static,
     {
-        let name = Txt::deserialize(deserializer)?;
-        Ok(WindowId::named(name))
+        let mut task = UiTask::new(None, task);
+
+        let mut flow = self.update_observe(
+            || {
+                task.update();
+            },
+            false,
+        );
+
+        if task.update().is_some() {
+            let r = task.into_result().ok();
+            debug_assert!(r.is_some());
+            return r;
+        }
+
+        let mut n = 0;
+        while flow != ControlFlow::Exit {
+            flow = self.update_observe(
+                || {
+                    task.update();
+                },
+                true,
+            );
+
+            if n == 10_000 {
+                tracing::error!("excessive future awaking, run_task ran 10_000 update cycles without finishing");
+            } else if n == 100_000 {
+                panic!("run_task stuck, ran 100_000 update cycles without finishing");
+            }
+            n += 1;
+
+            match task.into_result() {
+                Ok(r) => return Some(r),
+                Err(t) => task = t,
+            }
+        }
+
+        None
+    }
+
+    /// Requests and wait for app exit.
+    ///
+    /// Forces deinit if exit is cancelled.
+    pub fn exit(mut self) {
+        self.run_task(async move {
+            let req = APP_PROCESS.exit();
+            req.wait_rsp().await;
+        });
     }
 }
-impl zero_ui_var::IntoValue<WindowId> for &'static StaticWindowId {}
+
+/// Observer for [`HeadlessApp::update_observed`].
+///
+/// This works like a temporary app extension that runs only for the update call.
+pub trait AppEventObserver {
+    /// Called for each raw event received.
+    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+        let _ = ev;
+    }
+
+    /// Called just after [`AppExtension::event_preview`].
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        let _ = update;
+    }
+
+    /// Called just after [`AppExtension::event_ui`].
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        let _ = update;
+    }
+
+    /// Called just after [`AppExtension::event`].
+    fn event(&mut self, update: &mut EventUpdate) {
+        let _ = update;
+    }
+
+    /// Called just after [`AppExtension::update_preview`].
+    fn update_preview(&mut self) {}
+
+    /// Called just after [`AppExtension::update_ui`].
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
+        let _ = update_widgets;
+    }
+
+    /// Called just after [`AppExtension::update`].
+    fn update(&mut self) {}
+
+    /// Called just after [`AppExtension::info`].
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
+        let _ = info_widgets;
+    }
+
+    /// Called just after [`AppExtension::layout`].
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
+        let _ = layout_widgets;
+    }
+
+    /// Called just after [`AppExtension::render`].
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        let _ = (render_widgets, render_update_widgets);
+    }
+
+    /// Cast to dynamically dispatched observer, this can help avoid code bloat.
+    ///
+    /// The app methods that accept observers automatically use this method if the feature `"dyn_app_extension"` is active.
+    fn as_dyn(&mut self) -> DynAppEventObserver
+    where
+        Self: Sized,
+    {
+        DynAppEventObserver(self)
+    }
+}
+/// Nil observer, does nothing.
+impl AppEventObserver for () {}
+
+#[doc(hidden)]
+pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
+
+trait AppEventObserverDyn {
+    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event);
+    fn event_preview_dyn(&mut self, update: &mut EventUpdate);
+    fn event_ui_dyn(&mut self, update: &mut EventUpdate);
+    fn event_dyn(&mut self, update: &mut EventUpdate);
+    fn update_preview_dyn(&mut self);
+    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates);
+    fn update_dyn(&mut self);
+    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates);
+    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates);
+    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
+}
+impl<O: AppEventObserver> AppEventObserverDyn for O {
+    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event) {
+        self.raw_event(ev)
+    }
+
+    fn event_preview_dyn(&mut self, update: &mut EventUpdate) {
+        self.event_preview(update)
+    }
+
+    fn event_ui_dyn(&mut self, update: &mut EventUpdate) {
+        self.event_ui(update)
+    }
+
+    fn event_dyn(&mut self, update: &mut EventUpdate) {
+        self.event(update)
+    }
+
+    fn update_preview_dyn(&mut self) {
+        self.update_preview()
+    }
+
+    fn update_ui_dyn(&mut self, update_widgets: &mut WidgetUpdates) {
+        self.update_ui(update_widgets)
+    }
+
+    fn update_dyn(&mut self) {
+        self.update()
+    }
+
+    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates) {
+        self.info(info_widgets)
+    }
+
+    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates) {
+        self.layout(layout_widgets)
+    }
+
+    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        self.render(render_widgets, render_update_widgets)
+    }
+}
+impl<'a> AppEventObserver for DynAppEventObserver<'a> {
+    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+        self.0.raw_event_dyn(ev)
+    }
+
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        self.0.event_preview_dyn(update)
+    }
+
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        self.0.event_ui_dyn(update)
+    }
+
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.0.event_dyn(update)
+    }
+
+    fn update_preview(&mut self) {
+        self.0.update_preview_dyn()
+    }
+
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
+        self.0.update_ui_dyn(update_widgets)
+    }
+
+    fn update(&mut self) {
+        self.0.update_dyn()
+    }
+
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
+        self.0.info_dyn(info_widgets)
+    }
+
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
+        self.0.layout_dyn(layout_widgets)
+    }
+
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        self.0.render_dyn(render_widgets, render_update_widgets)
+    }
+
+    fn as_dyn(&mut self) -> DynAppEventObserver {
+        DynAppEventObserver(self.0)
+    }
+}
+
+impl AppExtension for () {
+    fn register(&self, _: &mut AppExtensionsInfo) {}
+}
+impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
+    fn init(&mut self) {
+        self.0.init();
+        self.1.init();
+    }
+
+    fn register(&self, info: &mut AppExtensionsInfo) {
+        self.0.register(info);
+        self.1.register(info);
+    }
+
+    fn enable_device_events(&self) -> bool {
+        self.0.enable_device_events() || self.1.enable_device_events()
+    }
+
+    fn update_preview(&mut self) {
+        self.0.update_preview();
+        self.1.update_preview();
+    }
+
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
+        self.0.update_ui(update_widgets);
+        self.1.update_ui(update_widgets);
+    }
+
+    fn update(&mut self) {
+        self.0.update();
+        self.1.update();
+    }
+
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
+        self.0.info(info_widgets);
+        self.1.info(info_widgets);
+    }
+
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
+        self.0.layout(layout_widgets);
+        self.1.layout(layout_widgets);
+    }
+
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        self.0.render(render_widgets, render_update_widgets);
+        self.1.render(render_widgets, render_update_widgets);
+    }
+
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        self.0.event_preview(update);
+        self.1.event_preview(update);
+    }
+
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        self.0.event_ui(update);
+        self.1.event_ui(update);
+    }
+
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.0.event(update);
+        self.1.event(update);
+    }
+
+    fn deinit(&mut self) {
+        self.1.deinit();
+        self.0.deinit();
+    }
+}
+
+#[cfg(dyn_app_extension)]
+impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
+    fn init(&mut self) {
+        for ext in self {
+            ext.init();
+        }
+    }
+
+    fn register(&self, info: &mut AppExtensionsInfo) {
+        for ext in self {
+            ext.register(info);
+        }
+    }
+
+    fn enable_device_events(&self) -> bool {
+        self.iter().any(|e| e.enable_device_events())
+    }
+
+    fn update_preview(&mut self) {
+        for ext in self {
+            ext.update_preview();
+        }
+    }
+
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
+        for ext in self {
+            ext.update_ui(update_widgets);
+        }
+    }
+
+    fn update(&mut self) {
+        for ext in self {
+            ext.update();
+        }
+    }
+
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        for ext in self {
+            ext.event_preview(update);
+        }
+    }
+
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        for ext in self {
+            ext.event_ui(update);
+        }
+    }
+
+    fn event(&mut self, update: &mut EventUpdate) {
+        for ext in self {
+            ext.event(update);
+        }
+    }
+
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
+        for ext in self {
+            ext.info(info_widgets);
+        }
+    }
+
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
+        for ext in self {
+            ext.layout(layout_widgets);
+        }
+    }
+
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
+        for ext in self {
+            ext.render(render_widgets, render_update_widgets);
+        }
+    }
+
+    fn deinit(&mut self) {
+        for ext in self.iter_mut().rev() {
+            ext.deinit();
+        }
+    }
+}
+
+/// Defines and runs an application.
+///
+/// # View Process
+///
+/// A view-process must be initialized before creating an app. Panics on `run` if there is
+/// not view-process, also panics if the current process is executing as a view-process.
+///
+/// [`minimal`]: App::minimal
+/// [`default`]: App::default
+pub struct App;
+impl App {
+    /// If the crate was build with `feature="multi_app"`.
+    ///
+    /// If `true` multiple apps can run in the same process, but only one app per thread at a time.
+    pub fn multi_app_enabled() -> bool {
+        cfg!(feature = "multi_app")
+    }
+
+    /// If an app is already running in the current thread.
+    ///
+    /// An app is *running* as soon as it starts building, and it stops running after
+    /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
+    ///
+    /// You can use `app_local!` to create *static* resources that live for the app lifetime.
+    pub fn is_running() -> bool {
+        LocalContext::current_app().is_some()
+    }
+
+    /// Gets an unique ID for the current app.
+    ///
+    /// This ID usually does not change as most apps only run once per process, but it can change often during tests.
+    /// Resources that interact with `app_local!` values can use this ID to ensure that they are still operating in the same
+    /// app.
+    pub fn current_id() -> Option<AppId> {
+        LocalContext::current_app()
+    }
+
+    #[cfg(not(feature = "multi_app"))]
+    fn assert_can_run_single() {
+        use std::sync::atomic::*;
+        static CAN_RUN: AtomicBool = AtomicBool::new(true);
+
+        if !CAN_RUN.swap(false, Ordering::SeqCst) {
+            panic!("only one app is allowed per process")
+        }
+    }
+
+    fn assert_can_run() {
+        #[cfg(not(feature = "multi_app"))]
+        Self::assert_can_run_single();
+        if App::is_running() {
+            panic!("only one app is allowed per thread")
+        }
+    }
+
+    /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
+    ///
+    /// Note that specific windows can be in headless modes even if the app is headed.
+    pub fn window_mode() -> WindowMode {
+        if VIEW_PROCESS.is_available() {
+            if VIEW_PROCESS.is_headless_with_render() {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headed
+            }
+        } else {
+            WindowMode::Headless
+        }
+    }
+    /// List of app extensions that are part of the current app.
+    pub fn extensions() -> Arc<AppExtensionsInfo> {
+        APP_PROCESS_SV.read().extensions()
+    }
+}
+
+impl App {
+    /// Application without extensions.
+    pub fn minimal() -> AppExtended<()> {
+        assert_not_view_process();
+        Self::assert_can_run();
+        check_deadlock();
+        let scope = LocalContext::start_app(AppId::new_unique());
+        AppExtended {
+            extensions: (),
+            view_process_exe: None,
+            _cleanup: scope,
+        }
+    }
+}
+
+/// Application with extensions.
+///
+/// See [`App`].
+pub struct AppExtended<E: AppExtension> {
+    extensions: E,
+    view_process_exe: Option<PathBuf>,
+
+    // cleanup on drop.
+    _cleanup: AppScope,
+}
+#[cfg(dyn_app_extension)]
+impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    /// Includes an application extension.
+    pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        self.extensions.push(TraceAppExt(extension).boxed());
+        self
+    }
+
+    /// If the application should notify raw device events.
+    ///
+    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
+    /// this is `false` you still get the mouse move over windows of the app.
+    pub fn enable_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        struct EnableDeviceEvents;
+        impl AppExtension for EnableDeviceEvents {
+            fn enable_device_events(&self) -> bool {
+                true
+            }
+        }
+        self.extend(EnableDeviceEvents)
+    }
+}
+
+#[cfg(not(dyn_app_extension))]
+impl<E: AppExtension> AppExtended<E> {
+    /// Includes an application extension.
+    pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
+        AppExtended {
+            _cleanup: self._cleanup,
+            extensions: (self.extensions, TraceAppExt(extension)),
+            view_process_exe: self.view_process_exe,
+        }
+    }
+
+    /// If the application should notify raw device events.
+    ///
+    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
+    /// this is `false` you still get the mouse move over windows of the app.
+    pub fn enable_device_events(self) -> AppExtended<impl AppExtension> {
+        struct EnableDeviceEvents;
+        impl AppExtension for EnableDeviceEvents {
+            fn enable_device_events(&self) -> bool {
+                true
+            }
+        }
+        self.extend(EnableDeviceEvents)
+    }
+}
+impl<E: AppExtension> AppExtended<E> {
+    /// Set the path to the executable for the *View Process*.
+    ///
+    /// By the default the current executable is started again as a *View Process*, you can use
+    /// two executables instead, by setting this value.
+    ///
+    /// Note that the `view_process_exe` must start a view server and both
+    /// executables must be build using the same exact [`VERSION`].
+    ///
+    /// [`VERSION`]: zero_ui_view_api::VERSION  
+    pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
+        self.view_process_exe = Some(view_process_exe.into());
+        self
+    }
+
+    /// Starts the app, then starts polling `start` to run.
+    ///
+    /// This method only returns when the app has exited.
+    ///
+    /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
+    /// by opening a window, the app will keep running after `start` is finished.
+    pub fn run(mut self, start: impl Future<Output = ()> + Send + 'static) {
+        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+
+        UPDATES.run(start).perm();
+
+        app.run_headed();
+    }
+
+    /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
+    ///
+    /// If `with_renderer` is `true` spawns a renderer process for headless rendering. See [`HeadlessApp::renderer_enabled`]
+    /// for more details.
+    pub fn run_headless(mut self, with_renderer: bool) -> HeadlessApp {
+        let app = RunningApp::start(
+            self._cleanup,
+            self.extensions.boxed(),
+            false,
+            with_renderer,
+            self.view_process_exe.take(),
+        );
+
+        HeadlessApp { app }
+    }
+}
+
+mod private {
+    // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
+    pub trait Sealed {}
+}

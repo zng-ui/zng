@@ -1,4 +1,8 @@
-use std::{any::TypeId, mem};
+use std::{
+    any::TypeId,
+    collections::{hash_map, HashMap},
+    mem,
+};
 
 use super::*;
 
@@ -14,7 +18,7 @@ use super::*;
 ///
 /// # Shortcuts
 ///
-/// You can give commands one or more shortcuts using the [`CommandShortcutExt`], the [`GestureManager`] notifies commands
+/// You can give commands one or more shortcuts using the `CommandShortcutExt`, the `GestureManager` notifies commands
 /// that match a pressed shortcut automatically.
 ///
 /// # Examples
@@ -22,7 +26,7 @@ use super::*;
 /// Declare two commands:
 ///
 /// ```
-/// use zero_ui_core::event::command;
+/// use zero_ui_app::event::command;
 ///
 /// command! {
 ///     static FOO_CMD;
@@ -35,14 +39,13 @@ use super::*;
 /// You can also initialize metadata:
 ///
 /// ```
-/// use zero_ui_core::{event::{command, CommandNameExt, CommandInfoExt}, gesture::{CommandShortcutExt, shortcut}};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
 ///         info: "Does the foo thing.",
-///         shortcut: shortcut![CTRL+'F'],
 ///     };
 /// }
 /// ```
@@ -52,14 +55,13 @@ use super::*;
 /// Or you can use a custom closure to initialize the command:
 ///
 /// ```
-/// use zero_ui_core::{event::{command, CommandNameExt, CommandInfoExt}, gesture::{CommandShortcutExt, shortcut}};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD => |cmd| {
 ///         cmd.init_name("Foo!");
 ///         cmd.init_info("Does the foo thing.");
-///         cmd.init_shortcut(shortcut![CTRL+'F']);
 ///     };
 /// }
 /// ```
@@ -70,8 +72,6 @@ use super::*;
 /// [`CommandArgs`]: crate::event::CommandArgs
 /// [`CommandNameExt`]: crate::event::CommandNameExt
 /// [`CommandInfoExt`]: crate::event::CommandInfoExt
-/// [`CommandShortcutExt`]: crate::gesture::CommandShortcutExt
-/// [`GestureManager`]: crate::gesture::GestureManager
 /// [`Event`]: crate::event::Event
 /// [command extensions]: crate::event::Command#extensions
 #[macro_export]
@@ -92,6 +92,17 @@ macro_rules! command {
 }
 #[doc(inline)]
 pub use command;
+use zero_ui_app_context::AppId;
+use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
+use zero_ui_txt::Txt;
+use zero_ui_unique_id::unique_id_64;
+use zero_ui_var::{types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
+
+#[doc(hidden)]
+pub use zero_ui_app_context::app_local;
+
+#[doc(hidden)]
+pub use paste::paste;
 
 #[doc(hidden)]
 #[macro_export]
@@ -105,7 +116,7 @@ macro_rules! __command {
             fn __meta_init__($cmd: $crate::event::Command) {
                 $meta_init
             }
-            $crate::context::app_local! {
+            $crate::event::app_local! {
                 static EVENT: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($COMMAND)) };
                 static DATA: $crate::event::CommandData =  $crate::event::CommandData::new(__meta_init__);
             }
@@ -116,7 +127,7 @@ macro_rules! __command {
         $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident = { $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
-        $crate::paste! {
+        $crate::event::paste! {
             $crate::__command! {
                 $(#[$attr])*
                 ///
@@ -153,7 +164,7 @@ macro_rules! __command {
 /// [metadata](#metadata) initialization.
 ///
 /// ```
-/// # use zero_ui_core::event::*;
+/// # use zero_ui_app::event::*;
 /// # pub trait CommandFooBarExt: Sized { fn init_foo(self, foo: bool) -> Self { self } fn init_bar(self, bar: bool) -> Self { self } }
 /// # impl CommandFooBarExt for Command { }
 /// command! {
@@ -422,7 +433,7 @@ impl Command {
                 write.is_enabled.set(is_enabled);
             }
             true
-        } else if let hashbrown::hash_map::Entry::Occupied(entry) = write.scopes.entry(self.scope) {
+        } else if let hash_map::Entry::Occupied(entry) = write.scopes.entry(self.scope) {
             let scope = entry.get();
 
             if scope.handle_count == 0 && scope.has_handlers.strong_count() == 1 && scope.is_enabled.strong_count() == 1 {
@@ -751,7 +762,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// must has `foo` and `init_foo` methods.
 ///
 /// ```
-/// use zero_ui_core::{event::*, var::*};
+/// use zero_ui_app::{event::*, var::*};
 ///
 /// static COMMAND_FOO_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
 /// static COMMAND_BAR_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
@@ -964,12 +975,6 @@ pub trait CommandNameExt {
 
     /// Sets the initial name if it is not set.
     fn init_name(self, name: impl Into<Txt>) -> Self;
-
-    /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
-    /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
-    fn name_with_shortcut(self) -> BoxedVar<Txt>
-    where
-        Self: crate::gesture::CommandShortcutExt;
 }
 static COMMAND_NAME_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
 impl CommandNameExt for Command {
@@ -1003,20 +1008,6 @@ impl CommandNameExt for Command {
     fn init_name(self, name: impl Into<Txt>) -> Self {
         self.with_meta(|m| m.init_var(&COMMAND_NAME_ID, name.into()));
         self
-    }
-
-    fn name_with_shortcut(self) -> BoxedVar<Txt>
-    where
-        Self: crate::gesture::CommandShortcutExt,
-    {
-        crate::var::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
-            if shortcut.is_empty() {
-                name.clone()
-            } else {
-                zero_ui_txt::formatx!("{name} ({})", shortcut[0])
-            }
-        })
-        .boxed()
     }
 }
 
@@ -1054,7 +1045,7 @@ pub struct CommandData {
     has_handlers: ArcVar<bool>,
     is_enabled: ArcVar<bool>,
 
-    scopes: FxHashMap<CommandScope, ScopedValue>,
+    scopes: HashMap<CommandScope, ScopedValue>,
 }
 impl CommandData {
     pub fn new(meta_init: fn(Command)) -> Self {
@@ -1069,7 +1060,7 @@ impl CommandData {
             has_handlers: var(false),
             is_enabled: var(false),
 
-            scopes: FxHashMap::default(),
+            scopes: HashMap::default(),
         }
     }
 
@@ -1342,7 +1333,7 @@ macro_rules! __command_property {
             cmd: $cmd_init:expr,
             enabled: $enabled_var:expr,
         }
-    ) => { $crate::paste! {
+    ) => { $crate::event::paste! {
         $(#[$on_cmd_attrs])*
         ///
         /// # Preview
@@ -1353,11 +1344,11 @@ macro_rules! __command_property {
         /// # Async
         ///
         /// You can use async event handlers with this property.
-        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        #[$crate::widget::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
-            child: impl $crate::widget_instance::UiNode,
+            child: impl $crate::widget::instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$crate::event::CommandArgs>,
-        ) -> impl $crate::widget_instance::UiNode {
+        ) -> impl $crate::widget::instance::UiNode {
             $crate::event::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
 
@@ -1372,11 +1363,11 @@ macro_rules! __command_property {
         ///
         /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
         /// subsequent code runs in widget updates.
-        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        #[$crate::widget::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
         $vis fn [<on_pre_ $command>](
-            child: impl $crate::widget_instance::UiNode,
+            child: impl $crate::widget::instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$crate::event::CommandArgs>,
-        ) -> impl $crate::widget_instance::UiNode {
+        ) -> impl $crate::widget::instance::UiNode {
             $crate::event::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
         }
     } };
@@ -1406,9 +1397,8 @@ macro_rules! __command_property {
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::event::*;
-/// # use zero_ui_core::context::*;
-/// # use zero_ui_core::var::*;
+/// # use zero_ui_app::{event::*, widget::*};
+/// # use zero_ui_app::var::*;
 /// # command! {
 /// #   pub static PASTE_CMD;
 /// # }
@@ -1459,6 +1449,17 @@ macro_rules! command_property {
 }
 #[doc(inline)]
 pub use crate::command_property;
+use crate::{
+    handler::WidgetHandler,
+    update::UpdatesTrace,
+    widget::{
+        info::WidgetInfo,
+        instance::{match_node, UiNode, UiNodeOp},
+        WIDGET,
+    },
+    window::WindowId,
+    App,
+};
 
 #[cfg(test)]
 mod tests {

@@ -32,16 +32,11 @@ TextInput! {
 # Split Core
 
 * App crate.
-    - Includes AppExtension, App, HeadlessApp, UPDATES, event, handler, raw events and view API.
-    - Does not include default extensions.
-    - Does not contain UiNode and widgets?
-        - Async handler needs WIDGET.id().
-        - Other usages decoupled using Provider traits.
-        - Widget separation just to parallelize build?
-        - No reason to separate, most extensions will need it, and since it will need app crate anyway
-        - Include WINDOW too?
-            - Yes.
-            
+    - Everything needed to create an App::minimal, spawn a view-process and render some nodes.
+    - After it is building do not try to replace in zero-ui-core, just implement the extension
+      crates too, replace core in main crate when done.
+    - Try to create all `#[property]` from core in a different crate, maybe some should be in app crate?
+        - We also have `with_context_var` in app, is it needed?
 
 * Config.
     - Needs app crate.
@@ -54,6 +49,9 @@ TextInput! {
 * Text Shaping.
     - Mostly decoupled, needs l10n's Lang.
         - Can use underlying type LanguageIdentifier?
+        - Yes, lets not depend on app crate, this should be useful as standalone.
+            - Also only text widget crate needs to depend on it.
+        - Needs to integrate with `app::render::Font`.
 
 * Focus.
     - Needs app crate.

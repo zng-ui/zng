@@ -92,6 +92,9 @@ fn doc(mut args: Vec<&str>) {
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
+    let package = take_option(&mut args, &["-p", "--package"], "package");
+    let mut found_package = false;
+
     let mut pkgs = util::glob("zero-ui*/Cargo.toml");
     if let Some(i) = pkgs.iter().position(|p| p.ends_with("zero-ui/Cargo.toml")) {
         let last = pkgs.len() - 1;
@@ -131,6 +134,11 @@ fn doc(mut args: Vec<&str>) {
         if name.is_empty() {
             error(f!("did not find package name for {pkg}"));
             continue;
+        } else if let Some(p) = &package {
+            if p[0] != name {
+                continue;
+            }
+            found_package = true;
         }
 
         let mut env = vec![];
@@ -139,6 +147,13 @@ fn doc(mut args: Vec<&str>) {
         }
 
         cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
+    }
+
+    if let Some(pkg) = &package {
+        if !found_package {
+            error(f!("did not find package `{}`", &pkg[0]));
+            return;
+        }
     }
 
     let server = if serve {

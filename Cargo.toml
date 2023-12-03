@@ -3,23 +3,19 @@
 resolver = "2"
 
 members = [
-    # macros:
     "zero-ui-unique_id",
     "zero-ui-clone_move",
-    "zero-ui-proc-macros",
-    "zero-ui-var-proc-macros",
-    "zero-ui-task-proc-macros",
-    "zero-ui-color-proc-macros",
-
-    # types:
     "zero-ui-handle",
     "zero-ui-txt",
     "zero-ui-units",
     "zero-ui-state_map",
     "zero-ui-app_context",
-    "zero-ui-var",
     "zero-ui-layout",
+    "zero-ui-var-proc-macros",
+    "zero-ui-var",
+    "zero-ui-task-proc-macros",
     "zero-ui-task",
+    "zero-ui-color-proc-macros",
     "zero-ui-color",
 
     # view:
@@ -28,7 +24,9 @@ members = [
     "zero-ui-view-prebuilt",
 
     # app:
+    "zero-ui-app-proc-macros",
     "zero-ui-app",
+    "zero-ui-proc-macros",
     "zero-ui-core",
     "zero-ui",
     "zero-ui-material-icons",

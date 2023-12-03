@@ -25,25 +25,33 @@ pub use events::*;
 mod channel;
 pub use channel::*;
 
+use crate::{
+    handler::{AppHandler, AppHandlerArgs, WidgetHandler},
+    update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers},
+    widget::{
+        instance::{match_node, UiNode, UiNodeOp},
+        WidgetId, WIDGET,
+    },
+};
 use parking_lot::Mutex;
 use zero_ui_app_context::AppLocal;
 use zero_ui_clone_move::clmv;
-use zero_ui_unique_id::{IdMap, IdEntry, IdSet};
+use zero_ui_unique_id::{IdEntry, IdMap, IdSet};
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] keys.
 ///
 /// Event keys usually represent external events or [`AppExtension`] events, you can also use [`command!`]
 /// to declare events specialized for commanding widgets and services.
 ///
-/// [`AppExtension`]: crate::app::AppExtension
+/// [`AppExtension`]: crate::AppExtension
 ///
 /// # Examples
 ///
 /// The example defines two events with the same arguments type.
 ///
 /// ```
-/// # use zero_ui_core::event::event;
-/// # use zero_ui_core::gesture::ClickArgs;
+/// # use zero_ui_app::event::*;
+/// # event_args! { pub struct ClickArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// event! {
 ///     /// Event docs.
 ///     pub static CLICK_EVENT: ClickArgs;
@@ -69,7 +77,7 @@ macro_rules! event_macro {
         $(
             $(#[$attr])*
             $vis static $EVENT: $crate::event::Event<$Args> = {
-                $crate::context::app_local! {
+                $crate::event::app_local! {
                     static LOCAL: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($EVENT)) };
                 }
                 $crate::event::Event::new(&LOCAL)
@@ -77,9 +85,355 @@ macro_rules! event_macro {
         )+
     }
 }
-use crate::{WidgetId, update::{EventUpdate, UpdateDeliveryList, UpdateSubscribers}, handler::{AppHandler, AppHandlerArgs}};
 #[doc(inline)]
 pub use crate::event_macro as event;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __event_property {
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+            filter: $filter:expr,
+            with: $($with:expr)? $(,)?
+        }
+    ) => { $crate::event::paste! {
+        $(#[$on_event_attrs])*
+        ///
+        /// # Preview
+        ///
+        #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
+        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property.
+        #[$crate::widget::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        $vis fn [<on_ $event>](
+            child: impl $crate::widget::instance::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$Args>,
+        ) -> impl $crate::widget::instance::UiNode {
+            $crate::__event_property!(with($crate::event::on_event(child, $EVENT, $filter, handler), false, $($with)?))
+        }
+
+        #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
+        ///
+        /// # Preview
+        ///
+        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
+        /// the propagation of a preview event the main event handler is not called.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
+        /// subsequent code runs in widget updates.
+        #[$crate::widget::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        $vis fn [<on_pre_ $event>](
+            child: impl $crate::widget::instance::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$Args>,
+        ) -> impl $crate::widget::instance::UiNode {
+            $crate::__event_property!(with($crate::event::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
+        }
+    } };
+
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                filter: |_args| true,
+                with:
+            }
+        }
+    };
+
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+            filter: $filter:expr,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                filter: $filter,
+                with:
+            }
+        }
+    };
+
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path,
+            with: $with:expr,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                filter: |_args| true,
+                with: $with,
+            }
+        }
+    };
+
+    (with($child:expr, $preview:expr,)) => { $child };
+    (with($child:expr, $preview:expr, $with:expr)) => { ($with)($child, $preview) };
+}
+
+///<span data-del-macro-root></span> Declare one or more event properties.
+///
+/// Each declaration expands to two properties `on_$event`, `on_pre_$event`.
+/// The preview properties call [`on_pre_event`], the main event properties call [`on_event`].
+///
+/// # Examples
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_app::event::*;
+/// # use zero_ui_view_api::keyboard::KeyState;
+/// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
+/// event_property! {
+///     /// on_key_input docs.
+///     pub fn key_input {
+///         event: KEY_INPUT_EVENT,
+///         args: KeyInputArgs,
+///         // default filter is |args| true,
+///     }
+///
+///     pub(crate) fn key_down {
+///         event: KEY_INPUT_EVENT,
+///         args: KeyInputArgs,
+///         // optional filter:
+///         filter: |args| args.state == KeyState::Pressed,
+///     }
+/// }
+/// ```
+///
+/// # Filter
+///
+/// App events are delivered to all `UiNode` inside all widgets in the [`UpdateDeliveryList`] and event subscribers list,
+/// event properties can specialize further by defining a filter predicate.
+///
+/// The `filter` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
+/// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
+/// See [`on_event`] and [`on_pre_event`] for more information.
+///
+/// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
+/// are allowed by default.  Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
+/// targets, event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
+///
+/// # Async
+///
+/// Async event handlers are supported by properties generated by this macro, but only the code before the first `.await` executes
+/// in the event track, subsequent code runs in widget updates.
+///
+/// # Commands
+///
+/// You can use [`command_property`] to declare command event properties.
+///
+/// # With Extra Nodes
+///
+/// You can wrap the event handler node with extra nodes by setting the optional `with` closure:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_app::{event::*, widget::instance::UiNode};
+/// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
+/// # fn some_node(child: impl UiNode) -> impl UiNode { child }
+/// event_property! {
+///     pub fn key_input {
+///         event: KEY_INPUT_EVENT,
+///         args: KeyInputArgs,
+///         with: |child, _preview| some_node(child),
+///     }
+/// }
+/// ```
+///
+/// The closure receives two arguments, the handler `UiNode` and a `bool` that is `true` if the closure is called in in the *on_pre_*
+/// property or `false` when called in the *on_* property.
+///
+/// [`on_pre_event`]: crate::event::on_pre_event
+/// [`on_event`]: crate::event::on_event
+/// [`propagation`]: AnyEventArgs::propagation
+/// [`ENABLED`]: crate::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget::info::Interactivity::DISABLED
+#[macro_export]
+macro_rules! event_property {
+    ($(
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $EVENT:path,
+            args: $Args:path $(,
+            filter: $filter:expr)? $(,
+            with: $with:expr)? $(,)?
+        }
+    )+) => {$(
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $EVENT,
+                args: $Args,
+                $(filter: $filter,)?
+                $(with: $with,)?
+            }
+        }
+    )+};
+}
+#[doc(inline)]
+pub use crate::event_property;
+
+/// Helper for declaring event properties.
+///
+/// This function is used by the [`event_property!`] macro.
+///
+/// # Filter
+///
+/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
+/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
+/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
+/// if they fire on normal interactions vs on *disabled* interactions.
+///
+/// # Route
+///
+/// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// # Async
+///
+/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
+///
+/// # Commands
+///
+/// You can use [`on_command`] to declare command event properties.
+///
+/// [`propagation`]: AnyEventArgs::propagation
+/// [`ENABLED`]: crate::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget::info::Interactivity::DISABLED
+pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
+    #[cfg(dyn_closure)]
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+    on_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&event);
+        }
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            if let Some(args) = event.on(update) {
+                if !args.propagation().is_stopped() && filter(args) {
+                    handler.event(args);
+                }
+            }
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            handler.update();
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring preview event properties.
+///
+/// This function is used by the [`event_property!`] macro.
+///
+/// # Filter
+///
+/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
+/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
+/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
+/// if they fire on normal interactions vs on *disabled* interactions.
+///
+/// # Route
+///
+/// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// # Async
+///
+/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
+///
+/// # Commands
+///
+/// You can use [`on_pre_command`] to declare command event properties.
+///
+/// [`propagation`]: AnyEventArgs::propagation
+/// [`ENABLED`]: crate::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget::info::Interactivity::DISABLED
+pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
+    #[cfg(dyn_closure)]
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+    on_pre_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
+}
+fn on_pre_event_impl<C, A, F, H>(child: C, event: Event<A>, mut filter: F, mut handler: H) -> impl UiNode
+where
+    C: UiNode,
+    A: EventArgs,
+    F: FnMut(&A) -> bool + Send + 'static,
+    H: WidgetHandler<A>,
+{
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&event);
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = event.on(update) {
+                if !args.propagation().is_stopped() && filter(args) {
+                    handler.event(args);
+                }
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            handler.update();
+        }
+        _ => {}
+    })
+}
 
 #[doc(hidden)]
 pub struct EventData {
@@ -217,10 +571,11 @@ impl<A: EventArgs> Event<A> {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
+    /// # use zero_ui_app::event::*;
+    /// # use zero_ui_app::App;
+    /// # use zero_ui_app::handler::app_hn;
+    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+    /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = App::minimal();
     /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
@@ -254,7 +609,7 @@ impl<A: EventArgs> Event<A> {
     /// Creates an event handler.
     ///
     /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](AnyEventArgs::propagation).
-    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
+    /// The handler is called after all [`on_pre_event`](Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
     /// registered before this one.
     ///
     /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
@@ -263,10 +618,11 @@ impl<A: EventArgs> Event<A> {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
+    /// # use zero_ui_app::event::*;
+    /// # use zero_ui_app::App;
+    /// # use zero_ui_app::handler::app_hn;
+    /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+    /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = App::minimal();
     /// let handle = FOCUS_CHANGED_EVENT.on_event(app_hn!(|args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);

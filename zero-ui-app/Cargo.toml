@@ -5,16 +5,83 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+default = ["ipc", "debug_default"]
+
+# Enables pre-build views and connecting to views running in another process.
+# 
+# Enabled by default.
+ipc = ["zero-ui-view-api/ipc"]
+# Signal the build script to enable the `dyn_*`, `inspector` and `trace_widget` features for debug builds.
+#
+# Enabled by default.
+debug_default = ["zero-ui-var/debug_default"]
+
+# Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_node = []
+
+# Instrument each widget instance to retain build information.
+inspector = []
+
+# Use dynamic dispatch at the app-extension level.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_app_extension = []
+
+# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_closure = ["zero-ui-var/dyn_closure"]
+
+# like cfg(test) but also visible in docs and integration tests.
+#
+# USAGE:
+#
+# For zero-ui-core maintainers, use `#[cfg(feature="test_util")]` in the helper types and places where
+# the types are used. Use `do` to run integration tests.
+#
+# For external dependents, build with this feature to use the test helper types that show
+# in the documentation.
+test_util = ["multi_app", "deadlock_detection"]
+
+# Allows multiple app instances per-process.
+#
+# This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
+# what app is currently running in each thread and `app_local!` statics switch to the value of each app
+# depending on the current thread.
+#
+# Not enabled by default, but enabled by `feature="test_util"`.
+multi_app = ["zero-ui-app_context/multi_app"]
+
+# Instrument every widget outer-most node to trace UI methods.
+trace_widget = []
+
+# Instrument every property and intrinsic node to trace UI methods.
+#
+# Note that this can cause very large trace files and bad performance.
+trace_wgt_item = []
+
+# Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+#
+# Not enabled by default, but enabled by `feature="test_util"`.
+deadlock_detection = ["zero-ui-task/deadlock_detection"]
+
 [dependencies]
-zero-ui-unique_id ={ path = "../zero-ui-unique_id" }
-zero-ui-handle ={ path = "../zero-ui-handle" }
-zero-ui-clone_move ={ path = "../zero-ui-clone_move" }
-zero-ui-app_context ={ path = "../zero-ui-app_context" }
-zero-ui-var ={ path = "../zero-ui-var" }
-zero-ui-txt ={ path = "../zero-ui-txt" }
-zero-ui-task ={ path = "../zero-ui-task" }
-zero-ui-view-api ={ path = "../zero-ui-view-api" }
+zero-ui-app-proc-macros = { path = "../zero-ui-app-proc-macros" }
+
+zero-ui-unique_id = { path = "../zero-ui-unique_id" }
+zero-ui-handle = { path = "../zero-ui-handle" }
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-color = { path = "../zero-ui-color" }
 
 tracing = "0.1"
 pretty-type-name = "1"
@@ -22,3 +89,11 @@ parking_lot = "0.12"
 serde = "1"
 bytemuck = "1"
 flume = "0.11"
+atomic = "0.6"
+bitflags = "2"
+paste = "1"
+once_cell = "1"
+unic-langid = { version = "0.9", features = ["serde"] }
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "zero-ui-app/doc/html-in-header.html" ]
