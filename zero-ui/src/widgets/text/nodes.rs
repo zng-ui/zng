@@ -3645,9 +3645,14 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                     UiNodeOp::Render { frame } => {
                         let l_txt = LayoutText::get();
                         let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
-                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, true, |frame| {
+                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
                             c.render(frame)
                         });
+                    }
+                    UiNodeOp::RenderUpdate { update } => {
+                        let l_txt = LayoutText::get();
+                        let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
+                        update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
                     }
                     _ => {}
                 });

@@ -7,9 +7,6 @@
         - Hit-test area full shape rectangle.
 
 * Implement selection toolbar.
-    - Panics if there is a popup::close_delay and you hover one when there is more than one open at a time.
-    - Wrong clip item count in Window hit-clips, item from push_transform that positions the toolbar.
-
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
     - Implement `selection_toolbar_fn`.
         - Needs to open when a selection finishes creating (mouse/touch release)
@@ -23,6 +20,10 @@ TextInput! {
     }
 }
 ```
+
+# Hit-test
+
+* Root hit-test items outside the root inner are lost.
 
 # Accessibility
 
