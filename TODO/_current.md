@@ -36,7 +36,7 @@ TextInput! {
     - After it is building do not try to replace in zero-ui-core, just implement the extension
       crates too, replace core in main crate when done.
     - Try to create all `#[property]` from core in a different crate, maybe some should be in app crate?
-        - We also have `with_context_var` in app, is it needed?
+        - In `zero-ui-wgt`.
 
 * Config.
     - Needs app crate.

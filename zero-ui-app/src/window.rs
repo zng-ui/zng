@@ -3,12 +3,10 @@
 use std::{borrow::Cow, fmt, sync::Arc};
 
 use crate::{update::UpdatesTrace, widget::info::WidgetInfoTree};
-use atomic::Atomic;
 use parking_lot::RwLock;
 use zero_ui_app_context::context_local;
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zero_ui_txt::Txt;
-use zero_ui_view_api::window::FrameId;
 
 zero_ui_unique_id::unique_id_32! {
     /// Unique identifier of an open window.
@@ -506,7 +504,7 @@ impl WindowCtx {
             widget_tree: RwLock::new(None),
 
             #[cfg(any(test, doc, feature = "test_util"))]
-            frame_id: Atomic::new(FrameId::first()),
+            frame_id: atomic::Atomic::new(zero_ui_view_api::window::FrameId::first()),
         })))
     }
 
@@ -546,7 +544,7 @@ struct WindowCtxData {
     widget_tree: RwLock<Option<WidgetInfoTree>>,
 
     #[cfg(any(test, doc, feature = "test_util"))]
-    frame_id: Atomic<FrameId>,
+    frame_id: atomic::Atomic<zero_ui_view_api::window::FrameId>,
 }
 impl WindowCtxData {
     #[track_caller]

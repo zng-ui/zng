@@ -3,7 +3,6 @@
 use std::{
     any::{Any, TypeId},
     fmt,
-    sync::Arc,
 };
 
 mod adopt;
@@ -25,7 +24,7 @@ mod list;
 pub use list::*;
 use zero_ui_app_proc_macros::{ui_node, widget};
 use zero_ui_layout::{context::LAYOUT, units::PxSize};
-use zero_ui_var::{BoxedVar, ContextInitHandle, ContextVar, IntoVar, ResponseVar, Var, VarValue};
+use zero_ui_var::{ContextInitHandle, ResponseVar, Var};
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
@@ -1388,153 +1387,7 @@ pub struct FillUiNode;
 #[ui_node(none)]
 impl UiNode for FillUiNode {}
 
-/// Helper for declaring properties that sets a context var.
-///
-/// The method presents the `value` as the [`ContextVar<T>`] in the widget and widget descendants.
-/// The context var [`is_new`] and [`read_only`] status are always equal to the `value` var status. Users
-/// of the context var can also retrieve the `value` var using [`actual_var`].
-///
-/// The generated [`UiNode`] delegates each method to `child` inside a call to [`ContextVar::with_context`].
-///
-/// # Examples
-///
-/// A simple context property declaration:
-///
-/// ```
-/// # fn main() -> () { }
-/// # use zero_ui_app::{*, widget::{instance::*, *}};
-/// # use zero_ui_var::*;
-/// #
-/// context_var! {
-///     pub static FOO_VAR: u32 = 0u32;
-/// }
-///
-/// /// Sets the [`FooVar`] in the widgets and its content.
-/// #[property(CONTEXT, default(FOO_VAR))]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-///     with_context_var(child, FOO_VAR, value)
-/// }
-/// ```
-///
-/// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FOO_VAR.get`, and if `value` is set to a
-/// variable the `FOO_VAR` will also reflect its [`is_new`] and [`read_only`]. If the `value` var is not read-only inner nodes
-/// can modify it using `FOO_VAR.set` or `FOO_VAR.modify`.
-///
-/// Also note that the property [`default`] is set to the same `FOO_VAR`, this causes the property to *pass-through* the outer context
-/// value, as if it was not set.
-///
-/// **Tip:** You can use a [`merge_var!`] to merge a new value to the previous context value:
-///
-/// ```
-/// # fn main() -> () { }
-/// # use zero_ui_app::{*, widget::{instance::*, *}};
-/// # use zero_ui_var::*;
-/// #
-/// #[derive(Debug, Clone, Default, PartialEq)]
-/// pub struct Config {
-///     pub foo: bool,
-///     pub bar: bool,
-/// }
-///
-/// context_var! {
-///     pub static CONFIG_VAR: Config = Config::default();
-/// }
-///
-/// /// Sets the *foo* config.
-/// #[property(CONTEXT, default(false))]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.foo = v;
-///         c
-///     }))
-/// }
-///
-/// /// Sets the *bar* config.
-/// #[property(CONTEXT, default(false))]
-/// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
-///         let mut c = c.clone();
-///         c.bar = v;
-///         c
-///     }))
-/// }
-/// ```
-///
-/// When set in a widget, the [`merge_var!`] will read the context value of the parent properties, modify a clone of the value and
-/// the result will be accessible to the inner properties, the widget user can then set with the composed value in steps and
-/// the final consumer of the composed value only need to monitor to a single context variable.
-///
-/// [`is_new`]: zero_ui_var::AnyVar::is_new
-/// [`read_only`]: zero_ui_var::Var::read_only
-/// [`actual_var`]: zero_ui_var::Var::actual_var
-/// [`default`]: crate::widget::property#default
-/// [`merge_var!`]: zero_ui_var::merge_var
-pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
-    let value = value.into_var();
-    let mut actual_value = None;
-    let mut id = None;
-
-    match_node(child, move |child, op| {
-        let mut is_deinit = false;
-        match &op {
-            UiNodeOp::Init => {
-                id = Some(ContextInitHandle::new());
-                actual_value = Some(Arc::new(value.clone().actual_var().boxed()));
-            }
-            UiNodeOp::Deinit => {
-                is_deinit = true;
-            }
-            _ => {}
-        }
-
-        context_var.with_context(id.clone().expect("node not inited"), &mut actual_value, || child.op(op));
-
-        if is_deinit {
-            id = None;
-            actual_value = None;
-        }
-    })
-}
-
-/// Helper for declaring properties that sets a context var to a value generated on init.
-///
-/// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextVar<T>`]
-/// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
-///
-/// Apart from the value initialization this behaves just like [`with_context_var`].
-pub fn with_context_var_init<T: VarValue>(
-    child: impl UiNode,
-    var: ContextVar<T>,
-    mut init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
-) -> impl UiNode {
-    let mut id = None;
-    let mut value = None;
-    match_node(child, move |child, op| {
-        let mut is_deinit = false;
-        match &op {
-            UiNodeOp::Init => {
-                id = Some(ContextInitHandle::new());
-                value = Some(Arc::new(init_value().actual_var()));
-            }
-            UiNodeOp::Deinit => {
-                is_deinit = true;
-            }
-            _ => {}
-        }
-
-        var.with_context(id.clone().expect("node not inited"), &mut value, || child.op(op));
-
-        if is_deinit {
-            id = None;
-            value = None;
-        }
-    })
-}
-
 /// Wraps `child` in a node that provides a unique [`ContextInitHandle`], refreshed every (re)init.
-///
-/// Note that [`with_context_var`] and [`with_context_var_init`] already provide an unique ID.
 pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
     let mut id = None;
 

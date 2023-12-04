@@ -3,6 +3,7 @@
 resolver = "2"
 
 members = [
+    # foundation:
     "zero-ui-unique_id",
     "zero-ui-clone_move",
     "zero-ui-handle",
@@ -30,6 +31,9 @@ members = [
     "zero-ui-core",
     "zero-ui",
     "zero-ui-material-icons",
+
+    # wgt:
+    "zero-ui-wgt",
 
     # tools:
     "zero-ui-l10n-scraper",
