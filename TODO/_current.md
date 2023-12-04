@@ -8,6 +8,8 @@
 
 * Implement selection toolbar.
     - Panics if there is a popup::close_delay and you hover one when there is more than one open at a time.
+    - Wrong clip item count in Window hit-clips, item from push_transform that positions the toolbar.
+
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
     - Implement `selection_toolbar_fn`.
         - Needs to open when a selection finishes creating (mouse/touch release)
@@ -36,7 +38,7 @@ TextInput! {
     - After it is building do not try to replace in zero-ui-core, just implement the extension
       crates too, replace core in main crate when done.
     - Try to create all `#[property]` from core in a different crate, maybe some should be in app crate?
-        - In `zero-ui-wgt`.
+        - Try to move `z_index` property to -wgt crate too.
 
 * Config.
     - Needs app crate.

@@ -239,9 +239,9 @@ macro_rules! impl_unique_id_fmt {
                         .field("name", &name)
                         .finish()
                 } else if !name.is_empty() {
-                    write!(f, r#"WidgetId("{name}")"#)
+                    write!(f, r#"{}("{name}")"#, stringify!($UniqueId))
                 } else {
-                    write!(f, "WidgetId({})", self.sequential())
+                    write!(f, "{}({})", stringify!($UniqueId), self.sequential())
                 }
             }
         }
