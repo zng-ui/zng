@@ -32,14 +32,17 @@ TextInput! {
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# Split Core
+# Split Crates
 
 * App crate.
     - Everything needed to create an App::minimal, spawn a view-process and render some nodes.
     - After it is building do not try to replace in zero-ui-core, just implement the extension
       crates too, replace core in main crate when done.
-    - Try to create all `#[property]` from core in a different crate, maybe some should be in app crate?
-        - Try to move `z_index` property to -wgt crate too.
+
+* Implement `TRANSFORM_CHANGED_EVENT` in app crate.
+    - Implement `VISIBILITY_CHANGED_EVENT` in app crate.
+        - This one is fully new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
+        - Maybe both transform and visibility changed can be refactored into bulk event like INTERACTIVITY_CHANGED_EVENT.
 
 * Config.
     - Needs app crate.
@@ -60,42 +63,38 @@ TextInput! {
     - Needs app crate.
     - Needs WINDOWS.
 
-- File-System Watcher
+* File-System Watcher
     - Needs app crate.
     - Needs timers.
 
-- Gesture
+* Gesture
     - Needs app crate.
     - Needs WINDOWS, keyboard and mouse.
 
-- Image
+* Image
     - Needs app crate.
     - Needs ViewImage.
 
-- Keyboard, mouse and touch.
+* Keyboard, mouse and touch.
     - Needs app crate.
     - Needs FOCUS.
     - Needs TIMERS.
 
-- Pointer Capture.
+* Pointer Capture.
     - Needs mouse and touch.
     - Needs WINDOWS.
 
-- TIMERS.
-    - Could decouple like VARS maybe.
-    - UPDATES controls it, and is called by it.
-
-- Undo.
+* Undo.
     - Needs app crate.
 
-- WINDOWS.
+* WINDOWS.
     - Needs app crate.
     - Needs ViewWindow.
     - Needs UiNode.
+    - Needs Image for icon?
 
-## Split Main
-
-* Per widget?
+* Move widget events to wgt crate.
+    - Implement `on_show`, `on_collapse`.
 
 # Publish
 

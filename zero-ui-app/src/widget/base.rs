@@ -819,10 +819,6 @@ pub mod nodes {
     }
 }
 
-context_var! {
-    static IS_ENABLED_VAR: bool = true;
-}
-
 /// Defines the widget innermost node.
 #[property(CHILD, capture, default(FillUiNode))]
 pub fn child(child: impl UiNode) {}

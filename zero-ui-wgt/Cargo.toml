@@ -19,10 +19,15 @@ debug_default = ["zero-ui-var/debug_default"]
 dyn_closure = ["zero-ui-var/dyn_closure"]
 
 [dependencies]
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-layout = { path = "../zero-ui-layout" }
 
 paste = "1"
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-wgt/doc/html-in-header.html" ]
+rustdoc-args = ["--html-in-header", "zero-ui-wgt/doc/html-in-header.html"]
