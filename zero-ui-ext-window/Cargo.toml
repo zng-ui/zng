@@ -1,0 +1,26 @@
+[package]
+name = "zero-ui-ext-window"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-unique_id = { path = "../zero-ui-unique_id" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-color = { path = "../zero-ui-color" }
+zero-ui-ext-image = { path = "../zero-ui-ext-image" }
+
+serde = { version = "1", features = ["derive"] }
+bitflags = "2"
+atomic = "0.6"
+tracing = "0.1"
+parking_lot = "0.12"

@@ -32,12 +32,17 @@ members = [
     "zero-ui",
     "zero-ui-material-icons",
 
-    # ext:
+    # app-extension:
     "zero-ui-ext-fs_watcher",
     "zero-ui-ext-config",
+    "zero-ui-ext-font",
     "zero-ui-ext-l10n",
+    "zero-ui-ext-image",
+    "zero-ui-ext-clipboard",
+    # "zero-ui-ext-undo",
+    # "zero-ui-ext-window",
 
-    # wgt:
+    # widget:
     "zero-ui-widget",
 
     # tools:

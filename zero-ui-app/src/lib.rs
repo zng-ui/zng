@@ -20,6 +20,7 @@ pub mod update;
 pub mod view_process;
 pub mod widget;
 pub mod window;
+pub mod shortcut;
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

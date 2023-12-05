@@ -1,0 +1,15 @@
+[package]
+name = "zero-ui-ext-clipboard"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-ext-image = { path = "../zero-ui-ext-image" }
+
+tracing = "0.1"

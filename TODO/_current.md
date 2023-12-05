@@ -40,46 +40,51 @@ TextInput! {
       crates too, replace core in main crate when done.
 
 * Implement `TRANSFORM_CHANGED_EVENT` in app crate.
+    - Currently implemented in notify_transform_changes.
+        - This tracks all subscriber transforms in a map.
+        - Need to move this map to the info tree?
     - Implement `VISIBILITY_CHANGED_EVENT` in app crate.
-        - This one is fully new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
+        - This one is new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
+        - Use the same method of storing subscriber data.
         - Maybe both transform and visibility changed can be refactored into bulk event like INTERACTIVITY_CHANGED_EVENT.
 
-* Text Shaping.
-    - Mostly decoupled, needs l10n's Lang.
-        - Can use underlying type LanguageIdentifier?
-        - Yes, lets not depend on app crate, this should be useful as standalone.
-            - Also only text widget crate needs to depend on it.
-        - Needs to integrate with `app::render::Font`.
+* Multiple crates need shortcuts only to set on commands.
+    - Including -app actually, we removed the shortcuts from EXIT_CMD.
+    - Unfortunately this pulls the entire input and focus stuff.
+    - Maybe we can have shortcut type in app crate.
+        - Shortcut is demonstration of command extension, so have it on a crate?
+        - Can't set on the EXIT_CMD if use crate, because crate will depend on the app for command traits.
+
+* Undo.
+    - Needs focus scope.
+        - For `undo_scoped`, really needs it.
+    - Needs `KEYBOARD` for a config.
+        - If we unify focus with input this is already a dependency too.
 
 * Focus.
-    - Needs app crate.
+    - Needs mouse and touch events.
     - Needs WINDOWS.
-
-* Gesture
-    - Needs app crate.
-    - Needs WINDOWS, keyboard and mouse.
-
-* Image
-    - Needs app crate.
-    - Needs ViewImage.
-
-* Keyboard, mouse and touch.
-    - Needs app crate.
+    - Needs gestures and keyboard for shortcut.
+* Mouse.
+    - Needs ModifiersState for keyboard.
+    - Needs capture.
+* Keyboard.
     - Needs FOCUS.
-    - Needs TIMERS.
-
+* Gesture
+    - Needs WINDOWS, keyboard and mouse.
 * Pointer Capture.
     - Needs mouse and touch.
     - Needs WINDOWS.
-
-* Undo.
-    - Needs app crate.
+* Focus and input must be on same crate?
+    - Can decouple from WINDOWS?
 
 * WINDOWS.
-    - Needs app crate.
-    - Needs ViewWindow.
-    - Needs UiNode.
-    - Needs Image for icon?
+    - Needs shortcut for command shortcuts.
+    - Needs LANG_VAR in L10n.
+    - Needs FOCUS.focused for access and IME stuff.
+        - Could create a WINDOWS.init_focused_widget(var).
+    - Needs FONTS.system_font_aa.
+        - Could listen to the RAW event and record (same thing FONTS does).
 
 * Move widget events to wgt crate.
     - Implement `on_show`, `on_collapse`.

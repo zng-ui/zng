@@ -16,6 +16,8 @@ use crate::{
         TimeoutOrAppDisconnected, EVENTS,
     },
     event_args,
+    shortcut::shortcut,
+    shortcut::CommandShortcutExt,
     timer::TimersService,
     update::{
         ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates, UPDATES,
@@ -1004,6 +1006,7 @@ command! {
     pub static EXIT_CMD = {
         name: "Exit",
         info: "Close all windows and exit.",
+        shortcut: shortcut!(Exit),
     };
 }
 
