@@ -3556,7 +3556,13 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 c.event(update);
 
                 if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
-                    close = true;
+                    if let Some(popup_state) = &popup_state {
+                        if let PopupState::Open(id) = popup_state.get() {
+                            if !args.target.contains(id) {
+                                close = true;
+                            }
+                        }
+                    }
                     if args.state == ButtonState::Released {
                         open = true;
                     }
@@ -3566,7 +3572,15 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                     close = true;
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                     if args.is_blur(WIDGET.id()) {
-                        close = true;
+                        if let Some(popup_state) = &popup_state {
+                            if let PopupState::Open(id) = popup_state.get() {
+                                if let Some(new_focus) = &args.new_focus {
+                                    if !new_focus.contains(id) {
+                                        close = true;
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
                     if matches!(args.phase, TouchPhase::Start | TouchPhase::Move) {
@@ -3598,7 +3612,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             if let Some(range) = ResolvedText::get().caret.lock().selection_range() {
                 selection_range = Some(range);
 
-                let (node, _) = SELECTION_TOOLBAR_FN_VAR.get()(SelectionToolbarArgs {}).init_widget();
+                let (node, _) = SELECTION_TOOLBAR_FN_VAR.get()(SelectionToolbarArgs { anchor_id: WIDGET.id() }).init_widget();
 
                 let mut translate = PxVector::zero();
                 let transform_key = FrameValueKey::new_unique();

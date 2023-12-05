@@ -11,6 +11,7 @@
     - Implement `selection_toolbar_fn`.
         - Needs to open when a selection finishes creating (mouse/touch release)
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
+                - Test touch.
 ```rust
 TextInput! {
     txt = var_from("select text to show toolbar");
