@@ -38,7 +38,7 @@ members = [
     "zero-ui-ext-l10n",
 
     # wgt:
-    "zero-ui-wgt",
+    "zero-ui-widget",
 
     # tools:
     "zero-ui-l10n-scraper",
