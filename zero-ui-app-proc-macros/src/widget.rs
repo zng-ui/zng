@@ -105,7 +105,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         if !args.is_empty() {
             let span = match syn::parse::<Args>(args) {
                 Ok(a) => a.path.span(),
-                Err(e) => e.span()
+                Err(e) => e.span(),
             };
             let mut r = syn::Error::new(span, "mix-ins do not need a `$crate` path")
                 .to_compile_error()

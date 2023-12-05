@@ -1071,6 +1071,20 @@ impl App {
 
 impl App {
     /// Application without extensions.
+    #[cfg(dyn_app_extension)]
+    pub fn minimal() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        assert_not_view_process();
+        Self::assert_can_run();
+        check_deadlock();
+        let scope = LocalContext::start_app(AppId::new_unique());
+        AppExtended {
+            extensions: vec![],
+            view_process_exe: None,
+            _cleanup: scope,
+        }
+    }
+
+    #[cfg(not(dyn_app_extension))]
     pub fn minimal() -> AppExtended<()> {
         assert_not_view_process();
         Self::assert_can_run();

@@ -16,7 +16,9 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 use std::{mem, thread};
 
+#[doc(hidden)]
 pub use zero_ui_clone_move::*;
+
 use zero_ui_handle::{Handle, WeakHandle};
 use zero_ui_task::{self as task, ui::UiTask};
 

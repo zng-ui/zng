@@ -32,6 +32,10 @@ members = [
     "zero-ui",
     "zero-ui-material-icons",
 
+    # ext:
+    "zero-ui-ext-fs_watcher",
+    "zero-ui-ext-config",
+
     # wgt:
     "zero-ui-wgt",
 

@@ -44,10 +44,6 @@ TextInput! {
         - This one is fully new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
         - Maybe both transform and visibility changed can be refactored into bulk event like INTERACTIVITY_CHANGED_EVENT.
 
-* Config.
-    - Needs app crate.
-    - Needs var.
-
 * L10n.
     - Needs app crate.
     - Needs var.
@@ -62,10 +58,6 @@ TextInput! {
 * Focus.
     - Needs app crate.
     - Needs WINDOWS.
-
-* File-System Watcher
-    - Needs app crate.
-    - Needs timers.
 
 * Gesture
     - Needs app crate.
