@@ -35,6 +35,7 @@ members = [
     # ext:
     "zero-ui-ext-fs_watcher",
     "zero-ui-ext-config",
+    "zero-ui-ext-l10n",
 
     # wgt:
     "zero-ui-wgt",

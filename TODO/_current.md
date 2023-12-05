@@ -44,10 +44,6 @@ TextInput! {
         - This one is fully new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
         - Maybe both transform and visibility changed can be refactored into bulk event like INTERACTIVITY_CHANGED_EVENT.
 
-* L10n.
-    - Needs app crate.
-    - Needs var.
-
 * Text Shaping.
     - Mostly decoupled, needs l10n's Lang.
         - Can use underlying type LanguageIdentifier?

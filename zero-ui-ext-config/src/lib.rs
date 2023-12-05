@@ -19,9 +19,9 @@ mod sync;
 pub use sync::*;
 use zero_ui_app_context::app_local;
 use zero_ui_clone_move::clmv;
-use zero_ui_ext_fs_watcher::{WatcherReadStatus, WatcherSyncStatus, WatchFile, WriteFile};
+use zero_ui_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zero_ui_txt::Txt;
-use zero_ui_var::{types::WeakArcVar, var, ArcVar, BoxedVar, LocalVar, VarHandles, VarModify, VarValue, Var, WeakVar, AnyWeakVar, AnyVar};
+use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 #[cfg(feature = "toml")]
 mod toml;

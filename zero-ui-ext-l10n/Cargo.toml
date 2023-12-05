@@ -1,0 +1,28 @@
+[package]
+name = "zero-ui-ext-l10n"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-ext-l10n-proc-macros = { path = "../zero-ui-ext-l10n-proc-macros" }
+
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-ext-fs_watcher = { path = "../zero-ui-ext-fs_watcher" }
+
+fluent = "0.16"
+fluent-syntax = "0.11"
+intl-memoizer = "0.5"
+parking_lot = "0.12"
+unic-langid = "0.9"
+tracing = "0.1"
+unicase = "2"
+once_cell = "1"

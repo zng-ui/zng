@@ -4,6 +4,7 @@
 #![allow(clippy::type_complexity)]
 
 use std::{
+    collections::{hash_map, HashMap},
     fmt, fs,
     io::{self, Write as _},
     mem, ops,
@@ -13,7 +14,7 @@ use std::{
         Arc,
     },
     thread,
-    time::{Duration, Instant, SystemTime}, collections::{HashMap, hash_map},
+    time::{Duration, Instant, SystemTime},
 };
 
 use atomic::{Atomic, Ordering};
@@ -35,7 +36,9 @@ use zero_ui_clone_move::clmv;
 use zero_ui_handle::{Handle, HandleOwner};
 use zero_ui_txt::Txt;
 use zero_ui_units::TimeUnits;
-use zero_ui_var::{var, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarUpdateId, VarValue, VARS, WeakVar, AnyVar, VarHookArgs, types::WeakArcVar};
+use zero_ui_var::{
+    types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarHookArgs, VarUpdateId, VarValue, WeakVar, VARS,
+};
 
 use zero_ui_task as task;
 
@@ -295,7 +298,7 @@ impl WATCHER {
     ///
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
-    /// 
+    ///
     /// [`async_app_hn!`]: macro@zero_ui_app::handler::async_app_hn
     pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let file = file.into();
@@ -310,7 +313,7 @@ impl WATCHER {
     ///
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
-    /// 
+    ///
     /// [`async_app_hn!`]: macro@zero_ui_app::handler::async_app_hn
     pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let dir = dir.into();
