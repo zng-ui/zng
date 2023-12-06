@@ -1501,6 +1501,15 @@ pub enum AutoSelection {
     #[default]
     Auto,
 }
+impl_from_and_into_var! {
+    fn from(enabled: bool) -> AutoSelection {
+        if enabled {
+            AutoSelection::Enabled
+        } else {
+            AutoSelection::Disabled
+        }
+    }
+}
 
 /// Arguments for [`on_change_stop`].
 ///
@@ -1749,7 +1758,6 @@ context_var! {
 pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
     use super::commands::*;
     use crate::{core::clipboard::COPY_CMD, prelude::*};
-    use menu::CmdButton;
 
     fn btn(cmd: Command) -> impl UiNode {
         Button! {
@@ -1760,6 +1768,7 @@ pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
     }
 
     Stack! {
+        alt_focus_scope = true;
         direction = StackDirection::left_to_right();
         children = ui_vec![
             btn(COPY_CMD.scoped(args.anchor_id)),

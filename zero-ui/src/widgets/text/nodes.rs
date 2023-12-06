@@ -3555,13 +3555,18 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             UiNodeOp::Event { update } => {
                 c.event(update);
 
-                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                let open_id = || {
                     if let Some(popup_state) = &popup_state {
                         if let PopupState::Open(id) = popup_state.get() {
-                            if !args.target.contains(id) {
-                                close = true;
-                            }
+                            return Some(id);
                         }
+                    }
+                    None
+                };
+
+                if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
+                    if open_id().map(|id| !args.target.contains(id)).unwrap_or(false) {
+                        close = true;
                     }
                     if args.state == ButtonState::Released {
                         open = true;
@@ -3571,19 +3576,17 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 } else if KEY_INPUT_EVENT.has(update) {
                     close = true;
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if args.is_blur(WIDGET.id()) {
-                        if let Some(popup_state) = &popup_state {
-                            if let PopupState::Open(id) = popup_state.get() {
-                                if let Some(new_focus) = &args.new_focus {
-                                    if !new_focus.contains(id) {
-                                        close = true;
-                                    }
-                                }
-                            }
-                        }
+                    if args.is_blur(WIDGET.id())
+                        && open_id()
+                            .and_then(|id| args.new_focus.as_ref().map(|p| !p.contains(id)))
+                            .unwrap_or(false)
+                    {
+                        close = true;
                     }
                 } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
-                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move) {
+                    if matches!(args.phase, TouchPhase::Start | TouchPhase::Move)
+                        && open_id().map(|id| !args.target.contains(id)).unwrap_or(false)
+                    {
                         close = true;
                     }
                 }

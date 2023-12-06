@@ -12,6 +12,7 @@
         - Needs to open when a selection finishes creating (mouse/touch release)
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
                 - Test touch.
+        - Maybe restyle `ContextMenu!` to be the `default_selection_toolbar`?
 ```rust
 TextInput! {
     txt = var_from("select text to show toolbar");
@@ -20,6 +21,15 @@ TextInput! {
         background_color = colors::GREEN.with_alpha(50.pct());
     }
 }
+```
+
+* Issue, maybe caused by opening without interaction (minimized?)
+```
+ERROR zero_ui_core::app: updated 1000 times without rendering, probably stuck in an infinite loop
+will start skipping updates to render and poll system events
+top 20 most frequent update requests (in 500 cycles):
+WindowManager//WindowId(1) update (250 times)
+WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)
 ```
 
 # Hit-test
