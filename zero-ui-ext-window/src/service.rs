@@ -1,8 +1,9 @@
-use std::{fmt, future::Future, mem, sync::Arc};
+use std::{any::Any, fmt, future::Future, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zero_ui_app::{
     app_hn_once,
+    event::AnyEventArgs,
     timer::{DeadlineHandle, TIMERS},
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateOp, WidgetUpdates, UPDATES},
     view_process::{
@@ -14,21 +15,27 @@ use zero_ui_app::{
         ViewImage, ViewRenderer, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{WidgetInfo, WidgetInfoChangedArgs, WidgetInfoTree},
-        instance::{BoxedUiNode, NilUiNode},
-        WidgetId,
+        info::{InteractionPath, WidgetInfo, WidgetInfoTree},
+        instance::{BoxedUiNode, NilUiNode, UiNode},
+        UiTaskWidget, WidgetId,
     },
-    window::{WindowCtx, WindowId, WINDOW},
-    AppEventSender, APP_PROCESS, EXIT_REQUESTED_EVENT,
+    window::{WindowCtx, WindowId, WindowMode, WINDOW},
+    AppEventSender, APP, EXIT_REQUESTED_EVENT,
 };
 use zero_ui_app_context::app_local;
-use zero_ui_color::COLOR_SCHEME_VAR;
+
 use zero_ui_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
-use zero_ui_layout::units::{Deadline, Factor, PxRect};
-use zero_ui_task::ui::UiTask;
+use zero_ui_layout::units::{Deadline, Factor, FactorUnits, LengthUnits, PxRect, TimeUnits};
+use zero_ui_task::{
+    rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
+    ui::UiTask,
+    ParallelIteratorExt,
+};
 use zero_ui_txt::{formatx, Txt};
 use zero_ui_unique_id::{IdMap, IdSet};
-use zero_ui_var::{impl_from_and_into_var, response_done_var, response_var, var, ArcVar, ResponderVar, ResponseVar};
+use zero_ui_var::{
+    impl_from_and_into_var, response_done_var, response_var, var, ArcVar, BoxedVar, LocalVar, ResponderVar, ResponseVar, Var,
+};
 use zero_ui_view_api::{
     config::ColorScheme,
     image::ImageMaskMode,
@@ -38,13 +45,14 @@ use zero_ui_view_api::{
 
 use crate::{
     commands::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowChrome,
-    WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowMode, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
+    WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
     FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT,
     WINDOW_VARS_ID,
 };
 
 app_local! {
     pub(super) static WINDOWS_SV: WindowsService = WindowsService::new();
+    static FOCUS_SV: BoxedVar<Option<InteractionPath>> = LocalVar(None).boxed();
 }
 pub(super) struct WindowsService {
     exit_on_last_close: ArcVar<bool>,
@@ -77,9 +85,7 @@ impl WindowsService {
         Self {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
-            root_extenders: Mutex::new(vec![Box::new(|a| {
-                with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed()).boxed()
-            })]),
+            root_extenders: Mutex::new(vec![]),
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
@@ -242,6 +248,8 @@ impl_from_and_into_var! {
 /// # Provider
 ///
 /// This service is provided by the [`WindowManager`].
+///
+/// [`WindowManager`]: crate::WindowManager
 pub struct WINDOWS;
 impl WINDOWS {
     /// If app process exit is requested when a window closes and there are no more windows open, `true` by default.
@@ -267,10 +275,8 @@ impl WINDOWS {
     ///
     /// All parallel is enabled by default. See [`ParallelWin`] for details of what parts of the windows can update in parallel.
     ///
-    /// Note that this config is for parallel execution between windows, see the [`parallel`] property for parallel execution
+    /// Note that this config is for parallel execution between windows, see the `parallel` property for parallel execution
     /// within windows and widgets.
-    ///
-    /// [`parallel`]: fn@crate::widget_base::parallel
     pub fn parallel(&self) -> ArcVar<ParallelWin> {
         WINDOWS_SV.read().parallel.clone()
     }
@@ -553,16 +559,13 @@ impl WINDOWS {
 
     /// Requests that the window be made the foreground keyboard focused window.
     ///
-    /// Prefer using the [`FOCUS`] service and advanced [`FocusRequest`] configs instead of using this method directly.
+    /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of using this method directly.
     ///
     /// This operation can steal keyboard focus from other apps disrupting the user, be careful with it.
     ///
     /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
     ///
     /// If more than one focus request is made in the same update cycle only the last request is processed.
-    ///
-    /// [`FOCUS`]: crate::focus::FOCUS
-    /// [`FocusRequest`]: crate::focus::FocusRequest
     pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
         if !self.is_focused(window_id)? {
@@ -647,8 +650,7 @@ impl WINDOWS {
     /// Update widget info tree associated with the window.
     pub(super) fn set_widget_tree(&self, info_tree: WidgetInfoTree) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&info_tree.window_id()) {
-            let prev_tree = info.widget_tree.clone();
-            info.widget_tree = info_tree.clone();
+            info.widget_tree = info_tree;
         }
     }
 
@@ -798,7 +800,7 @@ impl WINDOWS {
                 }
             }
 
-            let is_headless_app = zero_ui_app::App::window_mode().is_headless();
+            let is_headless_app = zero_ui_app::APP.window_mode().is_headless();
             let wns = WINDOWS_SV.read();
 
             // if set to exit on last headed window close in a headed app,
@@ -813,7 +815,7 @@ impl WINDOWS {
                 && !wns.open_tasks.iter().any(|t| matches!(t.mode, WindowMode::Headed))
             {
                 // fulfill `exit_on_last_close`
-                APP_PROCESS.exit();
+                APP.exit();
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
@@ -863,7 +865,7 @@ impl WINDOWS {
             (wns.take_requests(), wns.latest_color_scheme)
         };
 
-        let window_mode = zero_ui_app::App::window_mode();
+        let window_mode = zero_ui_app::APP.window_mode();
 
         // fulfill open requests.
         for r in open {
@@ -1514,7 +1516,11 @@ pub struct WindowRootExtenderArgs {
     pub root: BoxedUiNode,
 }
 
-impl ImageRenderWindowRoot for WindowRoot {}
+impl ImageRenderWindowRoot for WindowRoot {
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
 
 impl ImageRenderWindowsService for WINDOWS {
     fn new_window_root(&self, node: BoxedUiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot> {
@@ -1544,20 +1550,23 @@ impl ImageRenderWindowsService for WINDOWS {
         vars.parent().set(parent_id);
     }
 
-    fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot>>) {
+    fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>) {
         WINDOWS.open_headless(
             async move {
-                let w = new_window_root();
+                let w = *new_window_root()
+                    .into_any()
+                    .downcast::<WindowRoot>()
+                    .expect("expected `WindowRoot` in image render window");
                 let vars = WINDOW.vars();
                 vars.auto_size().set(true);
                 vars.min_size().set((1.px(), 1.px()));
                 w
             },
             true,
-        )
+        );
     }
 
-    fn on_frame_image_ready(&self, update: &EventUpdate) -> (WindowId, Img) {
+    fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)> {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
                 return Some((args.window_id, img.clone()));
@@ -1572,5 +1581,21 @@ impl ImageRenderWindowsService for WINDOWS {
 
     fn clone_boxed(&self) -> Box<dyn ImageRenderWindowsService> {
         Box::new(WINDOWS)
+    }
+}
+
+/// Window focused widget hook.
+#[allow(non_camel_case_types)]
+pub struct WINDOW_FOCUS;
+impl WINDOW_FOCUS {
+    /// Setup a var that is controlled by the focus service and tracks the focused widget.
+    ///
+    /// This must be called by the focus implementation only.
+    pub fn hook_focus_service(&self, focused: BoxedVar<Option<InteractionPath>>) {
+        *FOCUS_SV.write() = focused;
+    }
+
+    pub(crate) fn focused(&self) -> BoxedVar<Option<InteractionPath>> {
+        FOCUS_SV.get()
     }
 }

@@ -1,5 +1,8 @@
 //! Basic widget properties and helpers for declaring widgets and properties.
 
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
+
 use std::fmt;
 
 use zero_ui_app::{

@@ -3,7 +3,7 @@
 //! Text is only used in the source crate to handle character with multiple bytes, but we do bidi sorting at
 //! the "segment" level.
 
-use std::{ops::Range, collections::HashMap};
+use std::{collections::HashMap, ops::Range};
 
 use unicode_bidi::{BidiClass, BidiDataSource, Level};
 

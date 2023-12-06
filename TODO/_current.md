@@ -34,60 +34,32 @@ TextInput! {
 
 # Split Crates
 
-* App crate.
-    - Everything needed to create an App::minimal, spawn a view-process and render some nodes.
-    - After it is building do not try to replace in zero-ui-core, just implement the extension
-      crates too, replace core in main crate when done.
-
-* Implement `TRANSFORM_CHANGED_EVENT` in app crate.
-    - Currently implemented in notify_transform_changes.
-        - This tracks all subscriber transforms in a map.
-        - Need to move this map to the info tree?
-    - Implement `VISIBILITY_CHANGED_EVENT` in app crate.
-        - This one is new, visibility was subscribing to FRAME_IMAGE_READY_EVENT.
-        - Use the same method of storing subscriber data.
-        - Maybe both transform and visibility changed can be refactored into bulk event like INTERACTIVITY_CHANGED_EVENT.
-
-* Multiple crates need shortcuts only to set on commands.
-    - Including -app actually, we removed the shortcuts from EXIT_CMD.
-    - Unfortunately this pulls the entire input and focus stuff.
-    - Maybe we can have shortcut type in app crate.
-        - Shortcut is demonstration of command extension, so have it on a crate?
-        - Can't set on the EXIT_CMD if use crate, because crate will depend on the app for command traits.
-
-* Undo.
-    - Needs focus scope.
-        - For `undo_scoped`, really needs it.
-    - Needs `KEYBOARD` for a config.
-        - If we unify focus with input this is already a dependency too.
-
-* Focus.
-    - Needs mouse and touch events.
-    - Needs WINDOWS.
-    - Needs gestures and keyboard for shortcut.
-* Mouse.
-    - Needs ModifiersState for keyboard.
-    - Needs capture.
-* Keyboard.
-    - Needs FOCUS.
-* Gesture
-    - Needs WINDOWS, keyboard and mouse.
-* Pointer Capture.
-    - Needs mouse and touch.
-    - Needs WINDOWS.
-* Focus and input must be on same crate?
-    - Can decouple from WINDOWS?
-
-* WINDOWS.
-    - Needs shortcut for command shortcuts.
-    - Needs LANG_VAR in L10n.
-    - Needs FOCUS.focused for access and IME stuff.
-        - Could create a WINDOWS.init_focused_widget(var).
-    - Needs FONTS.system_font_aa.
-        - Could listen to the RAW event and record (same thing FONTS does).
-
 * Move widget events to wgt crate.
     - Implement `on_show`, `on_collapse`.
+
+* Split main crate into widget crates.
+    - What about properties?
+
+* Add `WINDOWS.register_root_extender` on the default app?
+    - `FONTS.system_font_aa`.
+    - color scheme.
+    - `lang = LANG_VAR`, for accessibility.
+```rust
+// removed from core
+with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed()).boxed()
+```
+
+* Replace a main crate with a declaration of the default app and manually selected re-exports,
+  most users should be able to create apps, custom widgets for these apps by simply depending
+  on this crate. The re-export must be manual so that some stuff that is public does not get re-exported,
+  things like the view_api `WindowId`, or the `ViewWindow`.
+
+* Delete old core and main crate.
+* Test everything.
+* Merge.
+
+* Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
+    - Test what happens when info is rebuild,.
 
 # Publish
 

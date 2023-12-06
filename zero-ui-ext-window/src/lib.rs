@@ -1,5 +1,8 @@
 //! App window and monitors manager.
 
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
+
 #[macro_use]
 extern crate bitflags;
 
@@ -27,7 +30,7 @@ use zero_ui_app::{
     window::WindowId,
     AppExtended, AppExtension, ControlFlow, HeadlessApp,
 };
-use zero_ui_ext_image::{ImageVar, IMAGES};
+use zero_ui_ext_image::{ImageVar, IMAGES_WINDOW};
 use zero_ui_view_api::image::ImageMaskMode;
 
 pub mod commands;
@@ -53,11 +56,13 @@ pub mod commands;
 /// * [`MONITORS`]
 ///
 /// The [`WINDOWS`] service is also setup as the implementer for [`IMAGES`] rendering.
+///
+/// [`IMAGES`]: zero_ui_ext_image::IMAGES
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self) {
-        IMAGES.init_render_windows_service(WINDOWS);
+        IMAGES_WINDOW.hook_render_windows_service(Box::new(WINDOWS));
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -107,25 +112,20 @@ pub trait AppRunWindowExt {
     /// # Examples
     ///
     /// ```no_run
-    /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::context::WINDOW;
-    /// # use zero_ui_core::window::AppRunWindowExt;
-    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
+    /// # macro_rules! _demo { () => {
     /// App::default().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     Window! {
     ///         title = "Window 1";
     ///         child = Text!("Window 1");
     ///     }
-    /// })   
+    /// })
+    /// # }};
     /// ```
     ///
     /// Which is a shortcut for:
-    /// ```no_run
-    /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::context::WINDOW;
-    /// # use zero_ui_core::window::WINDOWS;
-    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
+    /// ```
+    /// # macro_rules! _demo { () => {
     /// App::default().run(async {
     ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());
@@ -135,9 +135,10 @@ pub trait AppRunWindowExt {
     ///         }
     ///     });
     /// })   
+    /// # }};
     /// ```
     ///
-    /// [`WINDOW`]: crate::context::WINDOW
+    /// [`WINDOW`]: zero_ui_app::window::WINDOW
     fn run_window<F>(self, new_window: F)
     where
         F: Future<Output = WindowRoot> + Send + 'static;
@@ -156,7 +157,6 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
 /// Extension trait, adds window control methods to [`HeadlessApp`].
 ///
 /// [`open_window`]: HeadlessAppWindowExt::open_window
-/// [`HeadlessApp`]: app::HeadlessApp
 pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
@@ -164,7 +164,7 @@ pub trait HeadlessAppWindowExt {
     ///
     /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame.
     ///
-    /// [`WINDOW`]: crate::context::WINDOW
+    /// [`WINDOW`]: zero_ui_app::window::WINDOW
     fn open_window<F>(&mut self, new_window: F) -> WindowId
     where
         F: Future<Output = WindowRoot> + Send + 'static;
@@ -192,7 +192,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
-        zero_ui_app::App::extensions().require::<WindowManager>();
+        zero_ui_app::APP.extensions().require::<WindowManager>();
 
         let response = WINDOWS.open(new_window);
         self.run_task(async move {

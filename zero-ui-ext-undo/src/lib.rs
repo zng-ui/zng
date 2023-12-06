@@ -1,5 +1,8 @@
 //! Undo-redo app extension, service and commands.
-//!
+
+#![recursion_limit = "256"]
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
 
 use std::{
     any::Any,
@@ -26,6 +29,7 @@ use zero_ui_app::{
 };
 use zero_ui_app_context::{app_local, context_local, RunOnDrop};
 use zero_ui_clone_move::clmv;
+use zero_ui_ext_input::{focus::commands::CommandFocusExt, keyboard::KEYBOARD};
 use zero_ui_state_map::{StateMapRef, StaticStateId};
 use zero_ui_txt::Txt;
 use zero_ui_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
@@ -115,7 +119,7 @@ impl UNDO {
     ///
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
-    /// [keyboard repeat start delay + interval]: crate::keyboard::KEYBOARD::repeat_config
+    /// [keyboard repeat start delay + interval]: zero_ui_ext_input::keyboard::KEYBOARD::repeat_config
     pub fn undo_interval(&self) -> BoxedVar<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
@@ -1333,13 +1337,13 @@ impl UndoSelect for UndoSelectLtEq {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app::App;
+    use zero_ui_app::APP;
 
     use super::*;
 
     #[test]
     fn register() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![1, 2]));
 
         UNDO.register(PushAction {
@@ -1382,7 +1386,7 @@ mod tests {
 
     #[test]
     fn run_op() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_2(&data);
@@ -1401,7 +1405,7 @@ mod tests {
 
     #[test]
     fn transaction_undo() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1418,7 +1422,7 @@ mod tests {
 
     #[test]
     fn transaction_commit() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1444,7 +1448,7 @@ mod tests {
 
     #[test]
     fn transaction_group() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         let t = UNDO.transaction(|| {
@@ -1484,7 +1488,7 @@ mod tests {
 
     #[test]
     fn undo_redo_t_zero() {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1512,7 +1516,7 @@ mod tests {
     }
 
     fn undo_redo_t_large(t: Duration) {
-        let _a = App::minimal();
+        let _a = APP.minimal();
         let data = Arc::new(Mutex::new(vec![]));
 
         push_1_sleep_2(&data);
@@ -1527,7 +1531,7 @@ mod tests {
 
     #[test]
     fn watch_var() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test_var = var(0);
         UNDO.watch_var("set test var", test_var.clone()).perm();

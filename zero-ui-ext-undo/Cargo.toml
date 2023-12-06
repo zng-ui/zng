@@ -12,6 +12,7 @@ zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
 
 atomic = "0.6"
 parking_lot = "0.12"

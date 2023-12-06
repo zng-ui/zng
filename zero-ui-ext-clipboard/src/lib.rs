@@ -24,12 +24,6 @@ use zero_ui_view_api::ipc::IpcBytes;
 /// Services provided by this extension.
 ///
 /// * [`CLIPBOARD`]
-///
-/// # Default
-///
-/// This extension is included in the [default app].
-///
-/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct ClipboardManager {}
 

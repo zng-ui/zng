@@ -32,7 +32,7 @@ event_args! {
 
         /// Target.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_path(&self.target);
+            list.insert_wgt(&self.target);
         }
     }
 }

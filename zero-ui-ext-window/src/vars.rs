@@ -5,11 +5,13 @@ use zero_ui_app::{
     window::{MonitorId, WindowId, WINDOW},
 };
 use zero_ui_ext_image::Img;
-use zero_ui_layout::units::{DipPoint, DipRect, DipSize, Factor, Length, Point, PxPoint, Size, PxSize, Dip};
+use zero_ui_layout::units::{
+    Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
+};
 use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::Txt;
+use zero_ui_txt::{ToText, Txt};
 use zero_ui_unique_id::IdSet;
-use zero_ui_var::{ArcVar, var, ReadOnlyArcVar, BoxedVar, merge_var};
+use zero_ui_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zero_ui_view_api::{
     config::ColorScheme,
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
@@ -83,8 +85,8 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for the current context window using [`WINDOW.vars`].
 ///
-/// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
-/// [`WINDOW.vars`]: crate::window::WINDOW_Ext::vars
+/// [`WINDOWS.vars`]: crate::WINDOWS::vars
+/// [`WINDOW.vars`]: crate::WINDOW_Ext::vars
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
@@ -449,6 +451,7 @@ impl WindowVars {
     /// The default value is [`Point::top_left`].
     ///
     /// [`auto_size`]: Self::auto_size
+    /// [`StartPosition`]: crate::StartPosition
     pub fn auto_size_origin(&self) -> ArcVar<Point> {
         self.0.auto_size_origin.clone()
     }
@@ -613,7 +616,7 @@ impl WindowVars {
     ///
     /// A window is only opened in the view-process once it is loaded, see [`WINDOWS.loading_handle`] for more details.
     ///
-    /// [`WINDOWS.loading_handle`]: crate::window::WINDOWS::loading_handle
+    /// [`WINDOWS.loading_handle`]: crate::WINDOWS::loading_handle
     pub fn is_loaded(&self) -> ReadOnlyArcVar<bool> {
         self.0.is_loaded.read_only()
     }
@@ -623,10 +626,7 @@ impl WindowVars {
     /// This is usually a visual indication on the taskbar icon that prompts the user to focus on the window, it is automatically
     /// changed to `None` once the window receives focus or you can set it to `None` to cancel the indicator.
     ///
-    /// Prefer using the [`FOCUS`] service and advanced [`FocusRequest`] configs instead of setting this variable directly.
-    ///
-    /// [`FOCUS`]: crate::focus::FOCUS
-    /// [`FocusRequest`]: crate::focus::FocusRequest
+    /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of setting this variable directly.
     pub fn focus_indicator(&self) -> ArcVar<Option<FocusIndicator>> {
         self.0.focus_indicator.clone()
     }
@@ -639,7 +639,7 @@ impl WindowVars {
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
-    /// [`WIDGET.render_update`]: crate::context::WIDGET::render_update
+    /// [`WIDGET.render_update`]: zero_ui_app::widget::WIDGET::render_update
     pub fn frame_capture_mode(&self) -> ArcVar<FrameCaptureMode> {
         self.0.frame_capture_mode.clone()
     }
@@ -649,7 +649,7 @@ impl WindowVars {
     /// The initial value is the [`default_render_mode`], it can update after the window is created, when the view-process
     /// actually creates the backend window and after a view-process respawn.
     ///
-    /// [`default_render_mode`]: crate::window::WINDOWS::default_render_mode
+    /// [`default_render_mode`]: crate::WINDOWS::default_render_mode
     pub fn render_mode(&self) -> ReadOnlyArcVar<RenderMode> {
         self.0.render_mode.read_only()
     }

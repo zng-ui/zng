@@ -343,6 +343,8 @@ impl WidgetInfoBuilder {
                 scale_factor: self.scale_factor,
                 spatial_bounds,
                 widget_count_offsets,
+                transform_changed_subs: IdMap::new(),
+                visibility_changed_subs: IdMap::new(),
             }),
 
             tree: self.tree,

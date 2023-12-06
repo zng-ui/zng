@@ -68,7 +68,7 @@ impl AppExtension for L10nManager {
 /// ```
 /// # use zero_ui_ext_l10n::*;
 /// # use zero_ui_var::*;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// let name = var("World");
 /// let msg = l10n!("file/id.attribute", "Hello {$name}!");
 /// ```
@@ -115,7 +115,7 @@ impl AppExtension for L10nManager {
 /// ```
 /// # use zero_ui_ext_l10n::*;
 /// # use zero_ui_var::*;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 ///
 /// // l10n-### Standalone Note
 ///

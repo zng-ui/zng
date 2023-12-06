@@ -12,23 +12,25 @@ use zero_ui_app::{
     },
     window::{WindowId, WINDOW},
 };
+use zero_ui_ext_image::{ImageSource, ImageVar, Img};
 use zero_ui_layout::units::{DipPoint, DipSize, PxPoint};
 use zero_ui_txt::Txt;
 use zero_ui_unique_id::IdSet;
 use zero_ui_var::impl_from_and_into_var;
 use zero_ui_view_api::{
-    api_extension::ApiExtensionId,
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    image::{ImageDataFormat, ImageMaskMode},
     webrender_api::DebugFlags,
     window::{EventCause, FrameId, RenderMode, WindowState},
 };
 
-use crate::HeadlessMonitor;
+use crate::{HeadlessMonitor, WINDOW_Ext};
 
 /// Window root widget and configuration.
 ///
 /// More window configuration is accessible using the [`WindowVars`] type.
 ///
-/// [`WindowVars`]: crate::window::WindowVars
+/// [`WindowVars`]: crate::WindowVars
 pub struct WindowRoot {
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
@@ -48,7 +50,7 @@ impl WindowRoot {
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
-    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
+    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zero_ui_app::window::WindowMode::is_headless).
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
@@ -186,57 +188,6 @@ impl fmt::Debug for StartPosition {
     }
 }
 
-/// Mode of an open window.
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum WindowMode {
-    /// Normal mode, shows a system window with content rendered.
-    Headed,
-
-    /// Headless mode, no system window and no renderer. The window does layout and calls [`UiNode::render`] but
-    /// it does not actually generates frame textures.
-    Headless,
-    /// Headless mode, no visible system window but with a renderer. The window does everything a [`Headed`](WindowMode::Headed)
-    /// window does, except presenting frame textures in a system window.
-    HeadlessWithRenderer,
-}
-impl fmt::Debug for WindowMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "WindowMode::")?;
-        }
-        match self {
-            WindowMode::Headed => write!(f, "Headed"),
-            WindowMode::Headless => write!(f, "Headless"),
-            WindowMode::HeadlessWithRenderer => write!(f, "HeadlessWithRenderer"),
-        }
-    }
-}
-impl WindowMode {
-    /// If is the [`Headed`](WindowMode::Headed) mode.
-    pub fn is_headed(self) -> bool {
-        match self {
-            WindowMode::Headed => true,
-            WindowMode::Headless | WindowMode::HeadlessWithRenderer => false,
-        }
-    }
-
-    /// If is the [`Headless`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::Headed) modes.
-    pub fn is_headless(self) -> bool {
-        match self {
-            WindowMode::Headless | WindowMode::HeadlessWithRenderer => true,
-            WindowMode::Headed => false,
-        }
-    }
-
-    /// If is the [`Headed`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::HeadlessWithRenderer) modes.
-    pub fn has_renderer(self) -> bool {
-        match self {
-            WindowMode::Headed | WindowMode::HeadlessWithRenderer => true,
-            WindowMode::Headless => false,
-        }
-    }
-}
-
 /// Window chrome, the non-client area of the window.
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WindowChrome {
@@ -315,7 +266,7 @@ pub enum WindowIcon {
     Default,
     /// Image is requested from [`IMAGES`].
     ///
-    /// [`IMAGES`]: crate::image::IMAGES
+    /// [`IMAGES`]: zero_ui_ext_image::IMAGES
     Image(ImageSource),
 }
 impl fmt::Debug for WindowIcon {
@@ -345,14 +296,12 @@ impl WindowIcon {
     /// to cause the icon to re-render when the node it-self updates. Note that just because you can update the icon
     /// does not mean that animating it is a good idea.
     ///
-    /// [`image::render_retain`]: fn@crate::image::render_retain
+    /// [`image::render_retain`]: fn@zero_ui_ext_image::render_retain
     ///
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::{window::WindowIcon, render::RenderMode};
-    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
-    /// # let _ =
+    /// # macro_rules! _demo { () => {
     /// WindowIcon::render(
     ///     || Container! {
     ///         // image::render_retain = true;
@@ -364,7 +313,7 @@ impl WindowIcon {
     ///         child = Text!("A");
     ///     }
     /// )
-    /// # ;
+    /// # }};
     /// ```
     pub fn render<I, F>(new_icon: F) -> Self
     where
@@ -468,13 +417,13 @@ pub struct CursorImage {
 ///
 /// You can set the capture mode using [`WindowVars::frame_capture_mode`].
 ///
-/// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
+/// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
     /// use [`WINDOWS.frame_image`] to capture frames.
     ///
-    /// [`WINDOWS.frame_image`]: crate::window::WINDOWS.frame_image
+    /// [`WINDOWS.frame_image`]: crate::WINDOWS.frame_image
     Sporadic,
     /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`]
     /// as a full BGRA8 image.
@@ -748,15 +697,15 @@ event! {
     ///
     /// You can request a copy of the pixels using [`WINDOWS.frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
     ///
-    /// [`WINDOWS.frame_image`]: crate::window::WINDOWS::frame_image
-    /// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
+    /// [`WINDOWS.frame_image`]: crate::WINDOWS::frame_image
+    /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
     pub static FRAME_IMAGE_READY_EVENT: FrameImageReadyArgs;
 }
 
 /// Response message of [`close`] and [`close_together`].
 ///
-/// [`close`]: crate::window::WINDOWS::close
-/// [`close_together`]: crate::window::WINDOWS::close_together
+/// [`close`]: crate::WINDOWS::close
+/// [`close_together`]: crate::WINDOWS::close_together
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CloseWindowResult {
     /// Operation completed, all requested windows closed.
@@ -768,7 +717,7 @@ pub enum CloseWindowResult {
 
 /// Error when a [`WindowId`] is not opened by the [`WINDOWS`] service.
 ///
-/// [`WINDOWS`]: crate::window::WINDOWS
+/// [`WINDOWS`]: crate::WINDOWS
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct WindowNotFound(pub WindowId);
 impl fmt::Display for WindowNotFound {
@@ -777,10 +726,6 @@ impl fmt::Display for WindowNotFound {
     }
 }
 impl std::error::Error for WindowNotFound {}
-
-impl_from_and_into_var! {
-    fn from(some: WindowId) -> Option<WindowId>;
-}
 
 /// Webrender renderer debug flags and profiler UI.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -855,10 +800,10 @@ impl RendererDebug {
             .flatten()
     }
 
-    pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, zero_ui_view_api::api_extension::ApiExtensionPayload)>) {
+    pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, ApiExtensionPayload)>) {
         if !self.is_empty() {
             if let Some(id) = self.extension_id() {
-                exts.push((id, zero_ui_view_api::ApiExtensionPayload::serialize(self).unwrap()));
+                exts.push((id, ApiExtensionPayload::serialize(self).unwrap()));
             }
         }
     }

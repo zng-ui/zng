@@ -4,7 +4,7 @@ use std::{
     mem,
 };
 
-use crate::{update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, App, shortcut::CommandShortcutExt};
+use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, APP};
 
 use super::*;
 
@@ -41,7 +41,7 @@ use super::*;
 /// You can also initialize metadata:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::CommandShortcutExt};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
@@ -58,7 +58,7 @@ use super::*;
 /// Or you can use a custom closure to initialize the command:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::CommandShortcutExt};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
@@ -598,7 +598,7 @@ impl CommandHandle {
     pub fn set_enabled(&self, enabled: bool) {
         if let Some(command) = self.command {
             if self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled {
-                if self.app_id != App::current_id() {
+                if self.app_id != APP.id() {
                     return;
                 }
 
@@ -658,7 +658,7 @@ impl fmt::Debug for CommandHandle {
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
-            if self.app_id != App::current_id() {
+            if self.app_id != APP.id() {
                 return;
             }
 
@@ -1121,7 +1121,7 @@ impl CommandData {
 
         CommandHandle {
             command: Some(command),
-            app_id: App::current_id(),
+            app_id: APP.id(),
             local_enabled: AtomicBool::new(enabled),
             _event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
         }
@@ -1164,7 +1164,7 @@ mod tests {
 
     #[test]
     fn enabled() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers_value());
 
@@ -1184,7 +1184,7 @@ mod tests {
 
     #[test]
     fn enabled_scoped() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("enabled_scoped"));
@@ -1211,7 +1211,7 @@ mod tests {
 
     #[test]
     fn has_handlers() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers_value());
 
@@ -1224,7 +1224,7 @@ mod tests {
 
     #[test]
     fn has_handlers_scoped() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("has_handlers_scoped"));

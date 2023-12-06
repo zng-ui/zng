@@ -49,7 +49,7 @@ pub(crate) use zero_ui_view_api::{
 
 use self::raw_device_events::DeviceId;
 
-use super::{App, AppId};
+use super::{AppId, APP};
 
 /// Connection to the running view-process for the context app.
 #[allow(non_camel_case_types)]
@@ -79,7 +79,7 @@ impl VIEW_PROCESS {
     /// If the `VIEW_PROCESS` can be used, this is only true in app threads for apps with render, all other
     /// methods will panic if called when this is not true.
     pub fn is_available(&self) -> bool {
-        App::is_running() && VIEW_PROCESS_SV.read().is_some()
+        APP.is_running() && VIEW_PROCESS_SV.read().is_some()
     }
 
     fn read(&self) -> MappedRwLockReadGuard<ViewProcessService> {
@@ -101,7 +101,7 @@ impl VIEW_PROCESS {
     }
 
     fn check_app(&self, id: AppId) {
-        let actual = App::current_id();
+        let actual = APP.id();
         if Some(id) != actual {
             panic!("cannot use view handle from app `{id:?}` in app `{actual:?}`");
         }
@@ -166,7 +166,7 @@ impl VIEW_PROCESS {
         let id = app.process.add_image(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
-            app_id: App::current_id(),
+            app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
@@ -191,7 +191,7 @@ impl VIEW_PROCESS {
         let id = app.process.add_image_pro(request)?;
         let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
             id: Some(id),
-            app_id: App::current_id(),
+            app_id: APP.id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
@@ -310,7 +310,7 @@ impl VIEW_PROCESS {
         let _ = app.check_generation();
 
         let win = ViewWindow(Arc::new(ViewWindowData {
-            app_id: App::current_id().unwrap(),
+            app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(window_id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
@@ -350,7 +350,7 @@ impl VIEW_PROCESS {
         let _ = app.check_generation();
 
         let surf = ViewHeadless(Arc::new(ViewWindowData {
-            app_id: App::current_id().unwrap(),
+            app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
@@ -450,7 +450,7 @@ impl VIEW_PROCESS {
 
     pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
-            app_id: App::current_id(),
+            app_id: APP.id(),
             id: Some(data.id),
             generation: self.generation(),
             size: data.size,
@@ -1114,7 +1114,7 @@ impl Drop for ViewImageData {
     fn drop(&mut self) {
         if let Some(id) = self.id {
             let app_id = self.app_id.unwrap();
-            if let Some(app) = App::current_id() {
+            if let Some(app) = APP.id() {
                 if app_id != app {
                     tracing::error!("image from app `{:?}` dropped in app `{:?}`", app_id, app);
                 }
@@ -1384,7 +1384,7 @@ impl ViewClipboard {
                 } else {
                     let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
                         id: Some(id),
-                        app_id: App::current_id(),
+                        app_id: APP.id(),
                         generation: app.process.generation(),
                         size: PxSize::zero(),
                         partial_size: PxSize::zero(),

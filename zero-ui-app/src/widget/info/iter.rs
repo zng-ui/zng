@@ -444,7 +444,7 @@ mod tests {
             WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
         },
         window::{WindowId, WINDOW},
-        App,
+        APP,
     };
 
     trait WidgetInfoBuilderExt {
@@ -475,7 +475,7 @@ mod tests {
     }
 
     fn data() -> WidgetInfoTree {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
@@ -610,7 +610,7 @@ mod tests {
     }
 
     fn data_nested() -> WidgetInfoTree {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
@@ -733,7 +733,7 @@ mod tests {
     }
 
     fn data_deep() -> WidgetInfoTree {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),

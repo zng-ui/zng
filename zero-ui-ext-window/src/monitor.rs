@@ -1,19 +1,19 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zero_ui_app::event::{event, event_args};
+use zero_ui_app::event::{event, event_args, AnyEventArgs};
 use zero_ui_app::update::EventUpdate;
+use zero_ui_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
 use zero_ui_app::view_process::VIEW_PROCESS_INITED_EVENT;
-use zero_ui_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_SCALE_FACTOR_CHANGED_EVENT, RAW_MONITORS_CHANGED_EVENT};
 use zero_ui_app::window::{MonitorId, WINDOW};
 use zero_ui_app_context::app_local;
-use zero_ui_layout::units::{DipSize, Factor, Ppi, PxPoint, PxSize, Dip, PxRect, DipRect};
-use zero_ui_txt::Txt;
+use zero_ui_layout::units::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, PxPoint, PxRect, PxSize, PxToDip};
+use zero_ui_txt::{ToText, Txt};
 use zero_ui_unique_id::IdMap;
-use zero_ui_var::{impl_from_and_into_var, ArcVar, ReadOnlyArcVar, VarValue, var, Var};
+use zero_ui_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
 use zero_ui_view_api::window::VideoMode;
 
-use crate::WINDOWS;
+use crate::{WINDOW_Ext, WINDOWS};
 
 app_local! {
     pub(super) static MONITORS_SV: MonitorsService = const {
@@ -59,9 +59,9 @@ app_local! {
 ///
 /// [`ppi`]: MonitorInfo::ppi
 /// [`scale_factor`]: MonitorInfo::scale_factor
-/// [`LayoutMetrics`]: crate::context::LayoutMetrics
+/// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
-/// [`WindowManager`]: crate::window::WindowManager
+/// [`WindowManager`]: crate::WindowManager
 pub struct MONITORS;
 impl MONITORS {
     /// Get monitor info.
@@ -136,7 +136,7 @@ impl MonitorsService {
 
 /// "Monitor" configuration used by windows in [headless mode].
 ///
-/// [headless mode]: crate::window::WindowMode::is_headless
+/// [headless mode]: zero_ui_app::window::WindowMode::is_headless
 #[derive(Clone, Copy, PartialEq)]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
@@ -145,7 +145,7 @@ pub struct HeadlessMonitor {
     ///
     /// `None` by default.
     ///
-    /// [`parent`]: crate::window::WindowVars::parent
+    /// [`parent`]: crate::WindowVars::parent
     pub scale_factor: Option<Factor>,
 
     /// Size of the imaginary monitor screen that contains the headless window.

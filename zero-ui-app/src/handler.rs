@@ -138,7 +138,7 @@ where
 /// ```
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_| {
@@ -153,7 +153,7 @@ where
 /// ```
 /// # #[derive(Clone)] pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize }
 /// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|args: &ClickArgs| {
@@ -169,7 +169,7 @@ where
 /// # use zero_ui_txt::formatx;
 /// # use zero_ui_var::{var, Var};
 /// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let foo = var(0);
 ///
@@ -248,7 +248,7 @@ where
 ///
 /// ```
 /// # use zero_ui_app::handler::hn_once;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<()> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -265,7 +265,7 @@ where
 ///
 /// ```
 /// # use zero_ui_app::handler::hn_once;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # #[derive(Clone)]
 /// # pub struct ClickArgs { click_count: usize }
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
@@ -354,7 +354,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|_| {
@@ -376,7 +376,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn;
 /// # use zero_ui_app::widget::WIDGET;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|args: ClickArgs| {
@@ -394,7 +394,7 @@ where
 /// # use zero_ui_var::{var, Var};
 /// # use zero_ui_task as task;
 /// # use zero_ui_txt::formatx;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let enabled = var(true);
 ///
@@ -524,7 +524,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn_once;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -547,7 +547,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn_once;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -706,7 +706,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -724,7 +724,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -741,7 +741,7 @@ where
 /// # use zero_ui_txt::{formatx, ToText};
 /// # use zero_ui_var::{var, Var};
 /// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// let foo = var("".to_text());
 ///
@@ -820,7 +820,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::app_hn_once;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -839,7 +839,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::app_hn_once;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -941,7 +941,7 @@ where
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::async_app_hn;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -967,7 +967,7 @@ where
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
 /// # use zero_ui_app::handler::async_app_hn;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -988,7 +988,7 @@ where
 /// # use zero_ui_task as task;
 /// # use zero_ui_txt::{formatx, ToText};
 /// #
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
 /// let status = var("pending..".to_text());
 ///
@@ -1108,7 +1108,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn_once;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -1131,7 +1131,7 @@ where
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # use zero_ui_app::handler::async_hn_once;
 /// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::App::minimal();
+/// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -1342,7 +1342,7 @@ impl HeadlessApp {
         A: Clone + 'static,
         H: AppHandler<A>,
     {
-        let mut app = crate::App::minimal().run_headless(false);
+        let mut app = crate::APP.minimal().run_headless(false);
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
     }
 
@@ -1355,7 +1355,7 @@ impl HeadlessApp {
     where
         A: Clone + 'static,
     {
-        let mut app = crate::App::minimal().run_headless(false);
+        let mut app = crate::APP.minimal().run_headless(false);
         app.block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
             .unwrap()
     }

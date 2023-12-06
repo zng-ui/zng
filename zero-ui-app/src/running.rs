@@ -25,7 +25,7 @@ use crate::{
     view_process::{raw_device_events::DeviceId, *},
     widget::WidgetId,
     window::WindowId,
-    AppEventObserver, AppExtension, AppExtensionsInfo, ControlFlow,
+    AppEventObserver, AppExtension, AppExtensionsInfo, ControlFlow, APP,
 };
 
 /// Represents a running app controlled by an external event loop.
@@ -980,12 +980,7 @@ impl LoopMonitor {
     }
 }
 
-/// Service for managing the application process.
-///
-/// This service is available in all apps.
-#[allow(non_camel_case_types)]
-pub struct APP_PROCESS;
-impl APP_PROCESS {
+impl APP {
     /// Register a request for process exit with code `0` in the next update.
     ///
     /// The [`EXIT_REQUESTED_EVENT`] will be raised, and if not cancelled the app process will exit.
@@ -1002,7 +997,7 @@ impl APP_PROCESS {
 command! {
     /// Represents the app process [`exit`] request.
     ///
-    /// [`exit`]: APP_PROCESS::exit
+    /// [`exit`]: APP::exit
     pub static EXIT_CMD = {
         name: "Exit",
         info: "Close all windows and exit.",
@@ -1071,7 +1066,7 @@ impl AppExtension for AppIntrinsic {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
-                APP_PROCESS.exit();
+                APP.exit();
             });
         }
     }

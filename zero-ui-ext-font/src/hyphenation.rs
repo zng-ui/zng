@@ -5,7 +5,6 @@ use hyphenation::{Hyphenator as _, Load as _};
 use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::Lang;
 
-
 app_local! {
     static HYPHENATION: Hyphenation = Hyphenation {
         #[cfg(feature = "hyphenation_embed_all")]
@@ -164,9 +163,9 @@ impl HyphenationDataSource for HyphenationDataEmbedded {
 
 mod util {
     use super::*;
-    use zero_ui_ext_l10n::{lang, Lang};
     use hyphenation::Language::*;
     use regex::Regex;
+    use zero_ui_ext_l10n::{lang, Lang};
 
     app_local! {
         pub static LANG_TO_LANGUAGE_MAP: Vec<(Lang, hyphenation::Language)> = vec![

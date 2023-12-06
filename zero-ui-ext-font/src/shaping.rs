@@ -3861,7 +3861,7 @@ fn into_harf_direction(d: LayoutDirection) -> harfbuzz_rs::Direction {
 #[cfg(test)]
 mod tests {
     use crate::{Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, SegmentedText, TextShapingArgs, WordContextKey, FONTS};
-    use zero_ui_app::App;
+    use zero_ui_app::APP;
     use zero_ui_ext_l10n::lang;
     use zero_ui_layout::{
         context::LayoutDirection,
@@ -3869,7 +3869,7 @@ mod tests {
     };
 
     fn test_font() -> Font {
-        let mut app = App::minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         let font = app
             .block_on_fut(
                 async {
@@ -3976,7 +3976,7 @@ mod tests {
 
     #[test]
     fn font_fallback_issue() {
-        let mut app = App::minimal().extend(FontManager::default()).run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         app.block_on_fut(
             async {
                 let font = FONTS

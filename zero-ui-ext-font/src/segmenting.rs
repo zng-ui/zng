@@ -1,4 +1,4 @@
-use std::{ops, collections::HashMap};
+use std::{collections::HashMap, ops};
 
 use crate::emoji_util;
 
@@ -654,8 +654,7 @@ pub fn unicode_bidi_sort(
     }
 
     if !levels.is_empty() {
-        let (directions, vis_ranges) =
-            super::unicode_bidi_util::visual_runs(levels, line_classes, into_unic_level(base_direction));
+        let (directions, vis_ranges) = super::unicode_bidi_util::visual_runs(levels, line_classes, into_unic_level(base_direction));
 
         for vis_range in vis_ranges {
             if directions[vis_range.start].is_rtl() {
@@ -708,10 +707,10 @@ fn into_unic_level(d: LayoutDirection) -> unicode_bidi::Level {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_layout::context::{TextSegmentKind, LayoutDirection};
+    use zero_ui_layout::context::{LayoutDirection, TextSegmentKind};
     use zero_ui_txt::ToText;
 
-    use crate::{SegmentedText, TextSegment, BidiLevel};
+    use crate::{BidiLevel, SegmentedText, TextSegment};
 
     #[test]
     fn segments() {

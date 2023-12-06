@@ -34,7 +34,7 @@ use zero_ui_layout::{
 };
 use zero_ui_state_map::{OwnedStateMap, StateMapRef};
 use zero_ui_txt::{formatx, Txt};
-use zero_ui_unique_id::IdMap;
+use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::impl_from_and_into_var;
 use zero_ui_view_api::{display_list::FrameValueUpdate, window::FrameId};
 
@@ -142,6 +142,9 @@ struct WidgetInfoTreeFrame {
     spatial_bounds: PxBox,
 
     widget_count_offsets: ParallelSegmentOffsets,
+
+    transform_changed_subs: IdMap<WidgetId, PxTransform>,
+    visibility_changed_subs: IdMap<WidgetId, Visibility>,
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -286,6 +289,54 @@ impl WidgetInfoTree {
 
         if let Some(w) = widget_count_offsets {
             frame.widget_count_offsets = w;
+        }
+
+        let mut changes_count = 0;
+        TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
+            if let Some(wgt) = self.get(wid) {
+                let transform = wgt.bounds_info().inner_transform();
+                match frame.transform_changed_subs.entry(wid) {
+                    IdEntry::Occupied(mut e) => {
+                        let prev = e.insert(transform);
+                        if prev != transform {
+                            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(wgt.path(), prev, transform));
+                            changes_count += 1;
+                        }
+                    }
+                    IdEntry::Vacant(e) => {
+                        e.insert(transform);
+                    }
+                }
+            }
+        });
+        if (frame.transform_changed_subs.len() - changes_count) > 500 {
+            frame
+                .transform_changed_subs
+                .retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
+        }
+
+        changes_count = 0;
+        VISIBILITY_CHANGED_EVENT.visit_subscribers(|wid| {
+            if let Some(wgt) = self.get(wid) {
+                let visibility = wgt.visibility();
+                match frame.visibility_changed_subs.entry(wid) {
+                    IdEntry::Occupied(mut e) => {
+                        let prev = e.insert(visibility);
+                        if prev != visibility {
+                            VISIBILITY_CHANGED_EVENT.notify(VisibilityChangedArgs::now(wgt.path(), prev, visibility));
+                            changes_count += 1;
+                        }
+                    }
+                    IdEntry::Vacant(e) => {
+                        e.insert(visibility);
+                    }
+                }
+            }
+        });
+        if (frame.visibility_changed_subs.len() - changes_count) > 500 {
+            frame
+                .visibility_changed_subs
+                .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
         }
     }
 

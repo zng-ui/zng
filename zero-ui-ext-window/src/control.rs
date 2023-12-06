@@ -5,7 +5,7 @@ use std::{mem, sync::Arc};
 use zero_ui_app::{
     access::ACCESS_INITED_EVENT,
     app_hn_once,
-    event::CommandHandle,
+    event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
     timer::TIMERS,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
@@ -18,22 +18,23 @@ use zero_ui_app::{
     },
     widget::{
         info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
-        instance::BoxedUiNode,
-        WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
+        instance::{BoxedUiNode, UiNode},
+        VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
     window::{WindowId, WindowMode, WINDOW},
 };
 use zero_ui_clone_move::clmv;
-use zero_ui_color::RenderColor;
 use zero_ui_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zero_ui_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
-    units::{Deadline, Dip, DipRect, DipSize, Factor, Length, Ppi, Px, PxPoint, PxRect, PxSize, PxTransform, PxVector},
+    units::{
+        Deadline, Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxPoint, PxRect, PxSize,
+        PxToDip, PxVector, TimeUnits,
+    },
 };
-use zero_ui_unique_id::IdMap;
-use zero_ui_var::{ReadOnlyArcVar, VarHandle, VarHandles};
+use zero_ui_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zero_ui_view_api::{
-    config::ColorScheme,
+    config::{ColorScheme, FontAntiAliasing},
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
@@ -43,9 +44,9 @@ use zero_ui_view_api::{
 
 use crate::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, CursorImage, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WindowChangedArgs,
-    WindowChrome, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
-    WINDOW_CHANGED_EVENT,
+    AutoSize, CursorImage, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
+    WindowChangedArgs, WindowChrome, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
+    WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -506,17 +507,11 @@ impl HeadedCtrl {
         if let Some(e) = self.vars.0.access_enabled.get_new() {
             debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
-        } else {
-            let access = self.vars.0.access_enabled.get();
-            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
-                UPDATES.update_info_window(WINDOW.id());
-            }
-            if access == AccessEnabled::VIEW && FOCUS.focused().is_new() {
-                self.update_access_focused();
-            }
+        } else if self.vars.0.access_enabled.get() == AccessEnabled::VIEW && WINDOW_FOCUS.focused().is_new() {
+            self.update_access_focused();
         }
 
-        if super::IME_EVENT.has_subscribers() && FOCUS.focused().is_new() {
+        if super::IME_EVENT.has_subscribers() && WINDOW_FOCUS.focused().is_new() {
             self.update_ime();
         }
 
@@ -801,7 +796,7 @@ impl HeadedCtrl {
 
     fn accessible_focused(&self, info: &WidgetInfoTree) -> Option<WidgetId> {
         if WINDOWS.is_focused(info.window_id()).unwrap_or(false) {
-            FOCUS.focused().with(|p| {
+            WINDOW_FOCUS.focused().with(|p| {
                 if let Some(p) = p {
                     if p.window_id() == info.window_id() {
                         if let Some(wgt) = info.get(p.widget_id()) {
@@ -839,7 +834,7 @@ impl HeadedCtrl {
     }
 
     fn update_ime(&mut self) {
-        FOCUS.focused().with(|f| {
+        WINDOW_FOCUS.focused().with(|f| {
             let mut ime_path = None;
             if let Some(f) = f {
                 if f.interactivity().is_enabled() && f.window_id() == WINDOW.id() && super::IME_EVENT.is_subscriber(f.widget_id()) {
@@ -1414,11 +1409,6 @@ impl HeadlessWithRendererCtrl {
         if let Some(e) = self.vars.0.access_enabled.get_new() {
             debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
-        } else {
-            let access = self.vars.0.access_enabled.get();
-            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
-                UPDATES.update_info_window(WINDOW.id());
-            }
         }
 
         if self.surface.is_some() {
@@ -1677,11 +1667,6 @@ impl HeadlessCtrl {
         if let Some(e) = self.vars.0.access_enabled.get_new() {
             debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
-        } else {
-            let access = self.vars.0.access_enabled.get();
-            if access.contains(AccessEnabled::APP) && LANG_VAR.is_new() {
-                UPDATES.update_info_window(WINDOW.id());
-            }
         }
 
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
@@ -1797,7 +1782,7 @@ impl HeadlessSimulator {
     }
 
     fn enabled(&mut self) -> bool {
-        *self.is_enabled.get_or_insert_with(|| zero_ui_app::App::window_mode().is_headless())
+        *self.is_enabled.get_or_insert_with(|| zero_ui_app::APP.window_mode().is_headless())
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
@@ -1837,6 +1822,8 @@ enum InitState {
     Inited,
 }
 
+type RenderColor = zero_ui_view_api::webrender_api::ColorF;
+
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
@@ -1849,8 +1836,6 @@ struct ContentCtrl {
     init_state: InitState,
     frame_id: FrameId,
     clear_color: RenderColor,
-
-    previous_transforms: IdMap<WidgetId, PxTransform>,
 }
 impl ContentCtrl {
     pub fn new(vars: WindowVars, commands: WindowCommands, window: WindowRoot) -> Self {
@@ -1866,8 +1851,6 @@ impl ContentCtrl {
             init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
-
-            previous_transforms: IdMap::default(),
         }
     }
 
@@ -1916,10 +1899,6 @@ impl ContentCtrl {
                 self.root_ctx.border(),
                 self.vars.0.scale_factor.get(),
             );
-
-            if let Some(mut access) = info.access() {
-                access.set_lang(LANG_VAR.with(|l| l.best().clone()));
-            }
 
             WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.info(&mut info);
@@ -2056,8 +2035,6 @@ impl ContentCtrl {
 
             self.frame_id = self.frame_id.next();
 
-            let default_text_aa = FONTS.system_font_aa().get();
-
             let mut frame = FrameBuilder::new(
                 render_widgets,
                 render_update_widgets,
@@ -2067,15 +2044,13 @@ impl ContentCtrl {
                 &WINDOW.info(),
                 renderer.clone(),
                 scale_factor,
-                default_text_aa,
+                FontAntiAliasing::Default,
             );
 
             let frame = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 self.root.render(&mut frame);
                 frame.finalize(&WINDOW.info())
             });
-
-            self.notify_transform_changes();
 
             self.clear_color = frame.clear_color;
 
@@ -2114,8 +2089,6 @@ impl ContentCtrl {
                 update.finalize(&WINDOW.info())
             });
 
-            self.notify_transform_changes();
-
             if let Some(c) = update.clear_color {
                 self.clear_color = c;
             }
@@ -2152,34 +2125,6 @@ impl ContentCtrl {
                 FrameCapture::Mask(m)
             }
             FrameCaptureMode::AllMask(m) => FrameCapture::Mask(m),
-        }
-    }
-
-    fn notify_transform_changes(&mut self) {
-        let mut changes_count = 0;
-
-        TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
-            let tree = WINDOW.info();
-            if let Some(wgt) = tree.get(wid) {
-                let transform = wgt.bounds_info().inner_transform();
-
-                match self.previous_transforms.entry(wid) {
-                    IdEntry::Occupied(mut e) => {
-                        let prev = e.insert(transform);
-                        if prev != transform {
-                            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(wgt.path(), prev, transform));
-                            changes_count += 1;
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(transform);
-                    }
-                }
-            }
-        });
-
-        if (self.previous_transforms.len() - changes_count) > 500 {
-            self.previous_transforms.retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
         }
     }
 }

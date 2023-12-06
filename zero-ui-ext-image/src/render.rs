@@ -188,11 +188,16 @@ impl IMAGES {
     {
         IMAGES_SV.write().render_node(render_mode, scale_factor.into(), mask, render)
     }
+}
 
+/// Images render window hook.
+#[allow(non_camel_case_types)]
+pub struct IMAGES_WINDOW;
+impl IMAGES_WINDOW {
     /// Sets the windows service used to manage the headless windows used to render images.
     ///
     /// This must be called by the windows implementation only.
-    pub fn init_render_windows_service(&self, service: Box<dyn ImageRenderWindowsService>) {
+    pub fn hook_render_windows_service(&self, service: Box<dyn ImageRenderWindowsService>) {
         let mut img = IMAGES_SV.write();
         assert!(img.render.windows.is_none());
         img.render.windows = Some(service);
@@ -371,7 +376,7 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     /// Open the window.
     ///
     /// The `new_window_root` is called inside the [`WINDOW`] context for the new window.
-    fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot>>);
+    fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>);
 
     /// Returns the rendered frame image if it is ready for reading.
     fn on_frame_image_ready(&self, update: &EventUpdate) -> Option<(WindowId, Img)>;
@@ -385,10 +390,5 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
 /// This is implemented for the `WindowRoot` type.
 pub trait ImageRenderWindowRoot: Send + Any + 'static {
     /// Cast to `Box<dyn Any>`.
-    fn into_any(self: Box<Self>) -> Box<dyn Any>
-    where
-        Self: Sized,
-    {
-        self
-    }
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

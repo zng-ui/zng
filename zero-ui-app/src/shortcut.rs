@@ -754,7 +754,7 @@ impl ModifiersState {
 /// If a command has a shortcut the `GestureManager` will invoke the command when the shortcut is pressed
 /// the command is enabled, if the command target is a widget it will also be focused. See the `GESTURES`
 /// service documentation for details on how shortcuts are resolved.
-/// 
+///
 /// [`shortcut`]: CommandShortcutExt::shortcut
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
@@ -867,7 +867,7 @@ macro_rules! __shortcut {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::gesture::{Shortcut, shortcut};
+/// use zero_ui_app::shortcut::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {
 ///     shortcut!(Enter)
@@ -892,16 +892,16 @@ macro_rules! __shortcut {
 #[macro_export]
 macro_rules! shortcut {
     (Super) => {
-        $crate::shortcut::Shortcut::Modifier($crate::gesture::ModifierGesture::Super)
+        $crate::shortcut::Shortcut::Modifier($crate::shortcut::ModifierGesture::Super)
     };
     (Shift) => {
-        $crate::shortcut::Shortcut::Modifier($crate::gesture::ModifierGesture::Shift)
+        $crate::shortcut::Shortcut::Modifier($crate::shortcut::ModifierGesture::Shift)
     };
     (Ctrl) => {
-        $crate::shortcut::Shortcut::Modifier($crate::gesture::ModifierGesture::Ctrl)
+        $crate::shortcut::Shortcut::Modifier($crate::shortcut::ModifierGesture::Ctrl)
     };
     (Alt) => {
-        $crate::shortcut::Shortcut::Modifier($crate::gesture::ModifierGesture::Alt)
+        $crate::shortcut::Shortcut::Modifier($crate::shortcut::ModifierGesture::Alt)
     };
 
     ($Key:tt) => {

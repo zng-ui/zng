@@ -125,14 +125,15 @@ impl Default for SwapConfig {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app::App;
+    use zero_ui_app::APP;
     use zero_ui_ext_fs_watcher::FsWatcherManager;
 
     use super::*;
 
     #[test]
     fn swap_config_in_memory() {
-        let mut app = App::minimal()
+        let mut app = APP
+            .minimal()
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .run_headless(false);
@@ -151,7 +152,8 @@ mod tests {
 
     #[test]
     fn swap_config_swap() {
-        let mut app = App::minimal()
+        let mut app = APP
+            .minimal()
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .run_headless(false);
@@ -171,7 +173,8 @@ mod tests {
 
     #[test]
     fn swap_config_swap_load() {
-        let mut app = App::minimal()
+        let mut app = APP
+            .minimal()
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .run_headless(false);
@@ -201,7 +204,8 @@ mod tests {
 
     #[test]
     fn swap_config_swap_load_delayed() {
-        let mut app = App::minimal()
+        let mut app = APP
+            .minimal()
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .run_headless(false);
@@ -234,7 +238,8 @@ mod tests {
 
     #[test]
     fn swap_config_swap_fallback_delayed() {
-        let mut app = App::minimal()
+        let mut app = APP
+            .minimal()
             .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .run_headless(false);

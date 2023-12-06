@@ -1,6 +1,11 @@
 //! Font features and variation types.
 
-use std::{fmt, marker::PhantomData, num::NonZeroU32, collections::{HashMap, hash_map, HashSet}};
+use std::{
+    collections::{hash_map, HashMap, HashSet},
+    fmt,
+    marker::PhantomData,
+    num::NonZeroU32,
+};
 
 use num_enum::FromPrimitive;
 

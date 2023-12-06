@@ -2,7 +2,7 @@
 //!
 //! This module defines some foundational nodes that can be used for declaring properties and widgets.
 
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use zero_ui_app::{
     event::{Command, CommandArgs, Event, EventArgs},
@@ -14,11 +14,12 @@ use zero_ui_app::{
         VarLayout, WIDGET,
     },
 };
+use zero_ui_app_context::{ContextLocal, LocalContext};
 use zero_ui_layout::{
     context::LAYOUT,
     units::{PxConstraints2d, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, SideOffsets},
 };
-use zero_ui_state_map::StateMapRef;
+use zero_ui_state_map::{StateId, StateMapRef, StateValue};
 use zero_ui_var::*;
 
 #[doc(hidden)]
@@ -43,7 +44,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// #
 /// context_var! {
 ///     pub static FOO_VAR: u32 = 0u32;
@@ -69,7 +70,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// #
 /// #[derive(Debug, Clone, Default, PartialEq)]
 /// pub struct Config {
@@ -293,7 +294,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::event::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
 /// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
@@ -343,7 +344,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::instance::UiNode};
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # fn some_node(child: impl UiNode) -> impl UiNode { child }
@@ -596,7 +597,7 @@ macro_rules! __command_property {
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::*};
 /// # use zero_ui_app::var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # command! {
 /// #   pub static PASTE_CMD;
 /// # }
@@ -1391,6 +1392,244 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             BORDER.with_border_layout(border_rect, render_offsets, || {
                 children.with_node(1, |c| c.render_update(update));
             })
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring nodes that sets a context local.
+pub fn with_context_local<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    value: impl Into<T>,
+) -> impl UiNode {
+    let mut value = Some(Arc::new(value.into()));
+
+    match_node(child, move |child, op| {
+        context.with_context(&mut value, || child.op(op));
+    })
+}
+
+/// Helper for declaring nodes that sets a context local with a value generated on init.
+///
+/// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextLocal<T>`]
+/// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
+///
+/// Apart from the value initialization this behaves just like [`with_context_local`].
+pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    init_value: impl FnMut() -> T + Send + 'static,
+) -> impl UiNode {
+    #[cfg(dyn_closure)]
+    let init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
+    with_context_local_init_impl(child.cfg_boxed(), context, init_value).cfg_boxed()
+}
+fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    mut init_value: impl FnMut() -> T + Send + 'static,
+) -> impl UiNode {
+    let mut value = None;
+
+    match_node(child, move |child, op| {
+        let mut is_deinit = false;
+        match &op {
+            UiNodeOp::Init => {
+                value = Some(Arc::new(init_value()));
+            }
+            UiNodeOp::Deinit => {
+                is_deinit = true;
+            }
+            _ => {}
+        }
+
+        context.with_context(&mut value, || child.op(op));
+
+        if is_deinit {
+            value = None;
+        }
+    })
+}
+
+/// Helper for declaring widgets that are recontextualized to take in some of the context
+/// of an *original* parent.
+///
+/// See [`LocalContext::with_context_blend`] for more details about `over`. The returned
+/// node will delegate all node operations to inside the blend. The [`UiNode::with_context`]
+/// will delegate to the `child` widget context, but the `ctx` is not blended for this method, only
+/// for [`UiNodeOp`] methods.
+///
+/// # Warning
+///
+/// Properties, context vars and context locals are implemented with the assumption that all consumers have
+/// released the context on return, that is even if the context was shared with worker threads all work was block-waited.
+/// This node breaks this assumption, specially with `over: true` you may cause unexpected behavior if you don't consider
+/// carefully what context is being captured and what context is being replaced.
+///
+/// As a general rule, only capture during init or update in [`NestGroup::CHILD`], only wrap full widgets and only place the wrapped
+/// widget in a parent's [`NestGroup::CHILD`] for a parent that has no special expectations about the child.
+///
+/// As an example of things that can go wrong, if you capture during layout, the `LAYOUT` context is captured
+/// and replaces `over` the actual layout context during all subsequent layouts in the actual parent.
+///
+/// # Panics
+///
+/// Panics during init if `ctx` is not from the same app as the init context.
+///
+/// [`NestGroup::CHILD`]: crate::widget_builder::NestGroup::CHILD
+pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
+    match_widget(child, move |c, op| {
+        if let UiNodeOp::Init = op {
+            let init_app = LocalContext::current_app();
+            ctx.with_context_blend(over, || {
+                let ctx_app = LocalContext::current_app();
+                assert_eq!(init_app, ctx_app);
+                c.op(op)
+            });
+        } else {
+            ctx.with_context_blend(over, || c.op(op));
+        }
+    })
+}
+
+/// Helper for declaring properties that set the widget state.
+///
+/// The state ID is set in [`WIDGET`] on init and is kept updated. On deinit it is set to the `default` value.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> () { }
+/// use zero_ui_core::{property, context::*, var::IntoVar, widget_instance::UiNode};
+///
+/// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
+///
+/// #[property(CONTEXT)]
+/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
+///     with_widget_state(child, &FOO_ID, || 0, value)
+/// }
+///
+/// // after the property is used and the widget initializes:
+///
+/// /// Get the value from outside the widget.
+/// fn get_foo_outer(widget: &mut impl UiNode) -> u32 {
+///     widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(&FOO_ID)).flatten().unwrap_or_default()
+/// }
+///
+/// /// Get the value from inside the widget.
+/// fn get_foo_inner() -> u32 {
+///     WIDGET.get_state(&FOO_ID).unwrap_or_default()
+/// }
+/// ```
+pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+where
+    U: UiNode,
+    I: Fn() -> T + Send + 'static,
+    T: StateValue + VarValue,
+{
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> T + Send> = Box::new(default);
+    with_widget_state_impl(child.cfg_boxed(), id.into(), default, value.into_var()).cfg_boxed()
+}
+fn with_widget_state_impl<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+where
+    U: UiNode,
+    I: Fn() -> T + Send + 'static,
+    T: StateValue + VarValue,
+{
+    let id = id.into();
+    let value = value.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+            WIDGET.sub_var(&value);
+            WIDGET.set_state(id, value.get());
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+            WIDGET.set_state(id, default());
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            if let Some(v) = value.get_new() {
+                WIDGET.set_state(id, v);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring properties that set the widget state with a custom closure.
+///
+/// The `default` closure is used to init the state value, then the `modify` closure is used to modify the state using the variable value.
+///
+/// On deinit the `default` value is set on the state again.
+///
+/// See [`with_widget_state`] for more details.
+pub fn with_widget_state_modify<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> S + Send> = Box::new(default);
+    #[cfg(dyn_closure)]
+    let modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
+
+    with_widget_state_modify_impl(child.cfg_boxed(), id.into(), value.into_var(), default, modify)
+}
+fn with_widget_state_modify_impl<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    mut modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    let id = id.into();
+    let value = value.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+
+            WIDGET.sub_var(&value);
+
+            value.with(|v| {
+                WIDGET.with_state_mut(|mut s| {
+                    modify(s.entry(id).or_insert_with(&default), v);
+                })
+            })
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            WIDGET.set_state(id, default());
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            value.with_new(|v| {
+                WIDGET.with_state_mut(|mut s| {
+                    modify(s.req_mut(id), v);
+                })
+            });
         }
         _ => {}
     })

@@ -30,7 +30,7 @@ mod types;
 pub use types::*;
 
 mod render;
-pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGE_RENDER};
+pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
 use zero_ui_layout::units::{ByteLength, ByteUnits};
 use zero_ui_task::ui::UiTask;
 use zero_ui_txt::{formatx, ToText, Txt};

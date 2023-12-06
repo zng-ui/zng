@@ -15,12 +15,14 @@ pub mod access;
 pub mod event;
 pub mod handler;
 pub mod render;
+pub mod shortcut;
 pub mod timer;
 pub mod update;
 pub mod view_process;
 pub mod widget;
 pub mod window;
-pub mod shortcut;
+
+mod tests;
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]
@@ -41,7 +43,7 @@ use window::WindowMode;
 use zero_ui_app_context::{AppId, AppScope, LocalContext};
 use zero_ui_task::ui::UiTask;
 
-/// An [`App`] extension.
+/// An app extension.
 ///
 /// # App Loop
 ///
@@ -81,7 +83,7 @@ use zero_ui_task::ui::UiTask;
 /// ## 6 - Deinit
 ///
 /// The [`deinit`] method is called once after an exit was requested and not cancelled. Exit is
-/// requested using the [`APP_PROCESS`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
+/// requested using the [`APP`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
 ///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
@@ -430,7 +432,7 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
 
 /// Info about an app-extension.
 ///
-/// See [`App::extensions`] for more details.
+/// See [`APP::extensions`] for more details.
 #[derive(Clone, Copy)]
 pub struct AppExtensionInfo {
     /// Extension type ID.
@@ -676,7 +678,7 @@ impl HeadlessApp {
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
         self.run_task(async move {
-            let req = APP_PROCESS.exit();
+            let req = APP.exit();
             req.wait_rsp().await;
         });
     }
@@ -995,21 +997,18 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
     }
 }
 
-/// Defines and runs an application.
+/// Start and manage an app process.
 ///
 /// # View Process
 ///
-/// A view-process must be initialized before creating an app. Panics on `run` if there is
+/// A view-process must be initialized before starting an app. Panics on `run` if there is
 /// not view-process, also panics if the current process is executing as a view-process.
-///
-/// [`minimal`]: App::minimal
-/// [`default`]: App::default
-pub struct App;
-impl App {
+pub struct APP;
+impl APP {
     /// If the crate was build with `feature="multi_app"`.
     ///
     /// If `true` multiple apps can run in the same process, but only one app per thread at a time.
-    pub fn multi_app_enabled() -> bool {
+    pub fn multi_app_enabled(&self) -> bool {
         cfg!(feature = "multi_app")
     }
 
@@ -1019,7 +1018,7 @@ impl App {
     /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
     ///
     /// You can use `app_local!` to create *static* resources that live for the app lifetime.
-    pub fn is_running() -> bool {
+    pub fn is_running(&self) -> bool {
         LocalContext::current_app().is_some()
     }
 
@@ -1028,7 +1027,7 @@ impl App {
     /// This ID usually does not change as most apps only run once per process, but it can change often during tests.
     /// Resources that interact with `app_local!` values can use this ID to ensure that they are still operating in the same
     /// app.
-    pub fn current_id() -> Option<AppId> {
+    pub fn id(&self) -> Option<AppId> {
         LocalContext::current_app()
     }
 
@@ -1045,7 +1044,7 @@ impl App {
     fn assert_can_run() {
         #[cfg(not(feature = "multi_app"))]
         Self::assert_can_run_single();
-        if App::is_running() {
+        if APP.is_running() {
             panic!("only one app is allowed per thread")
         }
     }
@@ -1053,7 +1052,7 @@ impl App {
     /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
     ///
     /// Note that specific windows can be in headless modes even if the app is headed.
-    pub fn window_mode() -> WindowMode {
+    pub fn window_mode(&self) -> WindowMode {
         if VIEW_PROCESS.is_available() {
             if VIEW_PROCESS.is_headless_with_render() {
                 WindowMode::HeadlessWithRenderer
@@ -1065,15 +1064,15 @@ impl App {
         }
     }
     /// List of app extensions that are part of the current app.
-    pub fn extensions() -> Arc<AppExtensionsInfo> {
+    pub fn extensions(&self) -> Arc<AppExtensionsInfo> {
         APP_PROCESS_SV.read().extensions()
     }
 }
 
-impl App {
+impl APP {
     /// Application without extensions.
     #[cfg(dyn_app_extension)]
-    pub fn minimal() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -1086,7 +1085,7 @@ impl App {
     }
 
     #[cfg(not(dyn_app_extension))]
-    pub fn minimal() -> AppExtended<()> {
+    pub fn minimal(&self) -> AppExtended<()> {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -1101,7 +1100,7 @@ impl App {
 
 /// Application with extensions.
 ///
-/// See [`App`].
+/// See [`APP`].
 pub struct AppExtended<E: AppExtension> {
     extensions: E,
     view_process_exe: Option<PathBuf>,
@@ -1208,4 +1207,71 @@ impl<E: AppExtension> AppExtended<E> {
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
     pub trait Sealed {}
+}
+
+/// Sets a `tracing` subscriber that writes warnings to stderr and panics on errors.
+///
+/// Panics if another different subscriber is already set.
+#[cfg(any(test, feature = "test_util"))]
+pub fn test_log() {
+    use std::sync::atomic::*;
+
+    use tracing::*;
+
+    struct TestSubscriber;
+    impl Subscriber for TestSubscriber {
+        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+            metadata.is_event() && metadata.level() < &Level::WARN
+        }
+
+        fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
+            unimplemented!()
+        }
+
+        fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {
+            unimplemented!()
+        }
+
+        fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {
+            unimplemented!()
+        }
+
+        fn event(&self, event: &Event<'_>) {
+            struct MsgCollector<'a>(&'a mut String);
+            impl<'a> field::Visit for MsgCollector<'a> {
+                fn record_debug(&mut self, field: &field::Field, value: &dyn fmt::Debug) {
+                    use std::fmt::Write;
+                    write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
+                }
+            }
+
+            let meta = event.metadata();
+            let file = meta.file().unwrap_or("");
+            let line = meta.line().unwrap_or(0);
+
+            let mut msg = format!("[{file}:{line}]");
+            event.record(&mut MsgCollector(&mut msg));
+
+            if meta.level() == &Level::ERROR {
+                panic!("[LOG-ERROR]{msg}");
+            } else {
+                eprintln!("[LOG-WARN]{msg}");
+            }
+        }
+
+        fn enter(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+        fn exit(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+    }
+
+    static IS_SET: AtomicBool = AtomicBool::new(false);
+
+    if !IS_SET.swap(true, Ordering::Relaxed) {
+        if let Err(e) = subscriber::set_global_default(TestSubscriber) {
+            panic!("failed to set test log subscriber, {e:?}");
+        }
+    }
 }

@@ -1,6 +1,12 @@
 //! Commands that control the scoped window.
 
-use zero_ui_app::{event::{command, CommandHandle}, window::{WindowId, WINDOW}, update::EventUpdate};
+use zero_ui_app::{
+    event::{command, CommandHandle, CommandInfoExt, CommandNameExt},
+    shortcut::{shortcut, CommandShortcutExt},
+    update::EventUpdate,
+    window::{WindowId, WINDOW},
+};
+use zero_ui_var::Var;
 use zero_ui_view_api::window::WindowState;
 
 use crate::{WindowVars, WINDOWS};

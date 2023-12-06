@@ -39,8 +39,9 @@ members = [
     "zero-ui-ext-l10n",
     "zero-ui-ext-image",
     "zero-ui-ext-clipboard",
-    # "zero-ui-ext-undo",
-    # "zero-ui-ext-window",
+    "zero-ui-ext-window",
+    "zero-ui-ext-input",
+    "zero-ui-ext-undo",
 
     # widget:
     "zero-ui-widget",
