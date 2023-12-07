@@ -2,13 +2,24 @@
 //!
 //! This module defines some foundational nodes that can be used for declaring properties and widgets.
 
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use zero_ui_app::{
     event::{Command, CommandArgs, Event, EventArgs},
     handler::WidgetHandler,
-    widget::{instance::*, WIDGET},
+    render::{FrameBuilder, FrameValueKey},
+    widget::{
+        border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
+        instance::*,
+        VarLayout, WIDGET,
+    },
 };
+use zero_ui_app_context::{ContextLocal, LocalContext};
+use zero_ui_layout::{
+    context::LAYOUT,
+    units::{PxConstraints2d, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, SideOffsets},
+};
+use zero_ui_state_map::{StateId, StateMapRef, StateValue};
 use zero_ui_var::*;
 
 #[doc(hidden)]
@@ -33,7 +44,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// #
 /// context_var! {
 ///     pub static FOO_VAR: u32 = 0u32;
@@ -59,7 +70,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// #
 /// #[derive(Debug, Clone, Default, PartialEq)]
 /// pub struct Config {
@@ -283,7 +294,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::event::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
 /// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
@@ -333,7 +344,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::instance::UiNode};
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # fn some_node(child: impl UiNode) -> impl UiNode { child }
@@ -586,7 +597,7 @@ macro_rules! __command_property {
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::*};
 /// # use zero_ui_app::var::*;
-/// # use zero_ui_wgt::nodes::*;
+/// # use zero_ui_widget::nodes::*;
 /// # command! {
 /// #   pub static PASTE_CMD;
 /// # }
@@ -832,6 +843,794 @@ where
             }
         }
 
+        _ => {}
+    })
+}
+
+/// Logs an error if the `_var` is always read-only.
+pub fn validate_getter_var<T: VarValue>(_var: &impl Var<T>) {
+    #[cfg(debug_assertions)]
+    if _var.capabilities().is_always_read_only() {
+        tracing::error!(
+            "`is_`, `has_` or `get_` property inited with read-only var in `{}`",
+            WIDGET.trace_id()
+        );
+    }
+}
+
+/// Helper for declaring state properties that depend on a single event.
+pub fn event_is_state<A: EventArgs>(
+    child: impl UiNode,
+    state: impl IntoVar<bool>,
+    default: bool,
+    event: Event<A>,
+    mut on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
+) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event);
+            let _ = state.set(default);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(default);
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = event.on(update) {
+                if let Some(s) = on_event(args) {
+                    let _ = state.set(s);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that depend on two other event states.
+#[allow(clippy::too_many_arguments)]
+pub fn event_is_state2<A0, A1>(
+    child: impl UiNode,
+    state: impl IntoVar<bool>,
+    default: bool,
+    event0: Event<A0>,
+    default0: bool,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    event1: Event<A1>,
+    default1: bool,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+{
+    let state = state.into_var();
+    let partial_default = (default0, default1);
+    let mut partial = (default0, default1);
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1);
+
+            partial = partial_default;
+            let _ = state.set(default);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(default);
+        }
+        UiNodeOp::Event { update } => {
+            let mut updated = false;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
+                        updated = true;
+                    }
+                }
+            }
+            child.event(update);
+
+            if updated {
+                if let Some(value) = merge(partial.0, partial.1) {
+                    let _ = state.set(value);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that depend on three other event states.
+#[allow(clippy::too_many_arguments)]
+pub fn event_is_state3<A0, A1, A2>(
+    child: impl UiNode,
+    state: impl IntoVar<bool>,
+    default: bool,
+    event0: Event<A0>,
+    default0: bool,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    event1: Event<A1>,
+    default1: bool,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    event2: Event<A2>,
+    default2: bool,
+    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+    A2: EventArgs,
+{
+    let state = state.into_var();
+    let partial_default = (default0, default1, default2);
+    let mut partial = (default0, default1, default2);
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
+
+            partial = partial_default;
+            let _ = state.set(default);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(default);
+        }
+        UiNodeOp::Event { update } => {
+            let mut updated = false;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event2.on(update) {
+                if let Some(state) = on_event2(args) {
+                    if partial.2 != state {
+                        partial.2 = state;
+                        updated = true;
+                    }
+                }
+            }
+            child.event(update);
+
+            if updated {
+                if let Some(value) = merge(partial.0, partial.1, partial.2) {
+                    let _ = state.set(value);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that depend on four other event states.
+#[allow(clippy::too_many_arguments)]
+pub fn event_is_state4<A0, A1, A2, A3>(
+    child: impl UiNode,
+    state: impl IntoVar<bool>,
+    default: bool,
+    event0: Event<A0>,
+    default0: bool,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    event1: Event<A1>,
+    default1: bool,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    event2: Event<A2>,
+    default2: bool,
+    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    event3: Event<A3>,
+    default3: bool,
+    mut on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+    A2: EventArgs,
+    A3: EventArgs,
+{
+    let state = state.into_var();
+    let partial_default = (default0, default1, default2, default3);
+    let mut partial = (default0, default1, default2, default3);
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
+
+            partial = partial_default;
+            let _ = state.set(default);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(default);
+        }
+        UiNodeOp::Event { update } => {
+            let mut updated = false;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event2.on(update) {
+                if let Some(state) = on_event2(args) {
+                    if partial.2 != state {
+                        partial.2 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = event3.on(update) {
+                if let Some(state) = on_event3(args) {
+                    if partial.3 != state {
+                        partial.3 = state;
+                        updated = true;
+                    }
+                }
+            }
+            child.event(update);
+
+            if updated {
+                if let Some(value) = merge(partial.0, partial.1, partial.2, partial.3) {
+                    let _ = state.set(value);
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that are controlled by a variable.
+///
+/// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
+/// that merge other state properties.
+pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl IntoVar<bool>) -> impl UiNode {
+    let source = source.into_var();
+    let state = state.into_var();
+    let mut _binding = VarHandle::dummy();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            let _ = state.set_from(&source);
+            _binding = source.bind(&state);
+        }
+        UiNodeOp::Deinit => {
+            _binding = VarHandle::dummy();
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that are controlled by values in the widget state map.
+///
+/// The `predicate` closure is called with the widget state on init and every update, if the returned value changes the `state`
+/// updates. The `deinit` closure is called on deinit to get the *reset* value.
+pub fn widget_state_is_state(
+    child: impl UiNode,
+    predicate: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
+    deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
+    state: impl IntoVar<bool>,
+) -> impl UiNode {
+    let state = state.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            child.init();
+            let s = WIDGET.with_state(&predicate);
+            if s != state.get() {
+                let _ = state.set(s);
+            }
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+            let s = WIDGET.with_state(&deinit);
+            if s != state.get() {
+                let _ = state.set(s);
+            }
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            let s = WIDGET.with_state(&predicate);
+            if s != state.get() {
+                let _ = state.set(s);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state getter properties that are controlled by values in the widget state map.
+///
+/// The `get_new` closure is called with the widget state and current `state` every init and update, if it returns some value
+/// the `state` updates. The `get_deinit` closure is called on deinit to get the *reset* value.
+pub fn widget_state_get_state<T: VarValue>(
+    child: impl UiNode,
+    get_new: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
+    get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
+    state: impl IntoVar<T>,
+) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            child.init();
+            let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
+            if let Some(new) = new {
+                let _ = state.set(new);
+            }
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            let new = state.with(|s| WIDGET.with_state(|w| get_deinit(w, s)));
+            if let Some(new) = new {
+                let _ = state.set(new);
+            }
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
+            if let Some(new) = new {
+                let _ = state.set(new);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Transforms and clips the `content` node according with the default widget border behavior.
+///
+/// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
+/// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
+/// widget borders, corner radius and border align.
+///
+/// Note that this node should **not** be used for the property child node (first argument), only other
+/// content that fills the widget, for examples, a *background* property would wrap its background node with this
+/// but just pass thought layout and render for its child node.
+pub fn fill_node(content: impl UiNode) -> impl UiNode {
+    let mut clip_bounds = PxSize::zero();
+    let mut clip_corners = PxCornerRadius::zero();
+
+    let mut offset = PxVector::zero();
+    let offset_key = FrameValueKey::new_unique();
+    let mut define_frame = false;
+
+    match_node(content, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&BORDER_ALIGN_VAR);
+            define_frame = false;
+            offset = PxVector::zero();
+        }
+        UiNodeOp::Measure { desired_size, .. } => {
+            let offsets = BORDER.inner_offsets();
+            let align = BORDER_ALIGN_VAR.get();
+
+            let our_offsets = offsets * align;
+            let size_offset = offsets - our_offsets;
+
+            let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
+
+            *desired_size = LAYOUT.constraints().fill_size() + size_increase;
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            // We are inside the *inner* bounds AND inside border_nodes:
+            //
+            // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
+
+            let (bounds, corners) = BORDER.fill_bounds();
+
+            let mut new_offset = bounds.origin.to_vector();
+
+            if clip_bounds != bounds.size || clip_corners != corners {
+                clip_bounds = bounds.size;
+                clip_corners = corners;
+                WIDGET.render();
+            }
+
+            let (_, branch_offset) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.size), || {
+                wl.with_branch_child(|wl| child.layout(wl))
+            });
+            new_offset += branch_offset;
+
+            if offset != new_offset {
+                offset = new_offset;
+
+                if define_frame {
+                    WIDGET.render_update();
+                } else {
+                    define_frame = true;
+                    WIDGET.render();
+                }
+            }
+
+            *final_size = bounds.size;
+        }
+        UiNodeOp::Render { frame } => {
+            let mut render = |frame: &mut FrameBuilder| {
+                let bounds = PxRect::from_size(clip_bounds);
+                frame.push_clips(
+                    |c| {
+                        if clip_corners != PxCornerRadius::zero() {
+                            c.push_clip_rounded_rect(bounds, clip_corners, false, false);
+                        } else {
+                            c.push_clip_rect(bounds, false, false);
+                        }
+
+                        if let Some(inline) = WIDGET.bounds().inline() {
+                            for r in inline.negative_space().iter() {
+                                c.push_clip_rect(*r, true, false);
+                            }
+                        }
+                    },
+                    |f| child.render(f),
+                );
+            };
+
+            if define_frame {
+                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
+                    render(frame);
+                });
+            } else {
+                render(frame);
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            if define_frame {
+                update.with_transform(offset_key.update(offset.into(), false), false, |update| {
+                    child.render_update(update);
+                });
+            } else {
+                child.render_update(update);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
+/// with the other borders of the widget.
+///
+/// This node disables inline layout for the widget.
+pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
+    let offsets = border_offsets.into_var();
+    let mut render_offsets = PxSideOffsets::zero();
+    let mut border_rect = PxRect::zero();
+
+    match_node_list(ui_vec![child, border_visual], move |children, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&offsets).sub_var_render(&BORDER_OVER_VAR);
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let offsets = offsets.layout();
+            *desired_size = BORDER.measure_border(offsets, || {
+                LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
+                    children.with_node(0, |n| wm.measure_block(n))
+                })
+            });
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            // We are inside the *inner* bounds or inside a parent border_node:
+            //
+            // .. ( layout ( new_border/inner ( BORDER_NODES ( fill_nodes ( new_child_context ( new_child_layout ( ..
+            //
+            // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
+            // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
+
+            let offsets = offsets.layout();
+            if render_offsets != offsets {
+                render_offsets = offsets;
+                WIDGET.render();
+            }
+
+            let parent_offsets = BORDER.inner_offsets();
+            let origin = PxPoint::new(parent_offsets.left, parent_offsets.top);
+            if border_rect.origin != origin {
+                border_rect.origin = origin;
+                WIDGET.render();
+            }
+
+            // layout child and border visual
+            BORDER.layout_border(offsets, || {
+                wl.translate(PxVector::new(offsets.left, offsets.top));
+
+                let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
+                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.with_node(0, |n| n.layout(wl)));
+
+                // layout border visual
+                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border_rect.size), || {
+                    BORDER.with_border_layout(border_rect, offsets, || {
+                        children.with_node(1, |n| n.layout(wl));
+                    });
+                });
+            });
+
+            *final_size = border_rect.size;
+        }
+        UiNodeOp::Render { frame } => {
+            if BORDER_OVER_VAR.get() {
+                children.with_node(0, |c| c.render(frame));
+                BORDER.with_border_layout(border_rect, render_offsets, || {
+                    children.with_node(1, |c| c.render(frame));
+                });
+            } else {
+                BORDER.with_border_layout(border_rect, render_offsets, || {
+                    children.with_node(1, |c| c.render(frame));
+                });
+                children.with_node(0, |c| c.render(frame));
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            children.with_node(0, |c| c.render_update(update));
+            BORDER.with_border_layout(border_rect, render_offsets, || {
+                children.with_node(1, |c| c.render_update(update));
+            })
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring nodes that sets a context local.
+pub fn with_context_local<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    value: impl Into<T>,
+) -> impl UiNode {
+    let mut value = Some(Arc::new(value.into()));
+
+    match_node(child, move |child, op| {
+        context.with_context(&mut value, || child.op(op));
+    })
+}
+
+/// Helper for declaring nodes that sets a context local with a value generated on init.
+///
+/// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextLocal<T>`]
+/// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
+///
+/// Apart from the value initialization this behaves just like [`with_context_local`].
+pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    init_value: impl FnMut() -> T + Send + 'static,
+) -> impl UiNode {
+    #[cfg(dyn_closure)]
+    let init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
+    with_context_local_init_impl(child.cfg_boxed(), context, init_value).cfg_boxed()
+}
+fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    mut init_value: impl FnMut() -> T + Send + 'static,
+) -> impl UiNode {
+    let mut value = None;
+
+    match_node(child, move |child, op| {
+        let mut is_deinit = false;
+        match &op {
+            UiNodeOp::Init => {
+                value = Some(Arc::new(init_value()));
+            }
+            UiNodeOp::Deinit => {
+                is_deinit = true;
+            }
+            _ => {}
+        }
+
+        context.with_context(&mut value, || child.op(op));
+
+        if is_deinit {
+            value = None;
+        }
+    })
+}
+
+/// Helper for declaring widgets that are recontextualized to take in some of the context
+/// of an *original* parent.
+///
+/// See [`LocalContext::with_context_blend`] for more details about `over`. The returned
+/// node will delegate all node operations to inside the blend. The [`UiNode::with_context`]
+/// will delegate to the `child` widget context, but the `ctx` is not blended for this method, only
+/// for [`UiNodeOp`] methods.
+///
+/// # Warning
+///
+/// Properties, context vars and context locals are implemented with the assumption that all consumers have
+/// released the context on return, that is even if the context was shared with worker threads all work was block-waited.
+/// This node breaks this assumption, specially with `over: true` you may cause unexpected behavior if you don't consider
+/// carefully what context is being captured and what context is being replaced.
+///
+/// As a general rule, only capture during init or update in [`NestGroup::CHILD`], only wrap full widgets and only place the wrapped
+/// widget in a parent's [`NestGroup::CHILD`] for a parent that has no special expectations about the child.
+///
+/// As an example of things that can go wrong, if you capture during layout, the `LAYOUT` context is captured
+/// and replaces `over` the actual layout context during all subsequent layouts in the actual parent.
+///
+/// # Panics
+///
+/// Panics during init if `ctx` is not from the same app as the init context.
+///
+/// [`NestGroup::CHILD`]: crate::widget_builder::NestGroup::CHILD
+pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
+    match_widget(child, move |c, op| {
+        if let UiNodeOp::Init = op {
+            let init_app = LocalContext::current_app();
+            ctx.with_context_blend(over, || {
+                let ctx_app = LocalContext::current_app();
+                assert_eq!(init_app, ctx_app);
+                c.op(op)
+            });
+        } else {
+            ctx.with_context_blend(over, || c.op(op));
+        }
+    })
+}
+
+/// Helper for declaring properties that set the widget state.
+///
+/// The state ID is set in [`WIDGET`] on init and is kept updated. On deinit it is set to the `default` value.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> () { }
+/// use zero_ui_core::{property, context::*, var::IntoVar, widget_instance::UiNode};
+///
+/// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
+///
+/// #[property(CONTEXT)]
+/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
+///     with_widget_state(child, &FOO_ID, || 0, value)
+/// }
+///
+/// // after the property is used and the widget initializes:
+///
+/// /// Get the value from outside the widget.
+/// fn get_foo_outer(widget: &mut impl UiNode) -> u32 {
+///     widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(&FOO_ID)).flatten().unwrap_or_default()
+/// }
+///
+/// /// Get the value from inside the widget.
+/// fn get_foo_inner() -> u32 {
+///     WIDGET.get_state(&FOO_ID).unwrap_or_default()
+/// }
+/// ```
+pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+where
+    U: UiNode,
+    I: Fn() -> T + Send + 'static,
+    T: StateValue + VarValue,
+{
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> T + Send> = Box::new(default);
+    with_widget_state_impl(child.cfg_boxed(), id.into(), default, value.into_var()).cfg_boxed()
+}
+fn with_widget_state_impl<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
+where
+    U: UiNode,
+    I: Fn() -> T + Send + 'static,
+    T: StateValue + VarValue,
+{
+    let id = id.into();
+    let value = value.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+            WIDGET.sub_var(&value);
+            WIDGET.set_state(id, value.get());
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+            WIDGET.set_state(id, default());
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            if let Some(v) = value.get_new() {
+                WIDGET.set_state(id, v);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring properties that set the widget state with a custom closure.
+///
+/// The `default` closure is used to init the state value, then the `modify` closure is used to modify the state using the variable value.
+///
+/// On deinit the `default` value is set on the state again.
+///
+/// See [`with_widget_state`] for more details.
+pub fn with_widget_state_modify<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> S + Send> = Box::new(default);
+    #[cfg(dyn_closure)]
+    let modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
+
+    with_widget_state_modify_impl(child.cfg_boxed(), id.into(), value.into_var(), default, modify)
+}
+fn with_widget_state_modify_impl<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    mut modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    let id = id.into();
+    let value = value.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+
+            WIDGET.sub_var(&value);
+
+            value.with(|v| {
+                WIDGET.with_state_mut(|mut s| {
+                    modify(s.entry(id).or_insert_with(&default), v);
+                })
+            })
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            WIDGET.set_state(id, default());
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            value.with_new(|v| {
+                WIDGET.with_state_mut(|mut s| {
+                    modify(s.req_mut(id), v);
+                })
+            });
+        }
         _ => {}
     })
 }

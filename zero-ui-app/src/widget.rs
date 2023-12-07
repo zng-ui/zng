@@ -1048,7 +1048,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
 /// # fn main() {
-/// # let _scope = App::minimal();
+/// # let _scope = APP.minimal();
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
 /// background_color = colors::RED;
 ///
@@ -1101,7 +1101,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 ///     pub static BAR_VAR: bool = false;
 /// }
 /// # fn main() {
-/// # let _scope = App::minimal();
+/// # let _scope = APP.minimal();
 /// # let wgt = widget::base::WidgetBase! {
 /// background_color = colors::RED;
 ///

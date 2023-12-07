@@ -222,11 +222,11 @@ impl<A: EventArgs> Event<A> {
     ///
     /// ```
     /// # use zero_ui_app::event::*;
-    /// # use zero_ui_app::App;
+    /// # use zero_ui_app::APP;
     /// # use zero_ui_app::handler::app_hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
-    /// # let _scope = App::minimal();
+    /// # let _scope = APP.minimal();
     /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
@@ -269,11 +269,11 @@ impl<A: EventArgs> Event<A> {
     ///
     /// ```
     /// # use zero_ui_app::event::*;
-    /// # use zero_ui_app::App;
+    /// # use zero_ui_app::APP;
     /// # use zero_ui_app::handler::app_hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
-    /// # let _scope = App::minimal();
+    /// # let _scope = APP.minimal();
     /// let handle = FOCUS_CHANGED_EVENT.on_event(app_hn!(|args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));

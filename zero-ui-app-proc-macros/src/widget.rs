@@ -102,6 +102,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     // a `$crate` path to the widget struct.
     let (struct_path, custom_rules) = if mixin {
+        if !args.is_empty() {
+            let span = match syn::parse::<Args>(args) {
+                Ok(a) => a.path.span(),
+                Err(e) => e.span(),
+            };
+            let mut r = syn::Error::new(span, "mix-ins do not need a `$crate` path")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        }
+
         (quote!(), vec![])
     } else {
         match syn::parse::<Args>(args) {

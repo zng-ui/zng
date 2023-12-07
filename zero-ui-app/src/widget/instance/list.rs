@@ -10,11 +10,10 @@ use std::{
 use parking_lot::Mutex;
 use task::ParallelIteratorExt;
 use zero_ui_app_context::context_local;
-use zero_ui_app_proc_macros::property;
 use zero_ui_layout::units::{Factor, PxSize, PxTransform, PxVector};
 use zero_ui_state_map::{StateId, StaticStateId};
 use zero_ui_task::{self as task, rayon::prelude::*};
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var, IntoVar};
+use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::*;
 
@@ -787,10 +786,6 @@ context_local! {
 }
 
 /// Access to widget z-index.
-///
-/// The z-index can be set using the [`z_index`] property.
-///
-/// [`z_index`]: fn@z_index
 #[allow(non_camel_case_types)]
 pub struct Z_INDEX;
 impl Z_INDEX {
@@ -818,6 +813,23 @@ impl Z_INDEX {
     pub fn get_wgt(&self, widget: &mut impl UiNode) -> ZIndex {
         widget.with_context(WidgetUpdateMode::Ignore, || self.get()).unwrap_or_default()
     }
+
+    /// Try set the z-index in the current [`WIDGET`].
+    ///
+    /// Returns if z-index can be set on the widget, this is only `true` if the current [`WIDGET`]
+    /// is a direct child of a panel widget that supports z-index.
+    ///
+    /// This must be called on node init and update only, always returns `false` if called during
+    /// other node operations.
+    pub fn set(&self, index: ZIndex) -> bool {
+        let z_ctx = Z_INDEX_CTX.get();
+        let valid = z_ctx.panel_id == WIDGET.parent_id() && z_ctx.panel_id.is_some();
+        if valid && index != ZIndex::DEFAULT {
+            z_ctx.resort.store(true, Relaxed);
+            WIDGET.set_state(&Z_INDEX_ID, index);
+        }
+        valid
+    }
 }
 
 static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
@@ -835,10 +847,6 @@ static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 /// #
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```
-///
-/// See [`z_index`] for more details.
-///
-/// [`z_index`]: fn@z_index
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Transitionable)]
 pub struct ZIndex(pub u32);
 impl ZIndex {
@@ -956,53 +964,6 @@ impl_from_and_into_var! {
     fn from(index: u32) -> ZIndex {
         ZIndex(index)
     }
-}
-
-/// Defines the render order of a widget in a layout panel.
-///
-/// When set the widget will still update and layout according to their *logical* position in the list but
-/// they will render according to the order defined by the [`ZIndex`] value.
-///
-/// Layout panels that support this property should mention it in their documentation, implementers
-/// see [`PanelList`] for more details.
-#[property(CONTEXT, default(ZIndex::DEFAULT))]
-pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
-    let index = index.into_var();
-    let mut valid = false;
-
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            let z_ctx = Z_INDEX_CTX.get();
-
-            if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
-                tracing::error!(
-                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                    WIDGET.id()
-                );
-                valid = false;
-            } else {
-                valid = true;
-                WIDGET.sub_var(&index);
-
-                if index.get() != ZIndex::DEFAULT {
-                    z_ctx.resort.store(true, Relaxed);
-                    WIDGET.set_state(&Z_INDEX_ID, index.get());
-                }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if valid {
-                if let Some(i) = index.get_new() {
-                    let z_ctx = Z_INDEX_CTX.get();
-                    debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
-                    z_ctx.resort.store(true, Relaxed);
-
-                    WIDGET.set_state(&Z_INDEX_ID, i);
-                }
-            }
-        }
-        _ => {}
-    })
 }
 
 /// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.
@@ -1988,14 +1949,13 @@ impl PanelListRange {
 
 /// Represents the final [`UiNodeList`] in a panel layout node.
 ///
-/// Panel widgets should wrap their children list on this type to support [`z_index`] sorting list and easily track
+/// Panel widgets should wrap their children list on this type to support z-index sorting list and easily track
 /// item data. By default the item data is a [`PxVector`] that represents the offset of each item inside the panel,
 /// but it can be any type that implements [`PanelListData`].
 ///
 /// Panel widgets can also mark the list using [`track_info_range`] and implement getter properties for the items
 /// to enable styling of each odd/even item for example.
 ///
-/// [`z_index`]: fn@z_index
 /// [`track_info_range`]: Self::track_info_range
 pub struct PanelList<D = DefaultPanelListData>
 where

@@ -6,7 +6,7 @@ use zero_ui_layout::{
     units::{about_eq, about_eq_hash, Factor, LayoutMask, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
-use zero_ui_unique_id::IdMap;
+use zero_ui_unique_id::{IdMap, IdSet};
 
 pub use zero_ui_view_api::access::AccessRole;
 
@@ -291,6 +291,8 @@ impl WidgetInfoBuilder {
     }
 
     /// Build the info tree.
+    ///
+    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] and [`INTERACTIVITY_CHANGED_EVENT`].
     pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(Arc::try_unwrap(self.meta).unwrap().into_inner());
@@ -301,7 +303,7 @@ impl WidgetInfoBuilder {
         let widget_count_offsets;
         let spatial_bounds;
 
-        if let Some(t) = previous_tree {
+        if let Some(t) = &previous_tree {
             let t = t.0.frame.read();
             generation = t.stats.generation.wrapping_add(1);
             widget_count_offsets = t.widget_count_offsets.clone();
@@ -326,7 +328,7 @@ impl WidgetInfoBuilder {
         }
         out_of_bounds.shrink_to_fit();
 
-        WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
+        let tree = WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
             access_enabled: self.access_enabled,
             lookup,
@@ -341,10 +343,246 @@ impl WidgetInfoBuilder {
                 scale_factor: self.scale_factor,
                 spatial_bounds,
                 widget_count_offsets,
+                transform_changed_subs: IdMap::new(),
+                visibility_changed_subs: IdMap::new(),
             }),
 
             tree: self.tree,
-        }))
+        }));
+
+        // notify
+        let prev_tree = previous_tree.unwrap_or_else(|| WidgetInfoTree::wgt(tree.window_id(), tree.root().id()));
+        let args = WidgetInfoChangedArgs::now(tree.window_id(), prev_tree.clone(), tree.clone());
+        WIDGET_INFO_CHANGED_EVENT.notify(args);
+
+        let mut targets = IdSet::default();
+        INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
+            if let Some(wgt) = tree.get(wid) {
+                let prev = prev_tree.get(wid).map(|w| w.interactivity());
+                let new_int = wgt.interactivity();
+                if prev != Some(new_int) {
+                    targets.insert(wid);
+                }
+            }
+        });
+        if !targets.is_empty() {
+            let args = InteractivityChangedArgs::now(prev_tree, tree.clone(), targets);
+            INTERACTIVITY_CHANGED_EVENT.notify(args);
+        }
+
+        tree
+    }
+}
+
+crate::event::event! {
+    /// A window widget tree was rebuild.
+    pub static WIDGET_INFO_CHANGED_EVENT: WidgetInfoChangedArgs;
+
+    /// Widget interactivity has changed after an info update.
+    ///
+    /// All subscribers of this event are checked after info rebuild, if the interactivity changes from the previous tree
+    /// the event notifies.
+    ///
+    /// The event only notifies if the widget is present in the new info tree.
+    pub static INTERACTIVITY_CHANGED_EVENT: InteractivityChangedArgs;
+
+    /// Widget visibility has changed after render.
+    ///
+    /// /// All subscribers of this event are checked after render, if the previous visibility was recorded and
+    /// the new visibility is different an event is sent to the widget.
+    pub static VISIBILITY_CHANGED_EVENT: VisibilityChangedArgs;
+
+    /// A widget global inner transform has changed after render.
+    ///
+    /// All subscribers of this event are checked after render, if the previous inner transform was recorded and
+    /// the new inner transform is different an event is sent to the widget.
+    pub static TRANSFORM_CHANGED_EVENT: TransformChangedArgs;
+}
+
+crate::event::event_args! {
+     /// [`WIDGET_INFO_CHANGED_EVENT`] args.
+     pub struct WidgetInfoChangedArgs {
+        /// Window ID.
+        pub window_id: WindowId,
+
+        /// Previous widget tree.
+        ///
+        /// This is an empty tree before the first tree build.
+        pub prev_tree: WidgetInfoTree,
+
+        /// New widget tree.
+        pub tree: WidgetInfoTree,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// [`TRANSFORM_CHANGED_EVENT`] args.
+    pub struct TransformChangedArgs {
+        /// The widget.
+        pub widget: WidgetPath,
+        /// Previous inner transform.
+        pub prev_transform: PxTransform,
+        /// New inner transform.
+        pub new_transform: PxTransform,
+
+        ..
+
+        /// Target the `widget`.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_wgt(&self.widget);
+        }
+    }
+
+        /// [`VISIBILITY_CHANGED_EVENT`] args.
+        pub struct VisibilityChangedArgs {
+            /// The widget.
+            pub widget: WidgetPath,
+            /// Previous visibility.
+            pub prev_vis: Visibility,
+            /// New visibility.
+            pub new_vis: Visibility,
+
+            ..
+
+            /// Target the `widget`.
+            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+                list.insert_wgt(&self.widget);
+            }
+        }
+
+    /// [`INTERACTIVITY_CHANGED_EVENT`] args.
+    pub struct InteractivityChangedArgs {
+        /// Previous widget interactivity.
+        ///
+        /// Is `None` if the widget is new.
+        pub prev_tree: WidgetInfoTree,
+
+        /// New widget interactivity.
+        pub tree: WidgetInfoTree,
+
+        /// All event subscribers that changed interactivity in this info update.
+        pub targets: IdSet<WidgetId>,
+
+        ..
+
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            for id in self.targets.iter() {
+                if let Some(wgt) = self.tree.get(*id) {
+                    list.insert_wgt(&wgt);
+                }
+            }
+        }
+    }
+}
+impl TransformChangedArgs {
+    /// Gets the movement between previous and new transformed top-left corner.
+    pub fn offset(&self) -> PxVector {
+        let prev = self.prev_transform.transform_point(PxPoint::zero()).unwrap_or_default();
+        let new = self.new_transform.transform_point(PxPoint::zero()).unwrap_or_default();
+        prev - new
+    }
+}
+impl InteractivityChangedArgs {
+    /// Previous interactivity of this widget.
+    ///
+    /// Returns `None` if the widget was not in the previous info tree.
+    pub fn prev_interactivity(&self, widget_id: WidgetId) -> Option<Interactivity> {
+        self.prev_tree.get(widget_id).map(|w| w.interactivity())
+    }
+
+    /// New interactivity of the widget.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `widget_id` is not in [`tree`]. This method must be called only for [`targets`].
+    ///
+    /// [`tree`]: Self::tree
+    /// [`targets`]: Self::targets
+    pub fn new_interactivity(&self, widget_id: WidgetId) -> Interactivity {
+        if let Some(w) = self.tree.get(widget_id) {
+            w.interactivity()
+        } else if self.targets.contains(&widget_id) {
+            panic!("widget {widget_id} was in targets and not in new tree, invalid args");
+        } else {
+            panic!("widget {widget_id} is not in targets");
+        }
+    }
+
+    /// Widget was disabled or did not exist, now is enabled.
+    pub fn is_enable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::DISABLED).is_disabled()
+            && self.new_interactivity(widget_id).is_enabled()
+    }
+
+    /// Widget was enabled or did not exist, now is disabled.
+    pub fn is_disable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::ENABLED).is_enabled() && self.new_interactivity(widget_id).is_disabled()
+    }
+
+    /// Widget was blocked or did not exist, now is unblocked.
+    pub fn is_unblock(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::BLOCKED).is_blocked() && !self.new_interactivity(widget_id).is_blocked()
+    }
+
+    /// Widget was unblocked or did not exist, now is blocked.
+    pub fn is_block(&self, widget_id: WidgetId) -> bool {
+        !self.prev_interactivity(widget_id).unwrap_or(Interactivity::BLOCKED).is_blocked() && self.new_interactivity(widget_id).is_blocked()
+    }
+
+    /// Widget was visually disabled or did not exist, now is visually enabled.
+    pub fn is_vis_enable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id)
+            .unwrap_or(Interactivity::DISABLED)
+            .is_vis_disabled()
+            && self.new_interactivity(widget_id).is_vis_enabled()
+    }
+
+    /// Widget was visually enabled or did not exist, now is visually disabled.
+    pub fn is_vis_disable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id)
+            .unwrap_or(Interactivity::ENABLED)
+            .is_vis_enabled()
+            && self.new_interactivity(widget_id).is_vis_disabled()
+    }
+
+    /// Returns the previous and new interactivity if the widget was enabled, disabled or is new.
+    pub fn enabled_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_enabled)
+    }
+
+    /// Returns the previous and new interactivity if the widget was visually enabled, visually disabled or is new.
+    pub fn vis_enabled_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_vis_enabled)
+    }
+
+    /// Returns the previous and new interactivity if the widget was blocked, unblocked or is new.
+    pub fn blocked_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_blocked)
+    }
+
+    fn change_check(&self, widget_id: WidgetId, mtd: impl Fn(Interactivity) -> bool) -> Option<(Option<Interactivity>, Interactivity)> {
+        let new = self.new_interactivity(widget_id);
+        let prev = self.prev_interactivity(widget_id);
+        if let Some(prev) = prev {
+            if mtd(prev) != mtd(new) {
+                Some((Some(prev), new))
+            } else {
+                None
+            }
+        } else {
+            Some((prev, new))
+        }
+    }
+
+    /// Widget is new, no previous interactivity state is known, events that filter by interactivity change
+    /// update by default if the widget is new.
+    pub fn is_new(&self, widget_id: WidgetId) -> bool {
+        !self.prev_tree.contains(widget_id) && self.tree.contains(widget_id)
     }
 }
 

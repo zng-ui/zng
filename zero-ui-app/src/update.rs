@@ -18,7 +18,7 @@ use crate::{
     handler::{async_app_hn_once, AppHandler, AppHandlerArgs, AppWeakHandle},
     timer::TIMERS_SV,
     widget::{
-        info::{WidgetInfo, WidgetInfoTree, WidgetPath},
+        info::{InteractionPath, WidgetInfo, WidgetInfoTree, WidgetPath},
         instance::{BoxedUiNode, UiNode},
         WidgetId, WIDGET,
     },
@@ -230,6 +230,17 @@ impl WidgetPathProvider for WidgetPath {
 
     fn window_id(&self) -> WindowId {
         self.window_id()
+    }
+
+    fn widget_and_ancestors(&self) -> Self::WidgetIter<'_> {
+        self.widgets_path().iter().copied().rev()
+    }
+}
+impl WidgetPathProvider for InteractionPath {
+    type WidgetIter<'s> = std::iter::Rev<std::iter::Copied<std::slice::Iter<'s, WidgetId>>>;
+
+    fn window_id(&self) -> WindowId {
+        WidgetPath::window_id(self)
     }
 
     fn widget_and_ancestors(&self) -> Self::WidgetIter<'_> {

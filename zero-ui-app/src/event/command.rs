@@ -4,7 +4,7 @@ use std::{
     mem,
 };
 
-use crate::{update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, App};
+use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, APP};
 
 use super::*;
 
@@ -20,7 +20,7 @@ use super::*;
 ///
 /// # Shortcuts
 ///
-/// You can give commands one or more shortcuts using the `CommandShortcutExt`, the `GestureManager` notifies commands
+/// You can give commands one or more shortcuts using the [`CommandShortcutExt`], the `GestureManager` notifies commands
 /// that match a pressed shortcut automatically.
 ///
 /// # Examples
@@ -41,13 +41,14 @@ use super::*;
 /// You can also initialize metadata:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
 ///         info: "Does the foo thing.",
+///         shortcut: shortcut![CTRL+'F'],
 ///     };
 /// }
 /// ```
@@ -57,13 +58,14 @@ use super::*;
 /// Or you can use a custom closure to initialize the command:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}};
+/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD => |cmd| {
 ///         cmd.init_name("Foo!");
 ///         cmd.init_info("Does the foo thing.");
+///         cmd.init_shortcut(shortcut![CTRL+'F']);
 ///     };
 /// }
 /// ```
@@ -76,6 +78,7 @@ use super::*;
 /// [`CommandInfoExt`]: crate::event::CommandInfoExt
 /// [`Event`]: crate::event::Event
 /// [command extensions]: crate::event::Command#extensions
+/// /// [`CommandShortcutExt`]: crate::shortcut::CommandShortcutExt
 #[macro_export]
 macro_rules! command {
     ($(
@@ -595,7 +598,7 @@ impl CommandHandle {
     pub fn set_enabled(&self, enabled: bool) {
         if let Some(command) = self.command {
             if self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled {
-                if self.app_id != App::current_id() {
+                if self.app_id != APP.id() {
                     return;
                 }
 
@@ -655,7 +658,7 @@ impl fmt::Debug for CommandHandle {
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
-            if self.app_id != App::current_id() {
+            if self.app_id != APP.id() {
                 return;
             }
 
@@ -977,6 +980,12 @@ pub trait CommandNameExt {
 
     /// Sets the initial name if it is not set.
     fn init_name(self, name: impl Into<Txt>) -> Self;
+
+    /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
+    /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
+    fn name_with_shortcut(self) -> BoxedVar<Txt>
+    where
+        Self: crate::shortcut::CommandShortcutExt;
 }
 static COMMAND_NAME_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
 impl CommandNameExt for Command {
@@ -1010,6 +1019,20 @@ impl CommandNameExt for Command {
     fn init_name(self, name: impl Into<Txt>) -> Self {
         self.with_meta(|m| m.init_var(&COMMAND_NAME_ID, name.into()));
         self
+    }
+
+    fn name_with_shortcut(self) -> BoxedVar<Txt>
+    where
+        Self: crate::shortcut::CommandShortcutExt,
+    {
+        crate::var::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
+            if shortcut.is_empty() {
+                name.clone()
+            } else {
+                zero_ui_txt::formatx!("{name} ({})", shortcut[0])
+            }
+        })
+        .boxed()
     }
 }
 
@@ -1098,7 +1121,7 @@ impl CommandData {
 
         CommandHandle {
             command: Some(command),
-            app_id: App::current_id(),
+            app_id: APP.id(),
             local_enabled: AtomicBool::new(enabled),
             _event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
         }
@@ -1141,7 +1164,7 @@ mod tests {
 
     #[test]
     fn enabled() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers_value());
 
@@ -1161,7 +1184,7 @@ mod tests {
 
     #[test]
     fn enabled_scoped() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("enabled_scoped"));
@@ -1188,7 +1211,7 @@ mod tests {
 
     #[test]
     fn has_handlers() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers_value());
 
@@ -1201,7 +1224,7 @@ mod tests {
 
     #[test]
     fn has_handlers_scoped() {
-        let _app = App::minimal().run_headless(false);
+        let _app = APP.minimal().run_headless(false);
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(WindowId::named("has_handlers_scoped"));

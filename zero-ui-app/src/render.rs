@@ -438,6 +438,13 @@ impl FrameBuilder {
         self.auto_hit_test
     }
 
+    /// Runs `render` with `aa` used as the default text anti-aliasing mode.
+    pub fn with_default_font_aa(&mut self, aa: FontRenderMode, render: impl FnOnce(&mut Self)) {
+        let parent = mem::replace(&mut self.default_font_aa, aa);
+        render(self);
+        self.default_font_aa = parent;
+    }
+
     /// Runs `render` with hit-tests disabled, inside `render` [`is_hit_testable`] is `false`, after
     /// it is the current value.
     ///

@@ -43,70 +43,34 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
-# Split Core
+# Split Crates
 
-* App crate.
-    - Everything needed to create an App::minimal, spawn a view-process and render some nodes.
-    - After it is building do not try to replace in zero-ui-core, just implement the extension
-      crates too, replace core in main crate when done.
-    - Try to create all `#[property]` from core in a different crate, maybe some should be in app crate?
-        - Try to move `z_index` property to -wgt crate too.
+* Move widget events to wgt crate.
+    - Implement `on_show`, `on_collapse`.
 
-* Config.
-    - Needs app crate.
-    - Needs var.
+* Split main crate into widget crates.
+    - What about properties?
 
-* L10n.
-    - Needs app crate.
-    - Needs var.
+* Add `WINDOWS.register_root_extender` on the default app?
+    - `FONTS.system_font_aa`.
+    - color scheme.
+    - `lang = LANG_VAR`, for accessibility.
+```rust
+// removed from core
+with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed()).boxed()
+```
 
-* Text Shaping.
-    - Mostly decoupled, needs l10n's Lang.
-        - Can use underlying type LanguageIdentifier?
-        - Yes, lets not depend on app crate, this should be useful as standalone.
-            - Also only text widget crate needs to depend on it.
-        - Needs to integrate with `app::render::Font`.
+* Replace a main crate with a declaration of the default app and manually selected re-exports,
+  most users should be able to create apps, custom widgets for these apps by simply depending
+  on this crate. The re-export must be manual so that some stuff that is public does not get re-exported,
+  things like the view_api `WindowId`, or the `ViewWindow`.
 
-* Focus.
-    - Needs app crate.
-    - Needs WINDOWS.
+* Delete old core and main crate.
+* Test everything.
+* Merge.
 
-- File-System Watcher
-    - Needs app crate.
-    - Needs timers.
-
-- Gesture
-    - Needs app crate.
-    - Needs WINDOWS, keyboard and mouse.
-
-- Image
-    - Needs app crate.
-    - Needs ViewImage.
-
-- Keyboard, mouse and touch.
-    - Needs app crate.
-    - Needs FOCUS.
-    - Needs TIMERS.
-
-- Pointer Capture.
-    - Needs mouse and touch.
-    - Needs WINDOWS.
-
-- TIMERS.
-    - Could decouple like VARS maybe.
-    - UPDATES controls it, and is called by it.
-
-- Undo.
-    - Needs app crate.
-
-- WINDOWS.
-    - Needs app crate.
-    - Needs ViewWindow.
-    - Needs UiNode.
-
-## Split Main
-
-* Per widget?
+* Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
+    - Test what happens when info is rebuild,.
 
 # Publish
 

@@ -13,7 +13,7 @@ use crate::{
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf, sync::Arc};
+use std::{fmt, path::PathBuf};
 use zero_ui_txt::Txt;
 use zero_ui_units::{DipPoint, PxRect, PxSize};
 
@@ -148,11 +148,11 @@ pub enum Ime {
     ///
     /// The preview must visually replace the last non-preview selection or insert at the last non-preview
     /// caret index. If the preview string is empty the preview must be cancelled.
-    Preview(Arc<str>, (usize, usize)),
+    Preview(Txt, (usize, usize)),
 
     /// Apply an IME insert at the last non-preview caret/selection. The caret must be moved to
     /// the end of the inserted sub-string.
-    Commit(Arc<str>),
+    Commit(Txt),
 }
 
 /// System and User events sent from the View Process.

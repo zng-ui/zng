@@ -7,27 +7,16 @@ use zero_ui_color::{colors, Hsla, Hsva, Rgba};
 use zero_ui_layout::{
     context::LAYOUT,
     units::{
-        Factor, FactorPercent, FactorSideOffsets, FactorUnits, Layout2d, LayoutMask, Length, PxConstraints2d, PxCornerRadius, PxPoint,
-        PxRect, PxSideOffsets, PxSize, PxVector, SideOffsets, Size,
+        Factor, FactorPercent, FactorSideOffsets, FactorUnits, Layout2d, LayoutMask, Length, PxCornerRadius, PxPoint, PxRect,
+        PxSideOffsets, PxSize, Size,
     },
 };
-use zero_ui_var::{animation::Transitionable, context_var, easing::EasingStep, impl_from_and_into_var, IntoVar, Var};
+use zero_ui_var::{animation::Transitionable, context_var, easing::EasingStep, impl_from_and_into_var, Var};
 use zero_ui_view_api::webrender_api as w_api;
 
-use crate::{
-    render::FrameValueKey,
-    ui_vec,
-    widget::{
-        instance::{match_node, match_node_list, UiNodeList},
-        VarLayout,
-    },
-};
+use crate::widget::VarLayout;
 
-use super::{
-    info::WidgetBorderInfo,
-    instance::{UiNode, UiNodeOp},
-    WidgetId, WIDGET,
-};
+use super::{info::WidgetBorderInfo, WidgetId, WIDGET};
 
 /// Orientation of a straight line.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -669,215 +658,16 @@ impl fmt::Debug for CornerRadiusFit {
 
 context_var! {
     /// How much a widget's border offsets affects the widget's fill content.
-    ///
-    /// See [`border_align`](fn@border_align) for more details.
     pub static BORDER_ALIGN_VAR: FactorSideOffsets = FactorSideOffsets::zero();
 
     /// If the border is rendered over the child nodes.
-    ///
-    /// See [`border_over`](fn@border_over) for more details.
     pub static BORDER_OVER_VAR: bool = true;
 
     /// Corner radius.
-    ///
-    /// See [`corner_radius`](fn@corner_radius) for more details.
     pub static CORNER_RADIUS_VAR: CornerRadius = CornerRadius::zero();
 
     /// Corner radius fit.
-    ///
-    /// See [`corner_radius_fit`](fn@corner_radius_fit) for more details.
     pub static CORNER_RADIUS_FIT_VAR: CornerRadiusFit = CornerRadiusFit::default();
-}
-
-/// Transforms and clips the `content` node according with the default widget border behavior.
-///
-/// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
-/// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
-/// widget borders, corner radius and border align.
-///
-/// Note that this node should **not** be used for the property child node (first argument), only other
-/// content that fills the widget, for examples, a *background* property would wrap its background node with this
-/// but just pass thought layout and render for its child node.
-pub fn fill_node(content: impl UiNode) -> impl UiNode {
-    let mut clip_bounds = PxSize::zero();
-    let mut clip_corners = PxCornerRadius::zero();
-
-    let mut offset = PxVector::zero();
-    let offset_key = FrameValueKey::new_unique();
-    let mut define_frame = false;
-
-    match_node(content, move |child, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&BORDER_ALIGN_VAR);
-            define_frame = false;
-            offset = PxVector::zero();
-        }
-        UiNodeOp::Measure { desired_size, .. } => {
-            let offsets = BORDER.inner_offsets();
-            let align = BORDER_ALIGN_VAR.get();
-
-            let our_offsets = offsets * align;
-            let size_offset = offsets - our_offsets;
-
-            let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
-
-            *desired_size = LAYOUT.constraints().fill_size() + size_increase;
-        }
-        UiNodeOp::Layout { wl, final_size } => {
-            // We are inside the *inner* bounds AND inside border_nodes:
-            //
-            // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
-
-            let (bounds, corners) = BORDER.fill_bounds();
-
-            let mut new_offset = bounds.origin.to_vector();
-
-            if clip_bounds != bounds.size || clip_corners != corners {
-                clip_bounds = bounds.size;
-                clip_corners = corners;
-                WIDGET.render();
-            }
-
-            let (_, branch_offset) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.size), || {
-                wl.with_branch_child(|wl| child.layout(wl))
-            });
-            new_offset += branch_offset;
-
-            if offset != new_offset {
-                offset = new_offset;
-
-                if define_frame {
-                    WIDGET.render_update();
-                } else {
-                    define_frame = true;
-                    WIDGET.render();
-                }
-            }
-
-            *final_size = bounds.size;
-        }
-        UiNodeOp::Render { frame } => {
-            let mut render = |frame: &mut crate::render::FrameBuilder| {
-                let bounds = PxRect::from_size(clip_bounds);
-                frame.push_clips(
-                    |c| {
-                        if clip_corners != PxCornerRadius::zero() {
-                            c.push_clip_rounded_rect(bounds, clip_corners, false, false);
-                        } else {
-                            c.push_clip_rect(bounds, false, false);
-                        }
-
-                        if let Some(inline) = WIDGET.bounds().inline() {
-                            for r in inline.negative_space().iter() {
-                                c.push_clip_rect(*r, true, false);
-                            }
-                        }
-                    },
-                    |f| child.render(f),
-                );
-            };
-
-            if define_frame {
-                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
-                    render(frame);
-                });
-            } else {
-                render(frame);
-            }
-        }
-        UiNodeOp::RenderUpdate { update } => {
-            if define_frame {
-                update.with_transform(offset_key.update(offset.into(), false), false, |update| {
-                    child.render_update(update);
-                });
-            } else {
-                child.render_update(update);
-            }
-        }
-        _ => {}
-    })
-}
-
-/// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
-/// with the other borders of the widget.
-///
-/// This node disables inline layout for the widget.
-pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
-    let offsets = border_offsets.into_var();
-    let mut render_offsets = PxSideOffsets::zero();
-    let mut border_rect = PxRect::zero();
-
-    match_node_list(ui_vec![child, border_visual], move |children, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&offsets).sub_var_render(&BORDER_OVER_VAR);
-        }
-        UiNodeOp::Measure { wm, desired_size } => {
-            let offsets = offsets.layout();
-            *desired_size = BORDER.measure_with_border(offsets, || {
-                LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    children.with_node(0, |n| wm.measure_block(n))
-                })
-            });
-        }
-        UiNodeOp::Layout { wl, final_size } => {
-            // We are inside the *inner* bounds or inside a parent border_node:
-            //
-            // .. ( layout ( new_border/inner ( BORDER_NODES ( fill_nodes ( new_child_context ( new_child_layout ( ..
-            //
-            // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
-            // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
-
-            let offsets = offsets.layout();
-            if render_offsets != offsets {
-                render_offsets = offsets;
-                WIDGET.render();
-            }
-
-            let parent_offsets = BORDER.inner_offsets();
-            let origin = PxPoint::new(parent_offsets.left, parent_offsets.top);
-            if border_rect.origin != origin {
-                border_rect.origin = origin;
-                WIDGET.render();
-            }
-
-            // layout child and border visual
-            BORDER.with_border(offsets, || {
-                wl.translate(PxVector::new(offsets.left, offsets.top));
-
-                let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.with_node(0, |n| n.layout(wl)));
-
-                // layout border visual
-                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border_rect.size), || {
-                    BORDER.with_border_layout(border_rect, offsets, || {
-                        children.with_node(1, |n| n.layout(wl));
-                    });
-                });
-            });
-
-            *final_size = border_rect.size;
-        }
-        UiNodeOp::Render { frame } => {
-            if BORDER_OVER_VAR.get() {
-                children.with_node(0, |c| c.render(frame));
-                BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.with_node(1, |c| c.render(frame));
-                });
-            } else {
-                BORDER.with_border_layout(border_rect, render_offsets, || {
-                    children.with_node(1, |c| c.render(frame));
-                });
-                children.with_node(0, |c| c.render(frame));
-            }
-        }
-        UiNodeOp::RenderUpdate { update } => {
-            children.with_node(0, |c| c.render_update(update));
-            BORDER.with_border_layout(border_rect, render_offsets, || {
-                children.with_node(1, |c| c.render_update(update));
-            })
-        }
-        _ => {}
-    })
 }
 
 /// Coordinates nested borders and corner-radius.
@@ -1020,16 +810,18 @@ impl BORDER {
         })
     }
 
-    fn with_border(&self, offsets: PxSideOffsets, f: impl FnOnce()) {
-        let mut data = BORDER_DATA.get_clone();
-        data.add_offset(Some(&WIDGET.border()), offsets);
-        BORDER_DATA.with_context_value(data, f);
-    }
-
-    fn measure_with_border(&self, offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
+    /// Measure a border node, adding the `offsets` to the context for the `f` call.
+    pub fn measure_border(&self, offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
         let mut data = BORDER_DATA.get_clone();
         data.add_offset(None, offsets);
         BORDER_DATA.with_context_value(data, f)
+    }
+
+    /// Measure a border node, adding the `offsets` to the context for the `f` call.
+    pub fn layout_border(&self, offsets: PxSideOffsets, f: impl FnOnce()) {
+        let mut data = BORDER_DATA.get_clone();
+        data.add_offset(Some(&WIDGET.border()), offsets);
+        BORDER_DATA.with_context_value(data, f);
     }
 
     /// Indicates a boundary point where the [`CORNER_RADIUS_VAR`] backing context changes during layout.
@@ -1047,7 +839,7 @@ impl BORDER {
 
     /// Gets the computed border rect and side offsets for the border visual.
     ///
-    /// This is only valid to call in the border visual node (in [`border_node`]) during layout and render.
+    /// This is only valid to call in the border visual node during layout and render.
     pub fn border_layout(&self) -> (PxRect, PxSideOffsets) {
         BORDER_LAYOUT.get().unwrap_or_else(|| {
             #[cfg(debug_assertions)]
@@ -1055,7 +847,9 @@ impl BORDER {
             (PxRect::zero(), PxSideOffsets::zero())
         })
     }
-    fn with_border_layout(&self, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
+
+    /// Sets the border layout for the context of `f`.
+    pub fn with_border_layout(&self, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
         BORDER_LAYOUT.with_context_value(Some((rect, offsets)), f)
     }
 }
