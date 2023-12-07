@@ -28,6 +28,7 @@ mod tests;
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
 extern crate self as zero_ui_app;
+
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]

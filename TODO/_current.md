@@ -45,11 +45,7 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Move widget events to wgt crate.
-    - Implement `on_show`, `on_collapse`.
-
-* Split main crate into widget crates.
-    - What about properties?
+* text crate depends on SCROLL, LAYERS, DATA, ContextMenu.
 
 * Add `WINDOWS.register_root_extender` on the default app?
     - `FONTS.system_font_aa`.
@@ -70,7 +66,10 @@ with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_sc
 * Merge.
 
 * Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
-    - Test what happens when info is rebuild,.
+    - Test what happens when info is rebuild.
+    - Implement visibility event properties.
+
+* Move `child` and `children` from app to container.
 
 # Publish
 

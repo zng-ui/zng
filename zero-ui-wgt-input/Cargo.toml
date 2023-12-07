@@ -1,0 +1,18 @@
+[package]
+name = "zero-ui-wgt-input"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-transform = { path = "../zero-ui-wgt-transform" }
+zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+zero-ui-ext-window = { path = "../zero-ui-ext-window" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
+
+parking_lot = "0.12"

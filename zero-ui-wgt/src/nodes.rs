@@ -10,8 +10,9 @@ use zero_ui_app::{
     render::{FrameBuilder, FrameValueKey},
     widget::{
         border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
+        info::Interactivity,
         instance::*,
-        VarLayout, WIDGET,
+        VarLayout, WidgetUpdateMode, WIDGET,
     },
 };
 use zero_ui_app_context::{ContextLocal, LocalContext};
@@ -44,7 +45,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_widget::nodes::*;
+/// # use zero_ui_wgt::nodes::*;
 /// #
 /// context_var! {
 ///     pub static FOO_VAR: u32 = 0u32;
@@ -70,7 +71,7 @@ pub use zero_ui_app;
 /// # fn main() -> () { }
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
-/// # use zero_ui_widget::nodes::*;
+/// # use zero_ui_wgt::nodes::*;
 /// #
 /// #[derive(Debug, Clone, Default, PartialEq)]
 /// pub struct Config {
@@ -174,116 +175,6 @@ pub fn with_context_var_init<T: VarValue>(
     })
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __event_property {
-    (
-        $(#[$on_event_attrs:meta])*
-        $vis:vis fn $event:ident {
-            event: $EVENT:path,
-            args: $Args:path,
-            filter: $filter:expr,
-            with: $($with:expr)? $(,)?
-        }
-    ) => { $crate::nodes::paste! {
-        $(#[$on_event_attrs])*
-        ///
-        /// # Preview
-        ///
-        #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
-        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property.
-        #[$crate::nodes::zero_ui_app::widget::property(EVENT, default( $crate::nodes::zero_ui_app::handler::hn!(|_|{}) ))]
-        $vis fn [<on_ $event>](
-            child: impl $crate::nodes::zero_ui_app::widget::instance::UiNode,
-            handler: impl $crate::nodes::zero_ui_app::handler::WidgetHandler<$Args>,
-        ) -> impl $crate::nodes::zero_ui_app::widget::instance::UiNode {
-            $crate::__event_property!(with($crate::nodes::on_event(child, $EVENT, $filter, handler), false, $($with)?))
-        }
-
-        #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
-        ///
-        /// # Preview
-        ///
-        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
-        /// the propagation of a preview event the main event handler is not called.
-        ///
-        /// # Async
-        ///
-        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
-        /// subsequent code runs in widget updates.
-        #[$crate::nodes::zero_ui_app::widget::property(EVENT, default( $crate::nodes::zero_ui_app::handler::hn!(|_|{}) ))]
-        $vis fn [<on_pre_ $event>](
-            child: impl $crate::nodes::zero_ui_app::widget::instance::UiNode,
-            handler: impl $crate::nodes::zero_ui_app::handler::WidgetHandler<$Args>,
-        ) -> impl $crate::nodes::zero_ui_app::widget::instance::UiNode {
-            $crate::__event_property!(with($crate::nodes::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
-        }
-    } };
-
-    (
-        $(#[$on_event_attrs:meta])*
-        $vis:vis fn $event:ident {
-            event: $EVENT:path,
-            args: $Args:path,
-        }
-    ) => {
-        $crate::__event_property! {
-            $(#[$on_event_attrs])*
-            $vis fn $event {
-                event: $EVENT,
-                args: $Args,
-                filter: |_args| true,
-                with:
-            }
-        }
-    };
-
-    (
-        $(#[$on_event_attrs:meta])*
-        $vis:vis fn $event:ident {
-            event: $EVENT:path,
-            args: $Args:path,
-            filter: $filter:expr,
-        }
-    ) => {
-        $crate::__event_property! {
-            $(#[$on_event_attrs])*
-            $vis fn $event {
-                event: $EVENT,
-                args: $Args,
-                filter: $filter,
-                with:
-            }
-        }
-    };
-
-    (
-        $(#[$on_event_attrs:meta])*
-        $vis:vis fn $event:ident {
-            event: $EVENT:path,
-            args: $Args:path,
-            with: $with:expr,
-        }
-    ) => {
-        $crate::__event_property! {
-            $(#[$on_event_attrs])*
-            $vis fn $event {
-                event: $EVENT,
-                args: $Args,
-                filter: |_args| true,
-                with: $with,
-            }
-        }
-    };
-
-    (with($child:expr, $preview:expr,)) => { $child };
-    (with($child:expr, $preview:expr, $with:expr)) => { ($with)($child, $preview) };
-}
-
 ///<span data-del-macro-root></span> Declare one or more event properties.
 ///
 /// Each declaration expands to two properties `on_$event`, `on_pre_$event`.
@@ -294,7 +185,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::event::*;
-/// # use zero_ui_widget::nodes::*;
+/// # use zero_ui_wgt::nodes::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
 /// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
@@ -337,6 +228,30 @@ macro_rules! __event_property {
 ///
 /// You can use [`command_property`] to declare command event properties.
 ///
+/// # Implement For
+///
+/// You can implement the new properties for a widget or mix-in using `widget_impl`:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_app::{event::*, widget::{instance::UiNode, widget_mixin}};
+/// # use zero_ui_wgt::nodes::*;
+/// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
+/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
+/// # fn some_node(child: impl UiNode) -> impl UiNode { child }
+/// /// Keyboard events.
+/// #[widget_mixin]
+/// pub struct KeyboardMix<P>(P);
+///
+/// event_property! {
+///     pub fn key_input {
+///         event: KEY_INPUT_EVENT,
+///         args: KeyInputArgs,
+///         widget_impl: KeyboardMix<P>,
+///     }
+/// }
+/// ```
+///
 /// # With Extra Nodes
 ///
 /// You can wrap the event handler node with extra nodes by setting the optional `with` closure:
@@ -344,7 +259,7 @@ macro_rules! __event_property {
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::instance::UiNode};
-/// # use zero_ui_widget::nodes::*;
+/// # use zero_ui_wgt::nodes::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # fn some_node(child: impl UiNode) -> impl UiNode { child }
@@ -372,21 +287,229 @@ macro_rules! event_property {
         $(#[$on_event_attrs:meta])*
         $vis:vis fn $event:ident {
             event: $EVENT:path,
-            args: $Args:path $(,
-            filter: $filter:expr)? $(,
-            with: $with:expr)? $(,)?
+            args: $Args:path,
+            $(filter: $filter:expr,)?
+            $(widget_impl: $Wgt:ty,)?
+            $(with: $with:expr,)?
         }
     )+) => {$(
         $crate::__event_property! {
-            $(#[$on_event_attrs])*
-            $vis fn $event {
-                event: $EVENT,
-                args: $Args,
-                $(filter: $filter,)?
-                $(with: $with,)?
+            done {
+                sig { $(#[$on_event_attrs])* $vis fn $event { event: $EVENT, args: $Args, } }
             }
+
+            $(filter: $filter,)?
+            $(widget_impl: $Wgt,)?
+            $(with: $with,)?
         }
     )+};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __event_property {
+    // match filter:
+    (
+        done {
+            $($done:tt)+
+        }
+        filter: $filter:expr,
+        $($rest:tt)*
+    ) => {
+        $crate::__event_property! {
+            done {
+                $($done)+
+                filter { $filter }
+            }
+            $($rest)*
+        }
+    };
+    // match widget_impl:
+    (
+        done {
+            $($done:tt)+
+        }
+        widget_impl: $Wgt:ty,
+        $($rest:tt)*
+    ) => {
+        $crate::__event_property! {
+            done {
+                $($done)+
+                widget_impl { , widget_impl($Wgt) }
+            }
+            $($rest)*
+        }
+    };
+    // match with:
+    (
+        done {
+            $($done:tt)+
+        }
+        with: $with:expr,
+    ) => {
+        $crate::__event_property! {
+            done {
+                $($done)+
+                with { $with }
+            }
+        }
+    };
+    // match done sig
+    (
+        done {
+            sig { $($sig:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { |_args| true }
+                widget_impl { }
+                with { }
+            }
+        }
+    };
+    // match done sig+filter
+    (
+        done {
+            sig { $($sig:tt)+ }
+            filter { $($filter:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { $($filter)+ }
+                widget_impl { }
+                with { }
+            }
+        }
+    };
+    // match done sig+widget_impl
+    (
+        done {
+            sig { $($sig:tt)+ }
+            widget_impl { $($widget_impl:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { |_args| true }
+                widget_impl { $($widget_impl)+ }
+                with { }
+            }
+        }
+    };
+    // match done sig+with
+    (
+        done {
+            sig { $($sig:tt)+ }
+            with { $($with:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { |_args| true }
+                widget_impl { }
+                with { $($with)+ }
+            }
+        }
+    };
+    // match done sig+filter+widget_impl
+    (
+        done {
+            sig { $($sig:tt)+ }
+            filter { $($filter:tt)+ }
+            widget_impl { $($widget_impl:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { $($filter)+ }
+                widget_impl { $($widget_impl)+ }
+                with { }
+            }
+        }
+    };
+    // match done sig+filter+with
+    (
+        done {
+            sig { $($sig:tt)+ }
+            filter { $($filter:tt)+ }
+            with { $($with:tt)+ }
+        }
+    ) => {
+        $crate::__event_property! {
+            done {
+                sig { $($sig)+ }
+                filter { $($filter)+ }
+                widget_impl { }
+                with { $($with)+ }
+            }
+        }
+    };
+    // match done sig+filter+widget_impl+with
+    (
+        done {
+            sig { $(#[$on_event_attrs:meta])* $vis:vis fn $event:ident { event: $EVENT:path, args: $Args:path, } }
+            filter { $filter:expr }
+            widget_impl { $($widget_impl:tt)* }
+            with { $($with:expr)? }
+        }
+    ) => {
+        $crate::nodes::paste! {
+            $(#[$on_event_attrs])*
+            ///
+            /// # Preview
+            ///
+            #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
+            /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+            ///
+            /// # Async
+            ///
+            /// You can use async event handlers with this property.
+            #[$crate::nodes::zero_ui_app::widget::property(
+                EVENT,
+                default( $crate::nodes::zero_ui_app::handler::hn!(|_|{}) )
+                $($widget_impl)*
+            )]
+            $vis fn [<on_ $event>](
+                child: impl $crate::nodes::zero_ui_app::widget::instance::UiNode,
+                handler: impl $crate::nodes::zero_ui_app::handler::WidgetHandler<$Args>,
+            ) -> impl $crate::nodes::zero_ui_app::widget::instance::UiNode {
+                $crate::__event_property!(=> with($crate::nodes::on_event(child, $EVENT, $filter, handler), false, $($with)?))
+            }
+
+            #[doc = "Preview [`on_"$event "`](fn.on_"$event ".html) event."]
+            ///
+            /// # Preview
+            ///
+            /// Preview event properties call the handler before the main event property and before the widget content, if you stop
+            /// the propagation of a preview event the main event handler is not called.
+            ///
+            /// # Async
+            ///
+            /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
+            /// subsequent code runs in widget updates.
+            #[$crate::nodes::zero_ui_app::widget::property(
+                EVENT,
+                default( $crate::nodes::zero_ui_app::handler::hn!(|_|{}) )
+                $($widget_impl)*
+            )]
+            $vis fn [<on_pre_ $event>](
+                child: impl $crate::nodes::zero_ui_app::widget::instance::UiNode,
+                handler: impl $crate::nodes::zero_ui_app::handler::WidgetHandler<$Args>,
+            ) -> impl $crate::nodes::zero_ui_app::widget::instance::UiNode {
+                $crate::__event_property!(=> with($crate::nodes::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
+            }
+        }
+    };
+
+    (=> with($child:expr, $preview:expr,)) => { $child };
+    (=> with($child:expr, $preview:expr, $with:expr)) => { ($with)($child, $preview) };
 }
 
 /// Helper for declaring event properties.
@@ -597,7 +720,7 @@ macro_rules! __command_property {
 /// # fn main() { }
 /// # use zero_ui_app::{event::*, widget::*};
 /// # use zero_ui_app::var::*;
-/// # use zero_ui_widget::nodes::*;
+/// # use zero_ui_wgt::nodes::*;
 /// # command! {
 /// #   pub static PASTE_CMD;
 /// # }
@@ -1477,7 +1600,7 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 ///
 /// Panics during init if `ctx` is not from the same app as the init context.
 ///
-/// [`NestGroup::CHILD`]: crate::widget_builder::NestGroup::CHILD
+/// [`NestGroup::CHILD`]: zero_ui_app::widget::builder::NestGroup::CHILD
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
     match_widget(child, move |c, op| {
         if let UiNodeOp::Init = op {
@@ -1501,7 +1624,10 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui_core::{property, context::*, var::IntoVar, widget_instance::UiNode};
+/// use zero_ui_app::{widget::{property, instance::UiNode, WIDGET, WidgetUpdateMode}};
+/// use zero_ui_var::IntoVar;
+/// use zero_ui_wgt::nodes::with_widget_state;
+/// use zero_ui_state_map::{StaticStateId, StateId};
 ///
 /// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
 ///
@@ -1630,6 +1756,66 @@ where
                     modify(s.req_mut(id), v);
                 })
             });
+        }
+        _ => {}
+    })
+}
+
+/// Create a node that disables interaction for all widget inside `node` using [`BLOCKED`].
+///
+/// Unlike the `interactive` property this does not apply to the contextual widget, only `child` and descendants.
+///
+/// The node works for both if the `child` is a widget or if it contains widgets, the performance
+/// is slightly better if the `child` is a widget directly.
+///
+/// [`BLOCKED`]: Interactivity::BLOCKED
+pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
+    let interactive = interactive.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_info(&interactive);
+        }
+        UiNodeOp::Info { info } => {
+            if interactive.get() {
+                child.info(info);
+            } else if let Some(id) = child.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
+                // child is a widget.
+                info.push_interactivity_filter(move |args| {
+                    if args.info.id() == id {
+                        Interactivity::BLOCKED
+                    } else {
+                        Interactivity::ENABLED
+                    }
+                });
+                child.info(info);
+            } else {
+                let block_range = info.with_children_range(|info| child.info(info));
+                if !block_range.is_empty() {
+                    // has child widgets.
+
+                    let id = WIDGET.id();
+                    info.push_interactivity_filter(move |args| {
+                        if let Some(parent) = args.info.parent() {
+                            if parent.id() == id {
+                                // check child range
+                                for (i, item) in parent.children().enumerate() {
+                                    if item == args.info {
+                                        return if !block_range.contains(&i) {
+                                            Interactivity::ENABLED
+                                        } else {
+                                            Interactivity::BLOCKED
+                                        };
+                                    } else if i >= block_range.end {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        Interactivity::ENABLED
+                    });
+                }
+            }
         }
         _ => {}
     })

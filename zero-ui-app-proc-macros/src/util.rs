@@ -42,41 +42,48 @@ pub fn is_rust_analyzer() -> bool {
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
-    let (ident, core) = if is_rust_analyzer() {
+    let (ident, module) = if is_rust_analyzer() {
         // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance
         // for the entire workspace?
-        let (ident, core) = crate_core_parts();
-        (Cow::Owned(ident), core)
+        let (ident, module) = crate_core_parts();
+        (Cow::Owned(ident), module)
     } else {
-        static CRATE: OnceCell<(String, bool)> = OnceCell::new();
+        static CRATE: OnceCell<(String, &'static str)> = OnceCell::new();
 
-        let (ident, core) = CRATE.get_or_init(crate_core_parts);
-        (Cow::Borrowed(ident.as_str()), *core)
+        let (ident, module) = CRATE.get_or_init(crate_core_parts);
+        (Cow::Borrowed(ident.as_str()), *module)
     };
 
     let ident = Ident::new(&ident, Span::call_site());
-    if core {
-        quote! { #ident::core }
+    if !module.is_empty() {
+        let module = Ident::new(module, Span::call_site());
+        quote! { #ident::#module }
     } else {
         ident.to_token_stream()
     }
 }
-fn crate_core_parts() -> (String, bool) {
+fn crate_core_parts() -> (String, &'static str) {
     if let Ok(ident) = crate_name("zero-ui") {
         // using the main crate.
         match ident {
-            FoundCrate::Name(name) => (name, true),
-            FoundCrate::Itself => ("zero_ui".to_owned(), true),
+            FoundCrate::Name(name) => (name, "core"),
+            FoundCrate::Itself => ("crate".to_owned(), "core"),
+        }
+    } else if let Ok(ident) = crate_name("zero-ui-wgt") {
+        // using the main crate.
+        match ident {
+            FoundCrate::Name(name) => (name, "__proc_macro_util"),
+            FoundCrate::Itself => ("zero_ui_app".to_owned(), ""),
         }
     } else if let Ok(ident) = crate_name("zero-ui-app") {
         // using the core crate only.
         match ident {
-            FoundCrate::Name(name) => (name, false),
-            FoundCrate::Itself => ("zero_ui_app".to_owned(), false),
+            FoundCrate::Name(name) => (name, ""),
+            FoundCrate::Itself => ("zero_ui_app".to_owned(), ""),
         }
     } else {
         // failed, at least shows "zero_ui" in the compile error.
-        ("zero_ui".to_owned(), true)
+        ("zero_ui".to_owned(), "core")
     }
 }
 

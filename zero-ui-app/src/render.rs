@@ -20,7 +20,7 @@ use zero_ui_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
-    display_list::{DisplayList, DisplayListBuilder, FilterOp, FrameValue, FrameValueUpdate, NinePatchSource, ReuseRange, ReuseStart},
+    display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
     units::PxToWr,
     webrender_api::{self, FontRenderMode, GlyphInstance, GlyphOptions, PipelineId, SpatialTreeItemKey},
     window::FrameId,
@@ -36,6 +36,8 @@ use crate::{
         WidgetId, WIDGET,
     },
 };
+
+pub use zero_ui_view_api::display_list::{FrameValue, FrameValueUpdate};
 
 /// A text font.
 ///

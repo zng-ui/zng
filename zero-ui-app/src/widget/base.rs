@@ -292,13 +292,12 @@ pub use WidgetBaseMacro__ as WidgetBase;
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod nodes {
     use zero_ui_layout::units::{Px, PxCornerRadius, PxRect, PxSize};
-    use zero_ui_var::IntoVar;
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
         update::{EventUpdate, WidgetUpdates},
         widget::{
-            info::{Interactivity, WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
+            info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
             instance::BoxedUiNode,
             WidgetCtx, WidgetUpdateMode,
         },
@@ -756,66 +755,6 @@ pub mod nodes {
             info_built: false,
         }
         .cfg_boxed()
-    }
-
-    /// Create a node that disables interaction for all widget inside `node` using [`BLOCKED`].
-    ///
-    /// Unlike the `interactive` property this does not apply to the contextual widget, only `child` and descendants.
-    ///
-    /// The node works for both if the `child` is a widget or if it contains widgets, the performance
-    /// is slightly better if the `child` is a widget directly.
-    ///
-    /// [`BLOCKED`]: Interactivity::BLOCKED
-    pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
-        let interactive = interactive.into_var();
-
-        match_node(child, move |child, op| match op {
-            UiNodeOp::Init => {
-                WIDGET.sub_var_info(&interactive);
-            }
-            UiNodeOp::Info { info } => {
-                if interactive.get() {
-                    child.info(info);
-                } else if let Some(id) = child.with_context(WidgetUpdateMode::Ignore, || WIDGET.id()) {
-                    // child is a widget.
-                    info.push_interactivity_filter(move |args| {
-                        if args.info.id() == id {
-                            Interactivity::BLOCKED
-                        } else {
-                            Interactivity::ENABLED
-                        }
-                    });
-                    child.info(info);
-                } else {
-                    let block_range = info.with_children_range(|info| child.info(info));
-                    if !block_range.is_empty() {
-                        // has child widgets.
-
-                        let id = WIDGET.id();
-                        info.push_interactivity_filter(move |args| {
-                            if let Some(parent) = args.info.parent() {
-                                if parent.id() == id {
-                                    // check child range
-                                    for (i, item) in parent.children().enumerate() {
-                                        if item == args.info {
-                                            return if !block_range.contains(&i) {
-                                                Interactivity::ENABLED
-                                            } else {
-                                                Interactivity::BLOCKED
-                                            };
-                                        } else if i >= block_range.end {
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            Interactivity::ENABLED
-                        });
-                    }
-                }
-            }
-            _ => {}
-        })
     }
 }
 

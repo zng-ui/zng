@@ -1,5 +1,5 @@
 [package]
-name = "zero-ui-widget"
+name = "zero-ui-wgt"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -21,14 +21,18 @@ dyn_closure = ["zero-ui-var/dyn_closure"]
 [dependencies]
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-color = { path = "../zero-ui-color" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
 zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 
 paste = "1"
 tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "zero-ui-widget/doc/html-in-header.html"]
+rustdoc-args = ["--html-in-header", "zero-ui-wgt/doc/html-in-header.html"]

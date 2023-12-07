@@ -1,14 +1,10 @@
-use std::hash::Hash;
-
 use parking_lot::Mutex;
 use zero_ui_layout::{
-    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, TextSegmentKind, LAYOUT},
-    units::{about_eq, about_eq_hash, Factor, LayoutMask, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
+    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT},
+    units::{Factor, LayoutMask, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zero_ui_unique_id::{IdMap, IdSet};
-
-pub use zero_ui_view_api::access::AccessRole;
 
 use crate::{
     render::TransformStyle,
@@ -583,31 +579,6 @@ impl InteractivityChangedArgs {
     /// update by default if the widget is new.
     pub fn is_new(&self, widget_id: WidgetId) -> bool {
         !self.prev_tree.contains(widget_id) && self.tree.contains(widget_id)
-    }
-}
-
-/// Represents a segment in an inlined widget first or last row.
-///
-/// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
-///
-/// See [`WidgetInlineMeasure::first_segs`] for more details.
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
-pub struct InlineSegment {
-    /// Width of the segment, in pixels.
-    pub width: f32,
-    /// Info for bidirectional reorder.
-    pub kind: TextSegmentKind,
-}
-impl PartialEq for InlineSegment {
-    fn eq(&self, other: &Self) -> bool {
-        about_eq(self.width, other.width, 0.001) && self.kind == other.kind
-    }
-}
-impl Eq for InlineSegment {}
-impl Hash for InlineSegment {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.width, 0.001, state);
-        self.kind.hash(state);
     }
 }
 

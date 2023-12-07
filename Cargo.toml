@@ -27,12 +27,6 @@ members = [
     # app:
     "zero-ui-app-proc-macros",
     "zero-ui-app",
-    "zero-ui-proc-macros",
-    "zero-ui-core",
-    "zero-ui",
-    "zero-ui-material-icons",
-
-    # app-extension:
     "zero-ui-ext-fs_watcher",
     "zero-ui-ext-config",
     "zero-ui-ext-font",
@@ -44,18 +38,33 @@ members = [
     "zero-ui-ext-undo",
 
     # widget:
-    "zero-ui-widget",
+    "zero-ui-wgt",
+    "zero-ui-wgt-access",
+    "zero-ui-wgt-transform",
+    "zero-ui-wgt-input",
+    "zero-ui-wgt-data",
+    "zero-ui-wgt-filters",
+    "zero-ui-wgt-inspector",
+    "zero-ui-wgt-size_offset",
+    "zero-ui-wgt-container",
+    "zero-ui-wgt-undo",
+    "zero-ui-wgt-view",
+    "zero-ui-wgt-fill",
+    "zero-ui-wgt-style",
+    # "zero-ui-wgt-text",
+    # "zero-ui-wgt-button",
+    # "zero-ui-material-icons",
 
     # tools:
     "zero-ui-l10n-scraper",
 
     # examples:
-    "examples",
-    "examples/util",
+    # "examples",
+    # "examples/util",
 
     # tests:
-    "tests",
-    "tests/build",
+    # "tests",
+    # "tests/build",
 ]
 
 exclude = ["dependencies/webrender"]

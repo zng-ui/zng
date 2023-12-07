@@ -78,7 +78,7 @@ zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-task = { path = "../zero-ui-task" }
-zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-view-api = { path = "../zero-ui-view-api", features = ["var"] }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
 zero-ui-layout = { path = "../zero-ui-layout" }
 zero-ui-color = { path = "../zero-ui-color" }
