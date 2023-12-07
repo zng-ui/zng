@@ -190,3 +190,25 @@ impl DefaultStyle {
         }
     }
 }
+
+/// Touch context menu popup default style.
+#[widget($crate::widgets::menu::context::TouchStyle)]
+pub struct TouchStyle(crate::widgets::popup::DefaultStyle);
+impl TouchStyle {
+    fn widget_intrinsic(&mut self) {
+        use crate::prelude::*;
+
+        widget_set! {
+            self;
+
+            panel_fn = wgt_fn!(|args: panel::PanelArgs| Stack! {
+                direction = StackDirection::left_to_right();
+                children = args.children;
+            });
+            button::extend_style = style_fn!(|_| Style!{
+                corner_radius = 0;
+            });
+            rule_line::vr::color = button::color_scheme_hovered(button::BASE_COLORS_VAR);
+        }
+    }
+}

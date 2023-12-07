@@ -1767,9 +1767,8 @@ pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
         }
     }
 
-    Stack! {
-        alt_focus_scope = true;
-        direction = StackDirection::left_to_right();
+    ContextMenu! {
+        style_fn = menu::context::TouchStyle!();
         children = ui_vec![
             btn(COPY_CMD.scoped(args.anchor_id)),
             btn(SELECT_ALL_CMD.scoped(args.anchor_id)),
