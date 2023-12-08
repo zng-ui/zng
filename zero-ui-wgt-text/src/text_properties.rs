@@ -1790,21 +1790,13 @@ context_var! {
 /// See [`SELECTION_TOOLBAR_FN_VAR`] for more details.
 pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
     use super::commands::*;
+    use crate::{core::clipboard::COPY_CMD, prelude::*};
 
-    fn btn(cmd: Command) -> impl UiNode {
-        Button! {
-            enabled = cmd.is_enabled();
-            on_click = hn!(|_| cmd.notify());
-            child = Text!(cmd.name());
-        }
-    }
-
-    Stack! {
-        alt_focus_scope = true;
-        direction = StackDirection::left_to_right();
+    ContextMenu! {
+        style_fn = menu::context::TouchStyle!();
         children = ui_vec![
-            btn(COPY_CMD.scoped(args.anchor_id)),
-            btn(SELECT_ALL_CMD.scoped(args.anchor_id)),
+            menu::TouchCmdButton!(COPY_CMD.scoped(args.anchor_id)),
+            menu::TouchCmdButton!(SELECT_ALL_CMD.scoped(args.anchor_id)),
         ];
     }
 }
