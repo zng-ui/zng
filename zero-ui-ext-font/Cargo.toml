@@ -7,6 +7,7 @@ license = "Apache-2.0"
 
 [features]
 test_util = ["zero-ui-app/test_util"]
+hyphenation_embed_all = ["hyphenation/embed_all"]
 
 [dependencies]
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }

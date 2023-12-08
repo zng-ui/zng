@@ -66,14 +66,14 @@ fn crate_core_parts() -> (String, &'static str) {
     if let Ok(ident) = crate_name("zero-ui") {
         // using the main crate.
         match ident {
-            FoundCrate::Name(name) => (name, "core"),
-            FoundCrate::Itself => ("crate".to_owned(), "core"),
+            FoundCrate::Name(name) => (name, "__proc_macro_util"),
+            FoundCrate::Itself => ("zero_ui".to_owned(), "__proc_macro_util"),
         }
     } else if let Ok(ident) = crate_name("zero-ui-wgt") {
-        // using the main crate.
+        // using the wgt crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
-            FoundCrate::Itself => ("zero_ui_app".to_owned(), ""),
+            FoundCrate::Itself => ("zero_ui_wgt".to_owned(), "__proc_macro_util"),
         }
     } else if let Ok(ident) = crate_name("zero-ui-app") {
         // using the core crate only.

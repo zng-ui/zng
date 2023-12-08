@@ -1003,7 +1003,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 /// # View Process
 ///
 /// A view-process must be initialized before starting an app. Panics on `run` if there is
-/// not view-process, also panics if the current process is executing as a view-process.
+/// no view-process, also panics if the current process is already executing as a view-process.
 pub struct APP;
 impl APP {
     /// If the crate was build with `feature="multi_app"`.

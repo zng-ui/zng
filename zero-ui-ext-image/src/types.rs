@@ -19,12 +19,14 @@ use zero_ui_task::{self as task, SignalOnce};
 use zero_ui_txt::Txt;
 use zero_ui_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
 use zero_ui_view_api::{
-    image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi},
+    image::{ImageDataFormat, ImageMaskMode},
     webrender_api::ImageKey,
     ViewProcessOffline,
 };
 
 use crate::render::ImageRenderWindowRoot;
+
+pub use zero_ui_view_api::image::{ImageDownscale, ImagePpi};
 
 /// A custom proxy in [`IMAGES`].
 ///

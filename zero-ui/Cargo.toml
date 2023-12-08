@@ -7,40 +7,44 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [features]
-default = ["ipc", "http", "debug_default"]
+default = ["ipc", "http", "material_icons", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
 # Enabled by default.
-ipc = ["zero-ui-core/ipc"]
+ipc = ["zero-ui-app/ipc"]
 
 # Enables http tasks.
 #
 # Enabled by default.
-http = ["zero-ui-core/http"]
+http = ["zero-ui-task/http", "zero-ui-wgt-markdown/http"]
 
 # Signal the `zero-ui-core` build script to enable the `dyn_*` and `inspector` features for debug builds.
 #
 # Enabled by default.
-debug_default = ["zero-ui-core/debug_default"]
+debug_default = ["zero-ui-app/debug_default"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_node = ["zero-ui-core/dyn_node"]
+dyn_node = ["zero-ui-app/dyn_node"]
 
 # Instrument each property and widget instance with "Inspector" nodes.
-inspector = ["zero-ui-core/inspector"]
+inspector = [
+    "zero-ui-app/inspector",
+    "zero-ui-wgt-window/inspector",
+    "zero-ui-wgt-inspector",
+]
 
 # Use dynamic dispatch at the app-extension level.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_app_extension = ["zero-ui-core/dyn_app_extension"]
+dyn_app_extension = ["zero-ui-app/dyn_app_extension"]
 
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zero-ui-core/dyn_closure"]
+dyn_closure = ["zero-ui-wgt/dyn_closure"]
 
 # like cfg(test) but also visible in docs and integration tests.
 #
@@ -48,7 +52,7 @@ dyn_closure = ["zero-ui-core/dyn_closure"]
 #
 # Build with this feature to use the core test helper types that show
 # in the documentation.
-test_util = ["zero-ui-core/test_util"]
+test_util = ["zero-ui-app/test_util"]
 
 # Allows multiple app instances per-process.
 #
@@ -57,20 +61,20 @@ test_util = ["zero-ui-core/test_util"]
 # depending on the current thread.
 #
 # Not enabled by default, but enabled by `feature="test_util"`.
-multi_app = ["zero-ui-core/multi_app"]
+multi_app = ["zero-ui-app/multi_app"]
 
 # Instrument every widget outer-most node to trace UI methods.
-trace_widget = ["zero-ui-core/trace_widget"]
+trace_widget = ["zero-ui-app/trace_widget"]
 
 # Instrument every property and intrinsic node to trace UI methods.
 #
 # Note that this can cause very large trace files and bad performance.
-trace_wgt_item = ["zero-ui-core/trace_wgt_item"]
+trace_wgt_item = ["zero-ui-app/trace_wgt_item"]
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 #
 # Not enabled by default.
-deadlock_detection = ["zero-ui-core/deadlock_detection"]
+deadlock_detection = ["zero-ui-app/deadlock_detection"]
 
 # Embed hyphenation dictionaries for all supported languages.
 #
@@ -78,34 +82,82 @@ deadlock_detection = ["zero-ui-core/deadlock_detection"]
 # `Hyphenation::dictionary_source` method.
 #
 # Not enabled by default.
-hyphenation_embed_all = ["zero-ui-core/hyphenation_embed_all"]
+hyphenation_embed_all = ["zero-ui-ext-font/hyphenation_embed_all"]
+
+# Include material icons in the default app.
+#
+# Enabled by default.
+material_icons = ["zero-ui-wgt-material-icons"]
 
 # Enable TOML configs.
-toml = ["zero-ui-core/toml"]
+toml = ["zero-ui-ext-config/toml"]
 # Enable RON configs.
-ron = ["zero-ui-core/ron"]
+ron = ["zero-ui-ext-config/ron"]
 # Enable YAML configs.
-yaml = ["zero-ui-core/yaml"]
+yaml = ["zero-ui-ext-config/yaml"]
 
 [dependencies]
-# local
-zero-ui-core = { path = "../zero-ui-core", default-features = false }
+# foundation
+zero-ui-unique_id = { path = "../zero-ui-unique_id" }
+zero-ui-clone_move = { path = "../zero-ui-clone_move" }
+zero-ui-handle = { path = "../zero-ui-handle" }
+zero-ui-txt = { path = "../zero-ui-txt" }
+zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-state_map = { path = "../zero-ui-state_map" }
+zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-task = { path = "../zero-ui-task" }
+zero-ui-color = { path = "../zero-ui-color" }
 
-# util
-paste = "1"
-tracing = "0.1"
-bitflags = { version = "2", features = ["serde"] }
-serde = "1"
-pretty-type-name = "1"
-pulldown-cmark = "0.9"
-html-escape = "0.2"
-take_mut = "0.2"
-path-absolutize = "3"
-atomic = "0.6"
-bytemuck = { version = "1", features = ["derive"] }
+# view
+zero-ui-view-api = { path = "../zero-ui-view-api" }
 
-[dev-dependencies]
-pretty_assertions = "1"
+# app
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-ext-fs_watcher = { path = "../zero-ui-ext-fs_watcher" }
+zero-ui-ext-config = { path = "../zero-ui-ext-config" }
+zero-ui-ext-font = { path = "../zero-ui-ext-font" }
+zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
+zero-ui-ext-image = { path = "../zero-ui-ext-image" }
+zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
+zero-ui-ext-window = { path = "../zero-ui-ext-window" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
 
-[package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-core/doc/html-in-header.html" ]
+# widgets
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
+zero-ui-wgt-transform = { path = "../zero-ui-wgt-transform" }
+zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
+zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
+zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
+zero-ui-wgt-undo = { path = "../zero-ui-wgt-undo" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
+zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
+zero-ui-wgt-checkerboard = { path = "../zero-ui-wgt-checkerboard" }
+zero-ui-wgt-window = { path = "../zero-ui-wgt-window" }
+zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
+zero-ui-wgt-undo_history = { path = "../zero-ui-wgt-undo_history" }
+zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
+zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
+zero-ui-wgt-text_input = { path = "../zero-ui-wgt-text_input" }
+zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
+zero-ui-wgt-link = { path = "../zero-ui-wgt-link" }
+zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
+zero-ui-wgt-panel = { path = "../zero-ui-wgt-panel" }
+zero-ui-wgt-grid = { path = "../zero-ui-wgt-grid" }
+zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
+zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }
+zero-ui-wgt-toggle = { path = "../zero-ui-wgt-toggle" }
+zero-ui-wgt-menu = { path = "../zero-ui-wgt-menu" }
+zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
+zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
+zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
+zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
+
+zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", optional = true }
+zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector", optional = true }

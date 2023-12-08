@@ -6,6 +6,7 @@ use zero_ui_ext_font::{font_features::*, *};
 use zero_ui_ext_l10n::{Langs, LANG_VAR};
 use zero_ui_view_api::config::FontAntiAliasing;
 use zero_ui_wgt::prelude::*;
+use zero_ui_wgt_layers::AnchorOffset;
 use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 /// Basic text font properties.
@@ -1780,23 +1781,7 @@ pub fn selection_toolbar_anchor(child: impl UiNode, offset: impl IntoVar<AnchorO
 
 context_var! {
     /// Selection toolbar function.
-    pub static SELECTION_TOOLBAR_FN_VAR: WidgetFn<SelectionToolbarArgs> = WidgetFn::new(default_selection_toolbar);
+    pub static SELECTION_TOOLBAR_FN_VAR: WidgetFn<SelectionToolbarArgs> = WidgetFn::nil();
     /// Position the selection toolbar in relation to the bounding box of all selection rectangles.
     pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorOffset = AnchorOffset::out_top();
-}
-
-/// Default selection toolbar.
-///
-/// See [`SELECTION_TOOLBAR_FN_VAR`] for more details.
-pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
-    use super::commands::*;
-    use crate::{core::clipboard::COPY_CMD, prelude::*};
-
-    ContextMenu! {
-        style_fn = menu::context::TouchStyle!();
-        children = ui_vec![
-            menu::TouchCmdButton!(COPY_CMD.scoped(args.anchor_id)),
-            menu::TouchCmdButton!(SELECT_ALL_CMD.scoped(args.anchor_id)),
-        ];
-    }
 }

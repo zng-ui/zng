@@ -154,3 +154,40 @@ pub fn undo_limit(child: impl UiNode, max: impl IntoVar<u32>) -> impl UiNode {
 pub fn undo_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
     with_context_var(child, UNDO_INTERVAL_VAR, interval)
 }
+
+/// Undo scope widget mixin.
+///
+/// Widget is an undo/redo scope, it tracks changes and handles undo/redo commands.
+///
+/// You can force the widget to use a parent undo scope by setting [`undo_scope`] to `false`, this will cause the widget
+/// to start registering undo/redo actions in the parent, note that the widget will continue behaving as if it
+/// owns the scope, so it may clear it.
+///
+/// [`undo_scope`]: fn@undo_scope
+#[widget_mixin]
+pub struct UndoMix<P>(P);
+
+impl<P: WidgetImpl> UndoMix<P> {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            crate::undo_scope = true;
+        }
+    }
+
+    widget_impl! {
+        /// If the widget can register undo actions.
+        ///
+        /// Is `true` by default in this widget, if set to `false` disables undo in the widget.
+        pub undo_enabled(enabled: impl IntoVar<bool>);
+
+        /// Sets the maximum number of undo/redo actions that are retained in the widget.
+        pub undo_limit(limit: impl IntoVar<u32>);
+
+        /// Sets the time interval that undo and redo cover each call for undo handlers in the widget and descendants.
+        ///
+        /// When undo is requested inside the context all actions after the latest that are within `interval` of the
+        /// previous are undone.
+        pub undo_interval(interval: impl IntoVar<Duration>);
+    }
+}

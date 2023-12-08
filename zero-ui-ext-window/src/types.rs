@@ -21,10 +21,12 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     image::{ImageDataFormat, ImageMaskMode},
     webrender_api::DebugFlags,
-    window::{EventCause, FrameId, RenderMode, WindowState},
+    window::{EventCause, FrameId},
 };
 
-use crate::{HeadlessMonitor, WINDOW_Ext};
+pub use zero_ui_view_api::window::{RenderMode, WindowState};
+
+use crate::{HeadlessMonitor, WINDOW_Ext as _};
 
 /// Window root widget and configuration.
 ///

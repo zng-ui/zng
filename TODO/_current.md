@@ -44,23 +44,17 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* text crate depends on SCROLL, LAYERS, DATA, ContextMenu.
 
-* Add `WINDOWS.register_root_extender` on the default app?
-    - `FONTS.system_font_aa`.
-    - color scheme.
-    - `lang = LANG_VAR`, for accessibility.
-```rust
-// removed from core
-with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_scheme().boxed()).boxed()
-```
 
 * Replace a main crate with a declaration of the default app and manually selected re-exports,
   most users should be able to create apps, custom widgets for these apps by simply depending
   on this crate. The re-export must be manual so that some stuff that is public does not get re-exported,
   things like the view_api `WindowId`, or the `ViewWindow`.
 
-* Delete old core and main crate.
+* Review inspector.
+
+* Review `dyn_closure` and other features (`dyn_*`, `http`).
+* Define `material_icons` defaults.
 * Test everything.
 * Merge.
 
@@ -69,6 +63,9 @@ with_context_var_init(a.root, COLOR_SCHEME_VAR, || WINDOW.vars().actual_color_sc
     - Implement visibility event properties.
 
 * Move `child` and `children` from app to container.
+* Decouple LAYERS into own crate?
+* Remove zero_ui_var::types?
+* Mode `WidgetFn` to wgt?
 
 # Publish
 

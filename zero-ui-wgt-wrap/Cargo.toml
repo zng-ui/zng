@@ -1,0 +1,15 @@
+[package]
+name = "zero-ui-wgt-wrap"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
+zero-ui-ext-font ={ path = "../zero-ui-ext-font" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-app = { path = "../zero-ui-app" }
+
+tracing = "0.1"

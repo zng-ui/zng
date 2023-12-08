@@ -7,20 +7,22 @@ license = "Apache-2.0"
 
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
-zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
-zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
-zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
-zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-ext-window = { path = "../zero-ui-ext-window" }
-zero-ui-ext-font = { path = "../zero-ui-ext-font" }
-zero-ui-ext-input = { path = "../zero-ui-ext-input" }
-zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
-zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
-zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
 zero-ui-app = { path = "../zero-ui-app" }
-zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-color = { path = "../zero-ui-color" }
 zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
+zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
+zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
+zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
+zero-ui-ext-font = { path = "../zero-ui-ext-font" }
+zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+zero-ui-ext-window = { path = "../zero-ui-ext-window" }
 
 atomic = "0.6"
 tracing = "0.1"

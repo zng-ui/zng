@@ -1,421 +1,131 @@
-#![warn(unused_extern_crates)]
-// examples of `widget! { .. }` and `#[property(..)]` need to be declared
-// outside the main function, because they generate a `mod` with `use super::*;`
-// that does not import `use` clauses declared inside the parent function.
-#![allow(clippy::needless_doctest_main)]
-#![warn(missing_docs)]
-// suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+use std::ops;
 
-//! Zero-Ui is a GUI framework.
-//!
-//! # Usage
-//!
-//! First add this to your `Cargo.toml`:
-//!
-//! ```toml
-//! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view = "0.1"
-//! ```
-//!
-//! Then create your first window:
-//!
-//! ```no_run
-//! # mod zero_ui_view { pub fn init() { } }
-//! use zero_ui::prelude::*;
-//!
-//! fn main() {
-//!     zero_ui_view::init();
-//!
-//!     App::default().run_window(async {
-//!         let size = var_from((800, 600));
-//!         Window! {
-//!             title = size.map(|s: &Size| formatx!("Button Example - {s}"));
-//!             size;
-//!             child = Button! {
-//!                 on_click = hn!(|_| {
-//!                     println!("Button clicked!");
-//!                 });
-//!                 margin = 10;
-//!                 size = (300, 200);
-//!                 align = Align::CENTER;
-//!                 font_size = 28;
-//!                 child = Text!("Click Me!");
-//!             }
-//!         }
-//!     })
-//! }
-//! ```
-//!
-//! # Vars
-//!
-//! TODO
-//!
-//! # Events
-//!
-//! TODO
-//!
-//! ## Routes
-//!
-//! TODO
-//!
-//! # Contexts
-//!
-//! TODO
-//!
-//! # Tasks
-//!
-//! TODO
-
-// to make the proc-macro $crate substitute work in doc-tests.
-#[doc(hidden)]
-#[allow(unused_extern_crates)]
-extern crate self as zero_ui;
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate bitflags;
-
-#[doc(no_inline)]
-pub use zero_ui_core as core;
-
-pub(crate) mod crate_util;
-pub mod properties;
-pub mod widgets;
-
-/// All the types you need to start building an app.
+/// Start and manage an app process.
 ///
-/// Use glob import (`*`) and start implementing your app.
+/// # View Process
 ///
-/// ```no_run
-/// use zero_ui::prelude::*;
-///
-/// App::default().run_window(async {
-///     // ..
-/// # unimplemented!()
-/// })
-/// ```
-///
-/// # Other Preludes
-///
-/// There are prelude modules for other contexts, [`new_property`] for
-/// creating new properties, [`new_widget`] for creating new widgets.
-///
-/// The [`rayon`] crate's prelude is inlined in the preludes.
-///
-/// [`new_property`]: crate::prelude::new_property
-/// [`new_widget`]: crate::prelude::new_widget
-/// [`rayon`]: https://docs.rs/rayon
-#[allow(ambiguous_glob_reexports)] // we make use of glob override in preludes.
-pub mod prelude {
-    #[cfg(feature = "http")]
-    #[doc(no_inline)]
-    pub use crate::core::task::http::Uri;
+/// A view-process must be initialized before starting an app. Panics on `run` if there is
+/// no view-process, also panics if the current process is already executing as a view-process.
+pub struct APP;
+impl ops::Deref for APP {
+    type Target = zero_ui_app::APP;
 
-    #[doc(no_inline)]
-    pub use crate::core::{
-        access::ACCESS,
-        app::App,
-        border::{BorderSide, BorderSides, BorderStyle, LineOrientation, LineStyle},
-        color::{
-            self, color_scheme_map, colors, filters,
-            gradient::{stops, ExtendMode, GradientStop, GradientStops},
-            hex, hsl, hsla, rgb, rgba, web_colors, ColorScheme, MixBlendMode, Rgba,
-        },
-        context::{LayoutDirection, WIDGET, WINDOW},
-        event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},
-        focus::{commands::CommandFocusExt, DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
-        gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
-        handler::*,
-        image::ImageSource,
-        keyboard::{Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
-        l10n::{l10n, lang},
-        mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
-        render::{RenderMode, TransformStyle},
-        task::{self, rayon::prelude::*},
-        text::{
-            font_features::{
-                CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
-                NumVariant,
-            },
-            formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak, TextTransformFn,
-            ToText, Txt, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
-        },
-        timer::TIMERS,
-        units::{
-            self, Align, AngleUnits, ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, Point, Px, PxPoint, PxSize,
-            Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
-        },
-        var::{
-            animation::{
-                self, easing,
-                easing::{EasingStep, EasingTime},
-            },
-            expr_var,
-            helpers::{easing, state_var},
-            merge_var, var, var_default, var_from, AnyVar, ArcVar, BoxedVar, IntoVar, Var, VarValue, VARS,
-        },
-        widget_base::HitTestMode,
-        widget_info::{access::AccessRole, InteractionPath, Visibility, WidgetPath},
-        widget_instance::{
-            ui_vec, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
-            UiNodeListChain, UiNodeVec, WidgetId, ZIndex,
-        },
-        window::{
-            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
-            WINDOW_Ext as _, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowRoot,
-            WindowState, WindowVars, WINDOWS,
-        },
-    };
-
-    #[doc(no_inline)]
-    pub use crate::properties::*;
-    #[doc(no_inline)]
-    pub use crate::widgets::*;
-
-    #[doc(no_inline)]
-    pub use crate::properties::access::access_role;
-    #[doc(no_inline)]
-    pub use crate::properties::commands::*;
-    #[doc(no_inline)]
-    pub use crate::properties::events::{gesture::*, keyboard::*, mouse::on_mouse_move, widget::on_move};
-    #[doc(no_inline)]
-    pub use crate::properties::filters::*;
-    #[doc(no_inline)]
-    pub use crate::properties::focus::*;
-    #[doc(no_inline)]
-    pub use crate::properties::states::*;
-    #[doc(no_inline)]
-    pub use crate::properties::transform::{transform, *};
-    #[doc(no_inline)]
-    pub use crate::widgets::text::{
-        direction, font_color, font_family, font_size, font_stretch, font_style, font_weight, lang, letter_spacing, line_height,
-        tab_length, txt_align, txt_transform, word_spacing, TextOverflow, FONT_COLOR_VAR,
-    };
-
-    #[doc(no_inline)]
-    pub use crate::widgets::image::ImageFit;
-    #[doc(no_inline)]
-    pub use crate::widgets::layouts::{stack::StackDirection, *};
-    #[doc(no_inline)]
-    pub use crate::widgets::scroll::ScrollMode;
-    #[doc(no_inline)]
-    pub use crate::widgets::style::style_fn;
-    #[doc(no_inline)]
-    pub use crate::widgets::window::layers::{self, AnchorMode, AnchorOffset, LayerIndex, LAYERS};
-
-    /// All the types you need to declare a new property.
-    ///
-    /// Use glob import (`*`) and start implement your custom properties.
-    ///
-    /// ```
-    /// # fn main() {}
-    /// use zero_ui::prelude::new_property::*;
-    ///
-    /// #[property(CONTEXT)]
-    /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     let value = value.into_var();
-    ///     match_node(child, move |child, op| match op {
-    ///         UiNodeOp::Init => {
-    ///             WIDGET.sub_var(&value);
-    ///         },
-    ///         UiNodeOp::Update { updates } => {
-    ///             child.update(updates);
-    ///             if let Some(new_value) = value.get_new() {
-    ///                 // ..
-    ///             }
-    ///         }
-    ///         _ => {}
-    ///     })
-    /// }
-    /// ```
-    pub mod new_property {
-        #[doc(no_inline)]
-        pub use crate::core::border::*;
-        #[doc(no_inline)]
-        pub use crate::core::color::{self, *};
-        #[doc(no_inline)]
-        pub use crate::core::context::*;
-        #[doc(no_inline)]
-        pub use crate::core::event::*;
-        #[doc(no_inline)]
-        pub use crate::core::gesture::*;
-        #[doc(no_inline)]
-        pub use crate::core::handler::*;
-        #[doc(no_inline)]
-        pub use crate::core::keyboard::KeyState;
-        #[doc(no_inline)]
-        pub use crate::core::mouse::ButtonState;
-        #[doc(no_inline)]
-        pub use crate::core::render::*;
-        #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask};
-        #[doc(no_inline)]
-        pub use crate::core::text::Txt;
-        #[doc(no_inline)]
-        pub use crate::core::units::{self, *};
-        #[doc(no_inline)]
-        pub use crate::core::var::{
-            helpers::{
-                bind_is_state, event_is_state, event_is_state2, event_is_state3, event_is_state4, state_var, widget_state_get_state,
-                widget_state_is_state, with_context_var, with_context_var_init,
-            },
-            *,
-        };
-        #[doc(no_inline)]
-        pub use crate::core::widget_base::HitTestMode;
-        #[doc(no_inline)]
-        pub use crate::core::window::{WINDOW_Ext as _, WindowId, INTERACTIVITY_CHANGED_EVENT};
-        #[doc(no_inline)]
-        pub use crate::core::{
-            property, ui_node, widget, widget_base,
-            widget_base::nodes::interactive_node,
-            widget_info::{
-                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetMeasure,
-            },
-            widget_instance::{
-                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, BoxedUiNode, EditableUiNodeList,
-                EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain,
-                UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId,
-            },
-        };
-        #[doc(no_inline)]
-        pub use crate::widgets::{layouts::stack_nodes, presenter, presenter_opt, wgt_fn, WidgetFn};
-    }
-
-    /// All the types you need to declare a new widget or widget mixin.
-    ///
-    /// Use glob import (`*`) and start implement your custom widgets.
-    ///
-    /// ```
-    /// # fn main() { }
-    /// use zero_ui::prelude::new_widget::*;
-    ///
-    /// #[widget($crate::MyWidget)]
-    /// pub struct MyWidget(WidgetBase);
-    /// impl MyWidget {
-    ///     fn widget_intrinsic(&mut self) {
-    ///         widget_set! {
-    ///             self;
-    ///             background_color = colors::BLUE;
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub mod new_widget {
-        #[doc(no_inline)]
-        pub use crate::core::border::*;
-        #[doc(no_inline)]
-        pub use crate::core::color::*;
-        #[doc(no_inline)]
-        pub use crate::core::context::*;
-        #[doc(no_inline)]
-        pub use crate::core::event::*;
-        #[doc(no_inline)]
-        pub use crate::core::handler::*;
-        #[doc(no_inline)]
-        pub use crate::core::image::Img;
-        #[doc(no_inline)]
-        pub use crate::core::l10n::*;
-        #[doc(no_inline)]
-        pub use crate::core::render::*;
-        #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask};
-        #[doc(no_inline)]
-        pub use crate::core::text::*;
-        #[doc(no_inline)]
-        pub use crate::core::units::*;
-        #[doc(no_inline)]
-        pub use crate::core::var::{
-            helpers::{
-                bind_is_state, easing, event_is_state, event_is_state2, event_is_state3, event_is_state4, state_var,
-                widget_state_get_state, widget_state_is_state, with_context_var, with_context_var_init,
-            },
-            *,
-        };
-        #[doc(no_inline)]
-        pub use crate::core::widget_builder::*;
-        #[doc(no_inline)]
-        pub use crate::core::window::{CursorIcon, WINDOW_Ext as _, WindowId, INTERACTIVITY_CHANGED_EVENT};
-        #[doc(no_inline)]
-        pub use crate::core::{
-            property, ui_node, widget,
-            widget_base::{self, EnabledMix, HitTestMode, WidgetBase, WidgetImpl},
-            widget_impl,
-            widget_info::{
-                access::AccessRole, InlineSegment, InlineSegmentInfo, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
-                WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
-            },
-            widget_instance::{
-                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, z_index, AdoptiveNode, BoxedUiNode,
-                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList,
-                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId, ZIndex,
-            },
-            widget_mixin, widget_set,
-        };
-        #[doc(no_inline)]
-        pub use crate::properties::access::{access_role, accessible};
-        #[doc(no_inline)]
-        pub use crate::properties::data_context::{DataNoteHandle, DataNoteLevel};
-        #[doc(no_inline)]
-        pub use crate::properties::events::{self, gesture::*, keyboard::*};
-        #[doc(no_inline)]
-        pub use crate::properties::filters::*;
-        #[doc(no_inline)]
-        pub use crate::properties::focus::focusable;
-        #[doc(no_inline)]
-        pub use crate::properties::focus::*;
-        #[doc(no_inline)]
-        pub use crate::properties::states::*;
-        #[doc(no_inline)]
-        pub use crate::properties::transform::{transform, *};
-        #[doc(no_inline)]
-        pub use crate::properties::*;
-        #[doc(no_inline)]
-        pub use crate::widgets::text::{
-            self, font_color, font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length,
-            txt_align, txt_transform, word_spacing,
-        };
-        #[doc(no_inline)]
-        pub use crate::widgets::{
-            focusable_mix::FocusableMix,
-            layouts::{panel, stack_nodes, stack_nodes_layout_by},
-            presenter, presenter_opt, style,
-            style::{style_fn, Style, StyleFn, StyleMix},
-            undo::UndoMix,
-            wgt_fn, Container, WidgetFn,
-        };
+    fn deref(&self) -> &Self::Target {
+        &zero_ui_app::APP
     }
 }
 
-/// Standalone documentation.
-///
-/// This module contains empty modules that hold *integration docs*, that is
-/// documentation that cannot really be associated with API items because they encompass
-/// multiple items.
-pub mod docs {
-    /// `README.md`
-    ///
-    #[doc = include_str!("../../README.md")]
-    pub mod readme {}
-
-    /// `CHANGELOG.md`
-    ///
-    #[doc = include_str!("../../CHANGELOG.md")]
-    pub mod changelog {}
-}
-
-// see test-crates/no-direct-deps
-#[doc(hidden)]
-pub fn crate_reference_called() -> bool {
-    true
-}
-#[doc(hidden)]
-#[macro_export]
-macro_rules! crate_reference_call {
-    () => {
-        $crate::crate_reference_called()
+mod defaults {
+    use zero_ui_app::{window::WINDOW, AppExtended, AppExtension};
+    use zero_ui_color::COLOR_SCHEME_VAR;
+    use zero_ui_ext_clipboard::ClipboardManager;
+    use zero_ui_ext_config::ConfigManager;
+    use zero_ui_ext_font::FontManager;
+    use zero_ui_ext_fs_watcher::FsWatcherManager;
+    use zero_ui_ext_image::ImageManager;
+    use zero_ui_ext_input::{
+        focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
+        pointer_capture::PointerCaptureManager, touch::TouchManager,
     };
+    use zero_ui_ext_l10n::L10nManager;
+    use zero_ui_ext_undo::UndoManager;
+    use zero_ui_ext_window::{WINDOW_Ext as _, WindowManager, WINDOWS};
+    use zero_ui_var::Var as _;
+    use zero_ui_wgt::nodes::with_context_var_init;
+
+    impl super::APP {
+        /// App with default extensions.
+        ///     
+        /// # Extensions
+        ///
+        /// Extensions included.
+        ///
+        /// * [`FsWatcherManager`]
+        /// * [`ConfigManager`]
+        /// * [`L10nManager`]
+        /// * [`PointerCaptureManager`]
+        /// * [`MouseManager`]
+        /// * [`TouchManager`]
+        /// * [`KeyboardManager`]
+        /// * [`GestureManager`]
+        /// * [`WindowManager`]
+        /// * [`FontManager`]
+        /// * [`FocusManager`]
+        /// * [`ImageManager`]
+        /// * [`ClipboardManager`]
+        /// * [`UndoManager`]
+        /// * [`MaterialFonts`] if `cfg(feature = "material_icons")`.
+        ///
+        /// [`MaterialFonts`]: zero_ui_wgt_material_icons::MaterialFonts
+        pub fn defaults(&self) -> AppExtended<impl AppExtension> {
+            let r = self
+                .minimal()
+                .extend(FsWatcherManager::default())
+                .extend(ConfigManager::default())
+                .extend(L10nManager::default())
+                .extend(PointerCaptureManager::default())
+                .extend(MouseManager::default())
+                .extend(TouchManager::default())
+                .extend(KeyboardManager::default())
+                .extend(GestureManager::default())
+                .extend(WindowManager::default())
+                .extend(FontManager::default())
+                .extend(FocusManager::default())
+                .extend(ImageManager::default())
+                .extend(ClipboardManager::default())
+                .extend(UndoManager::default());
+
+            #[cfg(feature = "material_icons")]
+            let r = r.extend(zero_ui_wgt_material_icons::MaterialFonts);
+
+            r.extend(DefaultsInit {})
+        }
+    }
+
+    struct DefaultsInit {}
+    impl AppExtension for DefaultsInit {
+        fn init(&mut self) {
+            WINDOWS.register_root_extender(|a| {
+                // actualize LANG_VAR early and set layout direction.
+                let child = zero_ui_wgt_text::lang(child, zero_ui_ext_l10n::LANG_VAR);
+
+                // optimization, actualize mapping context-vars early, see `context_var!` docs.
+                // !!: TODO, review this after Var::map specialization work.
+                let child = zero_ui_wgt_text::font_palette(child, zero_ui_wgt_text::FONT_PALETTE_VAR);
+
+                child
+            });
+
+            /*
+
+
+                        * Add `WINDOWS.register_root_extender` on the default app?
+                - `FONTS.system_font_aa`.
+                - color scheme.
+                - `font_palette = crate::widgets::text::FONT_PALETTE_VAR;` for performance? (// optimization, actualize mapping context-vars early, see `context_var!` docs.)
+                - `font_size = crate::widgets::text::FONT_SIZE_VAR;`
+                - `font_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));`
+            ```rust
+            // removed from core
+
+            // removed from text
+            /// Default selection toolbar.
+            ///
+            /// See [`SELECTION_TOOLBAR_FN_VAR`] for more details.
+            pub fn default_selection_toolbar(args: SelectionToolbarArgs) -> impl UiNode {
+                use super::commands::*;
+
+                ContextMenu! {
+                    style_fn = menu::context::TouchStyle!();
+                    children = ui_vec![
+                        menu::TouchCmdButton!(COPY_CMD.scoped(args.anchor_id)),
+                        menu::TouchCmdButton!(SELECT_ALL_CMD.scoped(args.anchor_id)),
+                    ];
+                }
+            }
+
+            ```
+                         */
+        }
+    }
 }

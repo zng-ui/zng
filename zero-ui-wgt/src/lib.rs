@@ -6,6 +6,9 @@
 #[doc(hidden)]
 pub use zero_ui_app as __proc_macro_util;
 
+#[doc(hidden)]
+pub extern crate self as zero_ui_wgt;
+
 /// Prelude for declaring properties and widgets.
 pub mod prelude {
     pub use zero_ui_app::{
@@ -16,12 +19,12 @@ pub mod prelude {
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
         shortcut::{shortcut, CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts},
-        timer::{DeadlineVar, TimerVar, TIMERS},
-        update::{EventUpdate, UpdateOp, WidgetUpdates, UPDATES},
+        timer::{DeadlineHandle, DeadlineVar, TimerHandle, TimerVar, TIMERS},
+        update::{EventUpdate, UpdateDeliveryList, UpdateOp, WidgetUpdates, UPDATES},
         widget::{
             base::{WidgetBase, WidgetImpl},
             border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER},
-            builder::{property_id, NestGroup, WidgetBuilder},
+            builder::{property_id, NestGroup, WidgetBuilder, WidgetBuilding},
             easing,
             info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
@@ -29,8 +32,8 @@ pub mod prelude {
             },
             instance::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
-                BoxedUiNodeList, FillUiNode, NilUiNode, PanelList, SortingList, UiNode, UiNodeList, UiNodeListObserver, UiNodeOp,
-                UiNodeVec, ZIndex,
+                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
+                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex, SORTING_LIST,
             },
             property, ui_node, widget, widget_impl, widget_mixin, widget_set, AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _,
             WidgetId, WidgetUpdateMode, WIDGET,
@@ -47,11 +50,11 @@ pub mod prelude {
     pub use zero_ui_layout::{
         context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
         units::{
-            Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
-            DipSize, DipToPx as _, DipVector, Factor, FactorPercent, FactorSideOffsets, FactorUnits as _, Layout1d as _, Layout2d as _,
-            LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox, PxConstraints, PxConstraints2d,
-            PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform, PxVector, Rect,
-            RectFromTuplesBuilder as _, ResolutionUnits as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
+            Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
+            DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
+            Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
+            PxConstraints, PxConstraints2d, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform,
+            PxVector, Rect, RectFromTuplesBuilder as _, ResolutionUnits as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
         },
     };
 

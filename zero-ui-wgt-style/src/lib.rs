@@ -6,6 +6,9 @@
 use zero_ui_app::widget::builder::Importance;
 use zero_ui_wgt::prelude::*;
 
+#[doc(hidden)]
+pub use zero_ui_wgt::prelude::clmv as __clmv;
+
 use std::sync::Arc;
 use std::{fmt, ops};
 
@@ -408,7 +411,7 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 #[macro_export]
 macro_rules! style_fn {
     ($($tt:tt)+) => {
-        $crate::style::StyleFn::new($crate::core::handler::clmv! {
+        $crate::StyleFn::new($crate::__clmv! {
             $($tt)+
         })
     }

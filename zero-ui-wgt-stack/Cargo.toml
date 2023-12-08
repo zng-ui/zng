@@ -1,0 +1,17 @@
+[package]
+name = "zero-ui-wgt-stack"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-var = { path = "../zero-ui-var" }
+
+euclid = "0.22"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"

@@ -1,0 +1,22 @@
+[package]
+name = "zero-ui-wgt-layers"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
+zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
+zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
+zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
+zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-ext-window = { path = "../zero-ui-ext-window" }
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }

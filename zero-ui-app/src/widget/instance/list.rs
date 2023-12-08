@@ -567,19 +567,20 @@ impl UiNodeList for UiNodeListChainImpl {
 }
 
 /// Represents the contextual parent [`SortingList`] during a list.
-pub struct SortingListParent {}
-impl SortingListParent {
+#[allow(non_camel_case_types)]
+pub struct SORTING_LIST;
+impl SORTING_LIST {
     /// If the current call has a parent list.
-    pub fn is_inside_list() -> bool {
+    pub fn is_inside_list(&self) -> bool {
         !SORTING_LIST_PARENT.is_default()
     }
 
     /// Calls [`SortingList::invalidate_sort`] on the parent list.
-    pub fn invalidate_sort() {
+    pub fn invalidate_sort(&self) {
         SORTING_LIST_PARENT.get().store(true, Relaxed)
     }
 
-    fn with<R>(action: impl FnOnce() -> R) -> (R, bool) {
+    fn with<R>(&self, action: impl FnOnce() -> R) -> (R, bool) {
         SORTING_LIST_PARENT.with_context_value(AtomicBool::new(false), || {
             let r = action();
             (r, SORTING_LIST_PARENT.get().load(Relaxed))
@@ -650,7 +651,7 @@ impl SortingList {
     fn with_map<R>(&mut self, f: impl FnOnce(&[usize], &mut BoxedUiNodeList) -> R) -> R {
         self.update_map();
 
-        let (r, resort) = SortingListParent::with(|| f(&self.map, &mut self.list));
+        let (r, resort) = SORTING_LIST.with(|| f(&self.map, &mut self.list));
 
         if resort {
             self.invalidate_sort();
@@ -717,12 +718,12 @@ impl UiNodeList for SortingList {
     }
 
     fn init_all(&mut self) {
-        let _ = SortingListParent::with(|| self.list.init_all());
+        let _ = SORTING_LIST.with(|| self.list.init_all());
         self.invalidate_sort();
     }
 
     fn deinit_all(&mut self) {
-        let _ = SortingListParent::with(|| self.list.deinit_all());
+        let _ = SORTING_LIST.with(|| self.list.deinit_all());
         self.invalidate_sort();
     }
 
@@ -736,7 +737,7 @@ impl UiNodeList for SortingList {
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
-        let (_, resort) = SortingListParent::with(|| self.list.update_all(updates, &mut (observer, &mut changed as _)));
+        let (_, resort) = SORTING_LIST.with(|| self.list.update_all(updates, &mut (observer, &mut changed as _)));
         if changed || resort {
             self.invalidate_sort();
         }

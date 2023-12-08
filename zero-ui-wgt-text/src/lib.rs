@@ -1,5 +1,8 @@
 //! Text widgets and properties.
 
+// suppress nag about very simple boxed closure signatures.
+#![allow(clippy::type_complexity)]
+
 use zero_ui_wgt::prelude::*;
 
 #[macro_use]
@@ -9,6 +12,11 @@ pub mod commands;
 pub mod nodes;
 mod text_properties;
 pub use text_properties::*;
+
+#[doc(hidden)]
+pub use zero_ui_wgt::prelude::formatx as __formatx;
+
+pub mod icon;
 
 /// A configured text run.
 ///
@@ -66,13 +74,13 @@ pub use text_properties::*;
 /// [`formatx!`]: crate::core::text::formatx!
 #[widget($crate::Text {
     ($txt:literal) => {
-        txt = $crate::core::text::formatx!($txt);
+        txt = $crate::__formatx!($txt);
     };
     ($txt:expr) => {
         txt = $txt;
     };
     ($txt:tt, $($format:tt)*) => {
-        txt = $crate::core::text::formatx!($txt, $($format)*);
+        txt = $crate::__formatx!($txt, $($format)*);
     };
 })]
 #[rustfmt::skip]

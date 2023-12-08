@@ -4,6 +4,7 @@ use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*, InteractivityM
 use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zero_ui_wgt_container::{child_align, padding, Container};
 use zero_ui_wgt_fill::background_color;
+use zero_ui_wgt_filters::{child_opacity, saturate};
 use zero_ui_wgt_input::{
     capture_pointer, cursor,
     focus::FocusableMix,
@@ -11,7 +12,6 @@ use zero_ui_wgt_input::{
     is_cap_hovered, is_pressed, CaptureMode, CursorIcon,
 };
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
-use zero_ui_wgt_filters::{saturate, child_opacity};
 
 /// A clickable container.
 #[widget($crate::Button)]
@@ -130,36 +130,6 @@ impl DefaultStyle {
             when *#is_pressed {
                 #[easing(0.ms())]
                 background_color = color_scheme_pressed(BASE_COLORS_VAR);
-            }
-
-            when *#is_disabled {
-                saturate = false;
-                child_opacity = 50.pct();
-                cursor = CursorIcon::NotAllowed;
-            }
-        }
-    }
-}
-
-/// Button link style.
-///
-/// Looks like a web hyperlink.
-#[widget($crate::LinkStyle)]
-pub struct LinkStyle(Style);
-impl LinkStyle {
-    fn widget_intrinsic(&mut self) {
-        widget_set! {
-            self;
-            text::font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
-            cursor = CursorIcon::Pointer;
-            access_role = AccessRole::Link;
-
-            when *#is_cap_hovered {
-                text::underline = 1, LineStyle::Solid;
-            }
-
-            when *#is_pressed {
-                text::font_color = color_scheme_map(colors::YELLOW, web_colors::BROWN);
             }
 
             when *#is_disabled {

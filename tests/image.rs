@@ -51,3 +51,34 @@ fn image() -> ImageSource {
 
     (bgra, ImageDataFormat::from(size)).into()
 }
+
+
+#[test]
+fn error_view_recursion() {
+    crate::core::test_log();
+
+    let img = var(crate::core::image::Img::dummy(Some("test error".to_string()))).read_only();
+
+    let mut app = App::default().run_headless(false);
+    IMAGES.load_in_headless().set(true);
+    let ok = Arc::new(AtomicBool::new(false));
+    let window_id = app.open_window(async_clmv!(ok, {
+        Window! {
+            crate::core::widget_base::parallel = false;
+            child = Image! {
+                source = img.clone();
+                img_error_fn = wgt_fn!(ok, |_| {
+                    ok.store(true, Ordering::Relaxed);
+                    Image! {
+                        source = img.clone();
+                    }
+                });
+            }
+        }
+    }));
+
+    let _ = app.update(false);
+    app.close_window(window_id);
+
+    assert!(ok.load(Ordering::Relaxed));
+}

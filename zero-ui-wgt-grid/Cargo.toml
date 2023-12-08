@@ -1,0 +1,16 @@
+[package]
+name = "zero-ui-wgt-grid"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+
+tracing = "0.1"

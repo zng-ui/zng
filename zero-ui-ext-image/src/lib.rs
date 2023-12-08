@@ -37,7 +37,7 @@ use zero_ui_txt::{formatx, ToText, Txt};
 use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
 use zero_ui_view_api::{
-    image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImageRequest},
+    image::{ImageDataFormat, ImageMaskMode, ImageRequest},
     ipc::IpcBytes,
     ViewProcessOffline,
 };

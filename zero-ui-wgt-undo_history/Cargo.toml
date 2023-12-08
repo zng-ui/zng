@@ -1,0 +1,22 @@
+[package]
+name = "zero-ui-wgt-undo_history"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
+zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
+zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
+zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
+zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
+zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
+zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
+zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
