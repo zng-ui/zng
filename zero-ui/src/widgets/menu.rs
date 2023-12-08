@@ -233,7 +233,7 @@ pub fn shortcut_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> im
 /// Command button.
 ///
 /// This a menu button that has a `cmd` property, if the property is set the button `child`, `icon_fn` and `shortcut_txt`
-/// are set with values from the command metadata, the `on_click` handle is set to call the command and the `enable` and
+/// are set with values from the command metadata, the `on_click` handle is set to call the command and the `enabled` and
 /// `visibility` are set from the command handle status.
 #[widget($crate::widgets::menu::CmdButton {
     ($cmd:expr) => {
@@ -275,7 +275,50 @@ impl CmdButton {
         base.widget_build()
     }
 }
-
 /// The button command.
 #[property(CONTEXT, capture, widget_impl(CmdButton))]
 pub fn cmd(cmd: impl IntoValue<Command>) {}
+
+/// Command button for touch.
+///
+/// This a menu button that has a `cmd` property, if the property is set the button `child` is set with value from the
+/// command metadata, the `on_click` handle is set to call the command and the `enabled` and `visibility` are set from
+/// the command `is_enabled` status.
+#[widget($crate::widgets::menu::TouchCmdButton {
+    ($cmd:expr) => {
+        cmd = $cmd;
+    }
+})]
+pub struct TouchCmdButton(crate::widgets::Button);
+impl TouchCmdButton {
+    /// Build the button from the `cmd` value.
+    pub fn widget_build(&mut self) -> impl UiNode {
+        use crate::prelude::*;
+
+        if let Some(cmd) = self.widget_builder().capture_value::<Command>(property_id!(Self::cmd)) {
+            widget_set! {
+                self;
+
+                enabled = cmd.is_enabled();
+                visibility = cmd.is_enabled().map_into();
+
+                child = Text!(cmd.name());
+
+                on_click = hn!(|args: &ClickArgs| {
+                    if cmd.is_enabled_value() {
+                        args.propagation().stop();
+                        cmd.notify();
+                    }
+                });
+            }
+        }
+
+        let base: &mut WidgetBase = self;
+        base.widget_build()
+    }
+
+    widget_impl! {
+        /// The button command.
+        pub cmd(cmd: impl IntoValue<Command>);
+    }
+}

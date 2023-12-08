@@ -85,6 +85,7 @@ pub fn border_color_focused() -> impl Var<Rgba> {
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
+        use crate::core::clipboard::*;
         use crate::prelude::*;
 
         widget_set! {
@@ -115,12 +116,24 @@ impl DefaultStyle {
             context_menu_fn = wgt_fn!(|args: menu::context::ContextMenuArgs| {
                 let id = args.anchor_id;
                 ContextMenu!(ui_vec![
-                    menu::CmdButton!(crate::core::clipboard::CUT_CMD.scoped(id)),
-                    menu::CmdButton!(crate::core::clipboard::COPY_CMD.scoped(id)),
-                    menu::CmdButton!(crate::core::clipboard::PASTE_CMD.scoped(id)),
+                    menu::CmdButton!(CUT_CMD.scoped(id)),
+                    menu::CmdButton!(COPY_CMD.scoped(id)),
+                    menu::CmdButton!(PASTE_CMD.scoped(id)),
                     Hr!(),
                     menu::CmdButton!(text::commands::SELECT_ALL_CMD.scoped(id)),
                 ])
+            });
+            text::selection_toolbar_fn = wgt_fn!(|args: text::SelectionToolbarArgs| {
+                let id = args.anchor_id;
+                ContextMenu!{
+                    style_fn = menu::context::TouchStyle!();
+                    children = ui_vec![
+                        menu::TouchCmdButton!(CUT_CMD.scoped(id)),
+                        menu::TouchCmdButton!(COPY_CMD.scoped(id)),
+                        menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
+                        menu::TouchCmdButton!(text::commands::SELECT_ALL_CMD.scoped(id)),
+                    ]
+                }
             });
 
             when *#is_cap_hovered || *#is_return_focus {
