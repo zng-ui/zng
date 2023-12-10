@@ -6,21 +6,6 @@ use zero_ui_wgt::prelude::*;
 ///
 /// Relative values are computed of the parent fill size or the widget's size, whichever is greater.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-///
-/// Button! {
-///     offset = (100, 20.pct());
-///     child = Text!("Click Me!")
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button is offset 100 layout pixels to the right and 20% of the fill height down.
-///
 /// # `x` and `y`
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
@@ -47,21 +32,6 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 ///
 /// Relative values are computed of the parent fill width or the widget's width, whichever is greater.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-///
-/// Button! {
-///     x = 20.pct();
-///     child = Text!("Click Me!")
-/// };
-/// # ;
-/// ```
-///
-/// In the example the button is moved 20 percent of the fill width to the right.
-///
 /// # `offset`
 ///
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
@@ -87,21 +57,6 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// Offset on the ***y*** axis.
 ///
 /// Relative values are computed of the parent fill height or the widget's height, whichever is greater.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-///
-/// Button! {
-///     y = 20.pct();
-///     child = Text!("Click Me!")
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button is moved down 20 percent of the fill height.
 ///
 /// # `offset`
 ///
@@ -134,23 +89,6 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// in a dimension if it is greater then the constrained minimum.
 ///
 /// This property disables inline layout for the widget.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let label = formatx!("");
-///
-/// Button! {
-///     child = Text!(label);
-///     min_size = (100, 50);
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `label` value but it will
-/// always have a minimum width of `100` and a minimum height of `50`.
 ///
 /// # `min_width` and `min_height`
 ///
@@ -188,23 +126,6 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// if it is greater then the constrained minimum.
 ///
 /// This property disables inline layout for the widget.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let label = formatx!("");
-///
-/// Button! {
-///     child = Text!(label);
-///     min_width = 100;
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `label` value but it will
-/// always have a minimum width of `100`.
 ///
 /// # `min_size`
 ///
@@ -244,23 +165,6 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// This property disables inline layout for the widget.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let btn_content = Text!("");
-/// #
-/// Button! {
-///     child = btn_content;
-///     min_height = 50;
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `btn_content` value but it will
-/// always have a minimum height of `50`.
-///
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
@@ -299,23 +203,6 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// This property disables inline layout for the widget.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let btn_content = Text!("");
-/// #
-/// Button! {
-///     child = btn_content;
-///     max_size = (200, 100);
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `btn_content` value but it will
-/// always have a maximum width of `200` and a maximum height of `100`.
-///
 /// # `max_width` and `max_height`
 ///
 /// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
@@ -350,23 +237,6 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// if it is less then the constrained maximum, or the maximum was not constrained.
 ///
 /// This property disables inline layout for the widget.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let btn_content = Text!("");
-///
-/// Button! {
-///     child = btn_content;
-///     max_width = 200;
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `btn_content` value but it will
-/// always have a maximum width of `200`.
 ///
 /// # `max_size`
 ///
@@ -405,23 +275,6 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// if it is less then the constrained maximum, or the maximum was not constrained.
 ///
 /// This property disables inline layout for the widget.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # let btn_content = Text!("");
-///
-/// Button! {
-///     child = btn_content;
-///     max_height = 100;
-/// }
-/// # ;
-/// ```
-///
-/// In the example the button will change size depending on the `btn_content` value but it will
-/// always have a maximum height of `100`.
 ///
 /// # `max_size`
 ///
@@ -462,21 +315,6 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`].
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// Button! {
-///     background_color = rgb(255, 0, 0);
-///     size = (200, 300);
-///     child = Text!("200x300 red");
-/// }
-/// # ;
-/// ```
-///
-/// In the example the red button is set to a fixed size of `200` width and `300` height.
-///
 /// # `width` and `height`
 ///
 /// You can use the [`width`] and [`height`] properties to only set the size of one dimension.
@@ -485,7 +323,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`max_size`]: fn@max_size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-/// [`align`]: fn@align
+/// [`align`]: fn@zero_ui_wgt::align
 #[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     let size = size.into_var();
@@ -525,21 +363,6 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// Relative values are computed from the constraints maximum bounded width.
 ///
 /// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`] width.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// Button! {
-///     background_color = rgb(255, 0, 0);
-///     width = 200;
-///     child = Text!("200x? red");
-/// }
-/// # ;
-/// ```
-///
-/// In the example the red button is set to a fixed width of `200`.
 ///
 /// # `size`
 ///
@@ -589,21 +412,6 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// Relative values are computed from the constraints maximum bounded height.
 ///
 /// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`] height.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// Button! {
-///     background_color = rgb(255, 0, 0);
-///     height = 300;
-///     child = Text!("?x300 red");
-/// }
-/// # ;
-/// ```
-///
-/// In the example the red button is set to a fixed size of `300` height.
 ///
 /// # `size`
 ///
@@ -655,11 +463,9 @@ fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
 /// Set or overwrite the baseline of the widget.
 ///
 /// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the
-/// line where the widget naturally *sits*, some widgets like [`Text!`] have a non-zero default baseline, most others leave it at zero.
+/// line where the widget naturally *sits*, some widgets like [Text!` have a non-zero default baseline, most others leave it at zero.
 ///
 /// Relative values are computed from the widget's height.
-///
-/// [`Text!`]: struct@crate::widgets::Text
 #[property(BORDER, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
     let baseline = baseline.into_var();
@@ -1033,7 +839,7 @@ pub enum WidgetLength {
     /// not just the panel constraints. Panels that support this, compute the value for each widget and measure/layout each using
     /// [`LAYOUT.with_leftover`] to inject the computed value.
     ///
-    /// [`LAYOUT.with_leftover`]: crate::core::context::LAYOUT::with_leftover
+    /// [`LAYOUT.with_leftover`]: zero-ui-wgt::layout::context::LAYOUT::with_leftover
     Leftover(Factor),
     /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
     /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the

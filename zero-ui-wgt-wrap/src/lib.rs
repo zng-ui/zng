@@ -57,8 +57,8 @@ impl Wrap {
         /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`] mapped to
         /// the [`GridSpacing::row`] value.
         ///
-        /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
-        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
+        /// [`row_spacing`]: fn@zero_ui_wgt_text::row_spacing
+        /// [`LINE_SPACING_VAR`]: zero_ui_wgt_text::LINE_SPACING_VAR
         pub line_spacing(spacing: impl IntoVar<Length>);
     }
 }
@@ -72,9 +72,9 @@ impl Wrap {
 /// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
 /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
 ///
-/// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
-/// [`line_spacing`]: fn@crate::widgets::text::txt_align
-/// [`word_spacing`]: fn@crate::widgets::text::word_spacing
+/// [`LINE_SPACING_VAR`]: zero_ui_wgt_text::LINE_SPACING_VAR
+/// [`line_spacing`]: fn@zero_ui_wgt_text::txt_align
+/// [`word_spacing`]: fn@zero_ui_wgt_text::word_spacing
 #[property(LAYOUT, capture, widget_impl(Wrap))]
 pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
@@ -84,8 +84,8 @@ pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 /// to [`TEXT_ALIGN_VAR`] by default, so you can use the [`txt_align`] property if you want
 /// to affect all nested wrap and text widgets.
 ///
-/// [`TEXT_ALIGN_VAR`]: crate::widgets::text::TEXT_ALIGN_VAR
-/// [`txt_align`]: fn@crate::widgets::text::txt_align
+/// [`TEXT_ALIGN_VAR`]: zero_ui_wgt_text::TEXT_ALIGN_VAR
+/// [`txt_align`]: fn@zero_ui_wgt_text::txt_align
 #[property(LAYOUT, capture, widget_impl(Wrap))]
 pub fn children_align(align: impl IntoVar<Align>) {}
 
@@ -1097,7 +1097,7 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// Extension methods for [`WidgetInfo`] that may be a [`Wrap!`] instance.
 ///
 /// [`Wrap!`]: struct@Wrap
-/// [`WidgetInfo`]: crate::core::widget_info::WidgetInfo
+/// [`WidgetInfo`]: zero_ui_app::widget::info::WidgetInfo
 pub trait WidgetInfoWrapExt {
     /// Gets the wrap children, if this widget is a [`Wrap!`] instance.
     ///

@@ -316,10 +316,10 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// Animate a popup when it opens:
 ///
 /// ```
+/// # macro_rules! _demo {() => {
 /// use zero_ui::prelude::*;
 ///
-/// # let _ =
-/// popup::Popup! {
+/// Popup! {
 ///     opacity = 0.pct();
 ///     y = -10;
 ///     when *#is_inited {
@@ -331,7 +331,7 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///     
 ///     // ..
 /// }
-/// # ;
+/// # }}
 /// ```
 #[property(CONTEXT)]
 pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {

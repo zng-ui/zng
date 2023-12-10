@@ -5,7 +5,7 @@
 //!
 //! The icons are from the [Material Design Icons] project.
 //!
-//! [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon;
+//! [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 
 #![warn(missing_docs)]
@@ -17,7 +17,7 @@ use zero_ui_wgt_text::icon::GlyphIcon;
 /// Material fonts.
 ///
 /// You can call the [`MaterialFonts::register`] method yourself before creating any windows or you can
-/// use this struct as an [`AppExtension`] that does the same thing on app init.
+/// use this struct as an app extension that does the same thing on app init.
 #[cfg(feature = "embedded")]
 pub struct MaterialFonts;
 #[cfg(feature = "embedded")]

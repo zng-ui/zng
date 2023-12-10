@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {

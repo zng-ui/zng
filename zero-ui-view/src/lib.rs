@@ -20,22 +20,18 @@
 //! Then call [`init`] before any other code in `main` to setup a view-process that uses
 //! the same app executable:
 //!
-//! ```no_run
-//! # pub mod zero_ui { pub mod prelude {
-//! # pub struct App { }
-//! # impl App {
-//! # pub fn default() -> Self { unimplemented!() }
-//! # pub fn run_window(self, f: impl FnOnce(bool)) { }
-//! # } } }
+//! ```
+//! # macro_rules! _demo {()=>{
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
 //!     zero_ui_view::init();
 //!
-//!     App::default().run_window(|ctx| {
+//!     APP.defaults().run_window(|ctx| {
 //!         unimplemented!()
 //!     })
 //! }
+//! # }}
 //! ```
 //!
 //! When the app is executed `init` setup its startup and returns, `run_window` gets called and
@@ -82,7 +78,7 @@
 //! fn main() {
 //!     zero_ui_view::init();
 //!     
-//!     // App::default().run ..
+//!     // APP.defaults().run ..
 //! }
 //! ```
 //!
@@ -168,22 +164,18 @@ use rustc_hash::FxHashMap;
 ///
 /// # Examples
 ///
-/// ```no_run
-/// # pub mod zero_ui { pub mod prelude {
-/// # pub struct App { }
-/// # impl App {
-/// # pub fn default() -> Self { unimplemented!() }
-/// # pub fn run_window(self, f: impl FnOnce(bool)) { }
-/// # } } }
+/// ```
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::*;
 ///
 /// fn main() {
 ///     zero_ui_view::init();
 ///
-///     App::default().run_window(|ctx| {
+///     APP.defaults().run_window(|ctx| {
 ///         unimplemented!()
 ///     })
 /// }
+/// # }}
 /// ```
 ///
 /// # Panics
@@ -243,13 +235,8 @@ pub extern "C" fn extern_init() {
 /// The example demonstrates a setup that runs the view server in the same process in debug builds and
 /// runs
 ///
-/// ```no_run
-/// # pub mod zero_ui { pub mod prelude {
-/// # pub struct App { }
-/// # impl App {
-/// # pub fn default() -> Self { unimplemented!() }
-/// # pub fn run_window(self, f: impl FnOnce(bool)) { }
-/// # } } }
+/// ```
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::*;
 ///
 /// fn main() {
@@ -262,10 +249,11 @@ pub extern "C" fn extern_init() {
 /// }
 ///
 /// fn app_main() {
-///     App::default().run_window(|ctx| {
+///     APP.defaults().run_window(|ctx| {
 ///         unimplemented!()
 ///     })
 /// }
+/// # }}
 /// ```
 ///
 /// # Panics

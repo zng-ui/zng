@@ -20,47 +20,47 @@ context_var! {
     ///
     /// Relative lengths are relative to the viewport height, default value is `1.3.em()`.
     ///
-    /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
-    /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
+    /// [`SCROLL_DOWN_CMD`]: crate::commands::SCROLL_DOWN_CMD
+    /// [`SCROLL_UP_CMD`]: crate::commands::SCROLL_UP_CMD
     pub static VERTICAL_LINE_UNIT_VAR: Length = 1.3.em();
 
     /// Horizontal offset added when the [`SCROLL_RIGHT_CMD`] runs and removed when the [`SCROLL_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `1.3.em()`.
     ///
-    /// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
-    /// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
+    /// [`SCROLL_LEFT_CMD`]: crate::commands::SCROLL_LEFT_CMD
+    /// [`SCROLL_RIGHT_CMD`]: crate::commands::SCROLL_RIGHT_CMD
     pub static HORIZONTAL_LINE_UNIT_VAR: Length = 1.3.em();
 
     /// Vertical offset added when the [`PAGE_DOWN_CMD`] runs and removed when the [`PAGE_UP_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport height, default value is `100.pct()`.
     ///
-    /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
-    /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
+    /// [`SCROLL_DOWN_CMD`]: crate::commands::SCROLL_DOWN_CMD
+    /// [`SCROLL_UP_CMD`]: crate::commands::SCROLL_UP_CMD
     pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Horizontal offset multiplied by the [`MouseScrollDelta::LineDelta`] ***x***.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static HORIZONTAL_WHEEL_UNIT_VAR: Length = 60;
 
     /// Vertical offset multiplied by the [`MouseScrollDelta::LineDelta`] ***y***.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static VERTICAL_WHEEL_UNIT_VAR: Length = 60;
 
     /// Scale delta added or removed from the zoom scale by [`MouseScrollDelta::LineDelta`] used in zoom operations.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static ZOOM_WHEEL_UNIT_VAR: Factor = 10.pct();
 
     /// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
     ///
-    /// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
-    /// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
+    /// [`PAGE_LEFT_CMD`]: crate::commands::PAGE_LEFT_CMD
+    /// [`PAGE_RIGHT_CMD`]: crate::commands::PAGE_RIGHT_CMD
     pub static HORIZONTAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Scroll unit multiplier used when alternate scrolling.
@@ -169,8 +169,8 @@ pub fn scrollbar_joiner_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
-/// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
+/// [`SCROLL_UP_CMD`]: crate::commands::SCROLL_UP_CMD
+/// [`SCROLL_DOWN_CMD`]: crate::commands::SCROLL_DOWN_CMD
 ///  
 /// This property sets the [`VERTICAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -182,8 +182,8 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
-/// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
+/// [`SCROLL_LEFT_CMD`]: crate::commands::SCROLL_LEFT_CMD
+/// [`SCROLL_RIGHT_CMD`]: crate::commands::SCROLL_RIGHT_CMD
 ///
 /// This property sets the [`HORIZONTAL_LINE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -215,8 +215,8 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`PAGE_UP_CMD`]: crate::widgets::scroll::commands::PAGE_UP_CMD
-/// [`PAGE_DOWN_CMD`]: crate::widgets::scroll::commands::PAGE_DOWN_CMD
+/// [`PAGE_UP_CMD`]: crate::commands::PAGE_UP_CMD
+/// [`PAGE_DOWN_CMD`]: crate::commands::PAGE_DOWN_CMD
 ///
 /// This property sets the [`VERTICAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -228,8 +228,8 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
-/// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
+/// [`PAGE_LEFT_CMD`]: crate::commands::PAGE_LEFT_CMD
+/// [`PAGE_RIGHT_CMD`]: crate::commands::PAGE_RIGHT_CMD
 ///
 /// This property sets the [`HORIZONTAL_PAGE_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -253,7 +253,7 @@ pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***x*** value to determinate the scroll delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`HORIZONTAL_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -265,7 +265,7 @@ pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***y*** value to determinate the scroll delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`VERTICAL_WHEEL_UNIT_VAR`]`.
 #[property(CONTEXT, default(VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -289,7 +289,7 @@ pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertica
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] value to determinate the scale delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`ZOOM_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(ZOOM_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -322,7 +322,7 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 /// Note that [`SCROLL_TO_CMD`] requests have priority over scroll-to focused if both requests
 /// happen in the same event cycle.
 ///
-/// [`SCROLL_TO_CMD`]: crate::widgets::scroll::commands::SCROLL_TO_CMD
+/// [`SCROLL_TO_CMD`]: crate::commands::SCROLL_TO_CMD
 ///
 /// This property sets the [`SCROLL_TO_FOCUSED_MODE_VAR`].
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR), widget_impl(Scroll))]
@@ -469,10 +469,6 @@ impl ScrollBarArgs {
 ///
 /// This is not enabled by default. Note that couch pan is always enabled, this property implements
 /// a similar behavior for the mouse pointer.
-///
-/// See also [`cursor`] property, usually when pan is enabled a grab
-///
-/// [`cursor`]: fn@crate::properties::cursor
 #[property(LAYOUT, default(false), widget_impl(Scroll))]
 pub fn mouse_pan(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();

@@ -1175,7 +1175,7 @@ pub struct AnchorMode {
     pub visibility: bool,
     /// The widget [`interactivity`] is set to the the same as the anchor widget.
     ///
-    /// [`interactivity`]: crate::core::widget_info::WidgetInfo::interactivity
+    /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
     pub interactivity: bool,
 
     /// The widget's corner radius is set for the layer.

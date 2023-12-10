@@ -20,7 +20,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
         let mouse_pan = var(false);
         let smooth_scrolling = var(true);
         Window! {

@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         Window! {
             // renderer_debug = {
             //     use zero_ui::core::render::webrender_api::DebugFlags;

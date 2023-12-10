@@ -34,9 +34,8 @@
 //!                     println!("Button clicked!");
 //!                 });
 //!                 margin = 10;
-//!                 size = (300, 200);
 //!                 align = Align::CENTER;
-//!                 font_size = 28;
+//!                 text::font_size = 28;
 //!                 child = Text!("Click Me!");
 //!             }
 //!         }
@@ -68,9 +67,9 @@ pub mod prelude {
     };
 
     pub use zero_ui_var::{
-        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var, AnyVar as _,
-        ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, VarCapabilities,
-        VarHandle, VarHandles, VarValue,
+        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
+        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
+        VarCapabilities, VarHandle, VarHandles, VarValue,
     };
 
     pub use zero_ui_layout::units::{
@@ -131,6 +130,8 @@ pub mod prelude {
     pub use crate::text;
 
     pub use zero_ui_wgt_window::Window;
+
+    pub use zero_ui_wgt_button::Button;
 }
 
 /// Prelude for declaring properties and widgets.
@@ -154,9 +155,13 @@ pub mod task {
     pub use zero_ui_app::widget::UiTaskWidget;
 }
 
-/// Color and gradient types, functions and macros, [`Rgba`], [`filters`], [`hex!`] and more.
+/// Color and gradient types, functions and macros, [`Rgba`], [`color_filters`], [`hex!`] and more.
 ///
 /// See [`zero_ui_color`] for the full API.
+///
+/// [`hex!`]: macro@crate::prelude::hex
+/// [`color_filters`]: crate::prelude::color_filters
+/// [`Rgba`]: crate::prelude::Rgba
 pub mod color {
     pub use zero_ui_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, filters, gradient, hex, hsl, hsla, hsla_sampler, hsv, hsva,
@@ -184,6 +189,14 @@ pub mod layout {
     };
 
     pub use zero_ui_app::widget::info::{WidgetLayout, WidgetMeasure};
+}
+
+pub mod render {
+
+}
+
+pub mod var {
+    
 }
 
 /// App extensions, context, events and commands API.
@@ -271,6 +284,9 @@ pub mod widget {
     }
 
     /// Widget instance types, [`UiNode`], [`UiNodeList`] and others.
+    ///
+    /// [`UiNode`]: crate::prelude::UiNode
+    /// [`UiNodeList`]: crate::prelude::UiNodeList
     pub mod instance {
         pub use zero_ui_app::widget::instance::{
             extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
@@ -426,6 +442,8 @@ pub mod pointer_capture {
 /// Gesture service, events, shortcuts and other types.
 ///
 /// See also [`zero_ui_ext_input::gesture`] for the full gesture API and [`zero_ui_app::shortcut`] for the shortcut API.
+///
+/// [`zero_ui_app::shortcut`]: mod@zero_ui_app::shortcut
 pub mod gesture {
     pub use zero_ui_ext_input::gesture::{
         ClickArgs, ClickArgsSource, CommandShortcutMatchesExt, HeadlessAppGestureExt, ShortcutActions, ShortcutArgs, ShortcutClick,
@@ -503,6 +521,13 @@ pub mod text {
         ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix, TextFillMix, TextOverflow,
         TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip,
     };
+}
+
+/// Button widget, style and properties.
+///
+/// See [`zero_ui_wgt_button`] for the full widget API.
+pub mod button {
+    pub use zero_ui_wgt_button::{base_colors, extend_style, replace_style, Button, DefaultStyle};
 }
 
 /// Start and manage an app process.

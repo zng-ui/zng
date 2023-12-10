@@ -5,19 +5,6 @@ use zero_ui_wgt::prelude::*;
 pub use zero_ui_view_api::window::CursorIcon;
 
 /// Widget property that sets the [`CursorIcon`] displayed when hovering the widget.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// Container! {
-///     cursor = CursorIcon::Pointer;
-///     child = Text!("Mouse over this text shows the hand cursor");
-/// }
-/// # ;
-/// ```
-///
-/// [`CursorIcon`]: crate::core::window::CursorIcon
 #[property(CONTEXT, default(CursorIcon::Default))]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
     let cursor = cursor.into_var();

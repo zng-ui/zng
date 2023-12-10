@@ -32,8 +32,7 @@ fn no_context_image() -> Img {
 ///
 /// In a widget this should be placed inside context properties and before event properties.
 ///
-/// [`IMAGES`]: crate::core::image::IMAGES
-/// [`img_cache`]: fn@crate::widgets::image::img_cache
+/// [`img_cache`]: fn@crate::img_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     let source = source.into_var();
     let ctx_img = var(Img::dummy(None));

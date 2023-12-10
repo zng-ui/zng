@@ -385,7 +385,6 @@ event! {
 /// See the [module level](crate::focus) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
 ///
-/// [`App::default`]: zero_ui_app::APP::default
 /// [`SHORTCUT_EVENT`]: crate::gesture::SHORTCUT_EVENT
 #[derive(Default)]
 pub struct FocusManager {

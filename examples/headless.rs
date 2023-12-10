@@ -18,7 +18,7 @@ fn headless_example() {
     // This example uses a headless window to render an image.
 
     // open headless with renderer flag, this causes the view-process to start.
-    let mut app = App::default().run_headless(true);
+    let mut app = APP.defaults().run_headless(true);
 
     app.run_window(async {
         Window! {
@@ -102,7 +102,7 @@ fn images_render() {
     use zero_ui::core::{app::ControlFlow, image::*};
 
     // open headless with renderer flag, this causes the view-process to start.
-    let mut app = App::default().run_headless(true);
+    let mut app = APP.defaults().run_headless(true);
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.

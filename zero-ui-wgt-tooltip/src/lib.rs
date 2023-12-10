@@ -33,7 +33,7 @@ use zero_ui_wgt_view::WidgetFn;
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`Tip!`]: struct@crate::widgets::Tip
+/// [`Tip!`]: struct@crate::Tip
 /// [`tooltip_anchor`]: fn@tooltip_anchor
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
@@ -57,7 +57,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`Tip!`]: struct@crate::widgets::Tip
+/// [`Tip!`]: struct@crate::Tip
 /// [`tooltip_anchor`]: fn@tooltip_anchor
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
@@ -354,7 +354,7 @@ pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> imp
 /// This property sets the [`ACCESS_TOOLTIP_ANCHOR_VAR`].
 ///
 /// [`tooltip_anchor`]: fn@tooltip_anchor
-/// [`ACCESS.show_tooltip`]: crate::core::access::ACCESS::show_tooltip
+/// [`ACCESS.show_tooltip`]: zero_ui_app::access::ACCESS::show_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_ANCHOR_VAR))]
 pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, ACCESS_TOOLTIP_ANCHOR_VAR, mode)
@@ -370,7 +370,7 @@ pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>)
 ///
 /// This property sets the [`TOOLTIP_CONTEXT_CAPTURE_VAR`].
 ///
-/// [`LAYERS`]: crate::widgets::window::layers::LAYERS
+/// [`LAYERS`]: crate::window::layers::LAYERS
 #[property(CONTEXT, default(TOOLTIP_CONTEXT_CAPTURE_VAR))]
 pub fn tooltip_context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
     with_context_var(child, TOOLTIP_CONTEXT_CAPTURE_VAR, capture)
@@ -422,7 +422,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 /// This property sets the [`ACCESS_TOOLTIP_DURATION_VAR`].
 ///
 /// [`tooltip_duration`]: fn@tooltip_duration
-/// [`ACCESS.show_tooltip`]: crate::core::access::ACCESS::show_tooltip
+/// [`ACCESS.show_tooltip`]: zero_ui_app::access::ACCESS::show_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_DURATION_VAR))]
 pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
     with_context_var(child, ACCESS_TOOLTIP_DURATION_VAR, duration)

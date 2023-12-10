@@ -28,22 +28,6 @@ impl Button {
 
     widget_impl! {
         /// Button click event.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// # let _scope = App::minimal();
-        /// #
-        /// # Button! {
-        /// on_click = hn!(|args: &ClickArgs| {
-        ///     assert!(args.is_primary());
-        ///     println!("button {:?} clicked!", WIDGET.id());
-        /// });
-        /// child = Text!("Click Me!");
-        /// # }
-        /// # ;
-        /// ```
         pub on_click(handler: impl WidgetHandler<ClickArgs>);
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.

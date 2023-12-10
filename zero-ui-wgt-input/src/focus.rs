@@ -307,9 +307,9 @@ event_property! {
 /// *text-input* or *text-box* widget that shows an emphasized border and blinking cursor when focused and still shows the
 /// emphasized border without cursor when a menu is open and it is only the return focus.
 ///
-/// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
-/// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
-/// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
+/// [`is_focus_within`]: fn@is_focus_within
+/// [`is_focused_hgl`]: fn@is_focused_hgl
+/// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
@@ -330,8 +330,8 @@ pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// To track *highlighted* focus within use [`is_focus_within_hgl`] property.
 ///
-/// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
-/// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
+/// [`is_focused`]: fn@is_focused
+/// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
@@ -356,8 +356,8 @@ pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// Usually when the keyboard is used to move the focus a special visual indicator is rendered, a dotted line border is common,
 /// this state is called *highlighting* and is tracked by the focus manager, this property is only `true`.
 ///
-/// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
-/// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
+/// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
+/// [`is_focused`]: fn@is_focused
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
@@ -380,8 +380,8 @@ pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 ///
 /// Also see [`is_focus_within`] to check if the widget has focus within regardless of highlighting.
 ///
-/// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
-/// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
+/// [`is_focused_hgl`]: fn@is_focused_hgl
+/// [`is_focus_within`]: fn@is_focus_within
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
@@ -412,8 +412,8 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// widget its return focus, you probably want to declare the widget visual states in such a order that [`is_focused`] overrides
 /// the state of this property.
 ///
-/// [`is_focused`]: fn@zero_ui::properties::focus::is_focused_hgl
-/// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
+/// [`is_focused`]: fn@is_focused_hgl
+/// [`is_focused_hgl`]: fn@is_focused_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
@@ -432,7 +432,7 @@ pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 ///
 /// To check if only the widget is the return focus use [`is_return_focus`].
 ///
-/// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
+/// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {

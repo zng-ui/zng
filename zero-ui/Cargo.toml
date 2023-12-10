@@ -17,7 +17,7 @@ ipc = ["zero-ui-app/ipc"]
 # Enables http tasks.
 #
 # Enabled by default.
-http = ["zero-ui-task/http", "zero-ui-wgt-markdown/http"]
+http = ["zero-ui-task/http", "zero-ui-wgt/http", "zero-ui-wgt-markdown/http"]
 
 # Signal the `zero-ui-core` build script to enable the `dyn_*` and `inspector` features for debug builds.
 #

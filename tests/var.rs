@@ -55,7 +55,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_map(&b, |a| a.to_text()).perm();
 
@@ -102,7 +102,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_map_bidi(&b, |a| a.to_text(), |b| b.parse().unwrap()).perm();
 
@@ -149,7 +149,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_text()) }).perm();
 
@@ -197,7 +197,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_filter_map_bidi(&b, |a| Some(a.to_text()), |b| b.parse().ok()).perm();
 
@@ -261,7 +261,7 @@ mod bindings {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_map(&b, |a| *a + 1).perm();
         b.bind_map(&c, |b| *b + 1).perm();
@@ -318,7 +318,7 @@ mod bindings {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         a.bind_bidi(&b).perm();
         b.bind_bidi(&c).perm();
@@ -373,7 +373,7 @@ mod bindings {
         let a = var(1);
         let b = var(1);
 
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let handle = a.bind_map(&b, |i| *i + 1);
 
@@ -416,7 +416,7 @@ mod bindings {
 
     #[test]
     fn binding_bidi_set_both() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let a = var(1);
         let b = var(1);
@@ -432,7 +432,7 @@ mod bindings {
 
     #[test]
     fn binding_update_order() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let a = var(0);
         let b = var(0);
@@ -448,7 +448,7 @@ mod bindings {
 
     #[test]
     fn binding_update_order2() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let a = var(0);
         let b = var(0);
@@ -464,7 +464,7 @@ mod bindings {
 
     #[test]
     fn binding_update_order3() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let a = var(0);
         let b = var(0);
@@ -570,7 +570,7 @@ mod context {
     #[test]
     fn context_var_basic() {
         let _test = test_app(
-            App::default(),
+            APP.defaults(),
             TestWgt! {
                 test_prop = "test!";
 
@@ -586,7 +586,7 @@ mod context {
     #[test]
     fn context_var_map() {
         let _test = test_app(
-            App::default(),
+            APP.defaults(),
             TestWgt! {
                 test_prop = "test!";
 
@@ -601,7 +601,7 @@ mod context {
 
     #[test]
     fn context_var_map_cloned() {
-        let app = App::default();
+        let app = APP.defaults();
 
         // mapped context var should depend on the context.
 
@@ -628,7 +628,7 @@ mod context {
 
     #[test]
     fn context_var_map_cloned3() {
-        let app = App::default();
+        let app = APP.defaults();
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
@@ -659,7 +659,7 @@ mod context {
 
     #[test]
     fn context_var_map_not_cloned() {
-        let app = App::default();
+        let app = APP.defaults();
 
         // sanity check for `context_var_map_cloned`
 
@@ -684,7 +684,7 @@ mod context {
 
     #[test]
     fn context_var_map_moved_app_ctx() {
-        let _app = App::minimal();
+        let _app = APP.minimal();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let a = TEST_VAR.with_context_var(ContextInitHandle::new(), "A", || mapped.get());
@@ -696,7 +696,7 @@ mod context {
 
     #[test]
     fn context_var_cloned_same_widget() {
-        let app = App::default();
+        let app = APP.defaults();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
 
@@ -715,7 +715,7 @@ mod context {
 
     #[test]
     fn context_var_set() {
-        let mut app = test_app(App::default(), NilUiNode);
+        let mut app = test_app(APP.defaults(), NilUiNode);
 
         let backing_var = var(Txt::from(""));
 
@@ -731,7 +731,7 @@ mod context {
 
     #[test]
     fn context_var_binding() {
-        let app = App::default();
+        let app = APP.defaults();
 
         let input_var = var("Input!".to_text());
         let other_var = var(".".to_text());
@@ -761,7 +761,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_when1() {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
 
         let var = when_var! {
             false => var("hello".to_text()),
@@ -775,7 +775,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_when2() {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
 
         let var = when_var! {
             true => TEST_VAR,
@@ -789,7 +789,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_issue_when_any() {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
 
         let mut var = AnyWhenVarBuilder::new(TEST_VAR);
         var.push(self::var(false), self::var("hello".to_text()));
@@ -802,7 +802,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_merge() {
-        let _scope = App::minimal();
+        let _scope = APP.minimal();
 
         let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
 
@@ -834,7 +834,7 @@ mod flat_map {
 
     #[test]
     pub fn flat_map() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let source = var(Foo { bar: true, var: var(32) });
 
@@ -880,7 +880,7 @@ mod modify_importance {
 
     #[test]
     pub fn set_same_importance() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(Txt::from_static("v0"));
         test.set("v1");
@@ -896,7 +896,7 @@ mod modify_importance {
 
     #[test]
     pub fn set_same_importance_in_vars() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(Txt::from_static("v0"));
         test.set("v1");
@@ -912,7 +912,7 @@ mod modify_importance {
 
     #[test]
     pub fn animate_set_diff_importance() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(Txt::from_static("v0"));
         test.set("v1");
@@ -936,7 +936,7 @@ mod modify_importance {
 
     #[test]
     pub fn animate_set_diff_importance_in_vars() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(Txt::from_static("v0"));
         test.set("v1");
@@ -960,7 +960,7 @@ mod modify_importance {
 
     #[test]
     pub fn animate_in_hook() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(Txt::from_static("v0"));
         let ease = var(0i32);
@@ -996,7 +996,7 @@ mod cow {
 
     #[test]
     pub fn cow_base_update() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let base = var(false);
         let cow = base.cow();
@@ -1010,7 +1010,7 @@ mod cow {
 
     #[test]
     pub fn cow_update() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let base = var(false);
         let cow = base.cow();
@@ -1024,7 +1024,7 @@ mod cow {
 
     #[test]
     pub fn cow_update_full() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let base = var(0);
         let cow = base.cow();
@@ -1070,7 +1070,7 @@ mod multi {
 
     #[test]
     fn multi_bidi() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let a = var(false);
         let b = a.map_bidi(
@@ -1109,7 +1109,7 @@ mod threads {
 
     #[test]
     fn set_from_other_thread_once() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(1);
 
@@ -1127,7 +1127,7 @@ mod threads {
 
     #[test]
     fn set_from_other_thread_many() {
-        let mut app = App::minimal().run_headless(false);
+        let mut app = APP.minimal().run_headless(false);
 
         let test = var(1);
 
@@ -1165,7 +1165,7 @@ mod contextualized {
 
     #[test]
     fn nested_contextualized_vars() {
-        let mut app = App::default().run_headless(false);
+        let mut app = APP.defaults().run_headless(false);
 
         let source = var(0u32);
         let mapped = source.map(|n| n + 1);
@@ -1194,7 +1194,7 @@ mod contextualized {
 
     #[test]
     fn nested_contextualized_vars_diff_contexts() {
-        let mut app = App::default().run_headless(false);
+        let mut app = APP.defaults().run_headless(false);
 
         let source = var(0u32);
         let mapped = source.map(|n| n + 1);

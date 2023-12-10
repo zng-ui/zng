@@ -13,9 +13,9 @@ command! {
 
 #[cfg(inspector)]
 pub(super) fn inspect_node(
-    child: impl crate::core::widget_instance::UiNode,
+    child: impl zero_ui_app::widget::instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
-) -> impl crate::core::widget_instance::UiNode {
+) -> impl zero_ui_app::widget::instance::UiNode {
     // !!: TODO, use zero-ui-wgt-inspector
     live_inspector::inspect_node(child, can_inspect)
     // prompt_inspector::inspect_node(child, can_inspect)

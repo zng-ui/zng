@@ -10,7 +10,7 @@ use zero_ui::{
 
 #[test]
 fn notify() {
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     app.open_window(listener_window(false));
 
     let cmd = FOO_CMD;
@@ -23,7 +23,7 @@ fn notify() {
 
 #[test]
 fn notify_scoped() {
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     let window_id = app.open_window(listener_window(false));
 
     let cmd = FOO_CMD;
@@ -38,7 +38,7 @@ fn notify_scoped() {
 
 #[test]
 fn shortcut() {
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     let window_id = app.open_window(listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
@@ -52,7 +52,7 @@ fn shortcut() {
 
 #[test]
 fn shortcut_with_focused_scope() {
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     let window_id = app.open_window(listener_window(true));
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
@@ -67,7 +67,7 @@ fn shortcut_with_focused_scope() {
 
 #[test]
 fn shortcut_scoped() {
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     let window_id = app.open_window(listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();

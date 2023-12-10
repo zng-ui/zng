@@ -7,7 +7,7 @@ pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode
 }
 
 fn main() {
-    let _scope = App::minimal();
+    let _scope = APP.minimal();
     let _ = Wgt! {
         simple_type = true
     };

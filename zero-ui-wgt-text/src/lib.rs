@@ -23,8 +23,7 @@ pub mod icon;
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
-///
+/// # use zero_ui_wgt_text::*;
 /// let hello_txt = Text! {
 ///     font_family = "Arial";
 ///     font_size = 18;
@@ -36,7 +35,7 @@ pub mod icon;
 /// The `Text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
 ///
 /// ```
-/// # use zero_ui::prelude::*;
+/// # use zero_ui_wgt_text::*;
 /// let txt = Text!("Hello!");
 ///
 /// let name = "World";
@@ -52,14 +51,15 @@ pub mod icon;
 /// The code abode is equivalent to:
 ///
 /// ```
-/// # use zero_ui::prelude::*;
+/// # use zero_ui_wgt_text::*;
+/// # use zero_ui_wgt::prelude::*;
 /// let txt = Text! {
-///     txt = zero_ui::core::text::formatx!("Hello!");
+///     txt = formatx!("Hello!");
 /// };
 ///
 /// let name = "World";
 /// let fmt = Text! {
-///     txt = zero_ui::core::text::formatx!("Hello {}!", name);
+///     txt = formatx!("Hello {}!", name);
 /// };
 ///
 /// let expr = Text! {
@@ -134,9 +134,9 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 ///
 /// [`txt`]: fn@txt
 /// [`txt_parse_live`]: fn@txt_parse_live
-/// [`DATA.invalidate`]: crate::properties::data_context::DATA::invalidate
-/// [`has_data_error`]: fn@crate::properties::data_context::has_data_error
-/// [`get_data_error_txt`]: fn@crate::properties::data_context::get_data_error_txt
+/// [`DATA.invalidate`]: zero_ui_wgt_data::DATA::invalidate
+/// [`has_data_error`]: fn@zero_ui_wgt_data::has_data_error
+/// [`get_data_error_txt`]: fn@zero_ui_wgt_data::get_data_error_txt
 #[property(CHILD, widget_impl(Text))]
 pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
 where

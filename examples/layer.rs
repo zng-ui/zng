@@ -17,7 +17,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         // layer will init with the window, when it opens.
         LAYERS.insert(
             LayerIndex::TOP_MOST - 100,

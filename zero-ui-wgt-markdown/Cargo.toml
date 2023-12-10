@@ -7,7 +7,7 @@ license = "Apache-2.0"
 
 [features]
 # Enable web links and images.
-http = []
+http = ["zero-ui-wgt/http"]
 
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }

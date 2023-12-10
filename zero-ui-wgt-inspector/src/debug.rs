@@ -50,7 +50,7 @@ impl_from_and_into_var! {
 
 /// Draws a debug dot in target widget's [center point].
 ///
-/// [center point]: crate::core::widget_info::WidgetInfo::center
+/// [center point]: zero_ui_wgt::prelude::WidgetInfo::center
 #[property(CONTEXT, default(false))]
 pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     show_widget_tree(

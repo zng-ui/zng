@@ -45,8 +45,8 @@ context_var! {
 ///
 /// Sets the [`IMAGE_RESOLVER_VAR`].
 ///
-/// [`image_fn`]: fn@crate::widgets::markdown::image_fn
-/// [`image::img_limits`]: fn@crate::widgets::image::img_limits
+/// [`image_fn`]: fn@crate::image_fn
+/// [`image::img_limits`]: fn@zero_ui_wgt_image::img_limits
 #[property(CONTEXT, default(IMAGE_RESOLVER_VAR), widget_impl(Markdown))]
 pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
     with_context_var(child, IMAGE_RESOLVER_VAR, resolver)
@@ -462,7 +462,7 @@ pub trait WidgetInfoExt {
 
     /// If this widget is a [`Markdown!`].
     ///
-    /// [`Markdown!`]: struct@crate::widgets::Markdown
+    /// [`Markdown!`]: struct@crate::Markdown
     fn is_markdown(&self) -> bool;
 
     /// Find descendant tagged by the given anchor.

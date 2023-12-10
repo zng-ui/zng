@@ -643,7 +643,7 @@ impl SortingList {
 
     /// Invalidate the sort, the list will resort on the nest time the sorted positions are needed.
     ///
-    /// Note that you can also invalidate sort from the inside using [`SortingListParent::invalidate_sort`].
+    /// Note that you can also invalidate sort from the inside using [`SORTING_LIST::invalidate_sort`].
     pub fn invalidate_sort(&mut self) {
         self.map.clear()
     }

@@ -17,7 +17,7 @@ use zero_ui_wgt::prelude::*;
 /// must be the last change in an update cycle. If any change is made that invalidates an `Insert` all
 /// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid  this try removing or moving before insert.
 ///
-/// [`list_presenter`]: crate::widgets::list_presenter
+/// [`list_presenter`]: crate::list_presenter
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservableVec<T: VarValue> {
     list: Vec<T>,

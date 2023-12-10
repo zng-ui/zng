@@ -21,8 +21,7 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _ =
+/// # macro_rules! _demo { () => {
 /// Image! {
 ///     source = "not_found.png";
 ///     img_error_fn = WidgetFn::new(|e: image::ImgErrorArgs| Text! {
@@ -30,7 +29,7 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 ///         font_color = colors::RED;
 ///     });
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// You can also use the [`wgt_fn!`] macro, it has the advantage of being clone move.
@@ -71,17 +70,6 @@ impl<D> WidgetFn<D> {
     /// Function that always produces the [`NilUiNode`].
     ///
     /// No heap allocation happens to create this value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui::{core::var::context_var, widgets::WidgetFn};
-    /// # pub struct Foo;
-    /// context_var! {
-    ///     /// Widget function for `Foo` items.
-    ///     pub static FOO_FN_VAR: WidgetFn<Foo> = WidgetFn::nil();
-    /// }
-    /// ```
     pub const fn nil() -> Self {
         WidgetFn(None)
     }
@@ -98,8 +86,7 @@ impl<D> WidgetFn<D> {
     /// Note that you can call the widget function directly where `D: 'static`:
     ///
     /// ```
-    /// use zero_ui::prelude::*;
-    ///
+    /// # use zero_ui_wgt_view::*;
     /// fn foo(func: &WidgetFn<bool>) {
     ///     let a = func.call(true);
     ///     let b = func(true);
@@ -148,9 +135,7 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// let img_error_vis = var(Visibility::Visible);
-/// # let _ =
+/// # macro_rules! _demo { () => {
 /// Image! {
 ///     source = "not_found.png";
 ///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImgErrorArgs| Text! {
@@ -159,11 +144,8 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 ///         visibility = img_error_vis.clone();
 ///     });
 /// }
-/// # ;
+/// # }}
 /// ```
-///
-/// [`WidgetFn`]: crate::widgets::WidgetFn
-/// [`clmv!`]: crate::core::handler::clmv
 #[macro_export]
 macro_rules! wgt_fn {
     ($($tt:tt)+) => {
@@ -316,6 +298,7 @@ impl<D: VarValue> ViewArgs<D> {
 /// View using the shorthand syntax:
 ///
 /// ```
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::*;
 ///
 /// fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
@@ -340,11 +323,13 @@ impl<D: VarValue> ViewArgs<D> {
 ///         }
 ///     }))
 /// }
+/// # }}
 /// ```
 ///
 /// You can also use the normal widget syntax and set the `view` property.
 ///
 /// ```
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::*;
 ///
 /// fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
@@ -356,6 +341,7 @@ impl<D: VarValue> ViewArgs<D> {
 ///         background_color = colors::GRAY;
 ///     }
 /// }
+/// # }}
 /// ```
 #[widget($crate::View {
     (::<$T:ty>, $data:expr, $update:expr $(,)?) => {

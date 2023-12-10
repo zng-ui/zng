@@ -23,22 +23,24 @@ pub use self::window_properties::*;
 
 /// A window container.
 ///
-/// The instance type is [`WindowRoot`], that can be given to the [`WINDOWS`](crate::core::window::WINDOWS) service
+/// The instance type is [`WindowRoot`], that can be given to the [`WINDOWS`](zero_ui_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::*;
 ///
-/// App::default().run_window(async {
+/// APP.defaults().run_window(async {
 ///     Window! {
 ///         title = "Window 1";
 ///         child = Text!("Window 1");
 ///     }
 /// })
+/// # }}
 /// ```
-/// See [`run_window`](crate::core::window::AppRunWindowExt::run_window) for more details.
+/// See [`run_window`](zero_ui_ext_window::AppRunWindowExt::run_window) for more details.
 #[widget($crate::Window)]
 pub struct Window(zero_ui_wgt_container::Container);
 impl Window {
@@ -117,7 +119,7 @@ pub fn start_position(position: impl IntoValue<StartPosition>) {}
 #[property(LAYOUT, capture, widget_impl(Window))]
 pub fn can_inspect(enabled: impl IntoVar<bool>) {}
 
-/// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
+/// Extra configuration for the window when run in [headless mode](zero_ui_app::window::WindowMode::is_headless).
 ///
 /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
 /// is taken from the monitor. In headless mode these values can be configured manually.
@@ -159,27 +161,10 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 
 /// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
 ///
-/// # Examples
-///
-/// Prefer `Dedicated` renderer backend for just this window:
-///
-/// ```no_run
-/// use zero_ui::prelude::*;
-///
-/// fn example() -> WindowRoot {
-///     let selected_mode = WINDOW.vars().render_mode();
-///     Window! {
-///         title = "Render Mode";
-///         render_mode = RenderMode::Dedicated;
-///         child = Text!(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
-///     }
-/// }
-/// ```
-///
 /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
 /// see [`RenderMode`] for more details about each mode and fallbacks.
 ///
-/// [`WINDOWS.default_render_mode`]: crate::core::window::WINDOWS::default_render_mode
+/// [`WINDOWS.default_render_mode`]: zero_ui_ext_window::WINDOWS::default_render_mode
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 
@@ -203,7 +188,7 @@ pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 ///
 /// This property handles the same event as [`on_pre_window_load`] so window handlers see it first.
 ///
-/// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+/// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
 /// [`on_pre_window_load`]: fn@events::on_pre_window_load
 #[property(EVENT, widget_impl(Window))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
@@ -234,7 +219,7 @@ pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zero_ui_wgt::OnN
 ///
 /// This property handles the same event as [`on_pre_window_moved`] so window handlers see it first.
 ///
-/// [`actual_position`]: crate::core::window::WindowVars::actual_position
+/// [`actual_position`]: zero_ui_ext_window::WindowVars::actual_position
 /// [`on_pre_window_moved`]: fn@events::on_pre_window_moved
 #[property(EVENT, widget_impl(Window))]
 pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -248,7 +233,7 @@ pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArg
 ///
 /// This property handles the same event as [`on_pre_window_resized`] so window handlers see it first.
 ///
-/// [`actual_size`]: crate::core::window::WindowVars::actual_size
+/// [`actual_size`]: zero_ui_ext_window::WindowVars::actual_size
 /// [`on_pre_window_resized`]: fn@events::on_pre_window_resized
 #[property(EVENT, widget_impl(Window))]
 pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -323,7 +308,7 @@ pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 ///
 /// This property handles the same event as [`on_pre_window_restored`] so window handlers see it first.
 ///
-/// [`Normal`]: crate::core::window::WindowState::Normal
+/// [`Normal`]: zero_ui_ext_window::WindowState::Normal
 /// [`on_pre_window_restored`]: fn@events::on_pre_window_restored
 #[property(EVENT, widget_impl(Window))]
 pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -336,8 +321,8 @@ pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChanged
 ///
 /// This property handles the same event as [`on_pre_window_fullscreen`] so window handlers see it first.
 ///
-/// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
-/// [`Exclusive`]: crate::core::window::WindowState::Exclusive
+/// [`Fullscreen`]: zero_ui_ext_window::WindowState::Fullscreen
+/// [`Exclusive`]: zero_ui_ext_window::WindowState::Exclusive
 /// [`on_pre_window_fullscreen`]: fn@events::on_pre_window_fullscreen
 #[property(EVENT, widget_impl(Window))]
 pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {

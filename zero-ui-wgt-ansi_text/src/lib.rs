@@ -195,7 +195,7 @@ mod ansi_parse {
     ///
     /// This is the pull style parser used internally by the [`AnsiText!`] widget.
     ///
-    /// [`AnsiText!`]: struct@crate::widgets::AnsiText
+    /// [`AnsiText!`]: struct@crate::AnsiText
     pub struct AnsiTextParser<'a> {
         source: &'a str,
         /// Current style.

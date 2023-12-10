@@ -75,7 +75,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
 }
 
 fn app_main() {
-    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
         let main_cfg = load_config();
 
         let checked = config_editor(

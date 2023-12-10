@@ -22,7 +22,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         Window! {
             title = "Markdown Example";
             child = Scroll! {

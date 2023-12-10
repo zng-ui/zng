@@ -24,7 +24,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
         let fs = var(Length::Pt(11.0));
 
         Window! {

@@ -75,12 +75,12 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// its use cases are more advanced then [`enabled`], it is mostly used when large parts of the screen are "not ready".
 ///
 /// Note that this affects the widget where it is set and descendants, to disable interaction only in the widgets
-/// inside `child` use the [`base::nodes::interactive_node`].
+/// inside `child` use the [`nodes::interactive_node`].
 ///
 /// [`enabled`]: fn@enabled
 /// [`BLOCKED`]: Interactivity::BLOCKED
 /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
-/// [`base::nodes::interactive_node`]: zero_ui_app::widget::base::nodes::interactive_node
+/// [`nodes::interactive_node`]: crate::nodes::interactive_node
 #[property(CONTEXT, default(true), widget_impl(InteractivityMix<P>))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     let interactive = interactive.into_var();

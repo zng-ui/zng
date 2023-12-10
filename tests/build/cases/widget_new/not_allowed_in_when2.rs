@@ -9,7 +9,7 @@ pub fn foo(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
 }
 
 fn main() {
-    let _scope = App::minimal();
+    let _scope = APP.minimal();
     let _ = Wgt! {
         foo = false;
         margin = 0;

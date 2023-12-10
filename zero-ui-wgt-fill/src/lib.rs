@@ -16,10 +16,7 @@ pub mod nodes;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     background = Text! {
@@ -30,7 +27,7 @@ pub mod nodes;
 ///         align = Align::CENTER;
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// The example renders a custom text background.
@@ -72,21 +69,7 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 
 /// Single color background property.
 ///
-/// This property applies a [`flood`] as [`background`].
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
-/// Container! {
-///     child = foo();
-///     background_color = hex!(#ADF0B0);
-/// }
-/// # ;
-/// ```
+/// This property applies a [`nodes::flood`] as [`background`].
 ///
 /// [`background`]: fn@background
 #[property(FILL, default(colors::BLACK.transparent()))]
@@ -96,15 +79,12 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`linear_gradient`] as [`background`].
+/// This property applies a [`nodes::linear_gradient`] as [`background`].
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     background_gradient = {
@@ -112,7 +92,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///         stops: [colors::BLACK, colors::WHITE],
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// [`background`]: fn@background
@@ -126,15 +106,12 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 
 /// Radial gradient background property.
 ///
-/// This property applies a [`radial_gradient`] as [`background`].
+/// This property applies a [`nodes::radial_gradient`] as [`background`].
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     background_radial = {
@@ -143,7 +120,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// [`background`]: fn@background
@@ -162,15 +139,12 @@ pub fn background_radial(
 
 /// Conic gradient background property.
 ///
-/// This property applies a [`conic_gradient`] as [`background`].
+/// This property applies a [`nodes::conic_gradient`] as [`background`].
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     background_conic = {
@@ -179,7 +153,7 @@ pub fn background_radial(
 ///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// [`background`]: fn@background
@@ -205,10 +179,7 @@ pub fn background_conic(
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     foreground = Text! {
@@ -220,7 +191,7 @@ pub fn background_conic(
 ///         align = Align::CENTER;
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// The example renders a custom see-through text overlay.
@@ -263,9 +234,7 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     foreground_highlight = {
@@ -274,7 +243,7 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 ///         sides: colors::BLUE,
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// The example renders a solid blue 1 pixel border overlay, the border lines are offset 3 pixels into the container.
@@ -340,23 +309,7 @@ pub fn foreground_highlight(
 
 /// Fill color overlay property.
 ///
-/// This property applies a [`flood`] as [`foreground`].
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
-/// Container! {
-///     child = foo();
-///     foreground_color = rgba(0, 240, 0, 10.pct())
-/// }
-/// # ;
-/// ```
-///
-/// The example adds a green tint to the container content.
+/// This property applies a [`nodes::flood`] as [`foreground`].
 ///
 /// [`foreground`]: fn@foreground
 #[property(FILL, default(colors::BLACK.transparent()))]
@@ -366,15 +319,12 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient overlay property.
 ///
-/// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
+/// This property applies a [`nodes::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { Wgt!() }
-/// #
+/// # macro_rules! _demo { () => {
 /// Container! {
 ///     child = foo();
 ///     foreground_gradient = {
@@ -382,13 +332,13 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///         stops: [colors::BLACK, colors::BLACK.transparent()]
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
-/// The example adds a *shadow* gradient to a 10px strip in the top part of the container content.
+/// The example adds a 10px strip shadow gradient in the top part of the container content.
 ///
 /// [`foreground`]: fn@foreground
-/// [`Clamp`]: nodes::ExtendMode::Clamp
+/// [`Clamp`]: zero_ui_wgt::prelude::gradient::ExtendMode::Clamp
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
     stops![c, c]

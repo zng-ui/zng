@@ -8,7 +8,7 @@ use zero_ui::{
 
 fn main() {
     zero_ui_view::run_same_process(|| {
-        let mut app = App::default().run_headless(true);
+        let mut app = APP.defaults().run_headless(true);
         get_before_view_init(&mut app);
         app.exit();
     });
@@ -59,7 +59,7 @@ fn error_view_recursion() {
 
     let img = var(crate::core::image::Img::dummy(Some("test error".to_string()))).read_only();
 
-    let mut app = App::default().run_headless(false);
+    let mut app = APP.defaults().run_headless(false);
     IMAGES.load_in_headless().set(true);
     let ok = Arc::new(AtomicBool::new(false));
     let window_id = app.open_window(async_clmv!(ok, {

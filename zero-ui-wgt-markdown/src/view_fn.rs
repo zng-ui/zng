@@ -146,7 +146,7 @@ pub struct ListItemFnArgs {
 pub struct ImageFnArgs {
     /// Image, resolved by the [`image_resolver`].
     ///
-    /// [`image_resolver`]: fn@crate::widgets::markdown::image_resolver
+    /// [`image_resolver`]: fn@crate::image_resolver
     pub source: ImageSource,
     /// Image title, usually displayed as a tool-tip.
     pub title: Txt,
@@ -401,7 +401,7 @@ pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>)
 ///
 /// Sets the [`PANEL_FN_VAR`].
 ///
-/// [`Markdown!`]: struct@crate::widgets::Markdown
+/// [`Markdown!`]: struct@crate::Markdown
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(Markdown))]
 pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
     with_context_var(child, PANEL_FN_VAR, wgt_fn)
@@ -501,7 +501,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 ///
 /// See [`CODE_BLOCK_FN_VAR`] for more details.
 ///
-/// [`AnsiText!`]: struct@crate::widgets::AnsiText
+/// [`AnsiText!`]: struct@zero_ui_wgt_ansi_text::AnsiText
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
     if args.lang == "ansi" {
         zero_ui_wgt_ansi_text::AnsiText! {
@@ -570,7 +570,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
 ///
 /// See [`LIST_FN_VAR`] for more details.
 ///
-/// [`Grid!`]: struct@crate::widgets::layouts::Grid
+/// [`Grid!`]: struct@Grid
 pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()

@@ -16,7 +16,7 @@ use zero_ui_wgt_window::nodes::BlockWindowLoad;
 /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
 ///
 /// [`img_fit`]: fn@img_fit
-/// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
+/// [`image_presenter`]: crate::nodes::image_presenter
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImageFit {
     /// The image original size is preserved, the image is clipped if larger then the final size.
@@ -169,7 +169,7 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 /// By default not scaling is done.
 ///
 /// [`img_scale_ppi`]: fn@img_scale_ppi
-/// [`scale`]: fn@crate::widgets::image::scale
+/// [`scale`]: fn@crate::scale
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
 pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
@@ -200,9 +200,9 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`MONITORS`] service.
 ///
 /// [`img_crop`]: fn@img_crop
-/// [`MONITORS`]: zero_ui::core::window::MONITORS
+/// [`MONITORS`]: zero_ui_ext_window::MONITORS
 ///
-/// [`scape_ppi`]: fn@crate::widgets::image::scape_ppi
+/// [`scape_ppi`]: fn@crate::scape_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
 pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
@@ -221,7 +221,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`BASELINE`]: Align::BASELINE
 /// [`BOTTOM`]: Align::BOTTOM
 ///
-/// [`img_align`]: fn@crate::widgets::image::img_align
+/// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, IMAGE_ALIGN_VAR, fit)
@@ -230,12 +230,11 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 /// Sets a [`Point`] that is an offset applied to all inner images within each image widget area.
 ///
 /// Relative values are calculated from the widget final size. Note that this is different the applying the
-/// [`offset`] property on the widget it-self, the widget is not moved just the image within the widget area.
+/// `offset` property on the widget it-self, the widget is not moved just the image within the widget area.
 ///
 /// This property sets the [`IMAGE_OFFSET_VAR`]. By default no offset is applied.
 ///
-/// [`offset`]: fn@crate::properties::offset
-/// [`img_offset`]: fn@crate::widgets::image::img_offset
+/// [`img_offset`]: fn@crate::img_offset
 #[property(CONTEXT, default(IMAGE_OFFSET_VAR), widget_impl(Image))]
 pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
@@ -251,7 +250,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 ///
 /// [`img_scale_ppi`]: #fn@img_scale_ppi
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
-/// [`crop`]: fn@crate::widgets::image::crop
+/// [`crop`]: fn@crate::crop
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
@@ -298,7 +297,7 @@ pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> im
 ///
 /// This is [`ImageRendering::Auto`] by default.
 ///
-/// [`rendering`]: fn@crate::widgets::image::rendering
+/// [`rendering`]: fn@crate::rendering
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]
 pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
     with_context_var(child, IMAGE_RENDERING_VAR, rendering)
@@ -314,8 +313,8 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 /// If set to `false` the image is always loaded and decoded on init or when [`source`] updates and is dropped when
 /// the widget is deinited or dropped.
 ///
-/// [`source`]: fn@crate::widgets::image::source
-/// [`IMAGES`]: zero_ui::core::image::IMAGES
+/// [`source`]: fn@crate::source
+/// [`IMAGES`]: zero_ui_ext_image::IMAGES
 #[property(CONTEXT, default(IMAGE_CACHE_VAR), widget_impl(Image))]
 pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)
@@ -327,7 +326,7 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 ///
 /// See also [`img_downscale`] for a way to still display unexpected large images.
 ///
-/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR), widget_impl(Image))]
 pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
@@ -344,7 +343,7 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 /// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
 /// size and other properties to efficiently resize an image on screen.
 ///
-/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
 pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
@@ -365,7 +364,7 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_fn!`]: crate::widgets::wgt_fn
+/// [`wgt_fn!`]: zero_ui_wgt_view::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_FN_VAR), widget_impl(Image))]
 pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
@@ -373,7 +372,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_fn!`]: crate::widgets::wgt_fn
+/// [`wgt_fn!`]: zero_ui_wgt_view::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
 pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)
@@ -489,7 +488,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 /// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
 ///
-/// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+/// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
 #[property(LAYOUT, default(false), widget_impl(Image))]
 pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
     let enabled = enabled.into();

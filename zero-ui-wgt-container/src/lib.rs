@@ -25,7 +25,7 @@ impl Container {
         ///
         /// Can be any type that implements [`UiNode`], any widget.
         ///
-        /// [`UiNode`]: crate::core::widget_instance::UiNode
+        /// [`UiNode`]: zero_ui_app::widget::instance::UiNode
         pub zero_ui_app::widget::base::child(child: impl UiNode);
 
         /// Content overflow clipping.

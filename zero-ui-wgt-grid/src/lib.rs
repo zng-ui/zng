@@ -72,7 +72,7 @@ pub fn cells(cells: impl UiNodeList) {}
 /// don't affect the cells.
 ///
 /// [`Column!`]: struct@Column
-/// [`lft`]: LengthUnits::lft
+/// [`lft`]: zero_ui_layout::units::LengthUnits::lft
 #[property(CHILD, capture, widget_impl(Grid))]
 pub fn columns(cells: impl UiNodeList) {}
 
@@ -533,9 +533,7 @@ pub mod column {
     /// This uses `get_index` to give every third column a different background.
     ///
     /// ```
-    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::*};
-    /// # let _scope = zero_ui::core::app::App::minimal();
-    /// # let _ =
+    /// # macro_rules! _demo { () => {
     /// grid::Column! {
     ///     background_color = colors::GRAY;    
     ///
@@ -543,7 +541,7 @@ pub mod column {
     ///         background_color = web_colors::DARK_GRAY;
     ///     }
     /// }
-    /// # ;
+    /// # }}
     /// ```
     #[property(CONTEXT, widget_impl(Column))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
@@ -723,9 +721,7 @@ pub mod row {
     /// This uses `get_index` to give every third row a different background.
     ///
     /// ```
-    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::*};
-    /// # let _scope = zero_ui::core::app::App::minimal();
-    /// # let _ =
+    /// # macro_rules! _demo { () => {
     /// grid::Row! {
     ///     background_color = colors::GRAY;    
     ///
@@ -733,7 +729,7 @@ pub mod row {
     ///         background_color = web_colors::DARK_GRAY;
     ///     }
     /// }
-    /// # ;
+    /// # }}
     /// ```
     #[property(CONTEXT, widget_impl(Row))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {

@@ -23,8 +23,7 @@ pub use types::*;
 /// widget, but the children fill the width of the widest child.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
+/// # macro_rules! _demo {()=>{
 /// let text = Stack! {
 ///     direction = StackDirection::top_to_bottom();
 ///     padding = 10;
@@ -37,6 +36,7 @@ pub use types::*;
 ///         Text!("three"),
 ///     ];
 /// };
+/// # }}
 /// ```
 ///
 /// # `stack_nodes`
@@ -454,17 +454,6 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
 
 /// Basic horizontal stack layout.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// let text = h_stack(ui_vec![
-///     Text!("Hello "),
-///     Text!("World"),
-/// ]);
-/// ```
-///
 /// # `Stack!`
 ///
 /// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::left_to_right`].
@@ -477,17 +466,6 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 
 /// Basic vertical stack layout.
 ///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// let text = v_stack(ui_vec![
-///     Text!("Hello "),
-///     Text!("World"),
-/// ]);
-/// ```
-///
 /// # `Stack!`
 ///
 /// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::top_to_bottom`].
@@ -499,17 +477,6 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 }
 
 /// Basic layering stack layout.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
-/// let text = z_stack(ui_vec![
-///     Text!("Hello "),
-///     Text!("World"),
-/// ]);
-/// ```
 ///
 /// # `Stack!`
 ///
@@ -635,9 +602,7 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::instance::PanelListRang
 /// This uses `get_index` to give every third button a different background.
 ///
 /// ```
-/// # use zero_ui::{prelude::*, properties::background_color, core::color::colors};
-/// # let _scope = zero_ui::core::app::App::minimal();
-/// # let _ =
+/// # macro_rules! _demo { () => {
 /// Stack! {
 ///     direction = StackDirection::top_to_bottom();
 ///     spacing = 2;
@@ -648,7 +613,7 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::instance::PanelListRang
 ///         }
 ///     });
 /// }
-/// # ;
+/// # } }
 /// ```
 #[property(CONTEXT)]
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {

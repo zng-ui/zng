@@ -15,7 +15,7 @@ fn test_2() {
 }
 
 fn main() {
-    let _scope = App::minimal();
+    let _scope = APP.minimal();
     test_1();
     test_2();
 }

@@ -1177,7 +1177,7 @@ pub struct AnchorMode {
     pub visibility: bool,
     /// The widget [`interactivity`] is set to the the same as the anchor widget.
     ///
-    /// [`interactivity`]: crate::core::widget_info::WidgetInfo::interactivity
+    /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
     pub interactivity: bool,
 
     /// The widget's corner radius is set for the layer.
@@ -1202,9 +1202,7 @@ impl AnchorMode {
         }
     }
 
-    /// Mode where the widget behaves like a [`foreground`] to the target widget.
-    ///
-    /// [`foreground`]: fn@crate::properties::foreground
+    /// Mode where the widget behaves like a `foreground` to the target widget.
     pub fn foreground() -> Self {
         AnchorMode {
             transform: AnchorTransform::InnerTransform,
@@ -1445,14 +1443,12 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
 /// Custom layered foreground generated using a [`WidgetFn<()>`].
 ///
 /// If the `adorner_fn` is not nil, the generated node is [layered] anchored to the widget inner bounds,
-/// displaying like a [`foreground`] that is not clipped by the widget and overlays all other widgets
+/// displaying like a `foreground` that is not clipped by the widget and overlays all other widgets
 /// and layers not placed above [`LayerIndex::ADORNER`].
 ///
 /// The full context is captured for adorner widget so you can use context variables inside without issue.
 ///
-/// [layered]: crate::widgets::window::layers::LAYERS
-/// [`LayerIndex::ADORNER`]: crate::widgets::window::layers::LayerIndex::ADORNER
-/// [`foreground`]: fn@foreground
+/// [layered]: LAYERS
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let adorner_fn = adorner_fn.into_var();

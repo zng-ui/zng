@@ -19,7 +19,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(main_window());
+    APP.defaults().run_window(main_window());
 }
 
 async fn main_window() -> WindowRoot {

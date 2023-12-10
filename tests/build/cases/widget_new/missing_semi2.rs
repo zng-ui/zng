@@ -1,7 +1,7 @@
 use zero_ui::prelude::*;
 
 fn main() {
-    let _scope = App::minimal();
+    let _scope = APP.minimal();
     let margin = 0;
     let _ = Wgt! {
         margin

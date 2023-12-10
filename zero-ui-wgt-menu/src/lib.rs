@@ -193,8 +193,8 @@ impl ToggleStyle {
 ///
 /// This property is an alias for [`sub::start_column`].
 ///
-/// [`Button!`]: struct@crate::widgets::Button
-/// [`Icon!`]: struct@crate::widgets::Icon
+/// [`Button!`]: struct@zero_ui_wgt_button::Button
+/// [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon
 /// [`sub::start_column`]: fn@sub::start_column
 #[property(FILL)]
 pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
@@ -207,8 +207,8 @@ pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
 ///
 /// This property is an alias for [`sub::start_column_fn`].
 ///
-/// [`Button!`]: struct@crate::widgets::Button
-/// [`Icon!`]: struct@crate::widgets::Icon
+/// [`Button!`]: struct@zero_ui_wgt_button::Button
+/// [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon
 /// [`sub::start_column_fn`]: fn@sub::start_column_fn
 #[property(FILL)]
 pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
@@ -221,7 +221,7 @@ pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiN
 ///
 /// Note that this does not define the click shortcut, just the display of it.
 ///
-/// [`Button!`]: struct@crate::widgets::Button
+/// [`Button!`]: struct@zero_ui_wgt_button::Button
 #[property(CHILD_CONTEXT)]
 pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));

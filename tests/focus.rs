@@ -1663,7 +1663,7 @@ struct TestApp {
 impl TestApp {
     /// Start app scope.
     pub fn start() -> TestAppBuilder<impl AppExtension> {
-        TestAppBuilder { app: App::default() }
+        TestAppBuilder { app: APP.defaults() }
     }
 
     pub fn set_vars(&mut self, set: impl FnOnce()) {

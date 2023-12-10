@@ -14,10 +14,6 @@ use zero_ui_unique_id::{unique_id_32, IdMap, IdSet};
 
 unique_id_32! {
     /// Identifies an app instance.
-    ///
-    /// You can get the current app ID from [`App::current_id`].
-    ///
-    /// [`App::current_id`]: crate::app::App::current_id
     pub struct AppId;
 }
 zero_ui_unique_id::impl_unique_id_name!(AppId);

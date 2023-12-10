@@ -1,7 +1,7 @@
 pub fn inspect_node(
-    child: impl crate::core::widget_instance::UiNode,
+    child: impl zero_ui_app::widget::instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
-) -> impl crate::core::widget_instance::UiNode {
+) -> impl zero_ui_app::widget::instance::UiNode {
     use crate::core::{
         context::*,
         handler::{async_clmv, hn},

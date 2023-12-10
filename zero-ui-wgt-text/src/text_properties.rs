@@ -402,7 +402,7 @@ pub enum TextOverflow {
     /// that overflows over one line-height in any direction. Text overflow is tracked even if `Ignore`
     /// is set, so custom properties may also implement some form of overflow handling.
     ///
-    /// [`clip_to_bounds`]: fn@crate::properties::clip_to_bounds
+    /// [`clip_to_bounds`]: fn@zero_ui_wgt::clip_to_bounds
     Ignore,
     /// Truncate the text so it will fit, the associated `Txt` is a suffix appended to the truncated text.
     ///
@@ -499,7 +499,7 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 ///
 /// The auto hyphenation char can be defined using [`hyphen_char`].
 ///
-/// [`Hyphenation`]: crate::core::text::Hyphenation
+/// [`Hyphenation`]: zero_ui_ext_font::Hyphenation
 /// [`lang`]: fn@lang
 /// [`hyphen_char`]: fn@hyphen_char
 #[property(CONTEXT, default(HYPHENS_VAR), widget_impl(TextWrapMix<P>))]
@@ -872,7 +872,7 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
 /// A "word" is the sequence of characters in-between space characters. This extra
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
-/// see [`WhiteSpace`](crate::core::text::WhiteSpace).
+/// see [`WhiteSpace`].
 ///
 /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
 /// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,
@@ -966,7 +966,7 @@ pub struct LangMix<P>(P);
 /// Sets the [`LANG_VAR`] and [`DIRECTION_VAR`] context vars and the [`LayoutMetrics::direction`].
 /// Also sets the [`access::lang`] when accessibility is enabled.
 ///
-/// [`access::lang`]: fn@access::lang
+/// [`access::lang`]: fn@zero_ui_wgt_access::lang
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
@@ -1345,7 +1345,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// The `shape` node must set one special value during layout, the [`set_touch_caret_mid`] must be called to
 /// set the offset to the middle of the caret line in the shape inner-bounds, this is used to position the caret.
 ///
-/// [layered widget]: crate::widgets::window::layers
+/// [layered widget]: zero_ui_wgt_layers
 /// [`set_touch_caret_mid`]: super::nodes::set_touch_caret_mid
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
@@ -1463,7 +1463,7 @@ pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 ///
 /// [`change_stop_delay`]: fn@change_stop_delay
 /// [`accepts_enter`]: fn@accepts_enter
-/// [`Key::Enter`]: crate::core::keyboard::Key::Enter
+/// [`Key::Enter`]: zero_ui_ext_input::keyboard::Key::Enter
 #[property(EVENT, widget_impl(TextEditMix<P>))]
 pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
     super::nodes::on_change_stop(child, handler)
@@ -1525,12 +1525,12 @@ pub enum AutoSelection {
 
     /// Select-all on keyboard focus ([highlight]).
     ///
-    ///  [highlight]: crate::core::focus::FocusChangedArgs::highlight
+    ///  [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
     Enabled,
 
     /// Select-all on keyboard focus ([highlight]) if the text is not [`accepts_enter`].
     ///
-    /// [highlight]: crate::core::focus::FocusChangedArgs::highlight
+    /// [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
     /// [`accepts_enter`]: fn@accepts_enter
     #[default]
     Auto,
@@ -1571,7 +1571,7 @@ pub enum ChangeStopCause {
     DelayElapsed,
     /// The [`Key::Enter`] was pressed and [`accepts_enter`] is `false`.
     ///
-    /// [`Key::Enter`]: crate::core::keyboard::Key::Enter
+    /// [`Key::Enter`]: zero_ui_ext_input::keyboard::Key::Enter
     /// [`accepts_enter`]: fn@accepts_enter
     Enter,
     /// The widget lost keyboard focus.
@@ -1706,12 +1706,11 @@ impl ParagraphMix<()> {
 /// Extra spacing in-between paragraphs.
 ///
 /// The default value is `1.em()`. Note that the [`Text!`] widget does not implement this property, as raw text does not encode
-/// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the [`markdown!`] widget.
+/// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the `Markdown!` widget.
 ///
 /// Sets the [`PARAGRAPH_SPACING_VAR`].
 ///
 /// [`Text!`]: struct@crate::Text
-/// [`markdown!`]: struct@crate::Markdown
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)

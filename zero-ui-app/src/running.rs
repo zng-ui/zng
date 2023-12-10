@@ -53,7 +53,7 @@ impl<E: AppExtension> RunningApp<E> {
         with_renderer: bool,
         view_process_exe: Option<PathBuf>,
     ) -> Self {
-        let _s = tracing::debug_span!("App::start").entered();
+        let _s = tracing::debug_span!("APP::start").entered();
 
         let (sender, receiver) = AppEventSender::new();
 
@@ -1007,7 +1007,7 @@ command! {
 
 /// Cancellation message of an [exit request].
 ///
-/// [exit request]: APP_PROCESS::exit
+/// [exit request]: APP::exit
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ExitCancelled;
 impl fmt::Display for ExitCancelled {
@@ -1394,7 +1394,7 @@ event_args! {
 event! {
     /// Cancellable event raised when app process exit is requested.
     ///
-    /// App exit can be requested using the [`APP_PROCESS`] service or the [`EXIT_CMD`], some extensions
+    /// App exit can be requested using the [`APP`] service or the [`EXIT_CMD`], some extensions
     /// also request exit if some conditions are met, `WindowManager` requests it after the last window
     /// is closed for example.
     ///

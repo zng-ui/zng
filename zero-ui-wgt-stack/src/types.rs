@@ -21,9 +21,9 @@ use zero_ui_wgt::prelude::*;
 /// The [`Stack!`] widget adds the spacing along non-zero axis for each item offset after the first, so the spacing is not
 /// added for a perfect straight column or row, but it is added even for a single pixel shift *diagonal* stack.
 ///
-/// [`stack::children_align`]: fn@crate::widgets::layouts::stack::children_align
-/// [`stack::spacing`]: fn@crate::widgets::layouts::stack::spacing
-/// [`Stack!`]: struct@crate::widgets::layouts::Stack
+/// [`stack::children_align`]: fn@crate::children_align
+/// [`stack::spacing`]: fn@crate::spacing
+/// [`Stack!`]: struct@crate::Stack
 #[derive(Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StackDirection {
     /// Point on the previous item where the next item is placed.
@@ -153,7 +153,7 @@ impl StackDirection {
     ///
     /// Note that items are always rendered in the order defined by the [`z_index`] property.
     ///
-    /// [`z_index`]: fn@crate::prelude::z_index
+    /// [`z_index`]: fn@zero_ui_wgt::z_index
     pub fn none() -> Self {
         Self {
             place: Point::zero(),

@@ -28,7 +28,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         // load `available_langs`
         L10N.load_dir("examples/res/localize");
 

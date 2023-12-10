@@ -115,7 +115,7 @@ pub fn style_fn(style: impl IntoVar<StyleFn>) {}
 /// Example styleable widget defining a `foo::vis::extend_style` property that extends the contextual style.
 ///
 /// ```
-/// # fn main() { }
+/// # macro_rules! _demo { () => {
 /// use zero_ui::prelude::new_widget::*;
 ///
 /// #[widget($crate::Foo)]
@@ -157,6 +157,7 @@ pub fn style_fn(style: impl IntoVar<StyleFn>) {}
 /// ) -> impl UiNode {
 ///     style::with_style_extension(child, STYLE_VAR, style)
 /// }
+/// # }}
 /// ```
 pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleFn>, extension: impl IntoVar<StyleFn>) -> impl UiNode {
     with_context_var(
@@ -348,8 +349,7 @@ impl StyleFn {
     /// Note that you can call the style function directly:
     ///
     /// ```
-    /// use zero_ui::widgets::style::{StyleFn, StyleArgs};
-    ///
+    /// # use zero_ui_wgt_style::{StyleFn, StyleArgs};
     /// fn foo(func: &StyleFn) {
     ///     let a = func.call(&StyleArgs {});
     ///     let b = func(&StyleArgs {});
@@ -406,8 +406,6 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 /// <span data-del-macro-root></span> Declares a style function closure.
 ///
 /// The output type is a [`StyleFn`], the closure is [`clmv!`].
-///
-/// [`clmv!`]: crate::core::handler::clmv
 #[macro_export]
 macro_rules! style_fn {
     ($($tt:tt)+) => {

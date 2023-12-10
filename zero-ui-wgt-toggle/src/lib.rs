@@ -62,8 +62,7 @@ context_var! {
 /// The variable `foo` is toggled on click and it also controls the checked state of the widget.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
+/// # macro_rules! _demo { () => {
 /// let foo = var(false);
 ///
 /// Toggle! {
@@ -71,7 +70,7 @@ context_var! {
 ///
 ///     child = Text!(foo.map(|b| formatx!("foo = {b}")));
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// Note that you can read the checked state of the widget using [`is_checked`].
@@ -143,8 +142,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// The variable `foo` is cycles the three states on click.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
+/// # macro_rules! _demo { () => {
 /// let foo = var(Some(false));
 ///
 /// Toggle! {
@@ -153,7 +151,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 ///
 ///     child = Text!(foo.map(|b| formatx!("foo = {b:?}")));
 /// }
-/// # ;
+/// # }}
 /// ```
 #[property(CONTEXT + 1, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
@@ -260,8 +258,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 /// is selected.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
+/// # macro_rules! _demo { () => {
 /// Toggle! {
 ///     checked = var(false);
 ///     // checked_opt = var(Some(false));
@@ -273,7 +270,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 ///         background_color = colors::GREEN;
 ///     }
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// [`checked`]: fn@checked
@@ -299,8 +296,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// The variable `foo` is set to a `value` clone on click, or if the `value` updates when the previous was selected.
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # let _scope = App::minimal();
+/// # macro_rules! _demo { () => {
 /// let foo = var(1_i32);
 ///
 /// Stack! {
@@ -315,7 +311,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///         .boxed()
 ///     }).collect::<Vec<_>>();
 /// }
-/// # ;
+/// # }}
 /// ```
 ///
 /// [`is_checked`]: fn@is_checked
@@ -1168,7 +1164,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
 /// [`ComboStyle!`]: struct@ComboStyle
-/// [`Popup!`]: struct@crate::widgets::popup::Popup
+/// [`Popup!`]: struct@zero_ui_wgt_layers::popup::Popup
 /// [`LAYERS`]: layers::LAYERS
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {

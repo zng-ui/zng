@@ -7,7 +7,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init_extended(test_extensions);
 
-    App::default().run_window(async {
+    APP.defaults().run_window(async {
         Window! {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);

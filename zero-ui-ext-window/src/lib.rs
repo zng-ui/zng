@@ -113,7 +113,7 @@ pub trait AppRunWindowExt {
     ///
     /// ```no_run
     /// # macro_rules! _demo { () => {
-    /// App::default().run_window(async {
+    /// APP.defaults().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     Window! {
     ///         title = "Window 1";
@@ -126,7 +126,7 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     /// ```
     /// # macro_rules! _demo { () => {
-    /// App::default().run(async {
+    /// APP.defaults().run(async {
     ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());
     ///         Window! {

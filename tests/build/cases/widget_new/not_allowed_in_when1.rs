@@ -7,7 +7,7 @@ pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
 }
 
 fn main() {
-    let _scope = App::minimal();
+    let _scope = APP.minimal();
     let _ = Wgt! {
         margin = 0;
         when {

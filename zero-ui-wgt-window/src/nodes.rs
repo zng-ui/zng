@@ -11,7 +11,7 @@ use std::time::Duration;
 pub enum BlockWindowLoad {
     /// Widget requests a [`WindowLoadingHandle`] and retains it until the widget is loaded.
     ///
-    /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+    /// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
     Enabled {
         /// Handle expiration deadline, if the widget takes longer than this deadline the window loads anyway.
         deadline: Deadline,

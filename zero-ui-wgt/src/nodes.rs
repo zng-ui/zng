@@ -1883,10 +1883,9 @@ pub fn with_rev_index_node(
 /// Helper for a property that gets the *index* of the widget in the parent panel and the number of children.
 ///  
 /// Panels must use [`PanelList::track_info_range`] to collect the `panel_list_id`, then implement getter properties
-/// using the methods in this module. See the [`stack`] getter properties for examples.
+/// using the methods in this module. See the stack getter properties for examples.
 ///
-/// [`stack`]: crate::widgets::layouts::stack
-/// [`PanelList::track_info_range`]: crate::core::widget_instance::PanelList::track_info_range
+/// [`PanelList::track_info_range`]: zero_ui_app::widget::instance::PanelList::track_info_range
 pub fn with_index_len_node(
     child: impl UiNode,
     panel_list_id: impl Into<StateId<PanelListRange>>,

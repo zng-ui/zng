@@ -18,6 +18,9 @@ debug_default = ["zero-ui-var/debug_default"]
 # This speeds-up compilation time at the cost of runtime.
 dyn_closure = ["zero-ui-var/dyn_closure"]
 
+# Enable web tasks.
+http = ["zero-ui-task/http"]
+
 [dependencies]
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-app = { path = "../zero-ui-app" }

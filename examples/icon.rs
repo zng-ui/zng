@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().extend(icons::MaterialFonts).run_window(async {
+    APP.defaults().extend(icons::MaterialFonts).run_window(async {
         Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| Icon! {
