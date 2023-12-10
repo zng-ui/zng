@@ -49,8 +49,6 @@ mod when;
 #[macro_use]
 mod util;
 
-pub use animation::easing;
-
 pub use arc::{getter_var, state_var, var, var_default, var_from, ArcVar};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 #[doc(inline)]

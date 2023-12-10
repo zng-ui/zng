@@ -5,10 +5,8 @@ use zero_ui_app_context::context_local;
 
 use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
 use zero_ui_var::{
-    animation::{Transition, Transitionable},
-    context_var,
-    easing::EasingStep,
-    impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
+    animation::{easing::EasingStep, Transition, Transitionable},
+    context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
 };
 use zero_ui_view_api::webrender_api;
 

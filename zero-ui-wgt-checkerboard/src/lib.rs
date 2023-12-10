@@ -1,4 +1,4 @@
-//! Checkerboard widget, properties and nodes..
+//! Checkerboard widget, properties and nodes.
 
 use zero_ui_wgt::prelude::{
     gradient::{RenderExtendMode, RenderGradientStop},

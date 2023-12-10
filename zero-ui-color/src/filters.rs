@@ -3,7 +3,10 @@
 use std::fmt;
 
 use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, LayoutMask, Length, Point};
-use zero_ui_var::{animation::Transitionable, easing::EasingStep, impl_from_and_into_var};
+use zero_ui_var::{
+    animation::{easing::EasingStep, Transitionable},
+    impl_from_and_into_var,
+};
 use zero_ui_view_api::{
     display_list::{FilterOp, FrameValue},
     units::PxToWr,

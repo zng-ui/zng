@@ -11,7 +11,10 @@ use zero_ui_layout::{
         PxSideOffsets, PxSize, Size,
     },
 };
-use zero_ui_var::{animation::Transitionable, context_var, easing::EasingStep, impl_from_and_into_var, Var};
+use zero_ui_var::{
+    animation::{easing::EasingStep, Transitionable},
+    context_var, impl_from_and_into_var, Var,
+};
 use zero_ui_view_api::webrender_api as w_api;
 
 use crate::widget::VarLayout;

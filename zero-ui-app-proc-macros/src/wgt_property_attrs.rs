@@ -57,7 +57,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                         #duration
                     },
                     std::sync::Arc::new({
-                        use #core::var::easing::*;
+                        use #core::var::animation::easing::*;
                         #easing
                     }),
                 );
@@ -95,7 +95,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                         #duration
                     },
                     std::sync::Arc::new({
-                        use #core::var::easing::*;
+                        use #core::var::animation::easing::*;
                         #easing
                     }),
                 );

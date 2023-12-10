@@ -3,8 +3,10 @@ use std::{any::Any, sync::Arc, time::Duration};
 use super::builder::*;
 use zero_ui_layout::units::*;
 use zero_ui_var::{
-    animation::Transitionable,
-    easing::{EasingStep, EasingTime},
+    animation::{
+        easing::{EasingStep, EasingTime},
+        Transitionable,
+    },
     types::{ArcWhenVar, ContextualizedVar},
     BoxedVar, Var, VarValue,
 };

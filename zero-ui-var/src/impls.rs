@@ -10,7 +10,10 @@ use std::{
 use zero_ui_txt::Txt;
 use zero_ui_units::{euclid, ByteLength, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
 
-use crate::{animation::Transitionable, easing::EasingStep, impl_from_and_into_var};
+use crate::{
+    animation::{easing::EasingStep, Transitionable},
+    impl_from_and_into_var,
+};
 
 impl Transitionable for f64 {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
