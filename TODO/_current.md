@@ -44,12 +44,9 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-
-
-* Replace a main crate with a declaration of the default app and manually selected re-exports,
-  most users should be able to create apps, custom widgets for these apps by simply depending
-  on this crate. The re-export must be manual so that some stuff that is public does not get re-exported,
-  things like the view_api `WindowId`, or the `ViewWindow`.
+* Add -wgt- crates.
+    - Mix with existing modules?
+    - Like -wgt-text goes in text with -txt.
 
 * Review inspector.
 
@@ -62,6 +59,7 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - Test what happens when info is rebuild.
     - Implement visibility event properties.
 
+* Move `WidgetLayout` and other layout types out of widget::info.
 * Move `child` and `children` from app to container.
 * Decouple LAYERS into own crate?
 * Remove zero_ui_var::types?

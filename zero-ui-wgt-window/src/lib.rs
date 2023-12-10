@@ -2,15 +2,15 @@
 
 use zero_ui_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zero_ui_ext_window::{
-    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
-    WindowRoot,
+    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseRequestedArgs,
+    WindowOpenArgs, WindowRoot,
 };
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_input::focus::{
     directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav, FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR,
 };
-use zero_ui_wgt_text::{font_size, FONT_SIZE_VAR, font_color};
+use zero_ui_wgt_text::{font_color, lang, FONT_SIZE_VAR};
 
 pub mod commands;
 pub mod events;
@@ -49,6 +49,12 @@ impl Window {
             // set the root font size
             font_size = FONT_SIZE_VAR;
 
+            // optimization, actualize mapping context-vars early, see `context_var!` docs.
+            zero_ui_wgt_text::font_palette = zero_ui_wgt_text::FONT_PALETTE_VAR;
+
+            // set layout direction.
+            lang = zero_ui_ext_l10n::LANG_VAR;
+
             font_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
             focus_highlight = {
@@ -68,6 +74,12 @@ impl Window {
         }
 
         self.widget_builder().push_build_action(|wgt| {
+            wgt.push_intrinsic(NestGroup::CONTEXT, "color-scheme", |child| {
+                // set contextual color scheme to system scheme.
+                with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
+                    WINDOW.vars().actual_color_scheme().boxed()
+                })
+            });
             wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layers::layers_node);
 
             #[cfg(inspector)]

@@ -98,11 +98,8 @@ yaml = ["zero-ui-ext-config/yaml"]
 
 [dependencies]
 # foundation
-zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
-zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-txt = { path = "../zero-ui-txt" }
-zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-state_map = { path = "../zero-ui-state_map" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-layout = { path = "../zero-ui-layout" }
