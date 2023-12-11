@@ -48,6 +48,92 @@ use window::WindowMode;
 use zero_ui_app_context::{AppId, AppScope, LocalContext};
 use zero_ui_task::ui::UiTask;
 
+#[doc(hidden)]
+pub mod __proc_macro_util {
+    #[doc(hidden)]
+    pub mod widget {
+        #[doc(hidden)]
+        pub mod builder {
+            #[doc(hidden)]
+            pub use crate::widget::builder::{
+                getter_var, iter_input_build_actions, nest_group_items, new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var,
+                new_dyn_widget_handler, panic_input, source_location, state_var, ui_node_list_to_args, ui_node_to_args, value_to_args,
+                var_to_args, when_condition_expr_var, widget_handler_to_args, AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind,
+                PropertyArgs, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, StaticPropertyId,
+                UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
+                WidgetHandlerInWhenExprError, WidgetType,
+            };
+        }
+
+        #[doc(hidden)]
+        pub mod base {
+            pub use crate::widget::base::{WidgetBase, WidgetExt, WidgetImpl};
+        }
+
+        #[doc(hidden)]
+        pub mod instance {
+            pub use crate::widget::instance::{ui_vec, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList};
+        }
+
+        #[doc(hidden)]
+        pub mod info {
+            pub use crate::widget::info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure};
+        }
+
+        #[doc(hidden)]
+        pub use crate::widget::{widget_new, easing_property};
+    }
+
+    #[doc(hidden)]
+    pub mod update {
+        pub use crate::update::{EventUpdate, WidgetUpdates};
+    }
+
+    #[doc(hidden)]
+    pub mod layout {
+        #[doc(hidden)]
+        pub mod units {
+            #[doc(hidden)]
+            pub use crate::layout::units::{PxSize, TimeUnits};
+        }
+
+        #[doc(hidden)]
+        pub mod context {
+            #[doc(hidden)]
+            pub use crate::layout::context::LAYOUT;
+        }
+    }
+
+    #[doc(hidden)]
+    pub mod render {
+        pub use crate::render::{FrameBuilder, FrameUpdate};
+    }
+
+    #[doc(hidden)]
+    pub mod handler {
+        #[doc(hidden)]
+        pub use crate::handler::hn;
+    }
+
+    #[doc(hidden)]
+    pub mod var {
+        #[doc(hidden)]
+        pub use crate::var::{expr_var, AnyVar, BoxedVar, Var, AnyVarValue};
+
+        #[doc(hidden)]
+        pub mod animation {
+            #[doc(hidden)]
+            pub mod easing {
+                #[doc(hidden)]
+                pub use crate::var::animation::easing::{
+                    back, bounce, circ, cubic, cubic_bezier, ease_in, ease_in_out, ease_out, ease_out_in, elastic, expo, linear, none,
+                    quad, quart, quint, reverse, reverse_out, sine, step_ceil, step_floor,
+                };
+            }
+        }
+    }
+}
+
 /// An app extension.
 ///
 /// # App Loop

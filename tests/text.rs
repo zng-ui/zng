@@ -1,6 +1,10 @@
-use zero_ui::core::{context::LayoutDirection, text::*};
-
 use std::fmt::Write as _;
+
+use zero_ui::{
+    font::SegmentedText,
+    layout::TextSegmentKind,
+    wgt_prelude::{LayoutDirection, Txt},
+};
 
 #[test]
 fn emoji_segs() {

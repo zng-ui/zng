@@ -1,13 +1,15 @@
 use zero_ui::{
-    core::{
-        app::{AppExtended, AppExtension, HeadlessApp},
-        event::EventReceiver,
-        focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT},
-        gesture::HeadlessAppGestureExt,
-        keyboard::{HeadlessAppKeyboardExt, KeyCode},
-        window::{HeadlessAppWindowExt, WindowId},
+    app::{AppExtended, AppExtension, HeadlessApp},
+    event::EventReceiver,
+    focus::{
+        commands::{FOCUS_NEXT_CMD, FOCUS_PREV_CMD},
+        FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
     },
-    prelude::{new_widget::WidgetUpdateMode, *},
+    keyboard::{Key, KeyCode, KeyState},
+    prelude::*,
+    stack::{h_stack, v_stack},
+    view::View,
+    widget::WidgetUpdateMode,
 };
 
 #[test]
@@ -1706,10 +1708,10 @@ impl TestApp {
     }
 
     pub fn can_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FOCUS_NEXT_CMD.is_enabled().get()
+        FOCUS_NEXT_CMD.is_enabled().get()
     }
     pub fn can_shift_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FOCUS_PREV_CMD.is_enabled().get()
+        FOCUS_PREV_CMD.is_enabled().get()
     }
 
     pub fn press_tab(&mut self) {

@@ -5,7 +5,7 @@ use std::{
 
 use zero_ui_txt::Txt;
 
-use crate::{MODE_VAR, SERVER_NAME_VAR, VERSION_VAR};
+use crate::{VIEW_MODE, VIEW_SERVER, VIEW_VERSION};
 
 /// Configuration for starting a view-process.
 #[derive(Clone, Debug)]
@@ -32,8 +32,8 @@ impl ViewConfig {
     ///
     /// [`Controller`]: crate::Controller
     pub fn from_env() -> Option<Self> {
-        if let (Ok(version), Ok(server_name)) = (env::var(VERSION_VAR), env::var(SERVER_NAME_VAR)) {
-            let headless = env::var(MODE_VAR).map(|m| m == "headless").unwrap_or(false);
+        if let (Ok(version), Ok(server_name)) = (env::var(VIEW_VERSION), env::var(VIEW_SERVER)) {
+            let headless = env::var(VIEW_MODE).map(|m| m == "headless").unwrap_or(false);
             Some(ViewConfig {
                 version: Txt::from_str(&version),
                 server_name: Txt::from_str(&server_name),

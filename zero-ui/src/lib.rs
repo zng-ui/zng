@@ -46,6 +46,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+#[doc(hidden)]
+pub use zero_ui_app::__proc_macro_util;
+
 /// Types for general app development.
 pub mod prelude {
     pub use crate::APP;
@@ -117,9 +120,9 @@ pub mod prelude {
 
     pub use zero_ui_ext_input::{
         focus::{iter::IterFocusableExt as _, DirectionalNav, TabIndex, TabNav, FOCUS},
-        gesture::{ClickArgs, CommandShortcutMatchesExt as _},
-        keyboard::{HeadlessAppKeyboardExt as _, Key, KeyCode, KeyInputArgs, KeyState},
-        mouse::{ButtonState, ClickMode, ClickTrigger, WidgetInfoMouseExt as _},
+        gesture::{ClickArgs, CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
+        keyboard::{HeadlessAppKeyboardExt as _, KeyInputArgs},
+        mouse::{ClickMode, ClickTrigger, WidgetInfoMouseExt as _},
         pointer_capture::CaptureMode,
     };
 
@@ -129,7 +132,7 @@ pub mod prelude {
 
     pub use zero_ui_ext_window::{
         AppRunWindowExt as _, AutoSize, HeadlessAppWindowExt as _, RenderMode, StartPosition, WINDOW_Ext as _, WidgetInfoImeArea as _,
-        WindowChrome, WindowCloseRequestedArgs, WINDOWS,
+        WindowChrome, WindowCloseRequestedArgs, WindowRoot, WINDOWS,
     };
 
     pub use zero_ui_wgt::Wgt;
@@ -179,11 +182,85 @@ pub mod prelude {
     pub use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
     pub use zero_ui_wgt_style::{style_fn, Style};
+
+    pub use zero_ui_wgt_stack::Stack;
+
+    pub use zero_ui_wgt_wrap::Wrap;
 }
 
 /// Prelude for declaring properties and widgets.
 pub mod wgt_prelude {
-    pub use zero_ui_wgt::prelude::*;
+    pub use zero_ui_app::{
+        event::{
+            command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
+            EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
+        },
+        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
+        render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
+        shortcut::{shortcut, CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts},
+        timer::{DeadlineHandle, DeadlineVar, TimerHandle, TimerVar, TIMERS},
+        update::{EventUpdate, UpdateDeliveryList, UpdateOp, WidgetUpdates, UPDATES},
+        widget::{
+            base::{WidgetBase, WidgetImpl},
+            border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER},
+            builder::{property_id, NestGroup, WidgetBuilder, WidgetBuilding},
+            easing,
+            info::{
+                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
+                WidgetLayout, WidgetMeasure, WidgetPath,
+            },
+            instance::{
+                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
+                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
+                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex, SORTING_LIST,
+            },
+            property, ui_node, widget, widget_impl, widget_mixin, widget_set, AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _,
+            WidgetId, WidgetUpdateMode, WIDGET,
+        },
+        window::{MonitorId, WindowId, WINDOW},
+    };
+
+    pub use zero_ui_var::{
+        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var, AnyVar as _,
+        ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, VarCapabilities,
+        VarHandle, VarHandles, VarValue,
+    };
+
+    pub use zero_ui_layout::{
+        context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
+        units::{
+            Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
+            DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
+            Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
+            PxConstraints, PxConstraints2d, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform,
+            PxVector, Rect, RectFromTuplesBuilder as _, ResolutionUnits as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
+        },
+    };
+
+    pub use zero_ui_txt::{formatx, ToText as _, Txt};
+
+    pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
+
+    pub use crate::task;
+
+    pub use zero_ui_app_context::{
+        app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
+    };
+
+    pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+
+    pub use zero_ui_wgt::prelude::{IdEntry, IdMap, IdSet};
+
+    pub use zero_ui_color::{
+        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
+        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
+    };
+
+    pub use zero_ui_wgt::nodes::{
+        bind_is_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
+        fill_node, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local, with_context_local_init,
+        with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+    };
 
     pub use zero_ui_ext_window::WidgetInfoBuilderImeArea as _;
 }
@@ -247,10 +324,10 @@ pub mod layout {
     pub use zero_ui_layout::units::{
         Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D,
         Deadline, Dip, DipBox, DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey, Factor,
-        Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAngle, LayoutAxis, LayoutMask,
-        Length, LengthExpr, LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints,
-        PxConstraints2d, PxCornerRadius, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector,
-        Rect, RectFromTuplesBuilder, ResolutionUnits, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
+        Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, LayoutMask, Length,
+        LengthExpr, LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints, PxConstraints2d,
+        PxCornerRadius, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect,
+        RectFromTuplesBuilder, RenderAngle, ResolutionUnits, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
     };
 
     pub use zero_ui_layout::context::{
@@ -282,6 +359,7 @@ pub mod render {
         ClipBuilder, Font, FontSynthesis, FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, HitTestBuilder,
         HitTestClipBuilder, ImageRendering, RepeatMode, SpatialFrameId, SpatialFrameKey, StaticSpatialFrameId, TransformStyle,
     };
+    pub use zero_ui_view_api::window::FrameId;
 }
 
 /// Variables API.
@@ -293,9 +371,9 @@ pub mod var {
     };
     pub use zero_ui_var::{
         context_var, expr_var, getter_var, merge_var, response_done_var, response_var, state_var, var, var_default, var_from, when_var,
-        AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextVar, IntoValue,
-        IntoVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar, TraceValueArgs, Var,
-        VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar, VARS,
+        AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextInitHandle,
+        ContextVar, IntoValue, IntoVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar,
+        TraceValueArgs, Var, VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar, VARS,
     };
 
     pub use zero_ui_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
@@ -339,7 +417,7 @@ pub mod event {
     pub use zero_ui_app::event::{
         command, event, event_args, AnyEvent, AnyEventArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta,
         CommandMetaVar, CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, Event, EventArgs, EventHandle, EventHandles,
-        EventPropagationHandle, EVENTS,
+        EventPropagationHandle, EventReceiver, EVENTS,
     };
     pub use zero_ui_wgt::nodes::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};
 }
@@ -502,8 +580,8 @@ pub mod fs_watcher {
 /// See [`zero_ui_ext_image`] for the full image API and [`zero_ui_wgt_image`] for the full widget API.
 pub mod image {
     pub use zero_ui_ext_image::{
-        ImageCacheMode, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImagePpi, ImageRenderArgs, ImageSource, ImageSourceFilter,
-        ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
+        ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImageMaskMode, ImagePpi, ImageRenderArgs,
+        ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
     };
 
     pub use zero_ui_wgt_image::{
@@ -535,7 +613,7 @@ pub mod access {
     };
 }
 
-/// Keyboard service, events and types.
+/// Keyboard service, properties, events and types.
 ///
 /// See [`zero_ui_ext_input::keyboard`] and [`zero_ui_wgt_input::keyboard`] for the full keyboard API.
 pub mod keyboard {
@@ -552,7 +630,7 @@ pub mod keyboard {
     };
 }
 
-/// Mouse service, events and types.
+/// Mouse service, properties, events and types.
 ///
 /// See [`zero_ui_ext_input::mouse`] and [`zero_ui_wgt_input::mouse`] for the full mouse API.
 pub mod mouse {
@@ -574,10 +652,10 @@ pub mod mouse {
         on_pre_mouse_triple_click, on_pre_mouse_up, on_pre_mouse_wheel, on_pre_mouse_zoom,
     };
 
-    pub use zero_ui_wgt_input::{is_cap_mouse_pressed, is_mouse_pressed};
+    pub use zero_ui_wgt_input::{click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon};
 }
 
-/// Touch service, events and types.
+/// Touch service, properties, events and types.
 ///
 /// See [`zero_ui_ext_input::touch`] and [`zero_ui_wgt_input::touch`] for the full touch API.
 pub mod touch {
@@ -598,7 +676,7 @@ pub mod touch {
     pub use zero_ui_wgt_input::{is_cap_touched, is_touched, is_touched_from_start};
 }
 
-/// Touch service, events and types.
+/// Touch service, properties, events and types.
 ///
 /// See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
 pub mod focus {
@@ -616,7 +694,7 @@ pub mod focus {
     };
 }
 
-/// Pointer capture service, events and types.
+/// Pointer capture service, properties, events and types.
 ///
 /// See [`zero_ui_ext_input::pointer_capture`] and [`zero_ui_wgt_input::pointer_capture`] for the full pointer capture API.
 pub mod pointer_capture {
@@ -628,7 +706,7 @@ pub mod pointer_capture {
     };
 }
 
-/// Gesture service, events, shortcuts and other types.
+/// Gesture service, properties, events, shortcuts and other types.
 ///
 /// See [`zero_ui_ext_input::gesture`] and [`zero_ui_wgt_input::gesture`] for the full gesture API
 /// and [`zero_ui_app::shortcut`] for the shortcut API.
@@ -711,6 +789,8 @@ pub mod window {
         WindowStateAllowed, WindowVars, FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
         WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
     };
+
+    pub use zero_ui_view_api::webrender_api::DebugFlags;
 
     /// Window commands.
     pub mod commands {

@@ -1,10 +1,9 @@
 use zero_ui::{
-    core::{
-        app::{view_process::VIEW_PROCESS_INITED_EVENT, HeadlessApp},
-        image::{ImageDataFormat, IMAGES},
-    },
+    app::HeadlessApp,
+    image::{ImageDataFormat, ImageSource},
     prelude::*,
 };
+use zero_ui_app::view_process::VIEW_PROCESS_INITED_EVENT;
 
 fn main() {
     zero_ui_view::run_same_process(|| {
@@ -51,7 +50,6 @@ fn image() -> ImageSource {
 
     (bgra, ImageDataFormat::from(size)).into()
 }
-
 
 #[test]
 fn error_view_recursion() {

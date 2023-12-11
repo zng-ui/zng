@@ -1,11 +1,7 @@
 use zero_ui::{
-    core::{
-        context::app_local,
-        event::command,
-        keyboard::{HeadlessAppKeyboardExt, KeyCode},
-        widget_instance::{match_node_leaf, UiNodeOp},
-    },
+    keyboard::{Key, KeyCode},
     prelude::*,
+    wgt_prelude::*,
 };
 
 #[test]

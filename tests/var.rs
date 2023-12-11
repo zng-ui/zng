@@ -1,7 +1,5 @@
-use zero_ui::core::var::*;
-
 mod any {
-    use super::*;
+    use zero_ui::prelude::*;
 
     #[test]
     fn downcast_ref_rc() {
@@ -46,9 +44,7 @@ mod any {
 }
 
 mod bindings {
-    use super::*;
-    use zero_ui::core::app::App;
-    use zero_ui::core::text::ToText;
+    use zero_ui::prelude::*;
 
     #[test]
     fn one_way_binding() {
@@ -480,14 +476,13 @@ mod bindings {
 }
 
 mod context {
-    use zero_ui::core::{
-        app::*,
-        context::*,
-        text::*,
-        var::{helpers::with_context_var, types::AnyWhenVarBuilder, *},
-        widget_instance::*,
-        *,
+    use zero_ui::{
+        app::{AppExtended, AppExtension, HeadlessApp},
+        prelude::*,
+        var::{AnyWhenVarBuilder, ContextInitHandle},
+        wgt_prelude::*,
     };
+    use zero_ui_app::widget::base::child;
 
     context_var! {
         static TEST_VAR: Txt = "";
@@ -530,7 +525,7 @@ mod context {
     }
 
     #[property(EVENT)]
-    fn on_init(child: impl UiNode, mut handler: impl handler::WidgetHandler<()>) -> impl UiNode {
+    fn on_init(child: impl UiNode, mut handler: impl WidgetHandler<()>) -> impl UiNode {
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
                 child.init();
@@ -545,24 +540,22 @@ mod context {
     }
 
     #[widget($crate::context::TestWgt)]
-    struct TestWgt(zero_ui::core::widget_base::WidgetBase);
+    struct TestWgt(WidgetBase);
     impl TestWgt {
         fn widget_intrinsic(&mut self) {
             self.widget_builder().push_build_action(|wgt| {
-                if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
+                if let Some(child) = wgt.capture_ui_node(property_id!(zero_ui_app::widget::base::child)) {
                     wgt.set_child(child);
                 }
             });
         }
     }
-    use widget_base::child;
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
-        test_log();
+        zero_ui_app::test_log();
 
-        use zero_ui::core::window::*;
         let mut app = app.run_headless(false);
-        WINDOWS.open(async move { zero_ui::core::window::WindowRoot::new_test(root) });
+        WINDOWS.open(async move { WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }
@@ -814,7 +807,7 @@ mod context {
 
 mod flat_map {
     use std::fmt;
-    use zero_ui::core::{app::App, var::*};
+    use zero_ui::prelude::*;
 
     #[derive(Clone)]
     pub struct Foo {
@@ -874,9 +867,7 @@ mod flat_map {
 }
 
 mod modify_importance {
-    use zero_ui::core::handler::{async_clmv, clmv};
-
-    use zero_ui::core::{app::App, text::Txt, units::TimeUnits, var::*};
+    use zero_ui::{prelude::*, var::VARS};
 
     #[test]
     pub fn set_same_importance() {
@@ -987,12 +978,7 @@ mod modify_importance {
 mod cow {
     use std::sync::Arc;
 
-    use zero_ui::core::handler::clmv;
-
-    use zero_ui::core::app::App;
-    use zero_ui::core::task::parking_lot::Mutex;
-
-    use super::*;
+    use zero_ui::{prelude::*, task::parking_lot::Mutex};
 
     #[test]
     pub fn cow_base_update() {
@@ -1061,12 +1047,7 @@ mod cow {
 mod multi {
     use std::sync::Arc;
 
-    use zero_ui::core::handler::clmv;
-
-    use zero_ui::core::app::App;
-    use zero_ui::core::task::parking_lot::Mutex;
-
-    use super::*;
+    use zero_ui::{prelude::*, task::parking_lot::Mutex};
 
     #[test]
     fn multi_bidi() {
@@ -1101,11 +1082,7 @@ mod multi {
 }
 
 mod threads {
-    use zero_ui::core::handler::async_clmv;
-
-    use zero_ui::core::{app::App, task, units::TimeUnits};
-
-    use super::*;
+    use zero_ui::prelude::*;
 
     #[test]
     fn set_from_other_thread_once() {
@@ -1159,9 +1136,7 @@ mod threads {
 
 mod contextualized {
 
-    use zero_ui::core::app::App;
-
-    use super::*;
+    use zero_ui::{prelude::*, var::ContextInitHandle};
 
     #[test]
     fn nested_contextualized_vars() {

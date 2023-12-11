@@ -84,8 +84,8 @@ members = [
     # "examples/util",
 
     # tests:
-    # "tests",
-    # "tests/build",
+    "tests",
+    "tests/build",
 ]
 
 exclude = ["dependencies/webrender"]

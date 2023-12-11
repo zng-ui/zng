@@ -39,11 +39,7 @@ use zero_ui_task::ui::UiTask;
 use zero_ui_txt::{formatx, ToText, Txt};
 use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
-use zero_ui_view_api::{
-    image::{ImageDataFormat, ImageMaskMode, ImageRequest},
-    ipc::IpcBytes,
-    ViewProcessOffline,
-};
+use zero_ui_view_api::{image::ImageRequest, ipc::IpcBytes, ViewProcessOffline};
 
 /// Application extension that provides an image cache.
 ///

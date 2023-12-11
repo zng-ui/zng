@@ -1,6 +1,7 @@
-use super::{about_eq, euclid, Factor, EQ_EPSILON, EQ_EPSILON_100};
+use super::{about_eq, Factor, EQ_EPSILON, EQ_EPSILON_100};
 
 use zero_ui_app_context::context_local;
+use zero_ui_units::RenderAngle;
 use zero_ui_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     impl_from_and_into_var,
@@ -88,12 +89,6 @@ impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
     pub fn modulo(self) -> Self {
         AngleRadian(self.0.rem_euclid(TAU))
-    }
-    /// Change type to [`LayoutAngle`].
-    ///
-    /// Note that layout angle is in radians so no computation happens.
-    pub fn layout(self) -> LayoutAngle {
-        self.into()
     }
 
     /// Linear interpolation.
@@ -456,11 +451,14 @@ impl_from_and_into_var! {
     }
 }
 
-/// Radian angle type used by webrender.
-pub type LayoutAngle = euclid::Angle<f32>;
-impl From<AngleRadian> for LayoutAngle {
+impl From<AngleRadian> for RenderAngle {
     fn from(rad: AngleRadian) -> Self {
-        LayoutAngle::radians(rad.0)
+        RenderAngle::radians(rad.0)
+    }
+}
+impl From<AngleDegree> for RenderAngle {
+    fn from(deg: AngleDegree) -> Self {
+        RenderAngle::degrees(deg.0)
     }
 }
 

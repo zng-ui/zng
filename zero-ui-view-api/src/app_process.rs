@@ -20,9 +20,9 @@ type DuctHandle = duct::Handle;
 #[cfg(not(feature = "ipc"))]
 struct DuctHandle;
 
-pub(crate) const VERSION_VAR: &str = "ZERO_UI_VIEW_VERSION";
-pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_VIEW_SERVER";
-pub(crate) const MODE_VAR: &str = "ZERO_UI_VIEW_MODE";
+pub(crate) const VIEW_VERSION: &str = "ZERO_UI_VIEW_VERSION";
+pub(crate) const VIEW_SERVER: &str = "ZERO_UI_VIEW_SERVER";
+pub(crate) const VIEW_MODE: &str = "ZERO_UI_VIEW_MODE";
 
 /// View Process controller, used in the App Process.
 ///
@@ -225,9 +225,9 @@ impl Controller {
             #[cfg(feature = "ipc")]
             {
                 let process = duct::cmd!(view_process_exe)
-                    .env(VERSION_VAR, crate::VERSION)
-                    .env(SERVER_NAME_VAR, init.name())
-                    .env(MODE_VAR, if headless { "headless" } else { "headed" })
+                    .env(VIEW_VERSION, crate::VERSION)
+                    .env(VIEW_SERVER, init.name())
+                    .env(VIEW_MODE, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
                     .stdin_null()
                     .stdout_capture()

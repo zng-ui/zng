@@ -1,8 +1,16 @@
 use std::path::{Path, PathBuf};
 
-use zero_ui::core::{config::*, context::app_local};
-use zero_ui::prelude::units::*;
-use zero_ui::prelude::*;
+use zero_ui::{
+    app::AppId,
+    config::*,
+    keyboard::{Key, KeyState},
+    layout::{DipCornerRadius, GridSpacing},
+    mouse::{ButtonState, CursorIcon, MouseButton, MouseScrollDelta},
+    prelude::*,
+    render::FrameId,
+    touch::{TouchForce, TouchPhase},
+    window::{DebugFlags, RendererDebug, WindowState},
+};
 
 #[test]
 fn json() {
@@ -137,18 +145,10 @@ fn test_view_api_units() {
 
     test_config!("PxTransform::identity" => PxTransform::identity());
     test_config!("PxTransform::translation" => PxTransform::translation(10.0, 20.0));
-    test_config!("PxTransform::rotation" => PxTransform::rotation(1.0, 2.0, euclid::Angle::degrees(40.0)));
+    test_config!("PxTransform::rotation" => PxTransform::rotation(1.0, 2.0, 40.deg().into()));
 }
 
 fn test_view_api_types() {
-    use zero_ui::core::{
-        app::view_process::zero_ui_view_api::window::EventFrameRendered,
-        mouse::MouseScrollDelta,
-        render::{webrender_api::DebugFlags, FrameId},
-        touch::{TouchForce, TouchPhase},
-        window::RendererDebug,
-    };
-
     test_config!(FrameId::first().next().next_update().next());
     test_config!(KeyState::Pressed);
     test_config!(ButtonState::Pressed);
@@ -165,12 +165,6 @@ fn test_view_api_types() {
     test_config!(CursorIcon::Alias);
     test_config!(WindowState::Normal);
 
-    test_config!(EventFrameRendered {
-        window: zero_ui::core::app::view_process::ApiWindowId::from_raw(3),
-        frame: FrameId::first(),
-        frame_image: None
-    });
-
     test_config!(RendererDebug {
         flags: DebugFlags::DISABLE_ALPHA_PASS | DebugFlags::DISABLE_BATCHING,
         profiler_ui: "default".to_owned()
@@ -178,13 +172,11 @@ fn test_view_api_types() {
 }
 
 fn test_core_app() {
-    let id = zero_ui::core::context::AppId::named("app-name");
+    let id = AppId::named("app-name");
     test_config!("AppId" => id);
 }
 
 fn test_core_units() {
-    use zero_ui::core::units::*;
-
     test_config!("Factor" => 1.fct());
     test_config!("FactorPercent" => 100.pct());
     test_config!(Align::TOP_LEFT);

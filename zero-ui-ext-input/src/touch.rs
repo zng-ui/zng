@@ -1957,7 +1957,7 @@ impl TouchTransformInfo {
 
         if mode.contains(TouchTransformMode::ROTATE) {
             let a = self.rotation(other);
-            m = m.then(&PxTransform::rotation(0.0, 0.0, a.layout()));
+            m = m.then(&PxTransform::rotation(0.0, 0.0, a.into()));
         }
 
         m

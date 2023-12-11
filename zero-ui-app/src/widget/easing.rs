@@ -21,7 +21,7 @@ use zero_ui_var::{
 /// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
 /// Some items are auto-imported in each argument scope, the [`TimeUnits`] are imported in the first argument, so you can use syntax
-/// like `300.ms()` to declare the duration, all of the [`easing::*`] functions are imported in the second argument so you can use
+/// like `300.ms()` to declare the duration, all of the [`easing`] functions are imported in the second argument so you can use
 /// the function names directly.
 ///
 /// ## Unset
@@ -29,7 +29,7 @@ use zero_ui_var::{
 /// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
 ///
 /// [`TimeUnits`]: zero_ui_units::TimeUnits
-/// [`easing::*`]: mod@zero_ui_var::animation::easing
+/// [`easing`]: mod@zero_ui_var::animation::easing
 /// [`easing::linear`]: zero_ui_var::animation::easing::linear
 /// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
 ///

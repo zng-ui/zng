@@ -175,7 +175,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d rotation after its transformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation(0.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation(0.0, 0.0, angle.into().into()));
         self
     }
 
@@ -183,7 +183,7 @@ impl Transform {
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
     pub fn rotate_x<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(1.0, 0.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(1.0, 0.0, 0.0, angle.into().into()));
         self
     }
 
@@ -191,7 +191,7 @@ impl Transform {
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
     pub fn rotate_y<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(0.0, 1.0, 0.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(0.0, 1.0, 0.0, angle.into().into()));
         self
     }
 
@@ -199,7 +199,7 @@ impl Transform {
     ///
     /// [`rotate`]: Self::rotate
     pub fn rotate_z<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(0.0, 0.0, 1.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(0.0, 0.0, 1.0, angle.into().into()));
         self
     }
 
@@ -207,7 +207,7 @@ impl Transform {
     ///
     /// Note that the composition of 3D rotations is usually not commutative, so the order this is applied will affect the result.
     pub fn rotate_3d<A: Into<AngleRadian>>(mut self, x: f32, y: f32, z: f32, angle: A) -> Self {
-        self.then_transform(PxTransform::rotation_3d(x, y, z, angle.into().layout()));
+        self.then_transform(PxTransform::rotation_3d(x, y, z, angle.into().into()));
         self
     }
 
@@ -242,7 +242,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d skew after its transformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.then_transform(PxTransform::skew(x.into().layout(), y.into().layout()));
+        self.then_transform(PxTransform::skew(x.into().into(), y.into().into()));
         self
     }
     /// Change `self` to apply a ***x*** skew after its transformation.

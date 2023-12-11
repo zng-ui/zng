@@ -6,7 +6,7 @@
 #![warn(missing_docs)]
 
 #[doc(hidden)]
-pub use zero_ui_app as __proc_macro_util;
+pub use zero_ui_app::__proc_macro_util;
 
 #[doc(hidden)]
 pub extern crate self as zero_ui_wgt;
