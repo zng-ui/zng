@@ -1,3 +1,6 @@
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 //! Hash-map of type erased values, useful for storing assorted dynamic state.
 
 use std::{any::Any, fmt, marker::PhantomData};

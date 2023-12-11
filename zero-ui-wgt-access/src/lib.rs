@@ -1,3 +1,6 @@
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 //! Properties that define accessibility metadata.
 //!
 //! The properties in this crate should only be used by widget implementers, they only

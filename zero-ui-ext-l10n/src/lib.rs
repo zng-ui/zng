@@ -1,6 +1,9 @@
 //! Localization service [`L10N`] and helpers.
 //!
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use zero_ui_app::{

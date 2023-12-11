@@ -2,6 +2,9 @@
 //!
 //! [`zero-ui-view`]: https://docs.rs/zero-ui-view
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use core::fmt;
 use libloading::*;
 use std::{env, io, path::PathBuf};

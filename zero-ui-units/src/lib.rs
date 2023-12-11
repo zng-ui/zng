@@ -1,3 +1,8 @@
+//! Pixel unit types.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 mod byte;
 mod corner_radius;
 mod distance_key;

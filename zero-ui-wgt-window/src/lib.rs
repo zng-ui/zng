@@ -1,4 +1,7 @@
-//! Window widget, properties, properties and nodes..
+//! Window widget, properties, properties and nodes.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 use zero_ui_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zero_ui_ext_window::{

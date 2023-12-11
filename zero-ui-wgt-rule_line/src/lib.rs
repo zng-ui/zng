@@ -1,5 +1,8 @@
 //! Rule line widgets.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_wgt::{margin, prelude::*};
 use zero_ui_wgt_access::{access_role, AccessRole};
 

@@ -1,5 +1,8 @@
 //! Resource handle type.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::hash::Hash;
 use std::{
     fmt,

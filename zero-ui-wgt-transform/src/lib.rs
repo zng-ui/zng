@@ -1,5 +1,8 @@
 //! Transform properties, [`scale`](fn@scale), [`rotate`](fn@rotate), [`transform`](fn@transform) and more.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_wgt::prelude::*;
 
 /// Custom transform.

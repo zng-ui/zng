@@ -1,5 +1,8 @@
 //! Dynamic widget instantiation from data.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use parking_lot::Mutex;
 use pretty_type_name::*;
 use std::{any::TypeId, fmt, ops, sync::Arc};

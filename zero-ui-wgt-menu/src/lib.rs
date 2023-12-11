@@ -1,5 +1,7 @@
 //! Menu widgets and properties.
-//!
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 use zero_ui_ext_font::FontNames;
 use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs, mouse::ClickMode};

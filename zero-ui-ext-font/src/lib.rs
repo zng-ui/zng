@@ -2,6 +2,8 @@
 
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
@@ -16,7 +18,7 @@ mod emoji_util;
 pub use emoji_util::*;
 
 mod ligature_util;
-pub use ligature_util::*;
+use ligature_util::*;
 
 mod unicode_bidi_util;
 

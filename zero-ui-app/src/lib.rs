@@ -1,6 +1,10 @@
+//! App process implementation.
+
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 use std::{
     any::{type_name, TypeId},

@@ -1,5 +1,8 @@
 //! Image loading and cache.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{
     env,
     future::Future,

@@ -1,3 +1,8 @@
+//! Proc-macros for `zero-ui-color`.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use proc_macro::TokenStream;
 
 #[macro_use]

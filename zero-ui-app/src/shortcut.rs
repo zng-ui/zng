@@ -346,6 +346,7 @@ impl fmt::Display for Shortcut {
     }
 }
 impl Shortcut {
+    /// Modifiers state required by shortcut.
     pub fn modifiers_state(&self) -> ModifiersState {
         match self {
             Shortcut::Gesture(g) => g.modifiers,

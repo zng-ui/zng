@@ -43,6 +43,9 @@
 //! }
 //! ```
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 /// Types for general app development.
 pub mod prelude {
     pub use crate::APP;
@@ -426,11 +429,10 @@ pub mod font {
         font_features, unicode_bidi_levels, unicode_bidi_sort, BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette,
         ColorPaletteType, ColorPalettes, CustomFont, Font, FontChange, FontChangedArgs, FontColorPalette, FontFace, FontFaceList,
         FontFaceMetrics, FontList, FontMetrics, FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, Hyphenation,
-        HyphenationDataDir, HyphenationDataSource, Hyphens, Justify, LayoutDirections, LetterSpacing, LigatureCaret, LigatureCaretList,
-        LineBreak, LineHeight, LineSpacing, OutlineHintingOptions, OutlineSink, ParagraphSpacing, SegmentedText, SegmentedTextIter,
-        ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo, TextSegment,
-        TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, FONTS,
-        FONT_CHANGED_EVENT,
+        HyphenationDataDir, HyphenationDataSource, Hyphens, Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing,
+        OutlineHintingOptions, OutlineSink, ParagraphSpacing, SegmentedText, SegmentedTextIter, ShapedColoredGlyphs, ShapedLine,
+        ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo, TextSegment, TextSegmentKind, TextShapingArgs,
+        TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, FONTS, FONT_CHANGED_EVENT,
     };
 }
 
@@ -578,7 +580,7 @@ pub mod data_context {
         data, data_error, data_error_color, data_info, data_info_color, data_note, data_warn, data_warn_color, extend_data_note_colors,
         get_data_error, get_data_error_txt, get_data_info, get_data_info_txt, get_data_notes, get_data_notes_top, get_data_warn,
         get_data_warn_txt, has_data_error, has_data_info, has_data_notes, has_data_warn, replace_data_note_colors, with_data_note_color,
-        DataNote, DataNoteHandle, DataNoteLevel, DataNoteValue, DataNotes, DATA, DATA, DATA_NOTE_COLORS_VAR,
+        DataNote, DataNoteHandle, DataNoteLevel, DataNoteValue, DataNotes, DATA, DATA_NOTE_COLORS_VAR,
     };
 }
 

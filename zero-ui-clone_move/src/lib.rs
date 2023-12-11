@@ -1,5 +1,8 @@
 //! Macros for declaring clone-move closures and async blocks.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 ///<span data-del-macro-root></span> Clone move closure.
 ///
 /// A common pattern when creating `'static` closures is to capture clones by `move`, this way the closure is `'static`

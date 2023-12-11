@@ -1,5 +1,8 @@
 //! Exact size constraints and exact positioning properties.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_wgt::prelude::*;
 
 /// Widget layout offset.

@@ -1,5 +1,8 @@
 //! Color and gradient types, functions and macros, [`Rgba`], [`filters`], [`hex!`] and more.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{fmt, ops};
 use zero_ui_app_context::context_local;
 

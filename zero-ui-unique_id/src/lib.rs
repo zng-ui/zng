@@ -1,5 +1,8 @@
 //! Macros for generating unique ID types.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{
     hash::{BuildHasher, Hash, Hasher},
     num::{NonZeroU32, NonZeroU64},
@@ -592,10 +595,13 @@ impl<K: Eq + Hash> Eq for IdSet<K> {}
 /// Entry in [`IdMap`].
 pub type IdEntry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildIdHasher>;
 
+/// Occupied entry in an [`IdEntry`].
 pub type IdOccupiedEntry<'a, K, V> = hashbrown::hash_map::OccupiedEntry<'a, K, V, BuildIdHasher>;
 
+/// Vacant entry in an [`IdEntry`].
 pub type IdVacantEntry<'a, K, V> = hashbrown::hash_map::VacantEntry<'a, K, V, BuildIdHasher>;
 
+/// Build [`IdHasher`].
 #[derive(Default, Clone, Debug, Copy)]
 pub struct BuildIdHasher;
 impl BuildHasher for BuildIdHasher {
@@ -606,11 +612,16 @@ impl BuildHasher for BuildIdHasher {
     }
 }
 
+/// No-op hasher.
+///
+/// This hasher supports only `write_u32` and `write_u64`, other methods panic.
+///
+/// This hasher does nothing, it uses the `u32` or `u64` value directly as a hash.
 #[derive(Default)]
 pub struct IdHasher(u64);
 impl Hasher for IdHasher {
     fn write(&mut self, _: &[u8]) {
-        unreachable!("`only `write_u64` is supported");
+        unimplemented!("`only `write_u32` and `write_u64` are supported");
     }
 
     fn write_u32(&mut self, id: u32) {

@@ -1,5 +1,8 @@
 //! Undo history widget.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_ext_input::gesture::ClickArgs;
 use zero_ui_ext_l10n::{l10n, L10nArgument};
 use zero_ui_ext_undo::*;

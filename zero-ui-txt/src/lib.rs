@@ -1,3 +1,6 @@
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 //! String type optimized for sharing.
 
 use std::{borrow::Cow, fmt, hash::Hash, mem, ops::Deref, sync::Arc};

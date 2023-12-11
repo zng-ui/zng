@@ -1,5 +1,8 @@
 //! Image widget, properties and nodes..
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_ext_image::{ImageSource, Img};
 use zero_ui_wgt::prelude::*;
 

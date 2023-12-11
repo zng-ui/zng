@@ -1,5 +1,8 @@
 //! Toggle widget, properties and commands.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::ops;
 use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 

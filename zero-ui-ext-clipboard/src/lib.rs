@@ -2,6 +2,9 @@
 //!
 //! This module is a thin wrapper around the [`VIEW_PROCESS`] provided clipboard service.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::path::PathBuf;
 
 use zero_ui_app::{

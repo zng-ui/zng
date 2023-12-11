@@ -8,6 +8,7 @@
 //! [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 
+#![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
 use std::{fmt, mem};

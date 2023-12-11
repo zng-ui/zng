@@ -1,3 +1,6 @@
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 //! Contextual [`DATA`] and validation.
 
 use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};

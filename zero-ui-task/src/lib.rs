@@ -1,3 +1,6 @@
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 //! Parallel async tasks and async task runners.
 //!
 //! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock

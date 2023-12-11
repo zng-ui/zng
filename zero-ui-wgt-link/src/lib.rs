@@ -1,3 +1,8 @@
+//! Button link style.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_wgt::{is_disabled, prelude::*};
 use zero_ui_wgt_access::*;
 use zero_ui_wgt_filters::*;

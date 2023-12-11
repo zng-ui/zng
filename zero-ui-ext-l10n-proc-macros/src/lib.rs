@@ -1,3 +1,8 @@
+//! Proc-macros for `zero-ui-ext-l10n`, don't use directly.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use proc_macro::TokenStream;
 
 #[macro_use]

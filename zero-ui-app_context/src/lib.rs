@@ -1,5 +1,8 @@
 //!: App execution context statics.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{
     any::{Any, TypeId},
     cell::RefCell,

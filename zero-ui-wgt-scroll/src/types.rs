@@ -5,8 +5,10 @@ use bitflags::bitflags;
 use parking_lot::Mutex;
 use zero_ui_ext_input::touch::TouchPhase;
 use zero_ui_var::{
-    animation::{AnimationHandle, ChaseAnimation, Transition},
-    easing::{self, EasingStep, EasingTime},
+    animation::{
+        easing::{self, EasingStep, EasingTime},
+        AnimationHandle, ChaseAnimation, Transition,
+    },
     ReadOnlyContextVar,
 };
 use zero_ui_wgt::prelude::*;

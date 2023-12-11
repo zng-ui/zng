@@ -1,5 +1,8 @@
 //! Wrap panel, properties and nodes.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::sync::Arc;
 
 use crate_util::RecycleVec;

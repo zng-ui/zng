@@ -1,3 +1,5 @@
+//! Layout context.
+
 use std::{fmt, sync::Arc};
 
 use unicode_bidi::BidiDataSource as _;

@@ -1,5 +1,8 @@
 //! Color filter properties, [`opacity`](fn@opacity), [`filter`](fn@filter) and more.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use color_filters::{self as cf, Filter};
 use zero_ui_wgt::prelude::*;
 

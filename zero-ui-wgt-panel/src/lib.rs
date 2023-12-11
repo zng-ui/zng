@@ -1,5 +1,8 @@
 //! Panel widget and properties.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 use zero_ui_wgt_wrap::Wrap;

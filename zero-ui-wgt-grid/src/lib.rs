@@ -1,5 +1,8 @@
 //! Grid widgets, properties and nodes..
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::{fmt, mem};
 
 use zero_ui_layout::units::{GridSpacing, PxGridSpacing};

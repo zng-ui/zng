@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops};
 use zero_ui_layout::units::LayoutMask;
-use zero_ui_var::{animation::Transitionable, easing::EasingStep};
+use zero_ui_var::animation::{easing::EasingStep, Transitionable};
 use zero_ui_wgt::prelude::*;
 
 /// Defines a placement point in the previous item and the origin point of the next.

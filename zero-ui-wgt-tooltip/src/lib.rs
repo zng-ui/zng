@@ -1,5 +1,8 @@
 //! Tooltip widget, properties and nodes.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
 use std::time::{Duration, Instant};
 
 use zero_ui_app::{access::ACCESS_TOOLTIP_EVENT, widget::OnVarArgs};

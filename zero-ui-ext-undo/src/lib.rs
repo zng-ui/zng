@@ -1,5 +1,7 @@
 //! Undo-redo app extension, service and commands.
 
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
