@@ -1,7 +1,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-//! ANSI text widget, properties and nodes..
+//! ANSI text widget, properties and nodes.
+
+zero_ui_wgt::enable_widget_macros!();
 
 use zero_ui_ext_font::*;
 use zero_ui_wgt::{prelude::*, *};

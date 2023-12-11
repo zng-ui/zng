@@ -1,15 +1,16 @@
 //! Basic widget properties and helpers for declaring widgets and properties.
+//!
+//! # Widget Instantiation
+//! 
+//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zero-ui` crate.
 
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-#[doc(hidden)]
-pub use zero_ui_app::__proc_macro_util;
-
-#[doc(hidden)]
-pub extern crate self as zero_ui_wgt;
+pub use zero_ui_app::enable_widget_macros;
+enable_widget_macros!();
 
 /// Prelude for declaring properties and widgets.
 pub mod prelude {

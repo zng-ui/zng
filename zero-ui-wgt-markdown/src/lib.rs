@@ -1,7 +1,9 @@
+//! Markdown widget, properties and nodes.
+
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-//! Markdown widget, properties and nodes..
+zero_ui_wgt::enable_widget_macros!();
 
 use std::mem;
 

@@ -3,6 +3,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+zero_ui_wgt::enable_widget_macros!();
+
 use zero_ui_ext_input::gesture::ClickArgs;
 use zero_ui_ext_l10n::{l10n, L10nArgument};
 use zero_ui_ext_undo::*;

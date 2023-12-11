@@ -1,5 +1,7 @@
 //! Popup widget.
 
+zero_ui_wgt::enable_widget_macros!();
+
 use std::time::Duration;
 
 use zero_ui_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};

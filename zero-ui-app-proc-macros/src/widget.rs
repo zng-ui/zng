@@ -179,7 +179,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let struct_path = util::set_stream_span(struct_path, Span::call_site());
 
         let macro_new = quote! {
-            #crate_core::widget::widget_new! {
+            zero_ui::__proc_macro_util::widget::widget_new! {
                 new {
                     let mut wgt__ = #struct_path::widget_new();
                     let wgt__ = &mut wgt__;
@@ -238,6 +238,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #validate_path
         };
 
+        let source_location = widget_util::source_location(&crate_core, ident.span());
         let start_r = quote! {
             impl #mixin_p_bounded #ident #mixin_p {
                 /// Start building a new instance.
@@ -250,7 +251,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                     #crate_core::widget::builder::WidgetType {
                         type_id: std::any::TypeId::of::<Self>(),
                         path: #struct_path_str,
-                        location: #crate_core::widget::builder::source_location!(),
+                        location: #source_location,
                     }
                 }
             }
@@ -545,6 +546,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         };
 
+        let source_location = widget_util::source_location(&core, Span::call_site());
         set_whens.extend(quote! {
             #attrs {
                 #when_expr_vars
@@ -555,7 +557,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     inputs__,
                     #box_expr,
                     #expr_str,
-                    #core::widget::builder::source_location!(),
+                    #source_location,
                 );
 
                 #assigns

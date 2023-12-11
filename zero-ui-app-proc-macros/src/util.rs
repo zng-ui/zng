@@ -73,17 +73,17 @@ fn crate_core_parts() -> (String, &'static str) {
         // using the wgt crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
-            FoundCrate::Itself => ("zero_ui_wgt".to_owned(), "__proc_macro_util"),
+            FoundCrate::Itself => ("zero_ui".to_owned(), "__proc_macro_util"),
         }
     } else if let Ok(ident) = crate_name("zero-ui-app") {
         // using the core crate only.
         match ident {
             FoundCrate::Name(name) => (name, ""),
-            FoundCrate::Itself => ("zero_ui_app".to_owned(), ""),
+            FoundCrate::Itself => ("zero_ui".to_owned(), ""),
         }
     } else {
         // failed, at least shows "zero_ui" in the compile error.
-        ("zero_ui".to_owned(), "core")
+        ("zero_ui".to_owned(), "__proc_macro_util")
     }
 }
 

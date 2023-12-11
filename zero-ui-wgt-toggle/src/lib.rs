@@ -3,6 +3,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+zero_ui_wgt::enable_widget_macros!();
+
 use std::ops;
 use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 

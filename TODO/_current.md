@@ -44,10 +44,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Add -wgt- crates.
-    - Mix with existing modules?
-    - Like -wgt-text goes in text with -txt.
-
 * Review inspector.
 
 * Review `dyn_closure` and other features (`dyn_*`, `http`).

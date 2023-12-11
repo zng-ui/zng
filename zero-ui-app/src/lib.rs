@@ -1,4 +1,8 @@
 //! App process implementation.
+//! 
+//! # Widget Instantiation
+//! 
+//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zero-ui` crate.
 
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
@@ -28,11 +32,6 @@ pub mod window;
 
 mod tests;
 
-// to make the proc-macro $crate substitute work in doc-tests.
-#[doc(hidden)]
-#[allow(unused_extern_crates)]
-extern crate self as zero_ui_app;
-
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
@@ -48,8 +47,36 @@ use window::WindowMode;
 use zero_ui_app_context::{AppId, AppScope, LocalContext};
 use zero_ui_task::ui::UiTask;
 
+/// Enable widget instantiation in crates that can't depend on the `zero-ui` crate.
+///
+/// This must be called at the top of the crate:
+///
+/// ```
+/// // in lib.rs or main.rs
+/// # use zero_ui_app::*;
+/// enable_widget_macros!();
+/// ```
+#[macro_export]
+macro_rules! enable_widget_macros {
+    () => {
+        #[doc(hidden)]
+        #[allow(unused_extern_crates)]
+        extern crate self as zero_ui;
+
+        #[doc(hidden)]
+        pub use $crate::__proc_macro_util;
+    };
+}
+
+#[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui;
+
 #[doc(hidden)]
 pub mod __proc_macro_util {
+    // * don't add glob re-exports, the types leak in rust-analyzer even if all is doc(hidden).
+    // * don't use macro_rules! macros that use $crate , they will fail with "unresolved import" when used from the re-exports.
+
     #[doc(hidden)]
     pub mod widget {
         #[doc(hidden)]
@@ -57,10 +84,10 @@ pub mod __proc_macro_util {
             #[doc(hidden)]
             pub use crate::widget::builder::{
                 getter_var, iter_input_build_actions, nest_group_items, new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var,
-                new_dyn_widget_handler, panic_input, source_location, state_var, ui_node_list_to_args, ui_node_to_args, value_to_args,
-                var_to_args, when_condition_expr_var, widget_handler_to_args, AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind,
-                PropertyArgs, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, StaticPropertyId,
-                UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
+                new_dyn_widget_handler, panic_input, state_var, ui_node_list_to_args, ui_node_to_args, value_to_args, var_to_args,
+                when_condition_expr_var, widget_handler_to_args, AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind,
+                PropertyArgs, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation,
+                StaticPropertyId, UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
                 WidgetHandlerInWhenExprError, WidgetType,
             };
         }
@@ -72,7 +99,9 @@ pub mod __proc_macro_util {
 
         #[doc(hidden)]
         pub mod instance {
-            pub use crate::widget::instance::{ui_vec, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList};
+            pub use crate::widget::instance::{
+                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiNodeVec,
+            };
         }
 
         #[doc(hidden)]
@@ -81,7 +110,7 @@ pub mod __proc_macro_util {
         }
 
         #[doc(hidden)]
-        pub use crate::widget::{widget_new, easing_property};
+        pub use crate::widget::{easing_property, widget_new};
     }
 
     #[doc(hidden)]
@@ -118,7 +147,7 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod var {
         #[doc(hidden)]
-        pub use crate::var::{expr_var, AnyVar, BoxedVar, Var, AnyVarValue};
+        pub use crate::var::{expr_var, AnyVar, AnyVarValue, BoxedVar, Var};
 
         #[doc(hidden)]
         pub mod animation {

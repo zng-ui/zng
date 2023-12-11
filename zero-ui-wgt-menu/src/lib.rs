@@ -3,6 +3,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+zero_ui_wgt::enable_widget_macros!();
+
 use zero_ui_ext_font::FontNames;
 use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs, mouse::ClickMode};
 use zero_ui_ext_l10n::lang;

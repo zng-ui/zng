@@ -3,6 +3,8 @@
 
 //! Button widget.
 
+zero_ui_wgt::enable_widget_macros!();
+
 use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*, InteractivityMix};
 use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zero_ui_wgt_container::{child_align, padding, Container};

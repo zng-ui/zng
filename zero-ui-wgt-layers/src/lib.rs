@@ -3,6 +3,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+zero_ui_wgt::enable_widget_macros!();
+
 use parking_lot::Mutex;
 use zero_ui_app::widget::border::CORNER_RADIUS_VAR;
 use zero_ui_app::widget::info::WIDGET_INFO_CHANGED_EVENT;

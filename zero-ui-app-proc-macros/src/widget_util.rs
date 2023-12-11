@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt, mem};
 
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{
     ext::IdentExt,
@@ -569,4 +569,16 @@ impl Parse for WidgetCustomRule {
 
         Ok(WidgetCustomRule { rule, init })
     }
+}
+
+// expansion of `macro_rules! source_location`
+pub fn source_location(crate_core: &TokenStream, location: Span) -> TokenStream {
+    let source_location = quote_spanned! {location=>
+        #crate_core::widget::builder::SourceLocation {
+            file: std::file!(),
+            line: std::line!(),
+            column: std::column!(),
+        }
+    };
+    util::set_stream_span(source_location, location)
 }

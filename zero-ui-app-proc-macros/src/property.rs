@@ -182,7 +182,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::widget::instance::NilUiNode,
                         }),
                         InputKind::UiNodeList => default.extend(quote! {
-                            #core::widget::instance::ui_vec![],
+                            #core::widget::instance::UiNodeVec::new(),
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_| {}),
@@ -498,6 +498,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             quote!()
         };
 
+        let source_location = crate::widget_util::source_location(&core, ident.span());
+
         let meta = quote! {
             #cfg
             #[doc(hidden)]
@@ -524,7 +526,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         capture: #capture,
                         id: self.id(),
                         name: std::stringify!(#ident),
-                        location: #core::widget::builder::source_location!(),
+                        location: #source_location,
                         default: self.default_fn #path_gens(),
                         new: Self::args_dyn #path_gens,
                         inputs: std::boxed::Box::new([

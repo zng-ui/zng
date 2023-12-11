@@ -46,8 +46,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-#[doc(hidden)]
-pub use zero_ui_app::__proc_macro_util;
+zero_ui_wgt::enable_widget_macros!();
 
 /// Types for general app development.
 pub mod prelude {
@@ -183,7 +182,7 @@ pub mod prelude {
 
     pub use zero_ui_wgt_style::{style_fn, Style};
 
-    pub use zero_ui_wgt_stack::Stack;
+    pub use zero_ui_wgt_stack::{Stack, StackDirection};
 
     pub use zero_ui_wgt_wrap::Wrap;
 }
@@ -451,7 +450,7 @@ pub mod widget {
         easing, property, ui_node, widget, widget_mixin, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET,
     };
 
-    pub use zero_ui_wgt::Wgt;
+    pub use zero_ui_wgt::{parallel, Wgt};
 
     /// Widget border properties and types.
     pub mod borders {

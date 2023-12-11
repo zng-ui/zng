@@ -1,7 +1,13 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use zero_ui::{
     app::HeadlessApp,
-    image::{ImageDataFormat, ImageSource},
+    image::{ImageDataFormat, ImageSource, Img},
     prelude::*,
+    widget::parallel,
 };
 use zero_ui_app::view_process::VIEW_PROCESS_INITED_EVENT;
 
@@ -39,6 +45,8 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
     }));
 
     assert!(img.get().is_loaded());
+
+    error_view_recursion();
 }
 
 fn image() -> ImageSource {
@@ -51,18 +59,17 @@ fn image() -> ImageSource {
     (bgra, ImageDataFormat::from(size)).into()
 }
 
-#[test]
 fn error_view_recursion() {
-    crate::core::test_log();
+    zero_ui_app::test_log();
 
-    let img = var(crate::core::image::Img::dummy(Some("test error".to_string()))).read_only();
+    let img = var(Img::dummy(Some("test error".to_text()))).read_only();
 
     let mut app = APP.defaults().run_headless(false);
     IMAGES.load_in_headless().set(true);
     let ok = Arc::new(AtomicBool::new(false));
     let window_id = app.open_window(async_clmv!(ok, {
         Window! {
-            crate::core::widget_base::parallel = false;
+            parallel = false;
             child = Image! {
                 source = img.clone();
                 img_error_fn = wgt_fn!(ok, |_| {

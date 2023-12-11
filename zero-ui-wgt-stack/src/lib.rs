@@ -1,5 +1,7 @@
 //! Stack widgets, properties and nodes.
 
+zero_ui_wgt::enable_widget_macros!();
+
 use zero_ui_wgt::prelude::*;
 
 mod types;

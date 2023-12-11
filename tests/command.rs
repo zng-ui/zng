@@ -1,7 +1,10 @@
 use zero_ui::{
+    focus::focusable,
     keyboard::{Key, KeyCode},
+    layout::size,
     prelude::*,
     wgt_prelude::*,
+    widget::parallel,
 };
 
 #[test]
@@ -123,7 +126,7 @@ async fn listener_window(focused_wgt: bool) -> WindowRoot {
     }
 
     Window! {
-        zero_ui::core::widget_base::parallel = false;
+        parallel = false;
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
