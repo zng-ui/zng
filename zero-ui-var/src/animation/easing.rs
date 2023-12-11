@@ -24,9 +24,7 @@ use super::*;
 /// }
 /// ```
 ///
-/// Note that all the common easing functions are implemented in [`var::easing`].
-///
-/// [`var::easing`]: mod@crate::easing
+/// Note that all the common easing functions are implemented in [`easing`].
 pub type EasingStep = Factor;
 
 /// Easing function input.

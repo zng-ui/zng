@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use task::parking_lot::Mutex;
 use zero_ui_app::widget::info;
 
 use crate::prelude::*;
@@ -317,4 +320,108 @@ event_property! {
         args: info::InteractivityChangedArgs,
         filter: |a| a.is_unblock(WIDGET.id()),
     }
+}
+
+/// Only allow interaction inside the widget, descendants and ancestors.
+///
+/// When modal mode is enabled in a widget only it and widget descendants [allows interaction], all other widgets behave as if disabled, but
+/// without the visual indication of disabled. This property is a building block for modal overlay widgets.
+///
+/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
+///
+/// This property also sets the accessibility modal flag.
+///
+/// [allows interaction]: zero_ui_app::widget::info::WidgetInfo::interactivity
+#[property(CONTEXT, default(false))]
+pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    static MODAL_WIDGETS: StaticStateId<Arc<Mutex<ModalWidgetsData>>> = StaticStateId::new_unique();
+    #[derive(Default)]
+    struct ModalWidgetsData {
+        widgets: IdSet<WidgetId>,
+        last_in_tree: Option<WidgetId>,
+    }
+    let enabled = enabled.into_var();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_info(&enabled);
+            WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
+        }
+        UiNodeOp::Deinit => {
+            let mws = WINDOW.req_state(&MODAL_WIDGETS);
+
+            // maybe unregister.
+            let mut mws = mws.lock();
+            let widget_id = WIDGET.id();
+            if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                mws.last_in_tree = None;
+            }
+        }
+        UiNodeOp::Info { info } => {
+            let mws = WINDOW.req_state(&MODAL_WIDGETS);
+
+            if enabled.get() {
+                if let Some(mut a) = info.access() {
+                    a.flag_modal();
+                }
+
+                let insert_filter = {
+                    let mut mws = mws.lock();
+                    if mws.widgets.insert(WIDGET.id()) {
+                        mws.last_in_tree = None;
+                        mws.widgets.len() == 1
+                    } else {
+                        false
+                    }
+                };
+                if insert_filter {
+                    // just registered and we are the first, insert the filter:
+
+                    info.push_interactivity_filter(clmv!(mws, |a| {
+                        let mut mws = mws.lock();
+
+                        // caches the top-most modal.
+                        if mws.last_in_tree.is_none() {
+                            match mws.widgets.len() {
+                                0 => unreachable!(),
+                                1 => {
+                                    // only one modal
+                                    mws.last_in_tree = mws.widgets.iter().next().copied();
+                                }
+                                _ => {
+                                    // multiple modals, find the *top* one.
+                                    let mut found = 0;
+                                    for info in a.info.root().self_and_descendants() {
+                                        if mws.widgets.contains(&info.id()) {
+                                            mws.last_in_tree = Some(info.id());
+                                            found += 1;
+                                            if found == mws.widgets.len() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                        }
+
+                        // filter, only allows inside self inclusive, and ancestors.
+                        let modal = mws.last_in_tree.unwrap();
+                        if a.info.self_and_ancestors().any(|w| w.id() == modal) || a.info.self_and_descendants().any(|w| w.id() == modal) {
+                            Interactivity::ENABLED
+                        } else {
+                            Interactivity::BLOCKED
+                        }
+                    }));
+                }
+            } else {
+                // maybe unregister.
+                let mut mws = mws.lock();
+                let widget_id = WIDGET.id();
+                if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                    mws.last_in_tree = None;
+                }
+            }
+        }
+        _ => {}
+    })
 }

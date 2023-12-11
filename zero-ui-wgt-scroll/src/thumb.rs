@@ -4,7 +4,7 @@ use super::*;
 use scrollbar::ORIENTATION_VAR;
 use zero_ui_ext_input::mouse::{ClickMode, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
 use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::{capture_pointer, click_mode, is_cap_pressed, is_hovered};
+use zero_ui_wgt_input::{click_mode, is_cap_pressed, is_hovered, pointer_capture::capture_pointer};
 
 /// Scrollbar thumb widget.
 #[widget($crate::Thumb)]

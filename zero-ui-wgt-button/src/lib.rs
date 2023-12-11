@@ -9,10 +9,12 @@ use zero_ui_wgt_container::{child_align, padding, Container};
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_filters::{child_opacity, saturate};
 use zero_ui_wgt_input::{
-    capture_pointer, cursor,
+    cursor,
     focus::FocusableMix,
     gesture::{on_click, ClickArgs},
-    is_cap_hovered, is_pressed, CaptureMode, CursorIcon,
+    is_cap_hovered, is_pressed,
+    pointer_capture::{capture_pointer, CaptureMode},
+    CursorIcon,
 };
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 

@@ -169,6 +169,58 @@ impl Filter {
         self.op(FilterOp::ColorMatrix(matrix.into().0))
     }
 }
+
+impl Filter {
+    /// New [`Filter::opacity`].
+    pub fn new_opacity<A: Into<Factor>>(alpha: A) -> Filter {
+        Filter::default().opacity(alpha)
+    }
+    /// New [`Filter::invert`].
+    pub fn new_invert<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().invert(amount)
+    }
+    /// New [`Filter::blur`].
+    pub fn new_blur<R: Into<Length>>(radius: R) -> Filter {
+        Filter::default().blur(radius)
+    }
+    /// New [`Filter::sepia`].
+    pub fn new_sepia<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().sepia(amount)
+    }
+    /// New [`Filter::grayscale`].
+    pub fn new_grayscale<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().grayscale(amount)
+    }
+    /// New [`Filter::drop_shadow`].
+    pub fn new_drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, blur_radius: R, color: C) -> Filter {
+        Filter::default().drop_shadow(offset, blur_radius, color)
+    }
+    /// New [`Filter::brightness`].
+    pub fn new_brightness<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().brightness(amount)
+    }
+    /// New [`Filter::contrast`].
+    pub fn new_contrast<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().contrast(amount)
+    }
+    /// New [`Filter::saturate`].
+    pub fn new_saturate<A: Into<Factor>>(amount: A) -> Filter {
+        Filter::default().saturate(amount)
+    }
+    /// New [`Filter::hue_rotate`].
+    pub fn new_hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
+        Filter::default().hue_rotate(angle)
+    }
+    /// New [`Filter::flood`].
+    pub fn new_flood<C: Into<Rgba>>(color: C) -> Filter {
+        Filter::default().flood(color)
+    }
+    /// New [`Filter::color_matrix`].
+    pub fn new_color_matrix<M: Into<ColorMatrix>>(matrix: M) -> Filter {
+        Filter::default().color_matrix(matrix)
+    }
+}
+
 impl fmt::Debug for Filter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -416,55 +468,6 @@ impl Transitionable for Filter {
 
         self
     }
-}
-
-/// New [`Filter::opacity`].
-pub fn opacity<A: Into<Factor>>(alpha: A) -> Filter {
-    Filter::default().opacity(alpha)
-}
-/// New [`Filter::invert`].
-pub fn invert<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().invert(amount)
-}
-/// New [`Filter::blur`].
-pub fn blur<R: Into<Length>>(radius: R) -> Filter {
-    Filter::default().blur(radius)
-}
-/// New [`Filter::sepia`].
-pub fn sepia<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().sepia(amount)
-}
-/// New [`Filter::grayscale`].
-pub fn grayscale<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().grayscale(amount)
-}
-/// New [`Filter::drop_shadow`].
-pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, blur_radius: R, color: C) -> Filter {
-    Filter::default().drop_shadow(offset, blur_radius, color)
-}
-/// New [`Filter::brightness`].
-pub fn brightness<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().brightness(amount)
-}
-/// New [`Filter::contrast`].
-pub fn contrast<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().contrast(amount)
-}
-/// New [`Filter::saturate`].
-pub fn saturate<A: Into<Factor>>(amount: A) -> Filter {
-    Filter::default().saturate(amount)
-}
-/// New [`Filter::hue_rotate`].
-pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
-    Filter::default().hue_rotate(angle)
-}
-/// New [`Filter::flood`].
-pub fn flood<C: Into<Rgba>>(color: C) -> Filter {
-    Filter::default().flood(color)
-}
-/// New [`Filter::color_matrix`].
-pub fn color_matrix<M: Into<ColorMatrix>>(matrix: M) -> Filter {
-    Filter::default().color_matrix(matrix)
 }
 
 /// Represents a custom color filter.

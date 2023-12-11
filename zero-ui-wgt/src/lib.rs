@@ -75,8 +75,8 @@ pub mod prelude {
     pub use zero_ui_unique_id::{IdEntry, IdMap, IdSet};
 
     pub use zero_ui_color::{
-        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, filters as color_filters, gradient, hex, hsl, hsla, hsv, hsva,
-        rgb, rgba, web_colors, ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
+        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
+        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
     };
 
     pub use crate::nodes::{

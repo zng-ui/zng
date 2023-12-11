@@ -1,9 +1,11 @@
 use super::{commands::ScrollToMode, types::*, *};
-use zero_ui_ext_input::mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
+use zero_ui_ext_input::{
+    mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+    pointer_capture::POINTER_CAPTURE,
+};
 use zero_ui_var::ReadOnlyContextVar;
 use zero_ui_wgt::visibility;
 use zero_ui_wgt_fill::nodes::flood;
-use zero_ui_wgt_input::POINTER_CAPTURE;
 use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 context_var! {

@@ -177,6 +177,8 @@ pub mod prelude {
     pub use crate::tip::{self, tooltip, tooltip_fn, Tip};
 
     pub use zero_ui_wgt_view::{wgt_fn, WidgetFn};
+
+    pub use zero_ui_wgt_style::{style_fn, Style};
 }
 
 /// Prelude for declaring properties and widgets.
@@ -200,24 +202,47 @@ pub mod task {
     pub use zero_ui_app::widget::UiTaskWidget;
 }
 
-/// Color and gradient types, functions and macros, [`Rgba`], [`color_filters`], [`hex!`] and more.
+/// Color and gradient types, functions, properties and macros.
 ///
-/// See [`zero_ui_color`] for the full API.
-///
-/// [`hex!`]: macro@crate::prelude::hex
-/// [`color_filters`]: crate::prelude::color_filters
-/// [`Rgba`]: crate::prelude::Rgba
+/// See [`zero_ui_color`], [`zero_ui_wgt_filters`] and [`zero_ui_wgt_fill`] for the full API.
 pub mod color {
     pub use zero_ui_color::{
-        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, filters, gradient, hex, hsl, hsla, hsla_sampler, hsv, hsva,
-        lerp_space, linear_hsla_sampler, rgb, rgba, rgba_sampler, web_colors, with_lerp_space, ColorPair, ColorScheme, Hsla, Hsva,
-        LerpSpace, MixBlendMode, PreMulRgba, RenderColor, RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
+        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, hex, hsl, hsla, hsla_sampler, hsv, hsva, lerp_space,
+        linear_hsla_sampler, rgb, rgba, rgba_sampler, web_colors, with_lerp_space, ColorPair, ColorScheme, Hsla, Hsva, LerpSpace,
+        MixBlendMode, PreMulRgba, RenderColor, RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
     };
+
+    pub use zero_ui_wgt_fill::nodes::flood;
+
+    /// Color filters.
+    pub mod filters {
+        pub use zero_ui_color::filters::{ColorMatrix, Filter, RenderFilter};
+
+        pub use zero_ui_wgt_filters::{
+            backdrop_blur, backdrop_brightness, backdrop_color_matrix, backdrop_contrast, backdrop_filter, backdrop_grayscale,
+            backdrop_hue_rotate, backdrop_invert, backdrop_saturate, backdrop_sepia, blur, brightness, child_filter, child_mix_blend,
+            child_opacity, color_matrix, contrast, drop_shadow, filter, grayscale, hue_rotate, invert_color, mix_blend, opacity, saturate,
+            sepia,
+        };
+    }
+
+    /// Color gradient.
+    pub mod gradient {
+        pub use zero_ui_color::gradient::{
+            stops, ColorStop, ExtendMode, GradientRadius, GradientRadiusBase, GradientStop, GradientStops, LinearGradientAxis,
+            RenderExtendMode, RenderGradientStop,
+        };
+
+        pub use zero_ui_wgt_fill::nodes::{
+            conic_gradient, gradient, linear_gradient, radial_gradient, ConicGradient, GradientBuilder, LinearGradient, RadialGradient,
+            TiledConicGradient, TiledLinearGradient, TiledRadialGradient,
+        };
+    }
 }
 
 /// Layout service, units and other types.
 ///
-/// See [`zero_ui_layout`] for the full API.
+/// See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
 pub mod layout {
     pub use zero_ui_layout::units::{
         Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D,
@@ -234,6 +259,19 @@ pub mod layout {
     };
 
     pub use zero_ui_app::widget::info::{WidgetLayout, WidgetMeasure};
+
+    pub use zero_ui_wgt_transform::{
+        backface_visibility, perspective, perspective_origin, rotate, rotate_x, rotate_y, rotate_z, scale, scale_x, scale_xy, scale_y,
+        skew, skew_x, skew_y, transform, transform_origin, transform_style, translate, translate_x, translate_y, translate_z,
+    };
+
+    pub use zero_ui_wgt_size_offset::{
+        actual_bounds, actual_height, actual_height_px, actual_size, actual_size_px, actual_transform, actual_width, actual_width_px,
+        baseline, height, max_height, max_size, max_width, min_height, min_size, min_width, offset, size, sticky_height, sticky_size,
+        sticky_width, width, x, y, WidgetLength, WIDGET_SIZE,
+    };
+
+    pub use zero_ui_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
 }
 
 /// Frame builder and other types.
@@ -331,10 +369,28 @@ pub mod timer {
 pub mod widget {
     pub use zero_ui_app::widget::base::{HitTestMode, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
 
-    pub use zero_ui_app::widget::border::{
-        BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER, BORDER_ALIGN_VAR,
-        BORDER_OVER_VAR, CORNER_RADIUS_FIT_VAR, CORNER_RADIUS_VAR,
+    pub use zero_ui_app::widget::{
+        easing, property, ui_node, widget, widget_mixin, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET,
     };
+
+    pub use zero_ui_wgt::Wgt;
+
+    /// Widget border properties and types.
+    pub mod borders {
+        pub use zero_ui_app::widget::border::{
+            BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
+        };
+
+        pub use zero_ui_wgt::{border, border_align, border_over, corner_radius, corner_radius_fit, BorderMix};
+    }
+
+    /// Widget fill properties.
+    pub mod fill {
+        pub use zero_ui_wgt_fill::{
+            background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground,
+            foreground_color, foreground_fn, foreground_gradient, foreground_highlight,
+        };
+    }
 
     /// Widget and property builder types.
     ///
@@ -370,6 +426,7 @@ pub mod widget {
     /// [`UiNode`]: crate::prelude::UiNode
     /// [`UiNodeList`]: crate::prelude::UiNodeList
     pub mod instance {
+        // !!: TODO, rename to nodes?
         pub use zero_ui_app::widget::instance::{
             extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
             AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
@@ -386,12 +443,6 @@ pub mod widget {
             with_widget_state, with_widget_state_modify,
         };
     }
-
-    pub use zero_ui_wgt::Wgt;
-
-    pub use zero_ui_app::widget::{
-        easing, property, ui_node, widget, widget_mixin, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET,
-    };
 }
 
 /// Event handler API.
@@ -486,58 +537,101 @@ pub mod access {
 
 /// Keyboard service, events and types.
 ///
-/// See [`zero_ui_ext_input::keyboard`] for the full keyboard API.
+/// See [`zero_ui_ext_input::keyboard`] and [`zero_ui_wgt_input::keyboard`] for the full keyboard API.
 pub mod keyboard {
     pub use zero_ui_app::shortcut::ModifiersState;
+
     pub use zero_ui_ext_input::keyboard::{
         HeadlessAppKeyboardExt, Key, KeyCode, KeyInputArgs, KeyRepeatConfig, KeyState, ModifiersChangedArgs, NativeKeyCode, KEYBOARD,
         KEY_INPUT_EVENT, MODIFIERS_CHANGED_EVENT,
+    };
+
+    pub use zero_ui_wgt_input::keyboard::{
+        on_disabled_key_input, on_key_down, on_key_input, on_key_up, on_pre_disabled_key_input, on_pre_key_down, on_pre_key_input,
+        on_pre_key_up,
     };
 }
 
 /// Mouse service, events and types.
 ///
-/// See [`zero_ui_ext_input::mouse`] for the full mouse API.
+/// See [`zero_ui_ext_input::mouse`] and [`zero_ui_wgt_input::mouse`] for the full mouse API.
 pub mod mouse {
     pub use zero_ui_ext_input::mouse::{
         ButtonRepeatConfig, ButtonState, ClickMode, ClickTrigger, MouseButton, MouseClickArgs, MouseHoverArgs, MouseInputArgs,
         MouseMoveArgs, MousePosition, MouseScrollDelta, MouseWheelArgs, MultiClickConfig, WidgetInfoBuilderMouseExt, WidgetInfoMouseExt,
         MOUSE, MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT,
     };
+
+    pub use zero_ui_wgt_input::mouse::{
+        on_disabled_mouse_any_click, on_disabled_mouse_click, on_disabled_mouse_hovered, on_disabled_mouse_input, on_disabled_mouse_wheel,
+        on_mouse_any_click, on_mouse_any_double_click, on_mouse_any_single_click, on_mouse_any_triple_click, on_mouse_click,
+        on_mouse_double_click, on_mouse_down, on_mouse_enter, on_mouse_hovered, on_mouse_input, on_mouse_leave, on_mouse_move,
+        on_mouse_scroll, on_mouse_single_click, on_mouse_triple_click, on_mouse_up, on_mouse_wheel, on_mouse_zoom,
+        on_pre_disabled_mouse_any_click, on_pre_disabled_mouse_click, on_pre_disabled_mouse_hovered, on_pre_disabled_mouse_input,
+        on_pre_disabled_mouse_wheel, on_pre_mouse_any_click, on_pre_mouse_any_double_click, on_pre_mouse_any_single_click,
+        on_pre_mouse_any_triple_click, on_pre_mouse_click, on_pre_mouse_double_click, on_pre_mouse_down, on_pre_mouse_enter,
+        on_pre_mouse_hovered, on_pre_mouse_input, on_pre_mouse_leave, on_pre_mouse_move, on_pre_mouse_scroll, on_pre_mouse_single_click,
+        on_pre_mouse_triple_click, on_pre_mouse_up, on_pre_mouse_wheel, on_pre_mouse_zoom,
+    };
+
+    pub use zero_ui_wgt_input::{is_cap_mouse_pressed, is_mouse_pressed};
 }
 
 /// Touch service, events and types.
 ///
-/// See [`zero_ui_ext_input::touch`] for the full touch API.
+/// See [`zero_ui_ext_input::touch`] and [`zero_ui_wgt_input::touch`] for the full touch API.
 pub mod touch {
     pub use zero_ui_ext_input::touch::{
         TouchConfig, TouchForce, TouchId, TouchInputArgs, TouchLongPressArgs, TouchMove, TouchMoveArgs, TouchPhase, TouchPosition,
         TouchTapArgs, TouchTransformArgs, TouchTransformInfo, TouchTransformMode, TouchUpdate, TouchedArgs, TOUCH, TOUCHED_EVENT,
         TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT,
     };
+
+    pub use zero_ui_wgt_input::touch::{
+        on_disabled_touch_input, on_disabled_touch_long_press, on_disabled_touch_tap, on_pre_disabled_touch_input,
+        on_pre_disabled_touch_long_press, on_pre_disabled_touch_tap, on_pre_touch_cancel, on_pre_touch_end, on_pre_touch_enter,
+        on_pre_touch_input, on_pre_touch_leave, on_pre_touch_long_press, on_pre_touch_move, on_pre_touch_start, on_pre_touch_tap,
+        on_pre_touch_transform, on_pre_touched, on_touch_cancel, on_touch_end, on_touch_enter, on_touch_input, on_touch_leave,
+        on_touch_long_press, on_touch_move, on_touch_start, on_touch_tap, on_touch_transform, on_touched,
+    };
+
+    pub use zero_ui_wgt_input::{is_cap_touched, is_touched, is_touched_from_start};
 }
 
 /// Touch service, events and types.
 ///
-/// See [`zero_ui_ext_input::focus`] for the full focus API.
+/// See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
 pub mod focus {
     pub use zero_ui_ext_input::focus::{
         commands, iter, DirectionalNav, FocusChangedArgs, FocusChangedCause, FocusInfo, FocusInfoBuilder, FocusInfoTree, FocusNavAction,
         FocusRequest, FocusScopeOnFocus, FocusTarget, ReturnFocusChangedArgs, TabIndex, TabNav, WidgetFocusInfo, WidgetInfoFocusExt, FOCUS,
         FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
     };
+    pub use zero_ui_wgt_input::focus::{
+        alt_focus_scope, directional_nav, focus_click_behavior, focus_highlight, focus_on_init, focus_scope, focus_scope_behavior,
+        focus_shortcut, focusable, is_focus_within, is_focus_within_hgl, is_focused, is_focused_hgl, is_return_focus,
+        is_return_focus_within, on_blur, on_focus, on_focus_changed, on_focus_enter, on_focus_leave, on_pre_blur, on_pre_focus,
+        on_pre_focus_changed, on_pre_focus_enter, on_pre_focus_leave, skip_directional, tab_index, tab_nav, FocusClickBehavior,
+        FocusableMix,
+    };
 }
 
 /// Pointer capture service, events and types.
 ///
-/// See [`zero_ui_ext_input::pointer_capture`] for the full pointer capture API.
+/// See [`zero_ui_ext_input::pointer_capture`] and [`zero_ui_wgt_input::pointer_capture`] for the full pointer capture API.
 pub mod pointer_capture {
     pub use zero_ui_ext_input::pointer_capture::{CaptureInfo, CaptureMode, PointerCaptureArgs, POINTER_CAPTURE, POINTER_CAPTURE_EVENT};
+
+    pub use zero_ui_wgt_input::pointer_capture::{
+        capture_pointer, capture_pointer_on_init, on_got_pointer_capture, on_lost_pointer_capture, on_pointer_capture_changed,
+        on_pre_got_pointer_capture, on_pre_lost_pointer_capture, on_pre_pointer_capture_changed,
+    };
 }
 
 /// Gesture service, events, shortcuts and other types.
 ///
-/// See [`zero_ui_ext_input::gesture`] for the full gesture API and [`zero_ui_app::shortcut`] for the shortcut API.
+/// See [`zero_ui_ext_input::gesture`] and [`zero_ui_wgt_input::gesture`] for the full gesture API
+/// and [`zero_ui_app::shortcut`] for the shortcut API.
 ///
 /// [`zero_ui_app::shortcut`]: mod@zero_ui_app::shortcut
 pub mod gesture {
@@ -548,6 +642,13 @@ pub mod gesture {
 
     pub use zero_ui_app::shortcut::{
         shortcut, CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, Shortcut, ShortcutFilter, Shortcuts,
+    };
+
+    pub use zero_ui_wgt_input::gesture::{
+        click_shortcut, context_click_shortcut, on_any_click, on_any_double_click, on_any_single_click, on_any_triple_click, on_click,
+        on_context_click, on_disabled_click, on_double_click, on_pre_any_click, on_pre_any_double_click, on_pre_any_single_click,
+        on_pre_any_triple_click, on_pre_click, on_pre_context_click, on_pre_disabled_click, on_pre_double_click, on_pre_single_click,
+        on_pre_triple_click, on_single_click, on_triple_click,
     };
 }
 
@@ -570,6 +671,18 @@ pub mod undo {
         UndoSelectLtEq, UndoSelector, UndoStackInfo, UndoTransaction, UndoVarModifyTag, WidgetInfoUndoExt, WidgetUndoScope,
         CLEAR_HISTORY_CMD, REDO_CMD, UNDO, UNDO_CMD, UNDO_INTERVAL_VAR, UNDO_LIMIT_VAR,
     };
+
+    pub use zero_ui_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, UndoMix};
+
+    /// Undo history widget.
+    ///
+    /// See [`zero_ui_wgt_undo_history`] for the full undo API.
+    pub mod history {
+        pub use zero_ui_wgt_undo_history::{
+            extend_undo_button_style, group_by_undo_interval, is_cap_hovered_timestamp, replace_undo_button_style, UndoEntryArgs,
+            UndoHistory, UndoPanelArgs, UndoRedoButtonStyle, UndoStackArgs,
+        };
+    }
 }
 
 /// Data context types.
@@ -629,6 +742,16 @@ pub mod text {
         ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix, TextFillMix, TextOverflow,
         TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip,
     };
+}
+
+/// Icon widget and types.
+///
+/// See [`zero_ui_wgt_text::icon`] for the full widget API.
+pub mod icon {
+    pub use zero_ui_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
+
+    #[cfg(feature = "material_icons")]
+    pub use zero_ui_wgt_material_icons::{filled, outlined, rounded, sharp, MaterialFonts, MaterialIcon};
 }
 
 /// Container widget.
@@ -878,15 +1001,9 @@ pub mod wrap {
     };
 }
 
-pub mod TODO {
-    pub use zero_ui_wgt_fill;
-    pub use zero_ui_wgt_filters;
-    pub use zero_ui_wgt_input;
-    pub use zero_ui_wgt_material_icons;
-    pub use zero_ui_wgt_size_offset;
-    pub use zero_ui_wgt_style;
-    pub use zero_ui_wgt_transform;
-    pub use zero_ui_wgt_undo;
+/// Style mix-in and types.
+pub mod style {
+    pub use zero_ui_wgt_style::{style_fn, with_style_extension, Style, StyleArgs, StyleBuilder, StyleFn, StyleMix};
 }
 
 /// Start and manage an app process.

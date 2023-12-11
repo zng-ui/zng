@@ -16,9 +16,11 @@ use zero_ui_wgt_container::padding;
 use zero_ui_wgt_fill::{background, background_color, foreground_highlight};
 use zero_ui_wgt_filters::{opacity, saturate};
 use zero_ui_wgt_input::{
-    capture_pointer, click_mode, cursor,
+    click_mode, cursor,
     focus::{focus_click_behavior, focusable, is_focused, FocusClickBehavior},
-    is_hovered, CursorIcon,
+    is_hovered,
+    pointer_capture::capture_pointer,
+    CursorIcon,
 };
 use zero_ui_wgt_layers::{
     popup::{PopupState, POPUP, POPUP_CLOSE_CMD},

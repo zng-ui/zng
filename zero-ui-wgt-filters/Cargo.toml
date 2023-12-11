@@ -7,3 +7,4 @@ license = "Apache-2.0"
 
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-color = { path = "../zero-ui-color" }

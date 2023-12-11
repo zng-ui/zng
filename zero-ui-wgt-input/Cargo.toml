@@ -14,5 +14,3 @@ zero-ui-ext-window = { path = "../zero-ui-ext-window" }
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
-
-parking_lot = "0.12"

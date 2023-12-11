@@ -11,9 +11,6 @@ pub mod mouse;
 pub mod pointer_capture;
 pub mod touch;
 
-mod capture;
-pub use capture::*;
-
 mod misc;
 pub use misc::*;
 

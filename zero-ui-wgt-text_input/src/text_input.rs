@@ -5,8 +5,8 @@ use zero_ui_wgt_data::{DataNoteLevel, DataNotes, DATA};
 use zero_ui_wgt_fill::foreground_highlight;
 use zero_ui_wgt_filters::{child_opacity, saturate};
 use zero_ui_wgt_input::{
-    capture_pointer,
     focus::{focusable, is_return_focus},
+    pointer_capture::capture_pointer,
 };
 use zero_ui_wgt_menu::{
     self as menu,

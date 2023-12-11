@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use color_filters::{self as cf, Filter};
+use zero_ui_color::filters::{ColorMatrix, Filter};
 use zero_ui_wgt::prelude::*;
 
 /// Color filter, or combination of filters.
@@ -59,99 +59,99 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
 ///
 /// Zero does not invert, one fully inverts.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::invert`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_invert`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::invert(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)), false)
 }
 
 /// Inverts the colors of everything behind the widget.
 ///
 /// Zero does not invert, one fully inverts.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::invert`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_invert`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(false))]
 pub fn backdrop_invert(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::invert(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)))
 }
 
 /// Blur the widget.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::blur`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_blur`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
-    filter_layout(child, radius.into_var().map(|r| cf::blur(r.clone())), false)
+    filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())), false)
 }
 
 /// Blur the everything behind the widget.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::blur`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_blur`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(0))]
 pub fn backdrop_blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
-    backdrop_filter_layout(child, radius.into_var().map(|r| cf::blur(r.clone())))
+    backdrop_filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())))
 }
 
 /// Sepia tone the widget.
 ///
 /// zero is the original colors, one is the full desaturated brown look.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::sepia`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_sepia`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::sepia(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)), false)
 }
 
 /// Sepia tone everything behind the widget.
 ///
 /// zero is the original colors, one is the full desaturated brown look.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::sepia`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_sepia`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(false))]
 pub fn backdrop_sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::sepia(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)))
 }
 
 /// Grayscale tone the widget.
 ///
 /// Zero is the original colors, one if the full grayscale.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::grayscale`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_grayscale`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::grayscale(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)), false)
 }
 
 /// Grayscale tone everything behind the widget.
 ///
 /// Zero is the original colors, one if the full grayscale.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::grayscale`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_grayscale`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(false))]
 pub fn backdrop_grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::grayscale(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)))
 }
 
 /// Drop-shadow effect for the widget.
 ///
 /// The shadow is *pixel accurate*.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::drop_shadow`] using variable merging.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_drop_shadow`] using variable merging.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default((0, 0), 0, colors::BLACK.transparent()))]
@@ -164,7 +164,7 @@ pub fn drop_shadow(
     filter_layout(
         child,
         merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
-            cf::drop_shadow(o.clone(), r.clone(), c)
+            Filter::new_drop_shadow(o.clone(), r.clone(), c)
         }),
         false,
     )
@@ -174,123 +174,123 @@ pub fn drop_shadow(
 ///
 /// Zero removes all brightness, one is the original brightness.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::brightness(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)), false)
 }
 
 /// Adjust color brightness of everything behind the widget.
 ///
 /// Zero removes all brightness, one is the original brightness.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::brightness(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)))
 }
 
 /// Adjust the widget colors contrast.
 ///
 /// Zero removes all contrast, one is the original contrast.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::contrast(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)), false)
 }
 
 /// Adjust the color contrast of everything behind the widget.
 ///
 /// Zero removes all contrast, one is the original contrast.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::contrast(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)))
 }
 
 /// Adjust the widget colors saturation.
 ///
 /// Zero fully desaturates, one is the original saturation.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::saturate`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_saturate`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter_render(child, amount.into_var().map(|&a| cf::saturate(a)), false)
+    filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)), false)
 }
 
 /// Adjust color saturation of everything behind the widget.
 ///
 /// Zero fully desaturates, one is the original saturation.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::saturate`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_saturate`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    backdrop_filter_render(child, amount.into_var().map(|&a| cf::saturate(a)))
+    backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)))
 }
 
 /// Hue shift the widget colors.
 ///
 /// Adds `angle` to the [`hue`] of the widget colors.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`color_filters::hue_rotate`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_hue_rotate`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
 /// [`hue`]: Hsla::hue
 #[property(CONTEXT, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
-    filter_render(child, angle.into_var().map(|&a| cf::hue_rotate(a)), false)
+    filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)), false)
 }
 
 /// Hue shift the colors behind the widget.
 ///
 /// Adds `angle` to the [`hue`] of the widget colors.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`color_filters::hue_rotate`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_hue_rotate`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`hue`]: Hsla::hue
 #[property(CONTEXT, default(0.deg()))]
 pub fn backdrop_hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
-    backdrop_filter_render(child, angle.into_var().map(|&a| cf::hue_rotate(a)))
+    backdrop_filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)))
 }
 
 /// Custom color filter.
 ///
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
-#[property(CONTEXT, default(cf::ColorMatrix::identity()))]
-pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -> impl UiNode {
-    filter_render(child, matrix.into_var().map(|&m| cf::color_matrix(m)), false)
+#[property(CONTEXT, default(ColorMatrix::identity()))]
+pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatrix>) -> impl UiNode {
+    filter_render(child, matrix.into_var().map(|&m| Filter::new_color_matrix(m)), false)
 }
 
 /// Custom backdrop filter.
 ///
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
-#[property(CONTEXT, default(cf::ColorMatrix::identity()))]
-pub fn backdrop_color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -> impl UiNode {
-    backdrop_filter_render(child, matrix.into_var().map(|&m| cf::color_matrix(m)))
+#[property(CONTEXT, default(ColorMatrix::identity()))]
+pub fn backdrop_color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatrix>) -> impl UiNode {
+    backdrop_filter_render(child, matrix.into_var().map(|&m| Filter::new_color_matrix(m)))
 }
 
 /// Opacity/transparency of the widget.
 ///
-/// This property provides the same visual result as setting [`filter`] to [`color_filters::opacity(opacity)`],
+/// This property provides the same visual result as setting [`filter`] to [`Filter::new_opacity(opacity)`],
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`filter`]: fn@filter
-/// [`color_filters::opacity(opacity)`]: color_filters::opacity
+/// [`Filter::new_opacity(opacity)`]: Filter::new_opacity
 #[property(CONTEXT, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     opacity_impl(child, alpha, false)
@@ -302,7 +302,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`child_filter`]: fn@child_filter
-/// [`color_filters::opacity(opacity)`]: color_filters::opacity
+/// [`Filter::new_opacity(opacity)`]: Filter::new_opacity
 #[property(CHILD_CONTEXT, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     opacity_impl(child, alpha, true)
