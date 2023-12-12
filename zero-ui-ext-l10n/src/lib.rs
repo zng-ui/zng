@@ -447,5 +447,9 @@ fn from_unic_char_direction(d: unic_langid::CharacterDirection) -> LayoutDirecti
     match d {
         unic_langid::CharacterDirection::LTR => LayoutDirection::LTR,
         unic_langid::CharacterDirection::RTL => LayoutDirection::RTL,
+        d => {
+            tracing::warn!("converted {d:?} to LTR");
+            LayoutDirection::LTR
+        }
     }
 }
