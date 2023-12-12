@@ -15,7 +15,6 @@ use zero_ui_wgt_input::focus::{
 };
 use zero_ui_wgt_text::{font_color, lang, FONT_SIZE_VAR};
 
-pub mod commands;
 pub mod events;
 pub mod nodes;
 mod window_properties;
@@ -86,12 +85,6 @@ impl Window {
                 })
             });
             wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layers::layers_node);
-
-            #[cfg(inspector)]
-            {
-                let can_inspect = wgt.capture_var_or_else(property_id!(can_inspect), || true);
-                wgt.push_intrinsic(NestGroup::EVENT, "inspect_cmd", |child| commands::inspect_node(child, can_inspect));
-            }
         });
     }
 
@@ -114,13 +107,6 @@ impl Window {
 /// Window position when it opens.
 #[property(LAYOUT, capture, widget_impl(Window))]
 pub fn start_position(position: impl IntoValue<StartPosition>) {}
-
-/// If the Inspector can be opened for this window.
-///
-/// The default value is `true`, but only applies if built with the `inspector` feature.
-#[cfg(inspector)]
-#[property(LAYOUT, capture, widget_impl(Window))]
-pub fn can_inspect(enabled: impl IntoVar<bool>) {}
 
 /// Extra configuration for the window when run in [headless mode](zero_ui_app::window::WindowMode::is_headless).
 ///

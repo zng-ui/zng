@@ -24,7 +24,7 @@ use zero_ui_view_api::{
     window::{EventCause, FrameId},
 };
 
-pub use zero_ui_view_api::window::{RenderMode, VideoMode, WindowState, FocusIndicator};
+pub use zero_ui_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowState};
 
 use crate::{HeadlessMonitor, WINDOW_Ext as _};
 

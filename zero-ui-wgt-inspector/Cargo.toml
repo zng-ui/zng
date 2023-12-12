@@ -7,10 +7,36 @@ license = "Apache-2.0"
 
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-ext-input = { path = "../zero-ui-ext-input" }
+zero-ui-ext-font = { path = "../zero-ui-ext-font" }
+zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-ext-window = { path = "../zero-ui-ext-window" }
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-wgt-window = { path = "../zero-ui-wgt-window" }
+zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
+zero-ui-wgt-toggle = { path = "../zero-ui-wgt-toggle" }
+zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
+zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
+zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
+zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
+zero-ui-wgt-text_input = { path = "../zero-ui-wgt-text_input" }
+zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
+zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
+zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
+zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
+zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
+zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
+zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
+zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
+zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }
+zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
+zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
+zero-ui-layout = { path = "../zero-ui-layout" }
+zero-ui-var = { path = "../zero-ui-var" }
+zero-ui-color = { path = "../zero-ui-color" }
 
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
+parking_lot = "0.12"

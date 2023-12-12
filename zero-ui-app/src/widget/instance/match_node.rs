@@ -77,6 +77,21 @@ impl<'a> UiNodeOp<'a> {
             UiNodeOp::RenderUpdate { .. } => UiNodeOpMethod::RenderUpdate,
         }
     }
+
+    /// Reborrow the op.
+    pub fn reborrow(&mut self) -> UiNodeOp {
+        match self {
+            UiNodeOp::Init => UiNodeOp::Init,
+            UiNodeOp::Deinit => UiNodeOp::Deinit,
+            UiNodeOp::Info { info } => UiNodeOp::Info { info },
+            UiNodeOp::Event { update } => UiNodeOp::Event { update },
+            UiNodeOp::Update { updates } => UiNodeOp::Update { updates },
+            UiNodeOp::Measure { wm, desired_size } => UiNodeOp::Measure { wm, desired_size },
+            UiNodeOp::Layout { wl, final_size } => UiNodeOp::Layout { wl, final_size },
+            UiNodeOp::Render { frame } => UiNodeOp::Render { frame },
+            UiNodeOp::RenderUpdate { update } => UiNodeOp::RenderUpdate { update },
+        }
+    }
 }
 impl<'a> fmt::Debug for UiNodeOp<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

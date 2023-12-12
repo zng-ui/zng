@@ -13,7 +13,8 @@ use zero_ui::{
     layout::{align, margin, min_width},
     prelude::*,
     text::{font_color, font_family},
-    widget::{background, background_color, border, corner_radius, enabled, modal}, window::FocusIndicator,
+    widget::{background, background_color, border, corner_radius, enabled, modal},
+    window::FocusIndicator,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

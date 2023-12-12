@@ -12,9 +12,18 @@ rand = "0.8.5"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 
-zero-ui = { path = "../zero-ui", features = ["hyphenation_embed_all", "inspector", "deadlock_detection"] } # , "deadlock_detection"
+zero-ui = { path = "../zero-ui", features = [
+    "hyphenation_embed_all",
+    "inspector",
+    "deadlock_detection",
+] } # , "deadlock_detection"
+
 zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
+
+zero-ui-app = { path = "../zero-ui-app" }           # for respawn and extend_view examples
+zero-ui-view-api = { path = "../zero-ui-view-api" } # for and extend_view example
+
 examples-util = { path = "util" }
 # backtrace-on-stack-overflow = "0.2"
 

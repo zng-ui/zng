@@ -77,6 +77,8 @@ pub mod prelude {
         window::{MonitorId, StaticWindowId, WindowId, WINDOW},
     };
 
+    pub use zero_ui_app::widget::inspector::WidgetInfoInspectorExt as _;
+
     pub use zero_ui_var::{
         context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
         AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
@@ -515,6 +517,13 @@ pub mod widget {
         pub mod access {
             pub use zero_ui_app::widget::info::access::{AccessBuildArgs, WidgetAccessInfo, WidgetAccessInfoBuilder};
         }
+
+        /// Helper types for inspecting an UI tree.
+        pub mod inspector {
+            pub use zero_ui_app::widget::inspector::{
+                InspectPropertyPattern, InspectWidgetPattern, InspectorContext, InspectorInfo, InstanceItem, WidgetInfoInspectorExt,
+            };
+        }
     }
 
     /// Widget instance types, [`UiNode`], [`UiNodeList`] and others.
@@ -828,7 +837,9 @@ pub mod window {
     /// Window commands.
     pub mod commands {
         pub use zero_ui_ext_window::commands::*;
-        pub use zero_ui_wgt_window::commands::*;
+
+        #[cfg(inspector)]
+        pub use zero_ui_wgt_inspector::INSPECT_CMD;
     }
 
     pub use zero_ui_wgt_window::{SaveState, Window};
@@ -1230,6 +1241,9 @@ mod defaults {
 
             WINDOWS.register_root_extender(|a| {
                 let child = a.root;
+
+                #[cfg(inspector)]
+                let child = zero_ui_wgt_inspector::inspector(child, zero_ui_wgt_inspector::live_inspector(true));
 
                 // `zero_ui_wgt_menu` depends on `zero_ui_wgt_text` so we can't set this in the text crate.
                 zero_ui_wgt_text::selection_toolbar_fn(

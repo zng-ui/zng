@@ -120,11 +120,12 @@ fn view_extensions() -> ViewExtensions {
 pub mod using_display_items {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::core::app::view_process::{ApiExtensionId, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
         use zero_ui::{
             mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
             wgt_prelude::*,
         };
+        use zero_ui_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -240,10 +241,7 @@ pub mod using_display_items {
     pub mod view_side {
         use std::collections::HashMap;
 
-        use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
-            core::units::PxPoint,
-        };
+        use zero_ui::wgt_prelude::PxPoint;
         use zero_ui_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
@@ -254,6 +252,7 @@ pub mod using_display_items {
                 euclid,
             },
         };
+        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -362,10 +361,8 @@ pub mod using_display_items {
     pub mod api {
         use std::sync::atomic::{AtomicU32, Ordering};
 
-        use zero_ui::{
-            core::app::view_process::ApiExtensionName,
-            prelude::{PxPoint, PxSize},
-        };
+        use zero_ui::prelude::{PxPoint, PxSize};
+        use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub fn extension_name() -> ApiExtensionName {
             ApiExtensionName::new("zero-ui.examples.extend_renderer.using_display_items").unwrap()
@@ -400,10 +397,9 @@ pub mod using_display_items {
 pub mod using_blob {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::{
-            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
-            prelude::UiNode,
-        };
+        use zero_ui::prelude::UiNode;
+        use zero_ui_app::view_process::VIEW_PROCESS;
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -423,10 +419,7 @@ pub mod using_blob {
     pub mod view_side {
         use std::{collections::HashMap, sync::Arc};
 
-        use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
-            prelude::{task::parking_lot::Mutex, PxPoint, PxSize},
-        };
+        use zero_ui::prelude::{task::parking_lot::Mutex, PxPoint, PxSize};
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
@@ -438,6 +431,7 @@ pub mod using_blob {
                 euclid,
             },
         };
+        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _, webrender_api};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -695,7 +689,7 @@ pub mod using_blob {
                 // Webrender received the update request
             }
 
-            fn delete(&mut self, key: zero_ui::core::app::view_process::zero_ui_view_api::webrender_api::BlobImageKey) {
+            fn delete(&mut self, key: webrender_api::BlobImageKey) {
                 // Webrender requested cleanup.
 
                 let mut renderer = self.renderer.lock();
@@ -824,7 +818,7 @@ pub mod using_blob {
     }
 
     pub mod api {
-        use zero_ui::core::app::view_process::ApiExtensionName;
+        use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 
@@ -838,10 +832,9 @@ pub mod using_blob {
 pub mod using_gl_overlay {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::{
-            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
-            prelude::UiNode,
-        };
+        use zero_ui::prelude::UiNode;
+        use zero_ui_app::view_process::VIEW_PROCESS;
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -859,14 +852,12 @@ pub mod using_gl_overlay {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::{
-            core::app::view_process::ApiExtensionId,
-            prelude::{units::PxRect, Px, PxPoint, PxSize},
-        };
+        use zero_ui::prelude::{Px, PxPoint, PxRect, PxSize};
         use zero_ui_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             gleam::gl,
         };
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         use super::api::BindingId;
 
@@ -1031,7 +1022,7 @@ pub mod using_gl_overlay {
     }
 
     pub mod api {
-        use zero_ui::core::app::view_process::ApiExtensionName;
+        use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 
@@ -1045,10 +1036,9 @@ pub mod using_gl_overlay {
 pub mod using_gl_texture {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::{
-            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
-            prelude::UiNode,
-        };
+        use zero_ui::prelude::UiNode;
+        use zero_ui_app::view_process::VIEW_PROCESS;
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -1066,10 +1056,7 @@ pub mod using_gl_texture {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::units::PxToWr, ApiExtensionId},
-            prelude::units::PxRect,
-        };
+        use zero_ui::prelude::PxRect;
         use zero_ui_view::{
             extensions::{RenderItemArgs, RendererExtension, ViewExtensions},
             gleam::gl,
@@ -1079,6 +1066,7 @@ pub mod using_gl_texture {
                 ImageDescriptorFlags, ImageFormat, ImageKey, ImageRendering,
             },
         };
+        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -1207,7 +1195,7 @@ pub mod using_gl_texture {
     }
 
     pub mod api {
-        use zero_ui::core::app::view_process::ApiExtensionName;
+        use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 

@@ -34,10 +34,10 @@ debug_default = ["zero-ui-app/debug_default"]
 # This speeds-up compilation time at the cost of runtime.
 dyn_node = ["zero-ui-app/dyn_node"]
 
-# Instrument each property and widget instance with "Inspector" nodes.
+# Instrument each property and widget instance with "Inspector" nodes and
+# extend windows to be inspected on Ctrl+Shift+I.
 inspector = [
     "zero-ui-app/inspector",
-    "zero-ui-wgt-window/inspector",
     "zero-ui-wgt-inspector",
 ]
 

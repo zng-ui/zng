@@ -206,6 +206,9 @@ impl Text {
     }
 }
 
+#[doc(hidden)]
+pub use zero_ui_ext_font::{FontStyle as __FontStyle, FontWeight as __FontWeight};
+
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.
 ///
 /// The input syntax is the same as the shorthand [`Text!`].
@@ -220,13 +223,13 @@ macro_rules! Strong {
     ($txt:expr) => {
         $crate::Text! {
             txt = $txt;
-            font_weight = $crate::core::text::FontWeight::BOLD;
+            font_weight = $crate::__FontWeight::BOLD;
         }
     };
     ($txt:tt, $($format:tt)*) => {
         $crate::Text! {
-            txt = $crate::core::text::formatx!($txt, $($format)*);
-            font_weight = $crate::core::text::FontWeight::BOLD;
+            txt = $crate::__formatx!($txt, $($format)*);
+            font_weight = $crate::__FontWeight::BOLD;
         }
     };
 }
@@ -245,13 +248,13 @@ macro_rules! Em {
     ($txt:expr) => {
         $crate::Text! {
             txt = $txt;
-            font_style = FontStyle::Italic;
+            font_style = $crate::__FontStyle::Italic;
         }
     };
     ($txt:tt, $($format:tt)*) => {
         $crate::Text! {
-            txt = $crate::core::text::formatx!($txt, $($format)*);
-            font_style = FontStyle::Italic;
+            txt = $crate::__formatx!($txt, $($format)*);
+            font_style = $crate::__FontStyle::Italic;
         }
     };
 }

@@ -8,6 +8,7 @@ use zero_ui::{
     text::{font_family, font_size, font_weight, Strong},
     widget::{background_color, background_gradient, corner_radius, foreground},
 };
+use zero_ui_app::view_process::VIEW_PROCESS;
 use zero_ui_view::extensions::ViewExtensions;
 
 fn main() {

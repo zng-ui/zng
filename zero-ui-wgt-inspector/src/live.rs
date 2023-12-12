@@ -1,25 +1,17 @@
-use zero_ui_core::{
-    handler::clmv,
-    window::{CursorIcon, WINDOW_Ext},
+use zero_ui_app::access::ACCESS_CLICK_EVENT;
+use zero_ui_ext_input::{
+    gesture::CLICK_EVENT,
+    mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT},
+    touch::{TOUCHED_EVENT, TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT},
 };
+use zero_ui_ext_window::{WINDOW_Ext as _, WINDOWS};
+use zero_ui_view_api::window::CursorIcon;
+use zero_ui_wgt::prelude::*;
 
-use crate::core::{
-    color::colors,
-    context::*,
-    handler::async_clmv,
-    hn,
-    inspector::live::{InspectedTree, InspectedWidget},
-    render::{SpatialFrameId, SpatialFrameKey},
-    units::*,
-    var::*,
-    widget_instance::*,
-    window::{WindowId, WINDOWS},
-};
+use crate::INSPECT_CMD;
 
-use super::*;
-
-pub fn inspect_node(child: impl UiNode, can_inspect: impl IntoVar<bool>) -> impl UiNode {
-    let mut inspected_tree = None::<InspectedTree>;
+pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
+    let mut inspected_tree = None::<data_model::InspectedTree>;
     let inspector = WindowId::new_unique();
 
     let selected_wgt = var(None);
@@ -34,78 +26,73 @@ pub fn inspect_node(child: impl UiNode, can_inspect: impl IntoVar<bool>) -> impl
         Render,
     }
 
-    let child = match_node(
-        child,
-        clmv!(selected_wgt, hit_select, show_selected, |c, op| match op {
-            UiNodeOp::Init => {
-                WIDGET.sub_var(&can_inspect);
-                cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
+    let child = match_node_leaf(clmv!(selected_wgt, hit_select, show_selected, |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&can_inspect);
+            cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(e) = can_inspect.get_new() {
+                cmd_handle.set_enabled(e);
             }
-            UiNodeOp::Update { .. } => {
-                if let Some(e) = can_inspect.get_new() {
-                    cmd_handle.set_enabled(e);
+        }
+        UiNodeOp::Info { .. } => {
+            if inspected_tree.is_some() {
+                if WINDOWS.is_open(inspector) {
+                    INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Info);
+                } else if !WINDOWS.is_opening(inspector) {
+                    inspected_tree = None;
                 }
             }
-            UiNodeOp::Info { info } => {
-                if inspected_tree.is_some() {
-                    if WINDOWS.is_open(inspector) {
-                        INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Info);
-                    } else if !WINDOWS.is_opening(inspector) {
-                        inspected_tree = None;
-                    }
-                }
-            }
-            UiNodeOp::Event { update } => {
-                c.event(update);
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = INSPECT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
+                args.propagation().stop();
 
-                if let Some(args) = INSPECT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
-                    args.propagation().stop();
-
-                    if let Some(u) = args.param::<InspectorUpdateOnly>() {
-                        if let Some(i) = &inspected_tree {
-                            match u {
-                                InspectorUpdateOnly::Info => i.update(WINDOW.info()),
-                                InspectorUpdateOnly::Render => i.update_render(),
-                            }
+                if let Some(u) = args.param::<InspectorUpdateOnly>() {
+                    if let Some(i) = &inspected_tree {
+                        match u {
+                            InspectorUpdateOnly::Info => i.update(WINDOW.info()),
+                            InspectorUpdateOnly::Render => i.update_render(),
                         }
-                    } else if let Some(inspected) = inspector_window::inspected() {
-                        // can't inspect inspector window, redirect command to inspected
-                        INSPECT_CMD.scoped(inspected).notify();
-                    } else {
-                        let inspected_tree = match &inspected_tree {
-                            Some(i) => {
-                                i.update(WINDOW.info());
-                                i.clone()
-                            }
-                            None => {
-                                let i = InspectedTree::new(WINDOW.info());
-                                inspected_tree = Some(i.clone());
-                                i
-                            }
-                        };
-
-                        let inspected = WINDOW.id();
-                        WINDOWS.focus_or_open(
-                            inspector,
-                            async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
-                                inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
-                            }),
-                        );
                     }
+                } else if let Some(inspected) = inspector_window::inspected() {
+                    // can't inspect inspector window, redirect command to inspected
+                    INSPECT_CMD.scoped(inspected).notify();
+                } else {
+                    let inspected_tree = match &inspected_tree {
+                        Some(i) => {
+                            i.update(WINDOW.info());
+                            i.clone()
+                        }
+                        None => {
+                            let i = data_model::InspectedTree::new(WINDOW.info());
+                            inspected_tree = Some(i.clone());
+                            i
+                        }
+                    };
+
+                    let inspected = WINDOW.id();
+                    WINDOWS.focus_or_open(
+                        inspector,
+                        async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
+                            inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
+                        }),
+                    );
                 }
             }
-            UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
-                INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
-            }
-            _ => {}
-        }),
-    );
+        }
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+            INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
+        }
+        _ => {}
+    }));
 
     let child = adorn_selected(child, selected_wgt, show_selected);
     select_on_click(child, hit_select)
 }
 
-fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<InspectedWidget>>, enabled: impl Var<bool>) -> impl UiNode {
+fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<data_model::InspectedWidget>>, enabled: impl Var<bool>) -> impl UiNode {
     use inspector_window::SELECTED_BORDER_VAR;
 
     let selected_info = selected_wgt.flat_map(|s| {
@@ -165,8 +152,8 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
             if let Some(h) = hit_select.get_new() {
                 if matches!(h, HitSelect::Enabled) {
                     WINDOW.vars().cursor().set(CursorIcon::Crosshair);
-                    click_handle.push(crate::core::mouse::MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
-                    click_handle.push(crate::core::touch::TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
+                    click_handle.push(MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
+                    click_handle.push(TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
                 } else {
                     WINDOW.vars().cursor().set(CursorIcon::Default);
                     click_handle.clear();
@@ -177,48 +164,48 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
             if matches!(hit_select.get(), HitSelect::Enabled) {
                 let mut select = None;
 
-                if let Some(args) = crate::core::mouse::MOUSE_MOVE_EVENT.on(update) {
+                if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::mouse::MOUSE_INPUT_EVENT.on(update) {
+                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
                     select = Some(args.target.widget_id());
-                } else if let Some(args) = crate::core::mouse::MOUSE_HOVERED_EVENT.on(update) {
+                } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::mouse::MOUSE_WHEEL_EVENT.on(update) {
+                } else if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
                 } else if let Some(args) = CLICK_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::access::ACCESS_CLICK_EVENT.on(update) {
+                } else if let Some(args) = ACCESS_CLICK_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::touch::TOUCH_INPUT_EVENT.on(update) {
+                } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
                     select = Some(args.target.widget_id());
-                } else if let Some(args) = crate::core::touch::TOUCHED_EVENT.on(update) {
+                } else if let Some(args) = TOUCHED_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::touch::TOUCH_MOVE_EVENT.on(update) {
+                } else if let Some(args) = TOUCH_MOVE_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::touch::TOUCH_TAP_EVENT.on(update) {
+                } else if let Some(args) = TOUCH_TAP_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::touch::TOUCH_TRANSFORM_EVENT.on(update) {
+                } else if let Some(args) = TOUCH_TRANSFORM_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
-                } else if let Some(args) = crate::core::touch::TOUCH_LONG_PRESS_EVENT.on(update) {
+                } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on(update) {
                     args.propagation().stop();
                     c.delegated();
                 }
 
                 if let Some(id) = select {
-                    hit_select.set(HitSelect::Select(id));
+                    let _ = hit_select.set(HitSelect::Select(id));
                 }
             }
         }
@@ -236,11 +223,39 @@ enum HitSelect {
 mod inspector_window {
     use std::mem;
 
+    use zero_ui_app::widget::{
+        border::{BorderSide, BorderSides},
+        builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
+        inspector::{InspectorContext, InstanceItem, WidgetInfoInspectorExt as _},
+        OnVarArgs,
+    };
+    use zero_ui_color::RenderColor;
+    use zero_ui_ext_font::{FontStyle, FontWeight};
+    use zero_ui_ext_l10n::lang;
+    use zero_ui_ext_window::{WindowIcon, WindowRoot, WINDOWS};
+    use zero_ui_var::{animation::easing, var_from};
+    use zero_ui_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
+    use zero_ui_wgt_access::{access_role, AccessRole};
+    use zero_ui_wgt_container::{child_align, padding, Container};
+    use zero_ui_wgt_fill::{background, background_color};
+    use zero_ui_wgt_filters::opacity;
+    use zero_ui_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
+    use zero_ui_wgt_rule_line::hr::Hr;
+    use zero_ui_wgt_scroll::{Scroll, ScrollMode};
+    use zero_ui_wgt_size_offset::{size, width};
+    use zero_ui_wgt_stack::{Stack, StackDirection};
+    use zero_ui_wgt_style::{Style, StyleFn};
+    use zero_ui_wgt_text::{font_family, lang, Text};
+    use zero_ui_wgt_text_input::TextInput;
+    use zero_ui_wgt_toggle::{self as toggle, Toggle};
+    use zero_ui_wgt_tooltip::{tooltip, Tip};
+    use zero_ui_wgt_view::{presenter, wgt_fn};
+    use zero_ui_wgt_window as window;
+    use zero_ui_wgt_wrap::Wrap;
+
+    use super::data_model::*;
+
     use super::HitSelect;
-    use crate::core::inspector::live::*;
-    use crate::core::{inspector::*, window::*};
-    use crate::prelude::new_widget::*;
-    use crate::prelude::*;
 
     pub(super) fn new(
         inspected: WindowId,
@@ -267,11 +282,11 @@ mod inspector_window {
 
         let data_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
             if let HitSelect::Select(id) = a.value {
-                selected_wgt.set(inspected_tree.inspect(id));
+                let _ = selected_wgt.set(inspected_tree.inspect(id));
             }
         }));
 
-        Window! {
+        window::Window! {
             parent;
             title;
             icon;
@@ -280,7 +295,7 @@ mod inspector_window {
             set_inspected = inspected;
             color_scheme = ColorScheme::Dark;
             on_close = hn!(selected_wgt, |_| {
-                selected_wgt.set(None);
+                let _ = selected_wgt.set(None);
             });
             child = Container! {
                 child_insert_above = menu(hit_select, adorn_selected, wgt_filter.clone()), 0;
@@ -299,7 +314,7 @@ mod inspector_window {
                 background_color = SELECTED_BKG_VAR;
             }, 0;
 
-            data = data_handle; // keep alive
+            zero_ui_wgt_data::data = data_handle; // keep alive
         }
     }
 
@@ -409,8 +424,8 @@ mod inspector_window {
 
     fn tree_view(tree: InspectedTree, filter: impl Var<Txt>) -> impl UiNode {
         Container! {
-            text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
-            child = tree_item_view(tree.inspect_root(), filter, crate::core::var::LocalVar(0u32).boxed());
+            font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            child = tree_item_view(tree.inspect_root(), filter, LocalVar(0u32).boxed());
         }
     }
 
@@ -444,7 +459,7 @@ mod inspector_window {
         descendants_pass_filter
             .hook(Box::new(move |a| {
                 let any_desc = 0 < *a.value().as_any().downcast_ref::<u32>().unwrap();
-                if any_desc != prev_any_desc.swap(any_desc, atomic::Ordering::Relaxed) {
+                if any_desc != prev_any_desc.swap(any_desc, std::sync::atomic::Ordering::Relaxed) {
                     let _ = parent_desc_filter.modify(move |c| {
                         if any_desc {
                             *c.to_mut() += 1;
@@ -530,7 +545,7 @@ mod inspector_window {
                 padding = 4;
                 child = Stack! {
                     direction = StackDirection::top_to_bottom();
-                    text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
+                    font_family = ["JetBrains Mono", "Consolas", "monospace"];
                     children = ui_vec![
                         Wrap! {
                             children = ui_vec![
@@ -651,11 +666,11 @@ mod inspector_window {
 
     fn value_background(value: &BoxedVar<Txt>) -> impl Var<Rgba> {
         let flash = var(rgba(0, 0, 0, 0));
-        let mut flashing = None;
+        let mut _flashing = None;
         value
             .on_pre_new(app_hn!(flash, |_, _| {
                 let h = flash.set_ease(colors::BLACK, colors::BLACK.transparent(), 500.ms(), easing::linear);
-                flashing = Some(h);
+                _flashing = Some(h);
             }))
             .perm();
         flash
@@ -809,5 +824,341 @@ mod inspector_window {
         }
 
         false
+    }
+}
+
+mod data_model {
+    use std::{fmt, ops, sync::Arc};
+
+    use parking_lot::Mutex;
+    use zero_ui_app::widget::{
+        builder::WidgetType,
+        info::WidgetInfoTree,
+        inspector::{InspectorInfo, WidgetInfoInspectorExt},
+    };
+    use zero_ui_var::{types::WeakArcVar, WeakVar};
+    use zero_ui_view_api::window::FrameId;
+    use zero_ui_wgt::prelude::*;
+
+    #[derive(Default)]
+    pub struct InspectedTreeData {
+        widgets: IdMap<WidgetId, InspectedWidget>,
+        latest_frame: Option<ArcVar<FrameId>>,
+    }
+
+    /// Represents an actively inspected widget tree.
+    #[derive(Clone)]
+    pub struct InspectedTree {
+        tree: ArcVar<WidgetInfoTree>,
+        data: Arc<Mutex<InspectedTreeData>>,
+    }
+    impl fmt::Debug for InspectedTree {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("InspectedTree")
+                .field("tree", &self.tree.get())
+                .finish_non_exhaustive()
+        }
+    }
+    impl PartialEq for InspectedTree {
+        fn eq(&self, other: &Self) -> bool {
+            self.tree.var_ptr() == other.tree.var_ptr()
+        }
+    }
+    impl InspectedTree {
+        /// Initial inspection.
+        pub fn new(tree: WidgetInfoTree) -> Self {
+            Self {
+                data: Arc::new(Mutex::new(InspectedTreeData::default())),
+                tree: var(tree),
+            }
+        }
+
+        /// Update inspection.
+        ///
+        /// # Panics
+        ///
+        /// Panics if info is not for the same window ID.
+        pub fn update(&self, tree: WidgetInfoTree) {
+            assert_eq!(self.tree.with(|t| t.window_id()), tree.window_id());
+
+            // update and retain
+            self.tree.set(tree.clone());
+
+            let mut data = self.data.lock();
+            let mut removed = false;
+            for (k, v) in data.widgets.iter() {
+                if let Some(w) = tree.get(*k) {
+                    v.update(w);
+                } else {
+                    v.removed.set(true);
+                    removed = true;
+                }
+            }
+            // update can drop children inspectors so we can't update inside the retain closure.
+            data.widgets
+                .retain(|k, v| v.info.strong_count() > 1 && (!removed || tree.get(*k).is_some()));
+
+            if let Some(f) = &data.latest_frame {
+                if f.strong_count() == 1 {
+                    data.latest_frame = None;
+                } else {
+                    f.set(tree.stats().last_frame);
+                }
+            }
+        }
+
+        /// Update all render watcher variables.
+        pub fn update_render(&self) {
+            let mut data = self.data.lock();
+            if let Some(f) = &data.latest_frame {
+                if f.strong_count() == 1 {
+                    data.latest_frame = None;
+                } else {
+                    f.set(self.tree.with(|t| t.stats().last_frame));
+                }
+            }
+        }
+
+        /// Create a weak reference to this tree.
+        pub fn downgrade(&self) -> WeakInspectedTree {
+            WeakInspectedTree {
+                tree: self.tree.downgrade(),
+                data: Arc::downgrade(&self.data),
+            }
+        }
+
+        /// Gets a widget inspector if the widget is in the latest info.
+        pub fn inspect(&self, widget_id: WidgetId) -> Option<InspectedWidget> {
+            match self.data.lock().widgets.entry(widget_id) {
+                IdEntry::Occupied(e) => Some(e.get().clone()),
+                IdEntry::Vacant(e) => self.tree.with(|t| {
+                    t.get(widget_id)
+                        .map(|w| e.insert(InspectedWidget::new(w, self.downgrade())).clone())
+                }),
+            }
+        }
+
+        /// Gets a widget inspector for the root widget.
+        pub fn inspect_root(&self) -> InspectedWidget {
+            self.inspect(self.tree.with(|t| t.root().id())).unwrap()
+        }
+
+        /// Latest frame updated using [`update_render`].
+        ///
+        /// [`update_render`]: Self::update_render
+        pub fn last_frame(&self) -> impl Var<FrameId> {
+            let mut data = self.data.lock();
+            data.latest_frame
+                .get_or_insert_with(|| var(self.tree.with(|t| t.stats().last_frame)))
+                .clone()
+        }
+    }
+
+    /// Represents a weak reference to a [`InspectedTree`].
+    #[derive(Clone)]
+    pub struct WeakInspectedTree {
+        tree: WeakArcVar<WidgetInfoTree>,
+        data: std::sync::Weak<Mutex<InspectedTreeData>>,
+    }
+    impl WeakInspectedTree {
+        /// Try to get a strong reference to the inspected tree.
+        pub fn upgrade(&self) -> Option<InspectedTree> {
+            Some(InspectedTree {
+                tree: self.tree.upgrade()?,
+                data: self.data.upgrade()?,
+            })
+        }
+    }
+
+    struct InspectedWidgetCache {
+        tree: WeakInspectedTree,
+        children: Option<BoxedVar<Vec<InspectedWidget>>>,
+        parent_property_name: Option<BoxedVar<Txt>>,
+    }
+
+    /// Represents an actively inspected widget.
+    ///
+    /// See [`InspectedTree::inspect`].
+    #[derive(Clone)]
+    pub struct InspectedWidget {
+        info: ArcVar<WidgetInfo>,
+        removed: ArcVar<bool>,
+        cache: Arc<Mutex<InspectedWidgetCache>>,
+    }
+    impl fmt::Debug for InspectedWidget {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("InspectedWidget")
+                .field("info", &self.info.get())
+                .field("removed", &self.removed.get())
+                .finish_non_exhaustive()
+        }
+    }
+    impl PartialEq for InspectedWidget {
+        fn eq(&self, other: &Self) -> bool {
+            self.info.var_ptr() == other.info.var_ptr()
+        }
+    }
+    impl Eq for InspectedWidget {}
+    impl InspectedWidget {
+        /// Initial inspection.
+        fn new(info: WidgetInfo, tree: WeakInspectedTree) -> Self {
+            Self {
+                info: var(info),
+                removed: var(false),
+                cache: Arc::new(Mutex::new(InspectedWidgetCache {
+                    tree,
+                    children: None,
+                    parent_property_name: None,
+                })),
+            }
+        }
+
+        /// Update inspection.
+        ///
+        /// # Panics
+        ///
+        /// Panics if info is not for the same widget ID.
+        fn update(&self, info: WidgetInfo) {
+            assert_eq!(self.info.with(|i| i.id()), info.id());
+            self.info.set(info);
+
+            let mut cache = self.cache.lock();
+            if let Some(c) = &cache.children {
+                if c.strong_count() == 1 {
+                    cache.children = None;
+                }
+            }
+            if let Some(c) = &cache.parent_property_name {
+                if c.strong_count() == 1 {
+                    cache.parent_property_name = None;
+                }
+            }
+        }
+
+        // /// If this widget inspector is permanently disconnected and will not update.
+        // ///
+        // /// This is set to `true` when an inspected widget is not found after an update, when `true`
+        // /// this inspector will not update even if the same widget ID is re-inserted in another update.
+        // pub fn removed(&self) -> impl Var<bool> {
+        //     self.removed.read_only()
+        // }
+
+        /// Latest info.
+        pub fn info(&self) -> impl Var<WidgetInfo> {
+            self.info.read_only()
+        }
+
+        /// Widget id.
+        pub fn id(&self) -> WidgetId {
+            self.info.with(|i| i.id())
+        }
+
+        // /// Count of ancestor widgets.
+        // pub fn depth(&self) -> impl Var<usize> {
+        //     self.info.map(|w| w.depth()).actual_var()
+        // }
+
+        /// Count of descendant widgets.
+        pub fn descendants_len(&self) -> impl Var<usize> {
+            self.info.map(|w| w.descendants_len()).actual_var()
+        }
+
+        /// Widget type, if the widget was built with inspection info.
+        pub fn wgt_type(&self) -> impl Var<Option<WidgetType>> {
+            self.info.map(|w| Some(w.inspector_info()?.builder.widget_type())).actual_var()
+        }
+
+        /// Widget macro name, or `"<widget>!"` if widget was not built with inspection info.
+        pub fn wgt_macro_name(&self) -> impl Var<Txt> {
+            self.info
+                .map(|w| match w.inspector_info().map(|i| i.builder.widget_type()) {
+                    Some(t) => formatx!("{}!", t.name()),
+                    None => Txt::from_static("<widget>!"),
+                })
+                .actual_var()
+        }
+
+        /// Gets the parent's property that has this widget as an input.
+        ///
+        /// Is an empty string if the widget is not inserted by any property.
+        pub fn parent_property_name(&self) -> impl Var<Txt> {
+            let mut cache = self.cache.lock();
+            cache
+                .parent_property_name
+                .get_or_insert_with(|| {
+                    self.info
+                        .map(|w| {
+                            Txt::from_static(
+                                w.parent_property()
+                                    .map(|(p, _)| w.parent().unwrap().inspect_property(p).unwrap().property().name)
+                                    .unwrap_or(""),
+                            )
+                        })
+                        .actual_var()
+                        .boxed()
+                })
+                .clone()
+        }
+
+        /// Inspect the widget children.
+        pub fn children(&self) -> impl Var<Vec<InspectedWidget>> {
+            let mut cache = self.cache.lock();
+            let cache = &mut *cache;
+            cache
+                .children
+                .get_or_insert_with(|| {
+                    let tree = cache.tree.clone();
+                    self.info
+                        .map(move |w| {
+                            if let Some(tree) = tree.upgrade() {
+                                assert_eq!(&tree.tree.get(), w.tree());
+
+                                w.children().map(|w| tree.inspect(w.id()).unwrap()).collect()
+                            } else {
+                                vec![]
+                            }
+                        })
+                        .actual_var()
+                        .boxed()
+                })
+                .clone()
+        }
+
+        /// Inspect the builder, properties and intrinsic nodes that make up the widget.
+        ///
+        /// Is `None` when the widget is built without inspector info collection.
+        pub fn inspector_info(&self) -> impl Var<Option<InspectedInfo>> {
+            self.info.map(move |w| w.inspector_info().map(InspectedInfo)).actual_var().boxed()
+        }
+
+        /// Create a variable that probes info after every frame is rendered.
+        pub fn render_watcher<T: VarValue>(&self, mut probe: impl FnMut(&WidgetInfo) -> T + Send + 'static) -> impl Var<T> {
+            merge_var!(
+                self.info.clone(),
+                self.cache.lock().tree.upgrade().unwrap().last_frame(),
+                move |w, _| probe(w)
+            )
+        }
+    }
+
+    /// [`InspectorInfo`] that can be placed in a variable.
+    #[derive(Clone)]
+    pub struct InspectedInfo(pub Arc<InspectorInfo>);
+    impl fmt::Debug for InspectedInfo {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fmt::Debug::fmt(&self.0, f)
+        }
+    }
+    impl PartialEq for InspectedInfo {
+        fn eq(&self, other: &Self) -> bool {
+            Arc::ptr_eq(&self.0, &other.0)
+        }
+    }
+    impl ops::Deref for InspectedInfo {
+        type Target = InspectorInfo;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
     }
 }
