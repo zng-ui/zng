@@ -1030,7 +1030,7 @@ pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardErro
     match e {
         arboard::Error::ContentNotAvailable => clipboard_api::ClipboardError::NotFound,
         arboard::Error::ClipboardNotSupported => clipboard_api::ClipboardError::NotSupported,
-        e => clipboard_api::ClipboardError::Other(format!("{e:?}")),
+        e => clipboard_api::ClipboardError::Other(zero_ui_txt::formatx!("{e:?}")),
     }
 }
 

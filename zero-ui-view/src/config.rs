@@ -391,7 +391,7 @@ pub(crate) fn color_scheme_config() -> ColorScheme {
 #[cfg(not(windows))]
 pub(crate) fn locale_config() -> LocaleConfig {
     LocaleConfig {
-        langs: sys_locale::get_locale().into_iter().collect(),
+        langs: sys_locale::get_locale().into_iter().map(zero_ui_txt::Txt::from).collect(),
     }
 }
 

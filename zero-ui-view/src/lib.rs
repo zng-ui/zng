@@ -1899,7 +1899,7 @@ impl Api for App {
                 .arboard()?
                 .get_text()
                 .map_err(util::arboard_to_clip)
-                .map(clipboard::ClipboardData::Text),
+                .map(|s|clipboard::ClipboardData::Text(zero_ui_txt::Txt::from(s))),
             clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();
@@ -1908,7 +1908,7 @@ impl Api for App {
                 }
                 let id = self.image_cache.add(image::ImageRequest {
                     format: image::ImageDataFormat::Bgra8 {
-                        size: PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
+                        size: zero_ui_units::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         ppi: None,
                     },
                     data: IpcBytes::from_vec(data),
@@ -1943,7 +1943,7 @@ impl Api for App {
                     });
                     Ok(())
                 } else {
-                    Err(clipboard::ClipboardError::Other("image not found".to_owned()))
+                    Err(clipboard::ClipboardError::Other(zero_ui_txt::Txt::from_static("image not found")))
                 }
             }
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
