@@ -9,6 +9,8 @@ use zero_ui_wgt::prelude::*;
 mod image_properties;
 pub use image_properties::*;
 
+pub mod mask;
+
 use zero_ui_wgt_access::{access_role, AccessRole};
 
 pub mod nodes;

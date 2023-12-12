@@ -1,8 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::units::FactorPercent;
-use zero_ui::prelude::*;
-use zero_ui::widgets::icon::CommandIconExt;
-use zero_ui::widgets::scroll::commands::ScrollToMode;
+
+use zero_ui::{
+    gesture::is_pressed,
+    icon::{self, Icon},
+    mouse::{cursor, CursorIcon},
+    prelude::*,
+    scroll::commands::ScrollToMode,
+    widget::background_color,
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -20,7 +25,7 @@ fn main() {
 }
 
 fn app_main() {
-    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().run_window(async {
         let mouse_pan = var(false);
         let smooth_scrolling = var(true);
         Window! {
@@ -67,10 +72,10 @@ fn app_main() {
 }
 
 fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
-    use zero_ui::widgets::scroll::commands::*;
+    use zero_ui::scroll::commands::*;
 
-    SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_TOP)));
-    SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(zero_ui_material_icons::outlined::VERTICAL_ALIGN_BOTTOM)));
+    SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(icon::outlined::VERTICAL_ALIGN_TOP)));
+    SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(icon::outlined::VERTICAL_ALIGN_BOTTOM)));
 
     let scope = WidgetId::named("scroll");
     use menu::CmdButton;
@@ -138,7 +143,7 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
     }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::widgets::scroll::commands;
+    use zero_ui::scroll::commands;
 
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
@@ -151,7 +156,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     }
 }
 fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
-    use zero_ui::widgets::scroll::commands;
+    use zero_ui::scroll::commands;
 
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
@@ -165,7 +170,7 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
 }
 
 fn scroll_to_rect(target: Rect, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::widgets::scroll::commands;
+    use zero_ui::scroll::commands;
 
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);

@@ -1,5 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    color::{
+        self,
+        gradient::{linear_gradient, stops, GradientStops},
+    },
+    layout::size,
+    prelude::*,
+    stack::stack_nodes,
+    text::ToText,
+    widget::{background_gradient, corner_radius},
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -109,7 +120,7 @@ fn stack_linear() -> impl UiNode {
         sample(
             "over color",
             stack_nodes(ui_vec![
-                flood(web_colors::WHITE),
+                color::flood(web_colors::WHITE),
                 linear_gradient(0.deg(), stops![web_colors::RED, (web_colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![web_colors::GREEN, (web_colors::GREEN.transparent(), 50.pct())]),
                 linear_gradient(240.deg(), stops![web_colors::BLUE, (web_colors::BLUE.transparent(), 50.pct())]),
@@ -148,7 +159,7 @@ fn stack_linear() -> impl UiNode {
                 }
 
                 ui_vec![
-                    flood(web_colors::WHITE),
+                    color::flood(web_colors::WHITE),
                     gradient(0, web_colors::RED),
                     gradient(20, web_colors::RED),
                     gradient(40, web_colors::RED),

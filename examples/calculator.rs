@@ -1,6 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::convert::TryInto;
-use zero_ui::prelude::*;
+use zero_ui::{
+    font::{CustomFont, FontDataRef, FontNames},
+    gesture::click_shortcut,
+    layout::align,
+    prelude::*,
+    text::font_size,
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -242,7 +248,6 @@ impl Calculator {
 
 /// set custom fallback font for the ⌫ symbol.
 async fn set_fallback_font() {
-    use zero_ui::core::text::*;
     let und = lang!(und);
 
     if FONTS
@@ -261,7 +266,7 @@ async fn set_fallback_font() {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
-        let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
+        let fallback = CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
         FONTS.register(fallback).wait_rsp().await.unwrap();
         FONTS.generics().set_fallback(und, "fallback");

@@ -1,6 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::app::view_process::VIEW_PROCESS;
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    color::{filters::opacity, gradient::stops},
+    keyboard::{on_key_down, Key},
+    layout::{align, margin, max_width, size},
+    prelude::*,
+    text::{font_family, font_size, font_weight, Strong},
+    widget::{background_color, background_gradient, corner_radius, foreground},
+};
 use zero_ui_view::extensions::ViewExtensions;
 
 fn main() {

@@ -1,5 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+use zero_ui::{
+    container::padding,
+    gesture::on_click,
+    layout::{align, rotate},
+    prelude::*,
+    widget::{background_color, border, border_align, corner_radius},
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -104,7 +110,11 @@ fn clip_to_bounds_demo() -> impl UiNode {
 }
 
 mod widgets {
-    use zero_ui::prelude::new_widget::*;
+    use zero_ui::{
+        container::Container,
+        wgt_prelude::*,
+        widget::{background_color, border, corner_radius, foreground_highlight},
+    };
 
     #[widget($crate::widgets::MrBorders)]
     pub struct MrBorders(Container);

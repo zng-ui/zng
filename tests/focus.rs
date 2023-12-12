@@ -4,8 +4,8 @@ use zero_ui::{
     focus::{
         alt_focus_scope,
         commands::{FOCUS_NEXT_CMD, FOCUS_PREV_CMD},
-        directional_nav, focus_scope, focusable, tab_index, tab_nav, FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs,
-        FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
+        directional_nav, focus_scope, focusable, tab_index, tab_nav, FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, TabIndex,
+        TabNav, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,

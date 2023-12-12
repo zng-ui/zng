@@ -218,13 +218,13 @@ impl Text {
 #[macro_export]
 macro_rules! Strong {
     ($txt:expr) => {
-        $crate::widgets::Text! {
+        $crate::Text! {
             txt = $txt;
             font_weight = $crate::core::text::FontWeight::BOLD;
         }
     };
     ($txt:tt, $($format:tt)*) => {
-        $crate::widgets::Text! {
+        $crate::Text! {
             txt = $crate::core::text::formatx!($txt, $($format)*);
             font_weight = $crate::core::text::FontWeight::BOLD;
         }
@@ -243,13 +243,13 @@ macro_rules! Strong {
 #[macro_export]
 macro_rules! Em {
     ($txt:expr) => {
-        $crate::widgets::Text! {
+        $crate::Text! {
             txt = $txt;
             font_style = FontStyle::Italic;
         }
     };
     ($txt:tt, $($format:tt)*) => {
-        $crate::widgets::Text! {
+        $crate::Text! {
             txt = $crate::core::text::formatx!($txt, $($format)*);
             font_style = FontStyle::Italic;
         }

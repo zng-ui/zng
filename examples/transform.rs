@@ -1,5 +1,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::{units::AngleRadian, *};
+
+use zero_ui::{
+    button,
+    gesture::{is_hovered, on_click},
+    layout::{
+        align, backface_visibility, margin, offset, perspective, perspective_origin, rotate, rotate_y, size, slerp_sampler, transform,
+        transform_origin, transform_style, translate, TransformStyle,
+    },
+    pointer_capture::capture_pointer,
+    prelude::*,
+    stack::z_stack,
+    text::font_size,
+    toggle,
+    touch::touch_transform,
+    var::animation::{self, easing::EasingStep},
+    widget::{background, background_color, border, corner_radius, z_index},
+    window::WindowState,
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -60,7 +77,7 @@ fn transform2d_examples() -> impl UiNode {
             transformed("Scale 130%", Transform::new_scale(130.pct())),
             transformed("Identity", Transform::identity()),
             transformed_sampler("Lerp", animation::Transition::sample),
-            transformed_sampler("Slerp", units::slerp_sampler),
+            transformed_sampler("Slerp", slerp_sampler),
         ];
     }
 }
@@ -328,7 +345,7 @@ fn cube_example() -> impl UiNode {
                         _ => unreachable!(),
                     }
                     .translate_z(-100))
-                    .easing_with(1.secs(), easing::linear, units::slerp_sampler)
+                    .easing_with(1.secs(), easing::linear, slerp_sampler)
                 }
             },
             Wrap! {
@@ -377,7 +394,7 @@ fn open_touch_example() -> impl UiNode {
 }
 
 fn touch_example() -> impl UiNode {
-    use zero_ui::core::touch::TouchTransformMode;
+    use zero_ui::touch::TouchTransformMode;
 
     let mode = var(TouchTransformMode::ALL);
 

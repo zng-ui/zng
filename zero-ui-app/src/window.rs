@@ -40,6 +40,8 @@ zero_ui_var::impl_from_and_into_var! {
     fn from(name: Txt) -> WindowId {
         WindowId::named(name)
     }
+
+    fn from(some: WindowId) -> Option<WindowId>;
 }
 impl fmt::Debug for StaticWindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

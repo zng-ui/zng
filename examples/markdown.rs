@@ -2,9 +2,10 @@
 use std::path::PathBuf;
 
 use zero_ui::{
-    core::image::{PathFilter, UriFilter},
+    image::{self, ImageLimits, PathFilter, UriFilter},
+    markdown::{self, Markdown},
     prelude::*,
-    widgets::image::ImageLimits,
+    scroll::ScrollMode,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

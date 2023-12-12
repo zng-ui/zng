@@ -5,6 +5,9 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+test_util = []
+
 [dependencies]
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }

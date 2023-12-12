@@ -1,5 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+use zero_ui::{
+    image,
+    layout::size,
+    prelude::*,
+    text::{font_size, font_weight},
+    widget::{background_color, corner_radius},
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -46,7 +52,7 @@ fn app_main() {
             }));
 
             icon = WindowIcon::render(move || Container! {
-                zero_ui::core::image::render_retain = true;
+                image::render_retain = true;
 
                 size = (36, 36);
                 corner_radius = 8;

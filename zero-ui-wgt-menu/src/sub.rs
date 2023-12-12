@@ -30,10 +30,13 @@ use zero_ui_wgt_size_offset::{size, width};
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_view::{presenter, wgt_fn, WidgetFn};
 
+#[doc(hidden)]
+pub use zero_ui_wgt_text::Text;
+
 /// Submenu header and items.
 #[widget($crate::sub::SubMenu {
     ($header_txt:expr, $children:expr $(,)?) => {
-        header = $crate::widgets::Text!($header_txt);
+        header = $crate::sub::Text!($header_txt);
         children = $children;
     }
 })]

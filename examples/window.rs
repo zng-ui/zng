@@ -1,8 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::app::EXIT_CMD;
-use zero_ui::core::units::{DipPoint, DipSize, Factor};
-use zero_ui::prelude::new_widget::WINDOW;
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    access::ACCESS,
+    app::EXIT_CMD,
+    button,
+    color::filters::{backdrop_blur, drop_shadow, opacity},
+    container::padding,
+    focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
+    gesture::on_click,
+    image::ImageDataFormat,
+    layout::{align, margin, max_height, size},
+    prelude::*,
+    scroll::ScrollMode,
+    text::Strong,
+    widget::{background_color, corner_radius, foreground, modal, visibility},
+    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
+};
 
 // use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -69,7 +82,7 @@ async fn main_window() -> WindowRoot {
                     spacing = 20;
                     children = ui_vec![
                         state(),
-                        visibility(),
+                        visibility_example(),
                         chrome(),
                     ];
                 },
@@ -77,8 +90,8 @@ async fn main_window() -> WindowRoot {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        icon(),
-                        background_color(background),
+                        icon_example(),
+                        background_color_example(background),
                     ];
                 },
                 Stack! {
@@ -95,7 +108,7 @@ async fn main_window() -> WindowRoot {
     }
 }
 
-fn background_color(color: impl Var<Rgba>) -> impl UiNode {
+fn background_color_example(color: impl Var<Rgba>) -> impl UiNode {
     fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl UiNode {
         Toggle! {
             value::<Rgba> = c.clone();
@@ -175,8 +188,6 @@ fn screenshot() -> impl UiNode {
     }
 
     fn of_headless_temp() -> impl UiNode {
-        use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs};
-
         let enabled = var(true);
         Button! {
             child = Text!(enabled.map(|&enabled| {
@@ -221,7 +232,7 @@ fn screenshot() -> impl UiNode {
     section("Screenshot", ui_vec![of_window(), of_headless_temp(),])
 }
 
-fn icon() -> impl UiNode {
+fn icon_example() -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         Toggle! {
             child = Text!(label);
@@ -236,8 +247,6 @@ fn icon() -> impl UiNode {
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
             icon_btn("Png Bytes", include_bytes!("res/window/icon-bytes.png").into()),
             icon_btn("Raw BGRA", {
-                use zero_ui::core::image::*;
-
                 let color = [0, 0, 255, 255 / 2];
 
                 let size = PxSize::new(Px(32), Px(32));
@@ -284,7 +293,7 @@ fn chrome() -> impl UiNode {
 }
 
 fn state_commands() -> impl UiNode {
-    use zero_ui::widgets::window::commands::*;
+    use zero_ui::window::commands::*;
 
     let window_id = WINDOW.id();
 
@@ -327,7 +336,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOW.vars().focus_indicator().set(Some(FocusIndicator::Critical));
+            WINDOW.vars().focus_indicator().set(FocusIndicator::Critical);
             enabled.set(true);
         });
     };
@@ -340,7 +349,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOW.vars().focus_indicator().set(Some(FocusIndicator::Info));
+            WINDOW.vars().focus_indicator().set(FocusIndicator::Info);
             enabled.set(true);
         });
     };
@@ -396,7 +405,7 @@ fn exclusive_mode() -> impl UiNode {
         checked_popup = wgt_fn!(|_| {
             let vars = WINDOW.vars();
             let selected_opt = vars.video_mode();
-            let default_opt = zero_ui::core::window::VideoMode::MAX;
+            let default_opt = zero_ui::window::VideoMode::MAX;
             let opts = vars.video_modes().get();
             popup::Popup! {
                 max_height = 80.vh_pct();
@@ -417,7 +426,7 @@ fn exclusive_mode() -> impl UiNode {
     }
 }
 
-fn visibility() -> impl UiNode {
+fn visibility_example() -> impl UiNode {
     let visible = WINDOW.vars().visible();
     let btn = Button! {
         enabled = visible.clone();
@@ -451,7 +460,7 @@ fn misc() -> impl UiNode {
                 checked = window_vars.always_on_top();
             },
             separator(),
-            cmd_btn(zero_ui::widgets::window::commands::INSPECT_CMD.scoped(window_id)),
+            cmd_btn(zero_ui::window::commands::INSPECT_CMD.scoped(window_id)),
             separator(),
             {
                 let mut child_count = 0;
@@ -512,30 +521,29 @@ fn native() -> impl UiNode {
                 child = Text!("Messages");
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
                 on_click = async_hn!(|_| {
-                    use zero_ui::core::app::view_process::*;
-                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
+                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(),  native_dialog::MsgDialog {
                         title: Txt::from_static("Question?"),
                         message: Txt::from_static("Example message. Yes -> Warn, No -> Error."),
-                        icon: MsgDialogIcon::Info,
-                        buttons: MsgDialogButtons::YesNo,
+                        icon:  native_dialog::MsgDialogIcon::Info,
+                        buttons:  native_dialog::MsgDialogButtons::YesNo,
                     }).wait_rsp().await;
                     let icon = match rsp {
-                        MsgDialogResponse::Yes => {
-                            MsgDialogIcon::Warn
+                        native_dialog::MsgDialogResponse::Yes => {
+                            native_dialog::MsgDialogIcon::Warn
                         },
-                        MsgDialogResponse::No => {
-                            MsgDialogIcon::Error
+                        native_dialog::MsgDialogResponse::No => {
+                            native_dialog::MsgDialogIcon::Error
                         }
                         e => {
                             tracing::error!("unexpected message response {e:?}");
                             return;
                         },
                     };
-                    WINDOWS.native_message_dialog(WINDOW.id(), MsgDialog {
+                    WINDOWS.native_message_dialog(WINDOW.id(),  native_dialog::MsgDialog {
                         title: Txt::from_static("Title"),
                         message: Txt::from_static("Message"),
                         icon,
-                        buttons: MsgDialogButtons::Ok,
+                        buttons:  native_dialog::MsgDialogButtons::Ok,
                     });
                 });
             },
@@ -543,68 +551,66 @@ fn native() -> impl UiNode {
                 child = Text!("File Picker");
                 tooltip = Tip!(Text!(r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#));
                 on_click = async_hn!(|_| {
-                    use zero_ui::core::app::view_process::*;
-
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), FileDialog {
+                    let res = WINDOWS.native_file_dialog(WINDOW.id(),  native_dialog::FileDialog {
                         title: "Select Dir".into(),
                         starting_dir: "".into(),
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind: FileDialogKind::SelectFolder,
+                        kind:  native_dialog::FileDialogKind::SelectFolder,
                     }).wait_rsp().await;
                     let dir = match res {
-                        FileDialogResponse::Selected(mut s) => {
+                        native_dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        FileDialogResponse::Cancel => {
+                        native_dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        FileDialogResponse::Error(e) => {
+                        native_dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected select dir response {e:?}");
                             return;
                         }
                     };
 
-                    let mut dlg = FileDialog {
+                    let mut dlg =  native_dialog::FileDialog {
                         title: "Open Files".into(),
                         starting_dir: dir,
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind: FileDialogKind::OpenFiles,
+                        kind:  native_dialog::FileDialogKind::OpenFiles,
                     };
                     dlg.push_filter("Text", &["*.txt", "*.md"]);
                     dlg.push_filter("All", &["*.*"]);
                     let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
                     let first_file = match res {
-                        FileDialogResponse::Selected(mut s) => {
+                        native_dialog::FileDialogResponse::Selected(mut s) => {
                             tracing::info!("selected {} file(s)", s.len());
                             s.remove(0)
                         }
-                        FileDialogResponse::Cancel => {
+                        native_dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        FileDialogResponse::Error(e) => {
+                        native_dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected open files response {e:?}");
                             return;
                         }
                     };
 
                     dlg.title = "Save File".into();
-                    dlg.kind = FileDialogKind::SaveFile;
+                    dlg.kind =  native_dialog::FileDialogKind::SaveFile;
                     dlg.starting_dir = first_file.parent().map(|p| p.to_owned()).unwrap_or_default();
                     dlg.starting_name = first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default();
                     let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
                     let save_file = match res {
-                        FileDialogResponse::Selected(mut s) => {
+                        native_dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        FileDialogResponse::Cancel => {
+                        native_dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        FileDialogResponse::Error(e) => {
+                        native_dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected save file response {e:?}");
                             return;
                         }
@@ -653,7 +659,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
         on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
                 args.propagation().stop();
-                ACCESS.click("cancel-btn", true);
+                ACCESS.click(WINDOW.id(), "cancel-btn", true);
             }
         });
         child = Container! {

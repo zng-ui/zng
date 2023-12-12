@@ -1,5 +1,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    button,
+    container::padding,
+    gesture::{click_shortcut, is_hovered},
+    image,
+    layout::size,
+    layout::{height, margin, offset, translate, width, x},
+    prelude::*,
+    rule_line::RuleLine,
+    var::{
+        animation::{
+            self,
+            easing::{EasingStep, EasingTime},
+        },
+        VARS,
+    },
+    widget::{background, background_color, border, corner_radius, foreground_highlight},
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -203,7 +221,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 )
             }
 
-            zero_ui::core::image::IMAGE_RENDER.retain().set(true);
+            image::IMAGE_RENDER.retain().set(true);
             let meta_color = WINDOW.vars().actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),
@@ -247,7 +265,7 @@ fn ruler() -> impl UiNode {
         children = (0..=300).step_by(10)
             .map(|x| RuleLine! {
                 orientation = LineOrientation::Vertical;
-                color = FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
+                color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }

@@ -44,10 +44,11 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
+* Add mask_image, forgot.
+
 * Review inspector.
 
 * Review `dyn_closure` and other features (`dyn_*`, `http`).
-* Define `material_icons` defaults.
 * Test everything.
 * Merge.
 
@@ -59,7 +60,12 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 * Move `child` and `children` from app to container.
 * Decouple LAYERS into own crate?
 * Remove zero_ui_var::types?
-* Mode `WidgetFn` to wgt?
+* Move `WidgetFn` to wgt?
+* Move transform properties to render? They don't affect "layout".
+    - What about offset property?
+* Review modules with plural names, filters, layers.
+* Review prelude.
+* Review !!:
 
 # Publish
 

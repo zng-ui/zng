@@ -1,7 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::focus::{FocusRequest, FocusTarget, FOCUS_CHANGED_EVENT};
-use zero_ui::prelude::new_widget::WINDOW;
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    button,
+    color::filters::drop_shadow,
+    container::padding,
+    focus::{
+        alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
+        tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
+        FOCUS_CHANGED_EVENT,
+    },
+    font::FontName,
+    layout::{align, margin, min_width},
+    prelude::*,
+    text::{font_color, font_family},
+    widget::{background, background_color, border, corner_radius, enabled, modal}, window::FocusIndicator,
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -37,7 +50,7 @@ fn app_main() {
                         align = Align::CENTER;
                         spacing = 10;
                         children = ui_vec![
-                            tab_index(),
+                            tab_index_example(),
                             functions(window_enabled),
                             delayed_focus(),
                         ]
@@ -68,7 +81,7 @@ fn alt_scope() -> impl UiNode {
     }
 }
 
-fn tab_index() -> impl UiNode {
+fn tab_index_example() -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -254,7 +267,7 @@ fn delayed_focus() -> impl UiNode {
 }
 fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'static) -> impl UiNode {
     use std::sync::Arc;
-    use zero_ui::core::task::parking_lot::Mutex;
+    use task::parking_lot::Mutex;
 
     let on_timeout = Arc::new(Mutex::new(Box::new(on_timeout)));
     let enabled = var(true);
@@ -288,7 +301,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
 }
 
 fn commands() -> impl UiNode {
-    use zero_ui::core::focus::commands::*;
+    use zero_ui::focus::commands::*;
 
     let cmds = [
         FOCUS_NEXT_CMD,
@@ -411,8 +424,6 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
 #[cfg(debug_assertions)]
 mod inspect {
     use super::*;
-    use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
     pub fn focus(path: &Option<InteractionPath>) -> String {
         path.as_ref()

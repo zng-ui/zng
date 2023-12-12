@@ -1,10 +1,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::core::task::http;
-use zero_ui::widgets::image::{img_error_fn, img_loading_fn, ImgErrorArgs};
 use zero_ui::{
-    core::image::{ImageDownscale, ImageLimits, IMAGES},
+    button,
+    checkerboard::Checkerboard,
+    clipboard,
+    color::{
+        filters::{drop_shadow, filter, mix_blend, Filter},
+        gradient::stops,
+    },
+    container::padding,
+    image::{self, img_error_fn, img_loading_fn, mask::mask_image, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs},
+    layout::{align, margin, max_size, size, width, x, y},
+    mouse,
     prelude::*,
+    scroll::ScrollMode,
+    task::http,
+    text::font_size,
+    widget::{background, background_color, background_gradient, border, corner_radius, foreground},
+    window::WindowState,
 };
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -25,7 +38,7 @@ fn app_main() {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
-            l.to_mut().allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+            l.to_mut().allow_uri = image::UriFilter::AllowAll;
         });
 
         // setup a file cache so we don't download the images every run.
@@ -80,7 +93,7 @@ fn app_main() {
 
                             sub_title("Web With Format"),
                             Image! {
-                                source = (Uri::from_static("https://httpbin.org/image"), "image/png");
+                                source = (http::Uri::from_static("https://httpbin.org/image"), "image/png");
                                 size = (200, 150);
                             },
                             sub_title("Render"),
@@ -146,12 +159,12 @@ fn app_main() {
                     section(
                         "Filter",
                         ui_vec![
-                            img_filter(filters::grayscale(true)),
-                            img_filter(filters::sepia(true)),
-                            img_filter(filters::opacity(50.pct())),
-                            img_filter(filters::invert(true)),
-                            img_filter(filters::hue_rotate(-(90.deg()))),
-                            img_filter(filters::color_matrix([
+                            img_filter(Filter::new_grayscale(true)),
+                            img_filter(Filter::new_sepia(true)),
+                            img_filter(Filter::new_opacity(50.pct())),
+                            img_filter(Filter::new_invert(true)),
+                            img_filter(Filter::new_hue_rotate(-(90.deg()))),
+                            img_filter(Filter::new_color_matrix([
                                 2.0,  1.0,  1.0,  1.0,  0.0,
                                 0.0,  1.0,  0.0,  0.0,  0.0,
                                 0.0,  0.0,  1.0,  0.0,  0.0,
@@ -220,7 +233,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     }
 }
 
-fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
+fn img_filter(filter: impl IntoVar<Filter>) -> impl UiNode {
     let filter = filter.into_var();
 
     Stack! {
@@ -401,10 +414,10 @@ fn repeat_image() -> impl UiNode {
                             img_repeat_spacing = show_pattern.map(|&s| Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
                             size = (10000, 100.pct());
                             source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
-                            zero_ui::properties::events::mouse::on_mouse_input = hn!(
+                            mouse::on_mouse_input = hn!(
                                 show_pattern,
-                                |args: &zero_ui::core::mouse::MouseInputArgs| {
-                                show_pattern.set(matches!(args.state, ButtonState::Pressed));
+                                |args: &mouse::MouseInputArgs| {
+                                show_pattern.set(matches!(args.state, mouse::ButtonState::Pressed));
                             });
                             on_error = hn!(|args: &ImgErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
@@ -426,8 +439,8 @@ fn paste_image() -> impl UiNode {
                 ImgWindow! {
                     title = "Paste Image";
                     child_align = Align::FILL;
-                    on_paste = hn!(source, |_| {
-                        if let Some(img) = zero_ui::core::clipboard::CLIPBOARD.image().ok().flatten() {
+                    clipboard::on_paste = hn!(source, |_| {
+                        if let Some(img) = clipboard::CLIPBOARD.image().ok().flatten() {
                             source.set(img);
                         }
                     });
@@ -461,9 +474,9 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        x = zero_ui::widgets::scroll::SCROLL.horizontal_offset().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-        y = zero_ui::widgets::scroll::SCROLL.vertical_offset().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
-        zero_ui::core::widget_base::can_auto_hide = false;
+        x = zero_ui::scroll::SCROLL.horizontal_offset().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        y = zero_ui::scroll::SCROLL.vertical_offset().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        zero_ui::widget::can_auto_hide = false;
         max_size = (1.vw(), 1.vh());
         child_align = Align::CENTER;
 
@@ -471,7 +484,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
     }
 }
 
-#[zero_ui::core::widget($crate::ImgWindow {
+#[zero_ui::wgt_prelude::widget($crate::ImgWindow {
     ($title:expr, $child:expr $(,)?) => {
         title = $title;
         child = $child;
@@ -480,7 +493,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 pub struct ImgWindow(Window);
 impl ImgWindow {
     fn widget_intrinsic(&mut self) {
-        zero_ui::core::widget_set! {
+        zero_ui::wgt_prelude::widget_set! {
             self;
             // renderer_debug = {
             //     use zero_ui::core::render::webrender_api::DebugFlags;

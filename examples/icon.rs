@@ -1,8 +1,26 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use icons::MaterialIcon;
-use zero_ui::prelude::*;
 
-use zero_ui_material_icons as icons;
+use zero_ui::{
+    access::{access_role, AccessRole, ACCESS},
+    clipboard,
+    color::filters::{backdrop_blur, drop_shadow, opacity},
+    container::padding,
+    focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
+    font::FontName,
+    gesture::{is_hovered, on_click},
+    icon::{self, Icon, MaterialIcon},
+    label::Label,
+    layout::{align, height, margin, min_width, size},
+    mouse::{cursor, CursorIcon},
+    prelude::*,
+    scroll::{lazy, LazyMode, ScrollMode},
+    text_input::TextInput,
+    tip::disabled_tooltip,
+    view::{View, ViewArgs},
+    widget::{background, background_color, corner_radius, foreground, modal, visibility},
+    wrap,
+};
+
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -18,11 +36,11 @@ fn main() {
 }
 
 fn app_main() {
-    APP.defaults().extend(icons::MaterialFonts).run_window(async {
+    APP.defaults().run_window(async {
         Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| Icon! {
-                ico = icons::filled::LIGHTBULB;
+                ico = icon::filled::LIGHTBULB;
                 ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
@@ -92,7 +110,7 @@ fn icons() -> impl UiNode {
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
                 foreground = Icon! {
                     align = Align::LEFT;
-                    ico = icons::outlined::SEARCH;
+                    ico = icon::outlined::SEARCH;
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
                 };
@@ -115,7 +133,6 @@ fn icons() -> impl UiNode {
                     select_font("outlined"),
                     select_font("rounded"),
                     select_font("sharp"),
-                    select_font("two_tone"),
                 ]
             },
             View!(
@@ -124,11 +141,10 @@ fn icons() -> impl UiNode {
                 hn!(|a: &ViewArgs<(&'static str, Txt)>| {
                     if let Some((f, s)) = a.get_new() {
                         let mut icons = match f {
-                            "filled" => icons::filled::all(),
-                            "outlined" => icons::outlined::all(),
-                            "rounded" => icons::rounded::all(),
-                            "sharp" => icons::sharp::all(),
-                            "two_tone" => icons::two_tone::all(),
+                            "filled" => icon::filled::all(),
+                            "outlined" => icon::outlined::all(),
+                            "rounded" => icon::rounded::all(),
+                            "sharp" => icon::sharp::all(),
                             _ => unreachable!(),
                         };
                         if let Some(len) = s.strip_prefix("-len") {
@@ -158,7 +174,7 @@ fn icons() -> impl UiNode {
     }
 }
 
-fn icon_btn(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
+fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     Button! {
         padding = 2;
         size = (80, 80);
@@ -185,7 +201,7 @@ fn icon_btn(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     }
 }
 
-fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNode {
+fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
     Container! {
@@ -199,7 +215,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
         on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
                 args.propagation().stop();
-                ACCESS.click("close-btn", true);
+                ACCESS.click(WINDOW.id(), "close-btn", true);
             }
         });
         child = Container! {
@@ -218,7 +234,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                     children = ui_vec![
                         title(formatx!("{ico}")),
                         {
-                            let full_path = formatx!("zero_ui_material_icons::{font_mod}::{}", ico.name);
+                            let full_path = formatx!("zero_ui_material_icon::{font_mod}::{}", ico.name);
                             let copied = var(false);
                             Label! {
                                 txt = ico.name;
@@ -229,15 +245,15 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
                                 disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
-                                    if zero_ui::core::clipboard::CLIPBOARD.set_text(full_path).is_ok() {
-                                        ACCESS.show_tooltip(WIDGET.id());
+                                    if clipboard::CLIPBOARD.set_text(full_path).is_ok() {
+                                        ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
                                         copied.set(true);
                                         task::deadline(2.secs()).await;
                                         copied.set(false);
                                     }
                                 });
                                 when *#is_hovered {
-                                    background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                                    background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                                 }
                             }
                         },
@@ -300,7 +316,7 @@ fn expanded_icon(ico: icons::MaterialIcon, font_mod: &'static str) -> impl UiNod
                 Button! {
                     id = "close-btn";
                     icon::ico_size = 14;
-                    child = Icon!(icons::filled::CLOSE);
+                    child = Icon!(icon::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;

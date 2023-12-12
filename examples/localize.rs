@@ -3,9 +3,16 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use zero_ui::prelude::*;
-
-use zero_ui::core::l10n::{Lang, LangMap, L10N};
+use zero_ui::{
+    color::filters::drop_shadow,
+    focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
+    gesture::on_any_click,
+    image,
+    l10n::LangMap,
+    layout::{align, margin, size},
+    prelude::*,
+    view::presenter,
+};
 
 // l10n-### Localize Example
 // l10n-### This standalone comment is added to all scraped template files.
@@ -56,7 +63,7 @@ fn app_main() {
 
 fn window_icon() -> impl UiNode {
     Text! {
-        zero_ui::core::image::render_retain = true;
+        image::render_retain = true;
         size = (36, 36);
         font_size = 28;
         font_weight = FontWeight::BOLD;

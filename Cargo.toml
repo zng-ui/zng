@@ -80,8 +80,8 @@ members = [
     "zero-ui-l10n-scraper",
 
     # examples:
-    # "examples",
-    # "examples/util",
+    "examples",
+    "examples/util",
 
     # tests:
     "tests",

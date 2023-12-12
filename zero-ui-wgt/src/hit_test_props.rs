@@ -1,4 +1,4 @@
-use std::fmt;
+pub use zero_ui_app::widget::base::HitTestMode;
 
 use crate::prelude::*;
 
@@ -7,65 +7,6 @@ use crate::prelude::*;
 /// Mixin defines hit-test control state probing properties for all widgets.
 #[widget_mixin]
 pub struct HitTestMix<P>(P);
-
-/// Defines if and how a widget is hit-tested.
-///
-/// See [`hit_test_mode`](fn@hit_test_mode) for more details.
-#[derive(Copy, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-pub enum HitTestMode {
-    /// Widget is never hit.
-    ///
-    /// This mode affects the entire UI branch, if set it disables hit-testing for the widget and all its descendants.
-    Disabled,
-    /// Widget is hit by any point that intersects the transformed inner bounds rectangle. If the widget is inlined
-    /// excludes the first row advance and the last row trailing space.
-    Bounds,
-    /// Default mode.
-    ///
-    /// Same as `Bounds`, but also excludes the outside of rounded corners.
-    #[default]
-    RoundedBounds,
-    /// Every render primitive used for rendering the widget is hit-testable, the widget is hit only by
-    /// points that intersect visible parts of the render primitives.
-    ///
-    /// Note that not all primitives implement pixel accurate hit-testing.
-    Visual,
-}
-impl HitTestMode {
-    /// Returns `true` if is any mode other then [`Disabled`].
-    ///
-    /// [`Disabled`]: Self::Disabled
-    pub fn is_hit_testable(&self) -> bool {
-        !matches!(self, Self::Disabled)
-    }
-
-    /// Read-only context var with the contextual mode.
-    pub fn var() -> impl Var<HitTestMode> {
-        HIT_TEST_MODE_VAR.read_only()
-    }
-}
-impl fmt::Debug for HitTestMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "HitTestMode::")?;
-        }
-        match self {
-            Self::Disabled => write!(f, "Disabled"),
-            Self::Bounds => write!(f, "Bounds"),
-            Self::RoundedBounds => write!(f, "RoundedBounds"),
-            Self::Visual => write!(f, "Visual"),
-        }
-    }
-}
-impl_from_and_into_var! {
-    fn from(default_or_disabled: bool) -> HitTestMode {
-        if default_or_disabled {
-            HitTestMode::default()
-        } else {
-            HitTestMode::Disabled
-        }
-    }
-}
 
 context_var! {
     static HIT_TEST_MODE_VAR: HitTestMode = HitTestMode::default();

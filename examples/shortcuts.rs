@@ -1,5 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+
+use zero_ui::{
+    font::FontName,
+    gesture,
+    keyboard::{self, Key, KeyState},
+    layout::{align, margin},
+    prelude::*,
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -25,20 +32,16 @@ fn app_main() {
         // examples_util::trace_var!(ctx, ?keypress_text);
         // examples_util::trace_var!(ctx, %shortcut_color);
 
-        zero_ui::core::gesture::SHORTCUT_EVENT
-            .on_pre_event(app_hn!(
-                shortcut_text,
-                shortcut_error,
-                |args: &zero_ui::core::gesture::ShortcutArgs, _| {
-                    if args.repeat_count > 0 {
-                        return;
-                    }
-                    shortcut_text.set(args.shortcut.to_text());
-                    shortcut_error.set(false);
+        gesture::SHORTCUT_EVENT
+            .on_pre_event(app_hn!(shortcut_text, shortcut_error, |args: &gesture::ShortcutArgs, _| {
+                if args.repeat_count > 0 {
+                    return;
                 }
-            ))
+                shortcut_text.set(args.shortcut.to_text());
+                shortcut_error.set(false);
+            }))
             .perm();
-        zero_ui::core::keyboard::KEY_INPUT_EVENT
+        keyboard::KEY_INPUT_EVENT
             .on_pre_event(app_hn!(shortcut_text, keypress_text, shortcut_error, |args: &KeyInputArgs, _| {
                 if args.repeat_count > 0 || args.state != KeyState::Pressed {
                     return;

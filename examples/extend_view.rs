@@ -1,4 +1,4 @@
-use zero_ui::prelude::*;
+use zero_ui::{color::filters::hue_rotate, layout::size, prelude::*};
 use zero_ui_view::extensions::ViewExtensions;
 
 // Examples of how to extend the view-process with custom renderers.
@@ -120,12 +120,10 @@ fn view_extensions() -> ViewExtensions {
 pub mod using_display_items {
     /// App-process stuff, nodes.
     pub mod app_side {
+        use zero_ui::core::app::view_process::{ApiExtensionId, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
         use zero_ui::{
-            core::{
-                app::view_process::{ApiExtensionId, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
-                mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
-            },
-            prelude::new_widget::*,
+            mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
+            wgt_prelude::*,
         };
 
         /// Node that sends external display item and updates.

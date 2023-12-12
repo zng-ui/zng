@@ -1,9 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+use zero_ui::{
+    color::filters::opacity,
+    gesture::{is_cap_hovered, on_click},
+    icon::{outlined as icons, Icon},
+    layout::{align, margin, min_width},
+    prelude::*,
+    text_input::TextInput,
+    tip::disabled_tooltip,
+    widget::{background, enabled, is_disabled},
+};
 
-use zero_ui::core::config::*;
+use zero_ui::config::*;
 
-use zero_ui::prelude::new_widget::{Dip, DipPoint, DipVector};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -55,7 +63,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
                     main_cfg.reset(&main_cfg_key);
                 });
 
-                ico = zero_ui_material_icons::outlined::SETTINGS_BACKUP_RESTORE;
+                ico = icons::SETTINGS_BACKUP_RESTORE;
                 tooltip = Tip!(Text!("reset"));
                 disabled_tooltip = Tip!(Text!("is default"));
 
@@ -75,7 +83,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
 }
 
 fn app_main() {
-    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().run_window(async {
         let main_cfg = load_config();
 
         let checked = config_editor(

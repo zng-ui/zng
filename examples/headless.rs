@@ -1,5 +1,15 @@
-use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt};
-use zero_ui::prelude::*;
+use zero_ui::{
+    color::{
+        self,
+        gradient::{linear_gradient, GradientStops},
+    },
+    image::Img,
+    layout::{align, size},
+    prelude::*,
+    stack::stack_nodes,
+    widget::background,
+    window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -66,7 +76,7 @@ fn image() -> impl UiNode {
             }
 
             ui_vec![
-                flood(colors::WHITE),
+                color::flood(colors::WHITE),
                 gradient(0, colors::RED),
                 gradient(20, colors::RED),
                 gradient(40, colors::RED),
@@ -98,8 +108,6 @@ fn flush_stdout() {
 #[allow(unused)]
 fn images_render() {
     println!("-=Images::render Example=-\n");
-
-    use zero_ui::core::{app::ControlFlow, image::*};
 
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);

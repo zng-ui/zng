@@ -1,7 +1,7 @@
 //! App process implementation.
-//! 
+//!
 //! # Widget Instantiation
-//! 
+//!
 //! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zero-ui` crate.
 
 #![recursion_limit = "256"]

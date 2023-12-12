@@ -1,13 +1,30 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use core::fmt;
 use std::sync::Arc;
 
-use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
-use zero_ui::core::{
+use zero_ui::{
+    app::{NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD},
+    button,
     clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
-    undo::{CommandUndoExt, REDO_CMD, UNDO_CMD},
+    color::filters::opacity,
+    container::padding,
+    focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
+    font::{FontName, FontNames},
+    gesture::{click_shortcut, is_hovered},
+    icon::{self, Icon},
+    label::{self, Label},
+    layout::{actual_width, align, margin, min_height, min_width},
+    prelude::*,
+    rule_line,
+    scroll::ScrollMode,
+    stack::z_stack,
+    text::{font_family, font_size, font_weight, txt_align, Em, Strong, UnderlinePosition, UnderlineSkip},
+    text_input::{self, TextInput},
+    undo::{self, REDO_CMD, UNDO_CMD},
+    widget::{background_color, border, corner_radius, enabled, visibility},
+    window::native_dialog,
 };
-use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -24,7 +41,7 @@ fn main() {
 }
 
 fn app_main() {
-    APP.defaults().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+    APP.defaults().run_window(async {
         let fs = var(Length::Pt(11.0));
 
         Window! {
@@ -66,7 +83,7 @@ fn app_main() {
                 Container! {
                     align = Align::TOP;
                     margin = 10;
-                    child = font_size(fs);
+                    child = font_size_example(fs);
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
@@ -84,7 +101,7 @@ fn app_main() {
     })
 }
 
-fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
+fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
     fn change_size(font_size: &ArcVar<Length>, change: f32) {
         font_size.modify(move |s| {
             *s.to_mut() += Length::Pt(change);
@@ -427,10 +444,10 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
 }
 
 fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
-    let menu_width = var(units::Dip::MAX);
-    let gt_700 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(700)));
-    let gt_600 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(600)));
-    let gt_500 = menu_width.map(|&w| Visibility::from(w > units::Dip::new(500)));
+    let menu_width = var(Dip::MAX);
+    let gt_700 = menu_width.map(|&w| Visibility::from(w > Dip::new(700)));
+    let gt_600 = menu_width.map(|&w| Visibility::from(w > Dip::new(600)));
+    let gt_500 = menu_width.map(|&w| Visibility::from(w > Dip::new(500)));
     Stack! {
         id = "menu";
         align = Align::FILL_TOP;
@@ -448,7 +465,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         rule_line::vr::margin = 0;
         children = ui_vec![
             Button! {
-                child = Icon!(zero_ui_material_icons::sharp::INSERT_DRIVE_FILE);
+                child = Icon!(icon::sharp::INSERT_DRIVE_FILE);
                 child_insert_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
 
@@ -458,7 +475,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(zero_ui_material_icons::sharp::FOLDER_OPEN);
+                child = Icon!(icon::sharp::FOLDER_OPEN);
                 child_insert_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
 
@@ -468,7 +485,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(zero_ui_material_icons::sharp::SAVE);
+                child = Icon!(icon::sharp::SAVE);
                 child_insert_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
@@ -481,7 +498,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             Button! {
                 child = Text!(SAVE_AS_CMD.name());
                 when #{gt_500}.is_collapsed() {
-                    child = Icon!(zero_ui_material_icons::sharp::SAVE_AS);
+                    child = Icon!(icon::sharp::SAVE_AS);
                 }
 
                 tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));
@@ -491,11 +508,11 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     editor.save_as().await;
                 });
             },
-            Vr!(),
+            rule_line::vr::Vr!(),
             {
                 let cmd = CUT_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(zero_ui_material_icons::sharp::CUT);
+                    child = Icon!(icon::sharp::CUT);
                     child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
@@ -508,7 +525,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = COPY_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(zero_ui_material_icons::sharp::COPY);
+                    child = Icon!(icon::sharp::COPY);
                     child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
@@ -521,7 +538,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = PASTE_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(zero_ui_material_icons::sharp::PASTE);
+                    child = Icon!(icon::sharp::PASTE);
                     child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
@@ -531,7 +548,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     });
                 }
             },
-            Vr!(),
+            rule_line::vr::Vr!(),
             {
                 let cmd = UNDO_CMD.undo_scoped();
                 Toggle! {
@@ -541,7 +558,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
                     child = Button! {
-                        child = Icon!(zero_ui_material_icons::sharp::UNDO);
+                        child = Icon!(icon::sharp::UNDO);
                         child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 
@@ -552,7 +569,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     };
 
                     checked_popup = wgt_fn!(|_| popup::Popup! {
-                        child = undo::UndoHistory!();
+                        child = undo::history::UndoHistory!();
                     });
                 }
             },
@@ -564,7 +581,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
                     child = Button! {
-                        child = Icon!(zero_ui_material_icons::sharp::REDO);
+                        child = Icon!(icon::sharp::REDO);
                         child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 
@@ -575,7 +592,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     };
 
                     checked_popup = wgt_fn!(|_| popup::Popup! {
-                        child = undo::UndoHistory!(zero_ui::core::undo::UndoOp::Redo);
+                        child = undo::history::UndoHistory!(zero_ui::undo::UndoOp::Redo);
                     });
                 }
             },
@@ -653,17 +670,15 @@ impl TextEditor {
             return;
         }
 
-        use zero_ui::core::app::view_process::*;
-
-        let mut dlg = FileDialog {
+        let mut dlg = native_dialog::FileDialog {
             title: "Open Text".into(),
-            kind: FileDialogKind::OpenFile,
+            kind: native_dialog::FileDialogKind::OpenFile,
             ..Default::default()
         };
         dlg.push_filter("Text Files", &["txt", "md"]).push_filter("All Files", &["*"]);
         let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
         match r {
-            FileDialogResponse::Selected(s) => {
+            native_dialog::FileDialogResponse::Selected(s) => {
                 let r = task::wait(move || std::fs::read_to_string(&s[0])).await;
                 match r {
                     Ok(t) => {
@@ -675,8 +690,8 @@ impl TextEditor {
                     }
                 }
             }
-            FileDialogResponse::Cancel => {}
-            FileDialogResponse::Error(e) => {
+            native_dialog::FileDialogResponse::Cancel => {}
+            native_dialog::FileDialogResponse::Error(e) => {
                 self.handle_error("opening file", e).await;
             }
         }
@@ -694,11 +709,9 @@ impl TextEditor {
     pub async fn save_as(&self) -> bool {
         let _busy = self.enter_busy();
 
-        use zero_ui::core::app::view_process::*;
-
-        let mut dlg = FileDialog {
+        let mut dlg = native_dialog::FileDialog {
             title: "Save Text".into(),
-            kind: FileDialogKind::SaveFile,
+            kind: native_dialog::FileDialogKind::SaveFile,
             ..Default::default()
         };
         dlg.push_filter("Text", &["txt"])
@@ -706,7 +719,7 @@ impl TextEditor {
             .push_filter("All Files", &["*"]);
         let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
         match r {
-            FileDialogResponse::Selected(mut s) => {
+            native_dialog::FileDialogResponse::Selected(mut s) => {
                 if let Some(file) = s.pop() {
                     let ok = self.write(file.clone()).await;
                     self.txt_touched.set(!ok);
@@ -716,8 +729,8 @@ impl TextEditor {
                     return ok;
                 }
             }
-            FileDialogResponse::Cancel => {}
-            FileDialogResponse::Error(e) => {
+            native_dialog::FileDialogResponse::Cancel => {}
+            native_dialog::FileDialogResponse::Error(e) => {
                 self.handle_error("saving file", e.to_text()).await;
             }
         }
@@ -752,18 +765,16 @@ impl TextEditor {
             return true;
         }
 
-        use zero_ui::core::app::view_process::*;
-
-        let dlg = MsgDialog {
+        let dlg = native_dialog::MsgDialog {
             title: "Save File?".into(),
             message: "Save file? All unsaved changes will be lost.".into(),
-            icon: MsgDialogIcon::Warn,
-            buttons: MsgDialogButtons::YesNo,
+            icon: native_dialog::MsgDialogIcon::Warn,
+            buttons: native_dialog::MsgDialogButtons::YesNo,
         };
         let r = WINDOWS.native_message_dialog(WINDOW.id(), dlg).wait_rsp().await;
         match r {
-            MsgDialogResponse::Yes => self.save().await,
-            MsgDialogResponse::No => true,
+            native_dialog::MsgDialogResponse::Yes => self.save().await,
+            native_dialog::MsgDialogResponse::No => true,
             _ => false,
         }
     }
@@ -771,13 +782,11 @@ impl TextEditor {
     async fn handle_error(&self, context: &'static str, e: Txt) {
         tracing::error!("error {context}, {e}");
 
-        use zero_ui::core::app::view_process::*;
-
-        let dlg = MsgDialog {
+        let dlg = native_dialog::MsgDialog {
             title: "Error".into(),
             message: formatx!("Error {context}.\n\n{e}"),
-            icon: MsgDialogIcon::Error,
-            buttons: MsgDialogButtons::Ok,
+            icon: native_dialog::MsgDialogIcon::Error,
+            buttons: native_dialog::MsgDialogButtons::Ok,
         };
         let _ = WINDOWS.native_message_dialog(WINDOW.id(), dlg).wait_rsp().await;
     }
@@ -907,7 +916,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         font_weight = FontWeight::BOLD;
                         child = Text!("Validate");
                         on_click = hn!(|_| {
-                            zero_ui::widgets::text::commands::PARSE_CMD
+                            zero_ui::text::commands::PARSE_CMD
                                 .notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }

@@ -52,6 +52,12 @@ zero_ui_wgt::enable_widget_macros!();
 pub mod prelude {
     pub use crate::APP;
 
+    pub use zero_ui_task::rayon::prelude::{
+        FromParallelIterator as _, IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
+        IntoParallelRefMutIterator as _, ParallelBridge as _, ParallelDrainFull as _, ParallelDrainRange as _, ParallelExtend as _,
+        ParallelIterator as _, ParallelSlice as _, ParallelSliceMut as _, ParallelString as _,
+    };
+
     pub use zero_ui_app::{
         event::{AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, EventArgs as _},
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
@@ -113,25 +119,27 @@ pub mod prelude {
 
     pub use zero_ui_ext_fs_watcher::WATCHER;
 
-    pub use zero_ui_ext_image::IMAGES;
+    pub use zero_ui_ext_image::{ImageSource, IMAGES};
 
     pub use zero_ui_wgt_image::Image;
 
     pub use zero_ui_ext_input::{
-        focus::{iter::IterFocusableExt as _, DirectionalNav, TabIndex, TabNav, FOCUS},
+        focus::{commands::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
         gesture::{ClickArgs, CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
         keyboard::{HeadlessAppKeyboardExt as _, KeyInputArgs},
         mouse::{ClickMode, ClickTrigger, WidgetInfoMouseExt as _},
         pointer_capture::CaptureMode,
     };
 
-    pub use zero_ui_ext_l10n::{lang, Lang, L10N};
+    pub use zero_ui_ext_l10n::{l10n, lang, Lang, L10N};
+
+    pub use zero_ui_wgt_text::lang;
 
     pub use zero_ui_ext_undo::{CommandUndoExt as _, REDO_CMD, UNDO, UNDO_CMD};
 
     pub use zero_ui_ext_window::{
         AppRunWindowExt as _, AutoSize, HeadlessAppWindowExt as _, RenderMode, StartPosition, WINDOW_Ext as _, WidgetInfoImeArea as _,
-        WindowChrome, WindowCloseRequestedArgs, WindowRoot, WINDOWS,
+        WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowRoot, WINDOWS,
     };
 
     pub use zero_ui_wgt::Wgt;
@@ -152,7 +160,9 @@ pub mod prelude {
 
     pub use crate::grid;
 
-    pub use zero_ui_wgt_layers::LAYERS;
+    pub use zero_ui_wgt_layers::{AnchorMode, LayerIndex, LAYERS};
+
+    pub use zero_ui_wgt_text::icon::CommandIconExt as _;
 
     pub use crate::layers;
 
@@ -288,6 +298,8 @@ pub mod color {
         MixBlendMode, PreMulRgba, RenderColor, RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
     };
 
+    pub use zero_ui_wgt::color_scheme;
+
     pub use zero_ui_wgt_fill::nodes::flood;
 
     /// Color filters.
@@ -321,12 +333,12 @@ pub mod color {
 /// See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
 pub mod layout {
     pub use zero_ui_layout::units::{
-        Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D,
-        Deadline, Dip, DipBox, DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey, Factor,
-        Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, LayoutMask, Length,
-        LengthExpr, LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints, PxConstraints2d,
-        PxCornerRadius, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect,
-        RectFromTuplesBuilder, RenderAngle, ResolutionUnits, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
+        slerp_enabled, slerp_sampler, Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength,
+        ByteUnits, CornerRadius2D, Deadline, Dip, DipBox, DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector,
+        DistanceKey, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis,
+        LayoutMask, Length, LengthExpr, LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints,
+        PxConstraints2d, PxCornerRadius, PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector,
+        Rect, RectFromTuplesBuilder, RenderAngle, ResolutionUnits, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
     };
 
     pub use zero_ui_layout::context::{
@@ -348,6 +360,8 @@ pub mod layout {
     };
 
     pub use zero_ui_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
+
+    pub use zero_ui_app::render::TransformStyle;
 }
 
 /// Frame builder and other types.
@@ -356,7 +370,7 @@ pub mod layout {
 pub mod render {
     pub use zero_ui_app::render::{
         ClipBuilder, Font, FontSynthesis, FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, HitTestBuilder,
-        HitTestClipBuilder, ImageRendering, RepeatMode, SpatialFrameId, SpatialFrameKey, StaticSpatialFrameId, TransformStyle,
+        HitTestClipBuilder, ImageRendering, RepeatMode, SpatialFrameId, SpatialFrameKey, StaticSpatialFrameId,
     };
     pub use zero_ui_view_api::window::FrameId;
 }
@@ -407,6 +421,10 @@ pub mod app {
         app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
         RunOnDrop, StaticAppId,
     };
+    pub use zero_ui_wgt_input::commands::{
+        on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD,
+        SAVE_CMD,
+    };
 }
 
 /// Event and command API.
@@ -450,24 +468,25 @@ pub mod widget {
         easing, property, ui_node, widget, widget_mixin, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET,
     };
 
-    pub use zero_ui_wgt::{parallel, Wgt};
+    pub use zero_ui_app::widget::border::{
+        BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
+    };
 
-    /// Widget border properties and types.
-    pub mod borders {
-        pub use zero_ui_app::widget::border::{
-            BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
-        };
+    pub use zero_ui_wgt::{
+        border, border_align, border_over, can_auto_hide, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
+        interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_visible, modal, on_block,
+        on_blocked_changed, on_deinit, on_disable, on_enable, on_enabled_changed, on_info_init, on_init, on_interactivity_changed, on_move,
+        on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable, on_pre_enabled_changed,
+        on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_transform_changed, on_pre_unblock, on_pre_update,
+        on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed, on_transform_changed, on_unblock, on_update, on_vis_disable,
+        on_vis_enable, on_vis_enabled_changed, parallel, visibility, z_index, BorderMix, HitTestMix, OnDeinitArgs, OnNodeOpArgs,
+        VisibilityMix, Wgt, WidgetEventMix,
+    };
 
-        pub use zero_ui_wgt::{border, border_align, border_over, corner_radius, corner_radius_fit, BorderMix};
-    }
-
-    /// Widget fill properties.
-    pub mod fill {
-        pub use zero_ui_wgt_fill::{
-            background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground,
-            foreground_color, foreground_fn, foreground_gradient, foreground_highlight,
-        };
-    }
+    pub use zero_ui_wgt_fill::{
+        background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground,
+        foreground_color, foreground_fn, foreground_gradient, foreground_highlight,
+    };
 
     /// Widget and property builder types.
     ///
@@ -537,6 +556,7 @@ pub mod handler {
 /// See [`zero_ui_ext_clipboard`] for the full clipboard API.
 pub mod clipboard {
     pub use zero_ui_ext_clipboard::{ClipboardError, CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
+    pub use zero_ui_wgt_input::commands::{on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};
 }
 
 /// Config service, sources and types.
@@ -555,12 +575,12 @@ pub mod config {
 pub mod font {
     pub use zero_ui_ext_font::{
         font_features, unicode_bidi_levels, unicode_bidi_sort, BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette,
-        ColorPaletteType, ColorPalettes, CustomFont, Font, FontChange, FontChangedArgs, FontColorPalette, FontFace, FontFaceList,
-        FontFaceMetrics, FontList, FontMetrics, FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, Hyphenation,
-        HyphenationDataDir, HyphenationDataSource, Hyphens, Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing,
-        OutlineHintingOptions, OutlineSink, ParagraphSpacing, SegmentedText, SegmentedTextIter, ShapedColoredGlyphs, ShapedLine,
-        ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo, TextSegment, TextSegmentKind, TextShapingArgs,
-        TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, FONTS, FONT_CHANGED_EVENT,
+        ColorPaletteType, ColorPalettes, CustomFont, Font, FontChange, FontChangedArgs, FontColorPalette, FontDataRef, FontFace,
+        FontFaceList, FontFaceMetrics, FontList, FontMetrics, FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight,
+        Hyphenation, HyphenationDataDir, HyphenationDataSource, Hyphens, Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight,
+        LineSpacing, OutlineHintingOptions, OutlineSink, ParagraphSpacing, SegmentedText, SegmentedTextIter, ShapedColoredGlyphs,
+        ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo, TextSegment, TextSegmentKind,
+        TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, FONTS, FONT_CHANGED_EVENT,
     };
 }
 
@@ -579,15 +599,27 @@ pub mod fs_watcher {
 /// See [`zero_ui_ext_image`] for the full image API and [`zero_ui_wgt_image`] for the full widget API.
 pub mod image {
     pub use zero_ui_ext_image::{
-        ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImageMaskMode, ImagePpi, ImageRenderArgs,
-        ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
+        render_retain, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImageMaskMode, ImagePpi,
+        ImageRenderArgs, ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
     };
+
+    #[cfg(http)]
+    pub use zero_ui_ext_image::UriFilter;
 
     pub use zero_ui_wgt_image::{
         img_align, img_cache, img_crop, img_downscale, img_error_fn, img_fit, img_limits, img_loading_fn, img_offset, img_rendering,
         img_repeat, img_repeat_spacing, img_scale, img_scale_factor, img_scale_ppi, is_error, is_loaded, on_error, on_load, Image,
         ImageFit, ImageRepeat, ImgErrorArgs, ImgLoadArgs, ImgLoadingArgs,
     };
+
+    /// Mask image properties.
+    ///
+    /// See [`zero_ui_wgt_image::mask`] for the full API.
+    pub mod mask {
+        pub use zero_ui_wgt_image::mask::{
+            mask_align, mask_fit, mask_image, mask_image_cache, mask_image_downscale, mask_image_limits, mask_mode, mask_offset,
+        };
+    }
 }
 
 /// Accessibility service, events and properties.
@@ -672,7 +704,7 @@ pub mod touch {
         on_touch_long_press, on_touch_move, on_touch_start, on_touch_tap, on_touch_transform, on_touched,
     };
 
-    pub use zero_ui_wgt_input::{is_cap_touched, is_touched, is_touched_from_start};
+    pub use zero_ui_wgt_input::{is_cap_touched, is_touched, is_touched_from_start, touch_transform};
 }
 
 /// Touch service, properties, events and types.
@@ -727,6 +759,8 @@ pub mod gesture {
         on_pre_any_triple_click, on_pre_click, on_pre_context_click, on_pre_disabled_click, on_pre_double_click, on_pre_single_click,
         on_pre_triple_click, on_single_click, on_triple_click,
     };
+
+    pub use zero_ui_wgt_input::{is_cap_hovered, is_cap_pointer_pressed, is_cap_pressed, is_hovered, is_hovered_disabled, is_pressed};
 }
 
 /// Localization service, sources and types.
@@ -781,11 +815,11 @@ pub mod window {
     pub use zero_ui_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
 
     pub use zero_ui_ext_window::{
-        AppRunWindowExt, AutoSize, CloseWindowResult, CursorImage, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
-        HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, RendererDebug, StartPosition,
-        WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowChrome, WindowCloseArgs,
-        WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState,
-        WindowStateAllowed, WindowVars, FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
+        AppRunWindowExt, AutoSize, CloseWindowResult, CursorImage, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs,
+        HeadlessAppWindowExt, HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode,
+        RendererDebug, StartPosition, VideoMode, WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowChrome,
+        WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs,
+        WindowState, WindowStateAllowed, WindowVars, FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
         WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
     };
 
@@ -798,6 +832,13 @@ pub mod window {
     }
 
     pub use zero_ui_wgt_window::{SaveState, Window};
+
+    /// Native dialog types.
+    pub mod native_dialog {
+        pub use zero_ui_view_api::dialog::{
+            FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,
+        };
+    }
 }
 
 /// Text widget, properties and types.
@@ -819,7 +860,7 @@ pub mod text {
         txt_align, txt_editable, txt_highlight, txt_overflow, txt_overflow_align, underline, white_space, word_break, word_spacing,
         AutoSelection, CaretShape, CaretStatus, ChangeStopArgs, ChangeStopCause, Em, FontFeaturesMix, FontMix, LangMix, LinesWrapCount,
         ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix, TextFillMix, TextOverflow,
-        TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip,
+        TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip, FONT_COLOR_VAR,
     };
 }
 
@@ -1013,7 +1054,7 @@ pub mod scroll {
 pub mod stack {
     pub use zero_ui_wgt_stack::{
         get_index, get_index_fct, get_index_len, get_rev_index, h_stack, is_even, is_first, is_last, is_odd, lazy_sample, lazy_size, node,
-        stack_nodes, stack_nodes_layout_by, v_stack, Stack, StackDirection, WidgetInfoStackExt,
+        stack_nodes, stack_nodes_layout_by, v_stack, z_stack, Stack, StackDirection, WidgetInfoStackExt,
     };
 }
 
@@ -1041,7 +1082,7 @@ pub mod toggle {
     pub use zero_ui_wgt_toggle::{
         check_spacing, combo_spacing, deselect_on_deinit, deselect_on_new, extend_style, is_checked, radio_spacing, replace_style,
         scroll_on_select, select_on_init, select_on_new, selector, switch_spacing, tristate, CheckStyle, ComboStyle, DefaultStyle,
-        RadioStyle, Selector, SelectorError, SelectorImpl, SwitchStyle, Toggle,
+        RadioStyle, Selector, SelectorError, SelectorImpl, SwitchStyle, Toggle, IS_CHECKED_VAR,
     };
 
     /// Toggle commands.
@@ -1101,7 +1142,7 @@ impl std::ops::Deref for APP {
 }
 
 mod defaults {
-    use zero_ui_app::{AppExtended, AppExtension};
+    use zero_ui_app::{AppExtended, AppExtension, AppExtensionBoxed};
     use zero_ui_ext_clipboard::ClipboardManager;
     use zero_ui_ext_config::ConfigManager;
     use zero_ui_ext_font::FontManager;
@@ -1114,6 +1155,19 @@ mod defaults {
     use zero_ui_ext_l10n::L10nManager;
     use zero_ui_ext_undo::UndoManager;
     use zero_ui_ext_window::WindowManager;
+
+    #[cfg(dyn_app_extension)]
+    macro_rules! DefaultsAppExtended {
+        () => {
+            AppExtended<Vec<Box<dyn AppExtensionBoxed>>>
+        }
+    }
+    #[cfg(not(dyn_app_extension))]
+    macro_rules! DefaultsAppExtended {
+        () => {
+            AppExtended<impl AppExtension>
+        }
+    }
 
     impl super::APP {
         /// App with default extensions.
@@ -1139,7 +1193,7 @@ mod defaults {
         /// * [`MaterialFonts`] if `cfg(feature = "material_icons")`.
         ///
         /// [`MaterialFonts`]: zero_ui_wgt_material_icons::MaterialFonts
-        pub fn defaults(&self) -> AppExtended<impl AppExtension> {
+        pub fn defaults(&self) -> DefaultsAppExtended![] {
             let r = self
                 .minimal()
                 .extend(FsWatcherManager::default())
