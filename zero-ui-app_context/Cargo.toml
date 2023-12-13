@@ -6,14 +6,18 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
+default = ["debug_default"]
+
 # Allows multiple app instances per-process.
 #
 # This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
 # what app is currently running in each thread and `app_local!` statics switch to the value of each app
 # depending on the current thread.
-#
-# Not enabled by default, but enabled by `feature="test_util"`.
 multi_app = []
+
+debug_default = []
+
+dyn_closure = []
 
 [dependencies]
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }

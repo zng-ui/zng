@@ -15,7 +15,7 @@ ipc = ["zero-ui-view-api/ipc"]
 # Signal the build script to enable the `dyn_*`, `inspector` and `trace_widget` features for debug builds.
 #
 # Enabled by default.
-debug_default = ["zero-ui-var/debug_default"]
+debug_default = ["zero-ui-var/debug_default", "zero-ui-app_context/dyn_closure"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
 #
@@ -33,7 +33,7 @@ dyn_app_extension = []
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zero-ui-var/dyn_closure"]
+dyn_closure = ["zero-ui-var/dyn_closure", "zero-ui-app_context/dyn_closure"]
 
 # like cfg(test) but also visible in docs and integration tests.
 #

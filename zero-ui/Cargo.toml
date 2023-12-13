@@ -27,7 +27,12 @@ http = [
 # Signal the `zero-ui-core` build script to enable the `dyn_*` and `inspector` features for debug builds.
 #
 # Enabled by default.
-debug_default = ["zero-ui-app/debug_default", "zero-ui-wgt-inspector/debug_default"]
+debug_default = [
+    "zero-ui-app/debug_default",
+    "zero-ui-wgt-inspector/debug_default",
+    "zero-ui-wgt-scroll/debug_default",
+    "zero-ui-wgt-window/debug_default",
+]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
 #
@@ -36,10 +41,7 @@ dyn_node = ["zero-ui-app/dyn_node"]
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
-inspector = [
-    "zero-ui-app/inspector",
-    "zero-ui-wgt-inspector/live",
-]
+inspector = ["zero-ui-app/inspector", "zero-ui-wgt-inspector/live"]
 
 # Use dynamic dispatch at the app-extension level.
 #
@@ -49,7 +51,11 @@ dyn_app_extension = ["zero-ui-app/dyn_app_extension"]
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = ["zero-ui-wgt/dyn_closure"]
+dyn_closure = [
+    "zero-ui-wgt/dyn_closure",
+    "zero-ui-wgt-scroll/dyn_closure",
+    "zero-ui-wgt-window/dyn_closure",
+]
 
 # like cfg(test) but also visible in docs and integration tests.
 #
