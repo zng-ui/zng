@@ -1345,7 +1345,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// The `shape` node must set one special value during layout, the [`set_touch_caret_mid`] must be called to
 /// set the offset to the middle of the caret line in the shape inner-bounds, this is used to position the caret.
 ///
-/// [layered widget]: zero_ui_wgt_layers
+/// [layered widget]: zero_ui_wgt_layer
 /// [`set_touch_caret_mid`]: super::nodes::set_touch_caret_mid
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {

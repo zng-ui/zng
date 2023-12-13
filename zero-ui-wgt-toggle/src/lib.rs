@@ -1169,7 +1169,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
 /// [`ComboStyle!`]: struct@ComboStyle
-/// [`Popup!`]: struct@zero_ui_wgt_layers::popup::Popup
+/// [`Popup!`]: struct@zero_ui_wgt_layer::popup::Popup
 /// [`LAYERS`]: layers::LAYERS
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {

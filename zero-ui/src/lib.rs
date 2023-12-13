@@ -965,7 +965,7 @@ pub mod layer {
 
 /// Popup widget and properties.
 ///
-/// See [`zero_ui_wgt_layers::popup`] for the full widget API.
+/// See [`zero_ui_wgt_layer::popup`] for the full widget API.
 pub mod popup {
     pub use zero_ui_wgt_layer::popup::{
         anchor_mode, close_delay, close_on_focus_leave, context_capture, extend_style, is_close_delaying, on_popup_close_requested,

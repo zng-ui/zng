@@ -1,4 +1,4 @@
-//! Color and gradient types, functions and macros, [`Rgba`], [`filters`], [`hex!`] and more.
+//! Color and gradient types, functions and macros, [`Rgba`], [`filter`], [`hex!`] and more.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

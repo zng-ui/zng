@@ -24,11 +24,7 @@ use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 ///
 /// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
 ///
-/// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
-/// [`child`] or falling back to [`FillUiNode`].
-///
 /// [`id`]: WidgetBase::id
-/// [`child`]: fn@child
 pub struct WidgetBase {
     builder: RefCell<Option<WidgetBuilder>>,
     importance: Importance,

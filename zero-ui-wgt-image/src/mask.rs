@@ -14,7 +14,7 @@ use crate::ImageFit;
 ///
 /// This property is configured by contextual values set by the properties in the [`mask`] module.
 ///
-/// [`mask`]: crate::properties::mask
+/// [`mask`]: crate::mask
 #[property(FILL-1)]
 pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     let source = source.into_var();
@@ -247,7 +247,7 @@ pub fn mask_image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 ///
 /// If not set or set to `None` the [`IMAGES.limits`] is used.
 ///
-/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(MASK_IMAGE_LIMITS_VAR))]
 pub fn mask_image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
@@ -265,7 +265,7 @@ pub fn mask_image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLi
 /// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
 /// size and other properties to efficiently resize an image on screen.
 ///
-/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
 /// [`mask_image_limits`]: fn@mask_image_limits
 #[property(CONTEXT, default(MASK_IMAGE_DOWNSCALE_VAR))]
 pub fn mask_image_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
