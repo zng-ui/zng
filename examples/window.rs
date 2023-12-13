@@ -13,7 +13,7 @@ use zero_ui::{
     prelude::*,
     scroll::ScrollMode,
     text::Strong,
-    widget::{background_color, corner_radius, foreground, modal, visibility},
+    widget::{background_color, corner_radius, enabled, foreground, modal, visibility},
     window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 

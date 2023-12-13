@@ -2,17 +2,13 @@ use zero_ui_app::widget::border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR, COR
 
 use crate::prelude::*;
 
-/// Border control properties.
-#[widget_mixin]
-pub struct BorderMix<P>(P);
-
 /// Corner radius of widget and inner widgets.
 ///
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`].
 ///
 /// [`Default`]: zero_ui_layout::units::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit
-#[property(CONTEXT, default(CORNER_RADIUS_VAR), widget_impl(BorderMix<P>))]
+#[property(CONTEXT, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     let child = match_node(child, move |child, op| {
         if let UiNodeOp::Layout { wl, final_size } = op {
@@ -31,7 +27,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`BORDER`]: zero_ui_app::widget::border::BORDER
-#[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR), widget_impl(BorderMix<P>))]
+#[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
 }
@@ -51,7 +47,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// Sets the [`BORDER_ALIGN_VAR`].
 ///
 /// [`corner_radius`]: fn@corner_radius
-#[property(CONTEXT, default(BORDER_ALIGN_VAR), widget_impl(BorderMix<P>))]
+#[property(CONTEXT, default(BORDER_ALIGN_VAR))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
     with_context_var(child, BORDER_ALIGN_VAR, align)
 }
@@ -64,7 +60,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 /// Sets the [`BORDER_OVER_VAR`].
 ///
 /// [`border_align`]: fn@border_align
-#[property(CONTEXT, default(BORDER_OVER_VAR), widget_impl(BorderMix<P>))]
+#[property(CONTEXT, default(BORDER_OVER_VAR))]
 pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, BORDER_OVER_VAR, over)
 }
@@ -178,7 +174,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`NestGroup::BORDER`]: zero_ui_app::widget::builder::NestGroup::BORDER
-#[property(BORDER, default(0, BorderStyle::Hidden), widget_impl(BorderMix<P>))]
+#[property(BORDER, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
     let sides = sides.into_var();
     let mut corners = PxCornerRadius::zero();

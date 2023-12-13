@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use zero_ui_wgt::{align, clip_to_bounds, margin, prelude::*, Wgt};
+use zero_ui_wgt::{align, clip_to_bounds, margin, prelude::*};
 
 /// Base single content container.
 #[widget($crate::Container {
@@ -13,7 +13,7 @@ use zero_ui_wgt::{align, clip_to_bounds, margin, prelude::*, Wgt};
         child = $child;
     }
 })]
-pub struct Container(Wgt);
+pub struct Container(WidgetBase);
 impl Container {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {

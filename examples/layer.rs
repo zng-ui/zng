@@ -9,7 +9,7 @@ use zero_ui::{
     layout::{align, margin, offset, rotate, scale, y},
     mouse::{on_mouse_enter, on_mouse_leave},
     prelude::*,
-    widget::{background_color, border, corner_radius, hit_test_mode, modal, HitTestMode},
+    widget::{background_color, border, corner_radius, hit_test_mode, modal, visibility, HitTestMode},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

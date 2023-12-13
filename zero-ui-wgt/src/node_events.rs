@@ -4,10 +4,6 @@ use zero_ui_app::widget::instance::UiNodeOpMethod;
 
 use crate::prelude::*;
 
-/// Widget UI node events.
-#[widget_mixin]
-pub struct WidgetEventMix<P>(P);
-
 /// Represents a node operation.
 #[derive(Clone, Debug)]
 pub struct OnNodeOpArgs {
@@ -52,7 +48,7 @@ impl OnNodeOpArgs {
 ///
 /// [`on_pre_node_op`]: fn@on_pre_node_op
 /// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |_| true)
 }
@@ -96,7 +92,7 @@ fn on_node_op_impl(
 ///
 /// [`on_node_op`]: fn@on_node_op
 /// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_pre_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |_| true)
 }
@@ -142,7 +138,7 @@ fn on_pre_node_op_impl(
 ///
 /// [`on_info_init`]: fn@on_info_init
 /// [`WidgetInfoTree`]: zero_ui_app::widget::info::WidgetInfoTree
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
@@ -163,7 +159,7 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) ->
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_init`]: fn@on_init
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
@@ -184,7 +180,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`WidgetInfoTree`]: zero_ui_app::widget::info::WidgetInfoTree
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
     let mut count = 1;
@@ -228,7 +224,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs
 ///
 /// You can use one of the handler macros, [`hn!`] or [`hn_once!`], to declare a handler closure. You must avoid using the async
 /// handlers as they cause an update every time the UI task advances from an await point causing another task to spawn.
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
@@ -245,7 +241,7 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) 
 ///
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
@@ -277,7 +273,7 @@ pub struct OnDeinitArgs {
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
 /// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
@@ -301,7 +297,7 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) 
 ///
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
-#[property(EVENT, widget_impl(WidgetEventMix<P>))]
+#[property(EVENT)]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }

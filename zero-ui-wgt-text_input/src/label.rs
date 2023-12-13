@@ -6,7 +6,7 @@ use zero_ui_ext_input::{
     mouse::MOUSE_INPUT_EVENT,
     touch::TOUCH_INPUT_EVENT,
 };
-use zero_ui_wgt::{prelude::*, InteractivityMix};
+use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_input::focus::FocusableMix;
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 
@@ -15,7 +15,7 @@ use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 /// Optionally can be the label of a [`target`] widget, in this case the label is not focusable, it transfers focus
 /// to the target.
 #[widget($crate::label::Label)]
-pub struct Label(FocusableMix<StyleMix<InteractivityMix<zero_ui_wgt_text::Text>>>);
+pub struct Label(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
 impl Label {
     fn widget_intrinsic(&mut self) {
         widget_set! {

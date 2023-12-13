@@ -487,8 +487,7 @@ pub mod widget {
         on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable, on_pre_enabled_changed,
         on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_transform_changed, on_pre_unblock, on_pre_update,
         on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed, on_transform_changed, on_unblock, on_update, on_vis_disable,
-        on_vis_enable, on_vis_enabled_changed, parallel, visibility, z_index, BorderMix, HitTestMix, OnDeinitArgs, OnNodeOpArgs,
-        VisibilityMix, Wgt, WidgetEventMix,
+        on_vis_enable, on_vis_enabled_changed, parallel, visibility, z_index, OnDeinitArgs, OnNodeOpArgs, Wgt,
     };
 
     pub use zero_ui_wgt_fill::{

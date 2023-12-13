@@ -11,7 +11,7 @@ use zero_ui::{
     prelude::*,
     stack::{h_stack, v_stack},
     view::{View, ViewArgs},
-    widget::WidgetUpdateMode,
+    widget::{interactive, visibility, WidgetUpdateMode},
 };
 
 #[test]

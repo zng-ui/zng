@@ -5,12 +5,6 @@ use zero_ui_app::widget::info;
 
 use crate::prelude::*;
 
-/// Interactivity properties.
-///
-/// Mixin defines enabled and enabled state probing properties for interactive widgets.
-#[widget_mixin]
-pub struct InteractivityMix<P>(P);
-
 context_var! {
     static IS_ENABLED_VAR: bool = true;
 }
@@ -46,7 +40,7 @@ context_var! {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(CONTEXT, default(true), widget_impl(InteractivityMix<P>))]
+#[property(CONTEXT, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
 
@@ -84,7 +78,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`BLOCKED`]: Interactivity::BLOCKED
 /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
 /// [`nodes::interactive_node`]: crate::nodes::interactive_node
-#[property(CONTEXT, default(true), widget_impl(InteractivityMix<P>))]
+#[property(CONTEXT, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     let interactive = interactive.into_var();
 
@@ -108,7 +102,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 ///
 /// [`enabled`]: fn@enabled
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
-#[property(EVENT, widget_impl(InteractivityMix<P>))]
+#[property(EVENT)]
 pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, true)
 }
@@ -120,7 +114,7 @@ pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// This is the same as `!self.is_enabled`.
 ///
 /// [`enabled`]: fn@enabled
-#[property(EVENT, widget_impl(InteractivityMix<P>))]
+#[property(EVENT)]
 pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, false)
 }

@@ -1,5 +1,5 @@
 use zero_ui_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
-use zero_ui_wgt::{align, is_disabled, margin, prelude::*, InteractivityMix};
+use zero_ui_wgt::{align, is_disabled, margin, prelude::*};
 use zero_ui_wgt_access::{access_role, AccessRole};
 use zero_ui_wgt_data::{DataNoteLevel, DataNotes, DATA};
 use zero_ui_wgt_fill::foreground_highlight;
@@ -32,7 +32,7 @@ use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 /// Undo/redo is enabled by default, the widget is an undo scope and handles undo commands. Note that external
 /// changes to the `txt` variable will clear the undo stack, only changes done by the widget can be undone.
 #[widget($crate::TextInput)]
-pub struct TextInput(StyleMix<UndoMix<InteractivityMix<Text>>>);
+pub struct TextInput(StyleMix<UndoMix<Text>>);
 impl TextInput {
     fn widget_intrinsic(&mut self) {
         widget_set! {

@@ -17,7 +17,7 @@ use zero_ui::{
     text_input::TextInput,
     tip::disabled_tooltip,
     view::{View, ViewArgs},
-    widget::{background, background_color, corner_radius, foreground, modal, visibility},
+    widget::{background, background_color, corner_radius, enabled, foreground, modal, visibility},
     wrap,
 };
 

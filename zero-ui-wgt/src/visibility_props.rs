@@ -2,12 +2,6 @@ use crate::prelude::*;
 
 use zero_ui_app::widget::info;
 
-/// Visibility properties.
-///
-/// Mixin defines visibility and visibility state probing properties for all widgets.
-#[widget_mixin]
-pub struct VisibilityMix<P>(P);
-
 /// Sets the widget visibility.
 ///
 /// This property causes the widget to have the `visibility`, the widget actual visibility is computed, for example,
@@ -25,7 +19,7 @@ pub struct VisibilityMix<P>(P);
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: zero_ui_app::widget::info::WidgetInfo::visibility
-#[property(CONTEXT, default(true), widget_impl(VisibilityMix<P>))]
+#[property(CONTEXT, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     let visibility = visibility.into_var();
     let mut prev_vis = Visibility::Visible;
@@ -117,17 +111,17 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
     )
 }
 /// If the widget is [`Visible`](Visibility::Visible).
-#[property(CONTEXT, widget_impl(VisibilityMix<P>))]
+#[property(CONTEXT)]
 pub fn is_visible(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Visible)
 }
 /// If the widget is [`Hidden`](Visibility::Hidden).
-#[property(CONTEXT, widget_impl(VisibilityMix<P>))]
+#[property(CONTEXT)]
 pub fn is_hidden(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Hidden)
 }
 /// If the widget is [`Collapsed`](Visibility::Collapsed).
-#[property(CONTEXT, widget_impl(VisibilityMix<P>))]
+#[property(CONTEXT)]
 pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
@@ -165,7 +159,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 ///  
 /// [`outer_bounds`]: info::WidgetBoundsInfo::outer_bounds
 /// [`inner_bounds`]: info::WidgetBoundsInfo::inner_bounds
-#[property(CONTEXT, default(true), widget_impl(VisibilityMix<P>))]
+#[property(CONTEXT, default(true))]
 pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
 

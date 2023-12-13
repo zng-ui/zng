@@ -5,7 +5,7 @@
 
 zero_ui_wgt::enable_widget_macros!();
 
-use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*, InteractivityMix};
+use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*};
 use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zero_ui_wgt_container::{child_align, padding, Container};
 use zero_ui_wgt_fill::background_color;
@@ -22,7 +22,7 @@ use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 
 /// A clickable container.
 #[widget($crate::Button)]
-pub struct Button(FocusableMix<StyleMix<InteractivityMix<Container>>>);
+pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     fn widget_intrinsic(&mut self) {
         widget_set! {

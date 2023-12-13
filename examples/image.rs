@@ -16,7 +16,7 @@ use zero_ui::{
     scroll::ScrollMode,
     task::http,
     text::font_size,
-    widget::{background, background_color, background_gradient, border, corner_radius, foreground},
+    widget::{background, background_color, background_gradient, border, corner_radius, enabled, foreground},
     window::WindowState,
 };
 use zero_ui_view_prebuilt as zero_ui_view;

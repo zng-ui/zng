@@ -3,12 +3,6 @@ use zero_ui_app::widget::base::HIT_TEST_MODE_VAR;
 
 use crate::prelude::*;
 
-/// Hit-test visibility properties.
-///
-/// Mixin defines hit-test control state probing properties for all widgets.
-#[widget_mixin]
-pub struct HitTestMix<P>(P);
-
 /// Defines how the widget is hit-tested.
 ///
 /// Hit-testing determines if a point intersects with the widget, the most common hit-test point is the mouse pointer.
@@ -21,7 +15,7 @@ pub struct HitTestMix<P>(P);
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`corner_radius`]: fn@crate::corner_radius
-#[property(CONTEXT, default(HIT_TEST_MODE_VAR), widget_impl(HitTestMix<P>))]
+#[property(CONTEXT, default(HIT_TEST_MODE_VAR))]
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
@@ -59,7 +53,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`hit_test_mode`]: fn@hit_test_mode
-#[property(EVENT, widget_impl(HitTestMix<P>))]
+#[property(EVENT)]
 pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }

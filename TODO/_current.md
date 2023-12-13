@@ -44,8 +44,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Merge.
-
 * Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
     - Test what happens when info is rebuild.
     - Implement visibility event properties.
@@ -58,6 +56,7 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - What about offset property?
 * Review modules with plural names, filters, layers.
 * Review prelude.
+    - Include more properties, `enabled`, `visibility`?
 
 # Publish
 

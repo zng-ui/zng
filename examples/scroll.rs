@@ -6,7 +6,7 @@ use zero_ui::{
     mouse::{cursor, CursorIcon},
     prelude::*,
     scroll::commands::ScrollToMode,
-    widget::background_color,
+    widget::{background_color, enabled},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

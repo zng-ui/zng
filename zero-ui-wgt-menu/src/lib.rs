@@ -8,7 +8,7 @@ zero_ui_wgt::enable_widget_macros!();
 use zero_ui_ext_font::FontNames;
 use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs, mouse::ClickMode};
 use zero_ui_ext_l10n::lang;
-use zero_ui_wgt::{align, is_disabled, margin, prelude::*};
+use zero_ui_wgt::{align, enabled, is_disabled, margin, prelude::*, visibility};
 use zero_ui_wgt_access::{access_role, AccessRole};
 use zero_ui_wgt_button::Button;
 use zero_ui_wgt_container::{child_align, child_insert_end, padding};
