@@ -47,7 +47,8 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 * Review inspector.
 
 * Review `dyn_closure` and other features (`dyn_*`, `http`).
-* Test everything.
+* font_color in icon not the right color, all rendered images not inheriting parent color scheme?.
+* can't click on some buttons in layer example after clicking Transform Anchored.
 * Merge.
 
 * Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
