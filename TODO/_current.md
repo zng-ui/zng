@@ -30,6 +30,7 @@ top 20 most frequent update requests (in 500 cycles):
 WindowManager//WindowId(1) update (250 times)
 WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)
 ```
+Observed multiple times, after a slow build when the VS window is not focused.
 
 # Hit-test
 

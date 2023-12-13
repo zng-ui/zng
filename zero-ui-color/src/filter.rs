@@ -23,7 +23,7 @@ use crate::{RenderColor, Rgba};
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::filters::Filter;
+/// use zero_ui_color::filter::Filter;
 /// use zero_ui_layout::units::*;
 ///
 /// let filter = Filter::new_opacity(50.pct()).blur(3);
