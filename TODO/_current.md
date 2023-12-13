@@ -44,7 +44,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* font_color in icon not the right color, all rendered images not inheriting parent color scheme?.
 * can't click on some buttons in layer example after clicking Transform Anchored.
 * Merge.
 

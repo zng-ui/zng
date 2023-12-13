@@ -5,8 +5,8 @@
 
 use zero_ui_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zero_ui_ext_window::{
-    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseRequestedArgs,
-    WindowOpenArgs, WindowRoot,
+    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
+    WindowRoot,
 };
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_fill::background_color;
@@ -78,12 +78,6 @@ impl Window {
         }
 
         self.widget_builder().push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::CONTEXT, "color-scheme", |child| {
-                // set contextual color scheme to system scheme.
-                with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
-                    WINDOW.vars().actual_color_scheme().boxed()
-                })
-            });
             wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layers::layers_node);
         });
     }

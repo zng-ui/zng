@@ -1258,6 +1258,15 @@ mod defaults {
                 #[cfg(inspector)]
                 let child = zero_ui_wgt_inspector::inspector(child, zero_ui_wgt_inspector::live_inspector(true));
 
+                // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because
+                // WindowRoot is used directly by some headless renderers.
+                let child = zero_ui_wgt::nodes::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
+                    use zero_ui_ext_window::WINDOW_Ext as _;
+                    use zero_ui_var::Var as _;
+
+                    zero_ui_app::window::WINDOW.vars().actual_color_scheme().boxed()
+                });
+
                 // `zero_ui_wgt_menu` depends on `zero_ui_wgt_text` so we can't set this in the text crate.
                 zero_ui_wgt_text::selection_toolbar_fn(
                     child,
