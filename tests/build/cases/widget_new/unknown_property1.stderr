@@ -1,4 +1,4 @@
-error[E0599]: no method named `unknown` found for mutable reference `&mut zero_ui::widgets::Wgt` in the current scope
+error[E0599]: no method named `unknown` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property1.rs:6:9
   |
 6 |         unknown = 0;

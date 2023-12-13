@@ -1,4 +1,8 @@
-use zero_ui::prelude::*;
+use zero_ui::{
+    widget::{background_gradient, Wgt},
+    layout::AngleUnits,
+    APP,
+};
 
 fn main() {
     let _scope = APP.minimal();

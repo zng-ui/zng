@@ -1,4 +1,10 @@
-use zero_ui::prelude::{new_property::*, *};
+use zero_ui::{
+    gesture::is_pressed,
+    layout::margin,
+    wgt_prelude::{property, IntoValue, UiNode},
+    widget::Wgt,
+    APP,
+};
 
 struct NotVarValue;
 

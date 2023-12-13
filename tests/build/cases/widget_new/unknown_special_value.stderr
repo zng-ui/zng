@@ -3,3 +3,11 @@ error: unknown special value,  expected `unset!`
   |
 6 |         margin = foo!;
   |                  ^^^
+
+warning: unused import: `layout::margin`
+ --> cases/widget_new/unknown_special_value.rs:1:15
+  |
+1 | use zero_ui::{layout::margin, widget::Wgt, APP};
+  |               ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

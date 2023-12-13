@@ -11,7 +11,7 @@ error: expected expression, found `)`
 12 | |     };
    | |_____^ expected expression
    |
-   = note: this error originates in the macro `zero_ui::core::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `zero_ui::__proc_macro_util::widget::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `;`
  --> cases/widget_new/missing_value5.rs:8:9
@@ -19,10 +19,16 @@ error: expected `;`
 8 |         margin = {
   |         ^^^^^^
 
-warning: unused import: `zero_ui::core::units::PxPoint`
- --> cases/widget_new/missing_value5.rs:9:17
+warning: unused import: `mouse::cursor`
+ --> cases/widget_new/missing_value5.rs:1:31
   |
-9 |             use zero_ui::core::units::PxPoint;
-  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1 | use zero_ui::{layout::margin, mouse::cursor, widget::Wgt, APP};
+  |                               ^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `zero_ui::layout::PxPoint`
+ --> cases/widget_new/missing_value5.rs:9:17
+  |
+9 |             use zero_ui::layout::PxPoint;
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^

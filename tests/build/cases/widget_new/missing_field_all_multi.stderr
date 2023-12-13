@@ -1,39 +1,39 @@
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
- --> cases/widget_new/missing_field_all_multi.rs:9:31
-  |
-9 |         background_gradient = { }
-  |         -------------------   ^^^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
-  |         |
-  |         required by a bound introduced by this call
-  |
-  = help: the following other types implement trait `IntoVar<T>`:
+  --> cases/widget_new/missing_field_all_multi.rs:12:31
+   |
+12 |         background_gradient = { }
+   |         -------------------   ^^^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
+   |         |
+   |         required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `zero_ui::properties::background_gradient::background_gradient`
- --> $WORKSPACE/zero-ui/src/properties/visual.rs
-  |
-  | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-  |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
+note: required by a bound in `zero_ui::widget::background_gradient::background_gradient`
+  --> $WORKSPACE/zero-ui-wgt-fill/src/lib.rs
+   |
+   | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+   |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
 
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
-  --> cases/widget_new/missing_field_all_multi.rs:9:9
+  --> cases/widget_new/missing_field_all_multi.rs:12:9
    |
-5  |       let _ = Wgt! {
+8  |       let _ = Wgt! {
    |  _____________-
-6  | |         // background_gradient has two fields
-7  | |         // this is interpreted as an unnamed assign `{ }` is the value
-8  | |         // and the second value is missing
-9  | |         background_gradient = { }
+9  | |         // background_gradient has two fields
+10 | |         // this is interpreted as an unnamed assign `{ }` is the value
+11 | |         // and the second value is missing
+12 | |         background_gradient = { }
    | |         ^^^^^^^^^^^^^^^^^^^
-10 | |     };
+13 | |     };
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui/src/properties/visual.rs
+  --> $WORKSPACE/zero-ui-wgt-fill/src/lib.rs
    |
    | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
    |        ^^^^^^^^^^^^^^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui/src/widgets.rs
+  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
    |
    | background_gradient({ }, /* stops */)
    |

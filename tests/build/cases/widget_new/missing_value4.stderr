@@ -1,29 +1,29 @@
 error: expected `;`
- --> cases/widget_new/missing_value4.rs:8:9
-  |
-8 |         margin = 0;
-  |         ^^^^^^
+  --> cases/widget_new/missing_value4.rs:13:9
+   |
+13 |         margin = 0;
+   |         ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_value4.rs:6:9
+  --> cases/widget_new/missing_value4.rs:11:9
    |
-5  |       let _ = Wgt! {
+10 |       let _ = Wgt! {
    |  _____________-
-6  | |         cursor =
+11 | |         cursor =
    | |         ^^^^^^
-7  | |         // we expect these properties to be used.
-8  | |         margin = 0;
-9  | |         enabled = true;
-10 | |     };
+12 | |         // we expect these properties to be used.
+13 | |         margin = 0;
+14 | |         enabled = true;
+15 | |     };
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui/src/properties/mouse.rs
+  --> $WORKSPACE/zero-ui-wgt-input/src/misc.rs
    |
    | pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
    |        ^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui/src/widgets.rs
+  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
    |
    | cursor(/* cursor */)
    |

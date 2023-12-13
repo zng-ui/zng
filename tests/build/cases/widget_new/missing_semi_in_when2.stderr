@@ -1,31 +1,31 @@
 error: expected `,`
-  --> cases/widget_new/missing_semi_in_when2.rs:10:13
+  --> cases/widget_new/missing_semi_in_when2.rs:16:13
    |
-10 |             cursor = CursorIcon::Pointer;
+16 |             cursor = CursorIcon::Pointer;
    |             ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_semi_in_when2.rs:9:13
+  --> cases/widget_new/missing_semi_in_when2.rs:15:13
    |
-5  |       let _ = Wgt! {
+11 |       let _ = Wgt! {
    |  _____________-
-6  | |         margin = 0;
-7  | |         cursor = CursorIcon::Default;
-8  | |         when *#is_pressed {
-9  | |             margin =
+12 | |         margin = 0;
+13 | |         cursor = CursorIcon::Default;
+14 | |         when *#is_pressed {
+15 | |             margin =
    | |             ^^^^^^
-10 | |             cursor = CursorIcon::Pointer;
-11 | |         }
-12 | |     };
+16 | |             cursor = CursorIcon::Pointer;
+17 | |         }
+18 | |     };
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui/src/properties/layout.rs
+  --> $WORKSPACE/zero-ui-wgt/src/layout_props.rs
    |
    | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
    |        ^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui/src/widgets.rs
+  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
    |
    | margin(/* margin */)
    |

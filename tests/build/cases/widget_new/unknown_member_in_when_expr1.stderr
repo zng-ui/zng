@@ -1,4 +1,4 @@
-error[E0599]: no method named `__w_1__` found for struct `is_pressed_inputs__` in the current scope
+error[E0599]: no method named `__w_1__` found for struct `zero_ui_wgt_input::state::is_pressed_inputs__` in the current scope
  --> cases/widget_new/unknown_member_in_when_expr1.rs:7:16
   |
 7 |         when *#is_pressed.1 { // only .0 or .state allowed.

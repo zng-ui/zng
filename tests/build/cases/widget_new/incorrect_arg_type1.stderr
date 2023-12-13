@@ -8,8 +8,8 @@ error[E0277]: the trait bound `bool: IntoVar<SideOffsets>` is not satisfied
   |
   = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `zero_ui::properties::margin::margin`
- --> $WORKSPACE/zero-ui/src/properties/layout.rs
+note: required by a bound in `zero_ui::layout::margin::margin`
+ --> $WORKSPACE/zero-ui-wgt/src/layout_props.rs
   |
   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin::margin`

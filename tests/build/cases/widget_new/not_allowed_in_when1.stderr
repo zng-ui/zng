@@ -1,17 +1,17 @@
 error[E0599]: no method named `allowed_in_when_expr` found for struct `foo_` in the current scope
-  --> cases/widget_new/not_allowed_in_when1.rs:11:13
+  --> cases/widget_new/not_allowed_in_when1.rs:16:13
    |
-3  |   #[property(CONTEXT)]
+8  |   #[property(CONTEXT)]
    |   -------------------- method `allowed_in_when_expr` not found for this struct
 ...
-11 |       let _ = Wgt! {
+16 |       let _ = Wgt! {
    |  _____________^
-12 | |         margin = 0;
-13 | |         when {
-14 | |             let node = #foo;
+17 | |         margin = 0;
+18 | |         when {
+19 | |             let node = #foo;
 ...  |
-18 | |         }
-19 | |     };
+23 | |         }
+24 | |     };
    | |_____^ help: there is a method with a similar name: `allowed_in_when_assign`
    |
-   = note: this error originates in the macro `zero_ui::core::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `zero_ui::__proc_macro_util::widget::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

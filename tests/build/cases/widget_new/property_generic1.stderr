@@ -5,8 +5,8 @@ error[E0283]: type annotations needed
   |         ^^^^^ cannot infer type for type parameter `T` declared on the method `value`
   |
   = note: cannot satisfy `_: VarValue`
-note: required by a bound in `zero_ui::widgets::Toggle::value`
- --> $WORKSPACE/zero-ui/src/widgets/toggle.rs
+note: required by a bound in `Toggle::value`
+ --> $WORKSPACE/zero-ui-wgt-toggle/src/lib.rs
   |
   | pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
   |                 ^^^^^^^^ required by this bound in `Toggle::value`

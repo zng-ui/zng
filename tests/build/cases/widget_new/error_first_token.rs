@@ -1,4 +1,4 @@
-use zero_ui::prelude::*;
+use zero_ui::{gesture::is_pressed, widget::Wgt, APP};
 
 fn test_1() {
     let _ = Wgt! {

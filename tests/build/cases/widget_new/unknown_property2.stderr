@@ -1,10 +1,10 @@
-error[E0599]: no method named `unknown_` found for mutable reference `&mut zero_ui::widgets::Wgt` in the current scope
+error[E0599]: no method named `unknown_` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property2.rs:6:9
   |
 6 |         unknown = {
   |         ^^^^^^^ method not found in `&mut Wgt`
 
-error[E0599]: no method named `unknown__` found for mutable reference `&mut zero_ui::widgets::Wgt` in the current scope
+error[E0599]: no method named `unknown__` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property2.rs:6:9
   |
 6 |         unknown = {

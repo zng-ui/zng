@@ -3,3 +3,11 @@ error: unexpected token
   |
 8 |             margin = foo!;
   |                         ^
+
+warning: unused imports: `gesture::is_pressed`, `layout::margin`
+ --> cases/widget_new/unknown_special_value_in_when.rs:1:15
+  |
+1 | use zero_ui::{gesture::is_pressed, layout::margin, widget::Wgt, APP};
+  |               ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

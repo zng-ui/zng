@@ -1,4 +1,9 @@
-use zero_ui::prelude::{new_property::*, *};
+use zero_ui::{
+    layout::margin,
+    wgt_prelude::{property, UiNode},
+    widget::Wgt,
+    APP,
+};
 
 #[property(CONTEXT)]
 pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {

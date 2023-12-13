@@ -1,4 +1,9 @@
-use zero_ui::prelude::*;
+use zero_ui::{
+    color::colors,
+    layout::margin,
+    widget::{background_color, Wgt},
+    APP,
+};
 
 fn main() {
     let _scope = APP.minimal();

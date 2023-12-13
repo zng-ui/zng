@@ -1,29 +1,29 @@
 error[E0061]: this method takes 2 arguments but 1 argument was supplied
-  --> cases/widget_new/missing_field_multi.rs:9:9
+  --> cases/widget_new/missing_field_multi.rs:13:9
    |
-5  |       let _ = Wgt! {
+9  |       let _ = Wgt! {
    |  _____________-
-6  | |         // background_gradient has two fields
-7  | |         // the error highlights the property
-8  | |         // in a struct initializer the struct name is highlighted
-9  | |         background_gradient = {
+10 | |         // background_gradient has two fields
+11 | |         // the error highlights the property
+12 | |         // in a struct initializer the struct name is highlighted
+13 | |         background_gradient = {
    | |         ^^^^^^^^^^^^^^^^^^^
-10 | |             axis: 0.deg(),
-11 | |         }
-12 | |     };
+14 | |             axis: 0.deg(),
+15 | |         }
+16 | |     };
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui/src/properties/visual.rs
+  --> $WORKSPACE/zero-ui-wgt-fill/src/lib.rs
    |
    | / #[property(FILL, default(0.deg(), {
    | |     let c = colors::BLACK.transparent();
-   | |     crate::core::gradient::stops![c, c]
+   | |     stops![c, c]
    | | }))]
    | |____^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
-   --> $WORKSPACE/zero-ui/src/widgets.rs
-    |
-    | background_gradient(axis, /* stops */)
-    |
+  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
+   |
+   | background_gradient(axis, /* stops */)
+   |

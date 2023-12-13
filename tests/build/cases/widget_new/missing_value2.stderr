@@ -9,12 +9,12 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
   | |_____- an argument is missing
   |
 note: method defined here
- --> $WORKSPACE/zero-ui/src/properties/layout.rs
+ --> $WORKSPACE/zero-ui-wgt/src/layout_props.rs
   |
   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
   |        ^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui/src/widgets.rs
-   |
-   | margin(/* margin */)
-   |
+ --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
+  |
+  | margin(/* margin */)
+  |

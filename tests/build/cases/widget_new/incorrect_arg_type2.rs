@@ -1,4 +1,8 @@
-use zero_ui::prelude::{new_property::*, *};
+use zero_ui::{
+    wgt_prelude::{property, IntoVar, UiNode},
+    widget::Wgt,
+    APP,
+};
 
 #[property(CONTEXT)]
 pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode {
