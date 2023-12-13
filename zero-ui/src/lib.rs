@@ -21,6 +21,7 @@
 //! Then create your first window:
 //!
 //! ```rust
+//! # fn main() { }
 //! use zero_ui::prelude::*;
 //!
 //! fn run() {
@@ -29,12 +30,11 @@
 //!         Window! {
 //!             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
 //!             size;
+//!             child_align = Align::CENTER;
 //!             child = Button! {
 //!                 on_click = hn!(|_| {
 //!                     println!("Button clicked!");
 //!                 });
-//!                 margin = 10;
-//!                 align = Align::CENTER;
 //!                 text::font_size = 28;
 //!                 child = Text!("Click Me!");
 //!             }
@@ -850,6 +850,13 @@ pub mod window {
             FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,
         };
     }
+}
+
+/// Debug inspection helpers.
+pub mod inspector {
+    pub use zero_ui_wgt_inspector::debug::{
+        show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode,
+    };
 }
 
 /// Text widget, properties and types.

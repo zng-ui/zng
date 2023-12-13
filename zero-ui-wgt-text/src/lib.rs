@@ -25,6 +25,7 @@ pub mod icon;
 /// # Examples
 ///
 /// ```
+/// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
 /// let hello_txt = Text! {
 ///     font_family = "Arial";
@@ -37,6 +38,7 @@ pub mod icon;
 /// The `Text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
 ///
 /// ```
+/// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
 /// let txt = Text!("Hello!");
 ///
@@ -53,6 +55,7 @@ pub mod icon;
 /// The code abode is equivalent to:
 ///
 /// ```
+/// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
 /// # use zero_ui_wgt::prelude::*;
 /// let txt = Text! {

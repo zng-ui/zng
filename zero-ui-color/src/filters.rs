@@ -23,10 +23,10 @@ use crate::{RenderColor, Rgba};
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::filters;
+/// use zero_ui_color::filters::Filter;
 /// use zero_ui_layout::units::*;
 ///
-/// let filter = filters::opacity(50.pct()).blur(3);
+/// let filter = Filter::new_opacity(50.pct()).blur(3);
 /// ```
 ///
 /// The example above creates a filter that lowers the opacity to `50%` and blurs by `3px`.

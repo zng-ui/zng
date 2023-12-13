@@ -1853,7 +1853,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a variable that outputs text every 5% of a 5 seconds animation, advanced linearly.
     ///
     /// ```
-    /// # use zero_ui_var::*;
+    /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
     /// # use zero_ui_units::*;
     /// # fn demo(text_var: impl Var<Txt>) {

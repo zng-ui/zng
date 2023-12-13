@@ -1899,7 +1899,7 @@ impl Api for App {
                 .arboard()?
                 .get_text()
                 .map_err(util::arboard_to_clip)
-                .map(|s|clipboard::ClipboardData::Text(zero_ui_txt::Txt::from(s))),
+                .map(|s| clipboard::ClipboardData::Text(zero_ui_txt::Txt::from(s))),
             clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();

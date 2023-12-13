@@ -142,7 +142,7 @@ impl VARS {
     /// stops the `completed` variable is set to `true`.
     ///
     /// ```
-    /// # use zero_ui_var::*;
+    /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
     /// # use zero_ui_units::*;
     /// # use zero_ui_clone_move::*;
@@ -176,7 +176,7 @@ impl VARS {
     /// methods.
     ///
     /// ```
-    /// # use zero_ui_var::*;
+    /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
     /// # use zero_ui_units::*;
     /// # fn demo() {

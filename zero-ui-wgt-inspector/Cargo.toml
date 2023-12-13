@@ -5,6 +5,9 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+live = []
+
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-app = { path = "../zero-ui-app" }

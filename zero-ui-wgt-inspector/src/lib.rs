@@ -9,6 +9,7 @@ use zero_ui_wgt::prelude::*;
 
 pub mod debug;
 
+#[cfg(feature = "live")]
 mod live;
 
 command! {
@@ -29,6 +30,7 @@ pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode 
     })
 }
 
+#[cfg(feature = "live")]
 /// Live interactive inspector.
 pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> impl UiNode {
     live::inspect_node(can_inspect)

@@ -25,7 +25,6 @@ path = "focus.rs"
 [[test]]
 name = "image"
 path = "image.rs"
-harness = false
 
 [[test]]
 name = "config"

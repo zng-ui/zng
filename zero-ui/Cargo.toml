@@ -38,7 +38,7 @@ dyn_node = ["zero-ui-app/dyn_node"]
 # extend windows to be inspected on Ctrl+Shift+I.
 inspector = [
     "zero-ui-app/inspector",
-    "zero-ui-wgt-inspector",
+    "zero-ui-wgt-inspector/live",
 ]
 
 # Use dynamic dispatch at the app-extension level.
@@ -160,6 +160,6 @@ zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
 zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
 zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
 zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
+zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
 
 zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", optional = true }
-zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector", optional = true }
