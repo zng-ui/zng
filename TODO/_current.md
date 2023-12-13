@@ -44,7 +44,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* can't click on some buttons in layer example after clicking Transform Anchored.
 * Merge.
 
 * Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
@@ -53,14 +52,12 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 * Move `WidgetLayout` and other layout types out of widget::info.
 * Move `child` and `children` from app to container.
-* Decouple LAYERS into own crate?
 * Remove zero_ui_var::types?
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".
     - What about offset property?
 * Review modules with plural names, filters, layers.
 * Review prelude.
-* Review !!:
 
 # Publish
 

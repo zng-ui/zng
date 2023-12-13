@@ -18,7 +18,7 @@ use crate::widget::{
     instance::match_node,
     property,
 };
-use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue, Var};
+use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 
 /// Base widget that implements the necessary core API.
 ///
@@ -292,6 +292,7 @@ pub use WidgetBaseMacro__ as WidgetBase;
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod nodes {
     use zero_ui_layout::units::{Px, PxCornerRadius, PxRect, PxSize};
+    use zero_ui_var::Var;
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
@@ -422,12 +423,12 @@ pub mod nodes {
 
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var_layout(&HitTestMode::var());
+                WIDGET.sub_var_layout(&HIT_TEST_MODE_VAR);
             }
             UiNodeOp::Layout { wl, final_size } => {
                 *final_size = wl.with_inner(|wl| child.layout(wl));
 
-                let mode = HitTestMode::var().get();
+                let mode = HIT_TEST_MODE_VAR.get();
                 let c = if matches!(mode, HitTestMode::Bounds | HitTestMode::RoundedBounds) {
                     HitClips {
                         bounds: *final_size,
@@ -456,7 +457,7 @@ pub mod nodes {
                                 }
                             }
                         },
-                        |h| match HitTestMode::var().get() {
+                        |h| match HIT_TEST_MODE_VAR.get() {
                             HitTestMode::RoundedBounds => {
                                 h.push_rounded_rect(PxRect::from_size(clips.bounds), clips.corners);
                             }
@@ -800,11 +801,6 @@ impl HitTestMode {
     pub fn is_hit_testable(&self) -> bool {
         !matches!(self, Self::Disabled)
     }
-
-    /// Read-only context var with the contextual mode.
-    pub fn var() -> impl Var<HitTestMode> {
-        HIT_TEST_MODE_VAR.read_only()
-    }
 }
 impl fmt::Debug for HitTestMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -827,10 +823,6 @@ impl_from_and_into_var! {
             HitTestMode::Disabled
         }
     }
-}
-
-context_var! {
-    static HIT_TEST_MODE_VAR: HitTestMode = HitTestMode::default();
 }
 
 bitflags::bitflags! {
@@ -866,12 +858,20 @@ impl Default for Parallel {
 context_var! {
     /// Controls what node list methods can run in parallel in an widget and descendants.
     ///
-    /// This variable can be set using the [`parallel`] property.
+    /// This variable can be set using the `parallel` property.
     ///
     /// Is all enabled by default.
-    ///
-    /// [`parallel`]: fn@parallel
     pub static PARALLEL_VAR: Parallel = Parallel::default();
+
+    /// Defines the hit-test mode for an widget and descendants.
+    ///
+    /// This variable can be set using the `hit_test_mode` property.
+    ///
+    /// Note that hit-test is disabled for the entire sub-tree, even if a child sets to a
+    /// different mode again, the `hit_test_mode` property already enforces this, custom
+    /// nodes should avoid overriding `Disabled`, as the hit-test will still be disabled,
+    /// but other custom code that depend on this variable will read an incorrect state.
+    pub static HIT_TEST_MODE_VAR: HitTestMode = HitTestMode::default();
 }
 impl_from_and_into_var! {
     fn from(all: bool) -> Parallel {

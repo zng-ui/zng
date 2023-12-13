@@ -1,4 +1,5 @@
 pub use zero_ui_app::widget::base::HitTestMode;
+use zero_ui_app::widget::base::HIT_TEST_MODE_VAR;
 
 use crate::prelude::*;
 
@@ -7,10 +8,6 @@ use crate::prelude::*;
 /// Mixin defines hit-test control state probing properties for all widgets.
 #[widget_mixin]
 pub struct HitTestMix<P>(P);
-
-context_var! {
-    static HIT_TEST_MODE_VAR: HitTestMode = HitTestMode::default();
-}
 
 /// Defines how the widget is hit-tested.
 ///
@@ -28,9 +25,9 @@ context_var! {
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_render(&HitTestMode::var());
+            WIDGET.sub_var_render(&HIT_TEST_MODE_VAR);
         }
-        UiNodeOp::Render { frame } => match HitTestMode::var().get() {
+        UiNodeOp::Render { frame } => match HIT_TEST_MODE_VAR.get() {
             HitTestMode::Disabled => {
                 frame.with_hit_tests_disabled(|frame| child.render(frame));
             }
@@ -38,7 +35,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
             _ => frame.with_auto_hit_test(false, |frame| child.render(frame)),
         },
         UiNodeOp::RenderUpdate { update } => {
-            update.with_auto_hit_test(matches!(HitTestMode::var().get(), HitTestMode::Visual), |update| {
+            update.with_auto_hit_test(matches!(HIT_TEST_MODE_VAR.get(), HitTestMode::Visual), |update| {
                 child.render_update(update)
             });
         }
