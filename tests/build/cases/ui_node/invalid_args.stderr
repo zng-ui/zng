@@ -4,10 +4,10 @@ error: expected `child`, `children`, `delegate`, or, `delegate_list`
 4 | #[ui_node(invalid_arg)]
   |           ^^^^^^^^^^^
 
-warning: unused import: `widget_instance::UiNode`
- --> cases/ui_node/invalid_args.rs:1:30
+warning: unused import: `UiNode`
+ --> cases/ui_node/invalid_args.rs:1:37
   |
-1 | use zero_ui::core::{ui_node, widget_instance::UiNode};
-  |                              ^^^^^^^^^^^^^^^^^^^^^^^
+1 | use zero_ui::wgt_prelude::{ui_node, UiNode};
+  |                                     ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

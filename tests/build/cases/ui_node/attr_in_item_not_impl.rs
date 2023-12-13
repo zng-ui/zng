@@ -1,4 +1,4 @@
-use zero_ui::core::ui_node;
+use zero_ui::wgt_prelude::ui_node;
 
 #[ui_node(none)]
 struct Foo {}

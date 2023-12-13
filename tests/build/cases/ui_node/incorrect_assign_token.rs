@@ -1,7 +1,4 @@
-use zero_ui::core::{
-    ui_node,
-    widget_instance::{NilUiNode, UiNode},
-};
+use zero_ui::wgt_prelude::{ui_node, NilUiNode, UiNode};
 
 struct Node(NilUiNode);
 #[ui_node(

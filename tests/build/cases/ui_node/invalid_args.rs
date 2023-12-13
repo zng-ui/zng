@@ -1,4 +1,4 @@
-use zero_ui::core::{ui_node, widget_instance::UiNode};
+use zero_ui::wgt_prelude::{ui_node, UiNode};
 
 struct Node;
 #[ui_node(invalid_arg)]

@@ -1,13 +1,13 @@
 error: expected `child`, `children`, `delegate`, or, `delegate_list`
- --> cases/ui_node/invalid_delegate_pair_name.rs:9:11
+ --> cases/ui_node/invalid_delegate_pair_name.rs:6:11
   |
-9 | #[ui_node(delegate2 = &mut self.inner)]
+6 | #[ui_node(delegate2 = &mut self.inner)]
   |           ^^^^^^^^^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/invalid_delegate_pair_name.rs:3:34
+ --> cases/ui_node/invalid_delegate_pair_name.rs:1:48
   |
-3 |     widget_instance::{NilUiNode, UiNode},
-  |                                  ^^^^^^
+1 | use zero_ui::wgt_prelude::{ui_node, NilUiNode, UiNode};
+  |                                                ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

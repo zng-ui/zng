@@ -1,13 +1,13 @@
 error: expected `delegate = <expr>`
- --> cases/ui_node/incorrect_assign_token.rs:8:5
+ --> cases/ui_node/incorrect_assign_token.rs:5:5
   |
-8 |     delegate: &self.0,
+5 |     delegate: &self.0,
   |     ^^^^^^^^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/incorrect_assign_token.rs:3:34
+ --> cases/ui_node/incorrect_assign_token.rs:1:48
   |
-3 |     widget_instance::{NilUiNode, UiNode},
-  |                                  ^^^^^^
+1 | use zero_ui::wgt_prelude::{ui_node, NilUiNode, UiNode};
+  |                                                ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

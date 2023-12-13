@@ -10,10 +10,10 @@ error: expected `delegate = <expr>`
 16 | #[ui_node(delegate =)]
    |                    ^
 
-warning: unused import: `widget_instance::UiNode`
- --> cases/ui_node/missing_delegate_expr.rs:1:30
+warning: unused import: `UiNode`
+ --> cases/ui_node/missing_delegate_expr.rs:1:37
   |
-1 | use zero_ui::core::{ui_node, widget_instance::UiNode};
-  |                              ^^^^^^^^^^^^^^^^^^^^^^^
+1 | use zero_ui::wgt_prelude::{ui_node, UiNode};
+  |                                     ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

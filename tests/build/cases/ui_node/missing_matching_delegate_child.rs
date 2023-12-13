@@ -1,8 +1,4 @@
-use zero_ui::core::{
-    context::WidgetUpdates,
-    ui_node,
-    widget_instance::{NilUiNode, UiNode},
-};
+use zero_ui::wgt_prelude::{ui_node, NilUiNode, UiNode, WidgetUpdates};
 
 struct Node1<C> {
     child: C,
