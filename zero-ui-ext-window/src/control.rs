@@ -1904,7 +1904,7 @@ impl ContentCtrl {
                 self.root.info(&mut info);
             });
 
-            let info = info.finalize(Some(WINDOW.info()));
+            let info = info.finalize(Some(WINDOW.info()), true);
 
             WINDOWS.set_widget_tree(info.clone());
 

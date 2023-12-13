@@ -488,7 +488,7 @@ mod tests {
         builder.push_test_widget("c-0", |_| {});
         builder.push_test_widget("c-1", |_| {});
         builder.push_test_widget("c-2", |_| {});
-        builder.finalize(None)
+        builder.finalize(None, false)
     }
 
     #[test]
@@ -639,7 +639,7 @@ mod tests {
                 builder.push_test_widget("c-2-2-0", |_| {});
             });
         });
-        builder.finalize(None)
+        builder.finalize(None, false)
     }
 
     #[test]
@@ -754,7 +754,7 @@ mod tests {
                 });
             });
         });
-        builder.finalize(None)
+        builder.finalize(None, false)
     }
 
     #[test]

@@ -164,7 +164,7 @@ impl WidgetInfoTree {
             WidgetBorderInfo::new(),
             1.fct(),
         )
-        .finalize(None)
+        .finalize(None, false)
     }
 
     /// Statistics abound the info tree.

@@ -288,8 +288,8 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     ///
-    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] and [`INTERACTIVITY_CHANGED_EVENT`].
-    pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> WidgetInfoTree {
+    /// Also notifies [`WIDGET_INFO_CHANGED_EVENT`] and [`INTERACTIVITY_CHANGED_EVENT`] if `notify` is true.
+    pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>, notify: bool) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(Arc::try_unwrap(self.meta).unwrap().into_inner());
         node.value().meta = meta;
@@ -346,24 +346,25 @@ impl WidgetInfoBuilder {
             tree: self.tree,
         }));
 
-        // notify
-        let prev_tree = previous_tree.unwrap_or_else(|| WidgetInfoTree::wgt(tree.window_id(), tree.root().id()));
-        let args = WidgetInfoChangedArgs::now(tree.window_id(), prev_tree.clone(), tree.clone());
-        WIDGET_INFO_CHANGED_EVENT.notify(args);
+        if notify {
+            let prev_tree = previous_tree.unwrap_or_else(|| WidgetInfoTree::wgt(tree.window_id(), tree.root().id()));
+            let args = WidgetInfoChangedArgs::now(tree.window_id(), prev_tree.clone(), tree.clone());
+            WIDGET_INFO_CHANGED_EVENT.notify(args);
 
-        let mut targets = IdSet::default();
-        INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
-            if let Some(wgt) = tree.get(wid) {
-                let prev = prev_tree.get(wid).map(|w| w.interactivity());
-                let new_int = wgt.interactivity();
-                if prev != Some(new_int) {
-                    targets.insert(wid);
+            let mut targets = IdSet::default();
+            INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
+                if let Some(wgt) = tree.get(wid) {
+                    let prev = prev_tree.get(wid).map(|w| w.interactivity());
+                    let new_int = wgt.interactivity();
+                    if prev != Some(new_int) {
+                        targets.insert(wid);
+                    }
                 }
+            });
+            if !targets.is_empty() {
+                let args = InteractivityChangedArgs::now(prev_tree, tree.clone(), targets);
+                INTERACTIVITY_CHANGED_EVENT.notify(args);
             }
-        });
-        if !targets.is_empty() {
-            let args = InteractivityChangedArgs::now(prev_tree, tree.clone(), targets);
-            INTERACTIVITY_CHANGED_EVENT.notify(args);
         }
 
         tree

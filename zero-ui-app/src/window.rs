@@ -317,7 +317,7 @@ mod _impl {
                 1.fct(),
             );
             content.info(&mut info);
-            let tree = info.finalize(Some(self.info()));
+            let tree = info.finalize(Some(self.info()), false);
             *WINDOW_CTX.get().widget_tree.write() = Some(tree);
             WIDGET.test_root_updates();
             UPDATES.apply()
