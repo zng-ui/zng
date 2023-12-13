@@ -1,4 +1,4 @@
-use zero_ui::prelude::new_widget::*;
+use zero_ui::wgt_prelude::{widget, WidgetBase};
 
 // doesn't start with $crate
 #[widget($self::TestWidget)]

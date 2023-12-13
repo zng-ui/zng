@@ -104,7 +104,7 @@ pub mod __proc_macro_util {
         #[doc(hidden)]
         pub mod instance {
             pub use crate::widget::instance::{
-                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiNodeVec, ui_node_list_default,
+                ui_node_list_default, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiNodeVec,
             };
         }
 
