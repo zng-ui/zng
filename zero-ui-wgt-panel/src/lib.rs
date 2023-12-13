@@ -16,11 +16,6 @@ use zero_ui_wgt_wrap::Wrap;
 pub struct Panel(WidgetBase);
 
 impl Panel {
-    widget_impl! {
-        /// Widget items.
-        pub zero_ui_app::widget::base::children(children: impl UiNodeList);
-    }
-
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             if let Some(p) = wgt.capture_property(property_id!(Self::children)) {
@@ -32,6 +27,10 @@ impl Panel {
         });
     }
 }
+
+/// Panel items.
+#[property(CHILD, capture, default(ui_vec![]), widget_impl(Panel))]
+pub fn children(children: impl UiNodeList) {}
 
 context_var! {
     /// Defines the layout widget for [`Panel!`].

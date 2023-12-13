@@ -48,8 +48,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - Test what happens when info is rebuild.
     - Implement visibility event properties.
 
-* Move `WidgetLayout` and other layout types out of widget::info.
-* Move `child` and `children` from app to container.
 * Remove zero_ui_var::types?
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".
@@ -57,6 +55,7 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 * Review modules with plural names, filters, layers.
 * Review prelude.
     - Include more properties, `enabled`, `visibility`?
+* Implement more widget properties and events for `Wgt`?
 
 # Publish
 

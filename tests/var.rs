@@ -482,7 +482,6 @@ mod context {
         var::{AnyWhenVarBuilder, ContextInitHandle},
         wgt_prelude::*,
     };
-    use zero_ui_app::widget::base::child;
 
     context_var! {
         static TEST_VAR: Txt = "";
@@ -544,12 +543,14 @@ mod context {
     impl TestWgt {
         fn widget_intrinsic(&mut self) {
             self.widget_builder().push_build_action(|wgt| {
-                if let Some(child) = wgt.capture_ui_node(property_id!(zero_ui_app::widget::base::child)) {
+                if let Some(child) = wgt.capture_ui_node(property_id!(Self::child)) {
                     wgt.set_child(child);
                 }
             });
         }
     }
+    #[property(CHILD, capture, widget_impl(TestWgt))]
+    fn child(child: impl UiNode) {}
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
         zero_ui_app::test_log();

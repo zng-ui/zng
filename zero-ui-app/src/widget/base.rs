@@ -9,7 +9,7 @@ use super::{
         AnyPropertyBuildAction, Importance, PropertyArgs, PropertyId, SourceLocation, WhenBuildAction, WhenInfo, WhenInput, WidgetBuilder,
         WidgetType,
     },
-    instance::{FillUiNode, UiNode, UiNodeList, UiNodeOp},
+    instance::{FillUiNode, UiNode, UiNodeOp},
     WIDGET,
 };
 
@@ -758,14 +758,6 @@ pub mod nodes {
         .cfg_boxed()
     }
 }
-
-/// Defines the widget innermost node.
-#[property(CHILD, capture, default(FillUiNode))]
-pub fn child(child: impl UiNode) {}
-
-/// Defines the panel widget innermost nodes.
-#[property(CHILD, capture)]
-pub fn children(children: impl UiNodeList) {}
 
 /// Defines the unique ID for the widget instance.
 ///

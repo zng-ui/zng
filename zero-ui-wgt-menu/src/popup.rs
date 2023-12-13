@@ -43,12 +43,11 @@ impl SubMenuPopup {
             wgt.set_child(sub_menu_popup_node(children, id));
         });
     }
-
-    widget_impl! {
-        /// Sub-menu items.
-        pub zero_ui_app::widget::base::children(children: impl UiNodeList);
-    }
 }
+
+/// Sub-menu items.
+#[property(CHILD, capture, default(ui_vec![]), widget_impl(SubMenuPopup))]
+pub fn children(children: impl UiNodeList) {}
 
 /// Parent sub-menu ID.
 #[property(CONTEXT, capture, widget_impl(SubMenuPopup))]

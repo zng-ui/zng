@@ -216,7 +216,7 @@ pub trait UiNode: Any + Send {
         }
 
         into_widget! {
-            crate::widget::base::child = self;
+            child = self;
         }
         .boxed()
     }
@@ -337,10 +337,12 @@ pub trait UiNode: Any + Send {
 #[allow(non_camel_case_types)]
 #[widget($crate::widget::instance::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
+#[zero_ui_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
+fn child(child: impl UiNode) {}
 impl into_widget {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|b| {
-            let child = b.capture_ui_node(crate::property_id!(crate::widget::base::child)).unwrap();
+            let child = b.capture_ui_node(crate::property_id!(Self::child)).unwrap();
             b.set_child(child);
         });
     }

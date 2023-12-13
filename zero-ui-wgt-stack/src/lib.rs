@@ -63,12 +63,11 @@ impl Stack {
             wgt.set_child(child);
         });
     }
-
-    widget_impl! {
-        /// Widget items.
-        pub zero_ui_app::widget::base::children(children: impl UiNodeList);
-    }
 }
+
+/// Stack items.
+#[property(CHILD, capture, default(ui_vec![]), widget_impl(Stack))]
+pub fn children(children: impl UiNodeList) {}
 
 /// Stack direction.
 #[property(LAYOUT, capture, widget_impl(Stack))]

@@ -44,7 +44,7 @@ pub struct SubMenu(StyleMix<WidgetBase>);
 impl SubMenu {
     widget_impl! {
         /// Sub-menu items.
-        pub zero_ui_app::widget::base::children(children: impl UiNodeList);
+        pub crate::popup::children(children: impl UiNodeList);
     }
 
     fn widget_intrinsic(&mut self) {

@@ -24,17 +24,18 @@ impl Container {
     }
 
     widget_impl! {
-        /// The content.
-        ///
-        /// Can be any type that implements [`UiNode`], any widget.
-        ///
-        /// [`UiNode`]: zero_ui_app::widget::instance::UiNode
-        pub zero_ui_app::widget::base::child(child: impl UiNode);
-
         /// Content overflow clipping.
         pub clip_to_bounds(clip: impl IntoVar<bool>);
     }
 }
+
+/// The content.
+///
+/// Can be any type that implements [`UiNode`], any widget.
+///
+/// [`UiNode`]: zero_ui_app::widget::instance::UiNode
+#[property(CHILD, capture, default(FillUiNode), widget_impl(Container))]
+pub fn child(child: impl UiNode) {}
 
 /// Margin space around the *content* of a widget.
 ///

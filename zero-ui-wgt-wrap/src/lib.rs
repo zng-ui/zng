@@ -45,9 +45,6 @@ impl Wrap {
     }
 
     widget_impl! {
-        /// Inlined wrap items.
-        pub zero_ui_app::widget::base::children(children: impl UiNodeList);
-
         /// Alignment of children in this widget and of nested wrap panels and texts.
         ///
         /// Note that this only sets the [`children_align`] if that property is not set (default) or is set to [`TEXT_ALIGN_VAR`].
@@ -65,6 +62,10 @@ impl Wrap {
         pub line_spacing(spacing: impl IntoVar<Length>);
     }
 }
+
+/// Inlined wrap items.
+#[property(CHILD, capture, default(ui_vec![]), widget_impl(Wrap))]
+pub fn children(children: impl UiNodeList) {}
 
 /// Space in-between items and rows.
 ///
