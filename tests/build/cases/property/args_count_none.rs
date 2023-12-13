@@ -1,8 +1,8 @@
-use zero_ui::core::{property, widget_instance::UiNode};
+use zero_ui::wgt_prelude::{property, UiNode};
 
 #[property(CONTEXT)]
 pub fn no_args() -> impl UiNode {
-    zero_ui::core::widget_instance::NilUiNode
+    zero_ui::wgt_prelude::NilUiNode
 }
 
 fn main() {}

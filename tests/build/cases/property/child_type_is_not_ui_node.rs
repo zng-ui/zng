@@ -1,8 +1,4 @@
-use zero_ui::core::{
-    property,
-    var::*,
-    widget_instance::{NilUiNode, UiNode},
-};
+use zero_ui::wgt_prelude::{property, IntoVar, NilUiNode, UiNode};
 
 struct NotUiNode;
 

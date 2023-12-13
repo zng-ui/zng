@@ -1,15 +1,15 @@
-use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
+use zero_ui::wgt_prelude::{property, IntoVar, UiNode};
 
 #[property(CONTEXT)]
 pub fn get_state(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
     let _ = state;
-    zero_ui::core::widget_instance::NilUiNode
+    zero_ui::wgt_prelude::NilUiNode
 }
 
 #[property(CONTEXT)]
 pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
     let _ = state;
-    zero_ui::core::widget_instance::NilUiNode
+    zero_ui::wgt_prelude::NilUiNode
 }
 
 #[derive(Debug, Clone)]

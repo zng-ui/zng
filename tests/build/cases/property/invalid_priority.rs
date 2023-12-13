@@ -1,4 +1,4 @@
-use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
+use zero_ui::wgt_prelude::{property, IntoVar, UiNode};
 
 #[property(invalid)]
 pub fn invalid_priority(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
