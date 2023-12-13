@@ -27,11 +27,13 @@ pub mod icon;
 /// ```
 /// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
+/// # fn main() {
 /// let hello_txt = Text! {
 ///     font_family = "Arial";
 ///     font_size = 18;
 ///     txt = "Hello!";
 /// };
+/// # }
 /// ```
 /// # Shorthand
 ///
@@ -40,6 +42,7 @@ pub mod icon;
 /// ```
 /// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
+/// # fn main() {
 /// let txt = Text!("Hello!");
 ///
 /// let name = "World";
@@ -50,6 +53,7 @@ pub mod icon;
 ///     s.push('a');
 ///     s
 /// });
+/// # }
 /// ```
 ///
 /// The code abode is equivalent to:
@@ -57,6 +61,7 @@ pub mod icon;
 /// ```
 /// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt_text::*;
+/// # fn main() {
 /// # use zero_ui_wgt::prelude::*;
 /// let txt = Text! {
 ///     txt = formatx!("Hello!");
@@ -74,9 +79,10 @@ pub mod icon;
 ///         s
 ///     };
 /// };
+/// # }
 /// ```
 ///
-/// [`formatx!`]: crate::core::text::formatx!
+/// [`formatx!`]: zero_ui_txt::formatx!
 #[widget($crate::Text {
     ($txt:literal) => {
         txt = $crate::__formatx!($txt);

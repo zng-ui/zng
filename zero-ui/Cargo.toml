@@ -27,7 +27,7 @@ http = [
 # Signal the `zero-ui-core` build script to enable the `dyn_*` and `inspector` features for debug builds.
 #
 # Enabled by default.
-debug_default = ["zero-ui-app/debug_default"]
+debug_default = ["zero-ui-app/debug_default", "zero-ui-wgt-inspector/debug_default"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
 #

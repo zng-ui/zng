@@ -46,7 +46,13 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+// manually expanded enable_widget_macros to avoid error running doc tests:
+//  macro-expanded `extern crate` items cannot shadow names passed with `--extern`
+#[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui;
+#[doc(hidden)]
+pub use zero_ui_app::__proc_macro_util;
 
 /// Types for general app development.
 pub mod prelude {
