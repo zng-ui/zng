@@ -106,7 +106,7 @@ impl DefaultStyle {
         use zero_ui_wgt_container::*;
         use zero_ui_wgt_fill::*;
         use zero_ui_wgt_input::{focus::is_focused, *};
-        use zero_ui_wgt_layers::*;
+        use zero_ui_wgt_layer::*;
 
         widget_set! {
             self;
@@ -264,7 +264,7 @@ impl FieldStyle {
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    zero_ui_wgt_layers::adorner_fn(child, adorner_fn)
+    zero_ui_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
 /// Adorner property used by [`FieldStyle`] to show the count/max indicator when the number of chars is limited.
@@ -272,7 +272,7 @@ pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<Widget
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn max_chars_count_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    zero_ui_wgt_layers::adorner_fn(child, adorner_fn)
+    zero_ui_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
 context_var! {

@@ -23,7 +23,7 @@ zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-color = { path = "../zero-ui-color" }
 zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
-zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
+zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
 
 serde = { version = "1", features = ["derive"] }
 paste = "1"

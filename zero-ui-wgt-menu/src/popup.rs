@@ -8,7 +8,7 @@ use zero_ui_layout::units::Orientation2D;
 use zero_ui_wgt::{border, prelude::*};
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
-use zero_ui_wgt_layers::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
+use zero_ui_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
 use zero_ui_wgt_stack::Stack;
 use zero_ui_wgt_style::StyleFn;
 use zero_ui_wgt_view::WidgetFn;
@@ -17,7 +17,7 @@ use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 
 /// Sub-menu popup.
 #[widget($crate::popup::SubMenuPopup)]
-pub struct SubMenuPopup(zero_ui_wgt_layers::popup::Popup);
+pub struct SubMenuPopup(zero_ui_wgt_layer::popup::Popup);
 impl SubMenuPopup {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -92,7 +92,7 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 
 /// Sub-menu popup default style.
 #[widget($crate::popup::DefaultStyle)]
-pub struct DefaultStyle(zero_ui_wgt_layers::popup::DefaultStyle);
+pub struct DefaultStyle(zero_ui_wgt_layer::popup::DefaultStyle);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {

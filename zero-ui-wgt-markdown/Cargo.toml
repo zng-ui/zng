@@ -23,7 +23,7 @@ zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-grid = { path = "../zero-ui-wgt-grid" }
 zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
 zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
-zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
+zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
 zero-ui-wgt-transform = { path = "../zero-ui-wgt-transform" }
 zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }

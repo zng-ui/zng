@@ -168,13 +168,13 @@ pub mod prelude {
 
     pub use crate::grid;
 
-    pub use zero_ui_wgt_layers::{AnchorMode, LayerIndex, LAYERS};
+    pub use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
     pub use zero_ui_wgt_text::icon::CommandIconExt as _;
 
-    pub use crate::layers;
+    pub use crate::layer;
 
-    pub use zero_ui_wgt_layers::popup::POPUP;
+    pub use zero_ui_wgt_layer::popup::POPUP;
 
     pub use crate::popup;
 
@@ -958,16 +958,16 @@ pub mod grid {
 
 /// Window layers.
 ///
-/// See [`zero_ui_wgt_layers`] for the full layers API.
-pub mod layers {
-    pub use zero_ui_wgt_layers::{adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
+/// See [`zero_ui_wgt_layer`] for the full layers API.
+pub mod layer {
+    pub use zero_ui_wgt_layer::{adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
 }
 
 /// Popup widget and properties.
 ///
 /// See [`zero_ui_wgt_layers::popup`] for the full widget API.
 pub mod popup {
-    pub use zero_ui_wgt_layers::popup::{
+    pub use zero_ui_wgt_layer::popup::{
         anchor_mode, close_delay, close_on_focus_leave, context_capture, extend_style, is_close_delaying, on_popup_close_requested,
         on_pre_popup_close_requested, replace_style, ContextCapture, DefaultStyle, Popup, PopupCloseMode, PopupCloseRequestedArgs,
         PopupState, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT,

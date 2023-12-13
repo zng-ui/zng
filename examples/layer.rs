@@ -5,7 +5,7 @@ use zero_ui::{
     color::filter::opacity,
     container::padding,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
-    layers::AnchorOffset,
+    layer::AnchorOffset,
     layout::{align, margin, offset, rotate, scale, y},
     mouse::{on_mouse_enter, on_mouse_leave},
     prelude::*,
@@ -180,8 +180,8 @@ fn anchor_example() -> impl UiNode {
     let idx = var(0);
     let anchor_mode = idx.map(move |&i| AnchorMode {
         transform: offsets[i].clone().into(),
-        min_size: layers::AnchorSize::Unbounded,
-        max_size: layers::AnchorSize::Unbounded,
+        min_size: layer::AnchorSize::Unbounded,
+        max_size: layer::AnchorSize::Unbounded,
         visibility: true,
         interactivity: false,
         corner_radius: false,

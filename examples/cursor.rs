@@ -4,7 +4,7 @@ use zero_ui::{
     color::filter::invert_color,
     gesture::is_hovered,
     image::ImageFit,
-    layers::AnchorOffset,
+    layer::AnchorOffset,
     layout::{align, margin, size},
     mouse::{cursor, CursorIcon},
     prelude::*,
@@ -60,7 +60,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         tooltip = Tip!(Text!("tooltip position"));
         tooltip_anchor = {
             let mut mode = AnchorMode::tooltip();
-            mode.transform = layers::AnchorTransform::Cursor {
+            mode.transform = layer::AnchorTransform::Cursor {
                 offset: AnchorOffset::out_bottom_in_left(),
                 include_touch: true,
                 bounds: None,

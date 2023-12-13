@@ -22,7 +22,7 @@ use zero_ui_wgt_input::{
     pointer_capture::capture_pointer,
     CursorIcon,
 };
-use zero_ui_wgt_layers::{
+use zero_ui_wgt_layer::{
     popup::{PopupState, POPUP, POPUP_CLOSE_CMD},
     AnchorMode, AnchorOffset, AnchorSize,
 };
@@ -472,7 +472,7 @@ impl DefaultStyle {
             opacity = 90.pct();
             foreground_highlight = unset!;
 
-            zero_ui_wgt_layers::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
+            zero_ui_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
                 LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::bottom_left(), origin: Point::top_left() }),
                 LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::bottom_right(), origin: Point::top_right() }),
             });
@@ -499,7 +499,7 @@ impl SubMenuStyle {
         widget_set! {
             self;
 
-            zero_ui_wgt_layers::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
+            zero_ui_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
                 LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::top_right(), origin: Point::top_left() }),
                 LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::top_left(), origin: Point::top_right() }),
             }.with_min_size(AnchorSize::Unbounded));

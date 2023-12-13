@@ -148,7 +148,7 @@ zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
 zero-ui-wgt-checkerboard = { path = "../zero-ui-wgt-checkerboard" }
 zero-ui-wgt-window = { path = "../zero-ui-wgt-window" }
-zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
+zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
 zero-ui-wgt-undo_history = { path = "../zero-ui-wgt-undo_history" }
 zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }

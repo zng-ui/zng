@@ -53,7 +53,7 @@ members = [
     "zero-ui-wgt-style",
     "zero-ui-wgt-checkerboard",
     "zero-ui-wgt-window",
-    "zero-ui-wgt-layers",
+    "zero-ui-wgt-layer",
     "zero-ui-wgt-undo_history",
     "zero-ui-wgt-image",
     "zero-ui-wgt-text",

@@ -23,7 +23,7 @@ use zero_ui_wgt_container::{child_align, child_insert_end, child_insert_start, p
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_filter::opacity;
 use zero_ui_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
-use zero_ui_wgt_layers::popup::{PopupState, POPUP};
+use zero_ui_wgt_layer::popup::{PopupState, POPUP};
 use zero_ui_wgt_size_offset::{size, x, y};
 use zero_ui_wgt_style::{Style, StyleFn};
 use zero_ui_wgt_transform::scale_y;
@@ -1107,7 +1107,7 @@ impl ComboStyle {
                 corner_radius = (4, 0, 0, 4);
             };
 
-            zero_ui_wgt_layers::popup::extend_style = Style! {
+            zero_ui_wgt_layer::popup::extend_style = Style! {
                 zero_ui_wgt_button::extend_style = Style! {
                     click_mode = ClickMode::release();
 
@@ -1142,8 +1142,8 @@ impl ComboStyle {
                     y = 0;
                 }
 
-                zero_ui_wgt_layers::popup::close_delay = 100.ms();
-                when *#zero_ui_wgt_layers::popup::is_close_delaying {
+                zero_ui_wgt_layer::popup::close_delay = 100.ms();
+                when *#zero_ui_wgt_layer::popup::is_close_delaying {
                     opacity = 0.pct();
                     y = -10;
                 }

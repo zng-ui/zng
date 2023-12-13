@@ -78,7 +78,7 @@ impl Window {
         }
 
         self.widget_builder().push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layers::layers_node);
+            wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layer::layers_node);
         });
     }
 
