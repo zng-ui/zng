@@ -43,7 +43,7 @@ members = [
     "zero-ui-wgt-transform",
     "zero-ui-wgt-input",
     "zero-ui-wgt-data",
-    "zero-ui-wgt-filters",
+    "zero-ui-wgt-filter",
     "zero-ui-wgt-inspector",
     "zero-ui-wgt-size_offset",
     "zero-ui-wgt-container",

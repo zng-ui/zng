@@ -1,4 +1,4 @@
-use zero_ui::{color::filters::hue_rotate, layout::size, prelude::*};
+use zero_ui::{color::filter::hue_rotate, layout::size, prelude::*};
 use zero_ui_view::extensions::ViewExtensions;
 
 // Examples of how to extend the view-process with custom renderers.

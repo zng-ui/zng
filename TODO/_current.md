@@ -52,7 +52,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".
     - What about offset property?
-* Review modules with plural names, filters, layers.
 * Review prelude.
     - Include more properties, `enabled`, `visibility`?
 * Implement more widget properties and events for `Wgt`?

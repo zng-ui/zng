@@ -11,7 +11,7 @@ zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
 zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-ext-window = { path = "../zero-ui-ext-window" }
 zero-ui-app = { path = "../zero-ui-app" }

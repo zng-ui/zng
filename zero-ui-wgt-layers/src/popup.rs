@@ -8,7 +8,7 @@ use zero_ui_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_container::Container;
 use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filters::drop_shadow;
+use zero_ui_wgt_filter::drop_shadow;
 use zero_ui_wgt_input::focus::{alt_focus_scope, directional_nav, focus_click_behavior, tab_nav, FocusClickBehavior, FocusableMix};
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 

@@ -21,7 +21,7 @@ use zero_ui_wgt::{align, border, border_align, border_over, corner_radius, hit_t
 use zero_ui_wgt_access::{access_role, accessible, AccessRole};
 use zero_ui_wgt_container::{child_align, child_insert_end, child_insert_start, padding};
 use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filters::opacity;
+use zero_ui_wgt_filter::opacity;
 use zero_ui_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
 use zero_ui_wgt_layers::popup::{PopupState, POPUP};
 use zero_ui_wgt_size_offset::{size, x, y};

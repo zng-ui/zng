@@ -3,7 +3,7 @@
 use zero_ui::{
     access::{access_role, AccessRole, ACCESS},
     clipboard,
-    color::filters::{backdrop_blur, drop_shadow, opacity},
+    color::filter::{backdrop_blur, drop_shadow, opacity},
     container::padding,
     focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
     font::FontName,

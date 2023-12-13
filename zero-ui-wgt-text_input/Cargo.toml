@@ -10,7 +10,7 @@ zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-layers = { path = "../zero-ui-wgt-layers" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
 zero-ui-wgt-undo = { path = "../zero-ui-wgt-undo" }

@@ -112,8 +112,8 @@ pub mod prelude {
     pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
 
     pub use zero_ui_color::{
-        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, filters as color_filters, gradient, hex, hsl, hsla, hsv, hsva,
-        rgb, rgba, web_colors, ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
+        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
+        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
     };
 
     pub use zero_ui_ext_clipboard::CLIPBOARD;
@@ -298,7 +298,7 @@ pub mod task {
 
 /// Color and gradient types, functions, properties and macros.
 ///
-/// See [`zero_ui_color`], [`zero_ui_wgt_filters`] and [`zero_ui_wgt_fill`] for the full API.
+/// See [`zero_ui_color`], [`zero_ui_wgt_filter`] and [`zero_ui_wgt_fill`] for the full API.
 pub mod color {
     pub use zero_ui_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, hex, hsl, hsla, hsla_sampler, hsv, hsva, lerp_space,
@@ -311,10 +311,10 @@ pub mod color {
     pub use zero_ui_wgt_fill::nodes::flood;
 
     /// Color filters.
-    pub mod filters {
-        pub use zero_ui_color::filters::{ColorMatrix, Filter, RenderFilter};
+    pub mod filter {
+        pub use zero_ui_color::filter::{ColorMatrix, Filter, RenderFilter};
 
-        pub use zero_ui_wgt_filters::{
+        pub use zero_ui_wgt_filter::{
             backdrop_blur, backdrop_brightness, backdrop_color_matrix, backdrop_contrast, backdrop_filter, backdrop_grayscale,
             backdrop_hue_rotate, backdrop_invert, backdrop_saturate, backdrop_sepia, blur, brightness, child_filter, child_mix_blend,
             child_opacity, color_matrix, contrast, drop_shadow, filter, grayscale, hue_rotate, invert_color, mix_blend, opacity, saturate,

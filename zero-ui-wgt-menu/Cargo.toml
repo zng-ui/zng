@@ -23,7 +23,7 @@ zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
 zero-ui-ext-font = { path = "../zero-ui-ext-font" }
 zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
 zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
 zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }

@@ -4,7 +4,7 @@ use zero_ui::{
     access::ACCESS,
     app::EXIT_CMD,
     button,
-    color::filters::{backdrop_blur, drop_shadow, opacity},
+    color::filter::{backdrop_blur, drop_shadow, opacity},
     container::padding,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     gesture::on_click,

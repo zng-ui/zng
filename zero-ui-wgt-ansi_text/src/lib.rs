@@ -8,7 +8,7 @@ zero_ui_wgt::enable_widget_macros!();
 use zero_ui_ext_font::*;
 use zero_ui_wgt::{prelude::*, *};
 use zero_ui_wgt_fill::*;
-use zero_ui_wgt_filters::*;
+use zero_ui_wgt_filter::*;
 use zero_ui_wgt_scroll::{lazy, LazyMode};
 use zero_ui_wgt_stack::{Stack, StackDirection};
 use zero_ui_wgt_text::*;

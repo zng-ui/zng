@@ -11,4 +11,4 @@ zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
 zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
 zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
-zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }

@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_color::filters::{ColorMatrix, Filter};
+use zero_ui_color::filter::{ColorMatrix, Filter};
 use zero_ui_wgt::prelude::*;
 
 /// Color filter, or combination of filters.

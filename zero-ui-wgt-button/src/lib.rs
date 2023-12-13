@@ -9,7 +9,7 @@ use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*};
 use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zero_ui_wgt_container::{child_align, padding, Container};
 use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filters::{child_opacity, saturate};
+use zero_ui_wgt_filter::{child_opacity, saturate};
 use zero_ui_wgt_input::{
     cursor,
     focus::FocusableMix,

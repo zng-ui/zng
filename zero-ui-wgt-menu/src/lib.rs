@@ -13,7 +13,7 @@ use zero_ui_wgt_access::{access_role, AccessRole};
 use zero_ui_wgt_button::Button;
 use zero_ui_wgt_container::{child_align, child_insert_end, padding};
 use zero_ui_wgt_fill::{background_color, foreground_highlight};
-use zero_ui_wgt_filters::{opacity, saturate};
+use zero_ui_wgt_filter::{opacity, saturate};
 use zero_ui_wgt_input::{click_mode, focus::is_focused, mouse::on_pre_mouse_enter};
 use zero_ui_wgt_input::{cursor, focus::alt_focus_scope, CursorIcon};
 use zero_ui_wgt_size_offset::size;

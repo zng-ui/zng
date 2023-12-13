@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    color::{filters::opacity, gradient::stops},
+    color::{filter::opacity, gradient::stops},
     keyboard::{on_key_down, Key},
     layout::{align, margin, max_width, size},
     prelude::*,

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
-    color::filters::opacity,
+    color::filter::opacity,
     gesture::{is_cap_hovered, on_click},
     icon::{outlined as icons, Icon},
     layout::{align, margin, min_width},

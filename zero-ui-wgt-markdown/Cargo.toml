@@ -30,7 +30,7 @@ zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
 zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
 zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-filters = { path = "../zero-ui-wgt-filters" }
+zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-ext-input = { path = "../zero-ui-ext-input" }
 zero-ui-ext-image = { path = "../zero-ui-ext-image" }
 zero-ui-ext-font = { path = "../zero-ui-ext-font" }

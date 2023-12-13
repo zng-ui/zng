@@ -9,7 +9,7 @@ use zero_ui_wgt_access::{self as access, access_role, AccessRole};
 use zero_ui_wgt_button::Button;
 use zero_ui_wgt_container::{child_align, padding, Container};
 use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filters::opacity;
+use zero_ui_wgt_filter::opacity;
 use zero_ui_wgt_grid::{self as grid, Grid};
 use zero_ui_wgt_link::LinkStyle;
 use zero_ui_wgt_size_offset::{offset, size};

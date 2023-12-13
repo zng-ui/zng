@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
-    color::filters::opacity,
+    color::filter::opacity,
     gesture::{on_click, on_context_click, on_double_click, on_triple_click},
     layout::{align, margin, size, sticky_width},
     mouse::click_mode,

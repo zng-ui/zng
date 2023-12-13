@@ -5,7 +5,7 @@ use zero_ui::{
     checkerboard::Checkerboard,
     clipboard,
     color::{
-        filters::{drop_shadow, filter, mix_blend, Filter},
+        filter::{drop_shadow, filter, mix_blend, Filter},
         gradient::stops,
     },
     container::padding,

@@ -14,7 +14,7 @@ use zero_ui_ext_l10n::lang;
 use zero_ui_wgt::{align, is_disabled, is_rtl, prelude::*};
 use zero_ui_wgt_container::padding;
 use zero_ui_wgt_fill::{background, background_color, foreground_highlight};
-use zero_ui_wgt_filters::{opacity, saturate};
+use zero_ui_wgt_filter::{opacity, saturate};
 use zero_ui_wgt_input::{
     click_mode, cursor,
     focus::{focus_click_behavior, focusable, is_focused, FocusClickBehavior},

@@ -19,7 +19,7 @@ pub use zero_ui_view_api::config::ColorScheme;
 pub use zero_ui_color_proc_macros::hex_color;
 
 pub mod colors;
-pub mod filters;
+pub mod filter;
 pub mod gradient;
 pub mod web_colors;
 

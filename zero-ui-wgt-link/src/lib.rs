@@ -5,7 +5,7 @@
 
 use zero_ui_wgt::{is_disabled, prelude::*};
 use zero_ui_wgt_access::*;
-use zero_ui_wgt_filters::*;
+use zero_ui_wgt_filter::*;
 use zero_ui_wgt_input::*;
 use zero_ui_wgt_style::*;
 use zero_ui_wgt_text::*;

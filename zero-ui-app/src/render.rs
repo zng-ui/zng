@@ -7,7 +7,7 @@ use crate::{
     window::WINDOW,
 };
 use zero_ui_color::{
-    filters::RenderFilter,
+    filter::RenderFilter,
     gradient::{RenderExtendMode, RenderGradientStop},
     rgba, RenderColor, RenderMixBlendMode,
 };

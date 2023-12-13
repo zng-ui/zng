@@ -2,7 +2,7 @@
 
 use zero_ui::{
     button,
-    color::filters::opacity,
+    color::filter::opacity,
     container::padding,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     layers::AnchorOffset,

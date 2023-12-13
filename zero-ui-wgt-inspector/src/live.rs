@@ -238,7 +238,7 @@ mod inspector_window {
     use zero_ui_wgt_access::{access_role, AccessRole};
     use zero_ui_wgt_container::{child_align, padding, Container};
     use zero_ui_wgt_fill::{background, background_color};
-    use zero_ui_wgt_filters::opacity;
+    use zero_ui_wgt_filter::opacity;
     use zero_ui_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
     use zero_ui_wgt_rule_line::hr::Hr;
     use zero_ui_wgt_scroll::{Scroll, ScrollMode};

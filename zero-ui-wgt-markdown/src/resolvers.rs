@@ -12,7 +12,7 @@ use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs};
 use zero_ui_wgt_button::Button;
 use zero_ui_wgt_container::Container;
 use zero_ui_wgt_fill::*;
-use zero_ui_wgt_filters::*;
+use zero_ui_wgt_filter::*;
 use zero_ui_wgt_input::focus::on_blur;
 use zero_ui_wgt_layers::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 use zero_ui_wgt_scroll::commands::ScrollToMode;

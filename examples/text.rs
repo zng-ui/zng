@@ -7,7 +7,7 @@ use zero_ui::{
     app::{NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD},
     button,
     clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
-    color::filters::opacity,
+    color::filter::opacity,
     container::padding,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     font::{FontName, FontNames},

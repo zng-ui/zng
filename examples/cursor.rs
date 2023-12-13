@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    color::filters::invert_color,
+    color::filter::invert_color,
     gesture::is_hovered,
     image::ImageFit,
     layers::AnchorOffset,
