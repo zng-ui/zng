@@ -554,6 +554,7 @@ pub use zero_ui_app_proc_macros::property;
 ///
 /// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end,
 /// ```
+/// # zero_ui_app::enable_widget_macros!();
 /// # use zero_ui_app::{*, widget::{base::WidgetBase, widget}};
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
@@ -597,6 +598,7 @@ pub use zero_ui_app_proc_macros::property;
 /// Example of a text widget that declares a shorthand syntax to implicitly set a `txt` property:
 ///
 /// ```
+/// # zero_ui_app::enable_widget_macros!();
 /// # use zero_ui_app::{*, widget::{base::WidgetBase, widget}};
 /// #[widget($crate::Foo {
 ///     ($id:tt) => {
@@ -613,6 +615,7 @@ pub use zero_ui_app_proc_macros::property;
 /// The macro instance above is equivalent to:
 ///
 /// ```
+/// # zero_ui_app::enable_widget_macros!();
 /// # use zero_ui_app::{*, widget::{base::WidgetBase, widget}};
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
@@ -745,6 +748,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Note that properties are designed to have a default *neutral* value that behaves as if unset, in the example case you could more easily write:
 ///
 /// ```
+/// # zero_ui_app::enable_widget_macros!();
 /// # use zero_ui_app::{*, widget::{instance::*, base::*, widget, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;

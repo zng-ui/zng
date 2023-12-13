@@ -73,6 +73,10 @@ macro_rules! enable_widget_macros {
 extern crate self as zero_ui;
 
 #[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui_app; // for doc-tests
+
+#[doc(hidden)]
 pub mod __proc_macro_util {
     // * don't add glob re-exports, the types leak in rust-analyzer even if all is doc(hidden).
     // * don't use macro_rules! macros that use $crate , they will fail with "unresolved import" when used from the re-exports.

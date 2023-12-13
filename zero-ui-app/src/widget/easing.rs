@@ -47,6 +47,7 @@ use zero_ui_var::{
 /// The example demonstrates setting and removing easing animations.
 ///
 /// ```
+/// # zero_ui_app::enable_widget_macros!();
 /// # use zero_ui_app::{*, widget::{instance::*, *}};
 /// # use zero_ui_var::*;
 /// # use zero_ui_color::*;

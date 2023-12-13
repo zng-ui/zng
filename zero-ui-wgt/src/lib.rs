@@ -12,6 +12,10 @@
 pub use zero_ui_app::enable_widget_macros;
 enable_widget_macros!();
 
+#[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui_wgt; // for doc-tests
+
 /// Prelude for declaring properties and widgets.
 pub mod prelude {
     pub use zero_ui_app::{

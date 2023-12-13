@@ -44,8 +44,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Add mask_image, forgot.
-
 * Review inspector.
 
 * Review `dyn_closure` and other features (`dyn_*`, `http`).
