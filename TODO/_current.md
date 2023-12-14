@@ -33,6 +33,9 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - Observed multiple times, after a slow build when the VS window is not focused.
     - Added debug panics in scale_factor vars of window and monitor if they change more then 10 times, lets see.
     - Debug panics marked with comment "// debug WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)".
+```
+ - tracing permanently disables callsite if there no interest on the first usage, so need to build with some
+   kind of subscriber from the start.
 
 # Hit-test
 
