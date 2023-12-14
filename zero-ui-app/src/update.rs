@@ -782,6 +782,7 @@ impl UpdatesTrace {
 
     /// Log a var update request.
     pub fn log_var(type_name: &str) {
+        dbg!(type_name);
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,

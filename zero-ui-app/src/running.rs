@@ -8,7 +8,7 @@ use std::{
 
 use zero_ui_app_context::{app_local, AppScope};
 use zero_ui_layout::units::Deadline;
-use zero_ui_var::{response_var, ResponderVar, ResponseVar, VARS};
+use zero_ui_var::{response_var, ResponderVar, ResponseVar, VARS, VARS_APP};
 
 use crate::{
     event::{
@@ -59,9 +59,11 @@ impl<E: AppExtension> RunningApp<E> {
 
         UPDATES.init(sender);
 
-        VARS.init_app_waker(|| {
+        fn app_waker() {
             UPDATES.update(None);
-        });
+        }
+        VARS_APP.init_app_waker(app_waker);
+        VARS_APP.init_modify_trace(UpdatesTrace::log_var);
 
         let mut info = AppExtensionsInfo::start();
         extensions.register(&mut info);

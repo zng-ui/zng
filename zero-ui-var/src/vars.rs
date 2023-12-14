@@ -48,6 +48,7 @@ pub(crate) struct VarsService {
     updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
     app_waker: Option<Box<dyn Fn() + Send + Sync>>,
+    modify_trace: Option<Box<dyn Fn(&'static str) + Send + Sync>>,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
@@ -58,6 +59,7 @@ impl VarsService {
             updating_thread: None,
             updates_after: Mutex::new(vec![]),
             app_waker: None,
+            modify_trace: None,
         }
     }
 
@@ -239,17 +241,10 @@ impl VARS {
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn, type_name: &'static str) {
-        {
-            // same as UpdatesTrace::log_var(type_name), without the dependency.
-            const UPDATES_TARGET: &str = "zero-ui-updates";
-            tracing::event!(
-                target: UPDATES_TARGET,
-                tracing::Level::TRACE,
-                { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
-            );
-        }
-
         let vars = VARS_SV.read();
+        if let Some(trace) = &vars.modify_trace {
+            trace(type_name);
+        }
         let curr_modify = match VARS_MODIFY_CTX.get_clone() {
             Some(current) => current, // override set by modify and animation closures.
             None => vars.ans.current_modify.clone(),
@@ -268,19 +263,6 @@ impl VARS {
             vars.updates.lock().push((curr_modify, update));
             vars.wake_app();
         }
-    }
-
-    /// Register a closure called when [`apply_updates`] should be called because there are changes pending.
-    ///
-    /// # Panics
-    ///
-    /// Panics if already called for the current app. This must be called by app framework implementers only.
-    ///
-    /// [`apply_updates`]: Self::apply_updates
-    pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
-        let mut vars = VARS_SV.write();
-        assert!(vars.app_waker.is_none());
-        vars.app_waker = Some(Box::new(waker));
     }
 
     pub(crate) fn wake_app(&self) {
@@ -380,5 +362,35 @@ impl VARS {
     /// [`apply_updates`]: Self::apply_updates
     pub fn has_pending_updates(&self) -> bool {
         !VARS_SV.write().updates.get_mut().is_empty()
+    }
+}
+
+/// VARS APP integration.
+#[allow(non_camel_case_types)]
+pub struct VARS_APP;
+impl VARS_APP {
+    /// Register a closure called when [`apply_updates`] should be called because there are changes pending.
+    ///
+    /// # Panics
+    ///
+    /// Panics if already called for the current app. This must be called by app framework implementers only.
+    ///
+    /// [`apply_updates`]: Self::apply_updates
+    pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
+        let mut vars = VARS_SV.write();
+        assert!(vars.app_waker.is_none());
+        vars.app_waker = Some(Box::new(waker));
+    }
+
+    /// Register a closure called when a variable modify is about to be scheduled. The
+    /// closure parameter is the type name of the variable type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if already called for the current app. This must be called by app framework implementers only.
+    pub fn init_modify_trace(&self, trace: impl Fn(&'static str) + Send + Sync + 'static) {
+        let mut vars = VARS_SV.write();
+        assert!(vars.modify_trace.is_none());
+        vars.modify_trace = Some(Box::new(trace));
     }
 }
