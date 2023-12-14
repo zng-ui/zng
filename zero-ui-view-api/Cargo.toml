@@ -17,8 +17,11 @@ ipc = ["ipc-channel", "duct"]
 var = ["zero-ui-var"]
 
 [dependencies]
-webrender_api = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa" }
-euclid = { version = "0.22.6", features = ["serde", "bytemuck"] } # same version as webrender, but with bytemuck
+webrender_api = { git = "https://github.com/SamRodri/webrender.git" }
+euclid = { version = "0.22.6", features = [
+    "serde",
+    "bytemuck",
+] } # same version as webrender, but with bytemuck
 
 zero-ui-units = { path = "../zero-ui-units" }
 zero-ui-txt = { path = "../zero-ui-txt" }
@@ -29,7 +32,7 @@ serde_bytes = "0.11"
 duct = { version = "0.13", optional = true }
 
 tracing = "0.1"
-flume = { version = "0.11", default-features  = false }
+flume = { version = "0.11", default-features = false }
 num-traits = "0.2"
 rustc-hash = "1"
 

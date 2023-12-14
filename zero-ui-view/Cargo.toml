@@ -62,8 +62,8 @@ software = ["swgl"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa" }
-swgl = { git = "https://github.com/servo/webrender.git", rev = "858962993c5e06067557d36b76faaf354b8002fa", optional = true }
+webrender = { git = "https://github.com/SamRodri/webrender.git" }
+swgl = { git = "https://github.com/SamRodri/webrender.git", optional = true }
 
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 zero-ui-units = { path = "../zero-ui-units" }
@@ -108,7 +108,7 @@ features = [
     "Win32_System_Power",
 ]
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.48.0" # matches accesskit, other crates
+version = "0.48.0"                                          # matches accesskit, other crates
 features = ["Foundation_Collections", "System_UserProfile"]
 
 [target.'cfg(windows)'.dependencies]
