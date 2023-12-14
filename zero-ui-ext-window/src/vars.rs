@@ -154,6 +154,21 @@ impl WindowVars {
 
             access_enabled: var(AccessEnabled::empty()),
         });
+
+        #[cfg(debug_assertions)]
+        {
+            // debug WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)
+            let mut history = vec![];
+            vars.scale_factor
+                .trace_value(move |a| {
+                    history.push(*a.value());
+                    if history.len() > 10 {
+                        panic!("WindowVars::scale_factor changed >10 times, {history:?}");
+                    }
+                })
+                .perm();
+        }
+
         Self(vars)
     }
 

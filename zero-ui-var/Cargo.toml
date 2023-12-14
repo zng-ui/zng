@@ -33,3 +33,4 @@ bytemuck = { version = "1", features = ["derive"] }
 parking_lot = "0.12"
 tracing = "0.1"
 take_mut = "0.2"
+pretty-type-name = "1"

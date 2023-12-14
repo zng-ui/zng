@@ -245,7 +245,7 @@ impl VARS {
             tracing::event!(
                 target: UPDATES_TARGET,
                 tracing::Level::TRACE,
-                { kind = "update var", type_name }
+                { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
             );
         }
 
