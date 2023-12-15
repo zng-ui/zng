@@ -33,7 +33,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - Observed multiple times, after a slow build when the VS window is not focused.
     - Added debug panics in scale_factor vars of window and monitor if they change more then 10 times, lets see.
     - Debug panics marked with comment "// debug WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)".
-```
 
 # Hit-test
 
@@ -52,13 +51,11 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
     - Test what happens when info is rebuild.
     - Implement visibility event properties.
 
-* Remove zero_ui_var::types?
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".
     - What about offset property?
 * Review prelude.
     - Include more properties, `enabled`, `visibility`?
-* Implement more widget properties and events for `Wgt`?
 
 # Publish
 

@@ -388,7 +388,8 @@ pub mod render {
 /// See [`zero_ui_var`] for the full var API.
 pub mod var {
     pub use zero_ui_var::types::{
-        AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, WeakArcVar, WeakReadOnlyVar, WeakWhenVar,
+        AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, WeakArcVar, WeakContextInitHandle,
+        WeakContextualizedVar, WeakReadOnlyVar, WeakWhenVar,
     };
     pub use zero_ui_var::{
         context_var, expr_var, getter_var, merge_var, response_done_var, response_var, state_var, var, var_default, var_from, when_var,
