@@ -512,10 +512,10 @@ impl InteractivityChangedArgs {
     ///
     /// # Panics
     ///
-    /// Panics if `widget_id` is not in [`tree`]. This method must be called only for [`targets`].
+    /// Panics if `widget_id` is not in [`tree`]. This method must be called only for [`changed`].
     ///
     /// [`tree`]: Self::tree
-    /// [`targets`]: Self::targets
+    /// [`changed`]: Self::changed
     pub fn new_interactivity(&self, widget_id: WidgetId) -> Interactivity {
         if let Some(w) = self.tree.get(widget_id) {
             w.interactivity()

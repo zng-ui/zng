@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use zero_ui_app_context::app_local;
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
 use zero_ui_unique_id::IdSet;
-use zero_ui_var::VARS;
+use zero_ui_var::VARS_APP;
 
 use crate::{
     event::{AnyEvent, AnyEventArgs, AppDisconnected, EVENTS, EVENTS_SV},
@@ -994,7 +994,7 @@ impl UPDATES {
     #[must_use]
     pub(crate) fn apply_updates(&self) -> ContextUpdates {
         let events = EVENTS.apply_updates();
-        VARS.apply_updates();
+        VARS_APP.apply_updates();
 
         let (update, update_widgets) = UPDATES.take_update();
 
@@ -1058,20 +1058,20 @@ impl UPDATES {
     /// Returns next timer or animation tick time.
     pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
         TIMERS_SV.write().next_deadline(timer);
-        VARS.next_deadline(timer);
+        VARS_APP.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
     pub(crate) fn update_timers(&self, timer: &mut LoopTimer) {
         TIMERS_SV.write().apply_updates(timer);
-        VARS.update_animations(timer);
+        VARS_APP.update_animations(timer);
     }
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
     #[must_use]
     pub(crate) fn has_pending_updates(&self) -> bool {
         UPDATES_SV.read().update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO)
-            || VARS.has_pending_updates()
+            || VARS_APP.has_pending_updates()
             || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
     }

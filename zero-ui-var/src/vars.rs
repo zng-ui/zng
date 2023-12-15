@@ -269,6 +269,48 @@ impl VARS {
         VARS_SV.read().wake_app();
     }
 
+    /// Enable or disable animations.
+    pub fn set_animations_enabled(&self, enabled: bool) {
+        VARS_SV.read().ans.animations_enabled.set(enabled);
+    }
+}
+
+/// VARS APP integration.
+#[allow(non_camel_case_types)]
+pub struct VARS_APP;
+impl VARS_APP {
+    /// Register a closure called when [`apply_updates`] should be called because there are changes pending.
+    ///
+    /// # Panics
+    ///
+    /// Panics if already called for the current app. This must be called by app framework implementers only.
+    ///
+    /// [`apply_updates`]: Self::apply_updates
+    pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
+        let mut vars = VARS_SV.write();
+        assert!(vars.app_waker.is_none());
+        vars.app_waker = Some(Box::new(waker));
+    }
+
+    /// Register a closure called when a variable modify is about to be scheduled. The
+    /// closure parameter is the type name of the variable type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if already called for the current app. This must be called by app framework implementers only.
+    pub fn init_modify_trace(&self, trace: impl Fn(&'static str) + Send + Sync + 'static) {
+        let mut vars = VARS_SV.write();
+        assert!(vars.modify_trace.is_none());
+        vars.modify_trace = Some(Box::new(trace));
+    }
+
+    /// If [`apply_updates`] will do anything.
+    ///
+    /// [`apply_updates`]: Self::apply_updates
+    pub fn has_pending_updates(&self) -> bool {
+        !VARS_SV.write().updates.get_mut().is_empty()
+    }
+
     /// Apply all pending updates, call hooks and update bindings.
     ///
     /// This must be called by app framework implementers only.
@@ -338,11 +380,6 @@ impl VARS {
         }
     }
 
-    /// Enable or disable animations.
-    pub fn set_animations_enabled(&self, enabled: bool) {
-        VARS_SV.read().ans.animations_enabled.set(enabled);
-    }
-
     /// Does one animation frame if the frame duration has elapsed.
     ///
     /// This must be called by app framework implementers only.
@@ -355,42 +392,5 @@ impl VARS {
     /// This must be called by app framework implementers only.
     pub fn next_deadline(&self, timer: &mut impl AnimationTimer) {
         Animations::next_deadline(timer)
-    }
-
-    /// If [`apply_updates`] will do anything.
-    ///
-    /// [`apply_updates`]: Self::apply_updates
-    pub fn has_pending_updates(&self) -> bool {
-        !VARS_SV.write().updates.get_mut().is_empty()
-    }
-}
-
-/// VARS APP integration.
-#[allow(non_camel_case_types)]
-pub struct VARS_APP;
-impl VARS_APP {
-    /// Register a closure called when [`apply_updates`] should be called because there are changes pending.
-    ///
-    /// # Panics
-    ///
-    /// Panics if already called for the current app. This must be called by app framework implementers only.
-    ///
-    /// [`apply_updates`]: Self::apply_updates
-    pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
-        let mut vars = VARS_SV.write();
-        assert!(vars.app_waker.is_none());
-        vars.app_waker = Some(Box::new(waker));
-    }
-
-    /// Register a closure called when a variable modify is about to be scheduled. The
-    /// closure parameter is the type name of the variable type.
-    ///
-    /// # Panics
-    ///
-    /// Panics if already called for the current app. This must be called by app framework implementers only.
-    pub fn init_modify_trace(&self, trace: impl Fn(&'static str) + Send + Sync + 'static) {
-        let mut vars = VARS_SV.write();
-        assert!(vars.modify_trace.is_none());
-        vars.modify_trace = Some(Box::new(trace));
     }
 }
