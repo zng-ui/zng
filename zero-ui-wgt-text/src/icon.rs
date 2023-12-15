@@ -3,7 +3,6 @@
 use zero_ui_app::event::{CommandMetaVar, StaticCommandMetaVarId};
 use zero_ui_ext_font::FontName;
 use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_view::WidgetFn;
 
 use std::fmt;
 

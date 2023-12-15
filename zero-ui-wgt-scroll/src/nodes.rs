@@ -13,7 +13,6 @@ use zero_ui_wgt::prelude::gradient::ExtendMode;
 use zero_ui_wgt::prelude::gradient::RenderGradientStop;
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_view::presenter;
-use zero_ui_wgt_view::WidgetFn;
 
 use super::commands::*;
 use super::scroll_properties::*;

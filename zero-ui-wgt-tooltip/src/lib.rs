@@ -23,7 +23,6 @@ use zero_ui_wgt_layer::{
     AnchorMode,
 };
 use zero_ui_wgt_style::{Style, StyleFn};
-use zero_ui_wgt_view::WidgetFn;
 
 /// Widget tooltip.
 ///

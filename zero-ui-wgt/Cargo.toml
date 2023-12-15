@@ -36,6 +36,7 @@ zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 paste = "1"
 tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
+pretty-type-name = "1"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "zero-ui-wgt/doc/html-in-header.html"]

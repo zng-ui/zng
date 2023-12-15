@@ -11,7 +11,6 @@ use zero_ui_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
 use zero_ui_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
 use zero_ui_wgt_stack::Stack;
 use zero_ui_wgt_style::StyleFn;
-use zero_ui_wgt_view::WidgetFn;
 
 use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 

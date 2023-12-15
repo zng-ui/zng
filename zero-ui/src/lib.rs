@@ -196,7 +196,7 @@ pub mod prelude {
 
     pub use crate::tip::{self, tooltip, tooltip_fn, Tip};
 
-    pub use zero_ui_wgt_view::{wgt_fn, WidgetFn};
+    pub use zero_ui_wgt::{wgt_fn, WidgetFn};
 
     pub use zero_ui_wgt_style::{style_fn, Style};
 
@@ -267,6 +267,8 @@ pub mod wgt_prelude {
     pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
 
     pub use zero_ui_wgt::prelude::{IdEntry, IdMap, IdSet};
+
+    pub use zero_ui_wgt::{wgt_fn, WidgetFn};
 
     pub use zero_ui_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
@@ -488,7 +490,7 @@ pub mod widget {
         on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable, on_pre_enabled_changed,
         on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_transform_changed, on_pre_unblock, on_pre_update,
         on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed, on_transform_changed, on_unblock, on_update, on_vis_disable,
-        on_vis_enable, on_vis_enabled_changed, parallel, visibility, z_index, OnDeinitArgs, OnNodeOpArgs, Wgt,
+        on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, OnDeinitArgs, OnNodeOpArgs, Wgt, WidgetFn,
     };
 
     pub use zero_ui_wgt_fill::{
@@ -1130,7 +1132,7 @@ pub mod tip {
 ///
 /// See [`zero_ui_wgt_view`] for the full view API.
 pub mod view {
-    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, wgt_fn, ObservableVec, View, ViewArgs, WidgetFn};
+    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, ObservableVec, View, ViewArgs};
 }
 
 /// Switch widget and node.
@@ -1253,9 +1255,9 @@ mod defaults {
             use zero_ui_app::widget::instance::ui_vec;
             use zero_ui_ext_clipboard::COPY_CMD;
             use zero_ui_ext_window::WINDOWS;
+            use zero_ui_wgt::wgt_fn;
             use zero_ui_wgt_text::icon::CommandIconExt as _;
             use zero_ui_wgt_text::{commands::SELECT_ALL_CMD, icon::Icon, SelectionToolbarArgs};
-            use zero_ui_wgt_view::wgt_fn;
 
             WINDOWS.register_root_extender(|a| {
                 let child = a.root;

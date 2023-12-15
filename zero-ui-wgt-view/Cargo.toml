@@ -10,7 +10,6 @@ zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
 
-pretty-type-name = "1"
 parking_lot = "0.12"
 tracing = "0.1"
 

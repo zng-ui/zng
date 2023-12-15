@@ -9,7 +9,7 @@ use zero_ui_wgt::prelude::*;
 ///
 /// This struct is designed to be a data source for [`list_presenter`], because it tracks
 /// exact changes it enables the implementation of transition animations such as a new
-/// element *expanding* into place, it also allows the retention of widget state for elements
+/// element expanding into place, it also allows the retention of widget state for elements
 /// that did not change.
 ///
 /// Changes are logged using the [`VecChange`] enum, note that the enum only tracks indexes at the

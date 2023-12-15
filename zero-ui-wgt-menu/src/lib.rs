@@ -19,7 +19,6 @@ use zero_ui_wgt_input::{cursor, focus::alt_focus_scope, CursorIcon};
 use zero_ui_wgt_size_offset::size;
 use zero_ui_wgt_style::{style_fn, Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::Text;
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 pub mod context;
 pub mod popup;

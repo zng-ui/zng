@@ -9,7 +9,6 @@ use zero_ui_wgt_layer::{
 };
 use zero_ui_wgt_stack::{Stack, StackDirection};
 use zero_ui_wgt_style::{style_fn, Style, StyleFn};
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 /// Defines the context menu shown when the widget is enabled and receives a context click.
 ///

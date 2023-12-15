@@ -9,7 +9,6 @@ use zero_ui_layout::units::{GridSpacing, PxGridSpacing};
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_access::{access_role, AccessRole};
 use zero_ui_wgt_size_offset::*;
-use zero_ui_wgt_view::WidgetFn;
 
 /// Grid layout with cells of variable sizes.
 #[widget($crate::Grid)]

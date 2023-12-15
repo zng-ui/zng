@@ -343,8 +343,6 @@ pub use ansi_fn::*;
 mod ansi_fn {
     use std::time::Duration;
 
-    use zero_ui_wgt_view::{wgt_fn, WidgetFn};
-
     use super::{AnsiColor, AnsiStyle, AnsiWeight};
 
     use super::*;

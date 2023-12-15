@@ -5,7 +5,6 @@ use nodes::CONTEXT_IMAGE_VAR;
 use zero_ui_app::render::ImageRendering;
 use zero_ui_ext_image::{ImageDownscale, ImageLimits};
 use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt_view::WidgetFn;
 use zero_ui_wgt_window::nodes::BlockWindowLoad;
 
 /// Image layout mode.
@@ -364,7 +363,7 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_fn!`]: zero_ui_wgt_view::wgt_fn
+/// [`wgt_fn!`]: zero_ui_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_FN_VAR), widget_impl(Image))]
 pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
@@ -372,7 +371,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_fn!`]: zero_ui_wgt_view::wgt_fn
+/// [`wgt_fn!`]: zero_ui_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
 pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)

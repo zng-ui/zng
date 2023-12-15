@@ -6,7 +6,6 @@ use zero_ui_ext_input::{
 use zero_ui_var::ReadOnlyContextVar;
 use zero_ui_wgt::visibility;
 use zero_ui_wgt_fill::nodes::flood;
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 context_var! {
     /// Widget function for creating the vertical scrollbar of an scroll widget.

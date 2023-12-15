@@ -89,6 +89,8 @@ pub mod prelude {
         fill_node, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local, with_context_local_init,
         with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
+
+    pub use crate::{wgt_fn, WidgetFn};
 }
 
 pub mod nodes;
@@ -96,6 +98,7 @@ pub mod nodes;
 mod border_props;
 mod clip_props;
 mod color_props;
+mod func;
 mod hit_test_props;
 mod interactivity_props;
 mod layout_props;
@@ -108,6 +111,7 @@ mod wgt;
 pub use border_props::*;
 pub use clip_props::*;
 pub use color_props::*;
+pub use func::*;
 pub use hit_test_props::*;
 pub use interactivity_props::*;
 pub use layout_props::*;

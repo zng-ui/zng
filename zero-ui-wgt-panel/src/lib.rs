@@ -6,7 +6,6 @@
 zero_ui_wgt::enable_widget_macros!();
 
 use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 use zero_ui_wgt_wrap::Wrap;
 
 /// Represents a styleable widget list container.

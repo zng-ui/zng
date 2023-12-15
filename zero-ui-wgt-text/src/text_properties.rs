@@ -7,7 +7,6 @@ use zero_ui_ext_l10n::{Langs, LANG_VAR};
 use zero_ui_view_api::config::FontAntiAliasing;
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_layer::AnchorOffset;
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 /// Basic text font properties.
 ///

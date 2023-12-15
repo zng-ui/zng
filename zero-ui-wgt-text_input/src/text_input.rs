@@ -17,7 +17,6 @@ use zero_ui_wgt_size_offset::{offset, y};
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 use zero_ui_wgt_undo::{undo_scope, UndoMix};
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 
 /// Simple text editor widget.
 ///

@@ -13,7 +13,6 @@ use zero_ui_ext_input::touch::TOUCH;
 use zero_ui_ext_window::WINDOW_Ext as _;
 use zero_ui_var::{animation, ContextInitHandle};
 use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_view::WidgetFn;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem, ops};

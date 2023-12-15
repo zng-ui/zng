@@ -17,7 +17,6 @@ use zero_ui_wgt_stack::{Stack, StackDirection};
 use zero_ui_wgt_text::{font_size, font_weight, Text, FONT_COLOR_VAR, PARAGRAPH_SPACING_VAR};
 use zero_ui_wgt_tooltip::*;
 use zero_ui_wgt_transform::scale;
-use zero_ui_wgt_view::{wgt_fn, WidgetFn};
 use zero_ui_wgt_wrap::Wrap;
 
 use super::*;

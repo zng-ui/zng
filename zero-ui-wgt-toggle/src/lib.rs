@@ -27,7 +27,6 @@ use zero_ui_wgt_layer::popup::{PopupState, POPUP};
 use zero_ui_wgt_size_offset::{size, x, y};
 use zero_ui_wgt_style::{Style, StyleFn};
 use zero_ui_wgt_transform::scale_y;
-use zero_ui_wgt_view::WidgetFn;
 
 pub mod commands;
 
