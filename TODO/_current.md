@@ -47,10 +47,6 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Implement visibility event properties.
-    - on_show, on_hide, on_collapse?
-    - on_show, should also fire once after first render?
-
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".
     - What about offset property?

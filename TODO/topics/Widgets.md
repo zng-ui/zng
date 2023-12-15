@@ -2,18 +2,13 @@
 
 Widget that need to be implemented.
 
-* `view` as a full widget.
-  - Need to support generics in widget constructors?
-
+* Implement visibility change event.
+  - on_show, on_hide, on_collapse?
+  - on_show, should also fire once after first render?
 * Progress indicator.
 * Button (work button, default, primary, cancel, progress disabled).
 * Thumb, draggable.
-* Validation.
-* TextInput.
-* CheckInput.
-* ToggleInput.
 * Slider.
-* ToolTip.
 * Resize parent.
 * Charts.
 * Media (audio & video).
@@ -34,13 +29,11 @@ Widget that need to be implemented.
 
 Layout widgets.
 
-* Refactor `v_stack/h_stack/z_stack` to `column/row/stack`.
-* Refactor `wrap` to `row_wrap` and implement `column_wrap`.
+* Implement `column_wrap`, wrap mode?
 * Implement properties that work with any panel to draw lines in between items.
   - Also backgrounds and foregrounds for each item.
   - Cell borders that don't affect size.
   - Selection borders, backgrounds.
-* Implement `grid`, that works like overlapping row/columns.
 * Implement reverse `UiNodeList` and other ops in the lists directly.
   - Like sorting and the z-index has worked well, other auto-updating "iterator inspired" helpers are probably pretty cool.
 
