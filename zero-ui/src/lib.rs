@@ -122,7 +122,7 @@ pub mod prelude {
     pub use zero_ui_ext_config::CONFIG;
 
     pub use zero_ui_ext_font::{
-        font_features, FontSize, FontStretch, FontStyle, FontWeight, Hyphens, Justify, TextTransformFn, WhiteSpace, WordBreak, WordSpacing
+        font_features, FontSize, FontStretch, FontStyle, FontWeight, Hyphens, Justify, TextTransformFn, WhiteSpace, WordBreak, WordSpacing,
     };
 
     pub use zero_ui_ext_fs_watcher::WATCHER;
@@ -152,8 +152,8 @@ pub mod prelude {
 
     pub use zero_ui_wgt::Wgt;
 
-    pub use zero_ui_wgt_text::Text;
     pub use crate::text;
+    pub use zero_ui_wgt_text::Text;
 
     pub use zero_ui_wgt_text_input::TextInput;
 
@@ -165,33 +165,33 @@ pub mod prelude {
 
     pub use zero_ui_wgt_data::{data, DATA};
 
-    pub use zero_ui_wgt_grid::Grid;
     pub use crate::grid;
+    pub use zero_ui_wgt_grid::Grid;
 
-    pub use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
     pub use crate::layer;
+    pub use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
     pub use zero_ui_wgt_text::icon::CommandIconExt as _;
 
-    pub use zero_ui_wgt_layer::popup::POPUP;
     pub use crate::popup;
+    pub use zero_ui_wgt_layer::popup::POPUP;
 
+    pub use crate::menu;
     pub use zero_ui_wgt_menu::{
         context::{context_menu, context_menu_fn, ContextMenu},
         sub::SubMenu,
         Menu,
     };
-    pub use crate::menu;
 
     pub use zero_ui_wgt_rule_line::hr::Hr;
 
     pub use zero_ui_wgt_scroll::{Scroll, SCROLL};
 
-    pub use zero_ui_wgt_toggle::Toggle;
     pub use crate::toggle;
+    pub use zero_ui_wgt_toggle::Toggle;
 
-    pub use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip};
     pub use crate::tip;
+    pub use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip};
 
     pub use zero_ui_wgt::{wgt_fn, WidgetFn};
 
@@ -905,8 +905,8 @@ pub mod icon {
 /// See [`zero_ui_wgt_container`] for the full widget API.
 pub mod container {
     pub use zero_ui_wgt_container::{
-        child_insert, child_insert_above, child_insert_below, child_insert_end, child_insert_left, child_insert_right,
-        child_insert_start, child_out_insert, ChildInsertPlace, Container,
+        child_insert, child_insert_above, child_insert_below, child_insert_end, child_insert_left, child_insert_right, child_insert_start,
+        child_out_insert, ChildInsertPlace, Container,
     };
 }
 
@@ -1294,7 +1294,10 @@ mod defaults {
             {
                 use zero_ui_ext_clipboard::*;
                 use zero_ui_ext_undo::*;
+                use zero_ui_ext_window::commands::*;
+                use zero_ui_wgt_input::commands::*;
                 use zero_ui_wgt_material_icons::outlined as icons;
+                use zero_ui_wgt_scroll::commands::*;
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));
@@ -1303,7 +1306,21 @@ mod defaults {
                 UNDO_CMD.init_icon(wgt_fn!(|_| Icon!(icons::UNDO)));
                 REDO_CMD.init_icon(wgt_fn!(|_| Icon!(icons::REDO)));
 
-                // !!: TODO review "static \w+_CMD" and add more icons when the icon example is running again.
+                CLOSE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CLOSE)));
+                MINIMIZE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MINIMIZE)));
+                MAXIMIZE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MAXIMIZE)));
+                FULLSCREEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FULLSCREEN)));
+
+                CONTEXT_MENU_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MENU_OPEN)));
+
+                #[cfg(feature = "inspector")]
+                zero_ui_wgt_inspector::INSPECT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SCREEN_SEARCH_DESKTOP)));
+
+                SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_TOP)));
+                SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_BOTTOM)));
+
+                ZOOM_IN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_IN)));
+                ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
             }
         }
     }

@@ -110,7 +110,7 @@ mod widgets {
     use zero_ui::{
         container::Container,
         wgt_prelude::*,
-        widget::{border, corner_radius},
+        widget::{self, border},
     };
 
     #[widget($crate::widgets::MrBorders)]

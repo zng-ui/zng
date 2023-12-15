@@ -1,10 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::convert::TryInto;
-use zero_ui::{
-    font::{CustomFont, FontDataRef, FontNames},
-    gesture::click_shortcut,
-    prelude::*,
-};
+use zero_ui::{gesture::click_shortcut, prelude::*};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 

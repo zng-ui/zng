@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    icon::{self, Icon},
     mouse::{cursor, CursorIcon},
     prelude::*,
     scroll::commands::ScrollToMode,
@@ -72,9 +71,6 @@ fn app_main() {
 
 fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
     use zero_ui::scroll::commands::*;
-
-    SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(icon::outlined::VERTICAL_ALIGN_TOP)));
-    SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(icon::outlined::VERTICAL_ALIGN_BOTTOM)));
 
     let scope = WidgetId::named("scroll");
     use menu::CmdButton;

@@ -1,8 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    button,
-    image,
+    button, image,
     layout::{margin, offset, size},
     prelude::*,
     rule_line::RuleLine,

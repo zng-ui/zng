@@ -230,7 +230,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                     children = ui_vec![
                         title(formatx!("{ico}")),
                         {
-                            let full_path = formatx!("zero_ui_material_icon::{font_mod}::{}", ico.name);
+                            let full_path = formatx!("icon::{font_mod}::{}", ico.name);
                             let copied = var(false);
                             Label! {
                                 txt = ico.name;

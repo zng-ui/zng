@@ -1,9 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{
-    image,
-    prelude::*,
-    widget::background_color,
-};
+use zero_ui::{image, prelude::*, widget::background_color};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
