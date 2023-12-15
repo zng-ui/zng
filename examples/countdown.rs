@@ -1,10 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
     image,
-    layout::size,
     prelude::*,
-    text::{font_size, font_weight},
-    widget::{background_color, corner_radius},
+    widget::background_color,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -54,10 +52,10 @@ fn app_main() {
             icon = WindowIcon::render(move || Container! {
                 image::render_retain = true;
 
-                size = (36, 36);
-                corner_radius = 8;
-                font_size = 28;
-                font_weight = FontWeight::BOLD;
+                layout::size = (36, 36);
+                widget::corner_radius = 8;
+                text::font_size = 28;
+                text::font_weight = FontWeight::BOLD;
                 child_align = Align::CENTER;
 
                 background_color = bkg.clone();

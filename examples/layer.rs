@@ -3,13 +3,11 @@
 use zero_ui::{
     button,
     color::filter::opacity,
-    container::padding,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     layer::AnchorOffset,
-    layout::{align, margin, offset, rotate, scale, y},
-    mouse::{on_mouse_enter, on_mouse_leave},
+    layout::{align, margin, offset},
     prelude::*,
-    widget::{background_color, border, corner_radius, hit_test_mode, modal, visibility, HitTestMode},
+    widget::{background_color, border, hit_test_mode, HitTestMode},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -37,7 +35,7 @@ fn app_main() {
                 font_size = 72;
                 font_family = "monospace";
                 opacity = 3.pct();
-                // rotate = 45.deg();
+                // layout::rotate = 45.deg();
                 align = Align::CENTER;
             },
         );
@@ -75,7 +73,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     let id = id.into();
     Container! {
         id;
-        modal = true;
+        widget::modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
         child = Container! {
@@ -87,7 +85,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 colors::GREEN.darken(80.pct()),
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
             );
-            button::extend_style = Style! { corner_radius = unset! };
+            button::extend_style = Style! { widget::corner_radius = unset! };
             padding = 2;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -102,7 +100,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                         spacing = 2;
                         children = ui_vec![
                             Button! {
-                                visibility = offset < 50;
+                                widget::visibility = offset < 50;
                                 child = Text!("Open Another");
                                 on_click = hn!(|_| {
                                     LAYERS.insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
@@ -202,12 +200,12 @@ fn anchor_example() -> impl UiNode {
         margin = (60, 0);
         align = Align::CENTER;
 
-        on_mouse_enter = hn!(|_| {
+        mouse::on_mouse_enter = hn!(|_| {
             LAYERS.insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), Text! {
                 id = "anchored";
                 txt = "Example";
                 font_color = rgb(0.92, 0.92, 0.92);
-                padding = 4;
+                layout::padding = 4;
                 font_weight = FontWeight::BOLD;
                 background_color = web_colors::DARK_GREEN.with_alpha(80.pct());
                 border = 1, web_colors::GREEN.darken(20.pct());
@@ -215,7 +213,7 @@ fn anchor_example() -> impl UiNode {
                 hit_test_mode = HitTestMode::Disabled;
             })
         });
-        on_mouse_leave = hn!(|_| {
+        mouse::on_mouse_leave = hn!(|_| {
             LAYERS.remove("anchored");
         });
 
@@ -229,8 +227,8 @@ fn transform_anchor_example() -> impl UiNode {
         id = "t-anchor";
         child = Text!("Transform Anchored");
 
-        rotate = 20.deg();
-        scale = 110.pct();
+        layout::rotate = 20.deg();
+        layout::scale = 110.pct();
 
         on_click = hn!(|_| {
             if insert {
@@ -240,7 +238,7 @@ fn transform_anchor_example() -> impl UiNode {
                     border = 1, colors::GREEN.lighten(30.pct());
                     hit_test_mode = HitTestMode::Disabled;
                     child = Text! {
-                        y = -(2.dip() + 100.pct());
+                        layout::y = -(2.dip() + 100.pct());
                         txt = "example";
                         font_weight = FontWeight::BOLD;
                     }

@@ -6,10 +6,9 @@ use std::sync::Arc;
 use zero_ui::{
     color::filter::drop_shadow,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
-    gesture::on_any_click,
     image,
     l10n::LangMap,
-    layout::{align, margin, size},
+    layout::align,
     prelude::*,
     widget::instance::presenter,
 };
@@ -64,7 +63,7 @@ fn app_main() {
 fn window_icon() -> impl UiNode {
     Text! {
         image::render_retain = true;
-        size = (36, 36);
+        layout::size = (36, 36);
         font_size = 28;
         font_weight = FontWeight::BOLD;
         txt_align = Align::CENTER;
@@ -90,7 +89,7 @@ fn window_content() -> impl UiNode {
         children = ui_vec![
             Button! {
                 child = Text!(l10n!("button", "Button")); // l10n-# button sets "click-count"
-                on_any_click = hn!(|a: &ClickArgs| {
+                gesture::on_any_click = hn!(|a: &ClickArgs| {
                     if a.is_primary() {
                         click_count.set(click_count.get() + 1);
                     } else if a.is_context() {
@@ -150,7 +149,7 @@ fn locale_menu() -> impl UiNode {
                     align = Align::TOP_START;
                     direction = StackDirection::start_to_end();
                     spacing = 5;
-                    margin = 10;
+                    layout::margin = 10;
                     toggle::selector = toggle::Selector::single_opt(selected);
                     children = options.map(|(l, actual)| {
                         Toggle! {

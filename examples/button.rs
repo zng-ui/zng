@@ -1,14 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
     color::filter::opacity,
-    gesture::{on_click, on_context_click, on_double_click, on_triple_click},
-    layout::{align, margin, size, sticky_width},
-    mouse::click_mode,
+    layout::{align, margin},
     prelude::*,
     stack,
-    text_input::TextInput,
-    tip::disabled_tooltip,
-    widget::{enabled, instance::list_presenter, interactive, is_inited, visibility},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -38,7 +33,7 @@ fn app_main() {
                     Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 5;
-                        sticky_width = true;
+                        layout::sticky_width = true;
                         children = ui_vec![
                             example(),
                             example(),
@@ -70,9 +65,9 @@ fn example() -> impl UiNode {
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(new_txt);
         });
-        on_double_click = hn!(|_| tracing::info!("double click!"));
-        on_triple_click = hn!(|_| tracing::info!("triple click!"));
-        on_context_click = hn!(|_| tracing::info!("context click!"));
+        gesture::on_double_click = hn!(|_| tracing::info!("double click!"));
+        gesture::on_triple_click = hn!(|_| tracing::info!("triple click!"));
+        gesture::on_context_click = hn!(|_| tracing::info!("context click!"));
         context_menu = ContextMenu!(ui_vec![
             Button! {
                 child = Text!("Context Item 1");
@@ -89,10 +84,10 @@ fn example() -> impl UiNode {
 fn disabled() -> impl UiNode {
     Button! {
         on_click = hn!(|_| panic!("disabled button"));
-        enabled = false;
+        widget::enabled = false;
         child = Text!("Disabled");
         id = "disabled-btn";
-        disabled_tooltip = Tip!(Text!("disabled tooltip"));
+        tip::disabled_tooltip = Tip!(Text!("disabled tooltip"));
     }
 }
 fn image_button() -> impl UiNode {
@@ -103,7 +98,7 @@ fn image_button() -> impl UiNode {
         child_insert_start = {
             insert: Image! {
                 source = "examples/res/window/icon-bytes.png";
-                size = 16;
+                layout::size = 16;
                 align = Align::CENTER;
             },
             spacing: 5,
@@ -116,7 +111,7 @@ fn repeat_button() -> impl UiNode {
 
     Button! {
         id = "repeat-btn";
-        click_mode = ClickMode::repeat();
+        mouse::click_mode = ClickMode::repeat();
         on_click = hn!(t, |args: &ClickArgs| {
             let new_txt = formatx!("repeat: {}, count: {}", args.is_repeat, args.click_count);
             t.set(new_txt);
@@ -230,7 +225,7 @@ fn combo_box() -> impl UiNode {
         id = "combo";
         child = TextInput! {
             txt = txt.clone();
-            on_click = hn!(|a: &ClickArgs| a.propagation().stop());
+            gesture::on_click = hn!(|a: &ClickArgs| a.propagation().stop());
         };
         style_fn = toggle::ComboStyle!();
 
@@ -284,7 +279,7 @@ fn dyn_buttons_from_data() -> impl UiNode {
     let data_source = var(ObservableVec::<char>::new());
     let mut btn = 'A';
 
-    let view = list_presenter(
+    let view = widget::instance::list_presenter(
         data_source.clone(),
         wgt_fn!(data_source, |data: char| {
             dyn_button(
@@ -337,13 +332,13 @@ fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> impl 
         #[easing(100.ms())]
         margin = (0, 0, -10, 0);
 
-        when *#is_inited {
+        when *#widget::is_inited {
             opacity = 100.pct();
             margin = 0;
         }
 
         when *#{removing} {
-            interactive = false;
+            widget::interactive = false;
             opacity = 0.pct();
             margin = (0, 0, -30, 0);
         }
@@ -368,7 +363,7 @@ fn separator() -> impl UiNode {
 fn separator_not_first() -> impl UiNode {
     Hr! {
         when #stack::is_first {
-            visibility = Visibility::Collapsed;
+            widget::visibility = Visibility::Collapsed;
         }
 
         color = rgba(1.0, 1.0, 1.0, 0.2);

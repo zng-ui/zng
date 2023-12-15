@@ -1,12 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    gesture::is_pressed,
     icon::{self, Icon},
     mouse::{cursor, CursorIcon},
     prelude::*,
     scroll::commands::ScrollToMode,
-    widget::{background_color, enabled},
+    widget::enabled,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -34,7 +33,7 @@ fn app_main() {
             child = Scroll! {
                 id = "scroll";
                 padding = 20;
-                background_color = color_scheme_map(
+                widget::background_color = color_scheme_map(
                     hex!(#245E81),
                     colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                 );
@@ -44,7 +43,7 @@ fn app_main() {
                 when *#mouse_pan {
                     cursor = CursorIcon::Grab;
                 }
-                when *#mouse_pan && *#is_pressed {
+                when *#mouse_pan && *#gesture::is_pressed {
                     cursor = CursorIcon::Grabbing;
                 }
 

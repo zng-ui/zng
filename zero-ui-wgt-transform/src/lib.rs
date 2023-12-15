@@ -262,7 +262,7 @@ pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl U
     })
 }
 
-/// Vanishing point used 3D transforms in the widget's children.
+/// Vanishing point used by 3D transforms in the widget's children.
 ///
 /// Is the widget center by default.
 ///

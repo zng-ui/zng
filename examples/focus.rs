@@ -3,17 +3,16 @@
 use zero_ui::{
     button,
     color::filter::drop_shadow,
-    container::padding,
     focus::{
         alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
         tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
         FOCUS_CHANGED_EVENT,
     },
     font::FontName,
-    layout::{align, margin, min_width},
+    layout::{align, margin, padding},
     prelude::*,
-    text::{font_color, font_family},
-    widget::{background, background_color, border, corner_radius, enabled, modal},
+    text::font_color,
+    widget::{background_color, border, corner_radius, enabled},
     window::FocusIndicator,
 };
 
@@ -40,7 +39,7 @@ fn app_main() {
         Window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
-            background = commands();
+            widget::background = commands();
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
@@ -168,7 +167,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
 fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     Button! {
         child = Text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
-        min_width = 140;
+        layout::min_width = 140;
         on_click = async_hn!(window_enabled, |_| {
             window_enabled.set(false);
             task::deadline(1.secs()).await;
@@ -179,7 +178,7 @@ fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
 fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
     Container! {
         id = "overlay";
-        modal = true;
+        widget::modal = true;
         child_align = Align::CENTER;
         child = Container! {
             focus_scope = true;
@@ -323,7 +322,7 @@ fn commands() -> impl UiNode {
         spacing = 8;
         children_align = Align::RIGHT;
 
-        font_family = FontName::monospace();
+        text::font_family = FontName::monospace();
         font_color = colors::GRAY;
 
         children = cmds.into_iter().map(|cmd| {

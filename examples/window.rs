@@ -5,15 +5,13 @@ use zero_ui::{
     app::EXIT_CMD,
     button,
     color::filter::{backdrop_blur, drop_shadow, opacity},
-    container::padding,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
-    gesture::on_click,
     image::ImageDataFormat,
-    layout::{align, margin, max_height, size},
+    layout::{align, margin, max_height, padding, size},
     prelude::*,
     scroll::ScrollMode,
     text::Strong,
-    widget::{background_color, corner_radius, enabled, foreground, modal, visibility},
+    widget::{background_color, corner_radius, enabled, visibility},
     window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 
@@ -51,7 +49,7 @@ async fn main_window() -> WindowRoot {
     Window! {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
-        foreground = Text! {
+        widget::foreground = Text! {
             txt = title.clone();
             visibility = window_vars.state().map(|s| s.is_fullscreen().into());
             align = Align::TOP;
@@ -652,11 +650,11 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
         opacity = opacity.clone();
 
         id = "close-dialog";
-        modal = true;
+        widget::modal = true;
         backdrop_blur = 2;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        on_click = hn!(|args: &ClickArgs| {
+        gesture::on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
                 args.propagation().stop();
                 ACCESS.click(WINDOW.id(), "cancel-btn", true);

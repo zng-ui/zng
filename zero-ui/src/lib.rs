@@ -57,6 +57,7 @@ pub use zero_ui_app::__proc_macro_util;
 /// Types for general app development.
 pub mod prelude {
     pub use crate::APP;
+    pub use crate::{gesture, keyboard, layout, mouse, touch, widget};
 
     pub use zero_ui_task::rayon::prelude::{
         FromParallelIterator as _, IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
@@ -121,8 +122,7 @@ pub mod prelude {
     pub use zero_ui_ext_config::CONFIG;
 
     pub use zero_ui_ext_font::{
-        font_features, FontSize, FontStretch, FontStyle, FontWeight, Hyphens, Justify, TextTransformFn, WhiteSpace, WordBreak, WordSpacing,
-        FONTS,
+        font_features, FontSize, FontStretch, FontStyle, FontWeight, Hyphens, Justify, TextTransformFn, WhiteSpace, WordBreak, WordSpacing
     };
 
     pub use zero_ui_ext_fs_watcher::WATCHER;
@@ -153,8 +153,9 @@ pub mod prelude {
     pub use zero_ui_wgt::Wgt;
 
     pub use zero_ui_wgt_text::Text;
-
     pub use crate::text;
+
+    pub use zero_ui_wgt_text_input::TextInput;
 
     pub use zero_ui_wgt_window::Window;
 
@@ -165,17 +166,14 @@ pub mod prelude {
     pub use zero_ui_wgt_data::{data, DATA};
 
     pub use zero_ui_wgt_grid::Grid;
-
     pub use crate::grid;
 
     pub use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
+    pub use crate::layer;
 
     pub use zero_ui_wgt_text::icon::CommandIconExt as _;
 
-    pub use crate::layer;
-
     pub use zero_ui_wgt_layer::popup::POPUP;
-
     pub use crate::popup;
 
     pub use zero_ui_wgt_menu::{
@@ -183,7 +181,6 @@ pub mod prelude {
         sub::SubMenu,
         Menu,
     };
-
     pub use crate::menu;
 
     pub use zero_ui_wgt_rule_line::hr::Hr;
@@ -191,10 +188,10 @@ pub mod prelude {
     pub use zero_ui_wgt_scroll::{Scroll, SCROLL};
 
     pub use zero_ui_wgt_toggle::Toggle;
-
     pub use crate::toggle;
 
-    pub use crate::tip::{self, tooltip, tooltip_fn, Tip};
+    pub use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip};
+    pub use crate::tip;
 
     pub use zero_ui_wgt::{wgt_fn, WidgetFn};
 
@@ -370,6 +367,8 @@ pub mod layout {
     };
 
     pub use zero_ui_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
+
+    pub use zero_ui_wgt_container::{child_align, padding};
 
     pub use zero_ui_app::render::TransformStyle;
 }
@@ -906,8 +905,8 @@ pub mod icon {
 /// See [`zero_ui_wgt_container`] for the full widget API.
 pub mod container {
     pub use zero_ui_wgt_container::{
-        child_align, child_insert, child_insert_above, child_insert_below, child_insert_end, child_insert_left, child_insert_right,
-        child_insert_start, child_out_insert, padding, ChildInsertPlace, Container,
+        child_insert, child_insert_above, child_insert_below, child_insert_end, child_insert_left, child_insert_right,
+        child_insert_start, child_out_insert, ChildInsertPlace, Container,
     };
 }
 

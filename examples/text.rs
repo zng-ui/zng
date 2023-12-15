@@ -8,21 +8,20 @@ use zero_ui::{
     button,
     clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
     color::filter::opacity,
-    container::padding,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     font::{FontName, FontNames},
     gesture::{click_shortcut, is_hovered},
     icon::{self, Icon},
     label::{self, Label},
-    layout::{actual_width, align, margin, min_height, min_width},
+    layout::{align, margin, padding},
     prelude::*,
     rule_line,
     scroll::ScrollMode,
     stack::z_stack,
-    text::{font_family, font_size, font_weight, txt_align, Em, Strong, UnderlinePosition, UnderlineSkip},
-    text_input::{self, TextInput},
+    text::{font_family, font_weight, UnderlinePosition, UnderlineSkip},
+    text_input,
     undo::{self, REDO_CMD, UNDO_CMD},
-    widget::{background_color, border, corner_radius, enabled, visibility},
+    widget::{background_color, corner_radius, enabled, visibility},
     window::native_dialog,
 };
 
@@ -48,7 +47,7 @@ fn app_main() {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             child = z_stack(ui_vec![
                 Stack! {
-                    font_size = fs.easing(150.ms(), easing::linear);
+                    text::font_size = fs.easing(150.ms(), easing::linear);
                     direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
@@ -145,8 +144,8 @@ fn basic() -> impl UiNode {
         "basic",
         ui_vec![
             Text!("Basic Text"),
-            Strong!("Strong Text"),
-            Em!("Emphasis Text"),
+            text::Strong!("Strong Text"),
+            text::Em!("Emphasis Text"),
             Text! {
                 font_color = color_scheme_map(web_colors::LIGHT_GREEN, web_colors::DARK_GREEN);
                 txt = "Colored Text";
@@ -194,7 +193,7 @@ fn line_spacing() -> impl UiNode {
                 }
             };
             child_align = Align::TOP;
-            min_height = 1.7.em() * 3.fct();
+            layout::min_height = 1.7.em() * 3.fct();
         }],
     )
 }
@@ -400,7 +399,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                 padding = (7, 4);
                 txt_align = Align::TOP_RIGHT;
                 opacity = 80.pct();
-                min_width = 24;
+                layout::min_width = 24;
                 txt = editor.lines.map(|s| {
                     use std::fmt::Write;
                     let mut txt = String::new();
@@ -431,7 +430,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                 accepts_enter = true;
                 get_caret_status = editor.caret_status.clone();
                 get_lines_wrap_count = editor.lines.clone();
-                border = unset!;
+                widget::border = unset!;
             };
         };
 
@@ -456,7 +455,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         spacing = 4;
         direction = StackDirection::left_to_right();
         padding = 4;
-        actual_width = menu_width;
+        layout::actual_width = menu_width;
         button::extend_style = Style! {
             padding = (2, 4);
             corner_radius = 2;
@@ -843,7 +842,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             spacing = (5, 10);
             padding = 20;
 
-            label::extend_style = Style! { txt_align = Align::END; };
+            label::extend_style = Style! { text::txt_align = Align::END; };
             text_input::replace_style = style_fn!(|_| text_input::FieldStyle!());
 
             cells = ui_vec![

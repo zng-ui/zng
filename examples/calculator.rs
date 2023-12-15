@@ -3,9 +3,7 @@ use std::convert::TryInto;
 use zero_ui::{
     font::{CustomFont, FontDataRef, FontNames},
     gesture::click_shortcut,
-    layout::align,
     prelude::*,
-    text::font_size,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -39,7 +37,7 @@ fn app_main() {
                 children = ui_vec![
                     Text! {
                         txt = DATA.req::<Calculator>().map_ref(|c| c.text());
-                        align = Align::RIGHT;
+                        layout::align = Align::RIGHT;
                         font_size = 32.pt();
 
                         when #{DATA.req::<Calculator>()}.error() {
@@ -65,7 +63,7 @@ fn controls() -> impl UiNode {
         spacing = 2;
         columns = ui_vec![grid::Column!(1.lft()); 4];
         auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-        font_size = 14.pt();
+        text::font_size = 14.pt();
         cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
@@ -248,6 +246,7 @@ impl Calculator {
 
 /// set custom fallback font for the ⌫ symbol.
 async fn set_fallback_font() {
+    use zero_ui::font::*;
     let und = lang!(und);
 
     if FONTS

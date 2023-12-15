@@ -1,10 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
-    container::padding,
-    gesture::on_click,
-    layout::{align, rotate},
     prelude::*,
-    widget::{background_color, border, border_align, corner_radius},
+    widget::{background_color, border_align, corner_radius},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -13,7 +10,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    //let rec = examples_util::record_profile("border);
+    //let rec = examples_util::record_profile("border");
 
     // zero_ui_view::run_same_process(app_main);
     app_main();
@@ -31,7 +28,7 @@ fn app_main() {
             color_scheme = ColorScheme::Dark;
 
             child = Stack! {
-                align = Align::CENTER;
+                layout::align = Align::CENTER;
                 spacing = 20;
                 direction = StackDirection::left_to_right();
                 children = ui_vec![
@@ -93,16 +90,16 @@ fn clip_to_bounds_demo() -> impl UiNode {
     Container! {
         child_align = Align::FILL;
         corner_radius = 10;
-        border = 0.5, web_colors::RED.darken(20.pct());
+        widget::border = 0.5, web_colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
-        on_click = hn!(clip, |_| {
+        gesture::on_click = hn!(clip, |_| {
             clip.modify(|c| *c.to_mut() = !**c)
         });
         child = Text! {
             corner_radius = 0;
             background_color = web_colors::GREEN.darken(40.pct());
-            padding = 3;
-            rotate = -(5.deg());
+            layout::padding = 3;
+            layout::rotate = -(5.deg());
             txt_align = Align::CENTER;
             txt = clip.map(|c| formatx!("clip_to_bounds = {c}"));
         };
@@ -113,7 +110,7 @@ mod widgets {
     use zero_ui::{
         container::Container,
         wgt_prelude::*,
-        widget::{background_color, border, corner_radius, foreground_highlight},
+        widget::{border, corner_radius},
     };
 
     #[widget($crate::widgets::MrBorders)]
@@ -126,15 +123,15 @@ mod widgets {
 
                 child_align = Align::CENTER;
 
-                background_color = web_colors::GREEN.darken(40.pct());
+                widget::background_color = web_colors::GREEN.darken(40.pct());
 
                 border0 = 4, colors::WHITE.with_alpha(20.pct());
                 border1 = 4, colors::BLACK.with_alpha(20.pct());
                 border2 = 4, colors::WHITE.with_alpha(20.pct());
 
-                foreground_highlight = 3, 1, web_colors::ORANGE;
+                widget::foreground_highlight = 3, 1, web_colors::ORANGE;
 
-                corner_radius = 20;
+                widget::corner_radius = 20;
             }
         }
     }

@@ -2,9 +2,7 @@
 
 use zero_ui::{
     font::FontName,
-    gesture,
-    keyboard::{self, Key, KeyState},
-    layout::{align, margin},
+    layout::align,
     prelude::*,
 };
 
@@ -43,11 +41,11 @@ fn app_main() {
             .perm();
         keyboard::KEY_INPUT_EVENT
             .on_pre_event(app_hn!(shortcut_text, keypress_text, shortcut_error, |args: &KeyInputArgs, _| {
-                if args.repeat_count > 0 || args.state != KeyState::Pressed {
+                if args.repeat_count > 0 || args.state != keyboard::KeyState::Pressed {
                     return;
                 }
                 let mut new_shortcut_text = "not supported";
-                if !matches!(&args.key, Key::Unidentified) {
+                if !matches!(&args.key, keyboard::Key::Unidentified) {
                     if args.key.is_modifier() {
                         new_shortcut_text = "";
                     }
@@ -80,7 +78,7 @@ fn app_main() {
                     },
                     Text! {
                         align = Align::CENTER;
-                        margin = (10, 0);
+                        layout::margin = (10, 0);
                         font_size = 28.pt();
                         txt = shortcut_text;
 

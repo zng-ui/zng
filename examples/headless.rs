@@ -4,10 +4,8 @@ use zero_ui::{
         gradient::{linear_gradient, GradientStops},
     },
     image::Img,
-    layout::{align, size},
     prelude::*,
     stack::stack_nodes,
-    widget::background,
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
@@ -66,9 +64,9 @@ fn headless_example() {
 // A 800x600 "Hello World!" with a fancy background.
 fn image() -> impl UiNode {
     Container! {
-        size = (800, 600);
+        layout::size = (800, 600);
 
-        background = stack_nodes({
+        widget::background = stack_nodes({
             fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
                 color.alpha = 0.3;
                 let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
@@ -90,7 +88,7 @@ fn image() -> impl UiNode {
         });
 
         child = Text! {
-            align = Align::CENTER;
+            layout::align = Align::CENTER;
             txt = "Hello World!";
             font_size = 72;
             font_family = ["Consolas", "monospace"];

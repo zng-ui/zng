@@ -8,15 +8,13 @@ use zero_ui::{
         filter::{drop_shadow, filter, mix_blend, Filter},
         gradient::stops,
     },
-    container::padding,
     image::{self, img_error_fn, img_loading_fn, mask::mask_image, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs},
-    layout::{align, margin, max_size, size, width, x, y},
+    layout::{align, margin, padding, size},
     mouse,
     prelude::*,
     scroll::ScrollMode,
     task::http,
-    text::font_size,
-    widget::{background, background_color, background_gradient, border, corner_radius, enabled, foreground},
+    widget::{background_color, border},
     window::WindowState,
 };
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -101,8 +99,8 @@ fn app_main() {
                                 img_scale_ppi = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_| Container! {
                                     size = (180, 120);
-                                    background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
-                                    font_size = 24;
+                                    widget::background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
+                                    text::font_size = 24;
                                     child_align = Align::CENTER;
                                     child = Text!("Rendered!");
                                 })
@@ -142,7 +140,7 @@ fn app_main() {
                                     Image! {
                                         source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                                         size = (200, 100);
-                                        foreground = Text! {
+                                        widget::foreground = Text! {
                                             mix_blend = MixBlendMode::ColorDodge;
                                             font_color = colors::RED;
                                             txt = "Blend";
@@ -288,7 +286,7 @@ fn sprite() -> impl UiNode {
                     widths: 1,
                     sides: BorderSides::dashed(colors::GRAY),
                 };
-                corner_radius = 4;
+                widget::corner_radius = 4;
                 img_crop = timer.map(|n| {
                     if n.count() == 10 {
                         n.set_count(0);
@@ -364,7 +362,7 @@ fn block_window_load_image() -> impl UiNode {
     let enabled = var(true);
     Button! {
         child = Text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
-        enabled = enabled.clone();
+        widget::enabled = enabled.clone();
         on_click = hn!(|_| {
             enabled.set(false);
             WINDOWS.open(async_clmv!(enabled, {
@@ -474,10 +472,10 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        x = zero_ui::scroll::SCROLL.horizontal_offset().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-        y = zero_ui::scroll::SCROLL.vertical_offset().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
-        zero_ui::widget::can_auto_hide = false;
-        max_size = (1.vw(), 1.vh());
+        layout::x = zero_ui::scroll::SCROLL.horizontal_offset().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        layout::y = zero_ui::scroll::SCROLL.vertical_offset().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        widget::can_auto_hide = false;
+        layout::max_size = (1.vw(), 1.vh());
         child_align = Align::CENTER;
 
         child = msg;
@@ -509,7 +507,7 @@ impl ImgWindow {
             size = (1140, 770);// restore size
 
             icon = "examples/res/image/RGB8.png";
-            background = Checkerboard!();
+            widget::background = Checkerboard!();
 
             color_scheme = ColorScheme::Dark;
 
@@ -558,7 +556,7 @@ pub fn loading() -> impl UiNode {
         txt = msg;
         font_color = loading_color();
         margin = 8;
-        width = 80;
+        layout::width = 80;
         font_style = FontStyle::Italic;
         drop_shadow = {
             offset: (0, 0),

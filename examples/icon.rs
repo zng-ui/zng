@@ -4,20 +4,16 @@ use zero_ui::{
     access::{access_role, AccessRole, ACCESS},
     clipboard,
     color::filter::{backdrop_blur, drop_shadow, opacity},
-    container::padding,
     focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
     font::FontName,
-    gesture::{is_hovered, on_click},
+    gesture::on_click,
     icon::{self, Icon, MaterialIcon},
     label::Label,
-    layout::{align, height, margin, min_width, size},
-    mouse::{cursor, CursorIcon},
+    layout::{align, margin, padding},
     prelude::*,
     scroll::{lazy, LazyMode, ScrollMode},
-    text_input::TextInput,
-    tip::disabled_tooltip,
     view::{View, ViewArgs},
-    widget::{background, background_color, corner_radius, enabled, foreground, modal, visibility},
+    widget::{background_color, corner_radius},
     wrap,
 };
 
@@ -106,19 +102,19 @@ fn icons() -> impl UiNode {
                 txt = search.clone();
                 margin = (15, 0, 0, 0);
                 padding = (7, 15, 7, 26);
-                min_width = 40.vh_pct();
+                layout::min_width = 40.vh_pct();
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
-                foreground = Icon! {
+                widget::foreground = Icon! {
                     align = Align::LEFT;
                     ico = icon::outlined::SEARCH;
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
                 };
-                background = Text! {
+                widget::background = Text! {
                     padding = (8, 16, 8, 27); // +1 border width
                     txt = "search icons";
                     opacity = 50.pct();
-                    visibility = search.map(|t| t.is_empty().into());
+                    widget::visibility = search.map(|t| t.is_empty().into());
                 };
                 access_role = AccessRole::SearchBox;
                 tooltip = Tip!(Text!("search icons (S, Ctrl+F)"));
@@ -177,7 +173,7 @@ fn icons() -> impl UiNode {
 fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
     Button! {
         padding = 2;
-        size = (80, 80);
+        layout::size = (80, 80);
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
@@ -190,7 +186,7 @@ fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
                     txt = formatx!("{ico}");
                     txt_align = Align::CENTER;
                     font_size = 10;
-                    height = 2.em();
+                    layout::height = 2.em();
                     line_height = 1.em();
                 },
             ]
@@ -208,7 +204,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
         opacity = opacity.clone();
 
         id = "expanded-icon";
-        modal = true;
+        widget::modal = true;
         backdrop_blur = 2;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
@@ -240,10 +236,10 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                                 txt = ico.name;
                                 font_family = FontName::monospace();
                                 font_size = 18;
-                                cursor = CursorIcon::Pointer;
-                                enabled = copied.map(|&c| !c);
+                                mouse::cursor = mouse::CursorIcon::Pointer;
+                                widget::enabled = copied.map(|&c| !c);
                                 tooltip = Tip!(Text!("copy '{full_path}'"));
-                                disabled_tooltip = Tip!(Text!("copied!"));
+                                tip::disabled_tooltip = Tip!(Text!("copied!"));
                                 on_click = async_hn!(copied, full_path, |_| {
                                     if clipboard::CLIPBOARD.set_text(full_path).is_ok() {
                                         ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
@@ -252,7 +248,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                                         copied.set(false);
                                     }
                                 });
-                                when *#is_hovered {
+                                when *#gesture::is_hovered {
                                     background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                                 }
                             }

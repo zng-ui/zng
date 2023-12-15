@@ -2,11 +2,8 @@
 
 use zero_ui::{
     color::{filter::opacity, gradient::stops},
-    keyboard::{on_key_down, Key},
-    layout::{align, margin, max_width, size},
+    layout::size,
     prelude::*,
-    text::{font_family, font_size, font_weight, Strong},
-    widget::{background_color, background_gradient, corner_radius, foreground},
 };
 use zero_ui_app::view_process::VIEW_PROCESS;
 use zero_ui_view::extensions::ViewExtensions;
@@ -20,12 +17,12 @@ fn main() {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = StartPosition::CenterMonitor;
-            on_key_down = hn!(|args: &KeyInputArgs| {
-                if args.key == Key::F5 {
+            keyboard::on_key_down = hn!(|args: &KeyInputArgs| {
+                if args.key == keyboard::Key::F5 {
                     VIEW_PROCESS.respawn();
                 }
             });
-            foreground = window_status();
+            widget::foreground = window_status();
             child_align = Align::CENTER;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -36,7 +33,7 @@ fn main() {
                         txt = "The renderer and OS windows are created in another process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
                         txt_align = Align::CENTER;
-                        max_width = 620;
+                        layout::max_width = 620;
                     },
                     respawn(),
                     crash_respawn(),
@@ -90,7 +87,7 @@ fn image() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 3;
         children = ui_vec![
-            Strong!("Image:"),
+            text::Strong!("Image:"),
             Image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
     }
@@ -108,10 +105,10 @@ fn window_status() -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        margin = 10;
-        align = Align::TOP_LEFT;
-        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
-        font_family = "monospace";
+        layout::margin = 10;
+        layout::align = Align::TOP_LEFT;
+        widget::background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        text::font_family = "monospace";
         opacity = 80.pct();
         children = ui_vec![
             status!(actual_position),
@@ -125,10 +122,10 @@ fn window_status() -> impl UiNode {
 fn icon() -> impl UiNode {
     Container! {
         size = (36, 36);
-        background_gradient = Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
-        corner_radius = 6;
-        font_size = 28;
-        font_weight = FontWeight::BOLD;
+        widget::background_gradient = Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
+        widget::corner_radius = 6;
+        text::font_size = 28;
+        text::font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
         child = Text!("R");
     }

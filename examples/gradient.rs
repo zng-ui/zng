@@ -9,7 +9,6 @@ use zero_ui::{
     prelude::*,
     stack::stack_nodes,
     text::ToText,
-    widget::{background_gradient, corner_radius},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -201,8 +200,8 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
 fn icon() -> impl UiNode {
     Text! {
         size = 36;
-        background_gradient = Line::to_bottom_right(), stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON];
-        corner_radius = 6;
+        widget::background_gradient = Line::to_bottom_right(), stops![web_colors::MIDNIGHT_BLUE, 70.pct(), web_colors::CRIMSON];
+        widget::corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
         txt_align = Align::CENTER;

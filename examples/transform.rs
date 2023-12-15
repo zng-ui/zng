@@ -2,19 +2,18 @@
 
 use zero_ui::{
     button,
-    gesture::{is_hovered, on_click},
+    gesture::is_hovered,
     layout::{
-        align, backface_visibility, margin, offset, perspective, perspective_origin, rotate, rotate_y, size, slerp_sampler, transform,
-        transform_origin, transform_style, translate, TransformStyle,
+        align, margin, perspective, rotate, rotate_y, size, slerp_sampler, transform,
+        transform_style, TransformStyle,
     },
     pointer_capture::capture_pointer,
     prelude::*,
     stack::z_stack,
     text::font_size,
     toggle,
-    touch::touch_transform,
     var::animation::{self, easing::EasingStep},
-    widget::{background, background_color, border, corner_radius, z_index},
+    widget::{background_color, border, corner_radius, z_index},
     window::WindowState,
 };
 
@@ -121,12 +120,12 @@ fn transform3d_examples() -> impl UiNode {
                         transform_style = TransformStyle::Preserve3D;
                         #[easing(300.ms())]
                         rotate_y = show_front.map(|&f| if f { 0.deg() } else { 180.deg() }.into());
-                        on_click = hn!(|_| {
+                        gesture::on_click = hn!(|_| {
                             show_front.set(!show_front.get());
                         });
                         size = (100, 80);
                         corner_radius = 5;
-                        backface_visibility = false;
+                        layout::backface_visibility = false;
 
                         child = Text! {
                             background_color = colors::GREEN.with_alpha(70.pct());
@@ -135,7 +134,7 @@ fn transform3d_examples() -> impl UiNode {
                             font_size = 24;
                             txt = "FRONT";
                         };
-                        background = Text! {
+                        widget::background = Text! {
                             rotate_y = 180.deg();
                             background_color = colors::BLUE.lighten(50.pct()).with_alpha(70.pct());
                             txt_align = Align::CENTER;
@@ -185,7 +184,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
 
         is_hovered = parent_is_hovered;
         perspective = 400;
-        perspective_origin = origin;
+        layout::perspective_origin = origin;
         transform_style = TransformStyle::Preserve3D;
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
@@ -196,7 +195,7 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
         child = Container! {
             #[easing(300.ms())]
             transform;
-            transform_origin = origin.into();
+            layout::transform_origin = origin.into();
 
             child = Text!(label.into());
             background_color = color_scheme_map(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
@@ -285,7 +284,7 @@ fn transform_order() -> impl UiNode {
         Wgt! {
             // two properties
             rotate = 10.deg();
-            translate = -5, -5;
+            layout::translate = -5, -5;
 
             size = (60, 60);
             background_color = web_colors::GREEN;
@@ -412,9 +411,9 @@ fn touch_example() -> impl UiNode {
         children = ui_vec![
             Wgt! {
                 capture_pointer = true;
-                touch_transform = mode.clone();
+                touch::touch_transform = mode.clone();
 
-                offset = 200;
+                layout::offset = 200;
                 size = 400;
                 background_color = web_colors::DODGER_BLUE;
                 corner_radius = 10;

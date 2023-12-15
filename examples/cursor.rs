@@ -2,17 +2,13 @@
 
 use zero_ui::{
     color::filter::invert_color,
-    gesture::is_hovered,
     image::ImageFit,
     layer::AnchorOffset,
-    layout::{align, margin, size},
-    mouse::{cursor, CursorIcon},
+    mouse::CursorIcon,
     prelude::*,
     stack::v_stack,
     text::font_color,
-    tip::{tooltip_anchor, tooltip_delay},
     wgt_prelude::NilUiNode,
-    widget::{background, background_color},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -52,13 +48,13 @@ fn app_main() {
 fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     Container! {
         grid::cell::at = grid::cell::AT_AUTO;
-        cursor = icon.map(|i| i.0);
+        mouse::cursor = icon.map(|i| i.0);
 
-        size = (150, 80);
-        align = Align::CENTER;
+        layout::size = (150, 80);
+        layout::align = Align::CENTER;
 
         tooltip = Tip!(Text!("tooltip position"));
-        tooltip_anchor = {
+        tip::tooltip_anchor = {
             let mut mode = AnchorMode::tooltip();
             mode.transform = layer::AnchorTransform::Cursor {
                 offset: AnchorOffset::out_bottom_in_left(),
@@ -67,11 +63,11 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
             };
             mode
         };
-        tooltip_delay = 0.ms();
+        tip::tooltip_delay = 0.ms();
 
-        margin = 1;
-        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
-        background = match icon {
+        layout::margin = 1;
+        widget::background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+        widget::background = match icon {
             Some((_, img)) => Image!{
                 source = img;
                 img_fit = ImageFit::None;
@@ -83,7 +79,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         #[easing(150.ms())]
         font_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
 
-        when *#is_hovered {
+        when *#gesture::is_hovered {
             #[easing(0.ms())]
             font_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }

@@ -2,11 +2,8 @@
 
 use zero_ui::{
     button,
-    container::padding,
-    gesture::{click_shortcut, is_hovered},
     image,
-    layout::size,
-    layout::{height, margin, offset, translate, width, x},
+    layout::{margin, offset, size},
     prelude::*,
     rule_line::RuleLine,
     var::{
@@ -16,7 +13,7 @@ use zero_ui::{
         },
         VARS,
     },
-    widget::{background, background_color, border, corner_radius, foreground_highlight},
+    widget::{background_color, corner_radius},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -70,8 +67,8 @@ fn example() -> impl UiNode {
         children = ui_vec![
             Container! {
                 id = "demo";
-                width = 301;
-                background = ruler();
+                layout::width = 301;
+                widget::background = ruler();
                 margin = (0, 0, 40, 0);
                 child_align = Align::LEFT;
                 child = Wgt! {
@@ -80,9 +77,9 @@ fn example() -> impl UiNode {
                     corner_radius = 20;
                     background_color = color.clone();
 
-                    x = x.map(|x| x.clone() - 20.dip());
+                    layout::x = x.map(|x| x.clone() - 20.dip());
 
-                    when *#is_hovered {
+                    when *#gesture::is_hovered {
                         background_color = web_colors::LIME;
                     }
                 };
@@ -112,7 +109,7 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 columns = ui_vec![grid::Column!(1.lft()); 7];
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                button::extend_style = Style! { padding = 3 };
+                button::extend_style = Style! { layout::padding = 3 };
                 cells = ui_vec![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
@@ -132,12 +129,12 @@ fn example() -> impl UiNode {
             },
             Button! {
                 child = Text!("reset");
-                foreground_highlight = {
+                widget::foreground_highlight = {
                     offsets: -2,
                     widths: 1,
                     sides: web_colors::DARK_RED,
                 };
-                click_shortcut = shortcut![Escape];
+                gesture::click_shortcut = shortcut![Escape];
                 on_click = hn!(x, color, |_| {
                     x.set(0);
                     color.set(FROM_COLOR);
@@ -214,7 +211,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                         offset = (x, y);
                         size = (3, 3);
                         corner_radius = 2;
-                        translate = -1.5, -1.5;
+                        layout::translate = -1.5, -1.5;
                         background_color = color_t.sample(y_fct);
                     }
                     .boxed(),
@@ -252,7 +249,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 children_align = Align::TOP_LEFT;
                 children;
                 size;
-                border = (0, 0, 1, 1), meta_color.map_into();
+                widget::border = (0, 0, 1, 1), meta_color.map_into();
                 margin = 10;
             }
         }),
@@ -266,8 +263,8 @@ fn ruler() -> impl UiNode {
             .map(|x| RuleLine! {
                 orientation = LineOrientation::Vertical;
                 color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
-                x = x.dip();
-                height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
+                layout::x = x.dip();
+                layout::height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }
             .boxed())
             .collect::<Vec<_>>(),

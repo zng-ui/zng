@@ -1,13 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
     color::filter::opacity,
-    gesture::{is_cap_hovered, on_click},
     icon::{outlined as icons, Icon},
-    layout::{align, margin, min_width},
+    layout::{align, margin},
     prelude::*,
-    text_input::TextInput,
-    tip::disabled_tooltip,
-    widget::{background, enabled, is_disabled},
 };
 
 use zero_ui::config::*;
@@ -58,22 +54,22 @@ fn config_editor<T: ConfigValue, E: UiNode>(
         child = editor(CONFIG.get(formatx!("main.{main_cfg_key}"), default));
         child_insert_start = {
             insert: Icon! {
-                enabled = main_cfg.can_reset(main_cfg_key.clone());
-                on_click = hn!(|_| {
+                widget::enabled = main_cfg.can_reset(main_cfg_key.clone());
+                gesture::on_click = hn!(|_| {
                     main_cfg.reset(&main_cfg_key);
                 });
 
                 ico = icons::SETTINGS_BACKUP_RESTORE;
                 tooltip = Tip!(Text!("reset"));
-                disabled_tooltip = Tip!(Text!("is default"));
+                tip::disabled_tooltip = Tip!(Text!("is default"));
 
                 ico_size = 18;
 
                 opacity = 70.pct();
-                when *#is_cap_hovered {
+                when *#gesture::is_cap_hovered {
                     opacity = 100.pct();
                 }
-                when *#is_disabled {
+                when *#widget::is_disabled {
                     opacity = 30.pct();
                 }
             },
@@ -117,14 +113,14 @@ fn app_main() {
             |txt| {
                 TextInput! {
                     txt;
-                    min_width = 100;
+                    layout::min_width = 100;
                 }
             },
         );
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
-            background = Text! {
+            widget::background = Text! {
                 txt = CONFIG.status().map_to_text();
                 margin = 10;
                 font_family = "monospace";
