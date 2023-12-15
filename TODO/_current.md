@@ -22,17 +22,18 @@ TextInput! {
 }
 ```
 
-* Issue, maybe caused by opening without interaction (minimized?)
+* Issue:
 ```
-ERROR zero_ui_core::app: updated 1000 times without rendering, probably stuck in an infinite loop
+ERROR zero_ui_app::running: updated 1000 times without rendering, probably stuck in an infinite loop
 will start skipping updates to render and poll system events
 top 20 most frequent update requests (in 500 cycles):
+WindowManager//WindowId(1) update var of type Factor (250 times)
 WindowManager//WindowId(1) update (250 times)
-WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)
 ```
     - Observed multiple times, after a slow build when the VS window is not focused.
-    - Added debug panics in scale_factor vars of window and monitor if they change more then 10 times, lets see.
-    - Debug panics marked with comment "// debug WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)".
+    - Is not scale_factor vars, added debug panics in scale_factor vars of window and monitor, did not panic.
+    - Observed in 'button' example, when it opened VSCode was visible in the background of Firefox and not focused,
+      build time was 2m, when focus was moved the the example window it had not rendered fonts yet.
 
 # Hit-test
 

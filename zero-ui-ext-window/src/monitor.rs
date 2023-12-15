@@ -234,7 +234,7 @@ impl fmt::Debug for MonitorInfo {
 impl MonitorInfo {
     /// New from a [`zero_ui_view_api::MonitorInfo`].
     fn from_gen(id: MonitorId, info: zero_ui_view_api::window::MonitorInfo) -> Self {
-        let m = MonitorInfo {
+        MonitorInfo {
             id,
             is_primary: var(info.is_primary),
             name: var(info.name.to_text()),
@@ -243,23 +243,7 @@ impl MonitorInfo {
             scale_factor: var(info.scale_factor),
             video_modes: var(info.video_modes),
             ppi: var(Ppi::default()),
-        };
-
-        #[cfg(debug_assertions)]
-        {
-            // debug WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250 times)
-            let mut history = vec![];
-            m.scale_factor
-                .trace_value(move |a| {
-                    history.push(*a.value());
-                    if history.len() > 10 {
-                        panic!("MonitorInfo::scale_factor changed >10 times, {history:?}");
-                    }
-                })
-                .perm();
         }
-
-        m
     }
 
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
