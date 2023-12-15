@@ -1130,9 +1130,14 @@ pub mod tip {
 ///
 /// See [`zero_ui_wgt_view`] for the full view API.
 pub mod view {
-    pub use zero_ui_wgt_view::{
-        list_presenter, presenter, presenter_opt, switch_node, wgt_fn, ObservableVec, Switch, View, ViewArgs, WidgetFn,
-    };
+    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, wgt_fn, ObservableVec, View, ViewArgs, WidgetFn};
+}
+
+/// Switch widget and node.
+///
+/// See [`zero_ui_wgt_switch`] for the full widget API.
+pub mod switch {
+    pub use zero_ui_wgt_switch::{switch_node, Switch};
 }
 
 /// Wrap layout widget and properties.
