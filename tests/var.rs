@@ -1136,7 +1136,6 @@ mod threads {
 }
 
 mod contextualized {
-
     use zero_ui::{prelude::*, var::ContextInitHandle};
 
     #[test]
@@ -1200,5 +1199,48 @@ mod contextualized {
         .assert_wait();
 
         assert!(updated);
+    }
+}
+
+mod vec {
+    use zero_ui::{prelude::*, var::VecChange};
+
+    #[test]
+    fn basic_usage() {
+        let mut app = APP.minimal().run_headless(false);
+
+        let list = var(ObservableVec::<u32>::new());
+
+        list.modify(|a| {
+            a.to_mut().push(32);
+        });
+        app.update_observe(
+            || {
+                assert!(list.is_new());
+
+                list.with_new(|l| {
+                    assert_eq!(&[32], &l[..]);
+                    assert_eq!(&[VecChange::Insert { index: 0, count: 1 }], l.changes());
+                });
+            },
+            false,
+        )
+        .assert_wait();
+
+        list.modify(|a| {
+            a.to_mut().push(33);
+        });
+        app.update_observe(
+            || {
+                assert!(list.is_new());
+
+                list.with_new(|l| {
+                    assert_eq!(&[32, 33], &l[..]);
+                    assert_eq!(&[VecChange::Insert { index: 1, count: 1 }], l.changes());
+                });
+            },
+            false,
+        )
+        .assert_wait();
     }
 }

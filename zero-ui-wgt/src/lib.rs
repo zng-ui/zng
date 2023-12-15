@@ -50,8 +50,8 @@ pub mod prelude {
 
     pub use zero_ui_var::{
         context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var, AnyVar as _,
-        ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, VarCapabilities,
-        VarHandle, VarHandles, VarValue,
+        ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
+        VarCapabilities, VarHandle, VarHandles, VarValue,
     };
 
     pub use zero_ui_layout::{

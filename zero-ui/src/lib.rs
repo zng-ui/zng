@@ -87,8 +87,8 @@ pub mod prelude {
 
     pub use zero_ui_var::{
         context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
-        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
-        VarCapabilities, VarHandle, VarHandles, VarValue,
+        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar, ResponderVar, ResponseVar,
+        Var, VarCapabilities, VarHandle, VarHandles, VarValue,
     };
 
     pub use crate::var::animation::easing;
@@ -390,14 +390,15 @@ pub mod render {
 /// See [`zero_ui_var`] for the full var API.
 pub mod var {
     pub use zero_ui_var::types::{
-        AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, WeakArcVar, WeakContextInitHandle,
+        AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, VecChange, WeakArcVar, WeakContextInitHandle,
         WeakContextualizedVar, WeakReadOnlyVar, WeakWhenVar,
     };
     pub use zero_ui_var::{
         context_var, expr_var, getter_var, merge_var, response_done_var, response_var, state_var, var, var_default, var_from, when_var,
         AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextInitHandle,
-        ContextVar, IntoValue, IntoVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar,
-        TraceValueArgs, Var, VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar, VARS,
+        ContextVar, IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar,
+        ResponseVar, TraceValueArgs, Var, VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue,
+        WeakVar, VARS,
     };
 
     pub use zero_ui_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
@@ -1132,7 +1133,7 @@ pub mod tip {
 ///
 /// See [`zero_ui_wgt_view`] for the full view API.
 pub mod view {
-    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, ObservableVec, View, ViewArgs};
+    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, View, ViewArgs};
 }
 
 /// Switch widget and node.

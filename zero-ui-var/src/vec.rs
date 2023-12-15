@@ -1,13 +1,12 @@
 use std::ops;
 
-use zero_ui_var::{VarUpdateId, VARS};
-use zero_ui_wgt::prelude::*;
+use crate::{VarUpdateId, VarValue, VARS};
 
 /// Represents a [`Vec<T>`] that tracks changes when used inside a variable.
 ///
 /// The changes made in the last update are available in [`ObservableVec::changes`].
 ///
-/// This struct is designed to be a data source for [`list_presenter`], because it tracks
+/// This struct is designed to be a data source for list presenters, because it tracks
 /// exact changes it enables the implementation of transition animations such as a new
 /// element expanding into place, it also allows the retention of widget state for elements
 /// that did not change.
@@ -15,9 +14,8 @@ use zero_ui_wgt::prelude::*;
 /// Changes are logged using the [`VecChange`] enum, note that the enum only tracks indexes at the
 /// moment the change happens, that means that you cannot get the removed items and [`VecChange::Insert`]
 /// must be the last change in an update cycle. If any change is made that invalidates an `Insert` all
-/// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid  this try removing or moving before insert.
-///
-/// [`list_presenter`]: crate::list_presenter
+/// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid  this try removing or moving
+/// before insert.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservableVec<T: VarValue> {
     list: Vec<T>,
@@ -472,50 +470,4 @@ where
     }
 
     ops::Range { start, end }
-}
-
-#[cfg(test)]
-mod tests {
-    use zero_ui_app::APP;
-
-    use super::*;
-
-    #[test]
-    fn basic_usage() {
-        let mut app = APP.minimal().run_headless(false);
-
-        let list = var(ObservableVec::<u32>::new());
-
-        list.modify(|a| {
-            a.to_mut().push(32);
-        });
-        app.update_observe(
-            || {
-                assert!(list.is_new());
-
-                list.with_new(|l| {
-                    assert_eq!(&[32], &l[..]);
-                    assert_eq!(&[VecChange::Insert { index: 0, count: 1 }], l.changes());
-                });
-            },
-            false,
-        )
-        .assert_wait();
-
-        list.modify(|a| {
-            a.to_mut().push(33);
-        });
-        app.update_observe(
-            || {
-                assert!(list.is_new());
-
-                list.with_new(|l| {
-                    assert_eq!(&[32, 33], &l[..]);
-                    assert_eq!(&[VecChange::Insert { index: 1, count: 1 }], l.changes());
-                });
-            },
-            false,
-        )
-        .assert_wait();
-    }
 }

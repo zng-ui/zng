@@ -5,11 +5,9 @@
 
 use parking_lot::Mutex;
 use std::{any::TypeId, sync::Arc};
+use zero_ui_var::types::VecChange;
 
 use zero_ui_wgt::prelude::*;
-
-mod vec;
-pub use vec::{ObservableVec, VecChange};
 
 /// Node that presents `data` using `update`.
 ///

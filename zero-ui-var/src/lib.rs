@@ -46,6 +46,7 @@ mod merge;
 mod read_only;
 mod response;
 mod vars;
+mod vec;
 mod when;
 
 #[macro_use]
@@ -61,6 +62,7 @@ pub use merge::MergeVarBuilder;
 pub use read_only::ReadOnlyArcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use vars::*;
+pub use vec::ObservableVec;
 
 /// Other variable types.
 pub mod types {
@@ -81,6 +83,7 @@ pub mod types {
     pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, MergeVarInputs, WeakMergeVar, __merge_var};
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
+    pub use super::vec::VecChange;
     pub use super::when::{AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
 
     use super::*;

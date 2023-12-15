@@ -8,7 +8,7 @@ use zero_ui::{
     stack,
     text_input::TextInput,
     tip::disabled_tooltip,
-    view::{list_presenter, ObservableVec},
+    view::list_presenter,
     widget::{enabled, interactive, is_inited, visibility},
 };
 
