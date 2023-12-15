@@ -8,8 +8,7 @@ use zero_ui::{
     stack,
     text_input::TextInput,
     tip::disabled_tooltip,
-    view::list_presenter,
-    widget::{enabled, interactive, is_inited, visibility},
+    widget::{enabled, instance::list_presenter, interactive, is_inited, visibility},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

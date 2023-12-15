@@ -7,7 +7,6 @@ license = "Apache-2.0"
 
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
-zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }

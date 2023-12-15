@@ -11,7 +11,7 @@ use zero_ui::{
     l10n::LangMap,
     layout::{align, margin, size},
     prelude::*,
-    view::presenter,
+    widget::instance::presenter,
 };
 
 // l10n-### Localize Example

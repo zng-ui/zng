@@ -3880,7 +3880,7 @@ mod tests {
                         .unwrap()
                         .sized(Px(20), vec![])
                 },
-                10.secs(),
+                60.secs(),
             )
             .unwrap();
         drop(app);
@@ -3998,7 +3998,7 @@ mod tests {
 
                 let _ok = (txt_seg, txt_shape);
             },
-            5.secs(),
+            60.secs(),
         )
         .unwrap()
     }

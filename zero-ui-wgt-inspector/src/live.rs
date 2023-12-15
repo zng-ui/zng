@@ -249,7 +249,6 @@ mod inspector_window {
     use zero_ui_wgt_text_input::TextInput;
     use zero_ui_wgt_toggle::{self as toggle, Toggle};
     use zero_ui_wgt_tooltip::{tooltip, Tip};
-    use zero_ui_wgt_view::presenter;
     use zero_ui_wgt_window as window;
     use zero_ui_wgt_wrap::Wrap;
 

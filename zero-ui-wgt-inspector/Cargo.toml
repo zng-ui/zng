@@ -31,7 +31,6 @@ zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
 zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
 zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
 zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }

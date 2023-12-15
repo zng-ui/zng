@@ -15,7 +15,6 @@ zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
 zero-ui-wgt-undo = { path = "../zero-ui-wgt-undo" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
 zero-ui-wgt-menu = { path = "../zero-ui-wgt-menu" }
 zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }

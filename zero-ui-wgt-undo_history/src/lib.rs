@@ -18,7 +18,6 @@ use zero_ui_wgt_size_offset::max_height;
 use zero_ui_wgt_stack::{Stack, StackDirection};
 use zero_ui_wgt_style::{style_fn, Style, StyleFn};
 use zero_ui_wgt_text::Text;
-use zero_ui_wgt_view::*;
 
 use std::fmt;
 use std::sync::Arc;

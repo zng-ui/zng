@@ -79,7 +79,7 @@ impl<D> WidgetFn<D> {
     /// Note that you can call the widget function directly where `D: 'static`:
     ///
     /// ```
-    /// # use zero_ui_wgt_view::*;
+    /// # use zero_ui_wgt::WidgetFn;
     /// fn foo(func: &WidgetFn<bool>) {
     ///     let a = func.call(true);
     ///     let b = func(true);

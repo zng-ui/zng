@@ -277,8 +277,8 @@ pub mod wgt_prelude {
 
     pub use zero_ui_wgt::nodes::{
         bind_is_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
-        fill_node, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local, with_context_local_init,
-        with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+        fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
+        with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
     pub use zero_ui_ext_window::WidgetInfoBuilderImeArea as _;
@@ -540,7 +540,7 @@ pub mod widget {
     /// [`UiNode`]: crate::prelude::UiNode
     /// [`UiNodeList`]: crate::prelude::UiNodeList
     pub mod instance {
-        // !!: TODO, rename to nodes?
+        // !!: TODO, rename to node?
         pub use zero_ui_app::widget::instance::{
             extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
             AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
@@ -552,9 +552,9 @@ pub mod widget {
 
         pub use zero_ui_wgt::nodes::{
             bind_is_state, border_node, event_is_state, event_is_state2, event_is_state3, event_is_state4, fill_node, interactive_node,
-            validate_getter_var, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
-            with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node,
-            with_widget_state, with_widget_state_modify,
+            list_presenter, presenter, presenter_opt, validate_getter_var, widget_state_get_state, widget_state_is_state,
+            with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node,
+            with_index_node, with_rev_index_node, with_widget_state, with_widget_state_modify,
         };
     }
 }
@@ -1133,7 +1133,7 @@ pub mod tip {
 ///
 /// See [`zero_ui_wgt_view`] for the full view API.
 pub mod view {
-    pub use zero_ui_wgt_view::{list_presenter, presenter, presenter_opt, View, ViewArgs};
+    pub use zero_ui_wgt_view::{View, ViewArgs};
 }
 
 /// Switch widget and node.

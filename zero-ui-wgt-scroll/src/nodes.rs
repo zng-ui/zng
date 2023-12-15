@@ -12,7 +12,6 @@ use zero_ui_ext_input::touch::TOUCH_TRANSFORM_EVENT;
 use zero_ui_wgt::prelude::gradient::ExtendMode;
 use zero_ui_wgt::prelude::gradient::RenderGradientStop;
 use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_view::presenter;
 
 use super::commands::*;
 use super::scroll_properties::*;

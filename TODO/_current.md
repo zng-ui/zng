@@ -48,7 +48,6 @@ WindowManager//WindowId(1) update (250 times)
 
 # Split Crates
 
-* Move presenter nodes to -wgt?
 * Move transform properties to render? They don't affect "layout".
     - What about offset property?
 * Review prelude.

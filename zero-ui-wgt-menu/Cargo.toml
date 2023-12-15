@@ -10,7 +10,6 @@ zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-layout = { path = "../zero-ui-layout" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
-zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
 zero-ui-wgt-panel = { path = "../zero-ui-wgt-panel" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }

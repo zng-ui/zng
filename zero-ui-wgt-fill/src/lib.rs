@@ -5,7 +5,6 @@
 
 use zero_ui_wgt::prelude::gradient::{stops, GradientRadius, GradientStops, LinearGradientAxis};
 use zero_ui_wgt::{hit_test_mode, nodes::interactive_node, prelude::*, HitTestMode};
-use zero_ui_wgt_view::*;
 
 pub mod nodes;
 
