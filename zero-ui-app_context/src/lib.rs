@@ -80,9 +80,12 @@ impl Drop for AppScope {
 }
 
 /// Tracks the current execution context.
+///
+/// The context tracks the current app, all or some [`context_local!`] and [`TracingDispatcherContext`].
 #[derive(Clone)]
 pub struct LocalContext {
     data: LocalData,
+    tracing: Option<tracing::dispatcher::Dispatch>,
 }
 impl fmt::Debug for LocalContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -106,7 +109,10 @@ impl Default for LocalContext {
 impl LocalContext {
     /// New empty context.
     pub const fn new() -> Self {
-        Self { data: LocalData::new() }
+        Self {
+            data: LocalData::new(),
+            tracing: None,
+        }
     }
 
     /// Start an app scope in the current thread.
@@ -174,9 +180,12 @@ impl LocalContext {
     /// the current context.
     ///
     /// Context locals modified after this capture are not included in the capture.
+    ///
+    /// This is equivalent to [``CaptureFilter::All`].
     pub fn capture() -> Self {
         Self {
             data: LOCAL.with_borrow(|c| c.clone()),
+            tracing: Some(tracing::dispatcher::get_default(|d| d.clone())),
         }
     }
 
@@ -194,7 +203,7 @@ impl LocalContext {
                         }
                     }
                 });
-                Self { data }
+                Self { data, tracing: None }
             }
             CaptureFilter::ContextLocals { exclude } => {
                 let mut data = LocalData::new();
@@ -205,7 +214,10 @@ impl LocalContext {
                         }
                     }
                 });
-                Self { data }
+                Self {
+                    data,
+                    tracing: Some(tracing::dispatcher::get_default(|d| d.clone())),
+                }
             }
             CaptureFilter::Include(set) => {
                 let mut data = LocalData::new();
@@ -216,7 +228,14 @@ impl LocalContext {
                         }
                     }
                 });
-                Self { data }
+                Self {
+                    data,
+                    tracing: if set.contains(&TracingDispatcherContext) {
+                        Some(tracing::dispatcher::get_default(|d| d.clone()))
+                    } else {
+                        None
+                    },
+                }
             }
             CaptureFilter::Exclude(set) => {
                 let mut data = LocalData::new();
@@ -227,7 +246,14 @@ impl LocalContext {
                         }
                     }
                 });
-                Self { data }
+                Self {
+                    data,
+                    tracing: if !set.contains(&TracingDispatcherContext) {
+                        Some(tracing::dispatcher::get_default(|d| d.clone()))
+                    } else {
+                        None
+                    },
+                }
             }
         }
     }
@@ -252,6 +278,7 @@ impl LocalContext {
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
         let data = mem::take(&mut self.data);
         let prev = LOCAL.with_borrow_mut(|c| mem::replace(c, data));
+        let _tracing_restore = self.tracing.as_ref().map(tracing::dispatcher::set_default);
         let _restore = RunOnDrop::new(|| {
             self.data = LOCAL.with_borrow_mut(|c| mem::replace(c, prev));
         });
@@ -1100,14 +1127,14 @@ pub enum CaptureFilter {
     /// Don't capture any.
     None,
 
-    /// Capture all.
+    /// Capture all [`context_local!`] values and [`TracingDispatcherContext`].
     All,
     /// Capture all variables not excluded, and no [`context_local!`].
     ContextVars {
         /// Vars to not include.
         exclude: ContextValueSet,
     },
-    /// Capture all [`context_local!`] not excluded, no context variables.
+    /// Capture all [`context_local!`] and [`TracingDispatcherContext`] not excluded, no context variables.
     ContextLocals {
         /// Locals to not include.
         exclude: ContextValueSet,
@@ -1130,6 +1157,15 @@ pub trait ContextLocalKeyProvider {
 impl<T: Send + Sync + 'static> ContextLocalKeyProvider for ContextLocal<T> {
     fn context_local_key(&'static self) -> TypeId {
         self.key()
+    }
+}
+
+/// Represents the [`tracing::dispatcher::get_default`] dispatcher in a context value set.
+pub struct TracingDispatcherContext;
+
+impl ContextLocalKeyProvider for TracingDispatcherContext {
+    fn context_local_key(&'static self) -> TypeId {
+        TypeId::of::<tracing::dispatcher::Dispatch>()
     }
 }
 

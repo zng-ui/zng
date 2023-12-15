@@ -3,7 +3,7 @@
 use std::{
     collections::{hash_map, HashMap},
     fmt, mem,
-    sync::Arc,
+    sync::{atomic::AtomicBool, Arc},
     task::Waker,
 };
 
@@ -703,6 +703,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         }
     }
 }
+static UPDATES_TRACE_ENABLED: AtomicBool = AtomicBool::new(false);
 impl UpdatesTrace {
     const UPDATES_TARGET: &'static str = "zero-ui-updates";
 
@@ -716,94 +717,131 @@ impl UpdatesTrace {
         }
     }
 
+    /// If updates trace is currently collecting.
+    #[inline(always)]
+    pub fn is_tracing() -> bool {
+        UPDATES_TRACE_ENABLED.load(atomic::Ordering::Relaxed)
+    }
+
     /// Opens an app extension span.
     pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = pretty_type_name::pretty_type_name::<E>(), %ext_mtd).entered()
+        if Self::is_tracing() {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = pretty_type_name::pretty_type_name::<E>(), %ext_mtd).entered()
+        } else {
+            tracing::span::Span::none().entered()
+        }
     }
 
     /// Opens a window span.
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
+        if Self::is_tracing() {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
+        } else {
+            tracing::span::Span::none().entered()
+        }
     }
 
     /// Opens a widget span.
     #[cfg(trace_widget)]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
+        if Self::is_tracing() {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
+        } else {
+            tracing::span::Span::none().entered()
+        }
     }
 
     /// Opens a property span.
     #[cfg(trace_wgt_item)]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
+        if Self::is_tracing() {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
+        } else {
+            tracing::span::Span::none().entered()
+        }
     }
 
     /// Opens an intrinsic span.
     #[cfg(trace_wgt_item)]
     pub fn intrinsic_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
+        if Self::is_tracing() {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
+        } else {
+            tracing::span::Span::none().entered()
+        }
     }
 
     /// Opens a custom named span.
     pub fn custom_span(name: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        #[cfg(inspector)]
-        {
+        if Self::is_tracing() {
             tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
-        }
-        #[cfg(not(inspector))]
-        {
-            let _ = (name, node_mtd);
+        } else {
             tracing::Span::none().entered()
         }
     }
 
     /// Log a direct update request.
     pub fn log_update() {
-        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-            kind = "update request"
-        });
+        if Self::is_tracing() {
+            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+                kind = "update request"
+            });
+        }
     }
 
     /// Log a direct layout request.
     pub fn log_layout() {
-        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-            kind = "layout request"
-        });
+        if Self::is_tracing() {
+            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+                kind = "layout request"
+            });
+        }
     }
 
     /// Log a custom event.
     pub fn log_custom(tag: &str) {
-        tracing::event!(
-            target: UpdatesTrace::UPDATES_TARGET,
-            tracing::Level::TRACE,
-            { kind = "custom", %tag }
-        );
+        if Self::is_tracing() {
+            tracing::event!(
+                target: UpdatesTrace::UPDATES_TARGET,
+                tracing::Level::TRACE,
+                { kind = "custom", %tag }
+            );
+        }
     }
 
     /// Log a var update request.
     pub fn log_var(type_name: &str) {
-        tracing::event!(
-            target: UpdatesTrace::UPDATES_TARGET,
-            tracing::Level::TRACE,
-            { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
-        );
+        if Self::is_tracing() {
+            tracing::event!(
+                target: UpdatesTrace::UPDATES_TARGET,
+                tracing::Level::TRACE,
+                { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
+            );
+        }
     }
 
     /// Log an event update request.
     pub fn log_event(event: AnyEvent) {
-        tracing::event!(
-            target: UpdatesTrace::UPDATES_TARGET,
-            tracing::Level::TRACE,
-            { kind = "notify event", type_name = event.name() }
-        );
+        if Self::is_tracing() {
+            tracing::event!(
+                target: UpdatesTrace::UPDATES_TARGET,
+                tracing::Level::TRACE,
+                { kind = "notify event", type_name = event.name() }
+            );
+        }
     }
 
     /// Run `action` collecting a trace of what caused updates.
     pub fn collect_trace<R>(trace: &mut Vec<UpdateTrace>, action: impl FnOnce() -> R) -> R {
+        let trace_enabled = UPDATES_TRACE_ENABLED.swap(true, atomic::Ordering::Relaxed);
+
         let tracer = UpdatesTrace::new();
         let result = Arc::clone(&tracer.trace);
         let r = tracing::subscriber::with_default(tracer, action);
         trace.extend(Arc::try_unwrap(result).unwrap().into_inner());
+
+        UPDATES_TRACE_ENABLED.store(trace_enabled, atomic::Ordering::Relaxed);
+
         r
     }
 

@@ -24,14 +24,6 @@
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
-# Tracing
-
-* The `tracing` trace is pretty slow, maybe because we need to allocate debug string for each entry.
-  - Already offloading everything possible to another thread.
-* Try `minitrace-rust` see if it is faster/more accurate than `tracing`.
-  - Or some other alternative crate?
-  - Browsers collect trace by ID, ideally our "ID" would be a static str but the tracing API does not allow it.
-
 # Code Bloat
 
 * The main crate generates a massive amount of "llvm-lines".
