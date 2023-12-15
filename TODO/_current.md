@@ -48,8 +48,6 @@ WindowManager//WindowId(1) update (250 times)
 
 # Split Crates
 
-* Move transform properties to render? They don't affect "layout".
-    - What about offset property?
 * Review prelude.
     - Include more properties, `enabled`, `visibility`?
 
