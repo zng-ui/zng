@@ -102,9 +102,8 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
         state,
         expected == Visibility::Visible,
         info::VISIBILITY_CHANGED_EVENT,
-        move |_| {
-            let tree = WINDOW.info();
-            let vis = tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
+        move |a| {
+            let vis = a.tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
 
             Some(vis == expected)
         },
@@ -192,6 +191,6 @@ event_property! {
     pub fn move {
         event: info::TRANSFORM_CHANGED_EVENT,
         args: info::TransformChangedArgs,
-        filter: |a| a.offset() != PxVector::zero(),
+        filter: |a| a.offset(WIDGET.id()).unwrap_or_default() != PxVector::zero(),
     }
 }

@@ -291,16 +291,15 @@ impl WidgetInfoTree {
             frame.widget_count_offsets = w;
         }
 
-        let mut changes_count = 0;
+        let mut changes = IdMap::new();
         TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
             if let Some(wgt) = self.get(wid) {
-                let transform = wgt.bounds_info().inner_transform();
+                let transform = wgt.inner_transform();
                 match frame.transform_changed_subs.entry(wid) {
                     IdEntry::Occupied(mut e) => {
                         let prev = e.insert(transform);
                         if prev != transform {
-                            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(wgt.path(), prev, transform));
-                            changes_count += 1;
+                            changes.insert(wid, prev);
                         }
                     }
                     IdEntry::Vacant(e) => {
@@ -309,13 +308,17 @@ impl WidgetInfoTree {
                 }
             }
         });
-        if (frame.transform_changed_subs.len() - changes_count) > 500 {
-            frame
-                .transform_changed_subs
-                .retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
+        if !changes.is_empty() {
+            if (frame.transform_changed_subs.len() - changes.len()) > 500 {
+                frame
+                    .transform_changed_subs
+                    .retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
+            }
+
+            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(self.clone(), changes));
         }
 
-        changes_count = 0;
+        let mut changes = IdMap::new();
         VISIBILITY_CHANGED_EVENT.visit_subscribers(|wid| {
             if let Some(wgt) = self.get(wid) {
                 let visibility = wgt.visibility();
@@ -323,8 +326,7 @@ impl WidgetInfoTree {
                     IdEntry::Occupied(mut e) => {
                         let prev = e.insert(visibility);
                         if prev != visibility {
-                            VISIBILITY_CHANGED_EVENT.notify(VisibilityChangedArgs::now(wgt.path(), prev, visibility));
-                            changes_count += 1;
+                            changes.insert(wid, prev);
                         }
                     }
                     IdEntry::Vacant(e) => {
@@ -333,10 +335,14 @@ impl WidgetInfoTree {
                 }
             }
         });
-        if (frame.visibility_changed_subs.len() - changes_count) > 500 {
-            frame
-                .visibility_changed_subs
-                .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
+        if !changes.is_empty() {
+            if (frame.visibility_changed_subs.len() - changes.len()) > 500 {
+                frame
+                    .visibility_changed_subs
+                    .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
+            }
+
+            VISIBILITY_CHANGED_EVENT.notify(VisibilityChangedArgs::now(self.clone(), changes));
         }
     }
 

@@ -47,9 +47,9 @@ WindowManager//WindowId(1) update var of type zero_ui_units::factor::Factor (250
 
 # Split Crates
 
-* Refactor transform and visibility changed events to only send one event per frame like INTERACTIVITY_CHANGED_EVENT.
-    - Test what happens when info is rebuild.
-    - Implement visibility event properties.
+* Implement visibility event properties.
+    - on_show, on_hide, on_collapse?
+    - on_show, should also fire once after first render?
 
 * Move `WidgetFn` to wgt?
 * Move transform properties to render? They don't affect "layout".

@@ -420,37 +420,43 @@ crate::event::event_args! {
 
     /// [`TRANSFORM_CHANGED_EVENT`] args.
     pub struct TransformChangedArgs {
-        /// The widget.
-        pub widget: WidgetPath,
-        /// Previous inner transform.
-        pub prev_transform: PxTransform,
-        /// New inner transform.
-        pub new_transform: PxTransform,
+        /// Widget tree where some widgets have new inner transforms.
+        pub tree: WidgetInfoTree,
+
+        /// All event subscribers that changed inner-transform mapped to the previous inner-transform.
+        pub changed: IdMap<WidgetId, PxTransform>,
 
         ..
 
-        /// Target the `widget`.
+        /// Target the `changed` widgets.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_wgt(&self.widget);
+            for id in self.changed.keys() {
+                if let Some(wgt) = self.tree.get(*id) {
+                    list.insert_wgt(&wgt);
+                }
+            }
         }
     }
 
-        /// [`VISIBILITY_CHANGED_EVENT`] args.
-        pub struct VisibilityChangedArgs {
-            /// The widget.
-            pub widget: WidgetPath,
-            /// Previous visibility.
-            pub prev_vis: Visibility,
-            /// New visibility.
-            pub new_vis: Visibility,
+    /// [`VISIBILITY_CHANGED_EVENT`] args.
+    pub struct VisibilityChangedArgs {
+        /// Widget tree where some widgets have new visibility.
+        pub tree: WidgetInfoTree,
 
-            ..
+        /// All event subscribers that changed visibility mapped to the previous visibility.
+        pub changed: IdMap<WidgetId, Visibility>,
 
-            /// Target the `widget`.
-            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-                list.insert_wgt(&self.widget);
+        ..
+
+        /// Target the `changed` widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            for id in self.changed.keys() {
+                if let Some(wgt) = self.tree.get(*id) {
+                    list.insert_wgt(&wgt);
+                }
             }
         }
+    }
 
     /// [`INTERACTIVITY_CHANGED_EVENT`] args.
     pub struct InteractivityChangedArgs {
@@ -463,12 +469,13 @@ crate::event::event_args! {
         pub tree: WidgetInfoTree,
 
         /// All event subscribers that changed interactivity in this info update.
-        pub targets: IdSet<WidgetId>,
+        pub changed: IdSet<WidgetId>,
 
         ..
 
+        /// Target the `changed` widgets.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            for id in self.targets.iter() {
+            for id in self.changed.iter() {
                 if let Some(wgt) = self.tree.get(*id) {
                     list.insert_wgt(&wgt);
                 }
@@ -477,11 +484,20 @@ crate::event::event_args! {
     }
 }
 impl TransformChangedArgs {
+    /// Gets the previous and new inner transform of the widget.
+    pub fn change(&self, id: WidgetId) -> Option<(PxTransform, PxTransform)> {
+        let prev = *self.changed.get(&id)?;
+        let new = self.tree.get(id)?.inner_transform();
+        Some((prev, new))
+    }
+
     /// Gets the movement between previous and new transformed top-left corner.
-    pub fn offset(&self) -> PxVector {
-        let prev = self.prev_transform.transform_point(PxPoint::zero()).unwrap_or_default();
-        let new = self.new_transform.transform_point(PxPoint::zero()).unwrap_or_default();
-        prev - new
+    pub fn offset(&self, id: WidgetId) -> Option<PxVector> {
+        let (prev, new) = self.change(id)?;
+
+        let prev = prev.transform_point(PxPoint::zero()).unwrap_or_default();
+        let new = new.transform_point(PxPoint::zero()).unwrap_or_default();
+        Some(prev - new)
     }
 }
 impl InteractivityChangedArgs {
@@ -503,7 +519,7 @@ impl InteractivityChangedArgs {
     pub fn new_interactivity(&self, widget_id: WidgetId) -> Interactivity {
         if let Some(w) = self.tree.get(widget_id) {
             w.interactivity()
-        } else if self.targets.contains(&widget_id) {
+        } else if self.changed.contains(&widget_id) {
             panic!("widget {widget_id} was in targets and not in new tree, invalid args");
         } else {
             panic!("widget {widget_id} is not in targets");
