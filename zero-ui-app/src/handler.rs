@@ -32,7 +32,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Returns `true` when the event handler is async and it has not finished handing the event.
     ///
     /// [`update`]: WidgetHandler::update
-    /// [`info`]: crate::widget::instance::UiNode::info
+    /// [`info`]: crate::widget::node::UiNode::info
     /// [`subscribe`]: WidgetHandler::subscribe
     fn event(&mut self, args: &A) -> bool;
 

@@ -915,7 +915,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         font_weight = FontWeight::BOLD;
                         child = Text!("Validate");
                         on_click = hn!(|_| {
-                            zero_ui::text::commands::PARSE_CMD
+                            zero_ui::text::cmd::PARSE_CMD
                                 .notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }

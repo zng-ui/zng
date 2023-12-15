@@ -6,14 +6,14 @@
 use std::sync::Arc;
 
 use crate_util::RecycleVec;
-use zero_ui_app::widget::instance::PanelListRange;
+use zero_ui_app::widget::node::PanelListRange;
 use zero_ui_ext_font::{unicode_bidi_levels, unicode_bidi_sort, BidiLevel};
 use zero_ui_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, TextSegmentKind},
     units::{GridSpacing, PxGridSpacing},
 };
 use zero_ui_wgt::{
-    nodes::{with_index_len_node, with_index_node, with_rev_index_node},
+    node::{with_index_len_node, with_index_node, with_rev_index_node},
     prelude::*,
 };
 use zero_ui_wgt_text::*;

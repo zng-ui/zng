@@ -8,8 +8,8 @@ zero_ui_wgt::enable_widget_macros!();
 use zero_ui_app::update::UpdatesTraceUiNodeExt as _;
 use zero_ui_wgt::{clip_to_bounds, prelude::*};
 
-pub mod commands;
-pub mod nodes;
+pub mod cmd;
+pub mod node;
 pub mod scrollbar;
 pub mod thumb;
 
@@ -94,19 +94,19 @@ fn on_build(wgt: &mut WidgetBuilding) {
         "scroll_node",
         clmv!(mode, |child| {
             let child = scroll_node(child, mode, child_align, clip_to_viewport);
-            nodes::overscroll_node(child)
+            node::overscroll_node(child)
         }),
     );
 
     wgt.push_intrinsic(NestGroup::EVENT, "commands", |child| {
-        let child = nodes::access_scroll_node(child);
-        let child = nodes::scroll_to_node(child);
-        let child = nodes::scroll_commands_node(child);
-        let child = nodes::page_commands_node(child);
-        let child = nodes::scroll_to_edge_commands_node(child);
-        let child = nodes::scroll_touch_node(child);
-        let child = nodes::zoom_commands_node(child);
-        nodes::scroll_wheel_node(child)
+        let child = node::access_scroll_node(child);
+        let child = node::scroll_to_node(child);
+        let child = node::scroll_commands_node(child);
+        let child = node::page_commands_node(child);
+        let child = node::scroll_to_edge_commands_node(child);
+        let child = node::scroll_touch_node(child);
+        let child = node::zoom_commands_node(child);
+        node::scroll_wheel_node(child)
     });
 
     wgt.push_intrinsic(NestGroup::CONTEXT, "context", move |child| {
@@ -150,12 +150,12 @@ fn scroll_node(
     // +-----------------+---+
     let children = ui_vec![
         clip_to_bounds(
-            nodes::viewport(child, mode.into_var(), child_align).instrument("viewport"),
+            node::viewport(child, mode.into_var(), child_align).instrument("viewport"),
             clip_to_viewport.into_var()
         ),
-        nodes::v_scrollbar_presenter(),
-        nodes::h_scrollbar_presenter(),
-        nodes::scrollbar_joiner_presenter(),
+        node::v_scrollbar_presenter(),
+        node::h_scrollbar_presenter(),
+        node::scrollbar_joiner_presenter(),
     ];
 
     let scroll_info = ScrollInfo::default();

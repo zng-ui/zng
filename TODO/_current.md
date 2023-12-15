@@ -50,6 +50,7 @@ WindowManager//WindowId(1) update (250 times)
 
 * Review prelude.
     - Include more properties, `enabled`, `visibility`?
+    - Or remove `Visibility`?
 
 # Publish
 

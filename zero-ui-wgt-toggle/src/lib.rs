@@ -28,7 +28,7 @@ use zero_ui_wgt_size_offset::{size, x, y};
 use zero_ui_wgt_style::{Style, StyleFn};
 use zero_ui_wgt_transform::scale_y;
 
-pub mod commands;
+pub mod cmd;
 
 /// A toggle button that flips a `bool` or `Option<bool>` variable on click, or selects a value.
 ///
@@ -90,7 +90,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
                 WIDGET.sub_event(&CLICK_EVENT);
-                _toggle_handle = commands::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+                _toggle_handle = cmd::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
@@ -117,7 +117,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 
                         let _ = checked.set(!checked.get());
                     }
-                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
                         let _ = checked.set(*b);
@@ -168,7 +168,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
         clmv!(checked, |child, op| match op {
             UiNodeOp::Init => {
                 WIDGET.sub_event(&CLICK_EVENT);
-                _toggle_handle = commands::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
+                _toggle_handle = cmd::TOGGLE_CMD.scoped(WIDGET.id()).subscribe(true);
             }
             UiNodeOp::Deinit => {
                 _toggle_handle = CommandHandle::dummy();
@@ -197,7 +197,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                         cycle = true;
                     }
-                } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if let Some(b) = args.param::<bool>() {
                         args.propagation().stop();
                         let _ = checked.set(Some(*b));
@@ -394,8 +394,8 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             });
 
             _click_handle = Some(CLICK_EVENT.subscribe(id));
-            _toggle_handle = commands::TOGGLE_CMD.scoped(id).subscribe(true);
-            _select_handle = commands::SELECT_CMD.scoped(id).subscribe(true);
+            _toggle_handle = cmd::TOGGLE_CMD.scoped(id).subscribe(true);
+            _select_handle = cmd::SELECT_CMD.scoped(id).subscribe(true);
         }
         UiNodeOp::Deinit => {
             if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
@@ -428,7 +428,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                     });
                     checked.set(Some(selected))
                 }
-            } else if let Some(args) = commands::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+            } else if let Some(args) = cmd::TOGGLE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                 if args.param.is_none() {
                     args.propagation().stop();
 
@@ -454,7 +454,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
                         checked.set(Some(selected))
                     }
                 }
-            } else if let Some(args) = commands::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+            } else if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                 if args.param.is_none() {
                     args.propagation().stop();
                     value.with(|value| {
@@ -502,7 +502,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
 
             if let Some(Some(true)) = checked.get_new() {
                 if SCROLL_ON_SELECT_VAR.get() {
-                    use zero_ui_wgt_scroll::commands::*;
+                    use zero_ui_wgt_scroll::cmd::*;
                     scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
                 }
             }
@@ -529,7 +529,7 @@ pub fn scroll_on_select(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default
 /// selector so the [`value`] property only works if a contextual selector is present.
 ///
-/// This property sets the [`SELECTOR`] context and handles [`commands::SelectOp`] requests. It also sets the widget
+/// This property sets the [`SELECTOR`] context and handles [`cmd::SelectOp`] requests. It also sets the widget
 /// access role to [`AccessRole::RadioGroup`].
 ///
 /// [`value`]: fn@value
@@ -538,7 +538,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
     let mut _select_handle = CommandHandle::dummy();
     let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            _select_handle = commands::SELECT_CMD.scoped(WIDGET.id()).subscribe(true);
+            _select_handle = cmd::SELECT_CMD.scoped(WIDGET.id()).subscribe(true);
         }
         UiNodeOp::Info { info } => {
             if let Some(mut info) = info.access() {
@@ -551,8 +551,8 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
         UiNodeOp::Event { update } => {
             c.event(update);
 
-            if let Some(args) = commands::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
-                if let Some(p) = args.param::<commands::SelectOp>() {
+            if let Some(args) = cmd::SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                if let Some(p) = args.param::<cmd::SelectOp>() {
                     args.propagation().stop();
 
                     p.call();
@@ -1191,7 +1191,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
                     // but a click is formed (down+up) on the toggle that immediately opens the popup again.
                     if args.is_mouse_down() && args.is_primary() && IS_CHECKED_VAR.get() == Some(true) {
                         args.propagation().stop();
-                        commands::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
+                        cmd::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
                     }
                 }
                 None
@@ -1200,7 +1200,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
                 if let Some(s) = state.get_new() {
                     if matches!(s, PopupState::Closed) {
                         if IS_CHECKED_VAR.get() != Some(false) {
-                            commands::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
+                            cmd::TOGGLE_CMD.scoped(WIDGET.id()).notify_param(Some(false));
                         }
                         _state_handle = VarHandle::dummy();
                     }

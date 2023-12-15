@@ -33,7 +33,7 @@ impl Container {
 ///
 /// Can be any type that implements [`UiNode`], any widget.
 ///
-/// [`UiNode`]: zero_ui_app::widget::instance::UiNode
+/// [`UiNode`]: zero_ui_app::widget::node::UiNode
 #[property(CHILD, capture, default(FillUiNode), widget_impl(Container))]
 pub fn child(child: impl UiNode) {}
 

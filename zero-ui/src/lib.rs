@@ -75,7 +75,7 @@ pub mod prelude {
             border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle},
             easing,
             info::{InteractionPath, Interactivity, Visibility, WidgetInfo, WidgetPath},
-            instance::{
+            node::{
                 ui_vec, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, SortingList, UiNode,
                 UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex,
             },
@@ -132,7 +132,7 @@ pub mod prelude {
     pub use zero_ui_wgt_image::Image;
 
     pub use zero_ui_ext_input::{
-        focus::{commands::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
+        focus::{cmd::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
         gesture::{ClickArgs, CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
         keyboard::{HeadlessAppKeyboardExt as _, KeyInputArgs},
         mouse::{ClickMode, ClickTrigger, WidgetInfoMouseExt as _},
@@ -223,7 +223,7 @@ pub mod wgt_prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
-            instance::{
+            node::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
                 BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
                 UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex, SORTING_LIST,
@@ -272,7 +272,7 @@ pub mod wgt_prelude {
         ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
     };
 
-    pub use zero_ui_wgt::nodes::{
+    pub use zero_ui_wgt::node::{
         bind_is_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
         fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
@@ -307,7 +307,7 @@ pub mod color {
 
     pub use zero_ui_wgt::color_scheme;
 
-    pub use zero_ui_wgt_fill::nodes::flood;
+    pub use zero_ui_wgt_fill::node::flood;
 
     /// Color filters.
     pub mod filter {
@@ -328,7 +328,7 @@ pub mod color {
             RenderExtendMode, RenderGradientStop,
         };
 
-        pub use zero_ui_wgt_fill::nodes::{
+        pub use zero_ui_wgt_fill::node::{
             conic_gradient, gradient, linear_gradient, radial_gradient, ConicGradient, GradientBuilder, LinearGradient, RadialGradient,
             TiledConicGradient, TiledLinearGradient, TiledRadialGradient,
         };
@@ -432,7 +432,7 @@ pub mod app {
         app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
         RunOnDrop, StaticAppId,
     };
-    pub use zero_ui_wgt_input::commands::{
+    pub use zero_ui_wgt_input::cmd::{
         on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD,
         SAVE_CMD,
     };
@@ -447,7 +447,7 @@ pub mod event {
         CommandMetaVar, CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, Event, EventArgs, EventHandle, EventHandles,
         EventPropagationHandle, EventReceiver, EVENTS,
     };
-    pub use zero_ui_wgt::nodes::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};
+    pub use zero_ui_wgt::node::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};
 }
 
 /// App update service and types.
@@ -534,13 +534,12 @@ pub mod widget {
         }
     }
 
-    /// Widget instance types, [`UiNode`], [`UiNodeList`] and others.
+    /// Widget node types, [`UiNode`], [`UiNodeList`] and others.
     ///
     /// [`UiNode`]: crate::prelude::UiNode
     /// [`UiNodeList`]: crate::prelude::UiNodeList
-    pub mod instance {
-        // !!: TODO, rename to node?
-        pub use zero_ui_app::widget::instance::{
+    pub mod node {
+        pub use zero_ui_app::widget::node::{
             extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
             AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
             EditableUiNodeListRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver,
@@ -549,7 +548,7 @@ pub mod widget {
             WhenUiNodeListBuilder, ZIndex, SORTING_LIST, Z_INDEX,
         };
 
-        pub use zero_ui_wgt::nodes::{
+        pub use zero_ui_wgt::node::{
             bind_is_state, border_node, event_is_state, event_is_state2, event_is_state3, event_is_state4, fill_node, interactive_node,
             list_presenter, presenter, presenter_opt, validate_getter_var, widget_state_get_state, widget_state_is_state,
             with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node,
@@ -573,7 +572,7 @@ pub mod handler {
 /// See [`zero_ui_ext_clipboard`] for the full clipboard API.
 pub mod clipboard {
     pub use zero_ui_ext_clipboard::{ClipboardError, CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
-    pub use zero_ui_wgt_input::commands::{on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};
+    pub use zero_ui_wgt_input::cmd::{on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};
 }
 
 /// Config service, sources and types.
@@ -729,7 +728,7 @@ pub mod touch {
 /// See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
 pub mod focus {
     pub use zero_ui_ext_input::focus::{
-        commands, iter, DirectionalNav, FocusChangedArgs, FocusChangedCause, FocusInfo, FocusInfoBuilder, FocusInfoTree, FocusNavAction,
+        cmd, iter, DirectionalNav, FocusChangedArgs, FocusChangedCause, FocusInfo, FocusInfoBuilder, FocusInfoTree, FocusNavAction,
         FocusRequest, FocusScopeOnFocus, FocusTarget, ReturnFocusChangedArgs, TabIndex, TabNav, WidgetFocusInfo, WidgetInfoFocusExt, FOCUS,
         FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
     };
@@ -843,8 +842,8 @@ pub mod window {
     pub use zero_ui_view_api::webrender_api::DebugFlags;
 
     /// Window commands.
-    pub mod commands {
-        pub use zero_ui_ext_window::commands::*;
+    pub mod cmd {
+        pub use zero_ui_ext_window::cmd::*;
 
         #[cfg(inspector)]
         pub use zero_ui_wgt_inspector::INSPECT_CMD;
@@ -874,7 +873,7 @@ pub mod text {
     pub use zero_ui_txt::*;
 
     pub use zero_ui_wgt_text::{
-        accepts_enter, accepts_tab, auto_selection, caret_color, caret_touch_shape, change_stop_delay, commands, direction, font_aa,
+        accepts_enter, accepts_tab, auto_selection, caret_color, caret_touch_shape, change_stop_delay, cmd, direction, font_aa,
         font_annotation, font_caps, font_char_variant, font_cn_variant, font_color, font_common_lig, font_contextual_alt,
         font_discretionary_lig, font_ea_width, font_family, font_features, font_historical_forms, font_historical_lig, font_jp_variant,
         font_kerning, font_num_fraction, font_num_spacing, font_numeric, font_ornaments, font_palette, font_palette_colors, font_position,
@@ -1065,8 +1064,8 @@ pub mod scroll {
     }
 
     /// Scroll commands.
-    pub mod commands {
-        pub use zero_ui_wgt_scroll::commands::{
+    pub mod cmd {
+        pub use zero_ui_wgt_scroll::cmd::{
             scroll_to, scroll_to_zoom, ScrollRequest, ScrollToMode, ScrollToRequest, ScrollToTarget, PAGE_DOWN_CMD, PAGE_LEFT_CMD,
             PAGE_RIGHT_CMD, PAGE_UP_CMD, SCROLL_DOWN_CMD, SCROLL_LEFT_CMD, SCROLL_RIGHT_CMD, SCROLL_TO_BOTTOM_CMD, SCROLL_TO_CMD,
             SCROLL_TO_LEFTMOST_CMD, SCROLL_TO_RIGHTMOST_CMD, SCROLL_TO_TOP_CMD, SCROLL_UP_CMD, ZOOM_IN_CMD, ZOOM_OUT_CMD, ZOOM_RESET_CMD,
@@ -1112,8 +1111,8 @@ pub mod toggle {
     };
 
     /// Toggle commands.
-    pub mod commands {
-        pub use zero_ui_wgt_toggle::commands::{SelectOp, SELECT_CMD, TOGGLE_CMD};
+    pub mod cmd {
+        pub use zero_ui_wgt_toggle::cmd::{SelectOp, SELECT_CMD, TOGGLE_CMD};
     }
 }
 
@@ -1252,12 +1251,12 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
-            use zero_ui_app::widget::instance::ui_vec;
+            use zero_ui_app::widget::node::ui_vec;
             use zero_ui_ext_clipboard::COPY_CMD;
             use zero_ui_ext_window::WINDOWS;
             use zero_ui_wgt::wgt_fn;
             use zero_ui_wgt_text::icon::CommandIconExt as _;
-            use zero_ui_wgt_text::{commands::SELECT_ALL_CMD, icon::Icon, SelectionToolbarArgs};
+            use zero_ui_wgt_text::{cmd::SELECT_ALL_CMD, icon::Icon, SelectionToolbarArgs};
 
             WINDOWS.register_root_extender(|a| {
                 let child = a.root;
@@ -1267,7 +1266,7 @@ mod defaults {
 
                 // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because
                 // WindowRoot is used directly by some headless renderers.
-                let child = zero_ui_wgt::nodes::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
+                let child = zero_ui_wgt::node::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
                     use zero_ui_ext_window::WINDOW_Ext as _;
                     use zero_ui_var::Var as _;
 
@@ -1294,10 +1293,10 @@ mod defaults {
             {
                 use zero_ui_ext_clipboard::*;
                 use zero_ui_ext_undo::*;
-                use zero_ui_ext_window::commands::*;
-                use zero_ui_wgt_input::commands::*;
+                use zero_ui_ext_window::cmd::*;
+                use zero_ui_wgt_input::cmd::*;
                 use zero_ui_wgt_material_icons::outlined as icons;
-                use zero_ui_wgt_scroll::commands::*;
+                use zero_ui_wgt_scroll::cmd::*;
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));

@@ -16,7 +16,7 @@ use zero_ui_app::{
     },
     widget::{
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
-        instance::{BoxedUiNode, NilUiNode, UiNode},
+        node::{BoxedUiNode, NilUiNode, UiNode},
         UiTaskWidget, WidgetId,
     },
     window::{WindowCtx, WindowId, WindowMode, WINDOW},
@@ -44,7 +44,7 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    commands::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowChrome,
+    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowChrome,
     WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
     FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT,
     WINDOW_VARS_ID,
@@ -630,7 +630,7 @@ impl WINDOWS {
     /// so extension nodes should operate as `CONTEXT` properties.
     pub fn register_root_extender<E>(&self, mut extender: impl FnMut(WindowRootExtenderArgs) -> E + Send + 'static)
     where
-        E: zero_ui_app::widget::instance::UiNode,
+        E: zero_ui_app::widget::node::UiNode,
     {
         WINDOWS_SV
             .write()

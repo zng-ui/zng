@@ -2,8 +2,8 @@
 //!
 //! The scroll widget implements all of this commands scoped to its widget ID.
 //!
-//! [`ScrollToTopCommand`]: crate::widgets::scroll::commands::ScrollToTopCommand
-//! [`ScrollToLeftmostCommand`]: crate::widgets::scroll::commands::ScrollToLeftmostCommand
+//! [`ScrollToTopCommand`]: crate::widgets::scroll::cmd::ScrollToTopCommand
+//! [`ScrollToLeftmostCommand`]: crate::widgets::scroll::cmd::ScrollToLeftmostCommand
 
 use super::*;
 use zero_ui_app::event::{CommandArgs, CommandParam};

@@ -3,7 +3,7 @@
 use zero_ui::{
     mouse::{cursor, CursorIcon},
     prelude::*,
-    scroll::commands::ScrollToMode,
+    scroll::cmd::ScrollToMode,
     widget::enabled,
 };
 
@@ -70,7 +70,7 @@ fn app_main() {
 }
 
 fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
-    use zero_ui::scroll::commands::*;
+    use zero_ui::scroll::cmd::*;
 
     let scope = WidgetId::named("scroll");
     use menu::CmdButton;
@@ -138,42 +138,42 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
     }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::scroll::commands;
+    use zero_ui::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
-    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
+    let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
         child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            cmd.notify_param(commands::ScrollToRequest { target: target.into(), mode: mode.clone(), zoom: None, });
+            cmd.notify_param(cmd::ScrollToRequest { target: target.into(), mode: mode.clone(), zoom: None, });
         });
     }
 }
 fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
-    use zero_ui::scroll::commands;
+    use zero_ui::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
-    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
+    let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
         child = Text!("Scroll To {} (minimal) at {}", target, zoom);
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            cmd.notify_param(commands::ScrollToRequest { target: target.into(), mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), });
+            cmd.notify_param(cmd::ScrollToRequest { target: target.into(), mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), });
         });
     }
 }
 
 fn scroll_to_rect(target: Rect, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::scroll::commands;
+    use zero_ui::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
-    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
+    let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
         child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|_| {
-            cmd.notify_param(commands::ScrollToRequest { target: target.clone().into(), mode: mode.clone(), zoom: None, });
+            cmd.notify_param(cmd::ScrollToRequest { target: target.clone().into(), mode: mode.clone(), zoom: None, });
         });
     }
 }

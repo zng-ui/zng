@@ -18,7 +18,7 @@ use zero_ui_app::{
     },
     widget::{
         info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
-        instance::{BoxedUiNode, UiNode},
+        node::{BoxedUiNode, UiNode},
         VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
     window::{WindowId, WindowMode, WINDOW},
@@ -43,7 +43,7 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
+    cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     AutoSize, CursorImage, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
     WindowChangedArgs, WindowChrome, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
     WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
@@ -659,7 +659,7 @@ impl HeadedCtrl {
                 WINDOWS.set_renderer(args.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
-                self.cancel_ime_handle = super::commands::CANCEL_IME_CMD.scoped(WINDOW.id()).subscribe(true);
+                self.cancel_ime_handle = super::cmd::CANCEL_IME_CMD.scoped(WINDOW.id()).subscribe(true);
 
                 self.vars.0.render_mode.set(args.data.render_mode);
                 self.vars.state().set(args.data.state.state);
@@ -760,7 +760,7 @@ impl HeadedCtrl {
 
         self.content.pre_event(update);
 
-        if self.ime_info.is_some() && super::commands::CANCEL_IME_CMD.scoped(WINDOW.id()).has(update) {
+        if self.ime_info.is_some() && super::cmd::CANCEL_IME_CMD.scoped(WINDOW.id()).has(update) {
             let prev = self.ime_info.take().unwrap();
             if prev.has_preview {
                 let args = super::ImeArgs::now(prev.target, "", (0, 0));

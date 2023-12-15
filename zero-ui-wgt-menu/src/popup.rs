@@ -114,11 +114,11 @@ impl DefaultStyle {
 pub fn default_panel_fn(args: zero_ui_wgt_panel::PanelArgs) -> impl UiNode {
     // remove arrow key shortcuts, they are used to nav. focus.
     let scroll_id = WidgetId::new_unique();
-    let _ = zero_ui_wgt_scroll::commands::SCROLL_UP_CMD
+    let _ = zero_ui_wgt_scroll::cmd::SCROLL_UP_CMD
         .scoped(scroll_id)
         .shortcut()
         .set(Shortcuts::new());
-    let _ = zero_ui_wgt_scroll::commands::SCROLL_DOWN_CMD
+    let _ = zero_ui_wgt_scroll::cmd::SCROLL_DOWN_CMD
         .scoped(scroll_id)
         .shortcut()
         .set(Shortcuts::new());

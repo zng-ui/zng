@@ -7,7 +7,7 @@ use std::{
 use zero_ui_app::{
     event::{event, event_args},
     widget::{
-        instance::{BoxedUiNode, UiNode},
+        node::{BoxedUiNode, UiNode},
         WidgetId,
     },
     window::{WindowId, WINDOW},
@@ -106,7 +106,7 @@ impl WindowRoot {
             render_mode,
             headless_monitor,
             start_focused,
-            zero_ui_app::widget::base::nodes::widget_inner(child),
+            zero_ui_app::widget::base::node::widget_inner(child),
         )
     }
 

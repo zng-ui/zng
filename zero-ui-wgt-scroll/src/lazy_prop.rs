@@ -196,7 +196,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                     // only placeholder
 
                     let placeholder = placeholder(());
-                    let placeholder = zero_ui_app::widget::base::nodes::widget_inner(placeholder).boxed();
+                    let placeholder = zero_ui_app::widget::base::node::widget_inner(placeholder).boxed();
 
                     // just placeholder, and as the `widget_inner`, first render may init
                     c.children().push(placeholder);

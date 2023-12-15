@@ -13,7 +13,7 @@ use zero_ui_wgt::prelude::gradient::ExtendMode;
 use zero_ui_wgt::prelude::gradient::RenderGradientStop;
 use zero_ui_wgt::prelude::*;
 
-use super::commands::*;
+use super::cmd::*;
 use super::scroll_properties::*;
 use super::scrollbar::Orientation;
 use super::types::*;
@@ -1293,8 +1293,8 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
                     args.propagation().stop();
                 } else {
                     match args.command {
-                        ScrollTo => super::commands::scroll_to(args.widget_id, ScrollToMode::minimal(10)),
-                        ScrollToRect(rect) => super::commands::scroll_to(args.widget_id, ScrollToMode::minimal_rect(rect)),
+                        ScrollTo => super::cmd::scroll_to(args.widget_id, ScrollToMode::minimal(10)),
+                        ScrollToRect(rect) => super::cmd::scroll_to(args.widget_id, ScrollToMode::minimal_rect(rect)),
                         _ => return,
                     }
                     args.propagation().stop();

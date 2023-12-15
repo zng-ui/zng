@@ -13,7 +13,7 @@ use zero_ui_var::{
 };
 use zero_ui_wgt::prelude::*;
 
-use super::{commands, SMOOTH_SCROLLING_VAR};
+use super::{cmd, SMOOTH_SCROLLING_VAR};
 
 bitflags! {
     /// What dimensions are scrollable in a widget.
@@ -824,13 +824,13 @@ impl SCROLL {
     }
 
     /// Scroll the [`WIDGET`] into view.
-    pub fn scroll_to(&self, mode: impl Into<super::commands::ScrollToMode>) {
-        commands::scroll_to(WIDGET.info(), mode.into())
+    pub fn scroll_to(&self, mode: impl Into<super::cmd::ScrollToMode>) {
+        cmd::scroll_to(WIDGET.info(), mode.into())
     }
 
     /// Scroll the [`WIDGET`] into view and adjusts the zoom scale.
-    pub fn scroll_to_zoom(&self, mode: impl Into<super::commands::ScrollToMode>, zoom: impl Into<Factor>) {
-        commands::scroll_to_zoom(WIDGET.info(), mode.into(), zoom.into())
+    pub fn scroll_to_zoom(&self, mode: impl Into<super::cmd::ScrollToMode>, zoom: impl Into<Factor>) {
+        cmd::scroll_to_zoom(WIDGET.info(), mode.into(), zoom.into())
     }
 
     /// Returns `true` if the content can be scaled and the current scale is less than the max.

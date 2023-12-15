@@ -125,7 +125,7 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
             Ordering::Greater => (0.0, mid_offset),
             Ordering::Equal => (0.0, 0.0),
         };
-        let request = commands::ScrollRequest {
+        let request = cmd::ScrollRequest {
             clamp,
             ..Default::default()
         };
@@ -136,13 +136,13 @@ fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
         if ongoing_direction == direction {
             match orientation {
                 Orientation::Vertical => match direction {
-                    Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify_param(request),
-                    Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Less => cmd::PAGE_UP_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Greater => cmd::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify_param(request),
                     Ordering::Equal => {}
                 },
                 Orientation::Horizontal => match direction {
-                    Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify_param(request),
-                    Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Less => cmd::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Greater => cmd::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify_param(request),
                     Ordering::Equal => {}
                 },
             }

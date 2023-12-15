@@ -196,7 +196,7 @@ impl fmt::Display for UiNodeOpMethod {
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{*, widget::{*, instance::*, builder::*}};
+/// # use zero_ui_app::{*, widget::{*, node::*, builder::*}};
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::context::LAYOUT;
 /// #[property(LAYOUT)]
@@ -265,7 +265,7 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{*, widget_instance::*, widget_builder::*};
+/// # use zero_ui_app::{*, widget_node::*, widget_builder::*};
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();

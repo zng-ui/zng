@@ -279,7 +279,7 @@ fn dyn_buttons_from_data() -> impl UiNode {
     let data_source = var(ObservableVec::<char>::new());
     let mut btn = 'A';
 
-    let view = widget::instance::list_presenter(
+    let view = widget::node::list_presenter(
         data_source.clone(),
         wgt_fn!(data_source, |data: char| {
             dyn_button(

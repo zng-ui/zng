@@ -9,7 +9,7 @@ mod inspector_only {
 
     use zero_ui_app_context::LocalContext;
 
-    use crate::widget::instance::{match_node, BoxedUiNode, UiNode, UiNodeOp};
+    use crate::widget::node::{match_node, BoxedUiNode, UiNode, UiNodeOp};
 
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
         let insp_info = Arc::new(info);

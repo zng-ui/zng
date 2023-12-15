@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::{
-    commands::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
+    cmd::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
     text_properties::*,
 };
 use atomic::{Atomic, Ordering};
@@ -29,7 +29,7 @@ use zero_ui_ext_input::{
 };
 use zero_ui_ext_l10n::LANG_VAR;
 use zero_ui_ext_undo::UNDO;
-use zero_ui_ext_window::{commands::CANCEL_IME_CMD, WINDOW_Ext as _, WidgetInfoBuilderImeArea as _, WindowLoadingHandle, IME_EVENT};
+use zero_ui_ext_window::{cmd::CANCEL_IME_CMD, WINDOW_Ext as _, WidgetInfoBuilderImeArea as _, WindowLoadingHandle, IME_EVENT};
 use zero_ui_layout::context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment};
 use zero_ui_view_api::{config::FontAntiAliasing, mouse::ButtonState, touch::TouchPhase, webrender_api::GlyphInstance};
 use zero_ui_wgt::prelude::*;
@@ -38,7 +38,7 @@ use zero_ui_wgt_layer::{
     popup::{ContextCapture, PopupState, POPUP},
     AnchorMode, AnchorTransform, LayerIndex, LAYERS,
 };
-use zero_ui_wgt_scroll::{commands::ScrollToMode, SCROLL};
+use zero_ui_wgt_scroll::{cmd::ScrollToMode, SCROLL};
 
 /// Represents the caret position at the [`ResolvedText`] level.
 #[derive(Clone)]
@@ -3392,7 +3392,7 @@ where
 
             let live = TXT_PARSE_LIVE_VAR.actual_var();
             let is_pending = TXT_PARSE_PENDING_VAR.actual_var();
-            let cmd_handle = Arc::new(super::commands::PARSE_CMD.scoped(WIDGET.id()).subscribe(false));
+            let cmd_handle = Arc::new(super::cmd::PARSE_CMD.scoped(WIDGET.id()).subscribe(false));
 
             let binding = ctx.txt.bind_filter_map_bidi(
                 &value,
@@ -3452,7 +3452,7 @@ where
             _error_note = DataNoteHandle::dummy();
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = super::commands::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+            if let Some(args) = super::cmd::PARSE_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                 if matches!(state.load(Ordering::Relaxed), State::Pending) {
                     // requested parse and parse is pending
 
@@ -3536,7 +3536,7 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
 
 /// Implements the selection toolbar.
 pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
-    use super::nodes::*;
+    use super::node::*;
 
     let mut selection_range = None;
     let mut popup_state = None::<ReadOnlyArcVar<PopupState>>;

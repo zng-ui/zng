@@ -240,7 +240,7 @@ mod _impl {
         update::{ContextUpdates, EventUpdate, LayoutUpdates, UpdateDeliveryList, WidgetUpdates, UPDATES},
         widget::{
             info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetPath},
-            instance::UiNode,
+            node::UiNode,
             WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET, WIDGET_CTX,
         },
     };
@@ -564,7 +564,7 @@ pub enum WindowMode {
     /// Headless mode, no system window and no renderer. The window does layout and calls [`UiNode::render`] but
     /// it does not actually generates frame textures.
     ///
-    /// [`UiNode::render`]: crate::widget::instance::UiNode::render
+    /// [`UiNode::render`]: crate::widget::node::UiNode::render
     Headless,
     /// Headless mode, no visible system window but with a renderer. The window does everything a [`Headed`](WindowMode::Headed)
     /// window does, except presenting frame textures in a system window.

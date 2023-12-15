@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use zero_ui_app::widget::instance::UiNodeOpMethod;
+use zero_ui_app::widget::node::UiNodeOpMethod;
 
 use crate::prelude::*;
 

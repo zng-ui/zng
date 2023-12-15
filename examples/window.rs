@@ -291,7 +291,7 @@ fn chrome() -> impl UiNode {
 }
 
 fn state_commands() -> impl UiNode {
-    use zero_ui::window::commands::*;
+    use zero_ui::window::cmd::*;
 
     let window_id = WINDOW.id();
 
@@ -458,7 +458,7 @@ fn misc() -> impl UiNode {
                 checked = window_vars.always_on_top();
             },
             separator(),
-            cmd_btn(zero_ui::window::commands::INSPECT_CMD.scoped(window_id)),
+            cmd_btn(zero_ui::window::cmd::INSPECT_CMD.scoped(window_id)),
             separator(),
             {
                 let mut child_count = 0;

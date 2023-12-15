@@ -37,7 +37,7 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
-            instance::{
+            node::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
                 BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
                 UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex, SORTING_LIST,
@@ -84,7 +84,7 @@ pub mod prelude {
         ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
     };
 
-    pub use crate::nodes::{
+    pub use crate::node::{
         bind_is_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
         fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
@@ -93,7 +93,7 @@ pub mod prelude {
     pub use crate::{wgt_fn, WidgetFn};
 }
 
-pub mod nodes;
+pub mod node;
 
 mod border_props;
 mod clip_props;

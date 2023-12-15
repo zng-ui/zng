@@ -48,7 +48,7 @@ use zero_ui_var::{
 ///
 /// ```
 /// # zero_ui_app::enable_widget_macros!();
-/// # use zero_ui_app::{*, widget::{instance::*, *}};
+/// # use zero_ui_app::{*, widget::{node::*, *}};
 /// # use zero_ui_var::*;
 /// # use zero_ui_color::*;
 /// # use zero_ui_layout::units::*;

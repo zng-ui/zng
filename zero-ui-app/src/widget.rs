@@ -5,7 +5,7 @@ pub mod border;
 pub mod builder;
 pub mod info;
 pub mod inspector;
-pub mod instance;
+pub mod node;
 
 mod easing;
 pub use easing::*;
@@ -54,7 +54,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// generator to delegate the method calls for the child node.
 ///
 /// ```
-/// # use zero_ui_app::widget::{instance::{UiNode}, ui_node};
+/// # use zero_ui_app::widget::{node::{UiNode}, ui_node};
 /// struct MyNode<C> {
 ///     child: C
 /// }
@@ -65,7 +65,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// If the child node is in a field named `child` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_app::widget::{instance::{UiNode}, ui_node};
+/// # use zero_ui_app::widget::{node::{UiNode}, ui_node};
 /// # struct MyNode<C> { child: C }
 /// #[ui_node(child)]
 /// impl<C: UiNode> UiNode for MyNode<C> { }
@@ -79,7 +79,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// you can configure the code generator to delegate to the equivalent list methods.
 ///
 /// ```
-/// # use zero_ui_app::widget::{instance::*, *};
+/// # use zero_ui_app::widget::{node::*, *};
 /// struct MyNode<L> {
 ///     children: L
 /// }
@@ -90,7 +90,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// If the children list is a member named `children` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_app::widget::{instance::*, *};
+/// # use zero_ui_app::widget::{node::*, *};
 /// # struct MyNode<L> { children: L }
 /// #[ui_node(children)]
 /// impl<L: UiNodeList> UiNode for MyNode<L> { }
@@ -104,7 +104,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// If your node does not have any child nodes you can configure the code generator to generate empty missing methods.
 ///
 /// ```
-/// # use zero_ui_app::widget::{instance::{UiNode}, ui_node};
+/// # use zero_ui_app::widget::{node::{UiNode}, ui_node};
 /// # struct MyNode { }
 /// #[ui_node(none)]
 /// impl UiNode for MyNode { }
@@ -132,7 +132,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
 ///
 /// ```
-/// # use zero_ui_app::{widget::{instance::*, ui_node}, update::*};
+/// # use zero_ui_app::{widget::{node::*, ui_node}, update::*};
 /// # struct MyNode { child: BoxedUiNode }
 /// #[ui_node(child)]
 /// impl MyNode {
@@ -166,7 +166,7 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 /// avoid this extra boilerplate by declaring the node `struct` as an arg for the macro.
 ///
 /// ```
-/// # use zero_ui_app::{widget::{instance::*, ui_node}, update::*};
+/// # use zero_ui_app::{widget::{node::*, ui_node}, update::*};
 /// # use zero_ui_var::*;
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct MyNode {
@@ -225,11 +225,11 @@ pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
 ///
 /// The new node syntax is designed to alleviate the boilerplate of declaring nodes that are just implementation detail of properties and widgets.
 ///
-/// [`UiNode`]: crate::widget::instance::UiNode
-/// [`UiNodeList`]: crate::widget::instance::UiNodeList
-/// [`measure`]: crate::widget::instance::UiNode::measure
-/// [`layout`]: crate::widget::instance::UiNode::layout
-/// [`render`]: crate::widget::instance::UiNode::render
+/// [`UiNode`]: crate::widget::node::UiNode
+/// [`UiNodeList`]: crate::widget::node::UiNodeList
+/// [`measure`]: crate::widget::node::UiNode::measure
+/// [`layout`]: crate::widget::node::UiNode::layout
+/// [`render`]: crate::widget::node::UiNode::render
 /// [`WIDGET`]: crate::update::WIDGET
 #[doc(inline)]
 pub use zero_ui_app_proc_macros::ui_node;
@@ -253,7 +253,7 @@ pub use zero_ui_app_proc_macros::ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::widget::{instance::*, *};
+/// # use zero_ui_app::widget::{node::*, *};
 /// # use zero_ui_var::*;
 /// #
 /// # #[derive(Clone, Debug, PartialEq)] pub struct Align { }
@@ -269,7 +269,7 @@ pub use zero_ui_app_proc_macros::ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::widget::{instance::*, *};
+/// # use zero_ui_app::widget::{node::*, *};
 /// # use zero_ui_var::*;
 /// #
 /// # #[derive(Clone, Debug, PartialEq)] pub struct Size { }
@@ -293,7 +293,7 @@ pub use zero_ui_app_proc_macros::ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui_app::widget::{instance::*, *};
+/// use zero_ui_app::widget::{node::*, *};
 /// use zero_ui_var::*;
 /// use zero_ui_color::*;
 ///
@@ -331,7 +331,7 @@ pub use zero_ui_app_proc_macros::ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui_app::widget::{instance::*, *};
+/// use zero_ui_app::widget::{node::*, *};
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
@@ -438,9 +438,9 @@ pub use zero_ui_app_proc_macros::ui_node;
 /// [`IntoValue<T>`]: crate::var::IntoValue
 /// [`IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
-/// [`UiNode`]: crate::widget::instance::UiNode
-/// [`UiNodeList`]: crate::widget::instance::UiNodeList
-/// [`NilUiNode`]: crate::widget::instance::NilUiNode
+/// [`UiNode`]: crate::widget::node::UiNode
+/// [`UiNodeList`]: crate::widget::node::UiNodeList
+/// [`NilUiNode`]: crate::widget::node::NilUiNode
 /// [`InputKind::Var`]: crate::widget::builder::InputKind::Var
 /// [`InputKind::Value`]: crate::widget::builder::InputKind::Value
 /// [`InputKind::UiNode`]: crate::widget::builder::InputKind::UiNode
@@ -514,7 +514,7 @@ pub use zero_ui_app_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui_app::{widget::{base::*, builder::*, instance::*, widget}};
+/// use zero_ui_app::{widget::{base::*, builder::*, node::*, widget}};
 ///
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
@@ -522,7 +522,7 @@ pub use zero_ui_app_proc_macros::property;
 /// impl Foo {
 ///     /// Custom build.
 ///     pub fn widget_build(&mut self) -> impl UiNode {
-///         nodes::build(self.widget_take())
+///         node::build(self.widget_take())
 ///     }
 /// }
 /// ```
@@ -534,7 +534,7 @@ pub use zero_ui_app_proc_macros::property;
 /// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type
 /// is an opaque `impl UiNode`, normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets,
 /// the widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
-/// The base widget implementation is in [`base::nodes::widget`], you can use it directly, so even if you need to run code
+/// The base widget implementation is in [`base::node::widget`], you can use it directly, so even if you need to run code
 /// on build or define a custom type you don't need to start from scratch.
 ///
 /// # Defaults
@@ -659,7 +659,7 @@ pub use zero_ui_app_proc_macros::property;
 /// [`NestGroup`]: widget_builder::NestGroup
 /// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
-/// [`UiNode`]: widget_instance::UiNode
+/// [`UiNode`]: widget_node::UiNode
 /// [`WidgetBase`]: struct@widget::base::WidgetBase
 /// [`Importance::WIDGET`]: widget_builder::Importance::WIDGET
 /// [`Importance::INSTANCE`]: widget_builder::Importance::INSTANCE
@@ -677,7 +677,7 @@ pub use zero_ui_app_proc_macros::widget;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, base::*, *}};
+/// # use zero_ui_app::{*, widget::{node::*, base::*, *}};
 /// # use zero_ui_var::*;
 /// # #[property(CONTEXT)] pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 /// #
@@ -717,7 +717,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{base::*, instance::*, widget, property}};
+/// # use zero_ui_app::{*, widget::{base::*, node::*, widget, property}};
 /// # use zero_ui_var::*;
 /// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 /// # #[widget($crate::Wgt)]
@@ -749,7 +749,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 ///
 /// ```
 /// # zero_ui_app::enable_widget_macros!();
-/// # use zero_ui_app::{*, widget::{instance::*, base::*, widget, property}};
+/// # use zero_ui_app::{*, widget::{node::*, base::*, widget, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # #[widget($crate::Wgt)] pub struct Wgt(WidgetBase);
@@ -774,7 +774,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// directly implemented on the widget or from a trait.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -789,7 +789,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -810,7 +810,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// An full or partial path can be used to specify exactly what extension property will be set:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -827,7 +827,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -843,7 +843,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -860,7 +860,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Note that just like in struct init the parameters don't need to be in order:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -878,7 +878,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -908,7 +908,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Properties with multiple parameters don't need to be set using the named syntax:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -922,7 +922,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -938,7 +938,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Is a variable with the same name as a property is in context the `= name` can be omitted:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -965,7 +965,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// The above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -993,7 +993,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// unset property will not be instantiated:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -1007,7 +1007,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -1027,7 +1027,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// Generic properties need a *turbofish* annotation on assign:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -1045,7 +1045,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -1089,7 +1089,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// the variable value is inserted in the expression as a reference  so you may need to deref in case the var is a simple [`Copy`] value.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, property, self}};
+/// # use zero_ui_app::{*, widget::{node::*, property, self}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
 /// # use zero_ui_layout::units::*;
@@ -1276,14 +1276,14 @@ pub enum WidgetUpdateMode {
     ///
     /// This mode is used by [`UiNode::with_context`] and [`UiNodeOp::Measure`].
     ///
-    /// [`UiNode::with_context`]: crate::widget::instance::UiNode::with_context
-    /// [`UiNodeOp::Measure`]: crate::widget::instance::UiNodeOp::Measure
+    /// [`UiNode::with_context`]: crate::widget::node::UiNode::with_context
+    /// [`UiNodeOp::Measure`]: crate::widget::node::UiNodeOp::Measure
     Ignore,
     /// All updates flagged after the closure call are retained and propagate to the parent widget flags.
     ///
     /// This is the mode is used for all [`UiNodeOp`] delegation, except measure.
     ///
-    /// [`UiNodeOp`]: crate::widget::instance::UiNodeOp
+    /// [`UiNodeOp`]: crate::widget::node::UiNodeOp
     Bubble,
 }
 
@@ -1526,10 +1526,10 @@ impl WIDGET {
     ///                       If a reinit is requested during update the widget is reinited immediately after the update.
     /// * Other methods: Reinit request is flagged and an [`UiNode::update`] is requested for the widget.
     ///
-    /// [`UiNode::init`]: crate::widget::instance::UiNode::init
-    /// [`UiNode::deinit`]: crate::widget::instance::UiNode::deinit
-    /// [`UiNode::event`]: crate::widget::instance::UiNode::event
-    /// [`UiNode::update`]: crate::widget::instance::UiNode::update
+    /// [`UiNode::init`]: crate::widget::node::UiNode::init
+    /// [`UiNode::deinit`]: crate::widget::node::UiNode::deinit
+    /// [`UiNode::event`]: crate::widget::node::UiNode::event
+    /// [`UiNode::update`]: crate::widget::node::UiNode::update
     pub fn reinit(&self) {
         let _ = WIDGET_CTX.get().flags.fetch_update(Relaxed, Relaxed, |mut f| {
             if !f.contains(UpdateFlags::REINIT) {
@@ -2277,8 +2277,8 @@ pub trait UiTaskWidget<R> {
     /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
     ///
     /// [`update`]: UiTask::update
-    /// [`UiNode::update`]: crate::widget::instance::UiNode::update
-    /// [`UiNode::info`]: crate::widget::instance::UiNode::info
+    /// [`UiNode::update`]: crate::widget::node::UiNode::update
+    /// [`UiNode::info`]: crate::widget::node::UiNode::info
     fn new<F>(target: Option<WidgetId>, task: F) -> Self
     where
         F: std::future::Future<Output = R> + Send + 'static;

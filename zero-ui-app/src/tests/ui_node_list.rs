@@ -7,7 +7,7 @@ use crate::{
     ui_vec,
     widget::{
         base::PARALLEL_VAR,
-        instance::{PanelList, UiNode, UiNodeList, UiNodeVec},
+        node::{PanelList, UiNode, UiNodeList, UiNodeVec},
         WidgetUpdateMode,
     },
     window::WINDOW,
@@ -125,7 +125,7 @@ mod util {
     use zero_ui_var::IntoValue;
 
     use crate::widget::{
-        instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
+        node::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
         WidgetUpdateMode, WIDGET,
     };
 

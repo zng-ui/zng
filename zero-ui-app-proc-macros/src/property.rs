@@ -79,7 +79,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if item.sig.inputs.is_empty() {
         // patch to continue validation.
         let core = crate_core();
-        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::instance::UiNode));
+        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget::node::UiNode));
     }
 
     if let Some(async_) = &item.sig.asyncness {
@@ -179,10 +179,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             }
                         }
                         InputKind::UiNode => default.extend(quote! {
-                            #core::widget::instance::NilUiNode,
+                            #core::widget::node::NilUiNode,
                         }),
                         InputKind::UiNodeList => default.extend(quote! {
-                            #core::widget::instance::UiNodeVec::new(),
+                            #core::widget::node::UiNodeVec::new(),
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_| {}),
@@ -327,8 +327,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget::builder::ui_node_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::instance::BoxedUiNode {
-                            #core::widget::instance::UiNode::boxed(#ident)
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::node::BoxedUiNode {
+                            #core::widget::node::UiNode::boxed(#ident)
                         }
                     });
                     get_ui_node.extend(quote! {
@@ -360,8 +360,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget::builder::ui_node_list_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::instance::BoxedUiNodeList {
-                            #core::widget::instance::UiNodeList::boxed(#ident)
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget::node::BoxedUiNodeList {
+                            #core::widget::node::UiNodeList::boxed(#ident)
                         }
                     });
                     get_ui_node_list.extend(quote! {
@@ -445,7 +445,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node.is_empty() {
             get_ui_node = quote! {
-                fn ui_node(&self, __index__: usize) -> &#core::widget::instance::ArcNode<#core::widget::instance::BoxedUiNode> {
+                fn ui_node(&self, __index__: usize) -> &#core::widget::node::ArcNode<#core::widget::node::BoxedUiNode> {
                     match __index__ {
                         #get_ui_node
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::UiNode),
@@ -455,7 +455,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node_list.is_empty() {
             get_ui_node_list = quote! {
-                fn ui_node_list(&self, __index__: usize) -> &#core::widget::instance::ArcNodeList<#core::widget::instance::BoxedUiNodeList> {
+                fn ui_node_list(&self, __index__: usize) -> &#core::widget::node::ArcNodeList<#core::widget::node::BoxedUiNodeList> {
                     match __index__ {
                         #get_ui_node_list
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::UiNodeList),
@@ -583,7 +583,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         } else {
             quote! {
                 let #node_instance = #ident(__child__, #instantiate);
-                #core::widget::instance::UiNode::boxed(#node_instance)
+                #core::widget::node::UiNode::boxed(#node_instance)
             }
         };
 
@@ -606,7 +606,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #ident_meta { }.info #path_gens()
                 }
 
-                fn instantiate(&self, __child__: #core::widget::instance::BoxedUiNode) -> #core::widget::instance::BoxedUiNode {
+                fn instantiate(&self, __child__: #core::widget::node::BoxedUiNode) -> #core::widget::node::BoxedUiNode {
                     #instantiate
                 }
 
@@ -917,15 +917,14 @@ impl Input {
                                     "UiNode" => {
                                         input.kind = InputKind::UiNode;
                                         input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::instance::BoxedUiNode);
-                                        input.storage_ty = quote!(#core::widget::instance::ArcNode<#core::widget::instance::BoxedUiNode>);
+                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::node::BoxedUiNode);
+                                        input.storage_ty = quote!(#core::widget::node::ArcNode<#core::widget::node::BoxedUiNode>);
                                     }
                                     "UiNodeList" => {
                                         input.kind = InputKind::UiNodeList;
                                         input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::instance::BoxedUiNodeList);
-                                        input.storage_ty =
-                                            quote!(#core::widget::instance::ArcNodeList<#core::widget::instance::BoxedUiNodeList>)
+                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::widget::node::BoxedUiNodeList);
+                                        input.storage_ty = quote!(#core::widget::node::ArcNodeList<#core::widget::node::BoxedUiNodeList>)
                                     }
                                     _ => {
                                         errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, WidgetHandler<A>, UiNodeList", seg.span());

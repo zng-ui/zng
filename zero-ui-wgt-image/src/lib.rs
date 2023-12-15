@@ -13,7 +13,7 @@ pub mod mask;
 
 use zero_ui_wgt_access::{access_role, AccessRole};
 
-pub mod nodes;
+pub mod node;
 
 /// Image presenter.
 ///
@@ -43,9 +43,9 @@ impl Image {
 pub fn source(source: impl IntoVar<ImageSource>) {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let node = nodes::image_presenter();
-    let node = nodes::image_error_presenter(node);
-    let node = nodes::image_loading_presenter(node);
+    let node = node::image_presenter();
+    let node = node::image_error_presenter(node);
+    let node = node::image_loading_presenter(node);
     wgt.set_child(node);
 
     let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
@@ -53,5 +53,5 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let error = ImageSource::Image(var(error).read_only());
         LocalVar(error).boxed()
     });
-    wgt.push_intrinsic(NestGroup::EVENT, "image_source", |child| nodes::image_source(child, source));
+    wgt.push_intrinsic(NestGroup::EVENT, "image_source", |child| node::image_source(child, source));
 }

@@ -1,4 +1,4 @@
-//! Widget instance types, [`UiNode`], [`UiNodeList`] and others.
+//! Widget nodes types, [`UiNode`], [`UiNodeList`] and others.
 
 use std::{
     any::{Any, TypeId},
@@ -233,7 +233,7 @@ pub trait UiNode: Any + Send {
     /// not a full widget even after init.
     ///
     /// [`is_widget`]: UiNode::is_widget
-    /// [`ArcNode::take_on_init`]: crate::widget::instance::ArcNode::take_on_init
+    /// [`ArcNode::take_on_init`]: crate::widget::node::ArcNode::take_on_init
     fn init_widget(mut self) -> (BoxedUiNode, ResponseVar<WidgetId>)
     where
         Self: Sized,
@@ -335,7 +335,7 @@ pub trait UiNode: Any + Send {
 
 /// See [`UiNode::into_widget`]
 #[allow(non_camel_case_types)]
-#[widget($crate::widget::instance::into_widget)]
+#[widget($crate::widget::node::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
 #[zero_ui_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
 fn child(child: impl UiNode) {}
@@ -388,7 +388,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// If `reduce` is [associative] the order is preserved in the result, this example will collect the node indexes in order:
     ///
     /// ```
-    /// # use zero_ui_app::widget::instance::UiNodeList;
+    /// # use zero_ui_app::widget::node::UiNodeList;
     /// # fn demo(mut list: impl UiNodeList) -> Vec<usize> {
     /// list.par_fold_reduce(
     ///     Vec::new,

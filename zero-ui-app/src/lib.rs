@@ -102,8 +102,8 @@ pub mod __proc_macro_util {
         }
 
         #[doc(hidden)]
-        pub mod instance {
-            pub use crate::widget::instance::{
+        pub mod node {
+            pub use crate::widget::node::{
                 ui_node_list_default, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiNodeVec,
             };
         }
@@ -272,7 +272,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`event`](Self::event).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget::instance::UiNode::event)
+    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget::node::UiNode::event)
     /// method is called here.
     fn event_ui(&mut self, update: &mut EventUpdate) {
         let _ = update;
@@ -287,7 +287,7 @@ pub trait AppExtension: 'static {
 
     /// Called before and after an update cycle. The [`UiNode::info`] method is called here.
     ///
-    /// [`UiNode::info`]: crate::widget::instance::UiNode::info
+    /// [`UiNode::info`]: crate::widget::node::UiNode::info
     fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _ = info_widgets;
     }
@@ -305,7 +305,7 @@ pub trait AppExtension: 'static {
     /// Only extensions that manage windows must handle this method. The [`UiNode::update`]
     /// method is called here.
     ///
-    /// [`UiNode::update`]: crate::widget::instance::UiNode::update
+    /// [`UiNode::update`]: crate::widget::node::UiNode::update
     fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
         let _ = update_widgets;
     }
@@ -320,7 +320,7 @@ pub trait AppExtension: 'static {
     ///
     /// The [`UiNode::layout`] method is called here by extensions that manage windows.
     ///
-    /// [`UiNode::layout`]: crate::widget::instance::UiNode::layout
+    /// [`UiNode::layout`]: crate::widget::node::UiNode::layout
     fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
@@ -329,8 +329,8 @@ pub trait AppExtension: 'static {
     ///
     /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here by extensions that manage windows.
     ///
-    /// [`UiNode::render`]: crate::widget::instance::UiNode::render
-    /// [`UiNode::render_update`]: crate::widget::instance::UiNode::render_update
+    /// [`UiNode::render`]: crate::widget::node::UiNode::render
+    /// [`UiNode::render_update`]: crate::widget::node::UiNode::render_update
     fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _ = (render_widgets, render_update_widgets);
     }
@@ -679,7 +679,7 @@ impl HeadlessApp {
     /// query the latest frame from `WINDOWS.widget_tree`. The only thing that
     /// is disabled is WebRender and the generation of frame textures.
     ///
-    /// [`UiNode::render`]: crate::widget::instance::UiNode::render
+    /// [`UiNode::render`]: crate::widget::node::UiNode::render
     pub fn renderer_enabled(&mut self) -> bool {
         VIEW_PROCESS.is_available()
     }

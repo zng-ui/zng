@@ -10,8 +10,8 @@ use zero_ui_wgt::prelude::*;
 #[macro_use]
 extern crate bitflags;
 
-pub mod commands;
-pub mod nodes;
+pub mod cmd;
+pub mod node;
 mod text_properties;
 pub use text_properties::*;
 
@@ -153,7 +153,7 @@ pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
 where
     T: TxtParseValue,
 {
-    nodes::parse_text(child, value)
+    node::parse_text(child, value)
 }
 
 /// A type that can be a var value, parse and display.
@@ -189,19 +189,19 @@ where
 impl Text {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
-            let child = nodes::render_text();
-            let child = nodes::render_caret(child);
-            let child = nodes::touch_carets(child);
-            let child = nodes::render_overlines(child);
-            let child = nodes::render_strikethroughs(child);
-            let child = nodes::render_underlines(child);
-            let child = nodes::render_ime_preview_underlines(child);
-            let child = nodes::render_selection(child);
+            let child = node::render_text();
+            let child = node::render_caret(child);
+            let child = node::touch_carets(child);
+            let child = node::render_overlines(child);
+            let child = node::render_strikethroughs(child);
+            let child = node::render_underlines(child);
+            let child = node::render_ime_preview_underlines(child);
+            let child = node::render_selection(child);
             wgt.set_child(child.boxed());
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", |child| {
-                let child = nodes::selection_toolbar_node(child);
-                nodes::layout_text(child)
+                let child = node::selection_toolbar_node(child);
+                node::layout_text(child)
             });
 
             let text = if wgt.property(property_id!(Self::txt_parse)).is_some() {
@@ -210,7 +210,7 @@ impl Text {
             } else {
                 wgt.capture_var_or_default(property_id!(Self::txt))
             };
-            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
+            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| node::resolve_text(child, text));
         });
     }
 }

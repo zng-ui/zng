@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-pub mod commands;
+pub mod cmd;
 pub mod focus;
 pub mod gesture;
 pub mod keyboard;

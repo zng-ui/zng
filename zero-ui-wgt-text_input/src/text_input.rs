@@ -139,7 +139,7 @@ impl DefaultStyle {
                     menu::CmdButton!(COPY_CMD.scoped(id)),
                     menu::CmdButton!(PASTE_CMD.scoped(id)),
                     Hr!(),
-                    menu::CmdButton!(text::commands::SELECT_ALL_CMD.scoped(id)),
+                    menu::CmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
                 ])
             });
             selection_toolbar_fn = wgt_fn!(|args: text::SelectionToolbarArgs| {
@@ -150,7 +150,7 @@ impl DefaultStyle {
                         menu::TouchCmdButton!(CUT_CMD.scoped(id)),
                         menu::TouchCmdButton!(COPY_CMD.scoped(id)),
                         menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
-                        menu::TouchCmdButton!(text::commands::SELECT_ALL_CMD.scoped(id)),
+                        menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
                     ]
                 }
             });

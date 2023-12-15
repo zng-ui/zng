@@ -833,7 +833,7 @@ impl BORDER {
     ///
     /// Note that the corner radius is not set during [`measure`].
     ///
-    /// [`measure`]: crate::widget::instance::UiNode::measure
+    /// [`measure`]: crate::widget::node::UiNode::measure
     pub fn with_corner_radius<R>(&self, f: impl FnOnce() -> R) -> R {
         let mut data = BORDER_DATA.get_clone();
         data.set_corner_radius();

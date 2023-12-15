@@ -26,7 +26,7 @@ use super::*;
 /// Create a vec containing a list of nodes/widgets:
 ///
 /// ```
-/// # use zero_ui_app::widget::instance::*;
+/// # use zero_ui_app::widget::node::*;
 /// # use zero_ui_app::widget::base::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
 /// let widgets = ui_vec![
@@ -38,7 +38,7 @@ use super::*;
 /// Create a vec containing the node repeated **n** times:
 ///
 /// ```
-/// # use zero_ui_app::widget::instance::*;
+/// # use zero_ui_app::widget::node::*;
 /// # use zero_ui_app::widget::base::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
 /// let widgets = ui_vec![Text!(" . "); 10];
@@ -48,11 +48,11 @@ use super::*;
 /// generate the nodes.
 #[macro_export]
 macro_rules! ui_vec {
-    () => { $crate::widget::instance::UiNodeVec::new() };
+    () => { $crate::widget::node::UiNodeVec::new() };
     ($node:expr; $n:expr) => {
         {
             let mut n: usize = $n;
-            let mut vec = $crate::widget::instance::UiNodeVec::with_capacity(n);
+            let mut vec = $crate::widget::node::UiNodeVec::with_capacity(n);
             while n > 0 {
                 vec.push($node);
                 n -= 1;
@@ -100,7 +100,7 @@ macro_rules! ui_vec_items {
     ) => {
         $crate::ui_vec_items! {
             match { $($tt)* }
-            result { $($r)* $crate::widget::instance::UiNode::boxed($node), }
+            result { $($r)* $crate::widget::node::UiNode::boxed($node), }
         }
     };
     // match last node expr, no trailing comma
@@ -110,7 +110,7 @@ macro_rules! ui_vec_items {
     ) => {
         $crate::ui_vec_items! {
             match { }
-            result { $($r)* $crate::widget::instance::UiNode::boxed($node) }
+            result { $($r)* $crate::widget::node::UiNode::boxed($node) }
         }
     };
     // finished
@@ -118,7 +118,7 @@ macro_rules! ui_vec_items {
         match { }
         result { $($r:tt)* }
     ) => {
-        $crate::widget::instance::UiNodeVec(std::vec![
+        $crate::widget::node::UiNodeVec(std::vec![
             $($r)*
         ])
     };
@@ -844,7 +844,7 @@ static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 /// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
 ///
 /// ```
-/// # use zero_ui_app::widget::instance::ZIndex;
+/// # use zero_ui_app::widget::node::ZIndex;
 /// #
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```
@@ -1514,7 +1514,7 @@ impl EditableUiNodeListRef {
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::instance::EditableUiNodeListRef) {
+    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
@@ -1522,7 +1522,7 @@ impl EditableUiNodeListRef {
     /// And to move *down* stopping at the bottom:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::instance::EditableUiNodeListRef) {
+    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
@@ -1533,7 +1533,7 @@ impl EditableUiNodeListRef {
     /// The length can be used for implementing wrapping move *down*:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::instance::EditableUiNodeListRef) {
+    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, len| {
     ///     let next = i.saturating_add(1);
     ///     if next < len { next } else { 0 }

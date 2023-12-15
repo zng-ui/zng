@@ -1,6 +1,6 @@
 //! Widget and property builder types.
 
-use crate::{handler::WidgetHandler, widget::instance::WhenUiNodeListBuilder};
+use crate::{handler::WidgetHandler, widget::node::WhenUiNodeListBuilder};
 use std::{
     any::{Any, TypeId},
     collections::{hash_map, HashMap},
@@ -70,7 +70,7 @@ impl WidgetExt for WgtInfo {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, builder::*, property, widget}};
+/// # use zero_ui_app::{*, widget::{node::*, builder::*, property, widget}};
 /// # use zero_ui_var::*;
 /// # pub mod path {
 /// #   use super::*;
@@ -113,7 +113,7 @@ pub use crate::property_id;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, builder::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
 /// # use zero_ui_var::*;
 /// # pub mod path {
 /// #   use super::*;
@@ -222,7 +222,7 @@ use zero_ui_var::{
 
 use super::{
     base::{WidgetBase, WidgetExt},
-    instance::{
+    node::{
         with_new_context_init_id, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, FillUiNode, UiNode, UiNodeList, WhenUiNodeBuilder,
     },
 };
@@ -2609,7 +2609,7 @@ impl WidgetBuilding {
 
         if let Some(handle) = when_init_context_handle {
             // ensure shared/cloned when input expressions work.
-            node = crate::widget::instance::match_node(node, move |c, op| {
+            node = crate::widget::node::match_node(node, move |c, op| {
                 WHEN_INPUT_CONTEXT_INIT_ID.with_context_value(handle.clone(), || c.op(op));
             })
             .boxed();
@@ -2913,7 +2913,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// that the type is a tuple even if there is only one input.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, builder::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
 /// # use zero_ui_var::*;
 /// # use std::any::Any;
 /// #[property(CONTEXT)]
@@ -2933,7 +2933,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// The next example demonstrates a trait that uses auto-deref to convert a trait bound to a `bool`:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{instance::*, builder::*, property}};
+/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
 /// # use zero_ui_var::*;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {

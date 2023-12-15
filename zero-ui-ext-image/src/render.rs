@@ -3,7 +3,7 @@ use std::{any::Any, sync::Arc};
 use zero_ui_app::{
     update::{EventUpdate, UPDATES},
     widget::{
-        instance::{match_node, BoxedUiNode, UiNode, UiNodeOp},
+        node::{match_node, BoxedUiNode, UiNode, UiNodeOp},
         property, WIDGET,
     },
     window::{WindowId, WINDOW},

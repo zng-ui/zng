@@ -1,11 +1,11 @@
 use super::*;
 use std::fmt;
 
-use nodes::CONTEXT_IMAGE_VAR;
+use node::CONTEXT_IMAGE_VAR;
 use zero_ui_app::render::ImageRendering;
 use zero_ui_ext_image::{ImageDownscale, ImageLimits};
 use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt_window::nodes::BlockWindowLoad;
+use zero_ui_wgt_window::node::BlockWindowLoad;
 
 /// Image layout mode.
 ///
@@ -15,7 +15,7 @@ use zero_ui_wgt_window::nodes::BlockWindowLoad;
 /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
 ///
 /// [`img_fit`]: fn@img_fit
-/// [`image_presenter`]: crate::nodes::image_presenter
+/// [`image_presenter`]: crate::node::image_presenter
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImageFit {
     /// The image original size is preserved, the image is clipped if larger then the final size.

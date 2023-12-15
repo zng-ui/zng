@@ -548,7 +548,7 @@ mod ansi_fn {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
                 lazy = LazyMode::lazy_vertical(wgt_fn!(|_| {
-                    let height_sample = zero_ui_wgt_text::nodes::line_placeholder(50);
+                    let height_sample = zero_ui_wgt_text::node::line_placeholder(50);
                     zero_ui_wgt_stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
                 }));
             }

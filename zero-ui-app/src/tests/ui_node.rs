@@ -10,7 +10,7 @@ use crate::{
     ui_vec,
     update::WidgetUpdates,
     widget::{
-        instance::{UiNode, UiNodeList},
+        node::{UiNode, UiNodeList},
         WidgetUpdateMode, WIDGET,
     },
     window::WINDOW,
@@ -266,7 +266,7 @@ mod util {
         update::{EventUpdate, UpdateDeliveryList, WidgetUpdates},
         widget::{
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            instance::UiNode,
+            node::UiNode,
             WidgetId, WidgetUpdateMode, WIDGET,
         },
         window::WINDOW,

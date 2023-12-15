@@ -9,20 +9,20 @@ use super::{
         AnyPropertyBuildAction, Importance, PropertyArgs, PropertyId, SourceLocation, WhenBuildAction, WhenInfo, WhenInput, WidgetBuilder,
         WidgetType,
     },
-    instance::{FillUiNode, UiNode, UiNodeOp},
+    node::{FillUiNode, UiNode, UiNodeOp},
     WIDGET,
 };
 
 use crate::widget::{
     builder::{property_id, NestGroup},
-    instance::match_node,
+    node::match_node,
     property,
 };
 use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 
 /// Base widget that implements the necessary core API.
 ///
-/// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
+/// The base widget does [`node::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
 ///
 /// [`id`]: WidgetBase::id
 pub struct WidgetBase {
@@ -74,7 +74,7 @@ impl WidgetBase {
                 wgt.set_child(FillUiNode);
             }
         });
-        nodes::build(wgt)
+        node::build(wgt)
     }
 
     /// Gets or sets the importance of the next property assigns, unsets or when blocks.
@@ -106,7 +106,7 @@ impl WidgetBase {
     }
 
     fn widget_intrinsic(&mut self) {
-        nodes::include_intrinsics(self.widget_builder());
+        node::include_intrinsics(self.widget_builder());
     }
 
     /// Push method property.
@@ -286,7 +286,7 @@ pub use WidgetBaseMacro__ as WidgetBase;
 /// Basic nodes for widgets, some used in [`WidgetBase`].
 ///
 /// [`WidgetBase`]: struct@WidgetBase
-pub mod nodes {
+pub mod node {
     use zero_ui_layout::units::{Px, PxCornerRadius, PxRect, PxSize};
     use zero_ui_var::Var;
 
@@ -295,7 +295,7 @@ pub mod nodes {
         update::{EventUpdate, WidgetUpdates},
         widget::{
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            instance::BoxedUiNode,
+            node::BoxedUiNode,
             WidgetCtx, WidgetUpdateMode,
         },
     };
@@ -305,8 +305,8 @@ pub mod nodes {
     /// Insert [`widget_child`] and [`widget_inner`] in the widget.
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::CHILD, "widget_child", nodes::widget_child);
-            wgt.push_intrinsic(NestGroup::WIDGET_INNER, "widget_inner", nodes::widget_inner);
+            wgt.push_intrinsic(NestGroup::CHILD, "widget_child", node::widget_child);
+            wgt.push_intrinsic(NestGroup::WIDGET_INNER, "widget_inner", node::widget_inner);
         });
     }
 
@@ -320,7 +320,7 @@ pub mod nodes {
     pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
         let child = wgt.build();
-        nodes::widget(child, id)
+        node::widget(child, id)
     }
 
     /// Returns a node that wraps `child` and potentially applies child transforms if the `child` turns out

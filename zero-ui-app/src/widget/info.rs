@@ -43,7 +43,7 @@ use crate::{render::TransformStyle, window::WindowId};
 pub use self::hit::RelativeHitZ;
 use self::{access::AccessEnabled, hit::ParallelSegmentId, iter::TreeIterator};
 
-use super::{instance::ZIndex, WidgetId};
+use super::{node::ZIndex, WidgetId};
 
 /// Stats over the lifetime of a widget info tree.
 ///
@@ -55,7 +55,7 @@ pub struct WidgetInfoTreeStats {
 
     /// Duration of the [`UiNode::info`] call for the window content.
     ///
-    /// [`UiNode::info`]: crate::widget::instance::UiNode::info
+    /// [`UiNode::info`]: crate::widget::node::UiNode::info
     pub build_time: Duration,
 
     /// Count of widgets that where reused from a previous tree.
@@ -1156,7 +1156,7 @@ impl WidgetInfo {
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
-    /// [`render`]: crate::widget::instance::UiNode::render
+    /// [`render`]: crate::widget::node::UiNode::render
     pub fn z_index(&self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.render_info().map(|i| {
             let offset = self.tree.0.frame.read().widget_count_offsets.offset(i.seg_id);

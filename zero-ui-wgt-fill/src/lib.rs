@@ -4,9 +4,9 @@
 #![warn(missing_docs)]
 
 use zero_ui_wgt::prelude::gradient::{stops, GradientRadius, GradientStops, LinearGradientAxis};
-use zero_ui_wgt::{hit_test_mode, nodes::interactive_node, prelude::*, HitTestMode};
+use zero_ui_wgt::{hit_test_mode, node::interactive_node, prelude::*, HitTestMode};
 
-pub mod nodes;
+pub mod node;
 
 /// Custom background property. Allows using any other widget as a background.
 ///
@@ -71,17 +71,17 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 
 /// Single color background property.
 ///
-/// This property applies a [`nodes::flood`] as [`background`].
+/// This property applies a [`node::flood`] as [`background`].
 ///
 /// [`background`]: fn@background
 #[property(FILL, default(colors::BLACK.transparent()))]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    background(child, nodes::flood(color))
+    background(child, node::flood(color))
 }
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`nodes::linear_gradient`] as [`background`].
+/// This property applies a [`node::linear_gradient`] as [`background`].
 ///
 /// # Examples
 ///
@@ -103,12 +103,12 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     stops![c, c]
 }))]
 pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    background(child, nodes::linear_gradient(axis, stops))
+    background(child, node::linear_gradient(axis, stops))
 }
 
 /// Radial gradient background property.
 ///
-/// This property applies a [`nodes::radial_gradient`] as [`background`].
+/// This property applies a [`node::radial_gradient`] as [`background`].
 ///
 /// # Examples
 ///
@@ -136,12 +136,12 @@ pub fn background_radial(
     radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
-    background(child, nodes::radial_gradient(center, radius, stops))
+    background(child, node::radial_gradient(center, radius, stops))
 }
 
 /// Conic gradient background property.
 ///
-/// This property applies a [`nodes::conic_gradient`] as [`background`].
+/// This property applies a [`node::conic_gradient`] as [`background`].
 ///
 /// # Examples
 ///
@@ -169,7 +169,7 @@ pub fn background_conic(
     angle: impl IntoVar<AngleRadian>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
-    background(child, nodes::conic_gradient(center, angle, stops))
+    background(child, node::conic_gradient(center, angle, stops))
 }
 
 /// Custom foreground fill property. Allows using any other widget as a foreground overlay.
@@ -311,17 +311,17 @@ pub fn foreground_highlight(
 
 /// Fill color overlay property.
 ///
-/// This property applies a [`nodes::flood`] as [`foreground`].
+/// This property applies a [`node::flood`] as [`foreground`].
 ///
 /// [`foreground`]: fn@foreground
 #[property(FILL, default(colors::BLACK.transparent()))]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    foreground(child, nodes::flood(color))
+    foreground(child, node::flood(color))
 }
 
 /// Linear gradient overlay property.
 ///
-/// This property applies a [`nodes::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
+/// This property applies a [`node::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
 ///
 /// # Examples
 ///
@@ -346,5 +346,5 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     stops![c, c]
 }))]
 pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    foreground(child, nodes::linear_gradient(axis, stops))
+    foreground(child, node::linear_gradient(axis, stops))
 }

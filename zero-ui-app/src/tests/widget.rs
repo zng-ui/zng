@@ -6,7 +6,7 @@ use zero_ui_app_proc_macros::{property, widget};
 use zero_ui_var::{IntoValue, Var};
 
 use crate::{
-    widget::{builder::WidgetBuilder, instance::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
+    widget::{builder::WidgetBuilder, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
     widget_set,
     window::WINDOW,
     APP,
@@ -876,7 +876,7 @@ pub struct GetBuilder(crate::widget::base::WidgetBase);
 impl GetBuilder {
     pub fn widget_build(&mut self) -> WidgetBuilder {
         let mut wgt = self.widget_take();
-        wgt.set_custom_build(crate::widget::base::nodes::build);
+        wgt.set_custom_build(crate::widget::base::node::build);
         wgt
     }
 }
@@ -970,9 +970,9 @@ pub fn allowed_in_when_without_wgt_assign2() {
 */
 #[property(CONTEXT)]
 pub fn util_live_trace(
-    child: impl crate::widget::instance::UiNode,
+    child: impl crate::widget::node::UiNode,
     not_str: impl crate::var::IntoVar<bool>,
-) -> impl crate::widget::instance::UiNode {
+) -> impl crate::widget::node::UiNode {
     let var = not_str.into_var().map(|&b| if b { "true" } else { "false" });
     util::live_trace(child, var)
 }
@@ -1097,9 +1097,9 @@ mod macro_rules_generated {
 
             #[property(CONTEXT, widget_impl($name))]
             pub fn margin(
-                child: impl $crate::widget::instance::UiNode,
+                child: impl $crate::widget::node::UiNode,
                 margin: impl $crate::var::IntoVar<SideOffsets>
-            ) -> impl $crate::widget::instance::UiNode {
+            ) -> impl $crate::widget::node::UiNode {
                 let _ = margin;
                 child
             }
@@ -1129,7 +1129,7 @@ pub mod util {
     use zero_ui_var::{IntoValue, IntoVar, Var};
 
     use crate::widget::{
-        instance::{match_node, UiNode, UiNodeOp},
+        node::{match_node, UiNode, UiNodeOp},
         WidgetUpdateMode, WIDGET,
     };
 

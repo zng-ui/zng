@@ -314,7 +314,7 @@ mod impls {
         update::{EventUpdate, WidgetUpdates, UPDATES},
         widget::{
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-            instance::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver},
+            node::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver},
             WidgetHandlesCtx, WidgetUpdateMode, WIDGET,
         },
     };

@@ -8,7 +8,7 @@ use crate::prelude::*;
 ///
 /// See also `WINDOWS.parallel` to define parallelization in multi-window apps.
 ///
-/// [`UiNode`]: zero_ui_app::widget::instance::UiNodeList
+/// [`UiNode`]: zero_ui_app::widget::node::UiNodeList
 #[property(CONTEXT, default(PARALLEL_VAR))]
 pub fn parallel(child: impl UiNode, enabled: impl IntoVar<Parallel>) -> impl UiNode {
     with_context_var(child, PARALLEL_VAR, enabled)

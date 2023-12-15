@@ -1,4 +1,4 @@
-use zero_ui_app::widget::instance::Z_INDEX;
+use zero_ui_app::widget::node::Z_INDEX;
 
 use crate::prelude::*;
 

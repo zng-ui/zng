@@ -40,11 +40,11 @@ fn on_build(wgt: &mut WidgetBuilding) {
         return;
     };
 
-    wgt.set_child(crate::nodes::render_text());
+    wgt.set_child(crate::node::render_text());
 
-    wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", crate::nodes::layout_text);
+    wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", crate::node::layout_text);
     wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
-        let node = crate::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+        let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
         let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
         let node = crate::font_size(node, ICON_SIZE_VAR);
         crate::font_color(node, ICON_COLOR_VAR)

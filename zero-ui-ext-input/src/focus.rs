@@ -89,8 +89,8 @@ use zero_ui_app::{
     AppExtension,
 };
 
-pub mod commands;
-use commands::FocusCommands;
+pub mod cmd;
+use cmd::FocusCommands;
 use zero_ui_app_context::app_local;
 use zero_ui_ext_window::{WINDOWS, WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT};
 use zero_ui_layout::units::{Px, PxPoint, PxRect, TimeUnits};

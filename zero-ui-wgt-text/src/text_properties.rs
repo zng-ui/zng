@@ -537,7 +537,7 @@ pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
             let _ = state.set(false);
         }
         UiNodeOp::Layout { .. } => {
-            let is_o = super::nodes::LayoutText::get().overflow.is_some();
+            let is_o = super::node::LayoutText::get().overflow.is_some();
             if is_o != state.get() {
                 let _ = state.set(is_o);
             }
@@ -558,7 +558,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
             let _ = state.set(false);
         }
         UiNodeOp::Layout { .. } => {
-            let txt = super::nodes::LayoutText::get();
+            let txt = super::node::LayoutText::get();
             let is_o = if let Some(info) = &txt.overflow {
                 info.line < txt.shaped_text.lines_len().saturating_sub(1) as _
             } else {
@@ -582,9 +582,9 @@ pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
     let txt = txt.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Layout { .. } = op {
-            let l_txt = super::nodes::LayoutText::get();
+            let l_txt = super::node::LayoutText::get();
             if let Some(info) = &l_txt.overflow {
-                let r = super::nodes::ResolvedText::get();
+                let r = super::node::ResolvedText::get();
                 let tail = &r.segmented_text.text()[info.text_char..];
                 if txt.with(|t| t != tail) {
                     let _ = txt.set(Txt::from_str(tail));
@@ -1234,7 +1234,7 @@ context_var! {
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
     /// Touch caret shape.
-    pub static CARET_TOUCH_SHAPE_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::nodes::default_touch_caret(s));
+    pub static CARET_TOUCH_SHAPE_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::node::default_touch_caret(s));
 
     /// Selection background color.
     pub static SELECTION_COLOR_VAR: Rgba = colors::AZURE.with_alpha(30.pct());
@@ -1345,7 +1345,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// set the offset to the middle of the caret line in the shape inner-bounds, this is used to position the caret.
 ///
 /// [layered widget]: zero_ui_wgt_layer
-/// [`set_touch_caret_mid`]: super::nodes::set_touch_caret_mid
+/// [`set_touch_caret_mid`]: super::node::set_touch_caret_mid
 #[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
     with_context_var(child, CARET_TOUCH_SHAPE_VAR, shape)
@@ -1360,13 +1360,13 @@ pub fn selection_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl Ui
 /// Gets the caret char index, if the text is editable.
 #[property(EVENT, default(None), widget_impl(TextEditMix<P>))]
 pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
-    super::nodes::get_caret_index(child, index)
+    super::node::get_caret_index(child, index)
 }
 
 /// Gets the caret display status, if the text is editable.
 #[property(EVENT, default(CaretStatus::none()), widget_impl(TextEditMix<P>))]
 pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
-    super::nodes::get_caret_status(child, status)
+    super::node::get_caret_status(child, status)
 }
 
 /// Gets the number of lines in the text, including wrap lines.
@@ -1377,13 +1377,13 @@ pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -
 /// [`get_lines_wrap_count`]: fn@get_lines_wrap_count
 #[property(CHILD_LAYOUT+100, default(0), widget_impl(TextEditMix<P>))]
 pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
-    super::nodes::get_lines_len(child, len)
+    super::node::get_lines_len(child, len)
 }
 
 /// Gets the number of wrap lines per text lines.
 #[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextEditMix<P>))]
 pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
-    super::nodes::get_lines_wrap_count(child, lines)
+    super::node::get_lines_wrap_count(child, lines)
 }
 
 /// Gets the number of character in the text.
@@ -1392,7 +1392,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
     let chars = chars.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
-            let ctx = super::nodes::ResolvedText::get();
+            let ctx = super::node::ResolvedText::get();
             let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
             let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
             WIDGET.push_var_handle(handle);
@@ -1407,7 +1407,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
 /// This property sets the [`TXT_PARSE_LIVE_VAR`].
 ///
 /// [`txt_parse`]: fn@super::txt_parse
-/// [`PARSE_CMD`]: super::commands::PARSE_CMD
+/// [`PARSE_CMD`]: super::cmd::PARSE_CMD
 #[property(CONTEXT, default(TXT_PARSE_LIVE_VAR), widget_impl(TextEditMix<P>))]
 pub fn txt_parse_live(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TXT_PARSE_LIVE_VAR, enabled)
@@ -1427,7 +1427,7 @@ pub fn txt_parse_on_stop(child: impl UiNode, enabled: impl IntoVar<bool>) -> imp
         child,
         hn!(|_| {
             if enabled.get() {
-                super::commands::PARSE_CMD.scoped(WIDGET.id()).notify();
+                super::cmd::PARSE_CMD.scoped(WIDGET.id()).notify();
             }
         }),
     )
@@ -1465,7 +1465,7 @@ pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 /// [`Key::Enter`]: zero_ui_ext_input::keyboard::Key::Enter
 #[property(EVENT, widget_impl(TextEditMix<P>))]
 pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
-    super::nodes::on_change_stop(child, handler)
+    super::node::on_change_stop(child, handler)
 }
 
 /// Debounce time for [`on_change_stop`].
@@ -1554,8 +1554,8 @@ pub struct ChangeStopArgs {
 }
 impl ChangeStopArgs {
     /// Resolved text is available in the handler.
-    pub fn txt(&self) -> std::sync::Arc<super::nodes::ResolvedText> {
-        super::nodes::ResolvedText::get()
+    pub fn txt(&self) -> std::sync::Arc<super::node::ResolvedText> {
+        super::node::ResolvedText::get()
     }
 }
 
@@ -1726,8 +1726,8 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
             WIDGET.sub_var_render(&range).sub_var_render_update(&color);
         }
         UiNodeOp::Render { frame } => {
-            let l_txt = super::nodes::LayoutText::get();
-            let r_txt = super::nodes::ResolvedText::get();
+            let l_txt = super::node::LayoutText::get();
+            let r_txt = super::node::ResolvedText::get();
             let r_txt = r_txt.segmented_text.text();
 
             for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {

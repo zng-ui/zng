@@ -19,7 +19,7 @@ use crate::{
     timer::TIMERS_SV,
     widget::{
         info::{InteractionPath, WidgetInfo, WidgetInfoTree, WidgetPath},
-        instance::{BoxedUiNode, UiNode},
+        node::{BoxedUiNode, UiNode},
         WidgetId, WIDGET,
     },
     window::{WindowId, WINDOW},

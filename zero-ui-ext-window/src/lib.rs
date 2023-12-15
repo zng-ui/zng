@@ -35,7 +35,7 @@ use zero_ui_app::{
 use zero_ui_ext_image::{ImageVar, IMAGES_WINDOW};
 use zero_ui_view_api::image::ImageMaskMode;
 
-pub mod commands;
+pub mod cmd;
 
 /// Application extension that manages windows.
 ///

@@ -141,7 +141,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 ///
 /// ```
 /// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
-/// # use zero_ui_app::widget::instance::*;
+/// # use zero_ui_app::widget::node::*;
 /// fn center_viewport(content: impl UiNode) -> impl UiNode {
 ///     Container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;

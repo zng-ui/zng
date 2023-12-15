@@ -76,7 +76,7 @@ impl EventPropagationHandle {
     /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
     /// must check if this is `true`.
     ///
-    /// [`UiNode`]: crate::widget::instance::UiNode
+    /// [`UiNode`]: crate::widget::node::UiNode
     /// [`AppExtension`]: crate::AppExtension
     pub fn is_stopped(&self) -> bool {
         self.0.load(Relaxed)

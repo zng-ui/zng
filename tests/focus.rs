@@ -3,7 +3,7 @@ use zero_ui::{
     event::EventReceiver,
     focus::{
         alt_focus_scope,
-        commands::{FOCUS_NEXT_CMD, FOCUS_PREV_CMD},
+        cmd::{FOCUS_NEXT_CMD, FOCUS_PREV_CMD},
         directional_nav, focus_scope, focusable, tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusChangedCause,
         ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
     },

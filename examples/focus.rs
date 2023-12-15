@@ -301,7 +301,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
 }
 
 fn commands() -> impl UiNode {
-    use zero_ui::focus::commands::*;
+    use zero_ui::focus::cmd::*;
 
     let cmds = [
         FOCUS_NEXT_CMD,

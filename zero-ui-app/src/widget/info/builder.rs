@@ -9,7 +9,7 @@ use zero_ui_unique_id::{IdMap, IdSet};
 use crate::{
     render::TransformStyle,
     update::{InfoUpdates, LayoutUpdates, UpdateFlags},
-    widget::{border::BORDER, instance::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
+    widget::{border::BORDER, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
     window::{WindowId, WINDOW},
 };
 
@@ -1185,9 +1185,9 @@ impl WidgetLayout {
     /// If the widget layout is not invalidated and none of the used metrics have changed skips calling
     /// `layout` and returns the current outer-size, the outer transform is still updated.
     ///
-    /// The default widget constructor calls this, see [`base::nodes::widget`].
+    /// The default widget constructor calls this, see [`base::node::widget`].
     ///
-    /// [`base::nodes::widget`]: crate::widget::base::nodes::widget
+    /// [`base::node::widget`]: crate::widget::base::node::widget
     pub fn with_widget(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         let metrics = LAYOUT.metrics();
         let bounds = WIDGET.bounds();
@@ -1312,9 +1312,9 @@ impl WidgetLayout {
     ///
     /// This method also updates the border info.
     ///
-    /// The default widget borders constructor calls this, see [`base::nodes::widget_inner`].
+    /// The default widget borders constructor calls this, see [`base::node::widget_inner`].
     ///
-    /// [`base::nodes::widget_inner`]: crate::widget::base::nodes::widget_inner
+    /// [`base::node::widget_inner`]: crate::widget::base::node::widget_inner
     pub fn with_inner(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.nest_group = LayoutNestGroup::Child;
         let size = BORDER.with_inner(|| layout(self));
@@ -1327,9 +1327,9 @@ impl WidgetLayout {
     ///
     /// Returns the child size and if a reference frame is required to offset the child.
     ///
-    /// The default widget child layout constructor implements this, see [`base::nodes::widget_child`].
+    /// The default widget child layout constructor implements this, see [`base::node::widget_child`].
     ///
-    /// [`base::nodes::widget_child`]: crate::widget::base::nodes::widget_child
+    /// [`base::node::widget_child`]: crate::widget::base::node::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     /// [`with_branch_child`]: Self::with_branch_child
     pub fn with_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, bool) {
@@ -1551,7 +1551,7 @@ impl WidgetLayout {
 
     /// Create an [`WidgetMeasure`] for an [`UiNode::measure`] call.
     ///
-    /// [`UiNode::measure`]: crate::widget::instance::UiNode::measure
+    /// [`UiNode::measure`]: crate::widget::node::UiNode::measure
     pub fn to_measure(&self, inline: Option<WidgetInlineMeasure>) -> WidgetMeasure {
         WidgetMeasure {
             layout_widgets: self.layout_widgets.clone(),

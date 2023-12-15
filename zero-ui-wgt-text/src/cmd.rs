@@ -3,7 +3,7 @@
 //! Most of the normal text editing is controlled by keyboard events, the [`EDIT_CMD`]
 //! command allows for arbitrary text editing without needing to simulate keyboard events.
 //!
-//! The [`nodes::resolve_text`] node implements [`EDIT_CMD`] when the text is editable.
+//! The [`node::resolve_text`] node implements [`EDIT_CMD`] when the text is editable.
 
 use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
@@ -13,7 +13,7 @@ use zero_ui_ext_undo::*;
 use zero_ui_wgt::prelude::*;
 
 use super::{
-    nodes::{LayoutText, ResolvedText},
+    node::{LayoutText, ResolvedText},
     *,
 };
 
@@ -60,7 +60,7 @@ impl TextEditOp {
     /// New text edit operation.
     ///
     /// The editable text widget that handles [`EDIT_CMD`] will call `op` during event handling in
-    /// the [`nodes::resolve_text`] context. You can position the caret using [`ResolvedText::caret`],
+    /// the [`node::resolve_text`] context. You can position the caret using [`ResolvedText::caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
     ///
@@ -720,7 +720,7 @@ impl TextSelectOp {
     /// New text select operation.
     ///
     /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
-    /// the [`nodes::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
+    /// the [`node::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {

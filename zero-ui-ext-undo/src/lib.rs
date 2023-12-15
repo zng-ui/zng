@@ -31,7 +31,7 @@ use zero_ui_app::{
 };
 use zero_ui_app_context::{app_local, context_local, RunOnDrop};
 use zero_ui_clone_move::clmv;
-use zero_ui_ext_input::{focus::commands::CommandFocusExt, keyboard::KEYBOARD};
+use zero_ui_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
 use zero_ui_state_map::{StateMapRef, StaticStateId};
 use zero_ui_txt::Txt;
 use zero_ui_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};

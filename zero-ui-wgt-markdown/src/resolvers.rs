@@ -15,7 +15,7 @@ use zero_ui_wgt_fill::*;
 use zero_ui_wgt_filter::*;
 use zero_ui_wgt_input::focus::on_blur;
 use zero_ui_wgt_layer::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
-use zero_ui_wgt_scroll::commands::ScrollToMode;
+use zero_ui_wgt_scroll::cmd::ScrollToMode;
 use zero_ui_wgt_size_offset::*;
 use zero_ui_wgt_stack::{Stack, StackDirection};
 use zero_ui_wgt_text::{self as text, Text};
@@ -253,7 +253,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
         if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
-                zero_ui_wgt_scroll::commands::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
+                zero_ui_wgt_scroll::cmd::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
 
                 // focus if target if focusable
                 if let Some(focus) = target.into_focus_info(true, true).self_and_descendants().find(|w| w.is_focusable()) {
