@@ -1229,6 +1229,7 @@ impl UPDATES {
 
     /// Schedules a layout update for the window only.
     pub fn layout_window(&self, target: WindowId) -> &Self {
+        UpdatesTrace::log_layout();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::LAYOUT);
         u.send_awake();
