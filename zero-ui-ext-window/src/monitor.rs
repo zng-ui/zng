@@ -123,6 +123,7 @@ impl MonitorsService {
     pub(super) fn on_pre_event(update: &EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
+                zero_ui_app::update::updates_trace_event(&format!("MonitosService::on_pre_event set({:?})", args.scale_factor)); // !TRACE.stuck.Var<Factor>
                 m.scale_factor.set(args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {

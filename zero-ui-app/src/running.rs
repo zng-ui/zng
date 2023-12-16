@@ -954,7 +954,7 @@ impl LoopMonitor {
                  will start skipping updates to render and poll system events\n\
                  top 20 most frequent update requests (in 500 cycles):\n\
                  {trace}\n\
-                    you can use `UpdatesTraceUiNodeExt` to refine the trace"
+                    you can use `UpdatesTraceUiNodeExt` and `updates_trace_event` to refine the trace"
             );
             false
         } else if self.update_count == 1500 {

@@ -521,9 +521,7 @@ impl RenderUpdates {
 ///
 /// You can also use [`updates_trace_span`] to define a custom scope inside a node, and [`updates_trace_event`]
 /// to log a custom entry.
-///
-/// Note that traces are only recorded if the "inspector" feature is active and a tracing subscriber is installed.
-pub trait UpdatesTraceUiNodeExt {
+pub trait UpdatesTraceUiNodeExt: UiNode {
     /// Defines a custom span.
     fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode
     where
@@ -531,16 +529,8 @@ pub trait UpdatesTraceUiNodeExt {
 }
 impl<U: UiNode> UpdatesTraceUiNodeExt for U {
     fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode {
-        #[cfg(inspector)]
-        {
-            let tag = tag.into();
-            self.trace(move |op| UpdatesTrace::custom_span(&tag, op.mtd_name()))
-        }
-        #[cfg(not(inspector))]
-        {
-            let _ = tag;
-            self.trace(move |_| tracing::Span::none().entered())
-        }
+        let tag = tag.into();
+        self.trace(move |op| UpdatesTrace::custom_span(&tag, op.mtd_name()))
     }
 }
 
@@ -658,14 +648,14 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn event(&self, event: &tracing::Event<'_>) {
         let action = match visit_str(|v| event.record(v), "kind").as_str() {
-            "update var" => UpdateAction::Var {
+            "var" => UpdateAction::Var {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
-            "notify event" => UpdateAction::Event {
+            "event" => UpdateAction::Event {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
-            "update request" => UpdateAction::Update,
-            "layout request" => UpdateAction::Layout,
+            "request" => UpdateAction::Update,
+            "layout" => UpdateAction::Layout,
             "custom" => UpdateAction::Custom {
                 tag: visit_str(|v| event.record(v), "tag"),
             },
@@ -784,7 +774,7 @@ impl UpdatesTrace {
     pub fn log_update() {
         if Self::is_tracing() {
             tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "update request"
+                kind = "update"
             });
         }
     }
@@ -793,7 +783,7 @@ impl UpdatesTrace {
     pub fn log_layout() {
         if Self::is_tracing() {
             tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-                kind = "layout request"
+                kind = "layout"
             });
         }
     }
@@ -815,7 +805,7 @@ impl UpdatesTrace {
             tracing::event!(
                 target: UpdatesTrace::UPDATES_TARGET,
                 tracing::Level::TRACE,
-                { kind = "update var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
+                { kind = "var", type_name = pretty_type_name::pretty_type_name_str(type_name) }
             );
         }
     }
@@ -826,7 +816,7 @@ impl UpdatesTrace {
             tracing::event!(
                 target: UpdatesTrace::UPDATES_TARGET,
                 tracing::Level::TRACE,
-                { kind = "notify event", type_name = event.name() }
+                { kind = "event", type_name = event.name() }
             );
         }
     }

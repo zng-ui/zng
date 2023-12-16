@@ -31,9 +31,7 @@ WindowManager//WindowId(1) update var of type Factor (250 times)
 WindowManager//WindowId(1) update (250 times)
 ```
     - Observed multiple times, after a slow build when the VS window is not focused.
-    - Is not scale_factor vars, added debug panics in scale_factor vars of window and monitor, did not panic.
-    - Observed in 'button' example, when it opened VSCode was visible in the background of Firefox and not focused,
-      build time was 2m, when focus was moved the the example window it had not rendered fonts yet.
+    - Added `updates_trace_event` annotation on each scale_factor assign, tagged with `// !TRACE.stuck.Var<Factor>`.
 
 # Hit-test
 
