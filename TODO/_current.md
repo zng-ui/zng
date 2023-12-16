@@ -25,10 +25,6 @@ TextInput! {
 }
 ```
 
-# Hit-test
-
-* Root hit-test items outside the root inner are lost.
-
 # Accessibility
 
 *  panicked at 'assertion failed: self.nodes.contains_key(&self.focus)'
