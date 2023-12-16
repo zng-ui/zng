@@ -1080,7 +1080,12 @@ impl WidgetAccessInfo {
 
                     return;
                 } else {
-                    // no change
+                    // no change in widget our children, may have change in descendants
+
+                    for child in self.info.access_children() {
+                        child.to_access_updates(prev_tree, inverse, updates);
+                    }
+
                     return;
                 }
             } else {

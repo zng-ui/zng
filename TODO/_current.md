@@ -27,8 +27,6 @@ TextInput! {
 
 # Accessibility
 
-*  panicked at 'assertion failed: self.nodes.contains_key(&self.focus)'
-    - Run icon example, search z, click a button.
 * All examples must be fully useable with a screen reader.
     - Test OS defaults and NVDA.
 
