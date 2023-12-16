@@ -12,6 +12,9 @@
         - Needs to open when a selection finishes creating (mouse/touch release)
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
                 - Test touch.
+    - Have the selection_toolbar_fn args indicate what kind of event created the selection.
+        - This way we can have the default only open for touch events, and users can have different toolbars
+          without we needing to declare multiple properties.
 ```rust
 TextInput! {
     txt = var_from("select text to show toolbar");
@@ -21,17 +24,6 @@ TextInput! {
     }
 }
 ```
-
-* Issue:
-```
-ERROR zero_ui_app::running: updated 1000 times without rendering, probably stuck in an infinite loop
-will start skipping updates to render and poll system events
-top 20 most frequent update requests (in 500 cycles):
-WindowManager//WindowId(1) update var of type Factor (250 times)
-WindowManager//WindowId(1) update (250 times)
-```
-    - Observed multiple times, after a slow build when the VS window is not focused.
-    - Added `updates_trace_event` annotation on each scale_factor assign, tagged with `// !TRACE.stuck.Var<Factor>`.
 
 # Hit-test
 

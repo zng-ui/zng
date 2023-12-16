@@ -545,6 +545,7 @@ pub fn updates_trace_span(tag: &'static str) -> tracing::span::EnteredSpan {
 ///
 /// See [`UpdatesTraceUiNodeExt`] for more details.
 pub fn updates_trace_event(tag: &str) {
+    println!("!!: {tag}");
     UpdatesTrace::log_custom(tag)
 }
 

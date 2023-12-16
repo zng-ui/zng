@@ -8,7 +8,7 @@ use zero_ui_app::{
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
     timer::TIMERS,
-    update::{updates_trace_event, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
     view_process::{
         raw_events::{
             RawWindowFocusArgs, RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
@@ -173,14 +173,12 @@ impl HeadedCtrl {
                 if self.monitor.is_none() {
                     let monitor = query.select_fallback();
                     let scale_factor = monitor.scale_factor().get();
-                    updates_trace_event(&format!("HeadedCtrl::update monitor_is_none set({scale_factor:?})")); // !TRACE.stuck.Var<Factor>
                     self.vars.0.scale_factor.set(scale_factor);
                     self.monitor = Some(monitor);
                 } else if let Some(new) = query.select() {
                     let current = self.vars.0.actual_monitor.get();
                     if Some(new.id()) != current {
                         let scale_factor = new.scale_factor().get();
-                        updates_trace_event(&format!("HeadedCtrl::update query.select set({scale_factor:?})")); // !TRACE.stuck.Var<Factor>
                         self.vars.0.scale_factor.set(scale_factor);
                         self.vars.0.actual_monitor.set(new.id());
                         self.monitor = Some(new);
@@ -458,7 +456,6 @@ impl HeadedCtrl {
 
         if let Some(m) = &self.monitor {
             if let Some(fct) = m.scale_factor().get_new() {
-                updates_trace_event(&format!("HeadedCtrl::update m.scale_factor().get_new() set({fct:?})")); // !TRACE.stuck.Var<Factor>
                 self.vars.0.scale_factor.set(fct);
             }
             if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
@@ -534,7 +531,6 @@ impl HeadedCtrl {
                         self.monitor = MONITORS.monitor(monitor);
                         if let Some(m) = &self.monitor {
                             let fct = m.scale_factor().get();
-                            updates_trace_event(&format!("HeadedCtrl::pre_event Some(monitor) set({fct:?})")); // !TRACE.stuck.Var<Factor>
                             self.vars.0.scale_factor.set(fct);
                         }
                         UPDATES.layout_window(WINDOW.id());
@@ -675,10 +671,6 @@ impl HeadedCtrl {
                 self.vars.0.actual_position.set(args.data.position.1);
                 self.vars.0.actual_size.set(args.data.size);
                 self.vars.0.actual_monitor.set(args.data.monitor);
-                updates_trace_event(&format!(
-                    "HeadedCtrl::pre_event RAW_WINDOW_OPEN_EVENT set({:?})",
-                    args.data.scale_factor
-                )); // !TRACE.stuck.Var<Factor>
                 self.vars.0.scale_factor.set(args.data.scale_factor);
 
                 self.state = Some(args.data.state.clone());
@@ -918,11 +910,6 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self) {
-        self.monitor = Some(self.vars.monitor().get().select_fallback());
-        let m = self.monitor.as_ref().unwrap();
-        updates_trace_event(&format!("HeadedCtrl::layout_init set({:?})", m.scale_factor().get())); // !TRACE.stuck.Var<Factor>
-        self.vars.0.scale_factor.set(m.scale_factor().get());
-
         // await images load up to 1s.
         if self.img_res.deadline.has_elapsed() {
             if let Some(icon) = &self.img_res.icon_var {
@@ -941,6 +928,10 @@ impl HeadedCtrl {
             // block on loading handles.
             return;
         }
+
+        self.monitor = Some(self.vars.monitor().get().select_fallback());
+        let m = self.monitor.as_ref().unwrap();
+        self.vars.0.scale_factor.set(m.scale_factor().get());
 
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
@@ -1084,7 +1075,9 @@ impl HeadedCtrl {
                 self.state = Some(state);
                 self.waiting_view = true;
             }
-            Err(ViewProcessOffline) => {} //respawn
+            Err(ViewProcessOffline) => {
+                println!("!!: layout_init process offline");
+            } //respawn
         };
     }
 
@@ -1158,7 +1151,6 @@ impl HeadedCtrl {
         if self.monitor.is_none() {
             self.monitor = Some(self.vars.monitor().get().select_fallback());
             let m = self.monitor.as_ref().unwrap();
-            updates_trace_event(&format!("HeadedCtrl::layout_respawn set({:?})", self.vars.0.scale_factor.get())); // !TRACE.stuck.Var<Factor>
             self.vars.0.scale_factor.set(m.scale_factor().get());
         }
 
