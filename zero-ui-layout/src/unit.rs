@@ -1,6 +1,6 @@
 //! Angle, factor, length, time, byte and resolution units.
 
-pub use zero_ui_units::*;
+pub use zero_ui_unit::*;
 
 mod alignment;
 pub use alignment::*;

@@ -228,7 +228,7 @@ impl ops::SubAssign for Rect {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let rect = (800, 600).at(10, 20);
 /// assert_eq!(Rect::new(Point::new(10, 20), Size::new(800, 600)), rect);
 /// ```

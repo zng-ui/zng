@@ -25,13 +25,13 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_txt::Txt;
-use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
+use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     display_list::DisplayListCache,
     image::{ImageId, ImageLoadedData, ImageMaskMode},
-    units::*,
+    unit::*,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
         WindowRequest, WindowState, WindowStateAll,

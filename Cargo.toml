@@ -8,7 +8,7 @@ members = [
     "zero-ui-clone_move",
     "zero-ui-handle",
     "zero-ui-txt",
-    "zero-ui-units",
+    "zero-ui-unit",
     "zero-ui-state_map",
     "zero-ui-app_context",
     "zero-ui-layout",

@@ -154,7 +154,7 @@ mod crate_util;
 
 use crate::crate_util::PanicResult;
 use zero_ui_app_context::LocalContext;
-use zero_ui_units::Deadline;
+use zero_ui_unit::Deadline;
 use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
 
 #[doc(no_inline)]
@@ -796,7 +796,7 @@ where
 ///
 /// ```
 /// use zero_ui_task as task;
-/// # use zero_ui_units::*;
+/// # use zero_ui_unit::*;
 /// # async fn foo(u: u8) -> Result<u8, ()> { task::deadline(1.ms()).await; Ok(u) }
 ///
 /// #[test]
@@ -851,7 +851,7 @@ pub fn doc_test<F>(spin: bool, task: F) -> F::Output
 where
     F: Future,
 {
-    use zero_ui_units::TimeUnits;
+    use zero_ui_unit::TimeUnits;
 
     if spin {
         spin_on(with_deadline(task, 500.ms())).expect("async doc-test timeout")
@@ -924,7 +924,7 @@ pub async fn yield_now() {
 ///
 /// ```
 /// use zero_ui_task as task;
-/// use zero_ui_units::*;
+/// use zero_ui_unit::*;
 ///
 /// task::spawn(async {
 ///     println!("waiting 5 seconds..");
@@ -1155,7 +1155,7 @@ macro_rules! __all {
 ///
 /// ```
 /// use zero_ui_task as task;
-/// use zero_ui_units::*;
+/// use zero_ui_unit::*;
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
@@ -2011,7 +2011,7 @@ pub mod tests {
     use rayon::prelude::*;
 
     use super::*;
-    use zero_ui_units::TimeUnits;
+    use zero_ui_unit::TimeUnits;
 
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output

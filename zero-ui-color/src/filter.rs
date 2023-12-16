@@ -2,14 +2,14 @@
 
 use std::fmt;
 
-use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, LayoutMask, Length, Point};
+use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, LayoutMask, Length, Point};
 use zero_ui_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };
 use zero_ui_view_api::{
     display_list::{FilterOp, FrameValue},
-    units::PxToWr,
+    unit::PxToWr,
     webrender_api::Shadow,
 };
 
@@ -24,7 +24,7 @@ use crate::{RenderColor, Rgba};
 ///
 /// ```
 /// use zero_ui_color::filter::Filter;
-/// use zero_ui_layout::units::*;
+/// use zero_ui_layout::unit::*;
 ///
 /// let filter = Filter::new_opacity(50.pct()).blur(3);
 /// ```

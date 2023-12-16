@@ -433,7 +433,7 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use zero_ui_layout::units::FactorUnits;
+    use zero_ui_layout::unit::FactorUnits;
 
     use crate::{
         widget::{

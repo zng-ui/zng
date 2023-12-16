@@ -37,7 +37,7 @@ use zero_ui_app_context::{app_local, LocalContext};
 use zero_ui_clone_move::clmv;
 use zero_ui_handle::{Handle, HandleOwner};
 use zero_ui_txt::Txt;
-use zero_ui_units::TimeUnits;
+use zero_ui_unit::TimeUnits;
 use zero_ui_var::{
     types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarHookArgs, VarUpdateId, VarValue, WeakVar, VARS,
 };

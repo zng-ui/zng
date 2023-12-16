@@ -9,7 +9,7 @@ use zero_ui_app::widget::info::InlineSegmentInfo;
 use zero_ui_ext_l10n::{lang, Lang};
 use zero_ui_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    units::{euclid, Align, FactorUnits, Px, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{euclid, Align, FactorUnits, Px, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zero_ui_txt::Txt;
 use zero_ui_view_api::webrender_api::{self, units::LayoutVector2D, GlyphIndex, GlyphInstance};
@@ -3865,7 +3865,7 @@ mod tests {
     use zero_ui_ext_l10n::lang;
     use zero_ui_layout::{
         context::LayoutDirection,
-        units::{Px, PxConstraints2d, TimeUnits},
+        unit::{Px, PxConstraints2d, TimeUnits},
     };
 
     fn test_font() -> Font {

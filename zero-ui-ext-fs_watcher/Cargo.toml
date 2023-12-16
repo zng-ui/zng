@@ -15,7 +15,7 @@ zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-txt = { path = "../zero-ui-txt" }
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-task = { path = "../zero-ui-task" }
 

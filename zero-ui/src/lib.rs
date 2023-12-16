@@ -94,7 +94,7 @@ pub mod prelude {
 
     pub use crate::var::animation::easing;
 
-    pub use zero_ui_layout::units::{
+    pub use zero_ui_layout::unit::{
         Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
         DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
         Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
@@ -242,7 +242,7 @@ pub mod wgt_prelude {
 
     pub use zero_ui_layout::{
         context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
-        units::{
+        unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
             DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
             Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
@@ -339,7 +339,7 @@ pub mod color {
 ///
 /// See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
 pub mod layout {
-    pub use zero_ui_layout::units::{
+    pub use zero_ui_layout::unit::{
         slerp_enabled, slerp_sampler, Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength,
         ByteUnits, CornerRadius2D, Deadline, Dip, DipBox, DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector,
         DistanceKey, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis,

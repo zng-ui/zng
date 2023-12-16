@@ -1,7 +1,7 @@
 use super::{about_eq, Factor, EQ_EPSILON, EQ_EPSILON_100};
 
 use zero_ui_app_context::context_local;
-use zero_ui_units::RenderAngle;
+use zero_ui_unit::RenderAngle;
 use zero_ui_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     impl_from_and_into_var,
@@ -469,7 +469,7 @@ impl From<AngleDegree> for RenderAngle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let radians = 6.28318.rad();
 /// let gradians = 400.grad();
 /// let degrees = 360.deg();

@@ -56,7 +56,7 @@ pub mod prelude {
 
     pub use zero_ui_layout::{
         context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
-        units::{
+        unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
             DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
             Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,

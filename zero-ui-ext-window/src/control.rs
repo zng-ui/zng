@@ -27,7 +27,7 @@ use zero_ui_clone_move::clmv;
 use zero_ui_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zero_ui_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
-    units::{
+    unit::{
         Deadline, Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxPoint, PxRect, PxSize,
         PxToDip, PxVector, TimeUnits,
     },

@@ -6,7 +6,7 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use zero_ui_txt::Txt;
-use zero_ui_units::{PxRect, PxSize, PxTransform};
+use zero_ui_unit::{PxRect, PxSize, PxTransform};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

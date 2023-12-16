@@ -305,7 +305,7 @@ use super::{UiNode, UiNodeList};
 mod impls {
     use std::sync::Arc;
 
-    use zero_ui_layout::units::PxSize;
+    use zero_ui_layout::unit::PxSize;
     use zero_ui_var::Var;
 
     use crate::{

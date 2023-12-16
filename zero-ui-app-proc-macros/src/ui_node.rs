@@ -348,11 +348,11 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
 
         [fn event(&mut self, update: &#crate_::update::EventUpdate) { }]
 
-        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::unit::PxSize {
             #crate_::layout::context::LAYOUT.constraints().fill_size()
         }]
 
-        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::units::PxSize {
+        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::unit::PxSize {
             #crate_::layout::context::LAYOUT.constraints().fill_size()
         }]
         [fn render(&mut self, frame: &mut #crate_::render::FrameBuilder) { }]
@@ -395,12 +395,12 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::widget::node::UiNode::event(#deref, update);
         }]
 
-        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::unit::PxSize {
             let mut #child = {#borrow};
             #crate_::widget::node::UiNode::measure(#deref, wm)
         }]
 
-        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::units::PxSize {
+        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::unit::PxSize {
             let mut #child = {#borrow};
             #crate_::widget::node::UiNode::layout(#deref, wl)
         }]
@@ -449,12 +449,12 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::widget::node::ui_node_list_default::event_all(#deref, update);
         }]
 
-        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget::info::WidgetMeasure) -> #crate_::layout::unit::PxSize {
             let #children = {#borrow};
             #crate_::widget::node::ui_node_list_default::measure_all(#deref, wm)
         }]
 
-        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::units::PxSize {
+        [fn layout(&mut self, wl: &mut #crate_::widget::info::WidgetLayout) -> #crate_::layout::unit::PxSize {
             let #children = {#borrow};
             #crate_::widget::node::ui_node_list_default::layout_all(#deref, wl)
         }]

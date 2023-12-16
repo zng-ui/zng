@@ -6,7 +6,7 @@
 use std::{fmt, ops};
 use zero_ui_app_context::context_local;
 
-use zero_ui_layout::units::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
+use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
 use zero_ui_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
@@ -184,7 +184,7 @@ impl Rgba {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// web_colors::DARK_RED.lighten(10.pct())
     /// # ;
     /// ```
@@ -202,7 +202,7 @@ impl Rgba {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// web_colors::DARK_RED.darken(10.pct())
     /// # ;
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
@@ -219,7 +219,7 @@ impl Rgba {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// colors::RED.desaturate(10.pct())
     /// # ;
     pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
@@ -437,7 +437,7 @@ impl Hsla {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// web_colors::DARK_RED.to_hsla().lighten(10.pct())
     /// # ;
     /// ```
@@ -457,7 +457,7 @@ impl Hsla {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// colors::RED.to_hsla().darken(10.pct())
     /// # ;
     /// ```
@@ -479,7 +479,7 @@ impl Hsla {
     ///
     /// ```
     /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// colors::RED.to_hsla().desaturate(10.pct())
     /// # ;
     pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
@@ -1045,13 +1045,13 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 ///
 /// ```
 /// use zero_ui_color::hsl;
-/// use zero_ui_layout::units::*;
+/// use zero_ui_layout::unit::*;
 ///
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::units::AngleUnits
+/// [angle unit]: zero_ui_layout::unit::AngleUnits
 pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightness: N) -> Hsla {
     hsla(hue, saturation, lightness, 1.0)
 }
@@ -1069,14 +1069,14 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 ///
 /// ```
 /// use zero_ui_color::hsla;
-/// use zero_ui_layout::units::*;
+/// use zero_ui_layout::unit::*;
 ///
 /// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::units::AngleUnits
+/// [angle unit]: zero_ui_layout::unit::AngleUnits
 pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
     Hsla {
         hue: hue.into().0,
@@ -1099,13 +1099,13 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 ///
 /// ```
 /// use zero_ui_color::hsv;
-/// use zero_ui_layout::units::*;
+/// use zero_ui_layout::unit::*;
 ///
 /// let red = hsv(0.deg(), 100.pct(), 50.pct());
 /// let green = hsv(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::units::AngleUnits
+/// [angle unit]: zero_ui_layout::unit::AngleUnits
 pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
@@ -1123,14 +1123,14 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 ///
 /// ```
 /// use zero_ui_color::hsva;
-/// use zero_ui_layout::units::*;
+/// use zero_ui_layout::unit::*;
 ///
 /// let red = hsva(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsva(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::units::AngleUnits
+/// [angle unit]: zero_ui_layout::unit::AngleUnits
 pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
@@ -1323,7 +1323,7 @@ context_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zero_ui_layout::units::AngleUnits;
+    use zero_ui_layout::unit::AngleUnits;
 
     #[test]
     fn hsl_red() {

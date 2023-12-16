@@ -13,7 +13,7 @@ use zero_ui_app::{
     window::{WindowId, WINDOW},
 };
 use zero_ui_ext_image::{ImageSource, ImageVar, Img};
-use zero_ui_layout::units::{DipPoint, DipSize, PxPoint};
+use zero_ui_layout::unit::{DipPoint, DipSize, PxPoint};
 use zero_ui_txt::Txt;
 use zero_ui_unique_id::IdSet;
 use zero_ui_var::impl_from_and_into_var;

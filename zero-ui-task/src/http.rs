@@ -45,7 +45,7 @@ use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
 use zero_ui_txt::Txt;
-use zero_ui_units::*;
+use zero_ui_unit::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///

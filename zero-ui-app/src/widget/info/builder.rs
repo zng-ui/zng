@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 use zero_ui_layout::{
     context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT},
-    units::{Factor, LayoutMask, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
+    unit::{Factor, LayoutMask, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zero_ui_unique_id::{IdMap, IdSet};

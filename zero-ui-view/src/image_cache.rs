@@ -3,7 +3,7 @@ use std::{fmt, sync::Arc};
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
 use zero_ui_txt::{formatx, ToText, Txt};
-use zero_ui_units::{Px, PxPoint, PxSize};
+use zero_ui_unit::{Px, PxPoint, PxSize};
 use zero_ui_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
@@ -1199,11 +1199,11 @@ mod capture {
         Renderer,
     };
     use zero_ui_txt::formatx;
-    use zero_ui_units::{Factor, PxRect};
+    use zero_ui_unit::{Factor, PxRect};
     use zero_ui_view_api::{
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
         ipc::IpcBytes,
-        units::{PxToWr, WrToPx},
+        unit::{PxToWr, WrToPx},
         window::{FrameId, WindowId},
         Event,
     };

@@ -13,7 +13,7 @@ use crate::McWaker;
 #[doc(no_inline)]
 pub use futures_lite::io::*;
 use parking_lot::Mutex;
-use zero_ui_units::{ByteLength, ByteUnits};
+use zero_ui_unit::{ByteLength, ByteUnits};
 
 /// Measure read/write of an async task.
 ///
@@ -569,7 +569,7 @@ enum ReadState {
 mod tests {
     use super::*;
     use crate as task;
-    use zero_ui_units::TimeUnits;
+    use zero_ui_unit::TimeUnits;
 
     #[test]
     pub fn mc_buf_reader_parallel() {

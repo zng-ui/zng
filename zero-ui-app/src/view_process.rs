@@ -17,7 +17,7 @@ use crate::{
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zero_ui_app_context::app_local;
-use zero_ui_layout::units::{DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
+use zero_ui_layout::unit::{DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
 use zero_ui_task::SignalOnce;
 use zero_ui_txt::Txt;
 use zero_ui_var::ResponderVar;

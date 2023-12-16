@@ -19,7 +19,7 @@ use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, Factor, Fa
 /// Create a transform that
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let rotate_then_move = Transform::new_rotate(10.deg()).translate(50, 30);
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -142,14 +142,14 @@ impl Transform {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// Transform::new_rotate(10.deg()).then(Transform::new_translate(50, 30));
     /// ```
     ///
     /// Is the equivalent of:
     ///
     /// ```
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// Transform::new_rotate(10.deg()).translate(50, 30);
     /// ```
     pub fn then(mut self, other: Transform) -> Self {

@@ -854,7 +854,7 @@ impl fmt::Display for LengthExpr {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let font_size = 1.em();
 /// let root_font_size = 1.rem();
 /// let viewport_width = 100.vw();

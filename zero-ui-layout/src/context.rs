@@ -4,12 +4,12 @@ use std::{fmt, sync::Arc};
 
 use unicode_bidi::BidiDataSource as _;
 use zero_ui_app_context::context_local;
-use zero_ui_units::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
+use zero_ui_unit::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
 use zero_ui_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
 
-use crate::units::{LayoutAxis, LayoutMask, Ppi, PxConstraints, PxConstraints2d};
+use crate::unit::{LayoutAxis, LayoutMask, Ppi, PxConstraints, PxConstraints2d};
 
 /// Current layout context.
 ///
@@ -217,7 +217,7 @@ impl LAYOUT {
     /// Context leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
     ///
     /// [`leftover_count`]: Self::leftover_count
-    /// [`Length::Leftover`]: crate::units::Length::Leftover
+    /// [`Length::Leftover`]: crate::unit::Length::Leftover
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         LAYOUT_CTX.get().metrics.leftover()
     }
@@ -554,7 +554,7 @@ impl LayoutMetrics {
 
     /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
     ///
-    /// [`Length::Leftover`]: crate::units::Length::Leftover
+    /// [`Length::Leftover`]: crate::unit::Length::Leftover
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         LAYOUT.register_metrics_use(LayoutMask::LEFTOVER);
         self.s.leftover
@@ -655,7 +655,7 @@ context_var! {
 ///
 /// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
 ///
-/// [`Align`]: crate::units::Align
+/// [`Align`]: crate::unit::Align
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LayoutDirection {
     /// left-to-right.

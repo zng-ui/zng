@@ -5,7 +5,7 @@ use std::{fmt, time::Duration};
 use serde::{Deserialize, Serialize};
 
 use zero_ui_txt::Txt;
-use zero_ui_units::{Dip, DipSize};
+use zero_ui_unit::{Dip, DipSize};
 
 /// System settings needed for implementing double/triple clicks.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]

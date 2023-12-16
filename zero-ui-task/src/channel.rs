@@ -9,7 +9,7 @@
 //!
 //! ```no_run
 //! use zero_ui_task::{self as task, channel};
-//! # use zero_ui_units::*;
+//! # use zero_ui_unit::*;
 //!
 //! let (sender, receiver) = channel::bounded(5);
 //!
@@ -33,7 +33,7 @@ use std::{convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
-use zero_ui_units::Deadline;
+use zero_ui_unit::Deadline;
 
 /// The transmitting end of an unbounded channel.
 ///
@@ -259,7 +259,7 @@ impl<T> Receiver<T> {
 ///
 /// ```no_run
 /// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_units::*;
+/// # use zero_ui_unit::*;
 ///
 /// let (sender, receiver) = channel::unbounded();
 ///
@@ -309,7 +309,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 ///
 /// ```no_run
 /// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_units::*;
+/// # use zero_ui_unit::*;
 ///
 /// let (sender, receiver) = channel::bounded(2);
 ///
@@ -356,7 +356,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 ///
 /// ```no_run
 /// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_units::*;
+/// # use zero_ui_unit::*;
 /// # use std::time::*;
 ///
 /// let (sender, receiver) = channel::rendezvous();

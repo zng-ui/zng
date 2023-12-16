@@ -7,7 +7,7 @@ use std::{
 };
 
 use zero_ui_app_context::{app_local, AppScope};
-use zero_ui_layout::units::Deadline;
+use zero_ui_layout::unit::Deadline;
 use zero_ui_var::{response_var, ResponderVar, ResponseVar, VARS, VARS_APP};
 
 use crate::{

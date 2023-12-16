@@ -53,7 +53,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 let __data__ = #core::widget::easing_property::easing_when_data(
                     #property_meta.input_types(),
                     {
-                        use #core::layout::units::TimeUnits as _;
+                        use #core::layout::unit::TimeUnits as _;
                         #duration
                     },
                     std::sync::Arc::new({
@@ -91,7 +91,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 let __actions__ = #core::widget::easing_property::easing_property(
                     #property_meta.input_types(),
                     {
-                        use #core::layout::units::TimeUnits as _;
+                        use #core::layout::unit::TimeUnits as _;
                         #duration
                     },
                     std::sync::Arc::new({

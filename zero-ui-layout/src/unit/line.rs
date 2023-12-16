@@ -178,7 +178,7 @@ impl PxLine {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let line = (10, 20).to(100, 120);
 /// assert_eq!(Line::new(Point::new(10, 20), Point::new(100, 120)), line);
 /// ```

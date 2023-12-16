@@ -12,7 +12,7 @@ use crate::{
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_units::*;
+/// # use zero_ui_unit::*;
 /// let percent = 100.pct();
 /// ```
 pub trait FactorUnits {

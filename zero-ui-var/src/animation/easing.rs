@@ -14,7 +14,7 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// use zero_ui_units::*;
+/// use zero_ui_unit::*;
 /// use zero_ui_var::animation::easing::{EasingStep, EasingTime};
 ///
 /// /// Cubic animation curve.
@@ -416,7 +416,7 @@ pub fn reverse_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime)
 }
 
 pub use bezier::*;
-use zero_ui_units::FactorPercent;
+use zero_ui_unit::FactorPercent;
 
 mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public

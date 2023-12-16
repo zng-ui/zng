@@ -6,7 +6,7 @@ use crate::prelude::*;
 ///
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`].
 ///
-/// [`Default`]: zero_ui_layout::units::Length::Default
+/// [`Default`]: zero_ui_layout::unit::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit
 #[property(CONTEXT, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {

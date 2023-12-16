@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [dependencies]
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 

@@ -13,7 +13,7 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
 };
-use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
+use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
 
 crate::declare_id! {
     /// Window ID in channel.

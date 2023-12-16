@@ -1,4 +1,4 @@
-use zero_ui_layout::units::PxSize;
+use zero_ui_layout::unit::PxSize;
 use zero_ui_var::{BoxedVar, Var};
 
 use crate::{

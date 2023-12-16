@@ -1,7 +1,7 @@
 use std::{any::Any, sync::Arc, time::Duration};
 
 use super::builder::*;
-use zero_ui_layout::units::*;
+use zero_ui_layout::unit::*;
 use zero_ui_var::{
     animation::{
         easing::{EasingStep, EasingTime},
@@ -28,7 +28,7 @@ use zero_ui_var::{
 ///
 /// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
 ///
-/// [`TimeUnits`]: zero_ui_units::TimeUnits
+/// [`TimeUnits`]: zero_ui_unit::TimeUnits
 /// [`easing`]: mod@zero_ui_var::animation::easing
 /// [`easing::linear`]: zero_ui_var::animation::easing::linear
 /// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
@@ -51,7 +51,7 @@ use zero_ui_var::{
 /// # use zero_ui_app::{*, widget::{node::*, *}};
 /// # use zero_ui_var::*;
 /// # use zero_ui_color::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[widget($crate::Foo)] pub struct Foo(base::WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {

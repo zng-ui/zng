@@ -35,8 +35,8 @@ pub use self::hyphenation::*;
 mod font_kit_cache;
 use font_kit_cache::*;
 
-mod units;
-pub use units::*;
+mod unit;
+pub use unit::*;
 
 use parking_lot::{Mutex, RwLock};
 use paste::paste;
@@ -52,7 +52,7 @@ use zero_ui_app::{
 };
 use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::{lang, Lang, LangMap};
-use zero_ui_layout::units::{
+use zero_ui_layout::unit::{
     about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, EQ_EPSILON, EQ_EPSILON_100,
 };
 use zero_ui_task as task;

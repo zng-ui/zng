@@ -136,7 +136,7 @@ pub use gleam;
 use webrender::api::*;
 use window::Window;
 use zero_ui_txt::Txt;
-use zero_ui_units::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
+use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
@@ -1908,7 +1908,7 @@ impl Api for App {
                 }
                 let id = self.image_cache.add(image::ImageRequest {
                     format: image::ImageDataFormat::Bgra8 {
-                        size: zero_ui_units::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
+                        size: zero_ui_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         ppi: None,
                     },
                     data: IpcBytes::from_vec(data),

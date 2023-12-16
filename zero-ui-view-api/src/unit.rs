@@ -2,7 +2,7 @@
 
 use webrender_api::units as wr;
 
-use zero_ui_units::*;
+use zero_ui_unit::*;
 
 /// Conversion from [`Px`] to `webrender` units.
 ///

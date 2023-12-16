@@ -189,7 +189,7 @@ command! {
     /// scale transform, relative values are resolved in the viewport space. The default value
     /// is *top-start*.
     ///
-    /// [`Point`]: crate::core::units::Point
+    /// [`Point`]: crate::core::unit::Point
     pub static ZOOM_IN_CMD = {
         name: "Zoom In",
         shortcut: shortcut!(CTRL+'+'),
@@ -204,7 +204,7 @@ command! {
     /// scale transform, relative values are resolved in the viewport space. The default value
     /// is *top-start*.
     ///
-    /// [`Point`]: crate::core::units::Point
+    /// [`Point`]: crate::core::unit::Point
     pub static ZOOM_OUT_CMD = {
         name: "Zoom Out",
         shortcut: shortcut!(CTRL+'-'),

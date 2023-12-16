@@ -4,7 +4,7 @@ use zero_ui_ext_input::{
     focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
 };
-use zero_ui_layout::units::Orientation2D;
+use zero_ui_layout::unit::Orientation2D;
 use zero_ui_wgt::{border, prelude::*};
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};

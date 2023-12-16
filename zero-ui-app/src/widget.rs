@@ -19,7 +19,7 @@ use std::{
 };
 use zero_ui_app_context::context_local;
 use zero_ui_handle::Handle;
-use zero_ui_layout::units::{Layout1d, Layout2d, Px};
+use zero_ui_layout::unit::{Layout1d, Layout2d, Px};
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zero_ui_task::ui::UiTask;
 use zero_ui_txt::{formatx, Txt};
@@ -777,7 +777,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -792,7 +792,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
@@ -813,7 +813,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -830,7 +830,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
@@ -846,7 +846,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -863,7 +863,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -881,7 +881,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// let mut eval_order = vec![];
@@ -911,7 +911,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -925,7 +925,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
@@ -941,7 +941,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
@@ -968,7 +968,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
@@ -996,7 +996,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
@@ -1010,7 +1010,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
@@ -1030,7 +1030,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
 /// #
 /// # fn main() {
@@ -1048,7 +1048,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
 /// # fn main() {
@@ -1092,7 +1092,7 @@ pub use zero_ui_app_proc_macros::widget_mixin;
 /// # use zero_ui_app::{*, widget::{node::*, property, self}};
 /// # use zero_ui_color::*;
 /// # use zero_ui_var::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// #
 /// # #[property(FILL)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {

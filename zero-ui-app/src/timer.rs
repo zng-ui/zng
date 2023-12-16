@@ -12,7 +12,7 @@ use std::{
 };
 use zero_ui_app_context::app_local;
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_layout::units::Deadline;
+use zero_ui_layout::unit::Deadline;
 use zero_ui_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
 
 use crate::{
@@ -322,7 +322,7 @@ impl TIMERS {
     /// ```
     /// # use zero_ui_app::timer::*;
     /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// # use zero_ui_app::var::*;
     /// # use std::time::Instant;
     /// # fn foo() {
@@ -350,7 +350,7 @@ impl TIMERS {
     /// ```
     /// # use zero_ui_app::timer::*;
     /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// # use zero_ui_app::var::*;
     /// # use zero_ui_txt::*;
     /// # use std::time::Instant;
@@ -381,7 +381,7 @@ impl TIMERS {
     /// ```
     /// # use zero_ui_app::timer::*;
     /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::units::*;
+    /// # use zero_ui_layout::unit::*;
     /// # use std::time::Instant;
     /// # fn foo() {
     /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|_| {
@@ -431,7 +431,7 @@ impl TIMERS {
 /// ```
 /// # use zero_ui_app::timer::*;
 /// # use zero_ui_app::handler::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # use zero_ui_app::var::*;
 /// # use std::time::Instant;
 /// # fn foo() {
@@ -759,7 +759,7 @@ impl WeakTimerHandle {
 /// # use zero_ui_app::handler::*;
 /// # use zero_ui_app::var::*;
 /// # use zero_ui_txt::*;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # use std::time::Instant;
 /// # fn foo() {
 /// let timer: TimerVar = TIMERS.interval(1.secs(), false);

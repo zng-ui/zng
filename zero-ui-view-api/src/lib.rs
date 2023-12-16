@@ -34,7 +34,7 @@ pub mod ipc;
 pub mod keyboard;
 pub mod mouse;
 pub mod touch;
-pub mod units;
+pub mod unit;
 pub mod window;
 
 mod types;
@@ -56,7 +56,7 @@ use dialog::DialogId;
 use image::{ImageId, ImageMaskMode, ImageRequest};
 use ipc::{IpcBytes, IpcBytesReceiver};
 use window::WindowId;
-use zero_ui_units::{DipRect, DipSize, Factor, Px, PxRect};
+use zero_ui_unit::{DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
 #[derive(Debug)]

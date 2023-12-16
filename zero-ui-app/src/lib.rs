@@ -125,9 +125,9 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod layout {
         #[doc(hidden)]
-        pub mod units {
+        pub mod unit {
             #[doc(hidden)]
-            pub use crate::layout::units::{PxSize, TimeUnits};
+            pub use crate::layout::unit::{PxSize, TimeUnits};
         }
 
         #[doc(hidden)]

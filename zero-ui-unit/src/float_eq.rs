@@ -9,7 +9,7 @@
 /// epsilon can *accumulate* over a chain of comparisons breaking the transitive property:
 ///
 /// ```
-/// # use zero_ui_units::about_eq;
+/// # use zero_ui_unit::about_eq;
 /// let e = 0.001;
 /// let a = 0.0;
 /// let b = a + e - 0.0001;

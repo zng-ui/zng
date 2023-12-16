@@ -7,7 +7,7 @@ use zero_ui_app::widget::{
     info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     WidgetId,
 };
-use zero_ui_layout::units::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
+use zero_ui_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
 use zero_ui_state_map::StaticStateId;
 use zero_ui_unique_id::IdSet;
 use zero_ui_var::impl_from_and_into_var;

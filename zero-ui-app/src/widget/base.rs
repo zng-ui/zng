@@ -287,7 +287,7 @@ pub use WidgetBaseMacro__ as WidgetBase;
 ///
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod node {
-    use zero_ui_layout::units::{Px, PxCornerRadius, PxRect, PxSize};
+    use zero_ui_layout::unit::{Px, PxCornerRadius, PxRect, PxSize};
     use zero_ui_var::Var;
 
     use crate::{

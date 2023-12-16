@@ -1083,7 +1083,7 @@ pub fn name_collision_wgt_when() {
 
 mod macro_rules_generated {
     use zero_ui_app_proc_macros::{property, widget};
-    use zero_ui_layout::units::SideOffsets;
+    use zero_ui_layout::unit::SideOffsets;
 
     macro_rules! test {
         ($name:ident) => {

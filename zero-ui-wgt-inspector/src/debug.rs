@@ -7,7 +7,7 @@ use zero_ui_ext_input::{
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
 };
 use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_layout::units::Orientation2D;
+use zero_ui_layout::unit::Orientation2D;
 use zero_ui_view_api::display_list::FrameValue;
 use zero_ui_wgt::prelude::*;
 

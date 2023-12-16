@@ -10,7 +10,7 @@ use zero_ui_app::widget::node::PanelListRange;
 use zero_ui_ext_font::{unicode_bidi_levels, unicode_bidi_sort, BidiLevel};
 use zero_ui_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, TextSegmentKind},
-    units::{GridSpacing, PxGridSpacing},
+    unit::{GridSpacing, PxGridSpacing},
 };
 use zero_ui_wgt::{
     node::{with_index_len_node, with_index_node, with_rev_index_node},

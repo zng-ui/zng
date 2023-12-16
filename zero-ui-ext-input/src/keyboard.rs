@@ -23,7 +23,7 @@ use zero_ui_app::{
 };
 use zero_ui_app_context::app_local;
 use zero_ui_clone_move::clmv;
-use zero_ui_layout::units::{Factor, FactorUnits};
+use zero_ui_layout::unit::{Factor, FactorUnits};
 use zero_ui_txt::Txt;
 use zero_ui_var::{var, var_default, ArcVar, ReadOnlyArcVar, Var};
 use zero_ui_view_api::config::AnimationsConfig;

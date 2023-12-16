@@ -4,7 +4,7 @@
 
 use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 use zero_ui_app_proc_macros::ui_node;
-use zero_ui_layout::units::{Px, PxConstraints2d};
+use zero_ui_layout::unit::{Px, PxConstraints2d};
 
 use crate::{
     ui_vec,
@@ -203,7 +203,7 @@ mod util {
     use parking_lot::Mutex;
     use std::sync::Arc;
     use zero_ui_app_proc_macros::ui_node;
-    use zero_ui_layout::units::{Px, PxSize};
+    use zero_ui_layout::unit::{Px, PxSize};
     use zero_ui_state_map::StaticStateId;
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();

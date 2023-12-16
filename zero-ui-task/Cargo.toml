@@ -32,7 +32,7 @@ test_util = []
 [dependencies]
 zero-ui-task-proc-macros = { path = "../zero-ui-task-proc-macros" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-var = { path = "../zero-ui-var" }
 

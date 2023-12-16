@@ -252,7 +252,7 @@ pub mod using_display_items {
                 euclid,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _};
+        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -431,7 +431,7 @@ pub mod using_blob {
                 euclid,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _, webrender_api};
+        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _, webrender_api};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -1066,7 +1066,7 @@ pub mod using_gl_texture {
                 ImageDescriptorFlags, ImageFormat, ImageKey, ImageRendering,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, units::PxToWr as _};
+        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);

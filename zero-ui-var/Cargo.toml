@@ -22,7 +22,7 @@ dyn_closure = []
 zero-ui-var-proc-macros = { path = "../zero-ui-var-proc-macros" }
 
 zero-ui-txt = { path = "../zero-ui-txt" }
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }

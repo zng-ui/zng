@@ -8,7 +8,7 @@ use std::{
 };
 
 use zero_ui_txt::Txt;
-use zero_ui_units::{euclid, ByteLength, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
+use zero_ui_unit::{euclid, ByteLength, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
 
 use crate::{
     animation::{easing::EasingStep, Transitionable},
@@ -227,5 +227,5 @@ impl_into_var_option! {
     u8, u16, u32, u64, u128, usize,
     f32, f64,
     char, bool,
-    zero_ui_units::Orientation2D,
+    zero_ui_unit::Orientation2D,
 }

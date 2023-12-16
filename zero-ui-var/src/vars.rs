@@ -146,7 +146,7 @@ impl VARS {
     /// ```
     /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
-    /// # use zero_ui_units::*;
+    /// # use zero_ui_unit::*;
     /// # use zero_ui_clone_move::*;
     /// #
     /// fn animate_text(text: &impl Var<Txt>, completed: &impl Var<bool>) {
@@ -180,7 +180,7 @@ impl VARS {
     /// ```
     /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
-    /// # use zero_ui_units::*;
+    /// # use zero_ui_unit::*;
     /// # fn demo() {
     /// let value = var(0u8);
     /// let text = value.map(|v| formatx!("Animation at {v}%"));

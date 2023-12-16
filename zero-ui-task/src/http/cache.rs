@@ -6,7 +6,7 @@ use std::{
 use super::{Body, Error};
 use async_trait::async_trait;
 use serde::*;
-use zero_ui_units::*;
+use zero_ui_unit::*;
 
 use http_cache_semantics as hcs;
 
@@ -267,7 +267,7 @@ mod file_cache {
     };
     use async_trait::async_trait;
     use fs4::FileExt;
-    use zero_ui_units::TimeUnits;
+    use zero_ui_unit::TimeUnits;
 
     use super::*;
 
@@ -654,7 +654,7 @@ mod tests {
         self as task,
         http::{header::*, util::*, *},
     };
-    use zero_ui_units::*;
+    use zero_ui_unit::*;
 
     #[test]
     pub fn file_cache_miss() {

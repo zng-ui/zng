@@ -8,7 +8,7 @@ use zero_ui_app::{
     },
     window::{WindowId, WINDOW},
 };
-use zero_ui_layout::units::Factor;
+use zero_ui_layout::unit::Factor;
 use zero_ui_state_map::StaticStateId;
 use zero_ui_var::{types::WeakArcVar, var, ArcVar, IntoVar, Var, WeakVar};
 use zero_ui_view_api::{image::ImageMaskMode, window::RenderMode};

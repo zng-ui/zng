@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use zero_ui_txt::Txt;
 
 use crate::ipc::IpcBytes;
-use zero_ui_units::{Px, PxSize};
+use zero_ui_unit::{Px, PxSize};
 
 crate::declare_id! {
     /// Id of a decoded image in the cache.

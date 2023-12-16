@@ -2,8 +2,8 @@
 
 use std::{fmt, ops::Range};
 
-use zero_ui_layout::{context::*, units::*};
-use zero_ui_view_api::units::*;
+use zero_ui_layout::{context::*, unit::*};
+use zero_ui_view_api::unit::*;
 
 use crate::*;
 
@@ -268,12 +268,12 @@ impl_from_and_into_var! {
     }
 }
 
-/// The [angle](AngleUnits) or [line](zero_ui_layout::units::Line) that defines a linear gradient.
+/// The [angle](AngleUnits) or [line](zero_ui_layout::unit::Line) that defines a linear gradient.
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// # use zero_ui_color::colors;
 /// # use zero_ui_color::gradient::*;
 /// # fn linear_gradient(axis: impl Into<LinearGradientAxis>, stops: impl Into<GradientStops>) { }
@@ -1187,7 +1187,7 @@ macro_rules! __stops {
 /// ```
 /// # use zero_ui_color::gradient::stops;
 /// # use zero_ui_color::colors;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// // green 0%, red 30%, blue 100%.
 /// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
 ///
@@ -1206,7 +1206,7 @@ macro_rules! __stops {
 /// ```
 /// # use zero_ui_color::gradient::stops;
 /// # use zero_ui_color::colors;
-/// # use zero_ui_layout::units::*;
+/// # use zero_ui_layout::unit::*;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 #[macro_export]

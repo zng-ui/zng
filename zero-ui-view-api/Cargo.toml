@@ -23,7 +23,7 @@ euclid = { version = "0.22.6", features = [
     "bytemuck",
 ] } # same version as webrender, but with bytemuck
 
-zero-ui-units = { path = "../zero-ui-units" }
+zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-var = { path = "../zero-ui-var", optional = true }
 

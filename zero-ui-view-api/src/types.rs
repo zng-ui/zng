@@ -15,7 +15,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::PathBuf};
 use zero_ui_txt::Txt;
-use zero_ui_units::{DipPoint, PxRect, PxSize};
+use zero_ui_unit::{DipPoint, PxRect, PxSize};
 
 macro_rules! declare_id {
     ($(

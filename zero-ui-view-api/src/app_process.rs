@@ -315,7 +315,7 @@ impl Controller {
     }
     #[cfg(feature = "ipc")]
     fn respawn_impl(&mut self, is_crash: bool) {
-        use zero_ui_units::TimeUnits;
+        use zero_ui_unit::TimeUnits;
 
         self.online = false;
         self.is_respawn = true;

@@ -27,7 +27,7 @@ use zero_ui_app_context::ContextLocal;
 use zero_ui_clone_move::clmv;
 use zero_ui_txt::{formatx, ToText, Txt};
 use zero_ui_unique_id::unique_id_32;
-use zero_ui_units::{Factor, FactorUnits};
+use zero_ui_unit::{Factor, FactorUnits};
 
 pub mod animation;
 mod arc;
@@ -1858,7 +1858,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// ```
     /// # use zero_ui_var::{*, animation::easing};
     /// # use zero_ui_txt::*;
-    /// # use zero_ui_units::*;
+    /// # use zero_ui_unit::*;
     /// # fn demo(text_var: impl Var<Txt>) {
     /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
     /// # let _ =

@@ -9,7 +9,7 @@ use zero_ui_app_context::context_local;
 use zero_ui_clone_move::clmv;
 
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_units::{Deadline, TimeUnits};
+use zero_ui_unit::{Deadline, TimeUnits};
 
 pub use zero_ui_var_proc_macros::Transitionable;
 
