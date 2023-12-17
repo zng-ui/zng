@@ -57,7 +57,7 @@ pub use zero_ui_app::__proc_macro_util;
 /// Types for general app development.
 pub mod prelude {
     pub use crate::APP;
-    pub use crate::{gesture, keyboard, layout, mouse, touch, widget};
+    pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
 
     pub use zero_ui_task::rayon::prelude::{
         FromParallelIterator as _, IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
@@ -66,66 +66,39 @@ pub mod prelude {
     };
 
     pub use zero_ui_app::{
-        event::{AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, EventArgs as _},
-        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
-        shortcut::{shortcut, CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts},
-        timer::{DeadlineHandle, DeadlineVar, TimerHandle, TimerVar, TIMERS},
-        update::{UpdateOp, UPDATES},
+        event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, EventArgs as _},
+        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
+        shortcut::{shortcut, CommandShortcutExt as _},
         widget::{
-            border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle},
             easing,
-            info::{InteractionPath, Interactivity, Visibility, WidgetInfo, WidgetPath},
-            node::{
-                ui_vec, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, SortingList, UiNode,
-                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex,
-            },
-            AnyVarSubscribe as _, StaticWidgetId, VarLayout as _, VarSubscribe as _, WidgetId, WIDGET,
+            node::{ui_vec, UiNode, UiNodeList, UiNodeListChain as _, UiNodeVec},
+            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WidgetId, WIDGET,
         },
-        window::{MonitorId, StaticWindowId, WindowId, WINDOW},
+        window::{WindowId, WINDOW},
     };
 
     pub use zero_ui_app::widget::inspector::WidgetInfoInspectorExt as _;
 
-    pub use zero_ui_var::{
-        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
-        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar, ResponderVar, ResponseVar,
-        Var, VarCapabilities, VarHandle, VarHandles, VarValue,
-    };
+    pub use zero_ui_var::{context_var, expr_var, merge_var, var, var_from, when_var, AnyVar as _, IntoValue, IntoVar, Var, VarValue};
 
     pub use crate::var::animation::easing;
 
     pub use zero_ui_layout::unit::{
-        Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Deadline, Dip, DipBox, DipPoint, DipRect,
-        DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
-        Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
-        PxConstraints, PxConstraints2d, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform,
-        PxVector, Rect, RectFromTuplesBuilder as _, ResolutionUnits as _, SideOffsets, Size, TimeUnits as _, Transform, Vector,
+        Align, AngleUnits as _, ByteUnits as _, DipToPx as _, FactorUnits as _, Layout1d as _, Layout2d as _, Length, LengthUnits as _,
+        LineFromTuplesBuilder as _, PxToDip as _, RectFromTuplesBuilder as _, ResolutionUnits as _, TimeUnits as _,
     };
 
     pub use zero_ui_txt::{formatx, ToText as _, Txt};
 
     pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use crate::task;
-
-    pub use zero_ui_app_context::{app_local, context_local, RunOnDrop};
-
-    pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
-
-    pub use zero_ui_color::{
-        color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
-        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
-    };
+    pub use zero_ui_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors};
 
     pub use zero_ui_ext_clipboard::CLIPBOARD;
 
     pub use zero_ui_ext_config::CONFIG;
 
-    pub use zero_ui_ext_font::{
-        font_features, FontSize, FontStretch, FontStyle, FontWeight, Hyphens, Justify, TextTransformFn, WhiteSpace, WordBreak, WordSpacing,
-    };
-
-    pub use zero_ui_ext_fs_watcher::WATCHER;
+    pub use zero_ui_ext_font::{FontStretch, FontStyle, FontWeight};
 
     pub use zero_ui_ext_image::{ImageSource, IMAGES};
 
@@ -133,21 +106,20 @@ pub mod prelude {
 
     pub use zero_ui_ext_input::{
         focus::{cmd::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
-        gesture::{ClickArgs, CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
-        keyboard::{HeadlessAppKeyboardExt as _, KeyInputArgs},
-        mouse::{ClickMode, ClickTrigger, WidgetInfoMouseExt as _},
-        pointer_capture::CaptureMode,
+        gesture::{CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
+        keyboard::HeadlessAppKeyboardExt as _,
+        mouse::WidgetInfoMouseExt as _,
     };
 
-    pub use zero_ui_ext_l10n::{l10n, lang, Lang, L10N};
+    pub use zero_ui_ext_l10n::{l10n, lang, L10N};
 
     pub use zero_ui_wgt_text::lang;
 
     pub use zero_ui_ext_undo::{CommandUndoExt as _, REDO_CMD, UNDO, UNDO_CMD};
 
     pub use zero_ui_ext_window::{
-        AppRunWindowExt as _, AutoSize, HeadlessAppWindowExt as _, RenderMode, StartPosition, WINDOW_Ext as _, WidgetInfoImeArea as _,
-        WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowRoot, WINDOWS,
+        AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WidgetInfoImeArea as _, WindowCloseRequestedArgs, WindowIcon,
+        WINDOWS,
     };
 
     pub use zero_ui_wgt::Wgt;
@@ -157,6 +129,7 @@ pub mod prelude {
 
     pub use zero_ui_wgt_text_input::TextInput;
 
+    pub use crate::window;
     pub use zero_ui_wgt_window::Window;
 
     pub use zero_ui_wgt_container::Container;
@@ -261,7 +234,8 @@ pub mod wgt_prelude {
         app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
     };
 
-    pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use crate::state_map;
+    pub use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
 
     pub use zero_ui_wgt::prelude::{IdEntry, IdMap, IdSet};
 
@@ -281,7 +255,13 @@ pub mod wgt_prelude {
     pub use zero_ui_ext_window::WidgetInfoBuilderImeArea as _;
 }
 
-pub use zero_ui_state_map as state_map;
+/// Hash-map of type erased values, useful for storing assorted dynamic state.
+pub mod state_map {
+    pub use zero_ui_state_map::{
+        state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
+        BorrowMutStateMap, BorrowStateMap, OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
+    };
+}
 
 pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
@@ -482,6 +462,8 @@ pub mod widget {
     pub use zero_ui_app::widget::border::{
         BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
     };
+    pub use zero_ui_app::widget::info::Visibility;
+    pub use zero_ui_app::widget::node::ZIndex;
 
     pub use zero_ui_wgt::{
         border, border_align, border_over, can_auto_hide, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
@@ -515,7 +497,7 @@ pub mod widget {
     pub mod info {
         pub use zero_ui_app::widget::info::{
             iter, HitInfo, HitTestInfo, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs,
-            InteractivityFilterArgs, ParallelBuilder, RelativeHitZ, TransformChangedArgs, TreeFilter, Visibility, VisibilityChangedArgs,
+            InteractivityFilterArgs, ParallelBuilder, RelativeHitZ, TransformChangedArgs, TreeFilter, VisibilityChangedArgs,
             WidgetBorderInfo, WidgetBoundsInfo, WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoChangedArgs,
             WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats, WidgetInlineInfo, WidgetInlineMeasure, WidgetPath,
             INTERACTIVITY_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT, VISIBILITY_CHANGED_EVENT, WIDGET_INFO_CHANGED_EVENT,
@@ -545,7 +527,7 @@ pub mod widget {
             EditableUiNodeListRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver,
             PanelList, PanelListData, PanelListRange, PanelListRangeHandle, SortingList, UiNode, UiNodeList, UiNodeListChain,
             UiNodeListChainImpl, UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiNodeVec, WeakNode, WeakNodeList, WhenUiNodeBuilder,
-            WhenUiNodeListBuilder, ZIndex, SORTING_LIST, Z_INDEX,
+            WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
         };
 
         pub use zero_ui_wgt::node::{

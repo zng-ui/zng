@@ -32,7 +32,7 @@ fn app_main() {
             child = Scroll! {
                 id = "scroll";
                 padding = 20;
-                widget::background_color = color_scheme_map(
+                widget::background_color = color::color_scheme_map(
                     hex!(#245E81),
                     colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                 );
@@ -150,7 +150,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
         });
     }
 }
-fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
+fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiNode {
     use zero_ui::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
@@ -164,7 +164,7 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: FactorPercent) -> impl UiNode {
     }
 }
 
-fn scroll_to_rect(target: Rect, mode: ScrollToMode) -> impl UiNode {
+fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> impl UiNode {
     use zero_ui::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");

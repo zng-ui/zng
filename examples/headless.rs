@@ -36,7 +36,7 @@ fn headless_example() {
 
             // use the CPU only backend if available, by default the
             // same GPU used for headed windows is used.
-            render_mode = RenderMode::Software;
+            render_mode = window::RenderMode::Software;
 
             // capture the first frame.
             frame_capture_mode = FrameCaptureMode::Next;
@@ -67,7 +67,7 @@ fn image() -> impl UiNode {
         layout::size = (800, 600);
 
         widget::background = stack_nodes({
-            fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
+            fn gradient(angle: i32, mut color: color::Rgba) -> impl UiNode {
                 color.alpha = 0.3;
                 let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                 linear_gradient(angle.deg(), stops)
@@ -112,7 +112,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), None, image);
+    let img = IMAGES.render_node(window::RenderMode::Software, 1.fct(), None, image);
 
     app.run_task(async move {
         while img.with(Img::is_loading) {

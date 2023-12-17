@@ -13,7 +13,7 @@ fn main() {
 
 fn app_main() {
     APP.defaults().run_window(async {
-        let count = TIMERS.interval(1.secs(), false).map(move |t| {
+        let count = timer::TIMERS.interval(1.secs(), false).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {
                 t.stop();
@@ -29,10 +29,10 @@ fn app_main() {
         Window! {
             title = "Countdown Example";
             size = (280, 120);
-            start_position = StartPosition::CenterMonitor;
+            start_position = window::StartPosition::CenterMonitor;
             resizable = false;
 
-            color_scheme = ColorScheme::Dark;
+            color_scheme = color::ColorScheme::Dark;
 
             font_size = 42.pt();
             child_align = Align::CENTER;

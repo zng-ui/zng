@@ -7,13 +7,13 @@ use zero_ui::{
     app::{NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD},
     button,
     clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
-    color::filter::opacity,
+    color::{color_scheme_map, filter::opacity},
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     font::{FontName, FontNames},
-    gesture::{click_shortcut, is_hovered},
+    gesture::{click_shortcut, is_hovered, ClickArgs},
     icon::{self, Icon},
     label::{self, Label},
-    layout::{align, margin, padding},
+    layout::{align, margin, padding, Dip},
     prelude::*,
     rule_line,
     scroll::ScrollMode,
@@ -21,8 +21,9 @@ use zero_ui::{
     text::{font_family, font_weight, UnderlinePosition, UnderlineSkip},
     text_input,
     undo::{self, REDO_CMD, UNDO_CMD},
-    widget::{background_color, corner_radius, enabled, visibility},
-    window::native_dialog,
+    var::ArcVar,
+    widget::{background_color, corner_radius, enabled, visibility, LineStyle, Visibility},
+    window::{native_dialog, WindowRoot},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;

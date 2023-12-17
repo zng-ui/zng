@@ -1,9 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
     color::filter::opacity,
+    gesture::ClickArgs,
     layout::{align, margin},
+    mouse::ClickMode,
     prelude::*,
     stack,
+    var::ObservableVec,
+    widget::{node::EditableUiNodeList, LineStyle},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -363,7 +367,7 @@ fn separator() -> impl UiNode {
 fn separator_not_first() -> impl UiNode {
     Hr! {
         when #stack::is_first {
-            widget::visibility = Visibility::Collapsed;
+            widget::visibility = false;
         }
 
         color = rgba(1.0, 1.0, 1.0, 0.2);

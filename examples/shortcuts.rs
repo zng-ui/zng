@@ -36,32 +36,37 @@ fn app_main() {
             }))
             .perm();
         keyboard::KEY_INPUT_EVENT
-            .on_pre_event(app_hn!(shortcut_text, keypress_text, shortcut_error, |args: &KeyInputArgs, _| {
-                if args.repeat_count > 0 || args.state != keyboard::KeyState::Pressed {
-                    return;
-                }
-                let mut new_shortcut_text = "not supported";
-                if !matches!(&args.key, keyboard::Key::Unidentified) {
-                    if args.key.is_modifier() {
-                        new_shortcut_text = "";
+            .on_pre_event(app_hn!(
+                shortcut_text,
+                keypress_text,
+                shortcut_error,
+                |args: &keyboard::KeyInputArgs, _| {
+                    if args.repeat_count > 0 || args.state != keyboard::KeyState::Pressed {
+                        return;
                     }
-                    keypress_text.set(formatx!("{:?}", args.key))
-                } else {
-                    keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
-                }
+                    let mut new_shortcut_text = "not supported";
+                    if !matches!(&args.key, keyboard::Key::Unidentified) {
+                        if args.key.is_modifier() {
+                            new_shortcut_text = "";
+                        }
+                        keypress_text.set(formatx!("{:?}", args.key))
+                    } else {
+                        keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
+                    }
 
-                shortcut_text.set(new_shortcut_text);
-                shortcut_error.set(true);
-            }))
+                    shortcut_text.set(new_shortcut_text);
+                    shortcut_error.set(true);
+                }
+            ))
             .perm();
 
         Window! {
             title = "Shortcuts Example";
             auto_size = true;
             resizable = false;
-            auto_size_origin = Point::center();
+            auto_size_origin = layout::Point::center();
             padding = 50;
-            start_position = StartPosition::CenterMonitor;
+            start_position = window::StartPosition::CenterMonitor;
 
             child_align = Align::CENTER;
             child = Stack! {

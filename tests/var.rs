@@ -1,5 +1,8 @@
 mod any {
-    use zero_ui::prelude::*;
+    use zero_ui::{
+        prelude::*,
+        var::{ArcVar, BoxedVar, ContextVar},
+    };
 
     #[test]
     fn downcast_ref_rc() {
@@ -556,7 +559,7 @@ mod context {
         zero_ui_app::test_log();
 
         let mut app = app.run_headless(false);
-        WINDOWS.open(async move { WindowRoot::new_test(root) });
+        WINDOWS.open(async move { window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }
@@ -808,7 +811,7 @@ mod context {
 
 mod flat_map {
     use std::fmt;
-    use zero_ui::prelude::*;
+    use zero_ui::{prelude::*, var::ArcVar};
 
     #[derive(Clone)]
     pub struct Foo {
@@ -1203,7 +1206,10 @@ mod contextualized {
 }
 
 mod vec {
-    use zero_ui::{prelude::*, var::VecChange};
+    use zero_ui::{
+        prelude::*,
+        var::{ObservableVec, VecChange},
+    };
 
     #[test]
     fn basic_usage() {

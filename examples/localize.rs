@@ -89,7 +89,7 @@ fn window_content() -> impl UiNode {
         children = ui_vec![
             Button! {
                 child = Text!(l10n!("button", "Button")); // l10n-# button sets "click-count"
-                gesture::on_any_click = hn!(|a: &ClickArgs| {
+                gesture::on_any_click = hn!(|a: &gesture::ClickArgs| {
                     if a.is_primary() {
                         click_count.set(click_count.get() + 1);
                     } else if a.is_context() {
@@ -155,7 +155,7 @@ fn locale_menu() -> impl UiNode {
                         Toggle! {
                             text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
                             child = Text!("{l}");
-                            value::<Lang> = l.clone();
+                            value::<zero_ui::l10n::Lang> = l.clone();
                         }
                     }).collect::<UiNodeVec>()
                 }

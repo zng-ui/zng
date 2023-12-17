@@ -25,7 +25,7 @@ fn app_main() {
 
             background_color = web_colors::BLUE.darken(70.pct());
 
-            color_scheme = ColorScheme::Dark;
+            color_scheme = color::ColorScheme::Dark;
 
             child = Stack! {
                 layout::align = Align::CENTER;

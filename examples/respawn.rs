@@ -16,8 +16,8 @@ fn main() {
         Window! {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);
-            start_position = StartPosition::CenterMonitor;
-            keyboard::on_key_down = hn!(|args: &KeyInputArgs| {
+            start_position = window::StartPosition::CenterMonitor;
+            keyboard::on_key_down = hn!(|args: &keyboard::KeyInputArgs| {
                 if args.key == keyboard::Key::F5 {
                     VIEW_PROCESS.respawn();
                 }
@@ -107,7 +107,7 @@ fn window_status() -> impl UiNode {
         spacing = 5;
         layout::margin = 10;
         layout::align = Align::TOP_LEFT;
-        widget::background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        widget::background_color = color::color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         text::font_family = "monospace";
         opacity = 80.pct();
         children = ui_vec![
@@ -122,7 +122,7 @@ fn window_status() -> impl UiNode {
 fn icon() -> impl UiNode {
     Container! {
         size = (36, 36);
-        widget::background_gradient = Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
+        widget::background_gradient = layout::Line::to_bottom_right(), stops![web_colors::ORANGE_RED, 70.pct(), web_colors::DARK_RED];
         widget::corner_radius = 6;
         text::font_size = 28;
         text::font_weight = FontWeight::BOLD;

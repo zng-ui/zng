@@ -5,7 +5,7 @@ use zero_ui::{
         self,
         gradient::{linear_gradient, stops, GradientStops},
     },
-    layout::size,
+    layout::{size, Line},
     prelude::*,
     stack::stack_nodes,
     text::ToText,
@@ -151,7 +151,7 @@ fn stack_linear() -> impl UiNode {
         sample(
             "angles",
             stack_nodes({
-                fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
+                fn gradient(angle: i32, mut color: color::Rgba) -> impl UiNode {
                     color.alpha = 0.3;
                     let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                     linear_gradient(angle.deg(), stops)

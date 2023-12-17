@@ -14,8 +14,8 @@ use zero_ui::{
     prelude::*,
     scroll::ScrollMode,
     task::http,
-    widget::{background_color, border},
-    window::WindowState,
+    widget::{background_color, border, BorderSides},
+    window::{RenderMode, WindowState},
 };
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -99,7 +99,7 @@ fn app_main() {
                                 img_scale_ppi = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_| Container! {
                                     size = (180, 120);
-                                    widget::background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
+                                    widget::background_gradient = layout::Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     text::font_size = 24;
                                     child_align = Align::CENTER;
                                     child = Text!("Rendered!");
@@ -141,7 +141,7 @@ fn app_main() {
                                         source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                                         size = (200, 100);
                                         widget::foreground = Text! {
-                                            mix_blend = MixBlendMode::ColorDodge;
+                                            mix_blend = color::MixBlendMode::ColorDodge;
                                             font_color = colors::RED;
                                             txt = "Blend";
                                             txt_align = Align::CENTER;
@@ -258,7 +258,7 @@ fn img_filter(filter: impl IntoVar<Filter>) -> impl UiNode {
 }
 
 fn sprite() -> impl UiNode {
-    let timer = TIMERS.interval((1.0 / 24.0).secs(), true);
+    let timer = timer::TIMERS.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
     Stack! {
@@ -292,7 +292,7 @@ fn sprite() -> impl UiNode {
                         n.set_count(0);
                     }
                     let offset = n.count() as i32 * 96;
-                    Rect::new((offset.px(), 0.px()), (96.px(), 84.px()))
+                    (96.px(), 84.px()).at(offset.px(), 0.px())
                 });
             },
         ]
@@ -310,7 +310,7 @@ fn large_image() -> impl UiNode {
                     child = Image! {
                         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
-                        img_downscale = ImageDownscale::from(Px(8000));
+                        img_downscale = ImageDownscale::from(layout::Px(8000));
 
                         on_error = hn!(|args: &ImgErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
@@ -409,7 +409,7 @@ fn repeat_image() -> impl UiNode {
                         child = Image! {
                             img_fit = ImageFit::None;
                             img_repeat = true;
-                            img_repeat_spacing = show_pattern.map(|&s| Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
+                            img_repeat_spacing = show_pattern.map(|&s| layout::Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
                             size = (10000, 100.pct());
                             source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
                             mouse::on_mouse_input = hn!(
@@ -433,7 +433,7 @@ fn paste_image() -> impl UiNode {
         child = Text!("Paste Image");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                let source = var(ImageSource::flood(PxSize::splat(Px(1)), colors::BLACK, None));
+                let source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
                 ImgWindow! {
                     title = "Paste Image";
                     child_align = Align::FILL;
@@ -509,7 +509,7 @@ impl ImgWindow {
             icon = "examples/res/image/RGB8.png";
             widget::background = Checkerboard!();
 
-            color_scheme = ColorScheme::Dark;
+            color_scheme = color::ColorScheme::Dark;
 
             // content shown by all images when loading.
             img_loading_fn = wgt_fn!(|_| loading());
@@ -534,17 +534,17 @@ impl ImgWindow {
         }
     }
 }
-fn loading_color() -> Rgba {
+fn loading_color() -> color::Rgba {
     web_colors::LIGHT_GRAY
 }
 
-fn error_color() -> Rgba {
+fn error_color() -> color::Rgba {
     colors::RED
 }
 
 pub fn loading() -> impl UiNode {
     let mut dots_count = 3;
-    let msg = TIMERS.interval(300.ms(), false).map(move |_| {
+    let msg = timer::TIMERS.interval(300.ms(), false).map(move |_| {
         dots_count += 1;
         if dots_count == 8 {
             dots_count = 0;

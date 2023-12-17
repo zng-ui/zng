@@ -4,6 +4,8 @@ use zero_ui::{
     icon::{outlined as icons, Icon},
     layout::{align, margin},
     prelude::*,
+    var::BoxedVar,
+    widget::LineStyle,
 };
 
 use zero_ui::config::*;
@@ -143,8 +145,8 @@ fn app_main() {
                     Button! {
                         child = Text!("Open Another Process");
                         on_click = hn!(|_| {
-                            let offset = Dip::new(30);
-                            let pos = WINDOW.vars().actual_position().get() + DipVector::new(offset, offset);
+                            let offset = layout::Dip::new(30);
+                            let pos = WINDOW.vars().actual_position().get() + layout::DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
                                 let exe = std::env::current_exe()?;
@@ -163,7 +165,7 @@ fn app_main() {
                 if let Ok(pos) = std::env::var("MOVE-TO") {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
-                            let pos = DipPoint::new(Dip::new(x), Dip::new(y));
+                            let pos = (layout::Dip::new(x), layout::Dip::new(y));
                             WINDOW.vars().position().set(pos);
                             WINDOWS.focus(WINDOW.id()).unwrap();
                         }

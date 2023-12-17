@@ -4,15 +4,22 @@ use zero_ui::{
     access::ACCESS,
     app::EXIT_CMD,
     button,
-    color::filter::{backdrop_blur, drop_shadow, opacity},
+    color::{
+        color_scheme_map,
+        filter::{backdrop_blur, drop_shadow, opacity},
+        Rgba,
+    },
+    event::Command,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
+    handler::WidgetHandler,
     image::ImageDataFormat,
-    layout::{align, margin, max_height, padding, size},
+    layout::*,
     prelude::*,
     scroll::ScrollMode,
     text::Strong,
-    widget::{background_color, corner_radius, enabled, visibility},
-    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
+    var::ArcVar,
+    widget::{background_color, corner_radius, enabled, visibility, LineStyle},
+    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowChrome, WindowState},
 };
 
 // use zero_ui_view_prebuilt as zero_ui_view;
@@ -33,7 +40,7 @@ fn app_main() {
     APP.defaults().run_window(main_window());
 }
 
-async fn main_window() -> WindowRoot {
+async fn main_window() -> window::WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
     let window_vars = WINDOW.vars();
@@ -475,7 +482,7 @@ fn misc() -> impl UiNode {
                                 size = (400, 300);
                                 parent;
                                 child_align = Align::CENTER;
-                                start_position = StartPosition::CenterParent;
+                                start_position = window::StartPosition::CenterParent;
                                 child = Text! {
                                     txt = formatx!("Child {child_count}");
                                     font_size = 20;
@@ -654,7 +661,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
         backdrop_blur = 2;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        gesture::on_click = hn!(|args: &ClickArgs| {
+        gesture::on_click = hn!(|args: &gesture::ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
                 args.propagation().stop();
                 ACCESS.click(WINDOW.id(), "cancel-btn", true);

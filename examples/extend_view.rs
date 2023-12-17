@@ -361,7 +361,7 @@ pub mod using_display_items {
     pub mod api {
         use std::sync::atomic::{AtomicU32, Ordering};
 
-        use zero_ui::prelude::{PxPoint, PxSize};
+        use zero_ui::layout::{PxPoint, PxSize};
         use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub fn extension_name() -> ApiExtensionName {
@@ -419,7 +419,8 @@ pub mod using_blob {
     pub mod view_side {
         use std::{collections::HashMap, sync::Arc};
 
-        use zero_ui::prelude::{task::parking_lot::Mutex, PxPoint, PxSize};
+        use zero_ui::layout::{PxPoint, PxSize};
+        use zero_ui::prelude::task::parking_lot::Mutex;
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
@@ -852,7 +853,7 @@ pub mod using_gl_overlay {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::prelude::{Px, PxPoint, PxRect, PxSize};
+        use zero_ui::layout::{Px, PxPoint, PxRect, PxSize};
         use zero_ui_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             gleam::gl,
@@ -1056,7 +1057,7 @@ pub mod using_gl_texture {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::prelude::PxRect;
+        use zero_ui::layout::PxRect;
         use zero_ui_view::{
             extensions::{RenderItemArgs, RendererExtension, ViewExtensions},
             gleam::gl,

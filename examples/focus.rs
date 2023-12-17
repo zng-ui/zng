@@ -2,17 +2,19 @@
 
 use zero_ui::{
     button,
-    color::filter::drop_shadow,
+    color::{color_scheme_map, filter::drop_shadow},
     focus::{
         alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
         tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
         FOCUS_CHANGED_EVENT,
     },
     font::FontName,
+    gesture::ClickArgs,
     layout::{align, margin, padding},
     prelude::*,
     text::font_color,
-    widget::{background_color, border, corner_radius, enabled},
+    var::ArcVar,
+    widget::{background_color, border, corner_radius, enabled, node::ArcNode},
     window::FocusIndicator,
 };
 
@@ -363,7 +365,7 @@ fn nested_focusables() -> impl UiNode {
                 Window! {
                     title = "Focus Example - Nested Focusables";
 
-                    color_scheme = ColorScheme::Dark;
+                    color_scheme = color::ColorScheme::Dark;
                     background_color = web_colors::DIM_GRAY;
 
                     // zero_ui::properties::inspector::show_center_points = true;
@@ -425,7 +427,7 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
 mod inspect {
     use super::*;
 
-    pub fn focus(path: &Option<InteractionPath>) -> String {
+    pub fn focus(path: &Option<widget::info::InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
                 let frame = if let Ok(w) = WINDOWS.widget_tree(p.window_id()) {

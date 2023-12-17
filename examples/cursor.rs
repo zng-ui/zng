@@ -1,7 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    color::filter::invert_color, image::ImageFit, layer::AnchorOffset, mouse::CursorIcon, prelude::*, stack::v_stack, text::font_color,
+    color::{color_scheme_map, filter::invert_color},
+    image::ImageFit,
+    layer::AnchorOffset,
+    mouse::CursorIcon,
+    prelude::*,
+    stack::v_stack,
+    text::font_color,
     wgt_prelude::NilUiNode,
 };
 

@@ -4,11 +4,12 @@ use zero_ui::{
     app::AppId,
     config::*,
     keyboard::{Key, KeyState},
-    layout::{DipCornerRadius, GridSpacing},
+    layout::*,
     mouse::{ButtonState, CursorIcon, MouseButton, MouseScrollDelta},
     prelude::*,
     render::FrameId,
     touch::{TouchForce, TouchPhase},
+    widget::{BorderSides, BorderStyle, LineStyle},
     window::{DebugFlags, RendererDebug, WindowState},
 };
 
@@ -66,7 +67,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
     assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
 }
 
-app_local! {
+zero_ui::app::app_local! {
     static TEST_READ: bool = false;
 }
 

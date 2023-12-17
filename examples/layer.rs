@@ -2,7 +2,7 @@
 
 use zero_ui::{
     button,
-    color::filter::opacity,
+    color::{color_scheme_map, filter::opacity},
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     layer::AnchorOffset,
     layout::{align, margin, offset},
@@ -132,7 +132,7 @@ fn layer_index_example() -> impl UiNode {
         ]
     }
 }
-fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
+fn layer_n_btn(n: u32, color: color::Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
     Button! {
         child = Text!(label.clone());

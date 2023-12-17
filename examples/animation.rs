@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::{
-    button, image,
+    button,
+    color::{ColorScheme, Rgba},
+    image,
     layout::{margin, offset, size},
     prelude::*,
     rule_line::RuleLine,
@@ -10,9 +12,10 @@ use zero_ui::{
             self,
             easing::{EasingStep, EasingTime},
         },
-        VARS,
+        ArcVar, VARS,
     },
-    widget::{background_color, corner_radius},
+    widget::{background_color, corner_radius, LineOrientation},
+    window::RenderMode,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
