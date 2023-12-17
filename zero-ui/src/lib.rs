@@ -16,15 +16,17 @@
 //! ```toml
 //! [dependencies]
 //! zero-ui = "0.1"
+//! zero-ui-view = "0.1"
 //! ```
 //!
 //! Then create your first window:
 //!
 //! ```rust
-//! # fn main() { }
+//! # macro_rules! _demo { () => {
 //! use zero_ui::prelude::*;
 //!
-//! fn run() {
+//! fn main() {
+//!     zero_ui_view::init();
 //!     APP.defaults().run_window(async {
 //!         let size = var(layout::Size::new(800, 600));
 //!         Window! {
@@ -41,6 +43,7 @@
 //!         }
 //!     })
 //! }
+//! # }}
 //! ```
 
 #![warn(unused_extern_crates)]
