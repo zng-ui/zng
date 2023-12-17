@@ -26,9 +26,9 @@
 //!
 //! fn run() {
 //!     APP.defaults().run_window(async {
-//!         let size = var_from((800, 600));
+//!         let size = var(layout::Size::new(800, 600));
 //!         Window! {
-//!             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
+//!             title = size.map(|s| formatx!("Button Example - {s}"));
 //!             size;
 //!             child_align = Align::CENTER;
 //!             child = Button! {
