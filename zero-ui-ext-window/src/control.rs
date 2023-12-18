@@ -360,7 +360,6 @@ impl HeadedCtrl {
         }
 
         // cursor_image:
-        let mut send_cursor = false;
         if let Some(cur) = self.vars.cursor_img().get_new() {
             self.img_res.cursor_var = match cur {
                 None => None,
@@ -374,7 +373,28 @@ impl HeadedCtrl {
             };
 
             if let Some(cur) = &self.img_res.cursor_var {
-                self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_img, |img| Some(img.clone()));
+                let hotspot = self
+                    .vars
+                    .cursor_img()
+                    .with(|i| i.as_ref().map(|s| s.hotspot.clone()).unwrap_or_default());
+
+                let cursor_img_to_actual = move |img: &Img| -> Option<(Img, PxPoint)> {
+                    let hotspot = if img.is_loaded() {
+                        let mut metrics = LayoutMetrics::new(1.fct(), img.size(), Px(16));
+                        if let Some(ppi) = img.ppi() {
+                            metrics = metrics.with_screen_ppi(Ppi(ppi.x));
+                        }
+
+                        LAYOUT.with_context(metrics, || hotspot.layout())
+                    } else {
+                        PxPoint::zero()
+                    };
+
+                    Some((img.clone(), hotspot))
+                };
+
+                self.vars.0.actual_cursor_img.set_from_map(cur, cursor_img_to_actual.clone());
+                self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_img, cursor_img_to_actual);
 
                 if cur.get().is_loading() && self.window.is_none() && !self.waiting_view {
                     img_res_loading.push(cur.clone());
@@ -383,28 +403,16 @@ impl HeadedCtrl {
                 self.vars.0.actual_cursor_img.set(None);
                 self.img_res.cursor_binding = VarHandle::dummy();
             }
-
-            send_cursor = true;
-        } else if self.img_res.cursor_var.as_ref().map(|cur| cur.is_new()).unwrap_or(false) {
-            send_cursor = true;
         }
-        if send_cursor {
-            let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
-            if let Some(c) = self.vars.cursor_img().get() {
-                let hotspot = if let Some(img) = &cursor {
-                    let mut metrics = LayoutMetrics::new(1.fct(), img.size(), Px(16));
-                    if let Some(ppi) = img.ppi() {
-                        metrics = metrics.with_screen_ppi(Ppi(ppi.x));
-                    }
-
-                    LAYOUT.with_context(metrics, || c.hotspot.layout())
-                } else {
-                    PxPoint::zero()
-                };
-                self.update_gen(move |view| {
-                    let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);
-                })
-            }
+        if let Some(img_hotspot) = self.vars.0.actual_cursor_img.get_new() {
+            self.update_gen(move |view| match img_hotspot {
+                Some((img, hotspot)) => {
+                    let _: Ignore = view.set_cursor_image(img.view(), hotspot);
+                }
+                None => {
+                    let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
+                }
+            })
         }
 
         // setup init wait for images

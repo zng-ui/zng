@@ -13,7 +13,7 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
 };
-use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
+use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
 
 crate::declare_id! {
     /// Window ID in channel.
@@ -767,7 +767,7 @@ impl CursorIcon {
     };
 
     /// Estimated icon size and click spot in that size.
-    pub fn size_and_spot(&self) -> (DipSize, DipPoint) {
+    pub fn size_and_spot(&self, scale_factor: Factor) -> (PxSize, PxPoint) {
         fn splat(s: f32, rel_pt: f32) -> (DipSize, DipPoint) {
             size(s, s, rel_pt, rel_pt)
         }
@@ -778,7 +778,7 @@ impl CursorIcon {
             )
         }
 
-        match self {
+        let (size, spot) = match self {
             CursorIcon::Crosshair
             | CursorIcon::Move
             | CursorIcon::Wait
@@ -791,7 +791,9 @@ impl CursorIcon {
             CursorIcon::Text | CursorIcon::NResize | CursorIcon::SResize | CursorIcon::NsResize => size(8.0, 20.0, 0.5, 0.5),
             CursorIcon::VerticalText | CursorIcon::EResize | CursorIcon::WResize | CursorIcon::EwResize => size(20.0, 8.0, 0.5, 0.5),
             _ => splat(20.0, 0.0),
-        }
+        };
+
+        (size.to_px(scale_factor), spot.to_px(scale_factor))
     }
 }
 

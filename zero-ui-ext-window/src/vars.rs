@@ -25,7 +25,7 @@ pub(super) struct WindowVarsData {
     pub(super) actual_icon: ArcVar<Option<Img>>,
     cursor: ArcVar<Option<CursorIcon>>,
     cursor_img: ArcVar<Option<CursorImg>>,
-    pub(super) actual_cursor_img: ArcVar<Option<Img>>,
+    pub(super) actual_cursor_img: ArcVar<Option<(Img, PxPoint)>>,
     title: ArcVar<Txt>,
 
     state: ArcVar<WindowState>,
@@ -220,10 +220,10 @@ impl WindowVars {
 
     /// Window custom cursor image.
     ///
-    /// This is `None` if [`cursor_img`] is not set, otherwise it is an [`Img`] reference clone.
+    /// This is `None` if [`cursor_img`] is not set, otherwise it is an [`Img`] reference clone with computed hotspot [`PxPoint`].
     ///
     /// [`cursor_img`]: Self::cursor_img
-    pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<Img>> {
+    pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<(Img, PxPoint)>> {
         self.0.actual_cursor_img.read_only()
     }
 

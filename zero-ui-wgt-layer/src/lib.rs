@@ -380,9 +380,17 @@ impl LAYERS {
 
                                 if let Some(pos) = pos {
                                     let fct = LAYOUT.scale_factor();
-                                    let (cursor_size, cursor_spot) =
-                                        WINDOW.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
-                                    let cursor_rect = DipRect::new((pos - cursor_spot).to_point(), cursor_size).to_px(fct);
+                                    let pos = pos.to_px(fct);
+
+                                    let (cursor_size, cursor_spot) = {
+                                        let vars = WINDOW.vars();
+                                        if let Some((img, spot)) = vars.actual_cursor_img().get() {
+                                            (img.size(), spot)
+                                        } else {
+                                            vars.cursor().get().map(|c| c.size_and_spot(fct)).unwrap_or_default()
+                                        }
+                                    };
+                                    let cursor_rect = PxRect::new((pos - cursor_spot).to_point(), cursor_size);
                                     let place = cursor_rect.origin
                                         + LAYOUT
                                             .with_constraints(PxConstraints2d::new_exact_size(cursor_rect.size), || p.place.layout())
