@@ -38,6 +38,7 @@ TextInput! {
     - Z meaning depth opens some possibilities, unfortunately "zui" is already taken.
     - `znest`: Z-dimension (depth) + nest, Z-Nest, US pronunciation "zee nest"? 
     - `zerui`.
+    - `nestui`.
 
 * Review all docs.
 * Review prebuild distribution.

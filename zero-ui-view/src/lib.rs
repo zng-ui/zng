@@ -1690,7 +1690,7 @@ impl Api for App {
         self.with_window(
             id,
             |w| {
-                let _ = (w, icon); // TODO https://github.com/rust-windowing/winit/pull/3039
+                let _ = (w, icon); // TODO next winit release >0.29.4
             },
             || (),
         );

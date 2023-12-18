@@ -361,7 +361,7 @@ impl HeadedCtrl {
 
         // cursor_image:
         let mut send_cursor = false;
-        if let Some(cur) = self.vars.cursor_image().get_new() {
+        if let Some(cur) = self.vars.cursor_img().get_new() {
             self.img_res.cursor_var = match cur {
                 None => None,
                 Some(CursorImage { source, .. }) => match source {
@@ -374,13 +374,13 @@ impl HeadedCtrl {
             };
 
             if let Some(cur) = &self.img_res.cursor_var {
-                self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_image, |img| Some(img.clone()));
+                self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_img, |img| Some(img.clone()));
 
                 if cur.get().is_loading() && self.window.is_none() && !self.waiting_view {
                     img_res_loading.push(cur.clone());
                 }
             } else {
-                self.vars.0.actual_cursor_image.set(None);
+                self.vars.0.actual_cursor_img.set(None);
                 self.img_res.cursor_binding = VarHandle::dummy();
             }
 
@@ -390,7 +390,7 @@ impl HeadedCtrl {
         }
         if send_cursor {
             let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
-            if let Some(c) = self.vars.cursor_image().get() {
+            if let Some(c) = self.vars.cursor_img().get() {
                 let hotspot = c.hotspot;
                 self.update_gen(move |view| {
                     let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);

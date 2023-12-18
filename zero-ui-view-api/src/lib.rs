@@ -322,7 +322,7 @@ declare_api! {
 
     /// Set the window cursor to a custom image.
     ///
-    /// Falls-back to cursor icon if set to `None`.
+    /// Falls-back to cursor icon if not supported or if set to `None`.
     pub fn set_cursor_image(&mut self, id: WindowId, cursor: Option<window::CursorImage>);
 
     /// Sets the user attention request indicator, the indicator is cleared when the window is focused or

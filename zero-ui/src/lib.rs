@@ -684,7 +684,7 @@ pub mod mouse {
         on_pre_mouse_triple_click, on_pre_mouse_up, on_pre_mouse_wheel, on_pre_mouse_zoom,
     };
 
-    pub use zero_ui_wgt_input::{click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon};
+    pub use zero_ui_wgt_input::{click_mode, cursor, cursor_img, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImage};
 }
 
 /// Touch service, properties, events and types.
