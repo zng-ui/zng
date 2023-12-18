@@ -1161,6 +1161,9 @@ impl FrameBuilder {
     }
 
     /// Gets the inner-bounds hit-test shape builder.
+    ///
+    /// Note that all hit-test is clipped by the inner-bounds, the shapes pushed with this builder
+    /// only refine the widget inner-bounds, shapes out-of-bounds are clipped.
     pub fn hit_test(&mut self) -> HitTestBuilder {
         expect_inner!(self.hit_test);
 

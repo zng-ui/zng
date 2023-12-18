@@ -4,7 +4,10 @@
     - Test with RTL and bidirectional text.
     - Implement `touch_carets` touch drag.
         - Implement in the layered shape?
-        - Hit-test area full shape rectangle.
+            - Needed, because the carets can overflow the text area.
+        - Right now we reuse the same touch caret in two positions (render twice) if both ends point in
+          the same direction, does the hit-test works in this case?
+        - How to identify what point to update?
 
 * Implement selection toolbar.
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
