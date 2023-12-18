@@ -13,7 +13,7 @@ use zero_ui_app::{
     window::{WindowId, WINDOW},
 };
 use zero_ui_ext_image::{ImageSource, ImageVar, Img};
-use zero_ui_layout::unit::{DipPoint, DipSize, PxPoint};
+use zero_ui_layout::unit::{DipPoint, DipSize, Point, PxPoint};
 use zero_ui_txt::Txt;
 use zero_ui_unique_id::IdSet;
 use zero_ui_var::impl_from_and_into_var;
@@ -404,7 +404,7 @@ impl_from_and_into_var! {
 
 /// Window custom cursor.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CursorImage {
+pub struct CursorImg {
     /// Cursor image source.
     ///
     /// For better compatibility use a square image between 32 and 128 pixels.
@@ -412,7 +412,10 @@ pub struct CursorImage {
     /// Pixel in the source image that is the exact mouse position.
     ///
     /// This value is ignored if the image source format already has hotspot information.
-    pub hotspot: PxPoint,
+    pub hotspot: Point,
+}
+impl_from_and_into_var! {
+    fn from(img: CursorImg) -> Option<CursorImg>;
 }
 
 /// Frame image capture mode in a window.

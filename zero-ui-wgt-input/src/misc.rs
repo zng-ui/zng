@@ -4,7 +4,7 @@ use zero_ui_wgt::prelude::*;
 
 pub use zero_ui_view_api::window::CursorIcon;
 
-pub use zero_ui_ext_window::CursorImage;
+pub use zero_ui_ext_window::CursorImg;
 
 /// Sets the [`CursorIcon`] displayed when hovering the widget.
 ///
@@ -66,7 +66,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 ///
 /// [`cursor`]: fn@cursor
 #[property(CONTEXT+1, default(None))]
-pub fn cursor_img(child: impl UiNode, img: impl IntoVar<Option<CursorImage>>) -> impl UiNode {
+pub fn cursor_img(child: impl UiNode, img: impl IntoVar<Option<CursorImg>>) -> impl UiNode {
     let img = img.into_var();
     let mut hovered_binding = None;
 

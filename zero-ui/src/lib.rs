@@ -684,7 +684,7 @@ pub mod mouse {
         on_pre_mouse_triple_click, on_pre_mouse_up, on_pre_mouse_wheel, on_pre_mouse_zoom,
     };
 
-    pub use zero_ui_wgt_input::{click_mode, cursor, cursor_img, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImage};
+    pub use zero_ui_wgt_input::{click_mode, cursor, cursor_img, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImg};
 }
 
 /// Touch service, properties, events and types.
@@ -816,11 +816,11 @@ pub mod window {
     pub use zero_ui_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
 
     pub use zero_ui_ext_window::{
-        AppRunWindowExt, AutoSize, CloseWindowResult, CursorImage, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs,
-        HeadlessAppWindowExt, HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode,
-        RendererDebug, StartPosition, VideoMode, WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowChrome,
-        WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs,
-        WindowState, WindowStateAllowed, WindowVars, FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
+        AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
+        HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, RendererDebug, StartPosition,
+        VideoMode, WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowChrome, WindowCloseArgs,
+        WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState,
+        WindowStateAllowed, WindowVars, FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
         WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
     };
 

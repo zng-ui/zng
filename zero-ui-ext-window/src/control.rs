@@ -44,7 +44,7 @@ use zero_ui_view_api::{
 
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, CursorImage, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
+    AutoSize, CursorImg, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
     WindowChangedArgs, WindowChrome, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
     WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
@@ -364,7 +364,7 @@ impl HeadedCtrl {
         if let Some(cur) = self.vars.cursor_img().get_new() {
             self.img_res.cursor_var = match cur {
                 None => None,
-                Some(CursorImage { source, .. }) => match source {
+                Some(CursorImg { source, .. }) => match source {
                     ImageSource::Render(cur, _) => Some(IMAGES.cache(ImageSource::Render(
                         cur.clone(),
                         Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
@@ -391,7 +391,16 @@ impl HeadedCtrl {
         if send_cursor {
             let cursor = self.img_res.cursor_var.as_ref().and_then(|cur| cur.get().view().cloned());
             if let Some(c) = self.vars.cursor_img().get() {
-                let hotspot = c.hotspot;
+                let hotspot = if let Some(img) = &cursor {
+                    let mut metrics = LayoutMetrics::new(1.fct(), img.size(), Px(16));
+                    if let Some(ppi) = img.ppi() {
+                        metrics = metrics.with_screen_ppi(Ppi(ppi.x));
+                    }
+
+                    LAYOUT.with_context(metrics, || c.hotspot.layout())
+                } else {
+                    PxPoint::zero()
+                };
                 self.update_gen(move |view| {
                     let _: Ignore = view.set_cursor_image(cursor.as_ref(), hotspot);
                 })

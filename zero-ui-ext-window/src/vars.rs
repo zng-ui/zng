@@ -17,14 +17,14 @@ use zero_ui_view_api::{
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
 };
 
-use crate::{AutoSize, CursorImage, FrameCaptureMode, MonitorQuery, RendererDebug, WindowChrome, WindowIcon};
+use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, RendererDebug, WindowChrome, WindowIcon};
 
 pub(super) struct WindowVarsData {
     chrome: ArcVar<WindowChrome>,
     icon: ArcVar<WindowIcon>,
     pub(super) actual_icon: ArcVar<Option<Img>>,
     cursor: ArcVar<Option<CursorIcon>>,
-    cursor_img: ArcVar<Option<CursorImage>>,
+    cursor_img: ArcVar<Option<CursorImg>>,
     pub(super) actual_cursor_img: ArcVar<Option<Img>>,
     title: ArcVar<Txt>,
 
@@ -214,7 +214,7 @@ impl WindowVars {
     /// See [`CursorImage`] for details.
     ///
     /// [`cursor`]: Self::cursor
-    pub fn cursor_img(&self) -> ArcVar<Option<CursorImage>> {
+    pub fn cursor_img(&self) -> ArcVar<Option<CursorImg>> {
         self.0.cursor_img.clone()
     }
 

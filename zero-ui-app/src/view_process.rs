@@ -694,8 +694,8 @@ impl ViewWindow {
     }
 
     /// Set the window cursor icon and visibility.
-    pub fn set_cursor(&self, icon: Option<CursorIcon>) -> Result<()> {
-        self.0.call(|id, p| p.set_cursor(id, icon))
+    pub fn set_cursor(&self, cursor: Option<CursorIcon>) -> Result<()> {
+        self.0.call(|id, p| p.set_cursor(id, cursor))
     }
 
     /// Set the window cursor to a custom image.
