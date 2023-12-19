@@ -60,7 +60,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     })
 }
 
-/// Sets the custom [`CursorImage`] displayed when hovering the widget.
+/// Sets the custom [`CursorImg`] displayed when hovering the widget.
 ///
 /// If set to `None`, or when the cursor image cannot be shown the [`cursor`] value is used as fallback.
 ///

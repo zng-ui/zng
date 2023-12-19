@@ -211,7 +211,7 @@ impl WindowVars {
     ///
     /// When this is set to a loaded image it is used as a cursor, falls-back to [`cursor`].
     ///
-    /// See [`CursorImage`] for details.
+    /// See [`CursorImg`] for details.
     ///
     /// [`cursor`]: Self::cursor
     pub fn cursor_img(&self) -> ArcVar<Option<CursorImg>> {
