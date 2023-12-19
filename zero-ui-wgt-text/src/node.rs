@@ -3712,7 +3712,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                     let node = match_widget(node, move |c, op| match op {
                         UiNodeOp::Init => {
                             c.init();
-                            // c.with_context(|| );// SELECTION_TOOLBAR_ANCHOR_VAR subscribe TODO
+                            c.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
                         }
                         UiNodeOp::Layout { wl, final_size } => {
                             let r_txt = ResolvedText::get();
@@ -3773,6 +3773,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                             let mut allow = ContextValueSet::new();
                             super::LangMix::<()>::context_vars_set(&mut allow);
                             exclude.remove_all(&allow);
+                            exclude.remove(&SELECTION_TOOLBAR_ANCHOR_VAR);
 
                             exclude
                         }),

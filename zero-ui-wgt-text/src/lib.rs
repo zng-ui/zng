@@ -108,8 +108,9 @@ pub struct Text(
     LangMix<
     FontFeaturesMix<
     TextEditMix<
+    SelectionToolbarMix<
     WidgetBase
-    >>>>>>>>>>
+    >>>>>>>>>>>
 );
 
 impl Text {
@@ -124,6 +125,7 @@ impl Text {
         TextTransformMix::<()>::context_vars_set(set);
         FontFeaturesMix::<()>::context_vars_set(set);
         TextEditMix::<()>::context_vars_set(set);
+        SelectionToolbarMix::<()>::context_vars_set(set);
 
         LangMix::<()>::context_vars_set(set);
     }

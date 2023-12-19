@@ -1743,10 +1743,29 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
     })
 }
 
+/// Selection toolbar properties.
+#[widget_mixin]
+pub struct SelectionToolbarMix<P>(P);
+
+context_var! {
+    /// Selection toolbar function.
+    pub static SELECTION_TOOLBAR_FN_VAR: WidgetFn<SelectionToolbarArgs> = WidgetFn::nil();
+    /// Position the selection toolbar in relation to the bounding box of all selection rectangles.
+    pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorOffset = AnchorOffset::out_top();
+}
+
+impl SelectionToolbarMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert(&SELECTION_TOOLBAR_FN_VAR);
+        set.insert(&SELECTION_TOOLBAR_ANCHOR_VAR);
+    }
+}
+
 /// Defines the floating mini-toolbar that shows near a new text selection.
 ///
 /// The `toolbar` is used
-#[property(CONTEXT)]
+#[property(CONTEXT, widget_impl(SelectionToolbarMix<P>))]
 pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNode {
     selection_toolbar_fn(child, WidgetFn::singleton(toolbar))
 }
@@ -1754,7 +1773,7 @@ pub fn selection_toolbar(child: impl UiNode, toolbar: impl UiNode) -> impl UiNod
 /// Defines the floating mini-toolbar that shows near a new text selection.
 ///
 /// Sets the [`SELECTION_TOOLBAR_FN_VAR`].
-#[property(CONTEXT, default(SELECTION_TOOLBAR_FN_VAR))]
+#[property(CONTEXT, default(SELECTION_TOOLBAR_FN_VAR), widget_impl(SelectionToolbarMix<P>))]
 pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<SelectionToolbarArgs>>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_FN_VAR, toolbar)
 }
@@ -1772,14 +1791,7 @@ pub struct SelectionToolbarArgs {
 /// See [`selection_toolbar_fn`](fn@selection_toolbar_fn).
 ///
 /// Sets the [`SELECTION_TOOLBAR_ANCHOR_VAR`].
-#[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR))]
+#[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR), widget_impl(SelectionToolbarMix<P>))]
 pub fn selection_toolbar_anchor(child: impl UiNode, offset: impl IntoVar<AnchorOffset>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, offset)
-}
-
-context_var! {
-    /// Selection toolbar function.
-    pub static SELECTION_TOOLBAR_FN_VAR: WidgetFn<SelectionToolbarArgs> = WidgetFn::nil();
-    /// Position the selection toolbar in relation to the bounding box of all selection rectangles.
-    pub static SELECTION_TOOLBAR_ANCHOR_VAR: AnchorOffset = AnchorOffset::out_top();
 }
