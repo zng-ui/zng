@@ -2694,12 +2694,14 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                             for l in &mut l {
                                 l.x = Px::MIN;
                                 l.y = Px::MIN;
+                                l.is_selection_index = false;
                             }
 
                             l[i].x = origin.x;
                             l[i].y = origin.y;
                             l[i + 2].x = s_origin.x;
                             l[i + 2].y = s_origin.y;
+                            l[i + 2].is_selection_index = true;
                         } else {
                             let (lft, rgt) = if index_is_left { (0, 1) } else { (1, 0) };
 
@@ -2708,12 +2710,14 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                             for l in &mut l {
                                 l.x = Px::MIN;
                                 l.y = Px::MIN;
+                                l.is_selection_index = false;
                             }
 
                             l[lft].x = origin.x;
                             l[lft].y = origin.y;
                             l[rgt].x = s_origin.x;
                             l[rgt].y = s_origin.y;
+                            l[rgt].is_selection_index = true;
                         }
 
                         if changed {
@@ -2754,6 +2758,7 @@ struct CaretLayout {
     inner_text: PxTransform,
     x: Px,
     y: Px,
+    is_selection_index: bool,
 }
 impl Default for CaretLayout {
     fn default() -> Self {
@@ -2763,6 +2768,7 @@ impl Default for CaretLayout {
             inner_text: Default::default(),
             x: Px::MIN,
             y: Px::MIN,
+            is_selection_index: false,
         }
     }
 }
@@ -2843,14 +2849,11 @@ impl TouchCaret {
                             for t in &args.touches {
                                 if t.touch == *id {
                                     let pos = t.position();
-                                    match shape {
-                                        CaretShape::Insert => {
-                                            SELECT_CMD.scoped(parent_id).notify_param(TextSelectOp::nearest_to(pos));
-                                        }
-                                        _ => {
-                                            tracing::error!("!!: TODO touch drag selection caret");
-                                        }
-                                    }
+                                    let op = match shape {
+                                        CaretShape::Insert => TextSelectOp::nearest_to(pos),
+                                        _ => TextSelectOp::select_index_nearest_to(pos, c_layout.lock().is_selection_index),
+                                    };
+                                    SELECT_CMD.scoped(parent_id).notify_param(op);
                                     break;
                                 }
                             }

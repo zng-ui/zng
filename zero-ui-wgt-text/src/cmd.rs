@@ -915,6 +915,15 @@ impl TextSelectOp {
         })
     }
 
+    /// Extend or shrink selection by moving the caret index or caret selection index to the insert point nearest to `window_point`.
+    ///
+    /// This is the touch selection caret drag operation.
+    pub fn select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
+        Self::new(move || {
+            index_nearest_to(window_point, move_selection_index);
+        })
+    }
+
     /// Replace or extend selection with the word nearest to the `window_point`
     ///
     /// This is the mouse primary button double click.
@@ -1137,6 +1146,48 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     if c.index.is_none() {
         c.set_index(CaretIndex::ZERO);
         c.clear_selection();
+    }
+}
+
+fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
+    let resolved = ResolvedText::get();
+    let layout = LayoutText::get();
+
+    let mut c = resolved.caret.lock();
+
+    if c.index.is_none() {
+        c.index = Some(CaretIndex::ZERO);
+    }
+    if c.selection_index.is_none() {
+        c.selection_index = Some(c.index.unwrap());
+    }
+
+    c.used_retained_x = false;
+    c.index_version += 1;
+
+    let i = if move_selection_index {
+        c.selection_index.as_mut().unwrap()
+    } else {
+        c.index.as_mut().unwrap()
+    };
+
+    let info = layout.render_info.lock();
+    if let Some(pos) = info
+        .transform
+        .inverse()
+        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
+    {
+        *i = match layout.shaped_text.nearest_line(pos.y) {
+            Some(l) => CaretIndex {
+                line: l.index(),
+                index: match l.nearest_seg(pos.x) {
+                    Some(s) => s.nearest_char_index(pos.x, resolved.segmented_text.text()),
+                    None => l.text_range().end,
+                },
+            },
+            None => CaretIndex::ZERO,
+        };
+        i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
     }
 }
 

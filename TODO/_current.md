@@ -2,12 +2,7 @@
 
 * Touch selection.
     - Test with RTL and bidirectional text.
-    - Implement `touch_carets` touch drag.
-        - Implement in the layered shape?
-            - Needed, because the carets can overflow the text area.
-        - Right now we reuse the same touch caret in two positions (render twice) if both ends point in
-          the same direction, does the hit-test works in this case?
-        - How to identify what point to update?
+    - Test with multi-line.
 
 * Implement selection toolbar.
     - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
@@ -18,15 +13,7 @@
     - Have the selection_toolbar_fn args indicate what kind of event created the selection.
         - This way we can have the default only open for touch events, and users can have different toolbars
           without we needing to declare multiple properties.
-```rust
-TextInput! {
-    txt = var_from("select text to show toolbar");
-    text::selection_toolbar = Wgt! {
-        size = 40;
-        background_color = colors::GREEN.with_alpha(50.pct());
-    }
-}
-```
+    - Touch carets vanish when the toolbar opens.
 
 # Accessibility
 
