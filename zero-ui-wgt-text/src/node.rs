@@ -3703,83 +3703,86 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             if let Some(range) = ResolvedText::get().caret.lock().selection_range() {
                 selection_range = Some(range);
 
-                let (node, _) = SELECTION_TOOLBAR_FN_VAR.get()(SelectionToolbarArgs { anchor_id: WIDGET.id() }).init_widget();
+                let toolbar_fn = SELECTION_TOOLBAR_FN_VAR.get();
+                if !toolbar_fn.is_nil() {
+                    let (node, _) = toolbar_fn(SelectionToolbarArgs { anchor_id: WIDGET.id() }).init_widget();
 
-                let mut translate = PxVector::zero();
-                let transform_key = FrameValueKey::new_unique();
-                let node = match_widget(node, move |c, op| match op {
-                    UiNodeOp::Init => {
-                        c.init();
-                        // c.with_context(|| );// SELECTION_TOOLBAR_ANCHOR_VAR subscribe TODO
-                    }
-                    UiNodeOp::Layout { wl, final_size } => {
-                        let r_txt = ResolvedText::get();
-                        if let Some(range) = r_txt.caret.lock().selection_range() {
-                            let l_txt = LayoutText::get();
-                            let r_txt = r_txt.segmented_text.text();
+                    let mut translate = PxVector::zero();
+                    let transform_key = FrameValueKey::new_unique();
+                    let node = match_widget(node, move |c, op| match op {
+                        UiNodeOp::Init => {
+                            c.init();
+                            // c.with_context(|| );// SELECTION_TOOLBAR_ANCHOR_VAR subscribe TODO
+                        }
+                        UiNodeOp::Layout { wl, final_size } => {
+                            let r_txt = ResolvedText::get();
+                            if let Some(range) = r_txt.caret.lock().selection_range() {
+                                let l_txt = LayoutText::get();
+                                let r_txt = r_txt.segmented_text.text();
 
-                            let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
-                            for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
-                                if !line_rect.size.is_empty() {
-                                    let line_box = line_rect.to_box2d();
-                                    bounds.min = bounds.min.min(line_box.min);
-                                    bounds.max = bounds.max.max(line_box.max);
+                                let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
+                                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                                    if !line_rect.size.is_empty() {
+                                        let line_box = line_rect.to_box2d();
+                                        bounds.min = bounds.min.min(line_box.min);
+                                        bounds.max = bounds.max.max(line_box.max);
+                                    }
                                 }
-                            }
-                            let selection_bounds = bounds.to_rect();
+                                let selection_bounds = bounds.to_rect();
 
-                            *final_size = c.layout(wl);
+                                *final_size = c.layout(wl);
 
-                            let offset = SELECTION_TOOLBAR_ANCHOR_VAR.get();
+                                let offset = SELECTION_TOOLBAR_ANCHOR_VAR.get();
 
-                            fn layout_offset(size: PxSize, point: Point) -> PxVector {
-                                LAYOUT
-                                    .with_constraints(PxConstraints2d::new_exact_size(size), || point.layout())
-                                    .to_vector()
-                            }
-                            let place = layout_offset(selection_bounds.size, offset.place);
-                            let origin = layout_offset(*final_size, offset.origin);
+                                fn layout_offset(size: PxSize, point: Point) -> PxVector {
+                                    LAYOUT
+                                        .with_constraints(PxConstraints2d::new_exact_size(size), || point.layout())
+                                        .to_vector()
+                                }
+                                let place = layout_offset(selection_bounds.size, offset.place);
+                                let origin = layout_offset(*final_size, offset.origin);
 
-                            translate = selection_bounds.origin.to_vector() + place - origin;
-                        } else {
-                            // no selection, must be closing
-                            wl.collapse();
-                            *final_size = PxSize::zero();
-                        };
-                    }
-                    UiNodeOp::Render { frame } => {
-                        let l_txt = LayoutText::get();
-                        let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
-                        frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
-                            c.render(frame)
-                        });
-                    }
-                    UiNodeOp::RenderUpdate { update } => {
-                        let l_txt = LayoutText::get();
-                        let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
-                        update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
-                    }
-                    _ => {}
-                });
+                                translate = selection_bounds.origin.to_vector() + place - origin;
+                            } else {
+                                // no selection, must be closing
+                                wl.collapse();
+                                *final_size = PxSize::zero();
+                            };
+                        }
+                        UiNodeOp::Render { frame } => {
+                            let l_txt = LayoutText::get();
+                            let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
+                            frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
+                                c.render(frame)
+                            });
+                        }
+                        UiNodeOp::RenderUpdate { update } => {
+                            let l_txt = LayoutText::get();
+                            let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
+                            update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
+                        }
+                        _ => {}
+                    });
 
-                // capture all context including LayoutText, exclude text style properties.
-                let capture = ContextCapture::CaptureBlend {
-                    filter: CaptureFilter::Exclude({
-                        let mut exclude = ContextValueSet::new();
-                        super::Text::context_vars_set(&mut exclude);
+                    // capture all context including LayoutText, exclude text style properties.
+                    let capture = ContextCapture::CaptureBlend {
+                        filter: CaptureFilter::Exclude({
+                            let mut exclude = ContextValueSet::new();
+                            super::Text::context_vars_set(&mut exclude);
 
-                        let mut allow = ContextValueSet::new();
-                        super::LangMix::<()>::context_vars_set(&mut allow);
-                        exclude.remove_all(&allow);
+                            let mut allow = ContextValueSet::new();
+                            super::LangMix::<()>::context_vars_set(&mut allow);
+                            exclude.remove_all(&allow);
 
-                        exclude
-                    }),
-                    over: false,
-                };
+                            exclude
+                        }),
+                        over: false,
+                    };
 
-                let mut base_mode = AnchorMode::tooltip();
-                base_mode.transform = AnchorTransform::None;
-                popup_state = Some(POPUP.open_config(node, base_mode, capture));
+                    let mut base_mode = AnchorMode::tooltip();
+                    base_mode.transform = AnchorTransform::None;
+                    popup_state = Some(POPUP.open_config(node, base_mode, capture));
+                }
             };
         }
     })
