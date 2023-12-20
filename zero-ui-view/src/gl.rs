@@ -144,7 +144,6 @@ impl GlContextManager {
 
         #[cfg(target_os = "macos")]
         let display_pref = DisplayApiPreference::Cgl;
-        
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::new(display_handle, display_pref) }?;

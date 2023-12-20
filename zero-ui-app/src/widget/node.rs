@@ -182,7 +182,7 @@ pub trait UiNode: Any + Send {
     }
 
     /// Gets if this node does nothing and is layout collapsed.
-    /// 
+    ///
     /// Implementers must return `true` only if the node will always do nothing, nodes that may change
     /// and stop being collapsed are not nil.
     fn is_nil(&self) -> bool {
