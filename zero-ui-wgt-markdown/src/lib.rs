@@ -396,24 +396,28 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(&url);
-                            inlines.push(text_view(TextFnArgs {
+                            if let Some(txt) = text_view.call_checked(TextFnArgs {
                                 txt: url.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
                                     emphasis: emphasis > 0,
                                     strikethrough: strikethrough > 0,
                                 },
-                            }));
+                            }) {
+                                inlines.push(txt);
+                            }
                         }
                     }
                     if !inlines.is_empty() {
                         if let Some(s) = link_start.take() {
                             let items = inlines.drain(s..).collect();
-                            inlines.push(link_view(LinkFnArgs {
+                            if let Some(lnk) = link_view.call_checked(LinkFnArgs {
                                 url,
                                 title: title.to_text(),
                                 items,
-                            }));
+                            }) {
+                                inlines.push(lnk);
+                            }
                         }
                     }
                 }
@@ -464,47 +468,39 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     if let Some(t) = &mut image_alt {
                         t.push_str(&txt);
                     }
-                    inlines.push(
-                        text_view(TextFnArgs {
-                            txt,
-                            style: MarkdownStyle {
-                                strong: strong > 0,
-                                emphasis: emphasis > 0,
-                                strikethrough: strikethrough > 0,
-                            },
-                        })
-                        .boxed(),
-                    );
-                }
-            }
-            Event::Code(txt) => {
-                let txt = html_escape::decode_html_entities(txt.as_ref());
-
-                if last_txt_end.is_whitespace() {
-                    inlines.push(
-                        text_view(TextFnArgs {
-                            txt: ' '.into(),
-                            style: MarkdownStyle {
-                                strong: strong > 0,
-                                emphasis: emphasis > 0,
-                                strikethrough: strikethrough > 0,
-                            },
-                        })
-                        .boxed(),
-                    );
-                }
-
-                inlines.push(
-                    code_inline_view(CodeInlineFnArgs {
-                        txt: txt.to_text(),
+                    if let Some(txt) = text_view.call_checked(TextFnArgs {
+                        txt,
                         style: MarkdownStyle {
                             strong: strong > 0,
                             emphasis: emphasis > 0,
                             strikethrough: strikethrough > 0,
                         },
-                    })
-                    .boxed(),
-                );
+                    }) {
+                        inlines.push(txt);
+                    }
+                }
+            }
+            Event::Code(txt) => {
+                let txt = html_escape::decode_html_entities(txt.as_ref());
+
+                let style = MarkdownStyle {
+                    strong: strong > 0,
+                    emphasis: emphasis > 0,
+                    strikethrough: strikethrough > 0,
+                };
+
+                if last_txt_end.is_whitespace() {
+                    if let Some(txt) = text_view.call_checked(TextFnArgs {
+                        txt: ' '.into(),
+                        style: style.clone(),
+                    }) {
+                        inlines.push(txt);
+                    }
+                }
+
+                if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs { txt: txt.to_text(), style }) {
+                    inlines.push(txt);
+                }
             }
             Event::Html(tag) => match tag.as_ref() {
                 "<b>" => strong += 1,
@@ -517,7 +513,9 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                inlines.push(footnote_ref_view(FootnoteRefFnArgs { label: label.to_text() }));
+                if let Some(txt) = footnote_ref_view.call_checked(FootnoteRefFnArgs { label: label.to_text() }) {
+                    inlines.push(txt);
+                }
             }
             Event::SoftBreak => {}
             Event::HardBreak => {}

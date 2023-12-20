@@ -3704,8 +3704,8 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 selection_range = Some(range);
 
                 let toolbar_fn = SELECTION_TOOLBAR_FN_VAR.get();
-                if !toolbar_fn.is_nil() {
-                    let (node, _) = toolbar_fn(SelectionToolbarArgs { anchor_id: WIDGET.id() }).init_widget();
+                if let Some(node) = toolbar_fn.call_checked(SelectionToolbarArgs { anchor_id: WIDGET.id() }) {
+                    let (node, _) = node.init_widget();
 
                     let mut translate = PxVector::zero();
                     let transform_key = FrameValueKey::new_unique();

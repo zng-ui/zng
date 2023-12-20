@@ -644,23 +644,19 @@ fn generate_ansi(txt: &impl Var<Txt>) -> BoxedUiNode {
 
         for (i, line) in txt.lines().enumerate() {
             let text = ansi_parse::AnsiTextParser::new(line)
-                .map(|txt| {
-                    text_fn(TextFnArgs {
+                .filter_map(|txt| {
+                    text_fn.call_checked(TextFnArgs {
                         txt: txt.txt.to_text(),
                         style: txt.style,
                     })
-                    .boxed()
                 })
                 .collect();
 
-            lines.push(
-                line_fn(LineFnArgs {
-                    index: i as u32,
-                    page_index: lines.len() as u32,
-                    text,
-                })
-                .boxed(),
-            );
+            lines.push(line_fn(LineFnArgs {
+                index: i as u32,
+                page_index: lines.len() as u32,
+                text,
+            }));
 
             if lines.len() == lines_per_page {
                 let lines = mem::replace(&mut lines, Vec::with_capacity(50));

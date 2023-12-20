@@ -67,9 +67,15 @@ impl<D> WidgetFn<D> {
         WidgetFn(None)
     }
 
-    /// If this is  the [`nil`] function.
+    /// If this is the [`nil`] function.
+    ///
+    /// If `true` the function always generates a node that is [`UiNode::is_nil`], if
+    /// `false` the function may still return a nil node some of the time.
+    ///
+    /// See [`call_checked`] for more details.
     ///
     /// [`nil`]: WidgetFn::nil
+    /// [`call_checked`]: Self::call_checked
     pub fn is_nil(&self) -> bool {
         self.0.is_none()
     }
@@ -92,6 +98,20 @@ impl<D> WidgetFn<D> {
             g(data)
         } else {
             NilUiNode.boxed()
+        }
+    }
+
+    /// Calls the function with `data` argument and only returns a node if is not nil.
+    ///
+    /// Returns `None` if [`is_nil`] or [`UiNode::is_nil`].
+    ///
+    /// [`is_nil`]: Self::is_nil
+    pub fn call_checked(&self, data: D) -> Option<BoxedUiNode> {
+        let r = self.0.as_ref()?(data);
+        if r.is_nil() {
+            None
+        } else {
+            Some(r)
         }
     }
 

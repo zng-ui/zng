@@ -181,6 +181,14 @@ pub trait UiNode: Any + Send {
         false
     }
 
+    /// Gets if this node does nothing and is layout collapsed.
+    /// 
+    /// Implementers must return `true` only if the node will always do nothing, nodes that may change
+    /// and stop being collapsed are not nil.
+    fn is_nil(&self) -> bool {
+        false
+    }
+
     /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
     ///
     /// Returns `None` if the node does not represent an widget.
@@ -791,6 +799,7 @@ pub trait UiNodeBoxed: Any + Send {
     fn render_update_boxed(&mut self, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
+    fn is_nil_boxed(&self) -> bool;
     fn with_context_boxed(&mut self, update_mode: WidgetUpdateMode, f: &mut dyn FnMut());
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
     fn as_any_boxed(&self) -> &dyn Any;
@@ -839,6 +848,10 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn is_widget_boxed(&self) -> bool {
         self.is_widget()
+    }
+
+    fn is_nil_boxed(&self) -> bool {
+        self.is_nil()
     }
 
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode {
@@ -1047,6 +1060,10 @@ impl UiNode for BoxedUiNode {
 
     fn is_widget(&self) -> bool {
         self.as_ref().is_widget_boxed()
+    }
+
+    fn is_nil(&self) -> bool {
+        self.as_ref().is_nil_boxed()
     }
 
     fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
@@ -1277,6 +1294,10 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
+    fn is_nil(&self) -> bool {
+        self.is_none()
+    }
+
     fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
@@ -1381,6 +1402,10 @@ impl UiNode for NilUiNode {
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         LAYOUT.constraints().min_size()
+    }
+
+    fn is_nil(&self) -> bool {
+        true
     }
 }
 
