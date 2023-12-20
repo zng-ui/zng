@@ -29,7 +29,7 @@ ipc = ["zero-ui-view-api/ipc"]
 # * Define these two env vars `set CC=clang-cl` and `set CXX=clang-cl`.
 #
 # Feature enabled by default.
-software = ["swgl"]
+software = ["swgl", "glsl"]
 
 # Enables AVIF decoding and encoding.
 #
@@ -64,6 +64,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 webrender = { git = "https://github.com/SamRodri/webrender.git" }
 swgl = { git = "https://github.com/SamRodri/webrender.git", optional = true }
+glsl = { version = "=6.0.2", optional = true } # pin version for swgl (there is a breaking change in glsl 6.0.3
 
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 zero-ui-unit = { path = "../zero-ui-unit" }
