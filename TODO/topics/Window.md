@@ -26,3 +26,7 @@
         See: https://github.com/servo/webrender/blob/master/example-compositor/compositor/src/main.rs
 * Force close windows after view-process killed by signal/Task Manager, to let app handle shutdown of app-process.
 * Opening a window maximized shows two icons in taskbar (Windows 10).
+
+* Mac window icon.
+    - Only has app icon: https://developer.apple.com/documentation/appkit/nsapplication/1428744-applicationiconimage.
+    - Maybe we can always use the last set icon, except if set to `None` it falls-back to some icon from an older open window.

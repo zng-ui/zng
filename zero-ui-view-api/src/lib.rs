@@ -314,7 +314,7 @@ declare_api! {
     /// Set the headless surface or document area size (viewport size).
     pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: Factor);
 
-    /// Set the window icon.
+    /// Set the window icon, the icon image must be loaded.
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
 
     /// Set the window cursor icon and visibility.
