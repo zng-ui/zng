@@ -318,14 +318,14 @@ event_property! {
 
 /// Only allow interaction inside the widget, descendants and ancestors.
 ///
-/// When modal mode is enabled in a widget only it and descendants [allows interaction], all other widgets behave as if disabled, but
-/// without the visual indication of disabled. This property is a building block for modal overlay widgets.
+/// When an widget is in modal mode only it, descendants, ancestors are interactive. If [`modal_includes`]
+/// is set on the widget the ancestors and descendants of each include are also allowed.
 ///
 /// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
 ///
 /// This property also sets the accessibility modal flag.
 ///
-/// [allows interaction]: zero_ui_app::widget::info::WidgetInfo::interactivity
+/// [`modal_includes`]: fn@modal_includes
 #[property(CONTEXT, default(false))]
 pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     static MODAL_WIDGETS: StaticStateId<Arc<Mutex<ModalWidgetsData>>> = StaticStateId::new_unique();
@@ -334,7 +334,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         widgets: IdSet<WidgetId>,
         registrar: Option<WidgetId>,
 
-        last_in_tree: Option<WidgetId>,
+        last_in_tree: Option<WidgetInfo>,
     }
     let enabled = enabled.into_var();
 
@@ -359,7 +359,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     }
                 }
 
-                if mws.last_in_tree == Some(widget_id) {
+                if mws.last_in_tree.as_ref().map(WidgetInfo::id) == Some(widget_id) {
                     // will re-compute next time the filter is used.
                     mws.last_in_tree = None;
                 }
@@ -399,14 +399,15 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                                 0 => unreachable!(),
                                 1 => {
                                     // only one modal
-                                    mws.last_in_tree = mws.widgets.iter().next().copied();
+                                    mws.last_in_tree = a.info.tree().get(*mws.widgets.iter().next().unwrap());
+                                    assert!(mws.last_in_tree.is_some());
                                 }
                                 _ => {
                                     // multiple modals, find the *top* one.
                                     let mut found = 0;
                                     for info in a.info.root().self_and_descendants() {
                                         if mws.widgets.contains(&info.id()) {
-                                            mws.last_in_tree = Some(info.id());
+                                            mws.last_in_tree = Some(info);
                                             found += 1;
                                             if found == mws.widgets.len() {
                                                 break;
@@ -418,19 +419,32 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         }
 
                         // filter, only allows inside self inclusive, and ancestors.
-                        let modal = mws.last_in_tree.unwrap();
-                        if a.info.self_and_ancestors().any(|w| w.id() == modal) || a.info.self_and_descendants().any(|w| w.id() == modal) {
-                            Interactivity::ENABLED
-                        } else {
-                            Interactivity::BLOCKED
+                        // modal_includes checks if the id is modal or one of the includes.
+
+                        let modal = mws.last_in_tree.as_ref().unwrap();
+
+                        if a.info
+                            .self_and_ancestors()
+                            .any(|w| modal.modal_includes(w.id()) || w.modal_included(modal.id()))
+                        {
+                            // widget ancestor is modal, modal include or includes itself in modal
+                            return Interactivity::ENABLED;
                         }
+                        if a.info
+                            .self_and_descendants()
+                            .any(|w| modal.modal_includes(w.id()) || w.modal_included(modal.id()))
+                        {
+                            // widget or descendant is modal, modal include or includes itself in modal
+                            return Interactivity::ENABLED;
+                        }
+                        Interactivity::BLOCKED
                     }));
                 }
             } else {
                 // maybe unregister.
                 let mut mws = mws.lock();
                 let widget_id = WIDGET.id();
-                if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                if mws.widgets.remove(&widget_id) && mws.last_in_tree.as_ref().map(|w| w.id()) == Some(widget_id) {
                     mws.last_in_tree = None;
                 }
             }
@@ -438,3 +452,101 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         _ => {}
     })
 }
+
+/// Extra widgets that are allowed interaction by this widget when it is [`modal`].
+///
+/// This property calls [`insert_modal_include`] on the widget.
+///
+/// Note that this must only only needs to include widgets that are not descendants nor ancestors of the modal widget, that
+/// none the less the user expects to be a part of the widget.
+///
+/// See also [`modal_included`] if you prefer setting the modal widget id on the included widget.
+///
+/// [`modal`]: fn@modal
+/// [`insert_modal_include`]: WidgetInfoBuilderModalExt::insert_modal_include
+/// [`modal_included`]: fn@modal_included
+#[property(CONTEXT, default(IdSet::new()))]
+pub fn modal_includes(child: impl UiNode, includes: impl IntoVar<IdSet<WidgetId>>) -> impl UiNode {
+    let includes = includes.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_info(&includes);
+        }
+        UiNodeOp::Info { info } => includes.with(|w| {
+            for id in w {
+                info.insert_modal_include(*id);
+            }
+        }),
+        _ => (),
+    })
+}
+
+/// Widget that must allow interaction to this widget when it is [`modal`] or inside the modal widget.
+///
+/// This property calls [`set_modal_included`] on the widget.
+///
+/// Note that this is only needed by widgets that are not descendants nor ancestors of the modal widget, that
+/// none the less the user expects to be a part of the widget.
+///
+/// See also [`modal_includes`] if you prefer setting the included widget id on the modal widget.
+///
+/// [`modal`]: fn@modal
+/// [`set_modal_included`]: WidgetInfoBuilderModalExt::set_modal_included
+/// [`modal_includes`]: fn@modal_includes
+#[property(CONTEXT)]
+pub fn modal_included(child: impl UiNode, modal_or_descendant: impl IntoVar<WidgetId>) -> impl UiNode {
+    let modal = modal_or_descendant.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_info(&modal);
+        }
+        UiNodeOp::Info { info } => {
+            info.set_modal_included(modal.get());
+        }
+        _ => {}
+    })
+}
+
+/// Widget info builder extensions for [`modal`] control.
+///
+/// [`modal`]: fn@modal
+pub trait WidgetInfoBuilderModalExt {
+    /// Register an extra widget to be allowed on the modal filter if this widget is modal.
+    fn insert_modal_include(&mut self, include: WidgetId);
+    /// Register a modal widget that must allow this widget.
+    fn set_modal_included(&mut self, modal: WidgetId);
+}
+impl WidgetInfoBuilderModalExt for WidgetInfoBuilder {
+    fn insert_modal_include(&mut self, include: WidgetId) {
+        self.with_meta(|mut m| m.entry(&MODAL_INCLUDES).or_default().insert(include));
+    }
+
+    fn set_modal_included(&mut self, modal: WidgetId) {
+        self.set_meta(&MODAL_INCLUDED, modal);
+    }
+}
+
+trait WidgetInfoModalExt {
+    fn modal_includes(&self, id: WidgetId) -> bool;
+    fn modal_included(&self, modal: WidgetId) -> bool;
+}
+impl WidgetInfoModalExt for WidgetInfo {
+    fn modal_includes(&self, id: WidgetId) -> bool {
+        self.id() == id || self.meta().get(&MODAL_INCLUDES).map(|i| i.contains(&id)).unwrap_or(false)
+    }
+
+    fn modal_included(&self, modal: WidgetId) -> bool {
+        if let Some(id) = self.meta().get_clone(&MODAL_INCLUDED) {
+            if id == modal {
+                return true;
+            }
+            if let Some(id) = self.tree().get(id) {
+                return id.ancestors().any(|w| w.id() == modal);
+            }
+        }
+        false
+    }
+}
+
+static MODAL_INCLUDES: StaticStateId<IdSet<WidgetId>> = StaticStateId::new_unique();
+static MODAL_INCLUDED: StaticStateId<WidgetId> = StaticStateId::new_unique();

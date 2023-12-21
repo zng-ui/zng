@@ -1,9 +1,3 @@
-# Modal
-
-* Context menu anchored on a `modal` widget is not interactive.
-    - WidgetInfo needs a way to track the anchor widget, a general way.
-    - Access already has this concept?
-
 # TextInput
 
 * Touch selection.

@@ -1092,9 +1092,7 @@ impl HeadedCtrl {
                 self.state = Some(state);
                 self.waiting_view = true;
             }
-            Err(ViewProcessOffline) => {
-                println!("!!: layout_init process offline");
-            } //respawn
+            Err(ViewProcessOffline) => {} //respawn
         };
     }
 

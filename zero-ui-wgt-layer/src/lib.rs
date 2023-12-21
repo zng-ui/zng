@@ -11,10 +11,11 @@ use zero_ui_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
 use zero_ui_ext_input::mouse::MOUSE;
 use zero_ui_ext_input::touch::TOUCH;
 use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_var::{animation, ContextInitHandle};
+use zero_ui_var::{animation, ContextInitHandle, ReadOnlyContextVar};
 use zero_ui_wgt::prelude::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::{fmt, mem, ops};
 
 pub mod popup;
@@ -59,7 +60,10 @@ impl LAYERS {
     /// [`insert_node`]: Self::insert_node
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
         let layer = layer.into_var().actual_var();
-        let widget = match_widget(widget.boxed(), move |widget, op| match op {
+        self.insert_impl(layer.boxed(), widget.boxed());
+    }
+    fn insert_impl(&self, layer: BoxedVar<LayerIndex>, widget: BoxedUiNode) {
+        let widget = match_widget(widget, move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
 
@@ -139,6 +143,15 @@ impl LAYERS {
         let anchor = anchor.into_var().actual_var();
         let mode = mode.into_var().actual_var();
 
+        self.insert_anchored_impl(layer.boxed(), anchor.boxed(), mode.boxed(), widget.boxed())
+    }
+    fn insert_anchored_impl(
+        &self,
+        layer: BoxedVar<LayerIndex>,
+        anchor: BoxedVar<WidgetId>,
+        mode: BoxedVar<AnchorMode>,
+        widget: BoxedUiNode,
+    ) {
         let mut _info_changed_handle = None;
         let mut mouse_pos_handle = None;
 
@@ -150,6 +163,8 @@ impl LAYERS {
 
         let transform_key = FrameValueKey::new_unique();
         let mut corner_radius_ctx_handle = None;
+
+        let widget = with_anchor_id(widget, anchor.clone().boxed());
 
         let widget = match_widget(widget.boxed(), move |widget, op| match op {
             UiNodeOp::Init => {
@@ -593,7 +608,7 @@ impl LAYERS {
             }
             _ => {}
         });
-        self.insert(layer, widget);
+        self.insert_impl(layer, widget.boxed());
     }
 
     /// Like [`insert_anchored`], but does not fail if `maybe_widget` is not a full widget.
@@ -655,6 +670,11 @@ impl LAYERS {
         }
     }
 
+    /// Gets a read-only var that tracks the anchor widget in a layered widget context.
+    pub fn anchor_id(&self) -> ReadOnlyContextVar<Option<WidgetId>> {
+        ANCHOR_ID_VAR.read_only()
+    }
+
     fn cleanup(&self) {
         WINDOW.with_state(|s| {
             s.req(&WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
@@ -682,6 +702,32 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
     let correction = PxVector::new(x, y);
 
     transform.then_translate(correction.cast())
+}
+
+fn with_anchor_id(child: impl UiNode, anchor: BoxedVar<WidgetId>) -> impl UiNode {
+    let mut ctx = Some(Arc::new(anchor.map(|id| Some(*id))));
+    let mut id = None;
+    match_widget(child, move |c, op| {
+        let mut is_deinit = false;
+        match &op {
+            UiNodeOp::Init => {
+                id = Some(ContextInitHandle::new());
+            }
+            UiNodeOp::Deinit => {
+                is_deinit = true;
+            }
+            _ => {}
+        }
+        ANCHOR_ID_VAR.with_context(id.clone().expect("node not inited"), &mut ctx, || c.op(op));
+
+        if is_deinit {
+            id = None;
+        }
+    })
+}
+
+context_var! {
+    static ANCHOR_ID_VAR: Option<WidgetId> = None;
 }
 
 static WINDOW_PRE_INIT_LAYERS_ID: StaticStateId<Vec<Mutex<BoxedUiNode>>> = StaticStateId::new_unique();

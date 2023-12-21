@@ -5,7 +5,7 @@ zero_ui_wgt::enable_widget_macros!();
 use std::time::Duration;
 
 use zero_ui_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
-use zero_ui_wgt::prelude::*;
+use zero_ui_wgt::{modal_included, prelude::*};
 use zero_ui_wgt_container::Container;
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_filter::drop_shadow;
@@ -20,12 +20,15 @@ use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 ///
 /// The popup widget is designed to be used as a temporary *flyover* container inserted as a
 /// top-most layer using [`POPUP`]. By default the widget is an [`alt_focus_scope`] that is [`focus_on_init`],
-/// cycles [`directional_nav`] and [`tab_nav`], and has [`FocusClickBehavior::ExitEnabled`].
+/// cycles [`directional_nav`] and [`tab_nav`], and has [`FocusClickBehavior::ExitEnabled`]. It also
+/// sets the [`modal_included`] to [`anchor_id`] enabling the popup to be interactive when anchored to modal widgets.
 ///
 /// [`alt_focus_scope`]: fn@alt_focus_scope
 /// [`focus_on_init`]: fn@focus_on_init
 /// [`directional_nav`]: fn@directional_nav
 /// [`tab_nav`]: fn@tab_nav
+/// [`modal_included`]: fn@modal_included
+/// [`anchor_id`]: POPUP::anchor_id
 #[widget($crate::popup::Popup {
     ($child:expr) => {
         child = $child;
@@ -43,6 +46,7 @@ impl Popup {
             tab_nav = TabNav::Cycle;
             focus_click_behavior = FocusClickBehavior::ExitEnabled;
             focus_on_init = true;
+            modal_included = POPUP.anchor_id();
         }
     }
 
@@ -121,7 +125,7 @@ impl POPUP {
     /// If the popup node is not a full widget after init it is upgraded to one. Returns
     /// a variable that tracks the popup state and ID.
     pub fn open(&self, popup: impl UiNode) -> ReadOnlyArcVar<PopupState> {
-        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR, CONTEXT_CAPTURE_VAR.get())
+        self.open_impl(popup.boxed(), ANCHOR_MODE_VAR.boxed(), CONTEXT_CAPTURE_VAR.get())
     }
 
     /// Open the `popup` using the custom config vars.
@@ -134,13 +138,13 @@ impl POPUP {
         anchor_mode: impl IntoVar<AnchorMode>,
         context_capture: impl IntoValue<ContextCapture>,
     ) -> ReadOnlyArcVar<PopupState> {
-        self.open_impl(popup.boxed(), anchor_mode.into_var(), context_capture.into())
+        self.open_impl(popup.boxed(), anchor_mode.into_var().boxed(), context_capture.into())
     }
 
     fn open_impl(
         &self,
         mut popup: BoxedUiNode,
-        anchor_mode: impl Var<AnchorMode>,
+        anchor_mode: BoxedVar<AnchorMode>,
         context_capture: ContextCapture,
     ) -> ReadOnlyArcVar<PopupState> {
         let state = var(PopupState::Opening);
@@ -284,6 +288,13 @@ impl POPUP {
     /// Close the popup widget without notifying the request event.
     pub fn force_close_id(&self, widget_id: WidgetId) {
         POPUP_CLOSE_CMD.scoped(widget_id).notify_param(PopupCloseMode::Force);
+    }
+
+    /// Gets a read-only var that tracks the anchor widget in a layered widget context.
+    pub fn anchor_id(&self) -> impl Var<WidgetId> {
+        LAYERS
+            .anchor_id()
+            .map_ref(|id| id.as_ref().expect("POPUP layers are always anchored"))
     }
 }
 
