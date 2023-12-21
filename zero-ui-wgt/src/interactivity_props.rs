@@ -318,7 +318,7 @@ event_property! {
 
 /// Only allow interaction inside the widget, descendants and ancestors.
 ///
-/// When modal mode is enabled in a widget only it and widget descendants [allows interaction], all other widgets behave as if disabled, but
+/// When modal mode is enabled in a widget only it and descendants [allows interaction], all other widgets behave as if disabled, but
 /// without the visual indication of disabled. This property is a building block for modal overlay widgets.
 ///
 /// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
