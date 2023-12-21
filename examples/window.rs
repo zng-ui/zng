@@ -684,8 +684,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
-                    Text! {
-                        txt_selectable = true;
+                    SelectableText! {
                         txt = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
                             n => formatx!("Close Confirmation\n\nClose {n} windows?")

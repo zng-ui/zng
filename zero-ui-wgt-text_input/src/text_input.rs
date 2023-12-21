@@ -8,6 +8,7 @@ use zero_ui_wgt_input::{
     focus::{focusable, is_return_focus},
     pointer_capture::capture_pointer,
 };
+use zero_ui_wgt_layer::popup;
 use zero_ui_wgt_menu::{
     self as menu,
     context::{context_menu_fn, ContextMenu},
@@ -96,6 +97,59 @@ pub fn border_color_focused() -> impl Var<Rgba> {
     color_scheme_highlight(BASE_COLORS_VAR, 0.40)
 }
 
+/// Context menu set by the [`DefaultStyle!`].
+///
+/// [`DefaultStyle!`]: struct@DefaultStyle
+pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
+    let id = args.anchor_id;
+    ContextMenu!(ui_vec![
+        menu::CmdButton!(CUT_CMD.scoped(id)),
+        menu::CmdButton!(COPY_CMD.scoped(id)),
+        menu::CmdButton!(PASTE_CMD.scoped(id)),
+        Hr!(),
+        menu::CmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+    ])
+}
+
+/// Selection toolbar set by the [`DefaultStyle!`].
+///
+/// [`DefaultStyle!`]: struct@DefaultStyle
+pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNode {
+    let id = args.anchor_id;
+    ContextMenu! {
+        style_fn = menu::context::TouchStyle!();
+        children = ui_vec![
+            menu::TouchCmdButton!(CUT_CMD.scoped(id)),
+            menu::TouchCmdButton!(COPY_CMD.scoped(id)),
+            menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
+            menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+        ]
+    }
+}
+
+/// Context captured for the context menu, set by the [`DefaultStyle!`].
+///
+/// Captures all context vars, except text style vars.
+///
+/// [`DefaultStyle!`]: struct@DefaultStyle
+pub fn default_popup_context_capture() -> popup::ContextCapture {
+    popup::ContextCapture::CaptureBlend {
+        filter: CaptureFilter::ContextVars {
+            exclude: {
+                let mut exclude = ContextValueSet::new();
+                Text::context_vars_set(&mut exclude);
+
+                let mut allow = ContextValueSet::new();
+                LangMix::<()>::context_vars_set(&mut allow);
+                exclude.remove_all(&allow);
+
+                exclude
+            },
+        },
+        over: false,
+    }
+}
+
 /// Text input default style.
 #[widget($crate::text_input::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -117,43 +171,9 @@ impl DefaultStyle {
                 sides: border_color().map_into(),
             };
 
-            popup::context_capture = popup::ContextCapture::CaptureBlend {
-                filter: CaptureFilter::ContextVars {
-                    exclude: {
-                        let mut exclude = ContextValueSet::new();
-                        Text::context_vars_set(&mut exclude);
-
-                        let mut allow = ContextValueSet::new();
-                        LangMix::<()>::context_vars_set(&mut allow);
-                        exclude.remove_all(&allow);
-
-                        exclude
-                    }
-                },
-                over: false,
-            };
-            context_menu_fn = wgt_fn!(|args: menu::context::ContextMenuArgs| {
-                let id = args.anchor_id;
-                ContextMenu!(ui_vec![
-                    menu::CmdButton!(CUT_CMD.scoped(id)),
-                    menu::CmdButton!(COPY_CMD.scoped(id)),
-                    menu::CmdButton!(PASTE_CMD.scoped(id)),
-                    Hr!(),
-                    menu::CmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
-                ])
-            });
-            selection_toolbar_fn = wgt_fn!(|args: text::SelectionToolbarArgs| {
-                let id = args.anchor_id;
-                ContextMenu!{
-                    style_fn = menu::context::TouchStyle!();
-                    children = ui_vec![
-                        menu::TouchCmdButton!(CUT_CMD.scoped(id)),
-                        menu::TouchCmdButton!(COPY_CMD.scoped(id)),
-                        menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
-                        menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
-                    ]
-                }
-            });
+            popup::context_capture = default_popup_context_capture();
+            context_menu_fn = WidgetFn::new(default_context_menu);
+            selection_toolbar_fn = WidgetFn::new(default_selection_toolbar);
 
             when *#is_cap_hovered || *#is_return_focus {
                 border = {

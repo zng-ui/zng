@@ -6,6 +6,7 @@
 zero_ui_wgt::enable_widget_macros!();
 
 pub mod label;
+pub mod selectable;
 
 mod text_input;
 pub use text_input::*;

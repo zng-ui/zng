@@ -1,3 +1,5 @@
+* Context menu anchored on a `modal` widget is not interactive.
+
 # TextInput
 
 * Touch selection.

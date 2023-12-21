@@ -130,7 +130,7 @@ pub mod prelude {
     pub use crate::text;
     pub use zero_ui_wgt_text::Text;
 
-    pub use zero_ui_wgt_text_input::TextInput;
+    pub use zero_ui_wgt_text_input::{selectable::SelectableText, TextInput};
 
     pub use crate::window;
     pub use zero_ui_wgt_window::Window;
@@ -1085,6 +1085,13 @@ pub mod label {
     pub use zero_ui_wgt_text_input::label::{extend_style, replace_style, DefaultStyle, Label};
 }
 
+/// Selectable text widget and properties.
+///
+/// See [`zero_ui_wgt_text_input::selectable`] for the full widget API.
+pub mod selectable {
+    pub use zero_ui_wgt_text_input::selectable::{extend_style, replace_style, DefaultStyle, SelectableText};
+}
+
 /// Toggle button widget and styles for check box, combo box, radio button and switch button.
 ///
 /// See [`zero_ui_wgt_toggle`] for the full widget API.
@@ -1236,12 +1243,10 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
-            use zero_ui_app::widget::node::ui_vec;
-            use zero_ui_ext_clipboard::COPY_CMD;
             use zero_ui_ext_window::WINDOWS;
             use zero_ui_wgt::wgt_fn;
             use zero_ui_wgt_text::icon::CommandIconExt as _;
-            use zero_ui_wgt_text::{cmd::SELECT_ALL_CMD, icon::Icon, SelectionToolbarArgs};
+            use zero_ui_wgt_text::icon::Icon;
 
             WINDOWS.register_root_extender(|a| {
                 let child = a.root;
@@ -1251,27 +1256,12 @@ mod defaults {
 
                 // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because
                 // WindowRoot is used directly by some headless renderers.
-                let child = zero_ui_wgt::node::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
+                zero_ui_wgt::node::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
                     use zero_ui_ext_window::WINDOW_Ext as _;
                     use zero_ui_var::Var as _;
 
                     zero_ui_app::window::WINDOW.vars().actual_color_scheme().boxed()
-                });
-
-                // `zero_ui_wgt_menu` depends on `zero_ui_wgt_text` so we can't set this in the text crate.
-                zero_ui_wgt_text::selection_toolbar_fn(
-                    child,
-                    wgt_fn!(|args: SelectionToolbarArgs| {
-                        use zero_ui_wgt_menu as menu;
-                        menu::context::ContextMenu! {
-                            style_fn = menu::context::TouchStyle!();
-                            children = ui_vec![
-                                menu::TouchCmdButton!(COPY_CMD.scoped(args.anchor_id)),
-                                menu::TouchCmdButton!(SELECT_ALL_CMD.scoped(args.anchor_id)),
-                            ];
-                        }
-                    }),
-                )
+                })
             });
 
             #[cfg(feature = "material_icons")]
