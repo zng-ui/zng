@@ -3700,11 +3700,15 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             }
         }
         if open {
-            if let Some(range) = ResolvedText::get().caret.lock().selection_range() {
+            let r_txt = ResolvedText::get();
+            if let Some(range) = r_txt.caret.lock().selection_range() {
                 selection_range = Some(range);
 
                 let toolbar_fn = SELECTION_TOOLBAR_FN_VAR.get();
-                if let Some(node) = toolbar_fn.call_checked(SelectionToolbarArgs { anchor_id: WIDGET.id() }) {
+                if let Some(node) = toolbar_fn.call_checked(SelectionToolbarArgs {
+                    anchor_id: WIDGET.id(),
+                    is_touch: r_txt.touch_carets.load(Ordering::Relaxed),
+                }) {
                     let (node, _) = node.init_widget();
 
                     let mut translate = PxVector::zero();

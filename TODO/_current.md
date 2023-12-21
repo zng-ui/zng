@@ -11,9 +11,6 @@
             - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
                 - Test touch.
         - If the toolbar is not focusable it does not close when changing focus to another app?
-    - Have the selection_toolbar_fn args indicate what kind of event created the selection.
-        - This way we can have the default only open for touch events, and users can have different toolbars
-          without we needing to declare multiple properties.
     - Touch carets vanish when the toolbar opens.
 
 # Accessibility

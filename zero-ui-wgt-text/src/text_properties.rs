@@ -1784,6 +1784,8 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
 pub struct SelectionToolbarArgs {
     /// ID of the widget the toolbar is anchored to.
     pub anchor_id: WidgetId,
+    /// Text was selected through touch interaction.
+    pub is_touch: bool,
 }
 
 /// Position the selection toolbar in relation to the bounding box of all selection rectangles.

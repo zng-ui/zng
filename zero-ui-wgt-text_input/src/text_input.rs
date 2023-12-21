@@ -115,15 +115,20 @@ pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
 pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNode {
-    let id = args.anchor_id;
-    ContextMenu! {
-        style_fn = menu::context::TouchStyle!();
-        children = ui_vec![
-            menu::TouchCmdButton!(CUT_CMD.scoped(id)),
-            menu::TouchCmdButton!(COPY_CMD.scoped(id)),
-            menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
-            menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
-        ]
+    if args.is_touch {
+        let id = args.anchor_id;
+        ContextMenu! {
+            style_fn = menu::context::TouchStyle!();
+            children = ui_vec![
+                menu::TouchCmdButton!(CUT_CMD.scoped(id)),
+                menu::TouchCmdButton!(COPY_CMD.scoped(id)),
+                menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
+                menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+            ]
+        }
+        .boxed()
+    } else {
+        NilUiNode.boxed()
     }
 }
 
