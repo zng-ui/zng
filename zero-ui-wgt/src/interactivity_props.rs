@@ -332,6 +332,8 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[derive(Default)]
     struct ModalWidgetsData {
         widgets: IdSet<WidgetId>,
+        registrar: Option<WidgetId>,
+
         last_in_tree: Option<WidgetId>,
     }
     let enabled = enabled.into_var();
@@ -347,8 +349,20 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             // maybe unregister.
             let mut mws = mws.lock();
             let widget_id = WIDGET.id();
-            if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
-                mws.last_in_tree = None;
+            if mws.widgets.remove(&widget_id) {
+                if mws.registrar == Some(widget_id) {
+                    // change the existing modal that will re-register on info rebuild.
+                    mws.registrar = mws.widgets.iter().next().copied();
+                    if let Some(id) = mws.registrar {
+                        // ensure that the next registrar is not reused.
+                        UPDATES.update_info(id);
+                    }
+                }
+
+                if mws.last_in_tree == Some(widget_id) {
+                    // will re-compute next time the filter is used.
+                    mws.last_in_tree = None;
+                }
             }
         }
         UiNodeOp::Info { info } => {
@@ -361,11 +375,16 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
                 let insert_filter = {
                     let mut mws = mws.lock();
-                    if mws.widgets.insert(WIDGET.id()) {
+                    let widget_id = WIDGET.id();
+                    if mws.widgets.insert(widget_id) {
                         mws.last_in_tree = None;
-                        mws.widgets.len() == 1
+                        let r = mws.registrar.is_none();
+                        if r {
+                            mws.registrar = Some(widget_id);
+                        }
+                        r
                     } else {
-                        false
+                        mws.registrar == Some(widget_id)
                     }
                 };
                 if insert_filter {
