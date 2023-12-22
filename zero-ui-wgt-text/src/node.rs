@@ -3632,6 +3632,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
     let mut popup_state = None::<ReadOnlyArcVar<PopupState>>;
     match_node(child, move |c, op| {
         let mut open = false;
+        let mut open_long_press = false;
         let mut close = false;
         match op {
             UiNodeOp::Init => {
@@ -3661,6 +3662,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                     }
                 } else if TOUCH_LONG_PRESS_EVENT.has(update) {
                     open = true;
+                    open_long_press = true;
                 } else if KEY_INPUT_EVENT.has(update) {
                     close = true;
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
@@ -3701,8 +3703,10 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
         }
         if open {
             let r_txt = ResolvedText::get();
-            if let Some(range) = r_txt.caret.lock().selection_range() {
-                selection_range = Some(range);
+
+            let range = r_txt.caret.lock().selection_range();
+            if open_long_press || range.is_some() {
+                selection_range = range;
 
                 let toolbar_fn = SELECTION_TOOLBAR_FN_VAR.get();
                 if let Some(node) = toolbar_fn.call_checked(SelectionToolbarArgs {
@@ -3720,17 +3724,26 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         }
                         UiNodeOp::Layout { wl, final_size } => {
                             let r_txt = ResolvedText::get();
-                            if let Some(range) = r_txt.caret.lock().selection_range() {
+
+                            let range = if open_long_press {
+                                let caret = r_txt.caret.lock();
+                                Some(caret.selection_range().unwrap_or_else(|| {
+                                    let i = caret.index.unwrap_or(CaretIndex::ZERO);
+                                    i..i
+                                }))
+                            } else {
+                                r_txt.caret.lock().selection_range()
+                            };
+
+                            if let Some(range) = range {
                                 let l_txt = LayoutText::get();
                                 let r_txt = r_txt.segmented_text.text();
 
                                 let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
                                 for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
-                                    if !line_rect.size.is_empty() {
-                                        let line_box = line_rect.to_box2d();
-                                        bounds.min = bounds.min.min(line_box.min);
-                                        bounds.max = bounds.max.max(line_box.max);
-                                    }
+                                    let line_box = line_rect.to_box2d();
+                                    bounds.min = bounds.min.min(line_box.min);
+                                    bounds.max = bounds.max.max(line_box.max);
                                 }
                                 let selection_bounds = bounds.to_rect();
 
@@ -3784,9 +3797,9 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         over: false,
                     };
 
-                    let mut base_mode = AnchorMode::tooltip();
-                    base_mode.transform = AnchorTransform::None;
-                    popup_state = Some(POPUP.open_config(node, base_mode, capture));
+                    let mut anchor_mode = AnchorMode::tooltip();
+                    anchor_mode.transform = AnchorTransform::None;
+                    popup_state = Some(POPUP.open_config(node, anchor_mode, capture));
                 }
             };
         }

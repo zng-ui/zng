@@ -5,13 +5,11 @@
     - Test with multi-line.
 
 * Implement selection toolbar.
-    - Like MS Word "Mini Toolbar" on selection and the text selection toolbar on mobile?
     - Implement `selection_toolbar_fn`.
-        - Needs to open when a selection finishes creating (mouse/touch release)
-            - And close with any interaction that closes POPUP + any mouse/touch/keyboard interaction with the Text widget.
-                - Test touch.
         - If the toolbar is not focusable it does not close when changing focus to another app?
     - Touch carets vanish when the toolbar opens.
+        - Because of focus, needs to still show if focus is in toolbar.
+* Disable SELECT_ALL_CMD when text is empty.
 
 # Accessibility
 

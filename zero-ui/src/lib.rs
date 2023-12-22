@@ -1,15 +1,11 @@
 #![allow(clippy::needless_doctest_main)]
 
-//! Zero-Ui is the pure Rust GUI framework with batteries included.
+//! Zero-Ui is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
+//! fast and responsive multi-platform apps. Ready made highly customizable widgets, automatic focus and accessibility
+//! management, responsive layout, data binding, easy localization and async tasks.
 //!
-//! It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
-//! that allow you to get started quickly, without sacrificing customization or performance. With features like gesture events,
-//! common widgets, layouts, data binding, async tasks, accessibility and localization
-//! you can focus on what makes your app unique, not the boilerplate required to get modern apps up to standard.
-//!
-//! When you do need to customize, Zero-Ui is rightly flexible, you can create new widgets or customize existing ones, not just
-//! new looks but new behavior, at a lower level you can introduce new event types or new event sources, making custom hardware seamless
-//! integrate into the framework.
+//! Every component of the framework can be extended, you can create new widgets or add properties to existing ones,
+//! at a lower level you can introduce new events and services, seamless integrating custom hardware.
 //!
 //! # Usage
 //!
@@ -51,73 +47,19 @@
 //! }
 //! ```
 //!
-//! The `zero_ui_view::init()` line starts the view-process, a second instance of the same executable that
-//! interacts with the operating system and implements the actual rendering. The second process is another
-//! instance of the same executable, `init` detects that the instance must be a view-process and takes over
-//! the execution flow, never returning. For this reason the view-process start must be one of the first
-//! things in main, all code before `zero_ui_view::init()` runs in both processes.
+//! You can also use a [prebuild view](app#prebuild) and run in the [same process](app#same-process), see [`app`] for more details.
 //!
-//! You can also run the view in the same process:
+//! # Widgets & Properties
 //!
-//! ```no_run
-//! # mod zero_ui_view { pub fn run_same_process(_: impl FnOnce()) { } }
-//! use zero_ui::prelude::*;
+//! TODO, subject summary and link to a module doc that explain in depth, [`widget`]?
 //!
-//! fn main() {
-//!     zero_ui_view::run_same_process(app);
-//! }
+//! # Variables
 //!
-//! fn app() {
-//!     APP.defaults().run_window(async {
-//!         Window! {
-//!             title = "Same Process Example";
-//!             child_align = Align::CENTER;
-//!             child = Text!("This window is rendering in the same process that created it.");
-//!         }
-//!     })
-//! }
-//! ```
+//! # Commands
 //!
-//! This mode of execution is slightly more efficient, but your app will not be resilient to crashes caused
-//! by the operating system or graphics driver, when the view-process runs in a separate instance it respawns
-//! automatically and recreate all open windows, in same process your entire app crashes.
+//! # Services
 //!
-//! You can also use a prebuild view:
-//!
-//! ```toml
-//! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view-prebuilt = "0.1"
-//! ```
-//!
-//! ```no_run
-//! # mod zero_ui_view_prebuilt { pub fn init() { } pub fn same_process(_: impl FnOnce()) { } }
-//! use zero_ui::prelude::*;
-//!
-//! use zero_ui_view_prebuilt as zero_ui_view;
-//!
-//! fn main() {
-//!     if std::env::var("MY_APP_EXEC_MODE").unwrap_or_default() == "same_process" {
-//!         zero_ui_view::same_process(app);
-//!     } else {
-//!         zero_ui_view::init();
-//!         app();
-//!     }
-//! }
-//!
-//! fn app() {
-//!     APP.defaults().run_window(async {
-//!         Window! {
-//!             title = "Prebuild Example";
-//!             child_align = Align::CENTER;
-//!             child = Text!("This window is rendered by a prebuild lib.");
-//!         }
-//!     })
-//! }
-//! ```
-//!
-//! Using a prebuild view will give you much better performance in debug builds, and also that you don't need to
-//! build `zero-ui-view`, cutting initial build time by half.
+//! #
 //!
 
 #![warn(unused_extern_crates)]
@@ -511,7 +453,116 @@ pub mod var {
 
 /// App extensions, context, events and commands API.
 ///
-/// See [`zero_ui_app`] and [`zero_ui_app_context`] for the full API.
+/// # Runtime
+///
+/// A typical app instance has two processes, the initial process called the *app-process*, and a second process called the
+/// *view-process*. The app-process implements the event loop and updates, the view-process is a platform agnostic GUI and
+/// renderer, the app-process controls the view-process, most of the time app implementers don't need to worry about, except
+/// at the start where the view-process is spawned.
+///
+/// This dual process architecture is done mostly for resilience, the unsafe interactions with the operating system and
+/// graphics driver are isolated in a different process, in case of crashes the view-process is respawned automatically and
+/// all windows are recreated.
+///
+/// ## Spawn View
+///
+/// To simplify distribution the view-process is an instance of the same app executable, the view-process crate provides
+/// and `init` function that either spawns the view-process or becomes the view-process never returning.
+///
+/// On the first instance of the app executable the `zero_ui_view::init` function spawns another instance marked to
+/// become the view-process, on this second instance the init function never returns, for this reason the function
+/// must be called early in main.
+///
+/// ```toml
+/// [dependencies]
+/// zero-ui = "0.1"
+/// zero-ui-view = "0.1"
+/// ```
+///
+/// ```no_run
+/// # mod zero_ui_view { pub fn init() { } }
+/// use zero_ui::prelude::*;
+///
+/// fn main() {
+///     app_and_view();
+///     zero_ui_view::init(); // init only returns if it is not called in the view-process.
+///     app();
+/// }
+///
+/// fn app_and_view() {
+///     // code here runs in the app-process and view-process.
+/// }
+///
+/// fn app() {
+///     // code here only runs in the app-process.
+///
+///     APP.defaults().run(async {
+///         // ..
+///     })
+/// }
+/// ```
+///
+/// ## Same Process
+///
+/// You can also run the view in the same process, this mode of execution is slightly more efficient, but
+/// your app will not be resilient to crashes caused by the operating system or graphics driver, the app code
+/// will also run in a different thread, not the main.
+///
+/// ```no_run
+/// # mod zero_ui_view { pub fn run_same_process(_: impl FnOnce()) { } }
+/// use zero_ui::prelude::*;
+///
+/// fn main() {
+///     zero_ui_view::run_same_process(app);
+/// }
+///
+/// fn app() {
+///     // code here runs in a different thread, the main thread becomes the view.
+///     APP.defaults().run(async {
+///         // ..
+///     })
+/// }
+/// ```
+///
+///
+///
+/// ## Prebuild
+///
+/// You can also use a prebuild view, using a prebuild view will give you much better performance in debug builds,
+/// and also that you don't need to build `zero-ui-view`, cutting initial build time by half.
+///
+/// ```toml
+/// [dependencies]
+/// zero-ui = "0.1"
+/// zero-ui-view-prebuilt = "0.1"
+/// ```
+///
+/// ```no_run
+/// # mod zero_ui_view_prebuilt { pub fn init() { } pub fn same_process(_: impl FnOnce()) { } }
+/// use zero_ui::prelude::*;
+///
+/// use zero_ui_view_prebuilt as zero_ui_view;
+///
+/// fn main() {
+///     if std::env::var("MY_APP_EXEC_MODE").unwrap_or_default() == "same_process" {
+///         zero_ui_view::same_process(app);
+///     } else {
+///         zero_ui_view::init();
+///         app();
+///     }
+/// }
+///
+/// fn app() {
+///     APP.defaults().run(async {
+///         // ..
+///     })
+/// }
+/// ```
+///
+/// # Full API
+///
+/// This module provides most of the app API needed to make and extend apps, some more advanced or experimental APIs
+/// may be available at the [`zero_ui_app`] and [`zero_ui_app_context`] base crates.
 pub mod app {
     pub use zero_ui_app::{
         AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, ControlFlow, ExitRequestedArgs, HeadlessApp,
