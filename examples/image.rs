@@ -461,7 +461,7 @@ fn open_or_paste_image() -> impl UiNode {
                         let show_menu = merge_var!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
                             img.height < wgt.height - menu.height
                         });
-                        zero_ui::stack::z_stack(ui_vec![
+                        Stack!(ui_vec![
                             Image! {
                                 img_fit = ImageFit::ScaleDown;
                                 source;

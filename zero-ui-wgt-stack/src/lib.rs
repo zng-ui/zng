@@ -41,6 +41,14 @@ pub use types::*;
 /// # }}
 /// ```
 ///
+/// # Shorthand
+///
+/// The `Stack!` macro provides shorthand syntax:
+///
+/// * `Stack!($children:expr)` creates a Z stack.
+/// * `Stack!($direction:ident, $children:expr)` create stack on the given direction, the first parameter is
+///   the name of one of the [`LayoutDirection`] associated functions.
+///
 /// # `stack_nodes`
 ///
 /// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
@@ -49,7 +57,15 @@ pub use types::*;
 ///
 /// [`direction`]: fn@direction
 /// [`z_index`]: fn@crate::prelude::z_index
-#[widget($crate::Stack)]
+#[widget($crate::Stack {
+    ($children:expr) => {
+        children = $children;
+    };
+    ($direction:ident, $children:expr) => {
+        direction = $crate::StackDirection::$direction();
+        children = $children;
+    }
+})]
 pub struct Stack(WidgetBase);
 impl Stack {
     fn widget_intrinsic(&mut self) {
@@ -451,41 +467,6 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
     }
 
     max_size
-}
-
-/// Basic horizontal stack layout.
-///
-/// # `Stack!`
-///
-/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::left_to_right`].
-pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
-    Stack! {
-        direction = StackDirection::left_to_right();
-        children;
-    }
-}
-
-/// Basic vertical stack layout.
-///
-/// # `Stack!`
-///
-/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::top_to_bottom`].
-pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
-    Stack! {
-        direction = StackDirection::top_to_bottom();
-        children;
-    }
-}
-
-/// Basic layering stack layout.
-///
-/// # `Stack!`
-///
-/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::none`].
-pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
-    Stack! {
-        children;
-    }
 }
 
 /// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list

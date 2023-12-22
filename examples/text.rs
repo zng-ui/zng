@@ -17,7 +17,6 @@ use zero_ui::{
     prelude::*,
     rule_line,
     scroll::ScrollMode,
-    stack::z_stack,
     text::{font_family, font_weight, UnderlinePosition, UnderlineSkip},
     text_input,
     undo::{self, REDO_CMD, UNDO_CMD},
@@ -46,7 +45,7 @@ fn app_main() {
 
         Window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
-            child = z_stack(ui_vec![
+            child = Stack!(ui_vec![
                 Stack! {
                     text::font_size = fs.easing(150.ms(), easing::linear);
                     direction = StackDirection::left_to_right();

@@ -5,7 +5,6 @@ use zero_ui::{
     image::ImageFit,
     mouse::CursorIcon,
     prelude::*,
-    stack::v_stack,
     wgt_prelude::NilUiNode,
 };
 
@@ -34,7 +33,7 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 20;
-            child = v_stack(ui_vec![
+            child = Stack!(top_to_bottom, ui_vec![
                 Grid! {
                     columns = ui_vec![grid::Column!(1.lft()); 5];
                     auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));

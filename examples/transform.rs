@@ -7,7 +7,6 @@ use zero_ui::{
     layout::*,
     pointer_capture::capture_pointer,
     prelude::*,
-    stack::z_stack,
     text::font_size,
     toggle,
     var::animation::{self, easing::EasingStep},
@@ -267,7 +266,7 @@ fn transform_stack() -> impl UiNode {
 fn transform_order() -> impl UiNode {
     // transform created using a single property or two properties generate the same transform because
     // are in the same order.
-    z_stack(ui_vec![
+    Stack!(ui_vec![
         Wgt! {
             // single property
             transform = Transform::new_rotate(10.deg()).translate(-5, -5);
