@@ -1,3 +1,5 @@
+#![allow(clippy::needless_doctest_main)]
+
 //! Zero-Ui is the pure Rust GUI framework with batteries included.
 //!
 //! It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
@@ -19,14 +21,18 @@
 //! zero-ui-view = "0.1"
 //! ```
 //!
-//! Then create your first window:
+//! Then create your first app:
 //!
-//! ```rust
-//! # macro_rules! _demo { () => {
+//! ```no_run
+//! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
 //!     zero_ui_view::init();
+//!     app();
+//! }
+//!
+//! fn app() {
 //!     APP.defaults().run_window(async {
 //!         let size = var(layout::Size::new(800, 600));
 //!         Window! {
@@ -43,8 +49,76 @@
 //!         }
 //!     })
 //! }
-//! # }}
 //! ```
+//!
+//! The `zero_ui_view::init()` line starts the view-process, a second instance of the same executable that
+//! interacts with the operating system and implements the actual rendering. The second process is another
+//! instance of the same executable, `init` detects that the instance must be a view-process and takes over
+//! the execution flow, never returning. For this reason the view-process start must be one of the first
+//! things in main, all code before `zero_ui_view::init()` runs in both processes.
+//!
+//! You can also run the view in the same process:
+//!
+//! ```no_run
+//! # mod zero_ui_view { pub fn run_same_process(_: impl FnOnce()) { } }
+//! use zero_ui::prelude::*;
+//!
+//! fn main() {
+//!     zero_ui_view::run_same_process(app);
+//! }
+//!
+//! fn app() {
+//!     APP.defaults().run_window(async {
+//!         Window! {
+//!             title = "Same Process Example";
+//!             child_align = Align::CENTER;
+//!             child = Text!("This window is rendering in the same process that created it.");
+//!         }
+//!     })
+//! }
+//! ```
+//!
+//! This mode of execution is slightly more efficient, but your app will not be resilient to crashes caused
+//! by the operating system or graphics driver, when the view-process runs in a separate instance it respawns
+//! automatically and recreate all open windows, in same process your entire app crashes.
+//!
+//! You can also use a prebuild view:
+//!
+//! ```toml
+//! [dependencies]
+//! zero-ui = "0.1"
+//! zero-ui-view-prebuilt = "0.1"
+//! ```
+//!
+//! ```no_run
+//! # mod zero_ui_view_prebuilt { pub fn init() { } pub fn same_process(_: impl FnOnce()) { } }
+//! use zero_ui::prelude::*;
+//!
+//! use zero_ui_view_prebuilt as zero_ui_view;
+//!
+//! fn main() {
+//!     if std::env::var("MY_APP_EXEC_MODE").unwrap_or_default() == "same_process" {
+//!         zero_ui_view::same_process(app);
+//!     } else {
+//!         zero_ui_view::init();
+//!         app();
+//!     }
+//! }
+//!
+//! fn app() {
+//!     APP.defaults().run_window(async {
+//!         Window! {
+//!             title = "Prebuild Example";
+//!             child_align = Align::CENTER;
+//!             child = Text!("This window is rendered by a prebuild lib.");
+//!         }
+//!     })
+//! }
+//! ```
+//!
+//! Using a prebuild view will give you much better performance in debug builds, and also that you don't need to
+//! build `zero-ui-view`, cutting initial build time by half.
+//!
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
@@ -58,6 +132,8 @@ extern crate self as zero_ui;
 pub use zero_ui_app::__proc_macro_util;
 
 /// Types for general app development.
+///
+/// See also [`wgt_prelude`] for declaring new widgets and properties.
 pub mod prelude {
     pub use crate::APP;
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
@@ -180,7 +256,35 @@ pub mod prelude {
     pub use zero_ui_wgt_wrap::Wrap;
 }
 
-/// Prelude for declaring properties and widgets.
+/// Prelude for declaring new properties and widgets.
+///
+/// This prelude can be imported over [`prelude`].
+///
+/// # Examples
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui::{prelude::*, wgt_prelude::*};
+///
+/// /// A button with only text child.
+/// #[widget($crate::TextButton)]
+/// pub struct TextButton(Button);
+///
+/// /// Button text.
+/// #[property(CHILD, capture, widget_impl(TextButton))]
+/// pub fn txt(txt: impl IntoVar<Txt>) { }
+///
+/// impl TextButton {
+///     fn widget_intrinsic(&mut self) {
+///         self.widget_builder().push_build_action(|b| {
+///             let txt = b
+///                     .capture_var::<Txt>(property_id!(Self::txt))
+///                     .unwrap_or_else(|| LocalVar(Txt::from("")).boxed());
+///             b.set_child(Text!(txt));
+///         });
+///     }
+/// }
+/// ```
 pub mod wgt_prelude {
     pub use zero_ui_app::{
         event::{
