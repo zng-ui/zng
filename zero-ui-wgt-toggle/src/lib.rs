@@ -282,7 +282,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 /// [`value`]: fn@value.
 #[property(EVENT, widget_impl(Toggle))]
 pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
+    bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
 }
 
 /// Values that is selected in the contextual [`selector`].

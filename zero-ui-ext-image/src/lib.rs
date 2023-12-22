@@ -948,6 +948,16 @@ impl IMAGES {
     pub fn install_proxy(&self, proxy: Box<dyn ImageCacheProxy>) {
         IMAGES_SV.write().proxies.push(proxy);
     }
+
+    /// Image format decoders implemented by the current view-process.
+    pub fn available_decoders(&self) -> Vec<Txt> {
+        VIEW_PROCESS.image_decoders().unwrap_or_default()
+    }
+
+    /// Image format encoders implemented by the current view-process.
+    pub fn available_encoders(&self) -> Vec<Txt> {
+        VIEW_PROCESS.image_encoders().unwrap_or_default()
+    }
 }
 struct ImageData {
     format: ImageDataFormat,

@@ -442,7 +442,7 @@ context_var! {
 /// If the sub-menu popup is open or opening.
 #[property(EVENT, widget_impl(SubMenu))]
 pub fn is_open(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, IS_OPEN_VAR, state)
+    bind_state(child, IS_OPEN_VAR, state)
 }
 
 /// Delay a sub-menu must be hovered to open the popup.

@@ -352,13 +352,25 @@ pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDow
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.
 #[property(LAYOUT, widget_impl(Image))]
 pub fn is_error(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
+    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
-/// If the [`CONTEXT_IMAGE_VAR`] is a successfully loaded image.
+/// If the [`CONTEXT_IMAGE_VAR`] has successfully loaded.
 #[property(LAYOUT, widget_impl(Image))]
 pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
+    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
+}
+
+/// Gets the [`CONTEXT_IMAGE_VAR`].
+#[property(LAYOUT, widget_impl(Image))]
+pub fn get_img(child: impl UiNode, state: impl IntoVar<Option<Img>>) -> impl UiNode {
+    bind_state(child, CONTEXT_IMAGE_VAR.map_into(), state)
+}
+
+/// Gets the [`CONTEXT_IMAGE_VAR`] pixel size.
+#[property(LAYOUT, widget_impl(Image))]
+pub fn get_img_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> impl UiNode {
+    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.size()), state)
 }
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.

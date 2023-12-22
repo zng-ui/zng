@@ -55,5 +55,5 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(EVENT)]
 pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
+    bind_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }

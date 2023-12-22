@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::path::PathBuf;
+
 use zero_ui::{
-    button,
+    app, button,
     checkerboard::Checkerboard,
     clipboard,
     color::{
@@ -197,7 +199,7 @@ fn app_main() {
                                     block_window_load_image(),
                                     large_image(),
                                     repeat_image(),
-                                    paste_image(),
+                                    open_or_paste_image(),
                                 ]
                             )
                         ];
@@ -428,30 +430,99 @@ fn repeat_image() -> impl UiNode {
     }
 }
 
-fn paste_image() -> impl UiNode {
+fn open_or_paste_image() -> impl UiNode {
     Button! {
-        child = Text!("Paste Image");
+        child = Text!("Open or Paste Image");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                let source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
+                let cmd_scope = WidgetId::new_unique();
+                let not_set_size = layout::PxSize::splat(layout::Px(1));
+                let source = var(ImageSource::flood(not_set_size, colors::BLACK, None));
                 ImgWindow! {
-                    title = "Paste Image";
-                    child_align = Align::FILL;
+                    id = cmd_scope;
+                    title = "Open or Paste Image";
+
+                    app::on_open = async_hn!(source, |_| {
+                        if let Some(img) = open_dialog().await {
+                            source.set(img);
+                        }
+                    });
                     clipboard::on_paste = hn!(source, |_| {
                         if let Some(img) = clipboard::CLIPBOARD.image().ok().flatten() {
                             source.set(img);
                         }
                     });
-                    child = Image! {
-                        img_fit = ImageFit::ScaleDown;
-                        source;
-                        on_error = hn!(|args: &ImgErrorArgs| {
-                            tracing::error!(target: "unexpected", "{}", args.error);
-                        });
+
+                    child_align = Align::FILL;
+                    child = {
+                        let img_size = getter_var();
+                        let show_menu = img_size.map(move |&s| s == not_set_size);
+                        zero_ui::stack::z_stack(ui_vec![
+                            Image! {
+                                img_fit = ImageFit::ScaleDown;
+                                source;
+                                get_img_size  = img_size;
+                                on_error = hn!(|args: &ImgErrorArgs| {
+                                    tracing::error!(target: "unexpected", "{}", args.error);
+                                });
+                            },
+                            Stack! {
+                                children = {
+                                    let cmd_btn = |cmd: zero_ui::event::Command| {
+                                        let cmd = cmd.scoped(cmd_scope);
+                                        Button! {
+                                            padding = (2, 5);
+                                            child_insert_left = widget::node::presenter((), cmd.icon()), 0;
+                                            child = Text!(cmd.name_with_shortcut());
+                                            widget::enabled = cmd.is_enabled();
+                                            on_click = hn!(|_| cmd.notify());
+                                        }
+                                    };
+                                    ui_vec![
+                                        cmd_btn(app::OPEN_CMD.scoped(cmd_scope)),
+                                        cmd_btn(clipboard::PASTE_CMD.scoped(cmd_scope)),
+                                    ]
+                                };
+
+
+                                align = Align::TOP;
+                                direction = StackDirection::left_to_right();
+                                spacing = 5;
+                                margin = 5;
+
+                                #[easing(200.ms())]
+                                color::filter::opacity = 10.pct();
+                                when *#gesture::is_hovered || *#{show_menu} {
+                                    color::filter::opacity = 100.pct();
+                                }
+                            }
+                        ])
                     };
                 }
             });
         });
+    }
+}
+
+async fn open_dialog() -> Option<PathBuf> {
+    use window::native_dialog::*;
+
+    let mut dlg = FileDialog {
+        title: "Open Image".into(),
+        kind: FileDialogKind::OpenFile,
+        ..Default::default()
+    };
+    dlg.push_filter("Image Files", &IMAGES.available_decoders())
+        .push_filter("All Files", &["*"]);
+
+    let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
+    match r {
+        FileDialogResponse::Selected(mut s) => s.pop(),
+        FileDialogResponse::Cancel => None,
+        FileDialogResponse::Error(e) => {
+            tracing::error!("{e:?}");
+            None
+        }
     }
 }
 

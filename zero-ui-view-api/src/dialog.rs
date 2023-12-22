@@ -108,14 +108,14 @@ pub struct FileDialog {
 }
 impl FileDialog {
     /// Push a filter entry.
-    pub fn push_filter(&mut self, display_name: &str, extensions: &[&str]) -> &mut Self {
+    pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
         if !self.filters.is_empty() && !self.filters.ends_with('|') {
             self.filters.push('|');
         }
 
         let mut extensions: Vec<_> = extensions
             .iter()
-            .copied()
+            .map(|s| s.as_ref())
             .filter(|&s| !s.contains('|') && !s.contains(';'))
             .collect();
         if extensions.is_empty() {

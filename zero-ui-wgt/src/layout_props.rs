@@ -120,7 +120,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
 /// The `state` is bound to [`DIRECTION_VAR`].
 #[property(LAYOUT)]
 pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, DIRECTION_VAR.map(|s| s.is_rtl()), state)
+    bind_state(child, DIRECTION_VAR.map(|s| s.is_rtl()), state)
 }
 
 /// If the layout direction is left-to-right.
@@ -128,7 +128,7 @@ pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// The `state` is bound to [`DIRECTION_VAR`].
 #[property(LAYOUT)]
 pub fn is_ltr(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    bind_is_state(child, DIRECTION_VAR.map(|s| s.is_ltr()), state)
+    bind_state(child, DIRECTION_VAR.map(|s| s.is_ltr()), state)
 }
 
 /// Inline mode explicitly selected for a widget.

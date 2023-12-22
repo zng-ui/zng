@@ -452,7 +452,7 @@ pub fn undo_stack(child: impl UiNode, op: impl IntoValue<UndoOp>) -> impl UiNode
 #[property(CONTEXT)]
 pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     // check the hovered timestamp
-    bind_is_state(
+    bind_state(
         child,
         merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
             match (ts, entry) {

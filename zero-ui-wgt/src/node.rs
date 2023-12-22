@@ -1237,7 +1237,7 @@ where
 ///
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
-pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl IntoVar<bool>) -> impl UiNode {
+pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> impl UiNode {
     let source = source.into_var();
     let state = state.into_var();
     let mut _binding = VarHandle::dummy();

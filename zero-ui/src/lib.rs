@@ -82,7 +82,9 @@ pub mod prelude {
 
     pub use zero_ui_app::widget::inspector::WidgetInfoInspectorExt as _;
 
-    pub use zero_ui_var::{context_var, expr_var, merge_var, var, var_from, when_var, AnyVar as _, IntoValue, IntoVar, Var, VarValue};
+    pub use zero_ui_var::{
+        context_var, expr_var, getter_var, merge_var, state_var, var, var_from, when_var, AnyVar as _, IntoValue, IntoVar, Var, VarValue,
+    };
 
     pub use crate::var::animation::easing;
 
@@ -211,9 +213,9 @@ pub mod wgt_prelude {
     };
 
     pub use zero_ui_var::{
-        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var, AnyVar as _,
-        ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, VarCapabilities,
-        VarHandle, VarHandles, VarValue,
+        context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
+        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
+        VarCapabilities, VarHandle, VarHandles, VarValue,
     };
 
     pub use zero_ui_layout::{
@@ -250,7 +252,7 @@ pub mod wgt_prelude {
     };
 
     pub use zero_ui_wgt::node::{
-        bind_is_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
+        bind_state, border_node, command_property, event_is_state, event_is_state2, event_is_state3, event_is_state4, event_property,
         fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
@@ -535,7 +537,7 @@ pub mod widget {
         };
 
         pub use zero_ui_wgt::node::{
-            bind_is_state, border_node, event_is_state, event_is_state2, event_is_state3, event_is_state4, fill_node, interactive_node,
+            bind_state, border_node, event_is_state, event_is_state2, event_is_state3, event_is_state4, fill_node, interactive_node,
             list_presenter, presenter, presenter_opt, validate_getter_var, widget_state_get_state, widget_state_is_state,
             with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node,
             with_index_node, with_rev_index_node, with_widget_state, with_widget_state_modify,
@@ -1296,6 +1298,8 @@ mod defaults {
 
                 ZOOM_IN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_IN)));
                 ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
+
+                OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
             }
         }
     }
