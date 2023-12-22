@@ -307,6 +307,16 @@ pub mod wgt_prelude {
 }
 
 /// Hash-map of type erased values, useful for storing assorted dynamic state.
+/// 
+/// A new map can be instantiated using [`OwnedStateMap`], but in a typical app you use maps provided by
+/// the API. The most common widget maps are [`WIDGET.with_state_mut`] that is associated
+/// with the widget instance and [`WidgetInfoBuilder::meta`] that is associated with the widget info.
+/// 
+/// See [`zero_ui_state_map`] for the full API.
+/// 
+/// [`WIDGET.with_state_mut`]: widget::WIDGET::with_state_mut
+/// [`WidgetInfoBuilder::meta`]: widget::info::WidgetInfoBuilder::meta
+/// [`OwnedStateMap`]: state_map::OwnedStateMap
 pub mod state_map {
     pub use zero_ui_state_map::{
         state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
@@ -561,7 +571,7 @@ pub mod var {
 ///
 /// # Full API
 ///
-/// This module provides most of the app API needed to make and extend apps, some more advanced or experimental APIs
+/// This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
 /// may be available at the [`zero_ui_app`] and [`zero_ui_app_context`] base crates.
 pub mod app {
     pub use zero_ui_app::{
