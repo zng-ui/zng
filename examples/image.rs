@@ -436,8 +436,7 @@ fn open_or_paste_image() -> impl UiNode {
         on_click = hn!(|_| {
             WINDOWS.open(async {
                 let cmd_scope = WidgetId::new_unique();
-                let not_set_size = layout::PxSize::splat(layout::Px(1));
-                let source = var(ImageSource::flood(not_set_size, colors::BLACK, None));
+                let source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
                 ImgWindow! {
                     id = cmd_scope;
                     title = "Open or Paste Image";
@@ -455,13 +454,19 @@ fn open_or_paste_image() -> impl UiNode {
 
                     child_align = Align::FILL;
                     child = {
-                        let img_size = getter_var();
-                        let show_menu = img_size.map(move |&s| s == not_set_size);
+                        use layout::PxSize;
+                        let img_size = getter_var::<PxSize>();
+                        let img_wgt_size = getter_var::<PxSize>();
+                        let menu_wgt_size = getter_var::<PxSize>();
+                        let show_menu = merge_var!(img_size.clone(), img_wgt_size.clone(), menu_wgt_size.clone(), |img, wgt, menu| {
+                            img.height < wgt.height - menu.height
+                        });
                         zero_ui::stack::z_stack(ui_vec![
                             Image! {
                                 img_fit = ImageFit::ScaleDown;
                                 source;
-                                get_img_size  = img_size;
+                                get_img_layout_size = img_size;
+                                layout::actual_size_px = img_wgt_size;
                                 on_error = hn!(|args: &ImgErrorArgs| {
                                     tracing::error!(target: "unexpected", "{}", args.error);
                                 });
@@ -484,6 +489,7 @@ fn open_or_paste_image() -> impl UiNode {
                                     ]
                                 };
 
+                                layout::actual_size_px = menu_wgt_size;
 
                                 align = Align::TOP;
                                 direction = StackDirection::left_to_right();

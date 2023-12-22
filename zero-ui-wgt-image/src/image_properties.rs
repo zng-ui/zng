@@ -367,10 +367,18 @@ pub fn get_img(child: impl UiNode, state: impl IntoVar<Option<Img>>) -> impl UiN
     bind_state(child, CONTEXT_IMAGE_VAR.map_into(), state)
 }
 
-/// Gets the [`CONTEXT_IMAGE_VAR`] pixel size.
+/// Gets the [`CONTEXT_IMAGE_VAR`] ideal size.
 #[property(LAYOUT, widget_impl(Image))]
-pub fn get_img_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> impl UiNode {
-    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.size()), state)
+pub fn get_img_layout_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Layout { .. } = op {
+            let size = CONTEXT_IMAGE_VAR.with(|img| img.layout_size(&LAYOUT.metrics()));
+            if state.get() != size {
+                let _ = state.set(size);
+            }
+        }
+    })
 }
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
