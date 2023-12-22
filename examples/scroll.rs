@@ -28,7 +28,7 @@ fn app_main() {
         let smooth_scrolling = var(true);
         Window! {
             title = "Scroll Example";
-            child_insert_above = commands(mouse_pan.clone(), smooth_scrolling.clone()), 0;
+            child_top = commands(mouse_pan.clone(), smooth_scrolling.clone()), 0;
             child = Scroll! {
                 id = "scroll";
                 padding = 20;

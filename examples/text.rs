@@ -387,7 +387,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         });
         min_width = 450;
 
-        child_insert_above = text_editor_menu(editor.clone()), 0;
+        child_top = text_editor_menu(editor.clone()), 0;
 
         child = Scroll! {
             mode = ScrollMode::VERTICAL;
@@ -395,7 +395,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             scroll_to_focused_mode = None;
 
             // line numbers
-            child_insert_start = Text! {
+            child_start = Text! {
                 padding = (7, 4);
                 txt_align = Align::TOP_RIGHT;
                 opacity = 80.pct();
@@ -434,7 +434,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             };
         };
 
-        child_insert_below = Text! {
+        child_bottom = Text! {
             margin = (0, 4);
             align = Align::RIGHT;
             txt = editor.caret_status.map_to_text();
@@ -465,7 +465,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         children = ui_vec![
             Button! {
                 child = Icon!(icon::sharp::INSERT_DRIVE_FILE);
-                child_insert_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
+                child_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
 
                 click_shortcut = NEW_CMD.shortcut();
@@ -475,7 +475,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             },
             Button! {
                 child = Icon!(icon::sharp::FOLDER_OPEN);
-                child_insert_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
+                child_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
 
                 click_shortcut = OPEN_CMD.shortcut();
@@ -485,7 +485,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             },
             Button! {
                 child = Icon!(icon::sharp::SAVE);
-                child_insert_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
+                child_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
                 enabled = editor.unsaved();
@@ -512,7 +512,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 let cmd = CUT_CMD.focus_scoped();
                 Button! {
                     child = Icon!(icon::sharp::CUT);
-                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
@@ -525,7 +525,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 let cmd = COPY_CMD.focus_scoped();
                 Button! {
                     child = Icon!(icon::sharp::COPY);
-                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
@@ -538,7 +538,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 let cmd = PASTE_CMD.focus_scoped();
                 Button! {
                     child = Icon!(icon::sharp::PASTE);
-                    child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
+                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
@@ -558,7 +558,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
 
                     child = Button! {
                         child = Icon!(icon::sharp::UNDO);
-                        child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                        child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 
                         on_click = hn!(|a: &ClickArgs| {
@@ -581,7 +581,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
 
                     child = Button! {
                         child = Icon!(icon::sharp::REDO);
-                        child_insert_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                        child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 
                         on_click = hn!(|a: &ClickArgs| {
@@ -898,7 +898,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             ];
         };
 
-        child_insert_below = {
+        child_bottom = {
             insert: Stack! {
                 direction = StackDirection::start_to_end();
                 padding = 10;

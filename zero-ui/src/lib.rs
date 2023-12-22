@@ -892,8 +892,7 @@ pub mod icon {
 /// See [`zero_ui_wgt_container`] for the full widget API.
 pub mod container {
     pub use zero_ui_wgt_container::{
-        child_insert, child_insert_above, child_insert_below, child_insert_end, child_insert_left, child_insert_right, child_insert_start,
-        child_out_insert, ChildInsertPlace, Container,
+        child_bottom, child_end, child_insert, child_left, child_out_insert, child_right, child_start, child_top, ChildInsert, Container,
     };
 }
 

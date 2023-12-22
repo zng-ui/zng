@@ -57,13 +57,13 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 ///
 /// [`child_insert`]: fn@child_insert
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum ChildInsertPlace {
+pub enum ChildInsert {
     /// Insert node above the child.
-    Above,
+    Top,
     /// Insert node to the right of child.
     Right,
     /// Insert node below the child.
-    Below,
+    Bottom,
     /// Insert node to the left of child.
     Left,
 
@@ -74,23 +74,23 @@ pub enum ChildInsertPlace {
     /// in [`LayoutDirection::RTL`] contexts.
     End,
 }
-impl fmt::Debug for ChildInsertPlace {
+impl fmt::Debug for ChildInsert {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "ChildInsertPlace::")?;
+            write!(f, "ChildInsert::")?;
         }
         match self {
-            Self::Above => write!(f, "Above"),
+            Self::Top => write!(f, "Top"),
             Self::Right => write!(f, "Right"),
-            Self::Below => write!(f, "Below"),
+            Self::Bottom => write!(f, "Bottom"),
             Self::Left => write!(f, "Left"),
             Self::Start => write!(f, "Start"),
             Self::End => write!(f, "End"),
         }
     }
 }
-impl ChildInsertPlace {
-    /// Convert [`ChildInsertPlace::Start`] and [`ChildInsertPlace::End`] to the fixed place they represent in the `direction` context.
+impl ChildInsert {
+    /// Convert [`ChildInsert::Start`] and [`ChildInsert::End`] to the fixed place they represent in the `direction` context.
     pub fn resolve_direction(self, direction: LayoutDirection) -> Self {
         match self {
             Self::Start => match direction {
@@ -107,22 +107,22 @@ impl ChildInsertPlace {
 
     /// Inserted node is to the left or right of child.
     pub fn is_x_axis(self) -> bool {
-        !matches!(self, Self::Above | Self::Below)
+        !matches!(self, Self::Top | Self::Bottom)
     }
 
     /// Inserted node is above or bellow the child node.
     pub fn is_y_axis(self) -> bool {
-        matches!(self, Self::Above | Self::Below)
+        matches!(self, Self::Top | Self::Bottom)
     }
 }
 
 /// Insert the `insert` node in the `place` relative to the widget's child.
 ///
 /// This property disables inline layout for the widget.
-#[property(CHILD, default(ChildInsertPlace::Start, NilUiNode, 0), widget_impl(Container))]
+#[property(CHILD, default(ChildInsert::Start, NilUiNode, 0), widget_impl(Container))]
 pub fn child_insert(
     child: impl UiNode,
-    place: impl IntoVar<ChildInsertPlace>,
+    place: impl IntoVar<ChildInsert>,
     insert: impl UiNode,
     spacing: impl IntoVar<Length>,
 ) -> impl UiNode {
@@ -179,7 +179,7 @@ pub fn child_insert(
             let c = LAYOUT.constraints();
 
             *final_size = match place {
-                ChildInsertPlace::Left | ChildInsertPlace::Right => {
+                ChildInsert::Left | ChildInsert::Right => {
                     let spacing = spacing.layout_x();
 
                     let mut constraints_y = LAYOUT.constraints().y;
@@ -232,8 +232,8 @@ pub fn child_insert(
 
                     // position
                     let (child, o) = match place {
-                        ChildInsertPlace::Left => (0, insert_size.width + spacing),
-                        ChildInsertPlace::Right => (1, child_size.width + spacing),
+                        ChildInsert::Left => (0, insert_size.width + spacing),
+                        ChildInsert::Right => (1, child_size.width + spacing),
                         _ => unreachable!(),
                     };
                     let o = PxVector::new(o, Px(0));
@@ -248,7 +248,7 @@ pub fn child_insert(
                         insert_size.height.max(child_size.height),
                     )
                 }
-                ChildInsertPlace::Above | ChildInsertPlace::Below => {
+                ChildInsert::Top | ChildInsert::Bottom => {
                     let spacing = spacing.layout_y();
 
                     let mut constraints_x = c.x;
@@ -299,8 +299,8 @@ pub fn child_insert(
 
                     // position
                     let (child, o) = match place {
-                        ChildInsertPlace::Above => (0, insert_size.height + spacing),
-                        ChildInsertPlace::Below => (1, child_size.height + spacing),
+                        ChildInsert::Top => (0, insert_size.height + spacing),
+                        ChildInsert::Bottom => (1, child_size.height + spacing),
                         _ => unreachable!(),
                     };
                     let o = PxVector::new(Px(0), o);
@@ -349,10 +349,10 @@ pub fn child_insert(
 /// This is still *inside* the parent widget, but outside of properties like padding.
 ///
 /// This property disables inline layout for the widget.
-#[property(CHILD_LAYOUT - 1, default(ChildInsertPlace::Start, NilUiNode, 0), widget_impl(Container))]
+#[property(CHILD_LAYOUT - 1, default(ChildInsert::Start, NilUiNode, 0), widget_impl(Container))]
 pub fn child_out_insert(
     child: impl UiNode,
-    place: impl IntoVar<ChildInsertPlace>,
+    place: impl IntoVar<ChildInsert>,
     insert: impl UiNode,
     spacing: impl IntoVar<Length>,
 ) -> impl UiNode {
@@ -365,8 +365,8 @@ pub fn child_out_insert(
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_left(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::Left, insert, spacing)
+pub fn child_left(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::Left, insert, spacing)
 }
 
 /// Insert `insert` to the right of the widget's child.
@@ -375,8 +375,8 @@ pub fn child_insert_left(child: impl UiNode, insert: impl UiNode, spacing: impl 
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_right(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::Right, insert, spacing)
+pub fn child_right(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::Right, insert, spacing)
 }
 
 /// Insert `insert` above the widget's child.
@@ -385,8 +385,8 @@ pub fn child_insert_right(child: impl UiNode, insert: impl UiNode, spacing: impl
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_above(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::Above, insert, spacing)
+pub fn child_top(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::Top, insert, spacing)
 }
 
 /// Insert `insert` below the widget's child.
@@ -395,8 +395,8 @@ pub fn child_insert_above(child: impl UiNode, insert: impl UiNode, spacing: impl
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_below(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::Below, insert, spacing)
+pub fn child_bottom(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::Bottom, insert, spacing)
 }
 
 /// Insert `insert` to the left of the widget's child in LTR contexts or to the right of the widget's child in RTL contexts.
@@ -405,8 +405,8 @@ pub fn child_insert_below(child: impl UiNode, insert: impl UiNode, spacing: impl
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_start(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::Start, insert, spacing)
+pub fn child_start(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::Start, insert, spacing)
 }
 
 /// Insert `insert` to the right of the widget's child in LTR contexts or to the right of the widget's child in RTL contexts.
@@ -415,6 +415,6 @@ pub fn child_insert_start(child: impl UiNode, insert: impl UiNode, spacing: impl
 ///
 /// [`child_insert`]: fn@child_insert
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
-pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    child_insert(child, ChildInsertPlace::End, insert, spacing)
+pub fn child_end(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_insert(child, ChildInsert::End, insert, spacing)
 }

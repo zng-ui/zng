@@ -11,7 +11,7 @@ use zero_ui_ext_l10n::lang;
 use zero_ui_wgt::{align, enabled, is_disabled, margin, prelude::*, visibility};
 use zero_ui_wgt_access::{access_role, AccessRole};
 use zero_ui_wgt_button::Button;
-use zero_ui_wgt_container::{child_align, child_insert_end, padding};
+use zero_ui_wgt_container::{child_align, child_end, padding};
 use zero_ui_wgt_fill::{background_color, foreground_highlight};
 use zero_ui_wgt_filter::{opacity, saturate};
 use zero_ui_wgt_input::{click_mode, focus::is_focused, mouse::on_pre_mouse_enter};
@@ -228,7 +228,7 @@ pub fn icon_fn(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiN
 #[property(CHILD_CONTEXT)]
 pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
-    child_insert_end(child, shortcut, SHORTCUT_SPACING_VAR)
+    child_end(child, shortcut, SHORTCUT_SPACING_VAR)
 }
 
 /// Minimum space between a menu item child and the [`shortcut_txt`] child.

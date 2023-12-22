@@ -297,7 +297,7 @@ mod inspector_window {
                 let _ = selected_wgt.set(None);
             });
             child = Container! {
-                child_insert_above = menu(hit_select, adorn_selected, wgt_filter.clone()), 0;
+                child_top = menu(hit_select, adorn_selected, wgt_filter.clone()), 0;
                 child = Scroll! {
                     toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
                     child = tree_view(inspected_tree, wgt_filter.clone());
@@ -305,7 +305,7 @@ mod inspector_window {
                     padding = 5;
                 };
             };
-            child_insert_right = Container! {
+            child_right = Container! {
                 width = 600;
                 child = presenter(selected_wgt, wgt_fn!(|w| {
                     selected_view(w).boxed()
@@ -352,7 +352,7 @@ mod inspector_window {
     fn menu(hit_test_select: impl Var<HitSelect>, adorn_selected: impl Var<bool>, search: impl Var<Txt>) -> impl UiNode {
         Container! {
             background_color = MENU_BKG_VAR;
-            child_insert_left = Stack! {
+            child_left = Stack! {
                 padding = 4;
                 spacing = 2;
                 direction = StackDirection::left_to_right();
@@ -509,7 +509,7 @@ mod inspector_window {
                 }
             };
 
-            child_insert_below = presenter(wgt.children(), wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
+            child_bottom = presenter(wgt.children(), wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
                 let children: UiNodeVec = children.into_iter().map(|c| {
                     tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
                 }).collect();
@@ -527,7 +527,7 @@ mod inspector_window {
                                 sides: TREE_ITEM_LINE_VAR.map(|&c| BorderSides::new_left(BorderSide::dashed(c))),
                             };
                         };
-                        child_insert_below = Text!("}}"), 0;
+                        child_bottom = Text!("}}"), 0;
                     }.boxed()
 
                 }

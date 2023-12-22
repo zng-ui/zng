@@ -477,7 +477,7 @@ fn open_or_paste_image() -> impl UiNode {
                                         let cmd = cmd.scoped(cmd_scope);
                                         Button! {
                                             padding = (2, 5);
-                                            child_insert_left = widget::node::presenter((), cmd.icon()), 0;
+                                            child_left = widget::node::presenter((), cmd.icon()), 0;
                                             child = Text!(cmd.name_with_shortcut());
                                             widget::enabled = cmd.is_enabled();
                                             on_click = hn!(|_| cmd.notify());

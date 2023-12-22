@@ -19,7 +19,7 @@ use zero_ui_ext_l10n::lang;
 use zero_ui_var::VarIsReadOnlyError;
 use zero_ui_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt};
 use zero_ui_wgt_access::{access_role, accessible, AccessRole};
-use zero_ui_wgt_container::{child_align, child_insert_end, child_insert_start, padding};
+use zero_ui_wgt_container::{child_align, child_end, child_start, padding};
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_filter::opacity;
 use zero_ui_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
@@ -1026,7 +1026,7 @@ impl CheckStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            child_insert_start = {
+            child_start = {
                 insert: {
                     let parent_hovered = var(false);
                     is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
@@ -1094,7 +1094,7 @@ impl ComboStyle {
             border_align = 1.fct();
             padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(-1, e.clone(), -1, -1));
             checked = var(false);
-            child_insert_end = {
+            child_end = {
                 insert: combomark_visual(),
                 spacing: COMBO_SPACING_VAR,
             };
@@ -1253,7 +1253,7 @@ impl SwitchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            child_insert_start = {
+            child_start = {
                 insert: {
                     let parent_hovered = var(false);
                     is_hovered(switch_visual(parent_hovered.clone()), parent_hovered)
@@ -1315,7 +1315,7 @@ impl RadioStyle {
             self;
 
             access_role = AccessRole::Radio;
-            child_insert_start = {
+            child_start = {
                 insert: {
                     let parent_hovered = var(false);
                     is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)

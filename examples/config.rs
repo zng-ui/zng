@@ -54,7 +54,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
 
     Container! {
         child = editor(CONFIG.get(formatx!("main.{main_cfg_key}"), default));
-        child_insert_start = {
+        child_start = {
             insert: Icon! {
                 widget::enabled = main_cfg.can_reset(main_cfg_key.clone());
                 gesture::on_click = hn!(|_| {
