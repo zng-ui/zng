@@ -211,16 +211,121 @@
 //! 
 //! # Context
 //! 
+//! ```
+//! use zero_ui::prelude::*;
 //! 
+//! # let _app = APP.minimal();
+//! # let _ = 
+//! Stack! {
+//!     direction = StackDirection::top_to_bottom();
+//!     spacing = 10;
+//!     
+//!     text::font_color = colors::RED;
 //! 
-//! # Units
+//!     children = ui_vec![
+//!         Button! { child = Text!("Text 1"); },
+//!         Button! { child = Text!("Text 2"); },
+//!         Button! {
+//!             child = Text!("Text 3");
+//!             text::font_color = colors::GREEN;
+//!         },
+//!     ];
+//! }
+//! # ;
+//! ```
 //! 
-//! # Commands
-//!
+//! In the example above "Text 1" and "Text 2" are rendered in red and "Text 3" is rendered in green. The context
+//! of a widget is important, `text::font_color` sets text color in the `Stack!` widget and all descendant widgets,
+//! the color is overridden in the third `Button!` for the context of that button and descendants, the `Text!`
+//! widget has a different appearance just by being in a different context.
+//! 
+//! Note that the text widget can also set the color directly, in the following example the "Text 4" is blue, this
+//! value is still contextual, but texts are usually leaf widgets so only the text is affected.
+//! 
+//! ```
+//! # use zero_ui::prelude::*;//! 
+//! # let _app = APP.minimal();
+//! # let _ = 
+//! Text! {
+//!     txt = "Text 4";
+//!     font_color = colors::BLUE;
+//! }
+//! # ;
+//! ```
+//! 
+//! In the example above a context variable defines the text color, but not just variables are contextual, layout
+//! units and widget services are also contextual, widget implementers may declare custom contextual values too,
+//! see [context local] in the app module documentation for more details.
+//! 
+//! [context local]: app#context-local
+//!  
 //! # Services
 //!
-//! #
+//! ```
+//! use zero_ui::prelude::*;
+//! use zero_ui::clipboard::CLIPBOARD;
+//! 
+//! # let _app = APP.minimal();
+//! # let _ = 
+//! Stack! {
+//!     direction = StackDirection::top_to_bottom();
+//!     spacing = 10;
+//! 
+//!     children = {
+//!         let txt = var(Txt::from(""));
+//!         let txt_is_err = var(false);
+//!         ui_vec![
+//!             Button! {
+//!                 child = Text!("Paste");
+//!                 on_click = hn!(txt, |_| {
+//!                     match CLIPBOARD.text() {
+//!                         Ok(p) => if let Some(t) {
+//!                             txt.set(t);
+//!                             txt_is_err.set(false);
+//!                         },
+//!                         Err(e) => {
+//!                             let t = WIDGET.trace_path();
+//!                             txt.set(formatx!("error in {t}: {e}"));
+//!                             txt.is_err.set(true);
+//!                         }
+//!                     }
+//!                 });
+//!             },
+//!             Text! {
+//!                 txt;
+//!                 when *#{txt_is_err} {
+//!                     font_color = colors::RED;
+//!                 }
+//!             }
+//!         ]
+//!     };
+//! }
+//! # ;
+//! ```
+//! 
+//! The example above uses two services, `CLIPBOARD` and `WIDGET`. Services are represented
+//! by an unit struct named like a static item, service functionality is available as methods on
+//! this unit struct. Services are contextual, `CLIPBOARD` exists on the app context, it can only operate
+//! in app threads, `WIDGET` represents the current widget and can only be used inside an widget.
+//! 
+//! The default app provides multiple services, some common ones are [`APP`], [`WINDOWS`], [`WINDOW`], [`WIDGET`],
+//! [`FOCUS`], [`POPUP`], [`DATA`] and more. Services all follow the same pattern, they are a unit struct named like a static
+//! item, if you see such a type it is a service. 
+//! 
+//! [`WINDOWS`]: window::WINDOWS
+//! [`WINDOW`]: window::WINDOW
+//! [`WIDGET`]: widget::WIDGET
+//! [`FOCUS`]: focus::FOCUS
+//! [`POPUP`]: popup::POPUP
+//! [`DATA`]: data_context::DATA
+//! 
+//! # Events & Commands
+//! 
+//! 
+//! 
+//! # Layout & Render
 //!
+//! 
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

@@ -11,6 +11,9 @@
         - Because of focus, needs to still show if focus is in toolbar.
 * Disable SELECT_ALL_CMD when text is empty.
 
+* Create a `TEXT` service that provides the `ResolvedText` and `LayoutText` instead of `::get()`, the
+  associated get is an older pattern that was removed from all other services, window Vars for example become `WINDOW.vars()`.
+
 # Accessibility
 
 * All examples must be fully useable with a screen reader.
