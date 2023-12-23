@@ -77,15 +77,22 @@
 //! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
 //! in the documentation property functions are tagged with <strong><code>P</code></strong>.
 //! 
+//! Widget instances can be of any type, usually they are an opaque [`impl UiNode`], some special widgets have an instance type,
+//! the [`Window!`] widget for example has the instance type [`WindowRoot`]. Property instances are always of type `impl UiNode`,
+//! each property function takes an `impl UiNode` input plus one or more value inputs and returns an `impl UiNode` output that
+//! wraps the input node adding the property behavior, the widgets take care of this node chaining nesting each property
+//! instance in the proper order, internally every widget instance is a tree of nested node instances.
+//! 
 //! Widgets and properties are very versatile, each widget documentation page will promote the properties that the widget implementer
 //! explicitly associated with the widget, but that is only a starting point.
 //! 
 //! ```
 //! use zero_ui::prelude::*;
 //! 
+//! # let _app = APP.minimal();
 //! # let _ = 
 //! Wgt! {
-//!     layout::align = align::Align::CENTER;
+//!     layout::align = layout::Align::CENTER;
 //!     layout::size = 50;
 //!     
 //!     #[easing(200.ms())]
@@ -109,6 +116,7 @@
 //! The [`widget`] module documentation provides an in-depth explanation of how widgets and properties work.
 //! 
 //! [`Button!`]: struct@button::Button
+//! [`Window!`]: struct@window::Window
 //! [`Text!`]: struct@text::Text
 //! [`Wgt!`]: struct@widget::Wgt
 //! [`background_color`]: fn@widget::background_color
@@ -119,14 +127,18 @@
 //! [`when`]: widget#when
 //! [state properties]: widget#state-properties
 //! [`easing`]: widget::easing
+//! [`impl UiNode`]: widget::node::UiNode
+//! [`WindowRoot`]: window::WindowRoot
 //!
 //! # Variables
 //! 
 //! ```
 //! use zero_ui::prelude::*;
 //! 
+//! # let _app = APP.minimal();
 //! let btn_pressed = var(false);
 //! 
+//! # let _ = 
 //! Stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 10;
@@ -146,26 +158,60 @@
 //!         }
 //!     ]
 //! }
+//! # ;
 //! ```
 //! 
 //! The example above binds the pressed state of a widget with the text content of another using a [`var`]. Variables
 //! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept 
 //! an [`IntoVar<T>`] input that gets converted into a [`Var<T>`] when the property is instantiated.
 //! 
-//! There are multiple variable types, in the example three types are demonstrated. The most basic type simply represents a 
-//! static value, `txt = "Press Me!"` is one example of this. Another type represents a shared observable value, 
-//! `txt = btn_pressed.map(..)` is the example of this, the mapping variable is read-only, but its value can change and 
-//! properties can observe these changes. Finally `btn_pressed = var(false)` represents a shared, modifiable and observable value
-//! that is set by `is_pressed` and observed by the mapping variable.
+//! There are multiple variable types, they can be a simple static value, a shared observable and modifiable value or a
+//! contextual value. Variables can also depend on other variables automatically updating when input variables update.
 //! 
-//! There are other variables types, including contextual variables that get their value from the context where they are used, 
-//! see the [`var`](var) module for more variable types and details about when modifiable variables update.
+//! ```
+//! use zero_ui::prelude::*;
+//! 
+//! # let _app = APP.minimal();
+//! fn ui(txt: impl IntoVar<Txt>) -> impl UiNode {
+//!     Text!(txt)
+//! }
+//! 
+//! ui("static value");
+//! 
+//! let txt = var(Txt::from("dynamic value"));
+//! ui(txt.clone());
+//! txt.set("change applied next update");
+//! 
+//! let show_txt = var(true);
+//! ui(expr_var!(if *#{show_txt} { #{txt}.clone() } else { Txt::from("") }));
+//! 
+//! ui(text::FONT_COLOR_VAR.map(|s| formatx!("font color is {s}")));
+//! ```
+//! 
+//! In the example a [`var`] clone is shared with the UI and a new value is scheduled for the next app update. Variable
+//! updates are batched, during each app update pass every property can observe the current value and schedule modifications to
+//! the value, the modifications are only applied after, potentially causing a new update pass if any value actually changed, see
+//! [var updates] in the [var module] documentation for more details.
+//! 
+//! The example also demonstrates the [`expr_var!`], a read-only observable variable that interpolates other variables, the
+//! value of this variable automatically update when any of the interpolated variables update.
+//! 
+//! And finally the example demonstrates a context var, `FONT_COLOR_VAR`. Context variables get their value from the
+//! *environment* where they are used, the UI in the example can show different a different text depending on where it is placed.
+//! Context variables are usually encapsulated by properties strongly associated with an widget, most of [`Text!`] properties just
+//! set a context var that affects all text instances in the widget they are placed and descendant widgets.
+//! 
+//! There are other useful variable types, see the [var module] module documentation for more details.
 //!
 //! [`var`]: var::var
+//! [`expr_var!`]: var::expr_var
+//! [var module]: crate::var
 //! [`IntoVar<T>`]: var::IntoVar
 //! [`Var<T>`]: var::Var
 //! 
 //! # Context
+//! 
+//! 
 //! 
 //! # Units
 //! 
