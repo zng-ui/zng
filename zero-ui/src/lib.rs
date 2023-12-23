@@ -22,26 +22,31 @@
 //! ```no_run
 //! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
-//!
+//! 
 //! fn main() {
 //!     zero_ui_view::init();
 //!     app();
 //! }
-//!
+//! 
 //! fn app() {
 //!     APP.defaults().run_window(async {
-//!         let size = var(layout::Size::new(800, 600));
 //!         Window! {
-//!             title = size.map(|s| formatx!("Button Example - {s}"));
-//!             size;
 //!             child_align = Align::CENTER;
-//!             child = Button! {
-//!                 on_click = hn!(|_| {
-//!                     println!("Button clicked!");
-//!                 });
-//!                 text::font_size = 28;
-//!                 child = Text!("Click Me!");
-//!             }
+//!             child = {
+//!                 let size = var(28i32);
+//!                 Button! {
+//!                     child = Text! {
+//!                         txt = "Hello World!";
+//! 
+//!                         #[easing(200.ms())]
+//!                         font_size = size.map_into();
+//!                     };
+//!                     on_click = hn!(|_| {
+//!                         let next = size.get() + 10;
+//!                         size.set(if next > 80 { 28 } else { next });
+//!                     });
+//!                 }
+//!             };
 //!         }
 //!     })
 //! }
@@ -51,10 +56,119 @@
 //!
 //! # Widgets & Properties
 //!
-//! TODO, subject summary and link to a module doc that explain in depth, [`widget`]?
+//! ```
+//! use zero_ui::prelude::*;
+//! 
+//! # let _ = 
+//! Button! {
+//!     child = Text!("Green?");
+//!     widget::background_color = colors::GREEN;
+//!     on_click = hn!(|_| println!("SUPER GREEN!"));
+//! }
+//! # ;
+//! ```
+//! 
+//! In the example above [`Button!`] and [`Text!`] are widgets and `child`, [`background_color`] and [`on_click`] are properties. 
+//! Widgets are mostly an aggregation of properties that define an specific function and presentation, most properties are standalone 
+//! implementations of an specific behavior or appearance, in the example only `child` is implemented by the button widget, the
+//! other two properties can be set in any widget.
+//! 
+//! Each widget is a dual macro and `struct` of the same name, in the documentation only the `struct` is visible, when
+//! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
+//! in the documentation property functions are tagged with <strong><code>P</code></strong>.
+//! 
+//! Widgets and properties are very versatile, each widget documentation page will promote the properties that the widget implementer
+//! explicitly associated with the widget, but that is only a starting point.
+//! 
+//! ```
+//! use zero_ui::prelude::*;
+//! 
+//! # let _ = 
+//! Wgt! {
+//!     layout::align = align::Align::CENTER;
+//!     layout::size = 50;
+//!     
+//!     #[easing(200.ms())]
+//!     widget::background_color = colors::RED;
+//!     
+//!     when *#gesture::is_hovered {
+//!         widget::background_color = colors::GREEN;
+//!     }
+//! }
+//! # ;
+//! ```
+//! 
+//! In the example above an [`Wgt!`] is completely defined by stand-alone properties, [`align`] and [`size`] define
+//! the bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
+//! 
+//! The example also introduces [`when`] blocks, [state properties] and the [`easing`] property attribute. State properties
+//! compute an state from the widget, this state can be used to change the value of other properties. When blocks are a powerful
+//! feature of widgets, they declare conditional property values. The easing attribute can be set in any property with transitionable
+//! values to smoothly animate between changes.
+//! 
+//! The [`widget`] module documentation provides an in-depth explanation of how widgets and properties work.
+//! 
+//! [`Button!`]: struct@button::Button
+//! [`Text!`]: struct@text::Text
+//! [`Wgt!`]: struct@widget::Wgt
+//! [`background_color`]: fn@widget::background_color
+//! [`on_click`]: fn@gesture::on_click
+//! [`is_hovered`]: fn@gesture::is_hovered
+//! [`align`]: fn@layout::align
+//! [`size`]: fn@layout::size
+//! [`when`]: widget#when
+//! [state properties]: widget#state-properties
+//! [`easing`]: widget::easing
 //!
 //! # Variables
+//! 
+//! ```
+//! use zero_ui::prelude::*;
+//! 
+//! let btn_pressed = var(false);
+//! 
+//! Stack! {
+//!     direction = StackDirection::top_to_bottom();
+//!     spacing = 10;
+//!     children = ui_vec![
+//!         Button! {
+//!             child = Text! { txt = "Press Me!"; };
+//!             gesture::is_pressed = btn_pressed.clone();   
+//!         },
+//!         Text! {
+//!             txt = btn_pressed.map(|&b| {
+//!                 if b { 
+//!                     "Button is pressed!" 
+//!                 } else { 
+//!                     "Button is not pressed." 
+//!                 }.into()
+//!             });
+//!         }
+//!     ]
+//! }
+//! ```
+//! 
+//! The example above binds the pressed state of a widget with the text content of another using a [`var`]. Variables
+//! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept 
+//! an [`IntoVar<T>`] input that gets converted into a [`Var<T>`] when the property is instantiated.
+//! 
+//! There are multiple variable types, in the example three types are demonstrated. The most basic type simply represents a 
+//! static value, `txt = "Press Me!"` is one example of this. Another type represents a shared observable value, 
+//! `txt = btn_pressed.map(..)` is the example of this, the mapping variable is read-only, but its value can change and 
+//! properties can observe these changes. Finally `btn_pressed = var(false)` represents a shared, modifiable and observable value
+//! that is set by `is_pressed` and observed by the mapping variable.
+//! 
+//! There are other variables types, including contextual variables that get their value from the context where they are used, 
+//! see the [`var`](var) module for more variable types and details about when modifiable variables update.
 //!
+//! [`var`]: var::var
+//! [`IntoVar<T>`]: var::IntoVar
+//! [`Var<T>`]: var::Var
+//! 
+//! # Context
+//! 
+//! # Units
+//! 
 //! # Commands
 //!
 //! # Services
