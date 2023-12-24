@@ -243,7 +243,7 @@
 //! value is still contextual, but texts are usually leaf widgets so only the text is affected.
 //! 
 //! ```
-//! # use zero_ui::prelude::*;//! 
+//! # use zero_ui::prelude::*;
 //! # let _app = APP.minimal();
 //! # let _ = 
 //! Text! {
@@ -277,16 +277,16 @@
 //!         ui_vec![
 //!             Button! {
 //!                 child = Text!("Paste");
-//!                 on_click = hn!(txt, |_| {
+//!                 on_click = hn!(txt, txt_is_err, |_| {
 //!                     match CLIPBOARD.text() {
-//!                         Ok(p) => if let Some(t) {
+//!                         Ok(p) => if let Some(t) = p {
 //!                             txt.set(t);
 //!                             txt_is_err.set(false);
 //!                         },
 //!                         Err(e) => {
 //!                             let t = WIDGET.trace_path();
 //!                             txt.set(formatx!("error in {t}: {e}"));
-//!                             txt.is_err.set(true);
+//!                             txt_is_err.set(true);
 //!                         }
 //!                     }
 //!                 });
@@ -321,7 +321,39 @@
 //! 
 //! # Events & Commands
 //! 
+//! ```no_run
+//! use zero_ui::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
 //! 
+//! APP.defaults().run_window(async {
+//!     let cmd = PASTE_CMD.scoped(WINDOW.id());
+//!     let paste_btn = Button! {
+//!         child = Text!(cmd.name());
+//!         widget::enabled = cmd.is_enabled();
+//!         widget::visibility = cmd.has_handlers().map_into();
+//!         tooltip = Tip!(Text!(cmd.name_with_shortcut()));
+//!         on_click = hn!(|_| cmd.notify());
+//!     };
+//! 
+//!     let pasted_txt = var(Txt::from(""));
+//!
+//!     Window! {
+//!         on_paste = hn!(pasted_txt, |_| {
+//!             if let Some(t) = CLIPBOARD.text().ok().flatten() {
+//!                 pasted_txt.set(t);
+//!             }
+//!         });
+//!         
+//!         child = Stack! {
+//!             children_align = Align::CENTER;
+//!             direction = StackDirection::top_to_bottom();
+//!             spacing = 20;             
+//!             children = ui_vec![paste_btn, Text!(pasted_txt)];
+//!         };
+//!     }
+//! });
+//! ```
+//! 
+//! The example above uses events and command events to display the clipboard text. TODO
 //! 
 //! # Layout & Render
 //!

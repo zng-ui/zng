@@ -5,6 +5,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+use core::fmt;
 use std::path::PathBuf;
 
 use zero_ui_app::{
@@ -47,6 +48,20 @@ pub enum ClipboardError {
     ///
     /// The string can be a debug description of the error, only suitable for logging.
     Other(Txt),
+}
+impl std::error::Error for ClipboardError {}
+impl fmt::Display for ClipboardError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClipboardError::ViewProcessOffline => write!(f, "no view-process available to process the request"),
+            ClipboardError::NotSupported => write!(f, "view-process or operating system does not support the data type"),
+            ClipboardError::ImageNotLoaded => write!(
+                f,
+                "cannot set image in clipboard because it has not finished loading or loaded with error"
+            ),
+            ClipboardError::Other(e) => write!(f, "{e}"),
+        }
+    }
 }
 
 /// Clipboard service.
