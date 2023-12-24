@@ -33,6 +33,7 @@ pub struct UpdateDeliveryList {
     windows: IdSet<WindowId>,
     widgets: IdSet<WidgetId>,
     search: IdSet<WidgetId>,
+    search_root: bool,
 }
 impl fmt::Debug for UpdateDeliveryList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,6 +57,7 @@ impl UpdateDeliveryList {
             windows: IdSet::default(),
             widgets: IdSet::default(),
             search: IdSet::default(),
+            search_root: false,
         }
     }
 
@@ -108,9 +110,10 @@ impl UpdateDeliveryList {
         }
     }
 
-    /// Insert the window by itself.
+    /// Insert the window by itself, the window root widget will be targeted.
     pub fn insert_window(&mut self, id: WindowId) {
         self.windows.insert(id);
+        self.search_root = true;
     }
 
     /// Register all subscribers for search and delivery.
@@ -127,12 +130,16 @@ impl UpdateDeliveryList {
 
     /// If the the list has pending widgets that must be found before delivery can start.
     pub fn has_pending_search(&mut self) -> bool {
-        !self.search.is_empty()
+        self.search_root || !self.search.is_empty()
     }
 
     /// Search all pending widgets in all `windows`, all search items are cleared, even if not found.
     pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
         for window in windows {
+            if self.search_root && self.windows.contains(&window.window_id()) {
+                self.widgets.insert(window.root().id());
+            }
+
             self.search.retain(|w| {
                 if let Some(w) = window.get(*w) {
                     for w in w.widget_and_ancestors() {
@@ -146,6 +153,7 @@ impl UpdateDeliveryList {
             });
         }
         self.search.clear();
+        self.search_root = true;
     }
 
     /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
@@ -189,13 +197,14 @@ impl UpdateDeliveryList {
         &self.widgets
     }
 
-    /// Not found target widgets.
-    ///
-    /// Each window searches for these widgets and adds then to the [`widgets`] list.
-    ///
-    /// [`widgets`]: Self::widgets
+    /// Widgets still pending search or not found.
     pub fn search_widgets(&mut self) -> &IdSet<WidgetId> {
         &self.search
+    }
+
+    /// If search for window a root is pending.
+    pub fn search_root(&mut self) -> bool {
+        self.search_root
     }
 }
 
@@ -252,7 +261,6 @@ impl WidgetPathProvider for InteractionPath {
 pub trait UpdateSubscribers: Send + Sync + 'static {
     /// Returns `true` if the widget is one of the subscribers.
     fn contains(&self, widget_id: WidgetId) -> bool;
-
     /// Gets all subscribers as a set.
     fn to_set(&self) -> IdSet<WidgetId>;
 }

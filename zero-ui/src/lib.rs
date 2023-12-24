@@ -383,8 +383,8 @@
 //! [`Event<A>`]: event::Event
 //! [`Command`]: event::Command
 //! [`impl WidgetHandler<A>`]: handler::WidgetHandler
-//! [`hn!`]: handler::hn
-//! [`async_hn!`]: handler::async_hn
+//! [`hn!`]: handler::hn!
+//! [`async_hn!`]: handler::async_hn!
 //!
 //! # Layout & Render
 //!

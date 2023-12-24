@@ -435,10 +435,8 @@ fn open_or_paste_image() -> impl UiNode {
         child = Text!("Open or Paste Image");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                let cmd_scope = WidgetId::new_unique();
                 let source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
                 ImgWindow! {
-                    id = cmd_scope;
                     title = "Open or Paste Image";
 
                     app::on_open = async_hn!(source, |_| {
@@ -474,7 +472,7 @@ fn open_or_paste_image() -> impl UiNode {
                             Stack! {
                                 children = {
                                     let cmd_btn = |cmd: zero_ui::event::Command| {
-                                        let cmd = cmd.scoped(cmd_scope);
+                                        let cmd = cmd.scoped(WINDOW.id());
                                         Button! {
                                             padding = (2, 5);
                                             child_left = widget::node::presenter((), cmd.icon()), 0;
@@ -484,8 +482,8 @@ fn open_or_paste_image() -> impl UiNode {
                                         }
                                     };
                                     ui_vec![
-                                        cmd_btn(app::OPEN_CMD.scoped(cmd_scope)),
-                                        cmd_btn(clipboard::PASTE_CMD.scoped(cmd_scope)),
+                                        cmd_btn(app::OPEN_CMD.scoped(WINDOW.id())),
+                                        cmd_btn(clipboard::PASTE_CMD.scoped(WINDOW.id())),
                                     ]
                                 };
 

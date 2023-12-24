@@ -246,7 +246,7 @@ impl Command {
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
     ///
-    /// If the handle is scoped on a widget it it is added to the command event subscribers.
+    /// If the handle is scoped on a window or widget it it is added to the command event subscribers.
     pub fn subscribe(&self, enabled: bool) -> CommandHandle {
         let mut evs = EVENTS_SV.write();
         self.local.write().subscribe(&mut evs, *self, enabled, None)
@@ -254,8 +254,8 @@ impl Command {
 
     /// Create a new handle for this command for a handler in the `target` widget.
     ///
-    /// The handle behaves like [`subscribe`], but include the `target` on the delivery list for window and app scoped commands.
-    /// Note that for widget scoped commands only the scope can receive the event, so the `target` is ignored.
+    /// The handle behaves like [`subscribe`], but include the `target` on the delivery list for app scoped commands.
+    /// Note that for window and widget scoped commands only the scope can receive the event, so the `target` is ignored.
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt(&self, enabled: bool, target: WidgetId) -> CommandHandle {
@@ -482,6 +482,10 @@ pub enum CommandScope {
     /// Default scope, this is the scope of command types declared using [`command!`].
     App,
     /// Scope of a window.
+    ///
+    /// Note that the window scope is different from the window root widget scope, the metadata store and command
+    /// handles are different, but events targeting a window also target that window's root, so subscribers that
+    /// may be set on a window's root should probably subscribe to both scopes.
     Window(WindowId),
     /// Scope of a widget.
     Widget(WidgetId),
@@ -514,13 +518,13 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets for [`CommandScope::App`] and [`CommandScope::Window`].
-        ///
+        /// Broadcast to all widgets for [`CommandScope::App`]. Targets the window root for [`CommandScope::Window`] if found.
         /// Target ancestors and widget for [`CommandScope::Widget`], if it is found.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             match self.scope {
                 CommandScope::Widget(id) => list.search_widget(id),
-                _ => list.search_all(),
+                CommandScope::Window(id) => list.insert_window(id),
+                CommandScope::App => list.search_all(),
             }
         }
     }

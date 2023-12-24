@@ -8,7 +8,7 @@ use std::{
 };
 
 use zero_ui_app::{
-    event::{Command, CommandArgs, Event, EventArgs},
+    event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::WidgetHandler,
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
@@ -18,6 +18,7 @@ use zero_ui_app::{
         node::*,
         VarLayout, WidgetUpdateMode, WIDGET,
     },
+    window::WINDOW,
 };
 use zero_ui_app_context::{ContextLocal, LocalContext};
 use zero_ui_layout::{
@@ -743,6 +744,9 @@ macro_rules! __command_property {
 /// creation of widget scoped commands. The event handler will receive events for the command
 /// and scope that target the widget where it is set.
 ///
+/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
+/// is taken for the window scope too.
+///
 /// # Enabled
 ///
 /// The `enabled` closure is called on init to generate a boolean variable that defines
@@ -783,6 +787,9 @@ macro_rules! command_property {
 /// The `cmd` closure is called on init to generate the command, it is a closure to allow
 /// creation of widget scoped commands. The event handler will receive events for the command
 /// and scope that target the widget where it is set.
+///
+/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
+/// is taken for the window scope too.
 ///
 /// # Enabled
 ///
@@ -830,8 +837,9 @@ where
     H: WidgetHandler<CommandArgs>,
 {
     let mut enabled = None;
-    let mut handle = None;
-    let mut command = None;
+    let mut handle = CommandHandle::dummy();
+    let mut win_handle = CommandHandle::dummy();
+    let mut command = NIL_CMD;
 
     let mut handler = handler.cfg_boxed();
 
@@ -844,23 +852,33 @@ where
             let is_enabled = e.get();
             enabled = Some(e);
 
-            let c = command_builder();
-            handle = Some(c.subscribe_wgt(is_enabled, WIDGET.id()));
-            command = Some(c);
+            command = command_builder();
+
+            let id = WIDGET.id();
+            handle = command.subscribe_wgt(is_enabled, id);
+            if CommandScope::Widget(id) == command.scope() && WIDGET.parent_id().is_none() {
+                // root scope, also include the window.
+                win_handle = command.scoped(WINDOW.id()).subscribe_wgt(is_enabled, id);
+            }
         }
         UiNodeOp::Deinit => {
             child.deinit();
 
             enabled = None;
-            handle = None;
-            command = None;
+            handle = CommandHandle::dummy();
+            win_handle = CommandHandle::dummy();
+            command = NIL_CMD;
         }
 
         UiNodeOp::Event { update } => {
             child.event(update);
 
-            if let Some(args) = command.expect("node not inited").on_unhandled(update) {
+            if let Some(args) = command.on_unhandled(update) {
                 handler.event(args);
+            } else if !win_handle.is_dummy() {
+                if let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update) {
+                    handler.event(args);
+                }
             }
         }
         UiNodeOp::Update { updates } => {
@@ -869,12 +887,17 @@ where
             handler.update();
 
             if let Some(enabled) = enabled.as_ref().expect("node not inited").get_new() {
-                handle.as_ref().unwrap().set_enabled(enabled);
+                handle.set_enabled(enabled);
+                win_handle.set_enabled(enabled);
             }
         }
 
         _ => {}
     })
+}
+
+zero_ui_app::event::command! {
+    static NIL_CMD;
 }
 
 /// Helper for declaring command preview handlers.
@@ -884,6 +907,9 @@ where
 /// The `cmd` closure is called on init to generate the command, it is a closure to allow
 /// creation of widget scoped commands. The event handler will receive events for the command
 /// and scope that target the widget where it is set.
+///
+/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
+/// is taken for the window scope too.
 ///
 /// # Enabled
 ///
@@ -933,8 +959,9 @@ where
     let mut handler = handler.cfg_boxed();
 
     let mut enabled = None;
-    let mut handle = None;
-    let mut command = None;
+    let mut handle = CommandHandle::dummy();
+    let mut win_handle = CommandHandle::dummy();
+    let mut command = NIL_CMD;
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -945,28 +972,39 @@ where
             let is_enabled = e.get();
             enabled = Some(e);
 
-            let c = command_builder();
-            handle = Some(c.subscribe_wgt(is_enabled, WIDGET.id()));
-            command = Some(c);
+            command = command_builder();
+
+            let id = WIDGET.id();
+            handle = command.subscribe_wgt(is_enabled, id);
+            if CommandScope::Widget(id) == command.scope() && WIDGET.parent_id().is_none() {
+                // root scope, also include the window.
+                win_handle = command.scoped(WINDOW.id()).subscribe_wgt(is_enabled, id);
+            }
         }
         UiNodeOp::Deinit => {
             child.deinit();
 
             enabled = None;
-            handle = None;
-            command = None;
+            handle = CommandHandle::dummy();
+            win_handle = CommandHandle::dummy();
+            command = NIL_CMD;
         }
 
         UiNodeOp::Event { update } => {
-            if let Some(args) = command.expect("on_pre_command not initialized").on_unhandled(update) {
+            if let Some(args) = command.on_unhandled(update) {
                 handler.event(args);
+            } else if !win_handle.is_dummy() {
+                if let Some(args) = command.scoped(WINDOW.id()).on_unhandled(update) {
+                    handler.event(args);
+                }
             }
         }
         UiNodeOp::Update { .. } => {
             handler.update();
 
             if let Some(enabled) = enabled.as_ref().expect("on_pre_command not initialized").get_new() {
-                handle.as_ref().unwrap().set_enabled(enabled);
+                handle.set_enabled(enabled);
+                win_handle.set_enabled(enabled);
             }
         }
 
