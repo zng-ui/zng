@@ -14,6 +14,10 @@
 * Create a `TEXT` service that provides the `ResolvedText` and `LayoutText` instead of `::get()`, the
   associated get is an older pattern that was removed from all other services, window Vars for example become `WINDOW.vars()`.
 
+# Commands
+
+* Command scoped on WindowId should target that window root widget.
+
 # Accessibility
 
 * All examples must be fully useable with a screen reader.

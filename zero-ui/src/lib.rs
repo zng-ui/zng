@@ -22,12 +22,12 @@
 //! ```no_run
 //! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! fn main() {
 //!     zero_ui_view::init();
 //!     app();
 //! }
-//! 
+//!
 //! fn app() {
 //!     APP.defaults().run_window(async {
 //!         Window! {
@@ -37,7 +37,7 @@
 //!                 Button! {
 //!                     child = Text! {
 //!                         txt = "Hello World!";
-//! 
+//!
 //!                         #[easing(200.ms())]
 //!                         font_size = size.map_into();
 //!                     };
@@ -58,8 +58,8 @@
 //!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
-//! # let _ = 
+//!
+//! # let _ =
 //! Button! {
 //!     child = Text!("Green?");
 //!     widget::background_color = colors::GREEN;
@@ -67,30 +67,30 @@
 //! }
 //! # ;
 //! ```
-//! 
-//! In the example above [`Button!`] and [`Text!`] are widgets and `child`, [`background_color`] and [`on_click`] are properties. 
-//! Widgets are mostly an aggregation of properties that define an specific function and presentation, most properties are standalone 
+//!
+//! In the example above [`Button!`] and [`Text!`] are widgets and `child`, [`background_color`] and [`on_click`] are properties.
+//! Widgets are mostly an aggregation of properties that define an specific function and presentation, most properties are standalone
 //! implementations of an specific behavior or appearance, in the example only `child` is implemented by the button widget, the
 //! other two properties can be set in any widget.
-//! 
+//!
 //! Each widget is a dual macro and `struct` of the same name, in the documentation only the `struct` is visible, when
 //! an struct represents a widget it is tagged with <strong><code>W</code></strong>. Each properties is declared as a function,
 //! in the documentation property functions are tagged with <strong><code>P</code></strong>.
-//! 
+//!
 //! Widget instances can be of any type, usually they are an opaque [`impl UiNode`], some special widgets have an instance type,
 //! the [`Window!`] widget for example has the instance type [`WindowRoot`]. Property instances are always of type `impl UiNode`,
 //! each property function takes an `impl UiNode` input plus one or more value inputs and returns an `impl UiNode` output that
 //! wraps the input node adding the property behavior, the widgets take care of this node chaining nesting each property
 //! instance in the proper order, internally every widget instance is a tree of nested node instances.
-//! 
+//!
 //! Widgets and properties are very versatile, each widget documentation page will promote the properties that the widget implementer
 //! explicitly associated with the widget, but that is only a starting point.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! # let _app = APP.minimal();
-//! # let _ = 
+//! # let _ =
 //! Wgt! {
 //!     layout::align = layout::Align::CENTER;
 //!     layout::size = 50;
@@ -104,17 +104,17 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! In the example above an [`Wgt!`] is completely defined by stand-alone properties, [`align`] and [`size`] define
 //! the bounds of the widget, [`background_color`] fills the bounds with color and [`is_hovered`] reacts to pointer interaction.
-//! 
+//!
 //! The example also introduces [`when`] blocks, [state properties] and the [`easing`] property attribute. State properties
 //! compute an state from the widget, this state can be used to change the value of other properties. When blocks are a powerful
 //! feature of widgets, they declare conditional property values. The easing attribute can be set in any property with transitionable
 //! values to smoothly animate between changes.
-//! 
+//!
 //! The [`widget`] module documentation provides an in-depth explanation of how widgets and properties work.
-//! 
+//!
 //! [`Button!`]: struct@button::Button
 //! [`Window!`]: struct@window::Window
 //! [`Text!`]: struct@text::Text
@@ -131,14 +131,14 @@
 //! [`WindowRoot`]: window::WindowRoot
 //!
 //! # Variables
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! # let _app = APP.minimal();
 //! let btn_pressed = var(false);
-//! 
-//! # let _ = 
+//!
+//! # let _ =
 //! Stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 10;
@@ -149,10 +149,10 @@
 //!         },
 //!         Text! {
 //!             txt = btn_pressed.map(|&b| {
-//!                 if b { 
-//!                     "Button is pressed!" 
-//!                 } else { 
-//!                     "Button is not pressed." 
+//!                 if b {
+//!                     "Button is pressed!"
+//!                 } else {
+//!                     "Button is not pressed."
 //!                 }.into()
 //!             });
 //!         }
@@ -160,47 +160,47 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! The example above binds the pressed state of a widget with the text content of another using a [`var`]. Variables
-//! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept 
+//! are the most common property input kind, in the example `direction`, `spacing`, `is_pressed` and `txt` all accept
 //! an [`IntoVar<T>`] input that gets converted into a [`Var<T>`] when the property is instantiated.
-//! 
+//!
 //! There are multiple variable types, they can be a simple static value, a shared observable and modifiable value or a
 //! contextual value. Variables can also depend on other variables automatically updating when input variables update.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! # let _app = APP.minimal();
 //! fn ui(txt: impl IntoVar<Txt>) -> impl UiNode {
 //!     Text!(txt)
 //! }
-//! 
+//!
 //! ui("static value");
-//! 
+//!
 //! let txt = var(Txt::from("dynamic value"));
 //! ui(txt.clone());
 //! txt.set("change applied next update");
-//! 
+//!
 //! let show_txt = var(true);
 //! ui(expr_var!(if *#{show_txt} { #{txt}.clone() } else { Txt::from("") }));
-//! 
+//!
 //! ui(text::FONT_COLOR_VAR.map(|s| formatx!("font color is {s}")));
 //! ```
-//! 
+//!
 //! In the example a [`var`] clone is shared with the UI and a new value is scheduled for the next app update. Variable
 //! updates are batched, during each app update pass every property can observe the current value and schedule modifications to
 //! the value, the modifications are only applied after, potentially causing a new update pass if any value actually changed, see
 //! [var updates] in the [var module] documentation for more details.
-//! 
+//!
 //! The example also demonstrates the [`expr_var!`], a read-only observable variable that interpolates other variables, the
 //! value of this variable automatically update when any of the interpolated variables update.
-//! 
+//!
 //! And finally the example demonstrates a context var, `FONT_COLOR_VAR`. Context variables get their value from the
 //! *environment* where they are used, the UI in the example can show different a different text depending on where it is placed.
 //! Context variables are usually encapsulated by properties strongly associated with an widget, most of [`Text!`] properties just
 //! set a context var that affects all text instances in the widget they are placed and descendant widgets.
-//! 
+//!
 //! There are other useful variable types, see the [var module] module documentation for more details.
 //!
 //! [`var`]: var::var
@@ -208,20 +208,20 @@
 //! [var module]: crate::var
 //! [`IntoVar<T>`]: var::IntoVar
 //! [`Var<T>`]: var::Var
-//! 
+//!
 //! # Context
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! # let _app = APP.minimal();
-//! # let _ = 
+//! # let _ =
 //! Stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 10;
 //!     
 //!     text::font_color = colors::RED;
-//! 
+//!
 //!     children = ui_vec![
 //!         Button! { child = Text!("Text 1"); },
 //!         Button! { child = Text!("Text 2"); },
@@ -233,30 +233,30 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! In the example above "Text 1" and "Text 2" are rendered in red and "Text 3" is rendered in green. The context
 //! of a widget is important, `text::font_color` sets text color in the `Stack!` widget and all descendant widgets,
 //! the color is overridden in the third `Button!` for the context of that button and descendants, the `Text!`
 //! widget has a different appearance just by being in a different context.
-//! 
+//!
 //! Note that the text widget can also set the color directly, in the following example the "Text 4" is blue, this
 //! value is still contextual, but texts are usually leaf widgets so only the text is affected.
-//! 
+//!
 //! ```
 //! # use zero_ui::prelude::*;
 //! # let _app = APP.minimal();
-//! # let _ = 
+//! # let _ =
 //! Text! {
 //!     txt = "Text 4";
 //!     font_color = colors::BLUE;
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! In the example above a context variable defines the text color, but not just variables are contextual, layout
 //! units and widget services are also contextual, widget implementers may declare custom contextual values too,
 //! see [context local] in the app module documentation for more details.
-//! 
+//!
 //! [context local]: app#context-local
 //!  
 //! # Services
@@ -264,13 +264,13 @@
 //! ```
 //! use zero_ui::prelude::*;
 //! use zero_ui::clipboard::CLIPBOARD;
-//! 
+//!
 //! # let _app = APP.minimal();
-//! # let _ = 
+//! # let _ =
 //! Stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 10;
-//! 
+//!
 //!     children = {
 //!         let txt = var(Txt::from(""));
 //!         let txt_is_err = var(false);
@@ -302,28 +302,28 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! The example above uses two services, `CLIPBOARD` and `WIDGET`. Services are represented
 //! by an unit struct named like a static item, service functionality is available as methods on
 //! this unit struct. Services are contextual, `CLIPBOARD` exists on the app context, it can only operate
 //! in app threads, `WIDGET` represents the current widget and can only be used inside an widget.
-//! 
+//!
 //! The default app provides multiple services, some common ones are [`APP`], [`WINDOWS`], [`WINDOW`], [`WIDGET`],
 //! [`FOCUS`], [`POPUP`], [`DATA`] and more. Services all follow the same pattern, they are a unit struct named like a static
-//! item, if you see such a type it is a service. 
-//! 
+//! item, if you see such a type it is a service.
+//!
 //! [`WINDOWS`]: window::WINDOWS
 //! [`WINDOW`]: window::WINDOW
 //! [`WIDGET`]: widget::WIDGET
 //! [`FOCUS`]: focus::FOCUS
 //! [`POPUP`]: popup::POPUP
 //! [`DATA`]: data_context::DATA
-//! 
+//!
 //! # Events & Commands
-//! 
+//!
 //! ```no_run
 //! use zero_ui::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
-//! 
+//!
 //! APP.defaults().run_window(async {
 //!     let cmd = PASTE_CMD.scoped(WINDOW.id());
 //!     let paste_btn = Button! {
@@ -331,9 +331,12 @@
 //!         widget::enabled = cmd.is_enabled();
 //!         widget::visibility = cmd.has_handlers().map_into();
 //!         tooltip = Tip!(Text!(cmd.name_with_shortcut()));
-//!         on_click = hn!(|_| cmd.notify());
+//!         on_click = hn!(|args: &gesture::ClickArgs| {
+//!             args.propagation().stop();
+//!             cmd.notify();
+//!         });
 //!     };
-//! 
+//!
 //!     let pasted_txt = var(Txt::from(""));
 //!
 //!     Window! {
@@ -352,12 +355,40 @@
 //!     }
 //! });
 //! ```
-//! 
-//! The example above uses events and command events to display the clipboard text. TODO
-//! 
+//!
+//! The example above uses events and command events. Events are represented by a static instance
+//! of [`Event<A>`] with name suffix `_EVENT`. Events are usually abstracted by
+//! one or more event property, event properties are named with prefix `on_` and accept one input of
+//! [`impl WidgetHandler<A>`]. Commands are specialized events represented by a static instance of [`Command`]
+//! with name suffix `_CMD`. Every command is also an `Event<CommandArgs>`, unlike other events it is common
+//! for the command instance to be used directly.
+//!
+//! The `on_click` property handles the `CLICK_EVENT` when the click was done with the primary button and targets
+//! the widget or a descendant of the widget. The [`hn!`] is an widget handler that synchronously handles the event.
+//! See the [`event`] module documentation for details about event propagation, targeting and route. And see
+//! [`handler`] module for other hander types, including [`async_hn!`] that enables async `.await` in any event property.
+//!
+//! The example above defines a button for the `PASTE_CMD` command scoped on the window. Scoped commands are different
+//! instances of [`Command`], the command scope can be a window or widget ID, the scope is the target of the command and
+//! the context of the command metadata. In the example the button is only visible if the command scope (window) has
+//! a paste handler, the button is only enabled it at least one paste handler on the scope is enabled, the button also
+//! displays the command name and shortcut metadata, and finally on click the button notifies a command event that is
+//! received in `on_click`.
+//!
+//! Commands enable separation of concerns, the button in the example does not need to know what the window will do on paste,
+//! in fact the button does not even need to know what command it is requesting. Widgets can also be controlled using commands,
+//! the `Scroll!` widget for example can be controlled from anywhere else in the app using the [`scroll::cmd`] commands. See
+//! the [commands](event#commands) section in the event module documentation for more details.
+//!
+//! [`Event<A>`]: event::Event
+//! [`Command`]: event::Command
+//! [`impl WidgetHandler<A>`]: handler::WidgetHandler
+//! [`hn!`]: handler::hn
+//! [`async_hn!`]: handler::async_hn
+//!
 //! # Layout & Render
 //!
-//! 
+//! TODO
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
@@ -604,13 +635,13 @@ pub mod wgt_prelude {
 }
 
 /// Hash-map of type erased values, useful for storing assorted dynamic state.
-/// 
+///
 /// A new map can be instantiated using [`OwnedStateMap`], but in a typical app you use maps provided by
 /// the API. The most common widget maps are [`WIDGET.with_state_mut`] that is associated
 /// with the widget instance and [`WidgetInfoBuilder::meta`] that is associated with the widget info.
-/// 
+///
 /// See [`zero_ui_state_map`] for the full API.
-/// 
+///
 /// [`WIDGET.with_state_mut`]: widget::WIDGET::with_state_mut
 /// [`WidgetInfoBuilder::meta`]: widget::info::WidgetInfoBuilder::meta
 /// [`OwnedStateMap`]: state_map::OwnedStateMap
