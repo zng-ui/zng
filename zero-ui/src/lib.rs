@@ -386,9 +386,37 @@
 //! [`hn!`]: handler::hn!
 //! [`async_hn!`]: handler::async_hn!
 //!
-//! # Layout & Render
+//! # Layout
 //!
-//! TODO
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _app = APP.minimal();
+//! 
+//! # let _ = 
+//! Container! {
+//!     layout::size = (400, 350);
+//!     widget::background_color = colors::BLUE.darken(70.pct());    
+//! 
+//!     child = Button! {
+//!         child = Text!("Text");
+//!     
+//!         layout::align = layout::Align::CENTER;
+//!         layout::size = (60.pct(), 70.pct());
+//!     };
+//! }
+//! # ;
+//! ```
+//! 
+//! In the example above the container widget sets an exact size using `layout::size` with exact units, the
+//! button widget sets a relative size using percentage units and positions it-self in the container using `layout::align`.
+//! All the layout properties are stand-alone, in the example only the text widget implements layout directly. Layout
+//! properties modify the layout context by setting constraints and defining units, TODO
+//! 
+//! # In-Depth Documentation
+//! 
+//! This crate level documentation only gives an overview required to start making apps using existing widgets and properties.
+//! All top-level modules in this crate contains in-depth documentation about their subject, of particular importance the
+//! [`app`], [`widget`], [`layout`] and [`render`] modules should give you a solid understanding of how everything works.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
