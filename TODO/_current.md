@@ -13,6 +13,15 @@
 * Create a `TEXT` service that provides the `ResolvedText` and `LayoutText` instead of `::get()`, the
   associated get is an older pattern that was removed from all other services, window Vars for example become `WINDOW.vars()`.
 
+# Grid
+
+* Two columns with (default, leftover)X(default) fixes the height for the leftover widget as if it had the full width, 
+  instead of subtracting default. This causes a Text! to have more lines then the fixed height allows.
+  - Ideal algorithm computes fixed and defaults first, then leftover?
+  - Copy the WPF algorithm?
+    - https://github.com/dotnet/wpf/blob/137b671131455a5c252a297747725ddce5a21c63/src/Microsoft.DotNet.Wpf/src/PresentationFramework/System/Windows/Controls/Grid.cs#L357C39-L357C39
+    - MIT license.
+
 # Inspect
 
 * Cross cursor changed to widget cursor on hover.

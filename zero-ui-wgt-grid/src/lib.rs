@@ -63,7 +63,7 @@ pub fn cells(cells: impl UiNodeList) {}
 ///
 /// 1 - All *Exact* column widgets are layout, their final width defines the column width.
 /// 2 - All cell widgets with span `1` in *Cell* columns are measured, the widest defines the fill width constrain,
-/// the columns is layout using this constrain, the final width defines the column width.
+/// the columns are layout using this constrain, the final width defines the column width.
 /// 3 - All *Leftover* cells are layout with the leftover grid width divided among all columns in this mode.
 ///
 /// So given the columns `200 | 1.lft() | 1.lft()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
