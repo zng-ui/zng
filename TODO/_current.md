@@ -9,7 +9,6 @@
         - If the toolbar is not focusable it does not close when changing focus to another app?
     - Touch carets vanish when the toolbar opens.
         - Because of focus, needs to still show if focus is in toolbar.
-* Disable SELECT_ALL_CMD when text is empty.
 
 * Create a `TEXT` service that provides the `ResolvedText` and `LayoutText` instead of `::get()`, the
   associated get is an older pattern that was removed from all other services, window Vars for example become `WINDOW.vars()`.

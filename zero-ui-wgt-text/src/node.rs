@@ -1646,7 +1646,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let id = WIDGET.id();
 
                 self.select = SELECT_CMD.scoped(id).subscribe(true);
-                self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+                let is_empty = ResolvedText::get().txt.with(|t| t.is_empty());
+                self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(!is_empty);
             }
         }
 
@@ -2106,6 +2107,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.with(|| child.event(update));
         }
         UiNodeOp::Update { updates } => {
+            if let Some(edit) = &edit_data {
+                ResolvedText::get().txt.with_new(|t| {
+                    edit.select_all.set_enabled(!t.is_empty());
+                });
+            }
+
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 txt.pending.insert(PendingLayout::RESHAPE);
                 if let Some(t) = &mut txt.txt {
