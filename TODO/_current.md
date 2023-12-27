@@ -9,8 +9,6 @@
     - Test with multi-line.
 
 * Implement selection toolbar.
-    - Implement `selection_toolbar_fn`.
-        - If the toolbar is not focusable it does not close when changing focus to another app?
     - Touch carets vanish when the toolbar opens.
         - Because of focus, needs to still show if focus is in toolbar.
 

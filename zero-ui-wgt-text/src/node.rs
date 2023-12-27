@@ -3701,7 +3701,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                     if args.is_blur(WIDGET.id())
                         && open_id()
-                            .and_then(|id| args.new_focus.as_ref().map(|p| !p.contains(id)))
+                            .map(|id| args.new_focus.as_ref().map(|p| !p.contains(id)).unwrap_or(true))
                             .unwrap_or(false)
                     {
                         close = true;
