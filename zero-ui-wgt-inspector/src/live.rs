@@ -144,18 +144,38 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
     // so we only manually block common pointer events.
 
     let mut click_handle = EventHandles::dummy();
+    let mut _cursor_handle = VarHandle::dummy();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&hit_select);
         }
+        UiNodeOp::Deinit => {
+            _cursor_handle = VarHandle::dummy();
+            click_handle.clear();
+        }
         UiNodeOp::Update { .. } => {
             if let Some(h) = hit_select.get_new() {
                 if matches!(h, HitSelect::Enabled) {
-                    WINDOW.vars().cursor().set(CursorIcon::Crosshair);
+                    let cursor = WINDOW.vars().cursor();
+
+                    // set cursor to Crosshair and lock it in by resetting on a hook.
+                    cursor.set(CursorIcon::Crosshair);
+                    let weak_cursor = cursor.downgrade();
+                    _cursor_handle = cursor.hook(Box::new(move |a| {
+                        let icon = *a.value().as_any().downcast_ref::<Option<CursorIcon>>().unwrap();
+                        if icon != Some(CursorIcon::Crosshair) {
+                            let cursor = weak_cursor.upgrade().unwrap();
+                            cursor.set(CursorIcon::Crosshair);
+                        }
+                        true
+                    }));
+
                     click_handle.push(MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
                     click_handle.push(TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
                 } else {
                     WINDOW.vars().cursor().set(CursorIcon::Default);
+                    _cursor_handle = VarHandle::dummy();
+
                     click_handle.clear();
                 }
             }

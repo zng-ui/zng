@@ -457,7 +457,8 @@ pub mod prelude {
     pub use zero_ui_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zero_ui_var::{
-        context_var, expr_var, getter_var, merge_var, state_var, var, var_from, when_var, AnyVar as _, IntoValue, IntoVar, Var, VarValue,
+        context_var, expr_var, getter_var, merge_var, state_var, var, var_from, when_var, AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar,
+        Var, VarValue, WeakVar as _,
     };
 
     pub use crate::var::animation::easing;
@@ -616,8 +617,8 @@ pub mod wgt_prelude {
 
     pub use zero_ui_var::{
         context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
-        AnyVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var,
-        VarCapabilities, VarHandle, VarHandles, VarValue,
+        AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
+        ResponseVar, Var, VarCapabilities, VarHandle, VarHandles, VarValue, WeakVar as _,
     };
 
     pub use zero_ui_layout::{

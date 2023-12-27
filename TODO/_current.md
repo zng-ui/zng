@@ -13,9 +13,9 @@
 * Create a `TEXT` service that provides the `ResolvedText` and `LayoutText` instead of `::get()`, the
   associated get is an older pattern that was removed from all other services, window Vars for example become `WINDOW.vars()`.
 
-# Inspect
+# Var
 
-* Cross cursor changed to widget cursor on hover.
+* Create strong typed Var::hook.
 
 # Accessibility
 
