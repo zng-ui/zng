@@ -2,7 +2,6 @@
 
 * `WindowCloseRequestedArgs` windows list does not differentiate between headed and headless.
     - Can be confusing due to render tasks being able to set the headless window parent.
-* Restore to Maximized from Fullscreen.
 * Finish window vars.
     - Implement read-only properties?
 * Implement window `modal`.

@@ -5,9 +5,6 @@ Commands core API is implemented, TODO implement extensions and test all use cas
 * Make default `command_property!` be widget is enabled.
 * Add filter to `command_property!`.
   - We want to declare `on_cmd_disabled` like for some event properties do.
-* Make `command_property!` generate an user controlled enabled?
-  - Some commands depend on the content, can only `SAVE_AS` if there is a document open for example.
-  - Right now the command is always enabled.
 
 * Localize provided commands.
   - Don't need to actually translate, just `l10n!` it.

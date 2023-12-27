@@ -12,10 +12,7 @@ use zero_ui_ext_font::*;
 use zero_ui_ext_undo::*;
 use zero_ui_wgt::prelude::*;
 
-use super::{
-    node::{LayoutText, ResolvedText},
-    *,
-};
+use super::{node::TEXT, *};
 
 command! {
     /// Applies the [`TextEditOp`] into the text if it is editable.
@@ -68,6 +65,9 @@ impl TextEditOp {
     /// text edit operations must be undoable, first [`UndoOp::Redo`] is called to "do", then undo and redo again
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
+    /// 
+    /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
+    /// [`ResolvedText::pending_edit`]: super::node::ResolvedText::pending_edit
     pub fn new<D>(data: D, mut op: impl FnMut(&BoxedVar<Txt>, &mut D, UndoFullOp) + Send + 'static) -> Self
     where
         D: Send + Any + 'static,
@@ -96,7 +96,7 @@ impl TextEditOp {
 
         Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Init { redo } => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let caret = ctx.caret.lock();
 
                 let mut rmv_range = 0..0;
@@ -123,7 +123,7 @@ impl TextEditOp {
                 Self::apply_max_count(redo, txt, rmv_range, &mut data.insert)
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
 
                 let insert = &data.insert;
@@ -170,7 +170,7 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
                 caret.set_index(caret_idx);
                 caret.selection_index = selection_idx;
@@ -242,7 +242,7 @@ impl TextEditOp {
 
         Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Init { .. } => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let caret = ctx.caret.lock();
 
                 if let Some(range) = caret.selection_range() {
@@ -256,7 +256,7 @@ impl TextEditOp {
                 }
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
 
                 let rmv = match data.selection_state {
@@ -302,7 +302,7 @@ impl TextEditOp {
                 }))
                 .unwrap();
 
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
                 caret.set_index(caret_idx);
                 caret.selection_index = selection_idx;
@@ -367,7 +367,7 @@ impl TextEditOp {
 
         Self::new(data, move |txt, data, op| match op {
             UndoFullOp::Init { .. } => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let caret = ctx.caret.lock();
 
                 if let Some(range) = caret.selection_range() {
@@ -381,7 +381,7 @@ impl TextEditOp {
                 }
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
 
                 let rmv = match data.selection_state {
@@ -417,7 +417,7 @@ impl TextEditOp {
                     return;
                 }
 
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
                 let mut caret = ctx.caret.lock();
 
                 let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
@@ -501,7 +501,7 @@ impl TextEditOp {
 
         Self::new((), move |txt, _, op| match op {
             UndoFullOp::Init { redo } => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
 
                 select_before.start = ctx.segmented_text.snap_grapheme_boundary(select_before.start);
                 select_before.end = ctx.segmented_text.snap_grapheme_boundary(select_before.end);
@@ -513,7 +513,7 @@ impl TextEditOp {
                 Self::apply_max_count(redo, txt, select_before.clone(), &mut insert);
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
 
                 txt.modify(clmv!(select_before, insert, |args| {
                     args.to_mut().to_mut().replace_range(select_before, insert.as_str());
@@ -524,7 +524,7 @@ impl TextEditOp {
                 caret.set_char_selection(select_after.start, select_after.end);
             }
             UndoFullOp::Op(UndoOp::Undo) => {
-                let ctx = ResolvedText::get();
+                let ctx = TEXT.resolved();
 
                 select_after.start = ctx.segmented_text.snap_grapheme_boundary(select_after.start);
                 select_after.end = ctx.segmented_text.snap_grapheme_boundary(select_after.end);
@@ -723,6 +723,8 @@ impl TextSelectOp {
     /// the [`node::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
+    /// 
+    /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {
         Self {
             op: Arc::new(Mutex::new(op)),
@@ -941,7 +943,7 @@ impl TextSelectOp {
     /// Select the full text.
     pub fn select_all() -> Self {
         Self::new(|| {
-            let resolved = ResolvedText::get();
+            let resolved = TEXT.resolved();
             let mut c = resolved.caret.lock();
             c.set_char_selection(0, resolved.segmented_text.text().len());
             c.skip_next_scroll = true;
@@ -958,7 +960,7 @@ fn next_prev(
     insert_index_fn: fn(&SegmentedText, usize) -> usize,
     selection_index: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
 ) {
-    let resolved = ResolvedText::get();
+    let resolved = TEXT.resolved();
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
@@ -980,8 +982,8 @@ fn next_prev(
 
 fn line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
@@ -993,16 +995,16 @@ fn line_up_down(clear_selection: bool, diff: i8) {
 
     c.used_retained_x = true;
 
-    if layout.caret_origin.is_some() {
-        let last_line = layout.shaped_text.lines_len().saturating_sub(1);
+    if laidout.caret_origin.is_some() {
+        let last_line = laidout.shaped_text.lines_len().saturating_sub(1);
         let li = i.line;
         let next_li = li.saturating_add_signed(diff).min(last_line);
         if li != next_li {
-            match layout.shaped_text.line(next_li) {
+            match laidout.shaped_text.line(next_li) {
                 Some(l) => {
                     i.line = next_li;
-                    i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.segmented_text.text()),
+                    i.index = match l.nearest_seg(laidout.caret_retained_x) {
+                        Some(s) => s.nearest_char_index(laidout.caret_retained_x, resolved.segmented_text.text()),
                         None => l.text_range().end,
                     }
                 }
@@ -1025,8 +1027,8 @@ fn line_up_down(clear_selection: bool, diff: i8) {
 
 fn page_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as i32;
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
@@ -1036,21 +1038,21 @@ fn page_up_down(clear_selection: bool, diff: i8) {
         c.selection_index = Some(i);
     }
 
-    let page_y = layout.viewport.height * Px(diff);
+    let page_y = laidout.viewport.height * Px(diff);
     c.used_retained_x = true;
-    if layout.caret_origin.is_some() {
+    if laidout.caret_origin.is_some() {
         let li = i.line;
         if diff == -1 && li == 0 {
             c.set_char_index(0);
-        } else if diff == 1 && li == layout.shaped_text.lines_len() - 1 {
+        } else if diff == 1 && li == laidout.shaped_text.lines_len() - 1 {
             c.set_char_index(resolved.segmented_text.text().len());
-        } else if let Some(li) = layout.shaped_text.line(li) {
+        } else if let Some(li) = laidout.shaped_text.line(li) {
             let target_line_y = li.rect().origin.y + page_y;
-            match layout.shaped_text.nearest_line(target_line_y) {
+            match laidout.shaped_text.nearest_line(target_line_y) {
                 Some(l) => {
                     i.line = l.index();
-                    i.index = match l.nearest_seg(layout.caret_retained_x) {
-                        Some(s) => s.nearest_char_index(layout.caret_retained_x, resolved.segmented_text.text()),
+                    i.index = match l.nearest_seg(laidout.caret_retained_x) {
+                        Some(s) => s.nearest_char_index(laidout.caret_retained_x, resolved.segmented_text.text()),
                         None => l.text_range().end,
                     }
                 }
@@ -1068,8 +1070,8 @@ fn page_up_down(clear_selection: bool, diff: i8) {
 }
 
 fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize) {
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
@@ -1079,7 +1081,7 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
         c.selection_index = Some(i);
     }
 
-    if let Some(li) = layout.shaped_text.line(i.line) {
+    if let Some(li) = laidout.shaped_text.line(i.line) {
         i.index = index(li);
         c.set_index(i);
         c.used_retained_x = false;
@@ -1087,7 +1089,7 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
 }
 
 fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
-    let resolved = ResolvedText::get();
+    let resolved = TEXT.resolved();
 
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
@@ -1104,8 +1106,8 @@ fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
 }
 
 fn nearest_to(clear_selection: bool, window_point: DipPoint) {
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
     let mut i = c.index.unwrap_or(CaretIndex::ZERO);
@@ -1122,14 +1124,14 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     c.used_retained_x = false;
 
     //if there was at least one layout
-    let info = layout.render_info.lock();
+    let info = laidout.render_info.lock();
     if let Some(pos) = info
         .transform
         .inverse()
         .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
     {
         //if has rendered
-        i = match layout.shaped_text.nearest_line(pos.y) {
+        i = match laidout.shaped_text.nearest_line(pos.y) {
             Some(l) => CaretIndex {
                 line: l.index(),
                 index: match l.nearest_seg(pos.x) {
@@ -1150,8 +1152,8 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
 }
 
 fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
 
@@ -1171,13 +1173,13 @@ fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
         c.index.as_mut().unwrap()
     };
 
-    let info = layout.render_info.lock();
+    let info = laidout.render_info.lock();
     if let Some(pos) = info
         .transform
         .inverse()
         .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
     {
-        *i = match layout.shaped_text.nearest_line(pos.y) {
+        *i = match laidout.shaped_text.nearest_line(pos.y) {
             Some(l) => CaretIndex {
                 line: l.index(),
                 index: match l.nearest_seg(pos.x) {
@@ -1192,20 +1194,20 @@ fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
 }
 
 fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
-    let resolved = ResolvedText::get();
-    let layout = LayoutText::get();
+    let resolved = TEXT.resolved();
+    let laidout = TEXT.laidout();
 
     let mut c = resolved.caret.lock();
 
-    //if there was at least one layout
-    let info = layout.render_info.lock();
+    //if there was at least one laidout
+    let info = laidout.render_info.lock();
     if let Some(pos) = info
         .transform
         .inverse()
         .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
     {
         //if has rendered
-        if let Some(l) = layout.shaped_text.nearest_line(pos.y) {
+        if let Some(l) = laidout.shaped_text.nearest_line(pos.y) {
             let range = if select_word {
                 let max_char = l.actual_text_caret_range().end;
                 let mut r = l.nearest_seg(pos.x).map(|seg| seg.text_range()).unwrap_or_else(|| l.text_range());

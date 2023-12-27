@@ -74,7 +74,7 @@ pub struct CaretInfo {
 
     /// If the index was set by using the [`caret_retained_x`].
     ///
-    /// [`caret_retained_x`]: LayoutText::caret_retained_x
+    /// [`caret_retained_x`]: LaidoutText::caret_retained_x
     pub used_retained_x: bool,
 
     /// Don't scroll to new caret position on the next update.
@@ -179,7 +179,53 @@ pub struct ImePreview {
     pub prev_selection: Option<CaretIndex>,
 }
 
+/// Text internals used by text implementer nodes and properties.
+///
+/// The text implementation is split between two contexts, [`resolve_text`] and [`layout_text`], this service
+/// provides access to data produced y these two contexts.
+pub struct TEXT;
+
+impl TEXT {
+    /// Gets the current contextual resolved text if called in a node inside [`resolve_text`].
+    pub fn try_resolved(&self) -> Option<Arc<ResolvedText>> {
+        if RESOLVED_TEXT.is_default() {
+            None
+        } else {
+            Some(RESOLVED_TEXT.get())
+        }
+    }
+
+    /// Get the current contextual resolved text.
+    ///
+    /// # Panics
+    ///
+    /// Panics if requested in a node outside [`resolve_text`].
+    pub fn resolved(&self) -> Arc<ResolvedText> {
+        RESOLVED_TEXT.get()
+    }
+
+    /// Gets the current contextual laidout text if called in a node inside [`layout_text`].
+    pub fn try_laidout(&self) -> Option<Arc<LaidoutText>> {
+        if LAIDOUT_TEXT.is_default() {
+            None
+        } else {
+            Some(LAIDOUT_TEXT.get())
+        }
+    }
+
+    /// Get the current contextual laidout text.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not available in context. Is only available inside [`layout_text`] after the first layout.
+    pub fn laidout(&self) -> Arc<LaidoutText> {
+        LAIDOUT_TEXT.get()
+    }
+}
+
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
+///
+/// Use [`TEXT`] to get.
 pub struct ResolvedText {
     /// The text source variable.
     pub txt: BoxedVar<Txt>,
@@ -254,15 +300,6 @@ impl ResolvedText {
         !RESOLVED_TEXT.is_default()
     }
 
-    /// Get the current contextual resolved text.
-    ///
-    /// # Panics
-    ///
-    /// Panics if requested in a node outside [`resolve_text`].
-    pub fn get() -> Arc<ResolvedText> {
-        RESOLVED_TEXT.get()
-    }
-
     fn call_edit_op(ctx: &mut Option<Self>, op: impl FnOnce() -> bool) {
         let registered = RESOLVED_TEXT.with_context_opt(ctx, op);
         if registered {
@@ -293,9 +330,11 @@ impl Default for RenderInfo {
     }
 }
 
-/// Represents the layout text.
+/// Represents the laidout text.
+///
+/// Use [`TEXT`] to get.
 #[derive(Debug)]
-pub struct LayoutText {
+pub struct LaidoutText {
     /// Sized [`faces`].
     ///
     /// [`faces`]: ResolvedText::faces
@@ -367,7 +406,7 @@ pub struct LayoutText {
     pub viewport: PxSize,
 }
 
-impl Clone for LayoutText {
+impl Clone for LaidoutText {
     fn clone(&self) -> Self {
         Self {
             fonts: self.fonts.clone(),
@@ -391,41 +430,27 @@ impl Clone for LayoutText {
         }
     }
 }
-impl LayoutText {
+impl LaidoutText {
     fn no_context() -> Self {
-        panic!("no `LayoutText` in context, only available inside `layout_text` during layout and render")
-    }
-
-    /// Gets if the current code has layout text in context.
-    pub fn in_context() -> bool {
-        !LAYOUT_TEXT.is_default()
-    }
-
-    /// Get the current contextual layout text.
-    ///
-    /// # Panics
-    ///
-    /// Panics if not available in context. Is only available inside [`layout_text`] after the first layout.
-    pub fn get() -> Arc<LayoutText> {
-        LAYOUT_TEXT.get()
+        panic!("no `LaidoutText` in context, only available inside `layout_text` during layout and render")
     }
 
     fn call_select_op(ctx: &mut Option<Self>, op: impl FnOnce()) {
-        LAYOUT_TEXT.with_context_opt(ctx, op);
+        LAIDOUT_TEXT.with_context_opt(ctx, op);
     }
 }
 
 context_local! {
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
     static RESOLVED_TEXT: ResolvedText = ResolvedText::no_context();
-    /// Represents the contextual [`LayoutText`] setup by the [`layout_text`] node.
-    static LAYOUT_TEXT: LayoutText  = LayoutText::no_context();
+    /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
+    static LAIDOUT_TEXT: LaidoutText  = LaidoutText::no_context();
 }
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `Text!` widget includes this node in the [`NestGroup::EVENT`] group,
-/// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::get`] function.
+/// so all properties except [`NestGroup::CONTEXT`] have access using the [`TEXT::resolved`] method.
 ///
 /// This node also sets the accessibility label to the resolved text.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
@@ -1164,13 +1189,13 @@ bitflags! {
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
-/// This node setups the [`LayoutText`] for all inner nodes, the `Text!` widget includes this
+/// This node setups the [`LaidoutText`] for all inner nodes, the `Text!` widget includes this
 /// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`]
 /// can affect the layout normally and custom properties can be created to be inside this group and have access
-///  to the [`LayoutText::get`] function.
+///  to the [`TEXT::laidout`] method.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct FinalText {
-        txt: Option<LayoutText>,
+        txt: Option<LaidoutText>,
         shaping_args: TextShapingArgs,
         pending: PendingLayout,
 
@@ -1193,7 +1218,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             if self.txt.is_none() {
                 let fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
-                self.txt = Some(LayoutText {
+                self.txt = Some(LaidoutText {
                     shaped_text: ShapedText::new(fonts.best()),
                     overflow: None,
                     overflow_suffix: None,
@@ -1548,7 +1573,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
 
                 if self.pending.contains(PendingLayout::CARET) {
-                    let resolved_text = ResolvedText::get();
+                    let resolved_text = TEXT.resolved();
                     let mut caret = resolved_text.caret.lock();
                     let caret = &mut *caret;
                     if let Some(index) = &mut caret.index {
@@ -1602,7 +1627,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         fn with(&mut self, f: impl FnOnce()) {
             if self.txt.is_some() {
-                LAYOUT_TEXT.with_context_opt(&mut self.txt, f)
+                LAIDOUT_TEXT.with_context_opt(&mut self.txt, f)
             }
         }
     }
@@ -1646,18 +1671,18 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let id = WIDGET.id();
 
                 self.select = SELECT_CMD.scoped(id).subscribe(true);
-                let is_empty = ResolvedText::get().txt.with(|t| t.is_empty());
+                let is_empty = TEXT.resolved().txt.with(|t| t.is_empty());
                 self.select_all = SELECT_ALL_CMD.scoped(id).subscribe(!is_empty);
             }
         }
 
-        fn update_ime(&self, txt: &mut LayoutText) {
+        fn update_ime(&self, txt: &mut LaidoutText) {
             let transform = txt.render_info.get_mut().transform;
             let area;
 
             if let Some(a) = txt.caret_origin {
                 let (ac, bc) = {
-                    let ctx = ResolvedText::get();
+                    let ctx = TEXT.resolved();
                     let c = ctx.caret.lock();
                     (c.index, c.selection_index)
                 };
@@ -1789,7 +1814,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                     resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                    LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
                                             if word {
                                                 TextSelectOp::select_next_word()
@@ -1814,7 +1839,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                     resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                    LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
                                             if word {
                                                 TextSelectOp::select_prev_word()
@@ -1839,7 +1864,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                         resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                        LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
                                                 TextSelectOp::select_line_up()
                                             } else {
@@ -1859,7 +1884,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                         resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                        LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
                                                 TextSelectOp::select_line_down()
                                             } else {
@@ -1879,7 +1904,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                         resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                        LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
                                                 TextSelectOp::select_page_up()
                                             } else {
@@ -1899,7 +1924,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                         resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                        LayoutText::call_select_op(&mut txt.txt, || {
+                                        LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
                                                 TextSelectOp::select_page_down()
                                             } else {
@@ -1919,7 +1944,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                     resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                    LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
                                             if full_text {
                                                 TextSelectOp::select_text_start()
@@ -1944,7 +1969,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                                     resolved.touch_carets.store(false, Ordering::Relaxed);
 
-                                    LayoutText::call_select_op(&mut txt.txt, || {
+                                    LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
                                             if full_text {
                                                 TextSelectOp::select_text_end()
@@ -2004,7 +2029,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 1
                             };
 
-                            LayoutText::call_select_op(&mut txt.txt, || {
+                            LaidoutText::call_select_op(&mut txt.txt, || {
                                 match click_count {
                                     1 => if select {
                                         TextSelectOp::select_nearest_to(args.position)
@@ -2047,7 +2072,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                         resolved.touch_carets.store(true, Ordering::Relaxed);
 
-                        LayoutText::call_select_op(&mut txt.txt, || {
+                        LaidoutText::call_select_op(&mut txt.txt, || {
                             TextSelectOp::nearest_to(args.position).call();
                         });
                     }
@@ -2057,7 +2082,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
                         resolved.touch_carets.store(true, Ordering::Relaxed);
 
-                        LayoutText::call_select_op(&mut txt.txt, || {
+                        LaidoutText::call_select_op(&mut txt.txt, || {
                             TextSelectOp::select_word_nearest_to(true, args.position).call();
                         });
                     }
@@ -2065,7 +2090,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if !selection_move_handles.is_dummy() && selectable {
                         args.propagation().stop();
 
-                        LayoutText::call_select_op(&mut txt.txt, || match click_count {
+                        LaidoutText::call_select_op(&mut txt.txt, || match click_count {
                             1 => TextSelectOp::select_nearest_to(args.position).call(),
                             2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
                             3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
@@ -2082,11 +2107,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if let Some(op) = args.param::<TextSelectOp>() {
                             args.propagation().stop();
 
-                            LayoutText::call_select_op(&mut txt.txt, || op.clone().call());
+                            LaidoutText::call_select_op(&mut txt.txt, || op.clone().call());
                         }
                     } else if let Some(args) = SELECT_ALL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                         args.propagation().stop();
-                        LayoutText::call_select_op(&mut txt.txt, || TextSelectOp::select_all().call());
+                        LaidoutText::call_select_op(&mut txt.txt, || TextSelectOp::select_all().call());
                     }
                 }
 
@@ -2108,7 +2133,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Update { updates } => {
             if let Some(edit) = &edit_data {
-                ResolvedText::get().txt.with_new(|t| {
+                TEXT.resolved().txt.with_new(|t| {
                     edit.select_all.set_enabled(!t.is_empty());
                 });
             }
@@ -2372,7 +2397,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An Ui node that renders the default underline visual using the parent [`LayoutText`].
+/// An Ui node that renders the default underline visual using the parent [`LaidoutText`].
 ///
 /// The lines are rendered before `child`, under it.
 ///
@@ -2383,7 +2408,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var_render(&UNDERLINE_STYLE_VAR).sub_var_render(&UNDERLINE_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
 
             if !t.underlines.is_empty() {
                 let style = UNDERLINE_STYLE_VAR.get();
@@ -2404,7 +2429,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An Ui node that renders the default IME preview underline visual using the parent [`LayoutText`].
+/// An Ui node that renders the default IME preview underline visual using the parent [`LaidoutText`].
 ///
 ///
 /// The lines are rendered before `child`, under it.
@@ -2416,7 +2441,7 @@ pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var_render(&IME_UNDERLINE_STYLE_VAR).sub_var_render(&FONT_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
 
             if !t.ime_underlines.is_empty() {
                 let style = IME_UNDERLINE_STYLE_VAR.get();
@@ -2437,7 +2462,7 @@ pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An Ui node that renders the default strikethrough visual using the parent [`LayoutText`].
+/// An Ui node that renders the default strikethrough visual using the parent [`LaidoutText`].
 ///
 /// The lines are rendered after `child`, over it.
 ///
@@ -2450,7 +2475,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
                 .sub_var_render(&STRIKETHROUGH_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
             if !t.strikethroughs.is_empty() {
                 let style = STRIKETHROUGH_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
@@ -2470,7 +2495,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An Ui node that renders the default overline visual using the parent [`LayoutText`].
+/// An Ui node that renders the default overline visual using the parent [`LaidoutText`].
 ///
 /// The lines are rendered before `child`, under it.
 ///
@@ -2481,7 +2506,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var_render(&OVERLINE_STYLE_VAR).sub_var_render(&OVERLINE_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
             if !t.overlines.is_empty() {
                 let style = OVERLINE_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
@@ -2517,8 +2542,8 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             child.render(frame);
 
             if TEXT_EDITABLE_VAR.get() {
-                let t = LayoutText::get();
-                let resolved = ResolvedText::get();
+                let t = TEXT.laidout();
+                let resolved = TEXT.resolved();
 
                 if let (false, Some(mut origin)) = (resolved.touch_carets.load(Ordering::Relaxed), t.caret_origin) {
                     let mut c = CARET_COLOR_VAR.get();
@@ -2536,11 +2561,11 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             child.render_update(update);
 
             if TEXT_EDITABLE_VAR.get() {
-                let resolved = ResolvedText::get();
+                let resolved = TEXT.resolved();
 
                 if !resolved.touch_carets.load(Ordering::Relaxed) {
                     let mut c = CARET_COLOR_VAR.get();
-                    c.alpha = ResolvedText::get().caret.lock().opacity.get().0;
+                    c.alpha = TEXT.resolved().caret.lock().opacity.get().0;
 
                     update.update_color(color_key.update(c.into(), true))
                 }
@@ -2579,7 +2604,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
 
-            let r_txt = ResolvedText::get();
+            let r_txt = TEXT.resolved();
 
             let caret = r_txt.caret.lock();
             let mut expected_len = 0;
@@ -2638,7 +2663,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
 
             if !carets.is_empty() {
                 if carets.len() == 1 {
-                    let t = LayoutText::get();
+                    let t = TEXT.laidout();
                     if let Some(mut origin) = t.caret_origin {
                         let mut l = carets[0].layout.lock();
                         if l.width == Px::MIN {
@@ -2655,7 +2680,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 } else if carets.len() == 2 || carets.len() == 4 {
-                    let t = LayoutText::get();
+                    let t = TEXT.laidout();
 
                     if let (Some(index), Some(s_index), Some(mut origin), Some(mut s_origin)) =
                         (caret.index, caret.selection_index, t.caret_origin, t.caret_selection_origin)
@@ -2740,7 +2765,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
             if let Some(inner_rev) = WIDGET.info().inner_transform().inverse() {
-                let text = LayoutText::get().render_info.lock().transform.then(&inner_rev);
+                let text = TEXT.laidout().render_info.lock().transform.then(&inner_rev);
 
                 for c in &carets {
                     let mut l = c.layout.lock();
@@ -2918,7 +2943,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
             let factor = LAYOUT.scale_factor();
             let size = Dip::new(16).to_px(factor);
             *final_size = PxSize::splat(size);
-            final_size.height += LayoutText::get().shaped_text.line_height();
+            final_size.height += TEXT.laidout().shaped_text.line_height();
 
             let caret_thickness = Dip::new(1).to_px(factor);
 
@@ -2949,7 +2974,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
                 size.width *= 0.8;
             }
 
-            let line_height = LayoutText::get().shaped_text.line_height();
+            let line_height = TEXT.laidout().shaped_text.line_height();
 
             let rect = PxRect::new(PxPoint::new(Px(0), line_height), size);
             frame.push_clip_rounded_rect(rect, corners, false, false, |frame| {
@@ -3004,10 +3029,10 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
             }
         }
         UiNodeOp::Render { frame } => {
-            let r_txt = ResolvedText::get();
+            let r_txt = TEXT.resolved();
 
             if let Some(range) = r_txt.caret.lock().selection_range() {
-                let l_txt = LayoutText::get();
+                let l_txt = TEXT.laidout();
                 let r_txt = r_txt.segmented_text.text();
 
                 let mut selection_color = SELECTION_COLOR_VAR.get();
@@ -3026,7 +3051,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An UI node that renders the parent [`LayoutText`].
+/// An UI node that renders the parent [`LaidoutText`].
 ///
 /// This node renders the text only, decorators are rendered by other nodes.
 ///
@@ -3062,26 +3087,27 @@ pub fn render_text() -> impl UiNode {
             rendered = None;
         }
         UiNodeOp::Update { .. } => {
-            if (FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new()) && LayoutText::in_context() {
-                let t = LayoutText::get();
-                if t.shaped_text.has_colored_glyphs() {
-                    WIDGET.render();
+            if FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new() {
+                if let Some(t) = TEXT.try_laidout() {
+                    if t.shaped_text.has_colored_glyphs() {
+                        WIDGET.render();
+                    }
                 }
             }
         }
         UiNodeOp::Measure { desired_size, .. } => {
-            let txt = LayoutText::get();
+            let txt = TEXT.laidout();
             *desired_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
         }
         UiNodeOp::Layout { final_size, .. } => {
             // layout implemented in `layout_text`, it sets the size as an exact size constraint, we return
             // the size here for foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range.
-            let txt = LayoutText::get();
+            let txt = TEXT.laidout();
             *final_size = LAYOUT.constraints().fill_size_or(txt.shaped_text.size())
         }
         UiNodeOp::Render { frame } => {
-            let r = ResolvedText::get();
-            let t = LayoutText::get();
+            let r = TEXT.resolved();
+            let t = TEXT.laidout();
 
             let lh = t.shaped_text.line_height();
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
@@ -3222,7 +3248,7 @@ pub fn render_text() -> impl UiNode {
         }
         UiNodeOp::RenderUpdate { update } => {
             {
-                let t = LayoutText::get();
+                let t = TEXT.laidout();
                 let mut info = t.render_info.lock();
                 info.transform = *update.transform();
             }
@@ -3259,7 +3285,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
         match op {
             UiNodeOp::Init => {
                 c.init();
-                let _ = index.set(ResolvedText::get().caret.lock().index);
+                let _ = index.set(TEXT.resolved().caret.lock().index);
             }
             UiNodeOp::Deinit => {
                 let _ = index.set(None);
@@ -3275,7 +3301,7 @@ pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<Car
             _ => {}
         }
         if u {
-            let t = ResolvedText::get();
+            let t = TEXT.resolved();
             let idx = t.caret.lock().index;
             if !t.pending_edit && index.get() != idx {
                 let _ = index.set(idx);
@@ -3291,7 +3317,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
         match op {
             UiNodeOp::Init => {
                 c.init();
-                let t = ResolvedText::get();
+                let t = TEXT.resolved();
                 let _ = status.set(match t.caret.lock().index {
                     None => CaretStatus::none(),
                     Some(i) => CaretStatus::new(i.index, &t.segmented_text),
@@ -3311,7 +3337,7 @@ pub(super) fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretSta
             _ => {}
         }
         if u {
-            let t = ResolvedText::get();
+            let t = TEXT.resolved();
             let idx = t.caret.lock().index;
             if !t.pending_edit && status.get().index() != idx.map(|ci| ci.index) {
                 let _ = status.set(match idx {
@@ -3331,7 +3357,7 @@ pub(super) fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> imp
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
             let l = t.shaped_text.lines_len();
             if l != len.get() {
                 let _ = len.set(t.shaped_text.lines_len());
@@ -3350,7 +3376,7 @@ pub(super) fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<super
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
-            let t = LayoutText::get();
+            let t = TEXT.laidout();
             if t.shaped_text_version != version {
                 version = t.shaped_text_version;
                 if let Some(update) = lines.with(|l| lines_wrap_count(l, &t.shaped_text)) {
@@ -3475,7 +3501,7 @@ where
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            let ctx = ResolvedText::get();
+            let ctx = TEXT.resolved();
 
             // initial T -> Txt sync
             let _ = ctx.txt.set_from_map(&value, |val| val.to_txt());
@@ -3554,7 +3580,7 @@ where
                     // requested parse and parse is pending
 
                     state.store(State::Requested, Ordering::Relaxed);
-                    let _ = ResolvedText::get().txt.update();
+                    let _ = TEXT.resolved().txt.update();
                     args.propagation().stop();
                 }
             }
@@ -3564,7 +3590,7 @@ where
                 if matches!(state.load(Ordering::Relaxed), State::Pending) {
                     // enabled live parse and parse is pending
 
-                    let _ = ResolvedText::get().txt.update();
+                    let _ = TEXT.resolved().txt.update();
                 }
             }
 
@@ -3610,7 +3636,7 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
             }
         }
         UiNodeOp::Update { updates } => {
-            if ResolvedText::get().txt.is_new() {
+            if TEXT.resolved().txt.is_new() {
                 let deadline = TIMERS.deadline(CHANGE_STOP_DELAY_VAR.get());
                 deadline.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                 pending = Some(deadline);
@@ -3689,7 +3715,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 }
 
                 if popup_state.is_some() {
-                    let r_txt = ResolvedText::get();
+                    let r_txt = TEXT.resolved();
                     if selection_range != r_txt.caret.lock().selection_range() {
                         close = true;
                     }
@@ -3709,7 +3735,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             }
         }
         if open {
-            let r_txt = ResolvedText::get();
+            let r_txt = TEXT.resolved();
 
             let range = r_txt.caret.lock().selection_range();
             if open_long_press || range.is_some() {
@@ -3730,7 +3756,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                             c.with_context(WidgetUpdateMode::Bubble, || WIDGET.sub_var_layout(&SELECTION_TOOLBAR_ANCHOR_VAR));
                         }
                         UiNodeOp::Layout { wl, final_size } => {
-                            let r_txt = ResolvedText::get();
+                            let r_txt = TEXT.resolved();
 
                             let range = if open_long_press {
                                 let caret = r_txt.caret.lock();
@@ -3743,7 +3769,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                             };
 
                             if let Some(range) = range {
-                                let l_txt = LayoutText::get();
+                                let l_txt = TEXT.laidout();
                                 let r_txt = r_txt.segmented_text.text();
 
                                 let mut bounds = PxBox::new(PxPoint::splat(Px::MAX), PxPoint::splat(Px::MIN));
@@ -3774,21 +3800,21 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                             };
                         }
                         UiNodeOp::Render { frame } => {
-                            let l_txt = LayoutText::get();
+                            let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
                             frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
                                 c.render(frame)
                             });
                         }
                         UiNodeOp::RenderUpdate { update } => {
-                            let l_txt = LayoutText::get();
+                            let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.lock().transform.then_translate(translate.cast());
                             update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
                         }
                         _ => {}
                     });
 
-                    // capture all context including LayoutText, exclude text style properties.
+                    // capture all context including LaidoutText, exclude text style properties.
                     let capture = ContextCapture::CaptureBlend {
                         filter: CaptureFilter::Exclude({
                             let mut exclude = ContextValueSet::new();

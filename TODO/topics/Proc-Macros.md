@@ -58,3 +58,7 @@ pub mod foo {
 * Pre-build to wasm: 
     Need $crate support, or to be able to read cargo.toml from wasm,
     both aren't natively supported with [`watt`](https://crates.io/crates/watt).
+
+# Property Attributes
+
+* Define API for custom property attributes (same used by `#[easing]`).

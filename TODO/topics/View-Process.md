@@ -20,7 +20,6 @@
 ## Platforms
 
 * OpenGL texture, in-game screen, multi-process tab apps.
-* Apple OS.
 * Android.
 * WebAssembly.
   - Use HtmlElements to render?

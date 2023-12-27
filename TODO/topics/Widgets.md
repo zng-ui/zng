@@ -35,7 +35,7 @@ Layout widgets.
   - Cell borders that don't affect size.
   - Selection borders, backgrounds.
 * Implement reverse `UiNodeList` and other ops in the lists directly.
-  - Like sorting and the z-index has worked well, other auto-updating "iterator inspired" helpers are probably pretty cool.
+  - Sorting and the z-index has worked well, implement other auto-updating "iterator inspired" helpers.
 
 ## Virtualizing Widgets
 
@@ -49,7 +49,7 @@ Widgets that contain many elements that must be loaded on demand.
 
 ## Window Widgets
 
-Widgets that stay at the root of the Window and define type of app interaction that is used in the window.
+Widgets that derive from Window and define type of app interaction.
 
 * Custom decoration.
 * Wizard.
@@ -71,10 +71,3 @@ Widgets that stay at the root of the Window and define type of app interaction t
 
 * Message dialogs (styleable?).
 * File dialogs (not styleable?).
-
-## Inspector
-
-Widget inspector.
-
-* Console, a print-out of the window state.
-* UI, an interactive window like the browsers inspectors.

@@ -6,11 +6,6 @@
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
 * Review all docs.
     - Mentions of threads in particular.
-  
-* Review order of properties in docs.
-    - Inner module impl are placed first in the docs.
-    - Generate some tag in each impl block, use JS to reorder?
-    - Still not enough, properties in inner modules have higher priority over those in the same module as the struct.
 
 * Figure out how to test some doc examples. 
   There are multiple code examples wrapped in a `macro_rules! _demo {() => { .. }}` declaration because

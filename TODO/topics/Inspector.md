@@ -18,3 +18,5 @@
     - We use the info context captured in the inspector outer node, the widget may use a different context.
 
 * Function to get source code file and line at property declaration.
+
+* Make text selectable.

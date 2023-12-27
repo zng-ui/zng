@@ -537,7 +537,7 @@ pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
             let _ = state.set(false);
         }
         UiNodeOp::Layout { .. } => {
-            let is_o = super::node::LayoutText::get().overflow.is_some();
+            let is_o = super::node::TEXT.laidout().overflow.is_some();
             if is_o != state.get() {
                 let _ = state.set(is_o);
             }
@@ -558,7 +558,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
             let _ = state.set(false);
         }
         UiNodeOp::Layout { .. } => {
-            let txt = super::node::LayoutText::get();
+            let txt = super::node::TEXT.laidout();
             let is_o = if let Some(info) = &txt.overflow {
                 info.line < txt.shaped_text.lines_len().saturating_sub(1) as _
             } else {
@@ -582,9 +582,9 @@ pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
     let txt = txt.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Layout { .. } = op {
-            let l_txt = super::node::LayoutText::get();
+            let l_txt = super::node::TEXT.laidout();
             if let Some(info) = &l_txt.overflow {
-                let r = super::node::ResolvedText::get();
+                let r = super::node::TEXT.resolved();
                 let tail = &r.segmented_text.text()[info.text_char..];
                 if txt.with(|t| t != tail) {
                     let _ = txt.set(Txt::from_str(tail));
@@ -1392,7 +1392,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
     let chars = chars.into_var();
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
-            let ctx = super::node::ResolvedText::get();
+            let ctx = super::node::TEXT.resolved();
             let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
             let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
             WIDGET.push_var_handle(handle);
@@ -1555,7 +1555,7 @@ pub struct ChangeStopArgs {
 impl ChangeStopArgs {
     /// Resolved text is available in the handler.
     pub fn txt(&self) -> std::sync::Arc<super::node::ResolvedText> {
-        super::node::ResolvedText::get()
+        super::node::TEXT.resolved()
     }
 }
 
@@ -1726,8 +1726,8 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
             WIDGET.sub_var_render(&range).sub_var_render_update(&color);
         }
         UiNodeOp::Render { frame } => {
-            let l_txt = super::node::LayoutText::get();
-            let r_txt = super::node::ResolvedText::get();
+            let l_txt = super::node::TEXT.laidout();
+            let r_txt = super::node::TEXT.resolved();
             let r_txt = r_txt.segmented_text.text();
 
             for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {

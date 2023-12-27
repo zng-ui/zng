@@ -1,7 +1,7 @@
 # Canvas TODO
 
-- Implement canvas API in `zero-ui-view-api`, it should communicate in real time, each command send over IPC without blocking
-the main loop.
+- Implement canvas API in `zero-ui-view-api`, 
+- It should communicate in real time, each command send over IPC without blocking the main loop?
 
 - Use `pathfinder_canvas`, it should work well with `webrender` as it is a servo project.
     - Check if we can use `swgl` with `pathfinder` or any software renderer.
