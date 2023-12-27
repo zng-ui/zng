@@ -55,14 +55,14 @@ pub fn cells(cells: impl UiNodeList) {}
 ///
 /// The grid uses the [`WIDGET_SIZE`] value to select one of three layout modes for columns:
 ///
-/// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
-/// * *Exact*, used for columns that set the width to a different unit.
+/// * *Default*, used for columns that do not set width or set it to [`Length::Default`].
+/// * *Exact*, used for columns that set the width to an unit that is exact or only depends on the grid context.
 /// * *Leftover*, used for columns that set width to a [`lft`] value.
 ///
 /// The column layout follows these steps:
 ///
 /// 1 - All *Exact* column widgets are layout, their final width defines the column width.
-/// 2 - All cell widgets with span `1` in *Cell* columns are measured, the widest defines the fill width constrain,
+/// 2 - All cell widgets with span `1` in *Default* columns are measured, the widest defines the fill width constrain,
 /// the columns are layout using this constrain, the final width defines the column width.
 /// 3 - All *Leftover* cells are layout with the leftover grid width divided among all columns in this mode.
 ///
@@ -1088,6 +1088,7 @@ impl fmt::Debug for ColRowMeta {
 #[derive(Clone, Copy, Debug)]
 struct ColumnLayout {
     meta: ColRowMeta,
+    was_leftover: bool,
     x: Px,
     width: Px,
 }
@@ -1095,6 +1096,7 @@ impl Default for ColumnLayout {
     fn default() -> Self {
         Self {
             meta: ColRowMeta::default(),
+            was_leftover: false,
             x: Px::MIN,
             width: Px::MIN,
         }
@@ -1103,6 +1105,7 @@ impl Default for ColumnLayout {
 #[derive(Clone, Copy, Debug)]
 struct RowLayout {
     meta: ColRowMeta,
+    was_leftover: bool,
     y: Px,
     height: Px,
 }
@@ -1110,6 +1113,7 @@ impl Default for RowLayout {
     fn default() -> Self {
         Self {
             meta: ColRowMeta::default(),
+            was_leftover: false,
             y: Px::MIN,
             height: Px::MIN,
         }
@@ -1305,6 +1309,7 @@ impl GridLayout {
                 }
                 WidgetLength::Leftover(f) => {
                     col_info.meta = ColRowMeta::leftover(f);
+                    col_info.was_leftover = true;
                     has_leftover_cols = true;
                 }
                 WidgetLength::Exact => {
@@ -1328,6 +1333,7 @@ impl GridLayout {
                 }
                 WidgetLength::Leftover(f) => {
                     row_info.meta = ColRowMeta::leftover(f);
+                    row_info.was_leftover = true;
                     has_leftover_rows = true;
                 }
                 WidgetLength::Exact => {
@@ -1353,10 +1359,13 @@ impl GridLayout {
 
         // Measure cells when needed, collect widest/tallest.
         //  - For `Default` columns&rows to get their size.
-        //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
+        //  - For `leftover` columns&rows when the grid is not fill or exact size, to get the `1.lft()` length.
+        //  - For leftover x default a second pass later in case the constrained leftover causes a different default.
+        let mut has_leftover_x_default = false;
         let columns_len = self.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             let c = LAYOUT.constraints();
+
             cells.for_each(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
@@ -1393,6 +1402,8 @@ impl GridLayout {
                         let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
+
+                        has_leftover_x_default = true;
                     }
                 } else if col_is_exact {
                     if row_is_default {
@@ -1407,6 +1418,8 @@ impl GridLayout {
                     let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
 
                     row.height = row.height.max(size.height);
+
+                    has_leftover_x_default = true;
                 }
             });
         }
@@ -1668,6 +1681,46 @@ impl GridLayout {
                 row.height = Px(height as i32);
                 row.meta = ColRowMeta::exact();
             }
+        }
+
+        if has_leftover_x_default {
+            // second measure pass with constrained leftovers to get a more accurate default
+
+            let c = LAYOUT.constraints();
+
+            cells.for_each(|i, cell| {
+                let cell_info = cell::CellInfo::get_wgt(cell);
+                if cell_info.column_span > 1 || cell_info.row_span > 1 {
+                    return; // continue;
+                }
+
+                let cell_info = cell_info.actual(i, columns_len);
+
+                let col = &mut self.columns[cell_info.column];
+                let row = &mut self.rows[cell_info.row];
+
+                let col_is_default = col.meta.is_default() || (fill_x.is_none() && col.was_leftover);
+                let col_is_leftover = col.was_leftover;
+
+                let row_is_default = row.meta.is_default() || (fill_y.is_none() && row.was_leftover);
+                let row_is_leftover = row.was_leftover;
+
+                if col_is_default {
+                    if row_is_leftover {
+                        // (default, leftover)
+
+                        let size = LAYOUT.with_constraints(c.with_fill(false, false).with_exact_y(row.height), || cell.measure(wm));
+
+                        col.width = col.width.max(size.width);
+                    }
+                } else if row_is_default && col_is_leftover {
+                    // (leftover, default)
+
+                    let size = LAYOUT.with_constraints(c.with_fill(false, false).with_exact_x(col.width), || cell.measure(wm));
+
+                    row.height = row.height.max(size.height);
+                }
+            });
         }
 
         // compute column&row offsets
