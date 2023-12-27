@@ -90,28 +90,19 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
     fn foo_handler() -> impl UiNode {
         let mut _handle = None;
         let mut _handle_scoped = None;
-        let mut _handle_scoped_wgt = None;
         match_node_leaf(move |op| match op {
             UiNodeOp::Init => {
                 _handle = Some(FOO_CMD.subscribe(true));
-                _handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
-                _handle_scoped_wgt = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
+                _handle_scoped = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
             }
             UiNodeOp::Deinit => {
                 _handle = None;
                 _handle_scoped = None;
-                _handle_scoped_wgt = None;
             }
             UiNodeOp::Event { update } => {
                 if let Some(args) = FOO_CMD.on(update) {
                     args.handle(|args| {
                         TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
-                    });
-                }
-
-                if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
-                    args.handle(|args| {
-                        TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
                     });
                 }
 
@@ -125,8 +116,30 @@ async fn listener_window(focused_wgt: bool) -> window::WindowRoot {
         })
     }
 
+    fn foo_window_handler() -> impl UiNode {
+        let mut _handle_scoped = None;
+
+        match_node_leaf(move |op| match op {
+            UiNodeOp::Init => {
+                _handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
+            }
+            UiNodeOp::Deinit => {
+                _handle_scoped = None;
+            }
+            UiNodeOp::Event { update } => {
+                if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
+                    args.handle(|args| {
+                        TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
+                    });
+                }
+            }
+            _ => {}
+        })
+    }
+
     Window! {
         parallel = false;
+        child_top = foo_window_handler(), 0;
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![

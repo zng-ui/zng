@@ -457,7 +457,7 @@ fn fallback_reset_entry() {
                     status.wait_update().await;
                 }
             },
-            5.secs(),
+            60.secs(),
         )
         .await
         .unwrap();

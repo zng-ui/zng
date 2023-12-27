@@ -518,8 +518,8 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets for [`CommandScope::App`]. Targets the window root for [`CommandScope::Window`] if found.
-        /// Target ancestors and widget for [`CommandScope::Widget`], if it is found.
+        /// Broadcast to all widget subscribers for [`CommandScope::App`]. Targets the window root for
+        /// [`CommandScope::Window`] if found. Target ancestors and widget for [`CommandScope::Widget`], if it is found.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             match self.scope {
                 CommandScope::Widget(id) => list.search_widget(id),
