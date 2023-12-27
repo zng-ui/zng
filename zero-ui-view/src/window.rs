@@ -25,7 +25,7 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_txt::Txt;
-use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
+use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
@@ -1663,17 +1663,11 @@ impl Window {
 
     #[cfg(windows)]
     pub(crate) fn set_ime_open(&mut self, open: bool) {
-        self.ime_open = dbg!(open);
+        self.ime_open = open;
     }
 
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
-        if let Some(mut a) = area {
-            if cfg!(windows) {
-                // Windows IME covers the exclusion area so we pre-compute the exclusion
-                a.origin.y += a.size.height;
-                a.size = DipSize::splat(Dip::new(1));
-            }
-
+        if let Some(a) = area {
             if self.ime_area != Some(a) {
                 if self.ime_area.is_none() {
                     self.window.set_ime_allowed(true);
@@ -1683,31 +1677,6 @@ impl Window {
                 self.window.set_ime_cursor_area(a.origin.to_winit(), a.size.to_winit());
             }
         } else if self.ime_area.is_some() {
-            #[cfg(windows)]
-            if self.ime_open {
-                unsafe {
-                    use windows_sys::Win32::UI::Input::Ime::*;
-
-                    // Cancel IME before disassociating, winit calls `ImmAssociateContextEx(hwnd, 0, IACE_CHILDREN)`,
-                    // if an IME is open it can get confused, the MS Japanese IME for example, will reopen detached at
-                    // a screen corner and showing the old "composition text with green arrow".
-                    //
-                    // DOWNSIDE:
-                    //
-                    // This causes the IME mode to reset for the window, the user will need to set the IME mode again,
-                    // for example, in MS Japanese they will need to press the Hiragana(ctrl+caps) key again.
-                    // Other apps (Chrome, WPF apps) don't have this issue, so there is a better way to fix this that I haven't found.
-
-                    let hwnd = crate::util::winit_to_hwnd(&self.window);
-                    let himc = ImmGetContext(hwnd);
-                    if himc != 0 {
-                        ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
-                        ImmSetOpenStatus(himc, 0);
-                        ImmReleaseContext(hwnd, himc);
-                    }
-                }
-            }
-
             self.window.set_ime_allowed(false);
             self.ime_area = None;
         }

@@ -65,7 +65,7 @@ impl TextEditOp {
     /// text edit operations must be undoable, first [`UndoOp::Redo`] is called to "do", then undo and redo again
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
-    /// 
+    ///
     /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
     /// [`ResolvedText::pending_edit`]: super::node::ResolvedText::pending_edit
     pub fn new<D>(data: D, mut op: impl FnMut(&BoxedVar<Txt>, &mut D, UndoFullOp) + Send + 'static) -> Self
@@ -723,7 +723,7 @@ impl TextSelectOp {
     /// the [`node::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
-    /// 
+    ///
     /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {
         Self {
