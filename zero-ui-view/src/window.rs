@@ -1599,7 +1599,19 @@ impl Window {
             .set_file_name(dialog.starting_name.as_str())
             .set_parent(&self.window);
         for (name, patterns) in dialog.iter_filters() {
-            dlg = dlg.add_filter(name, &patterns.map(|s| s.trim_start_matches(['*', '.'])).collect::<Vec<_>>());
+            dlg = dlg.add_filter(
+                name,
+                &patterns
+                    .map(|s| {
+                        let s = s.trim_start_matches(['*', '.']);
+                        if s.is_empty() {
+                            "*"
+                        } else {
+                            s
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
 
         let modal_dialog_active = self.modal_dialog_active.clone();

@@ -17,6 +17,7 @@ pub(crate) const ENCODERS: &[&str] = &[
     "png",
     "jpg",
     "jpeg",
+    "jfif",
     "gif",
     "ico",
     "bmp",
