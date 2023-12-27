@@ -247,12 +247,12 @@ impl POPUP {
     pub fn close(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
-                .hook(Box::new(|a| {
+                .hook(|a| {
                     if let PopupState::Open(id) = a.downcast_value::<PopupState>().unwrap() {
                         POPUP_CLOSE_CMD.scoped(*id).notify_param(PopupCloseMode::Request);
                     }
                     false
-                }))
+                })
                 .perm(),
             PopupState::Open(id) => self.close_id(id),
             PopupState::Closed => {}
@@ -263,12 +263,12 @@ impl POPUP {
     pub fn force_close(&self, state: &ReadOnlyArcVar<PopupState>) {
         match state.get() {
             PopupState::Opening => state
-                .hook(Box::new(|a| {
+                .hook(|a| {
                     if let PopupState::Open(id) = a.downcast_value::<PopupState>().unwrap() {
                         POPUP_CLOSE_CMD.scoped(*id).notify_param(PopupCloseMode::Force);
                     }
                     false
-                }))
+                })
                 .perm(),
             PopupState::Open(id) => self.force_close_id(id),
             PopupState::Closed => {}

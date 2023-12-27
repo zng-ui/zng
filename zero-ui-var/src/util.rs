@@ -82,7 +82,9 @@ macro_rules! impl_from_and_into_var {
 
 use parking_lot::RwLock;
 
-use super::{animation::ModifyInfo, VarHandle, VarHook, VarHookArgs, VarModify, VarUpdateId, VarValue, VARS};
+use crate::AnyVarHookArgs;
+
+use super::{animation::ModifyInfo, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, VARS};
 
 #[doc(hidden)]
 #[macro_export]
@@ -325,7 +327,7 @@ impl<T: VarValue> VarData<T> {
         self.0.read().animation.importance()
     }
 
-    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
         self.0.write().hooks.push(weak);
         hook
@@ -362,7 +364,7 @@ impl<T: VarValue> VarData<T> {
             if !hooks.is_empty() {
                 let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
 
-                let args = VarHookArgs::new(&meta.value, update, &tags);
+                let args = AnyVarHookArgs::new(&meta.value, update, &tags);
                 hooks.retain(|h| h.call(&args));
 
                 drop(meta);

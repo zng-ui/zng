@@ -54,7 +54,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarCapabilities::empty()
     }
 
-    fn hook(&self, _: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    fn hook_any(&self, _: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         VarHandle::dummy()
     }
 

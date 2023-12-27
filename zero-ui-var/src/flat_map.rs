@@ -42,17 +42,17 @@ where
             let mut data = flat.write();
             let weak_flat = Arc::downgrade(&flat);
             let map = Mutex::new(map);
-            data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
-            data.source_handle = source.hook(Box::new(move |args| {
+            data.var_handle = data.var.hook_any(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
+            data.source_handle = source.hook_any(Box::new(move |args| {
                 if let Some(flat) = weak_flat.upgrade() {
                     if let Some(value) = args.downcast_value() {
                         let mut data = flat.write();
                         let data = &mut *data;
                         data.var = map.lock()(value);
-                        data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
+                        data.var_handle = data.var.hook_any(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
                         data.last_update = VARS.update_id();
                         data.var.with(|value| {
-                            let args = VarHookArgs::new(value, args.update(), args.tags());
+                            let args = AnyVarHookArgs::new(value, args.update(), args.tags());
                             data.hooks.retain(|h| h.call(&args));
                         });
                     }
@@ -66,7 +66,7 @@ where
         Self(flat)
     }
 
-    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
         Box::new(move |args| {
             if let Some(flat) = weak_flat.upgrade() {
                 let mut data = flat.write();
@@ -160,7 +160,7 @@ where
         self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (handle, weak_handle) = VarHandle::new(pos_modify_action);
         self.0.write().hooks.push(weak_handle);
         handle

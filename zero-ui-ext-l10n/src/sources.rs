@@ -271,7 +271,7 @@ impl SwapL10nSource {
             if let Some(res) = f.res.upgrade() {
                 let actual_f = self.actual.lang_resource(lang.clone(), file.clone());
                 f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                f.res_strong_actual = res.hook(Box::new(move |_| {
+                f.res_strong_actual = res.hook_any(Box::new(move |_| {
                     // strong ref to `actual_f` is held by `res`.
                     let _hold = &actual_f;
                     true
@@ -314,7 +314,7 @@ impl L10nSource for SwapL10nSource {
 
                     let res = var(actual_f.get());
                     f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                    f.res_strong_actual = res.hook(Box::new(move |_| {
+                    f.res_strong_actual = res.hook_any(Box::new(move |_| {
                         // strong ref to `actual_f` is held by `res`.
                         let _hold = &actual_f;
                         true
@@ -336,7 +336,7 @@ impl L10nSource for SwapL10nSource {
 
                 let res = var(actual_f.get());
                 f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                f.res_strong_actual = res.hook(Box::new(move |_| {
+                f.res_strong_actual = res.hook_any(Box::new(move |_| {
                     // strong ref to `actual_f` is held by `res`.
                     let _hold = &actual_f;
                     true

@@ -74,14 +74,14 @@ impl<M: ConfigMap> SyncConfig<M> {
         let wk_var = var.downgrade();
         let last_update = Atomic::new(VarUpdateId::never());
         sync_var
-            .hook(Box::new(clmv!(key, |map| {
+            .hook(clmv!(key, |map| {
                 let update_id = VARS.update_id();
                 if update_id == last_update.load(Ordering::Relaxed) {
                     return true;
                 }
                 last_update.store(update_id, Ordering::Relaxed);
                 if let Some(var) = wk_var.upgrade() {
-                    match map.downcast_value::<M>().unwrap().get_raw(&key) {
+                    match map.value().get_raw(&key) {
                         Ok(raw) => {
                             // get ok
                             if let Some(raw) = raw {
@@ -100,20 +100,20 @@ impl<M: ConfigMap> SyncConfig<M> {
                     // entry var dropped, drop hook
                     false
                 }
-            })))
+            }))
             .perm();
 
         // entry -> config
         let wk_sync_var = sync_var.downgrade();
         let last_update = Atomic::new(VarUpdateId::never());
-        var.hook(Box::new(clmv!(|value| {
+        var.hook(clmv!(|value| {
             let update_id = VARS.update_id();
             if update_id == last_update.load(Ordering::Relaxed) {
                 return true;
             }
             last_update.store(update_id, Ordering::Relaxed);
             if let Some(sync_var) = wk_sync_var.upgrade() {
-                let raw = value.downcast_value::<RawConfigValue>().unwrap().clone();
+                let raw = value.value().clone();
                 sync_var.modify(clmv!(key, |m| {
                     // set, only if actually changed
                     match ConfigMap::set_raw(m, key.clone(), raw) {
@@ -133,7 +133,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                 // config dropped, drop hook
                 false
             }
-        })))
+        }))
         .perm();
 
         var.boxed()
@@ -158,9 +158,9 @@ impl<M: ConfigMap> SyncConfig<M> {
         // config -> entry
         let wk_var = var.downgrade();
         sync_var
-            .hook(Box::new(clmv!(key, |map| {
+            .hook(clmv!(key, |map| {
                 if let Some(var) = wk_var.upgrade() {
-                    match map.downcast_value::<M>().unwrap().get::<T>(&key) {
+                    match map.value().get::<T>(&key) {
                         Ok(value) => {
                             if let Some(value) = value {
                                 var.set(value);
@@ -174,14 +174,14 @@ impl<M: ConfigMap> SyncConfig<M> {
                 } else {
                     false
                 }
-            })))
+            }))
             .perm();
 
         // entry -> config
         let wk_sync_var = sync_var.downgrade();
-        var.hook(Box::new(clmv!(|value| {
+        var.hook(clmv!(|value| {
             if let Some(sync_var) = wk_sync_var.upgrade() {
-                let value = value.downcast_value::<T>().unwrap().clone();
+                let value = value.value().clone();
                 sync_var.modify(clmv!(key, |m| {
                     match ConfigMap::set(m, key.clone(), value) {
                         Ok(()) => {}
@@ -194,7 +194,7 @@ impl<M: ConfigMap> SyncConfig<M> {
             } else {
                 false
             }
-        })))
+        }))
         .perm();
 
         var.boxed()

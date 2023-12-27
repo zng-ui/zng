@@ -39,7 +39,7 @@ use zero_ui_handle::{Handle, HandleOwner};
 use zero_ui_txt::Txt;
 use zero_ui_unit::TimeUnits;
 use zero_ui_var::{
-    types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarHookArgs, VarUpdateId, VarValue, WeakVar, VARS,
+    types::WeakArcVar, var, AnyVar, AnyVarHookArgs, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarUpdateId, VarValue, WeakVar, VARS,
 };
 
 use zero_ui_task as task;
@@ -1406,11 +1406,11 @@ impl SyncWithVar {
         let var_hook_and_modify = Arc::new(var_hook_and_modify);
 
         let var = var(init);
-        var.hook(Box::new(clmv!(
+        var.hook_any(Box::new(clmv!(
             path,
             latest_from_read,
             var_hook_and_modify,
-            |args: &VarHookArgs| {
+            |args: &AnyVarHookArgs| {
                 let is_read = args.downcast_tags::<Arc<WatcherSyncWriteNote>>().any(|n| n == &path);
                 latest_from_read.store(is_read, Ordering::Relaxed);
                 var_hook_and_modify(is_read);

@@ -24,7 +24,7 @@ impl<'a, V: AnyVar> WaitUpdateFut<'a, V> {
         } else {
             // has not changed since init or last poll, register hook
             let waker = cx.waker().clone();
-            let handle = self.var.hook(Box::new(move |_| {
+            let handle = self.var.hook_any(Box::new(move |_| {
                 waker.wake_by_ref();
                 false
             }));
@@ -115,7 +115,7 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
 
             // hook with normal var updates, `is_animating && is_new` is always `true`.
             let waker = cx.waker().clone();
-            let start_hook = self.var.hook(Box::new(move |_| {
+            let start_hook = self.var.hook_any(Box::new(move |_| {
                 waker.wake_by_ref();
                 false
             }));

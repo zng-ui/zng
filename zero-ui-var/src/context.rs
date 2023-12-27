@@ -161,8 +161,8 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
-        self.0.get().hook(pos_modify_action)
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+        self.0.get().hook_any(pos_modify_action)
     }
 
     fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {

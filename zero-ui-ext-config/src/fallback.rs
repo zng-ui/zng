@@ -119,7 +119,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // bind cfg_var -> res_var, handles potential bidi binding
         let weak_res_var = res_var.downgrade();
         cfg_var
-            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+            .hook(clmv!(fall_res_enabled, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
                     if !is_from_other {
@@ -128,7 +128,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                         // disable fallback->res binding
                         fall_res_enabled.store(false, Ordering::Relaxed);
 
-                        let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
+                        let value = args.value().clone();
 
                         res_var.modify(move |v| {
                             if v.as_ref() != &value {
@@ -142,16 +142,16 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 } else {
                     false
                 }
-            })))
+            }))
             .perm();
 
         // bind fallback_var -> res_var.
         let weak_res_var = res_var.downgrade();
         fall_var
-            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+            .hook(clmv!(fall_res_enabled, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     if fall_res_enabled.load(Ordering::Relaxed) {
-                        let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
+                        let value = args.value().clone();
                         res_var.modify(move |v| {
                             if v.as_ref() != &value {
                                 v.set(value);
@@ -165,17 +165,17 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 } else {
                     false
                 }
-            })))
+            }))
             .perm();
 
         // bind cfg_contains_key_var to restore sync with fallback_var when cannot sync with cfg_var anymore.
         let weak_fall_var = fall_var.downgrade();
         let weak_res_var = res_var.downgrade();
         cfg_contains_key_var
-            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+            .hook(clmv!(fall_res_enabled, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     // still alive
-                    let can_reset = args.downcast_value::<bool>().unwrap();
+                    let can_reset = *args.value();
                     if !can_reset && !fall_res_enabled.load(Ordering::Relaxed) {
                         // cfg_var removed and we are sync with it.
                         if let Some(fall_var) = weak_fall_var.upgrade() {
@@ -193,12 +193,12 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 } else {
                     false
                 }
-            })))
+            }))
             .perm();
 
         // map res_var -> cfg_var, manages fallback binding.
         res_var
-            .hook(Box::new(move |args| {
+            .hook(move |args| {
                 let _strong_ref = (&fall_var, &cfg_contains_key_var);
 
                 let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
@@ -210,7 +210,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                         fall_res_enabled.store(true, Ordering::Relaxed);
                     } else {
                         fall_res_enabled.store(false, Ordering::Relaxed);
-                        let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
+                        let value = args.value().clone();
                         let _ = cfg_var.modify(move |v| {
                             if v.as_ref() != &value {
                                 v.set(value);
@@ -221,7 +221,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 }
 
                 true
-            }))
+            })
             .perm();
 
         res_var.boxed()

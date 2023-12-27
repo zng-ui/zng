@@ -418,8 +418,8 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
         if let UiNodeOp::Init = op {
             let actual = HOVERED_TIMESTAMP_VAR.actual_var();
             is_hovered
-                .hook(Box::new(move |a| {
-                    let is_hovered = *a.downcast_value::<bool>().unwrap();
+                .hook(move |a| {
+                    let is_hovered = *a.value();
                     let _ = actual.modify(move |a| {
                         if is_hovered {
                             a.set(Some(timestamp));
@@ -428,7 +428,7 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
                         }
                     });
                     true
-                }))
+                })
                 .perm();
         }
     });

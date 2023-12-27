@@ -959,7 +959,7 @@ mod modify_importance {
 
         let test = var(Txt::from_static("v0"));
         let ease = var(0i32);
-        test.hook(Box::new(clmv!(ease, |_| {
+        test.hook_any(Box::new(clmv!(ease, |_| {
             ease.ease(100, 10.ms(), easing::linear).perm();
             false // once
         })))

@@ -38,7 +38,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
             let mut data = cow.write();
             if let Data::Source { source, source_handle, .. } = &mut *data {
                 let weak_cow = Arc::downgrade(&cow);
-                *source_handle = source.hook(Box::new(move |value| {
+                *source_handle = source.hook_any(Box::new(move |value| {
                     if let Some(cow) = weak_cow.upgrade() {
                         match &mut *cow.write() {
                             Data::Source { hooks, .. } => {
@@ -72,7 +72,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         });
                         let value = new_value.unwrap_or_else(|| source.get());
                         if notify {
-                            let hook_args = VarHookArgs::new(&value, update, &tags);
+                            let hook_args = AnyVarHookArgs::new(&value, update, &tags);
                             hooks.retain(|h| h.call(&hook_args));
                             VARS.wake_app();
                         }
@@ -108,7 +108,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                                 *value = nv;
                             }
                             *last_update = VARS.update_id();
-                            let hook_args = VarHookArgs::new(value, update, &tags);
+                            let hook_args = AnyVarHookArgs::new(value, update, &tags);
                             hooks.retain(|h| h.call(&hook_args));
                             VARS.wake_app();
                         }
@@ -188,7 +188,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {

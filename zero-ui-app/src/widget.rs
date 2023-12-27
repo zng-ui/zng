@@ -23,7 +23,7 @@ use zero_ui_layout::unit::{Layout1d, Layout2d, Px};
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zero_ui_task::ui::UiTask;
 use zero_ui_txt::{formatx, Txt};
-use zero_ui_var::{AnyVar, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarHookArgs, VarValue};
+use zero_ui_var::{AnyVar, AnyVarHookArgs, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
 use zero_ui_view_api::display_list::ReuseRange;
 
 use crate::{
@@ -1979,7 +1979,7 @@ pub trait AnyVarSubscribe: AnyVar {
 impl<V: AnyVar> AnyVarSubscribe for V {
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
         if !self.capabilities().is_always_static() {
-            self.hook(var_subscribe(op, widget_id))
+            self.hook_any(var_subscribe(op, widget_id))
         } else {
             VarHandle::dummy()
         }
@@ -2025,7 +2025,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
 }
 impl<T: VarValue, V: Var<T>> VarSubscribe<T> for V {
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
-        self.hook(var_subscribe_when(op, widget_id, predicate))
+        self.hook_any(var_subscribe_when(op, widget_id, predicate))
     }
 }
 
@@ -2095,7 +2095,7 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
     }
 }
 
-fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
     Box::new(move |_| {
         UPDATES.update_op(op, widget_id);
         true
@@ -2106,7 +2106,7 @@ fn var_subscribe_when<T: VarValue>(
     op: UpdateOp,
     widget_id: WidgetId,
     when: impl Fn(&T) -> bool + Send + Sync + 'static,
-) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
     Box::new(move |a| {
         if let Some(a) = a.downcast_value::<T>() {
             if when(a) {
@@ -2129,33 +2129,31 @@ where
 
     let handler = Arc::new(Mutex::new(handler));
     let (inner_handle_owner, inner_handle) = Handle::new(());
-    var.hook(Box::new(move |args| {
+    var.hook(move |args| {
         if inner_handle_owner.is_dropped() {
             return false;
         }
 
-        if let Some(value) = args.downcast_value::<T>() {
-            let handle = inner_handle.downgrade();
-            let value = value.clone();
-            let tags = args.tags().iter().map(|t| (*t).clone_boxed()).collect();
-            let update_once = app_hn_once!(handler, value, |_| {
-                handler.lock().event(
-                    &OnVarArgs::new(value, tags),
-                    &AppHandlerArgs {
-                        handle: &handle,
-                        is_preview,
-                    },
-                );
-            });
+        let handle = inner_handle.downgrade();
+        let value = args.value().clone();
+        let tags = args.tags().iter().map(|t| (*t).clone_boxed()).collect();
+        let update_once = app_hn_once!(handler, value, |_| {
+            handler.lock().event(
+                &OnVarArgs::new(value, tags),
+                &AppHandlerArgs {
+                    handle: &handle,
+                    is_preview,
+                },
+            );
+        });
 
-            if is_preview {
-                UPDATES.on_pre_update(update_once).perm();
-            } else {
-                UPDATES.on_update(update_once).perm();
-            }
+        if is_preview {
+            UPDATES.on_pre_update(update_once).perm();
+        } else {
+            UPDATES.on_update(update_once).perm();
         }
         true
-    }))
+    })
 }
 
 /// Arguments for a var event handler.

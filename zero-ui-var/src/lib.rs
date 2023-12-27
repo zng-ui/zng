@@ -276,14 +276,14 @@ impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
     perm: AtomicBool,
-    action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>,
+    action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>,
 }
 
 /// Represents the var side of a [`VarHandle`].
 struct VarHook(Arc<VarHandleData>);
 impl VarHook {
     /// Calls the handle action, returns `true` if the handle must be retained.
-    pub fn call(&self, args: &VarHookArgs) -> bool {
+    pub fn call(&self, args: &AnyVarHookArgs) -> bool {
         self.is_alive() && (self.0.action)(args)
     }
 
@@ -302,7 +302,7 @@ impl VarHook {
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
     /// New handle, the `action` depends on the behavior the handle represents.
-    fn new(action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+    fn new(action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
             action,
@@ -555,7 +555,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle;
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register a `handler` to be called when the current animation stops.
     ///
@@ -963,13 +963,13 @@ impl<'a, T: VarValue> std::convert::AsRef<T> for VarModify<'a, T> {
     }
 }
 
-/// Arguments for [`AnyVar::hook`].
-pub struct VarHookArgs<'a> {
+/// Arguments for [`AnyVar::hook_any`].
+pub struct AnyVarHookArgs<'a> {
     value: &'a dyn AnyVarValue,
     update: bool,
     tags: &'a [Box<dyn AnyVarValue>],
 }
-impl<'a> VarHookArgs<'a> {
+impl<'a> AnyVarHookArgs<'a> {
     /// New from updated value and custom tag.
     pub fn new(value: &'a dyn AnyVarValue, update: bool, tags: &'a [Box<dyn AnyVarValue>]) -> Self {
         Self { value, update, tags }
@@ -1011,15 +1011,46 @@ impl<'a> VarHookArgs<'a> {
     pub fn downcast_tags<T: VarValue>(&self) -> impl Iterator<Item = &T> + '_ {
         self.tags.iter().filter_map(|t| (*t).as_any().downcast_ref::<T>())
     }
+
+    /// Try cast to strongly typed args.
+    pub fn as_strong<T: VarValue>(&self) -> Option<VarHookArgs<T>> {
+        if TypeId::of::<T>() == self.value_type() {
+            Some(VarHookArgs {
+                any: self,
+                _t: PhantomData,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Arguments for [`Var::hook`].
+pub struct VarHookArgs<'a, T: VarValue> {
+    any: &'a AnyVarHookArgs<'a>,
+    _t: PhantomData<&'a T>,
+}
+impl<'a, T: VarValue> VarHookArgs<'a, T> {
+    /// Reference the updated value.
+    pub fn value(&self) -> &'a T {
+        self.any.value.as_any().downcast_ref::<T>().unwrap()
+    }
+}
+impl<'a, T: VarValue> ops::Deref for VarHookArgs<'a, T> {
+    type Target = AnyVarHookArgs<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        self.any
+    }
 }
 
 /// Args for [`Var::trace_value`].
 pub struct TraceValueArgs<'a, T: VarValue> {
-    args: &'a VarHookArgs<'a>,
+    args: &'a AnyVarHookArgs<'a>,
     _type: PhantomData<&'a T>,
 }
 impl<'a, T: VarValue> ops::Deref for TraceValueArgs<'a, T> {
-    type Target = VarHookArgs<'a>;
+    type Target = AnyVarHookArgs<'a>;
 
     fn deref(&self) -> &Self::Target {
         self.args
@@ -1127,6 +1158,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The returned variable can still update if `self` is modified, but it does not have the `MODIFY` capability.
     fn read_only(&self) -> Self::ReadOnly;
+
+    /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
+    /// the `modify` closure. The closure can returns if it is retained after each call.
+    ///
+    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
+    /// the callback is discarded and [`VarHandle::dummy`] returned.
+    ///
+    /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
+    fn hook(&self, pos_modify_action: impl Fn(&VarHookArgs<T>) -> bool + Send + Sync + 'static) -> VarHandle {
+        // !!: TODO, rename after refactor, so we don't miss any .hook.
+        self.hook_any(Box::new(move |a| pos_modify_action(&a.as_strong().unwrap())))
+    }
 
     /// Create a future that awaits for the [`last_update`] to change.
     ///
@@ -1634,12 +1677,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     {
         let span = self.with(|v| {
             enter_value(&TraceValueArgs {
-                args: &VarHookArgs::new(v, false, &[]),
+                args: &AnyVarHookArgs::new(v, false, &[]),
                 _type: PhantomData,
             })
         });
         let data = Mutex::new((Some(span), enter_value));
-        self.hook(Box::new(move |args| {
+        self.hook_any(Box::new(move |args| {
             let mut data = data.lock();
             let (span, enter_value) = &mut *data;
             let _ = span.take();
@@ -2375,7 +2418,7 @@ where
 fn var_bind<I, O, V>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&I, &VarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&I, &AnyVarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -2392,7 +2435,7 @@ where
 fn var_bind_ok<I, O, W>(
     input: &impl Var<I>,
     wk_output: W,
-    update_output: impl FnMut(&I, &VarHookArgs, W::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&I, &AnyVarHookArgs, W::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -2400,7 +2443,7 @@ where
     W: WeakVar<O>,
 {
     let update_output = Mutex::new(update_output);
-    input.hook(Box::new(move |args| {
+    input.hook_any(Box::new(move |args| {
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
                 if let Some(value) = args.downcast_value::<I>() {

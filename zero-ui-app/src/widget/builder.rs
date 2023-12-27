@@ -928,7 +928,7 @@ impl dyn PropertyArgs + '_ {
                 let out_var = var(formatx!("{:?}", in_var.get_any()));
                 let wk_out_var = out_var.downgrade();
                 in_var
-                    .hook(Box::new(move |args| {
+                    .hook_any(Box::new(move |args| {
                         if let Some(out_var) = wk_out_var.upgrade() {
                             let _ = out_var.set_any(Box::new(formatx!("{:?}", args.value())));
                             true

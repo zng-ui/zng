@@ -126,7 +126,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
             // capacity can be n*2+1, but we only bet on conditions being `NEW`.
             let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
             if rc_when.default.capabilities().contains(VarCapabilities::NEW) {
-                input_handles.push(rc_when.default.hook(ArcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
+                input_handles.push(rc_when.default.hook_any(ArcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
             for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
                 if c.get() && data.active > i {
@@ -134,10 +134,10 @@ impl<T: VarValue> WhenVarBuilder<T> {
                 }
 
                 if c.capabilities().contains(VarCapabilities::NEW) {
-                    input_handles.push(c.hook(ArcWhenVar::handle_condition(wk_when.clone(), i)));
+                    input_handles.push(c.hook_any(ArcWhenVar::handle_condition(wk_when.clone(), i)));
                 }
                 if v.capabilities().contains(VarCapabilities::NEW) {
-                    input_handles.push(v.hook(ArcWhenVar::handle_value(wk_when.clone(), i)));
+                    input_handles.push(v.hook_any(ArcWhenVar::handle_value(wk_when.clone(), i)));
                 }
             }
 
@@ -293,7 +293,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         }
     }
 
-    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
         Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let data = rc_when.w.lock();
@@ -328,7 +328,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
         Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let data = rc_when.w.lock();
@@ -367,7 +367,7 @@ impl<T: VarValue> ArcWhenVar<T> {
             };
 
             active.with(|value| {
-                let args = VarHookArgs::new(value, update, &tags);
+                let args = AnyVarHookArgs::new(value, update, &tags);
                 data.hooks.retain(|h| h.call(&args));
             });
             VARS.wake_app();
@@ -496,7 +496,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (handle, hook) = VarHandle::new(pos_modify_action);
         self.0.w.lock().hooks.push(hook);
         handle

@@ -656,8 +656,8 @@ impl LAYERS {
             self.remove(id);
         } else {
             let items = WINDOW.with_state(|s| s.req(&WINDOW_LAYERS_ID).items.clone());
-            id.hook(Box::new(move |a| {
-                match a.downcast_value::<zero_ui_var::types::Response<WidgetId>>().unwrap() {
+            id.hook(move |a| {
+                match a.value() {
                     zero_ui_var::types::Response::Waiting => true,
                     zero_ui_var::types::Response::Done(id) => {
                         // remove item and hook
@@ -665,7 +665,7 @@ impl LAYERS {
                         false
                     }
                 }
-            }))
+            })
             .perm();
         }
     }

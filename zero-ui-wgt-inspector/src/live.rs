@@ -161,14 +161,14 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
                     // set cursor to Crosshair and lock it in by resetting on a hook.
                     cursor.set(CursorIcon::Crosshair);
                     let weak_cursor = cursor.downgrade();
-                    _cursor_handle = cursor.hook(Box::new(move |a| {
-                        let icon = *a.value().as_any().downcast_ref::<Option<CursorIcon>>().unwrap();
+                    _cursor_handle = cursor.hook(move |a| {
+                        let icon = *a.value();
                         if icon != Some(CursorIcon::Crosshair) {
                             let cursor = weak_cursor.upgrade().unwrap();
                             cursor.set(CursorIcon::Crosshair);
                         }
                         true
-                    }));
+                    });
 
                     click_handle.push(MOUSE_INPUT_EVENT.subscribe(WIDGET.id()));
                     click_handle.push(TOUCH_INPUT_EVENT.subscribe(WIDGET.id()));
@@ -476,8 +476,8 @@ mod inspector_window {
 
         let prev_any_desc = std::sync::atomic::AtomicBool::new(false);
         descendants_pass_filter
-            .hook(Box::new(move |a| {
-                let any_desc = 0 < *a.value().as_any().downcast_ref::<u32>().unwrap();
+            .hook(move |a| {
+                let any_desc = 0 < *a.value();
                 if any_desc != prev_any_desc.swap(any_desc, std::sync::atomic::Ordering::Relaxed) {
                     let _ = parent_desc_filter.modify(move |c| {
                         if any_desc {
@@ -488,7 +488,7 @@ mod inspector_window {
                     });
                 }
                 true
-            }))
+            })
             .perm();
 
         Container! {

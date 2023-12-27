@@ -496,7 +496,7 @@ impl ConfigVars {
 
                 let binding = VarHandles(vec![
                     cfg.bind(&res),
-                    res.hook(Box::new(move |_| {
+                    res.hook_any(Box::new(move |_| {
                         let _strong_ref = &cfg;
                         true
                     })),
@@ -515,7 +515,7 @@ impl ConfigVars {
 
                 let binding = VarHandles(vec![
                     cfg.bind(&res),
-                    res.hook(Box::new(move |_| {
+                    res.hook_any(Box::new(move |_| {
                         let _strong_ref = &cfg;
                         true
                     })),
@@ -628,7 +628,7 @@ impl ConfigContainsVar {
 
             self.binding = VarHandles(vec![
                 cfg.bind(&res),
-                res.hook(Box::new(move |_| {
+                res.hook_any(Box::new(move |_| {
                     let _strong_ref = &cfg;
                     true
                 })),

@@ -117,7 +117,7 @@ impl<T: VarValue> ArcMergeVar<T> {
             .filter_map(|(i, var)| {
                 if var.capabilities().contains(VarCapabilities::NEW) {
                     let wk_merge = wk_merge.clone();
-                    let handle = var.hook(Box::new(move |args| {
+                    let handle = var.hook_any(Box::new(move |args| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
                             let mut data = rc_merge.m.lock();
                             let data_mut = &mut *data;
@@ -220,7 +220,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         self.0.value.push_hook(pos_modify_action)
     }
 
