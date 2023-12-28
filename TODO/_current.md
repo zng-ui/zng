@@ -1,9 +1,5 @@
 # TextInput
 
-* RTL selection background not rendered (selection is set).
-    - Set `lang = lang!("he");`.
-    - Set `txt = var_from("האלפבית העברי הנוכחי נמצא בשימוש");`.
-
 * Touch selection.
     - Test with RTL and bidirectional text.
     - Test with multi-line.

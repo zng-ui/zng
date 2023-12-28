@@ -3062,7 +3062,7 @@ impl fmt::Debug for WhiteSpace {
 }
 
 /// Defines an insert offset in a shaped text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct CaretIndex {
     /// Char byte offset in the full text.
     ///
@@ -3078,9 +3078,26 @@ pub struct CaretIndex {
     /// This index can be computed using the [`ShapedText::snap_caret_line`].
     pub line: usize,
 }
+
+impl PartialEq for CaretIndex {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+impl Eq for CaretIndex {}
 impl CaretIndex {
     /// First position.
     pub const ZERO: CaretIndex = CaretIndex { index: 0, line: 0 };
+}
+impl PartialOrd for CaretIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for CaretIndex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
+    }
 }
 
 #[cfg(test)]

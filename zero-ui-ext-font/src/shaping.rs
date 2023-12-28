@@ -1,6 +1,6 @@
 use std::{
     cmp, fmt,
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash},
     mem, ops,
 };
 
@@ -9,7 +9,7 @@ use zero_ui_app::widget::info::InlineSegmentInfo;
 use zero_ui_ext_l10n::{lang, Lang};
 use zero_ui_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{euclid, Align, FactorUnits, Px, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{euclid, Align, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zero_ui_txt::Txt;
 use zero_ui_view_api::webrender_api::{self, units::LayoutVector2D, GlyphIndex, GlyphInstance};
@@ -1523,59 +1523,51 @@ impl ShapedText {
         }
     }
 
-    /// Rectangles of the text encompassed by `range`.
-    pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, txt: &str) -> Vec<PxRect> {
-        let start_x = self.caret_origin(range.start, txt).x;
-        let end_x = self.caret_origin(range.end, txt).x;
-        let mut rects = vec![];
+    /// Rectangles of the text selected by `range`.
+    pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, full_txt: &str) -> impl Iterator<Item = PxRect> + '_ {
+        let start_origin = self.caret_origin(range.start, full_txt).x;
+        let end_origin = self.caret_origin(range.end, full_txt).x;
 
-        if range.start.line == range.end.line {
-            let mut line_rect = self.line(range.start.line).unwrap().rect();
-            line_rect.origin.x = start_x;
-            line_rect.size.width = end_x - line_rect.origin.x;
+        MergingRectIter::new(
+            self.lines()
+                .skip(range.start.line)
+                .take(range.end.line + 1 - range.start.line)
+                .flat_map(|l| l.segs())
+                .skip_while(move |s| s.text_end() <= range.start.index)
+                .take_while(move |s| s.text_start() < range.end.index)
+                .map(move |s| {
+                    let mut r = s.rect();
 
-            rects.push(line_rect);
-        } else {
-            fn try_space_advance(line: ShapedLine) -> Option<Px> {
-                let seg = line.seg(line.segs_len().checked_sub(2)?)?;
-                let font = seg.glyph(seg.glyphs_range().len().checked_sub(1)?)?.0;
-                let space_glyph = font.face().font_kit()?.glyph_for_char(' ')?;
-                Some(Px(font.advance(space_glyph).ok()?.x as i32))
-            }
-            fn space_advance(line: ShapedLine) -> Px {
-                if let Some(advance) = try_space_advance(line) {
-                    advance
-                } else {
-                    // fallback
-                    line.height() / Px(3)
-                }
-            }
-            let line = self.line(range.start.line).unwrap();
-            let mut line_rect = line.rect();
-            let x_diff = start_x - line_rect.origin.x;
-            line_rect.origin.x = start_x;
-            line_rect.size.width -= x_diff;
-            if !line.ended_by_wrap() {
-                // add one space advance to show the line break
-                line_rect.size.width += space_advance(line);
-            }
-            rects.push(line_rect);
+                    if s.text_start() <= range.start.index {
+                        // first segment in selection
 
-            for line in (range.start.line + 1)..range.end.line {
-                let line = self.line(line).unwrap();
-                line_rect = line.rect();
-                if !line.ended_by_wrap() {
-                    line_rect.size.width += space_advance(line);
-                }
-                rects.push(line_rect);
-            }
+                        match s.direction() {
+                            LayoutDirection::LTR => {
+                                r.size.width = r.max_x() - start_origin;
+                                r.origin.x = start_origin;
+                            }
+                            LayoutDirection::RTL => {
+                                r.size.width = start_origin - r.origin.x;
+                            }
+                        }
+                    }
+                    if s.text_end() > range.end.index {
+                        // last segment in selection
 
-            line_rect = self.line(range.end.line).unwrap().rect();
-            line_rect.size.width = end_x - line_rect.origin.x;
-            rects.push(line_rect);
-        }
+                        match s.direction() {
+                            LayoutDirection::LTR => {
+                                r.size.width = end_origin - r.origin.x;
+                            }
+                            LayoutDirection::RTL => {
+                                r.size.width = r.max_x() - end_origin;
+                                r.origin.x = end_origin;
+                            }
+                        }
+                    }
 
-        rects
+                    r
+                }),
+        )
     }
 
     /// Clip under/overline to a text `clip_range` area, if `clip_out` only lines outside the range are visible.
@@ -1586,7 +1578,7 @@ impl ShapedText {
         txt: &str,
         lines: impl Iterator<Item = (PxPoint, Px)>,
     ) -> Vec<(PxPoint, Px)> {
-        let clips = self.highlight_rects(clip_range, txt);
+        let clips: Vec<_> = self.highlight_rects(clip_range, txt).collect();
 
         let mut out_lines = vec![];
 
@@ -2825,6 +2817,43 @@ impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
     }
 }
 
+struct MergingRectIter<I> {
+    iter: I,
+    rect: Option<PxBox>,
+}
+impl<I> MergingRectIter<I> {
+    pub fn new(iter: I) -> Self {
+        MergingRectIter { iter, rect: None }
+    }
+}
+impl<I: Iterator<Item = PxRect>> Iterator for MergingRectIter<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.iter.next() {
+                Some(r) => {
+                    let r = r.to_box2d();
+                    if let Some(lr) = &mut self.rect {
+                        if lr.min.y == r.min.y && lr.max.y == r.max.y && lr.min.x <= r.max.x && lr.max.x >= r.min.x {
+                            lr.min.x = lr.min.x.min(r.min.x);
+                            lr.max.x = lr.max.x.max(r.max.x);
+                            continue;
+                        } else {
+                            let cut = mem::replace(lr, r);
+                            return Some(cut.to_rect());
+                        }
+                    } else {
+                        self.rect = Some(r);
+                        continue;
+                    }
+                }
+                None => return self.rect.take().map(|r| r.to_rect()),
+            }
+        }
+    }
+}
+
 /// Represents a word or space selection of a [`ShapedText`].
 #[derive(Clone, Copy)]
 pub struct ShapedSegment<'a> {
@@ -3137,14 +3166,21 @@ impl<'a> ShapedSegment<'a> {
 
     /// Get the text bytes range of this segment in the original text.
     pub fn text_range(&self) -> ops::Range<usize> {
-        let start = if self.index == 0 {
+        self.text_start()..self.text_end()
+    }
+
+    /// Get the text byte range start of this segment in the original text.
+    pub fn text_start(&self) -> usize {
+        if self.index == 0 {
             0
         } else {
             self.text.segments.0[self.index - 1].text.end
-        };
-        let end = self.text.segments.0[self.index].text.end;
+        }
+    }
 
-        IndexRange(start, end).iter()
+    /// Get the text byte range end of this segment in the original text.
+    pub fn text_end(&self) -> usize {
+        self.text.segments.0[self.index].text.end
     }
 
     /// Get the text bytes range of the `glyph_range` in this segment's [`text`].
@@ -3472,13 +3508,11 @@ impl Font {
         } else if let Some(small) = Self::to_small_word(seg) {
             // try cached
             let cache = self.0.small_word_cache.read();
-            let mut hasher = cache.hasher().build_hasher();
-            WordCacheKeyRef {
+
+            let hash = cache.hasher().hash_one(WordCacheKeyRef {
                 string: &small,
                 ctx_key: word_ctx_key,
-            }
-            .hash(&mut hasher);
-            let hash = hasher.finish();
+            });
 
             if let Some((_, seg)) = cache
                 .raw_entry()
@@ -3504,13 +3538,11 @@ impl Font {
         } else {
             // try cached
             let cache = self.0.word_cache.read();
-            let mut hasher = cache.hasher().build_hasher();
-            WordCacheKeyRef {
+
+            let hash = cache.hasher().hash_one(WordCacheKeyRef {
                 string: &seg,
                 ctx_key: word_ctx_key,
-            }
-            .hash(&mut hasher);
-            let hash = hasher.finish();
+            });
 
             if let Some((_, seg)) = cache
                 .raw_entry()

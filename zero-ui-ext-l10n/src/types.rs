@@ -586,6 +586,7 @@ impl<V> LangMap<V> {
     }
 
     /// Iterate over key-value pairs.
+    #[allow(clippy::map_identity)] // false positive, already fixed https://github.com/rust-lang/rust-clippy/pull/11792
     pub fn iter(&self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &V)> {
         self.inner.iter().map(|(k, v)| (k, v))
     }
