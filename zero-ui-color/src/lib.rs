@@ -257,7 +257,7 @@ impl Rgba {
         match lerp_space() {
             LerpSpace::Rgba => self.lerp_rgba(to, factor),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), factor).to_rgba(),
-            LerpSpace::LinearHsla => self.to_hsla().lerp_hsla(to.to_hsla(), factor).to_rgba(),
+            LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), factor).to_rgba(),
         }
     }
 }
@@ -558,7 +558,7 @@ impl Hsla {
         self
     }
 
-    /// Linear interpolate in the [`LerpSpace::LinearHsla`] mode.
+    /// Linear interpolate in the [`LerpSpace::HslaLinear`] mode.
     pub fn lerp_hsla(mut self, to: Self, factor: Factor) -> Self {
         self = self.lerp_sla(to, factor);
         self.hue = self.hue.lerp(&to.hue, factor);
@@ -570,7 +570,7 @@ impl Hsla {
         match lerp_space() {
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), factor).to_hsla(),
             LerpSpace::Hsla => self.slerp(to, factor),
-            LerpSpace::LinearHsla => self.lerp_hsla(to, factor),
+            LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
         }
     }
 }
@@ -885,7 +885,7 @@ impl Transitionable for Hsva {
         match lerp_space() {
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), step).to_hsva(),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), step).to_hsva(),
-            LerpSpace::LinearHsla => self.to_hsla().lerp_hsla(to.to_hsla(), step).to_hsva(),
+            LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), step).to_hsva(),
         }
     }
 }
@@ -1276,7 +1276,7 @@ pub enum LerpSpace {
     #[default]
     Hsla,
     /// Linear interpolation in each HSLA component.
-    LinearHsla,
+    HslaLinear,
 }
 
 /// Gets the lerp space used for color interpolation.
@@ -1307,13 +1307,13 @@ pub fn hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T
     with_lerp_space(LerpSpace::Hsla, || t.sample(step))
 }
 
-/// Animation sampler that sets the [`lerp_space`] to [`LerpSpace::LinearHsla`].
+/// Animation sampler that sets the [`lerp_space`] to [`LerpSpace::HslaLinear`].
 ///
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
 /// [`Var::easing_with`]: zero_ui_var::Var::easing_with
-pub fn linear_hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
-    with_lerp_space(LerpSpace::LinearHsla, || t.sample(step))
+pub fn hsla_linear_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
+    with_lerp_space(LerpSpace::HslaLinear, || t.sample(step))
 }
 
 context_local! {
