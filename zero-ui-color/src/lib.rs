@@ -255,6 +255,7 @@ impl Rgba {
     /// Linear interpolate in the contextual [`lerp_space`] mode.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
+            LerpSpace::HslaChromatic => self.to_hsla().slerp_chromatic(to.to_hsla(), factor).to_rgba(),
             LerpSpace::Rgba => self.lerp_rgba(to, factor),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), factor).to_rgba(),
             LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), factor).to_rgba(),
@@ -551,23 +552,44 @@ impl Hsla {
         self
     }
 
-    /// Linear interpolate in the [`LerpSpace::Hsla`] mode.
+    /// Interpolate in the [`LerpSpace::Hsla`] mode.
     pub fn slerp(mut self, to: Self, factor: Factor) -> Self {
         self = self.lerp_sla(to, factor);
         self.hue = AngleDegree(self.hue).slerp(AngleDegree(to.hue), factor).0;
         self
     }
 
-    /// Linear interpolate in the [`LerpSpace::HslaLinear`] mode.
+    /// If the saturation is more than zero.
+    ///
+    /// If `false` the color is achromatic, the hue value does not affect the color.
+    pub fn is_chromatic(self) -> bool {
+        self.saturation > 0.0001
+    }
+
+    /// Interpolate in the [`LerpSpace::HslaChromatic`] mode.
+    pub fn slerp_chromatic(mut self, to: Self, factor: Factor) -> Self {
+        if self.is_chromatic() && to.is_chromatic() {
+            self.slerp(to, factor)
+        } else {
+            self = self.lerp_sla(to, factor);
+            if to.is_chromatic() || factor > 0.5.fct() {
+                self.hue = to.hue;
+            }
+            self
+        }
+    }
+
+    /// Interpolate in the [`LerpSpace::HslaLinear`] mode.
     pub fn lerp_hsla(mut self, to: Self, factor: Factor) -> Self {
         self = self.lerp_sla(to, factor);
         self.hue = self.hue.lerp(&to.hue, factor);
         self
     }
 
-    /// Linear interpolate in the contextual [`lerp_space`] mode.
+    /// Interpolate in the contextual [`lerp_space`] mode.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
+            LerpSpace::HslaChromatic => self.slerp_chromatic(to, factor),
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), factor).to_hsla(),
             LerpSpace::Hsla => self.slerp(to, factor),
             LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
@@ -883,6 +905,7 @@ impl_from_and_into_var! {
 impl Transitionable for Hsva {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         match lerp_space() {
+            LerpSpace::HslaChromatic => self.to_hsla().slerp_chromatic(to.to_hsla(), step).to_hsva(),
             LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), step).to_hsva(),
             LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), step).to_hsva(),
             LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), step).to_hsva(),
@@ -1273,8 +1296,11 @@ pub enum LerpSpace {
     /// Linear interpolation in each RGBA component.
     Rgba,
     /// Spherical linear interpolation in Hue (shorter path), linear interpolation in SLA.
-    #[default]
     Hsla,
+    /// Linear interpolate SLA, spherical linear interpolation in Hue (short) if both colors are chromatic (S>0) or
+    /// jumps to the chromatic hue from the start.
+    #[default]
+    HslaChromatic,
     /// Linear interpolation in each HSLA component.
     HslaLinear,
 }
