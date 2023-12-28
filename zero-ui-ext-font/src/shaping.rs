@@ -2790,24 +2790,25 @@ impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some((point, width)) => {
-                    if let Some((lp, lw)) = &mut self.line {
-                        // merge line if touching or only skipping 1px, the lines are rounded to snap-to-pixels
-                        // this can cause 1px errors.
-                        let diff = point.x - (lp.x + *lw);
-                        if diff <= Px(1) {
-                            *lw += width + diff;
-                            continue;
+                Some(line) => {
+                    if let Some(prev_line) = &mut self.line {
+                        fn min_x((origin, _width): (PxPoint, Px)) -> Px {
+                            origin.x
+                        }
+                        fn max_x((origin, width): (PxPoint, Px)) -> Px {
+                            origin.x + width
+                        }
+
+                        if prev_line.0.y == line.0.y && min_x(*prev_line) <= max_x(line) && max_x(*prev_line) >= min_x(line) {
+                            let x = min_x(*prev_line).min(min_x(line));
+                            prev_line.1 = max_x(*prev_line).max(max_x(line)) - x;
+                            prev_line.0.x = x;
                         } else {
-                            let r = (*lp, *lw);
-
-                            *lp = point;
-                            *lw = width;
-
-                            return Some(r);
+                            let cut = mem::replace(prev_line, line);
+                            return Some(cut);
                         }
                     } else {
-                        self.line = Some((point, width));
+                        self.line = Some(line);
                         continue;
                     }
                 }
@@ -2832,19 +2833,23 @@ impl<I: Iterator<Item = PxRect>> Iterator for MergingRectIter<I> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some(r) => {
-                    let r = r.to_box2d();
-                    if let Some(lr) = &mut self.rect {
-                        if lr.min.y == r.min.y && lr.max.y == r.max.y && lr.min.x <= r.max.x && lr.max.x >= r.min.x {
-                            lr.min.x = lr.min.x.min(r.min.x);
-                            lr.max.x = lr.max.x.max(r.max.x);
+                Some(rect) => {
+                    let rect = rect.to_box2d();
+                    if let Some(prev_rect) = &mut self.rect {
+                        if prev_rect.min.y == rect.min.y
+                            && prev_rect.max.y == rect.max.y
+                            && prev_rect.min.x <= rect.max.x
+                            && prev_rect.max.x >= rect.min.x
+                        {
+                            prev_rect.min.x = prev_rect.min.x.min(rect.min.x);
+                            prev_rect.max.x = prev_rect.max.x.max(rect.max.x);
                             continue;
                         } else {
-                            let cut = mem::replace(lr, r);
+                            let cut = mem::replace(prev_rect, rect);
                             return Some(cut.to_rect());
                         }
                     } else {
-                        self.rect = Some(r);
+                        self.rect = Some(rect);
                         continue;
                     }
                 }

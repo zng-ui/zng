@@ -1392,10 +1392,11 @@ pub mod text {
         ime_underline, is_line_overflown, is_overflown, is_parse_pending, justify, lang, letter_spacing, line_break, line_height,
         line_spacing, max_chars_count, obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing,
         selection_color, selection_toolbar, selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length,
-        txt_align, txt_editable, txt_highlight, txt_overflow, txt_overflow_align, underline, white_space, word_break, word_spacing,
-        AutoSelection, CaretShape, CaretStatus, ChangeStopArgs, ChangeStopCause, Em, FontFeaturesMix, FontMix, LangMix, LinesWrapCount,
-        ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix, TextFillMix, TextOverflow,
-        TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip, FONT_COLOR_VAR,
+        txt_align, txt_editable, txt_highlight, txt_overflow, txt_overflow_align, underline, underline_color, underline_skip, white_space,
+        word_break, word_spacing, AutoSelection, CaretShape, CaretStatus, ChangeStopArgs, ChangeStopCause, Em, FontFeaturesMix, FontMix,
+        LangMix, LinesWrapCount, ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix,
+        TextFillMix, TextOverflow, TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip,
+        FONT_COLOR_VAR,
     };
 }
 
