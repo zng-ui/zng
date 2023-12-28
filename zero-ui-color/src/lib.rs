@@ -572,7 +572,7 @@ impl Hsla {
             self.slerp(to, factor)
         } else {
             self = self.lerp_sla(to, factor);
-            if to.is_chromatic() || factor > 0.5.fct() {
+            if to.is_chromatic() {
                 self.hue = to.hue;
             }
             self
