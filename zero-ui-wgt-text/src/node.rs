@@ -2665,6 +2665,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 for caret in carets.drain(..) {
                     LAYERS.remove(caret.id);
                 }
+                carets.reserve_exact(expected_len);
 
                 // caret shape node, inserted as ADORNER+1, anchored, propagates LocalContext and collects size+caret mid
                 let mut open_caret = |s| {
@@ -2699,104 +2700,132 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if !carets.is_empty() {
-                if carets.len() == 1 {
-                    let t = TEXT.laidout();
-                    if let Some(mut origin) = t.caret_origin {
-                        let mut l = carets[0].layout.lock();
-                        if l.width == Px::MIN {
-                            // wait caret's first layout.
-                            return;
-                        }
+            if carets.is_empty() {
+                // no caret.
+                return;
+            }
 
-                        origin.x -= l.width / 2;
-                        if l.x != origin.x || l.y != origin.y {
-                            l.x = origin.x;
-                            l.y = origin.y;
+            for caret in &carets {
+                if caret.layout.lock().width == Px::MIN {
+                    // wait carets first layout.
+                    return;
+                }
+            }
 
-                            UPDATES.render(carets[0].id);
-                        }
+            let t = TEXT.laidout();
+            let Some(mut origin) = t.caret_origin else {
+                tracing::error!("caret instance, but no caret in context");
+                return;
+            };
+
+            if carets.len() == 1 {
+                // no selection, one caret rendered.
+
+                let mut l = carets[0].layout.lock();
+
+                origin.x -= l.width / 2;
+                if l.x != origin.x || l.y != origin.y {
+                    l.x = origin.x;
+                    l.y = origin.y;
+
+                    UPDATES.render(carets[0].id);
+                }
+            } else {
+                // selection, two carets rendered, but if text is bidirectional the two can have the same shape.
+
+                let (Some(index), Some(s_index), Some(mut s_origin)) = (caret.index, caret.selection_index, t.caret_selection_origin)
+                else {
+                    tracing::error!("caret instance, but no caret in context");
+                    return;
+                };
+
+                let mut locked_2;
+                let mut locked_4;
+
+                let l = if carets.len() == 2 {
+                    // two carets of different shapes.
+                    locked_2 = [carets[0].layout.lock(), carets[1].layout.lock()];
+
+                    &mut locked_2[..]
+                } else if carets.len() == 4 {
+                    // two carets, maybe of the same shape.
+                    locked_4 = [
+                        carets[0].layout.lock(),
+                        carets[1].layout.lock(),
+                        carets[2].layout.lock(),
+                        carets[3].layout.lock(),
+                    ];
+
+                    &mut locked_4[..]
+                } else {
+                    unreachable!()
+                };
+
+                let mut index_is_left = index.index <= s_index.index;
+                let seg_txt = &r_txt.segmented_text;
+                if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(index.index)) {
+                    if seg.direction().is_rtl() {
+                        index_is_left = !index_is_left;
                     }
-                } else if carets.len() == 2 || carets.len() == 4 {
-                    let t = TEXT.laidout();
+                }
 
-                    if let (Some(index), Some(s_index), Some(mut origin), Some(mut s_origin)) =
-                        (caret.index, caret.selection_index, t.caret_origin, t.caret_selection_origin)
-                    {
-                        let mut l = [carets[0].layout.lock(), carets[1].layout.lock()];
-                        if l[0].width == Px::MIN && l[1].width == Px::MIN {
-                            return;
-                        }
+                let mut s_index_is_left = s_index.index < index.index;
+                if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(s_index.index)) {
+                    if seg.direction().is_rtl() {
+                        s_index_is_left = !s_index_is_left;
+                    }
+                }
 
-                        let mut index_is_left = index.index <= s_index.index;
-                        let seg_txt = &r_txt.segmented_text;
-                        if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(index.index)) {
-                            if seg.direction().is_rtl() {
-                                index_is_left = !index_is_left;
-                            }
-                        }
+                if index_is_left {
+                    origin.x -= l[0].mid;
+                } else {
+                    origin.x -= l[1].mid;
+                }
+                if s_index_is_left {
+                    s_origin.x -= l[0].mid;
+                } else {
+                    s_origin.x -= l[1].mid;
+                }
 
-                        let mut s_index_is_left = s_index.index < index.index;
-                        if let Some((_, seg)) = seg_txt.get(seg_txt.seg_from_char(s_index.index)) {
-                            if seg.direction().is_rtl() {
-                                s_index_is_left = !s_index_is_left;
-                            }
-                        }
+                let changed;
 
-                        if index_is_left {
-                            origin.x -= l[0].mid;
-                        } else {
-                            origin.x -= l[1].mid;
-                        }
-                        if s_index_is_left {
-                            s_origin.x -= l[0].mid;
-                        } else {
-                            s_origin.x -= l[1].mid;
-                        }
+                if index_is_left == s_index_is_left {
+                    let i = if index_is_left { 0 } else { 1 };
 
-                        let changed;
+                    changed = l[i].x != origin.x || l[i].y != origin.y || l[i + 2].x != s_origin.x || l[i + 2].y != s_origin.y;
 
-                        if index_is_left == s_index_is_left {
-                            let i = if index_is_left { 0 } else { 1 };
+                    for l in l.iter_mut() {
+                        l.x = Px::MIN;
+                        l.y = Px::MIN;
+                        l.is_selection_index = false;
+                    }
 
-                            changed = l[i].x != origin.x || l[i].y != origin.y || l[i + 2].x != s_origin.x || l[i + 2].y != s_origin.y;
+                    l[i].x = origin.x;
+                    l[i].y = origin.y;
+                    l[i + 2].x = s_origin.x;
+                    l[i + 2].y = s_origin.y;
+                    l[i + 2].is_selection_index = true;
+                } else {
+                    let (lft, rgt) = if index_is_left { (0, 1) } else { (1, 0) };
 
-                            for l in &mut l {
-                                l.x = Px::MIN;
-                                l.y = Px::MIN;
-                                l.is_selection_index = false;
-                            }
+                    changed = l[lft].x != origin.x || l[lft].y != origin.y || l[rgt].x != s_origin.x || l[rgt].y != s_origin.y;
 
-                            l[i].x = origin.x;
-                            l[i].y = origin.y;
-                            l[i + 2].x = s_origin.x;
-                            l[i + 2].y = s_origin.y;
-                            l[i + 2].is_selection_index = true;
-                        } else {
-                            let (lft, rgt) = if index_is_left { (0, 1) } else { (1, 0) };
+                    for l in l.iter_mut() {
+                        l.x = Px::MIN;
+                        l.y = Px::MIN;
+                        l.is_selection_index = false;
+                    }
 
-                            changed = l[lft].x != origin.x || l[lft].y != origin.y || l[rgt].x != s_origin.x || l[rgt].y != s_origin.y;
+                    l[lft].x = origin.x;
+                    l[lft].y = origin.y;
+                    l[rgt].x = s_origin.x;
+                    l[rgt].y = s_origin.y;
+                    l[rgt].is_selection_index = true;
+                }
 
-                            for l in &mut l {
-                                l.x = Px::MIN;
-                                l.y = Px::MIN;
-                                l.is_selection_index = false;
-                            }
-
-                            l[lft].x = origin.x;
-                            l[lft].y = origin.y;
-                            l[rgt].x = s_origin.x;
-                            l[rgt].y = s_origin.y;
-                            l[rgt].is_selection_index = true;
-                        }
-
-                        if changed {
-                            for c in &carets {
-                                UPDATES.render(c.id);
-                            }
-                        }
-                    } else {
-                        tracing::error!("touch caret instances do not match context caret")
+                if changed {
+                    for c in &carets {
+                        UPDATES.render(c.id);
                     }
                 }
             }
