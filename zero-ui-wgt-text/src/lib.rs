@@ -194,8 +194,8 @@ impl Text {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             let child = node::render_text();
-            let child = node::render_caret(child);
-            let child = node::touch_carets(child);
+            let child = node::non_interactive_caret(child);
+            let child = node::interactive_carets(child);
             let child = node::render_overlines(child);
             let child = node::render_strikethroughs(child);
             let child = node::render_underlines(child);

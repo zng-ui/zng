@@ -1233,8 +1233,11 @@ context_var! {
     /// Caret color, inherits from [`FONT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
-    /// Touch caret shape.
-    pub static CARET_TOUCH_SHAPE_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::node::default_touch_caret(s));
+    /// Interactive caret visual.
+    pub static INTERACTIVE_CARET_VISUAL_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::node::default_interactive_caret_visual(s));
+
+    /// Interactive caret mode.
+    pub static INTERACTIVE_CARET_MODE_VAR: InteractiveCaretMode = InteractiveCaretMode::default();
 
     /// Selection background color.
     pub static SELECTION_COLOR_VAR: Rgba = colors::AZURE.with_alpha(30.pct());
@@ -1269,7 +1272,7 @@ impl TextEditMix<()> {
         set.insert(&TEXT_SELECTABLE_VAR);
         set.insert(&ACCEPTS_ENTER_VAR);
         set.insert(&CARET_COLOR_VAR);
-        set.insert(&CARET_TOUCH_SHAPE_VAR);
+        set.insert(&INTERACTIVE_CARET_VISUAL_VAR);
         set.insert(&SELECTION_COLOR_VAR);
         set.insert(&TXT_PARSE_LIVE_VAR);
         set.insert(&CHANGE_STOP_DELAY_VAR);
@@ -1280,9 +1283,9 @@ impl TextEditMix<()> {
     }
 }
 
-/// Defines the position of a caret in relation to the selection.
+/// Defines the position of an interactive caret in relation to the selection.
 ///
-/// See [`caret_touch_shape`](fn@caret_touch_shape) for more details.
+/// See [`interactive_caret_visual`](fn@interactive_caret_visual) for more details.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CaretShape {
     /// Caret defines the selection start in LTR and end in RTL text.
@@ -1291,6 +1294,42 @@ pub enum CaretShape {
     SelectionRight,
     /// Caret defines the insert point, when there is no selection.
     Insert,
+}
+impl fmt::Debug for CaretShape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "CaretShape::")?;
+        }
+        match self {
+            Self::SelectionLeft => write!(f, "SelectionLeft"),
+            Self::SelectionRight => write!(f, "SelectionRight"),
+            Self::Insert => write!(f, "Insert"),
+        }
+    }
+}
+
+/// Defines when the interactive carets are used.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum InteractiveCaretMode {
+    /// Uses interactive carets only for touch selections, uses non-interactive caret for other selections.
+    #[default]
+    TouchOnly,
+    /// Uses interactive carets for all selections.
+    Always,
+    /// Uses non-interactive carets for all selections.
+    Never,
+}
+impl fmt::Debug for InteractiveCaretMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "InteractiveCaretMode::")?;
+        }
+        match self {
+            Self::TouchOnly => write!(f, "TouchOnly"),
+            Self::Always => write!(f, "Always"),
+            Self::Never => write!(f, "Never"),
+        }
+    }
 }
 
 /// Enable text caret, input and makes the widget focusable.
@@ -1330,25 +1369,37 @@ pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     with_context_var(child, ACCEPTS_ENTER_VAR, enabled)
 }
 
+/// Defines the color of the non-interactive caret.
+///
 /// Sets the [`CARET_COLOR_VAR`].
 #[property(CONTEXT, default(CARET_COLOR_VAR), widget_impl(TextEditMix<P>))]
 pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
 }
 
-/// Defines custom caret shapes for touch caret.
+/// Defines custom caret visual for interactive caret.
 ///
-/// The `shape` node becomes the content of a [layered widget] at the `ADORNER+1` layer, the text widget context is
+/// The `visual` node becomes the content of a [layered widget] at the `ADORNER+1` layer, the text widget context is
 /// propagated so contextual variables and value work seamless inside the node.
 ///
-/// The `shape` node must set one special value during layout, the [`set_touch_caret_mid`] must be called to
-/// set the offset to the middle of the caret line in the shape inner-bounds, this is used to position the caret.
+/// The `visual` node must set one special value during layout, the [`set_interactive_caret_mid`] must be called to
+/// set the offset to the middle of the caret line in the visual inner-bounds, this is used to position the caret.
+///
+/// Sets the [`INTERACTIVE_CARET_VISUAL_VAR`].
 ///
 /// [layered widget]: zero_ui_wgt_layer
-/// [`set_touch_caret_mid`]: super::node::set_touch_caret_mid
-#[property(CONTEXT, default(CARET_TOUCH_SHAPE_VAR), widget_impl(TextEditMix<P>))]
-pub fn caret_touch_shape(child: impl UiNode, shape: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
-    with_context_var(child, CARET_TOUCH_SHAPE_VAR, shape)
+/// [`set_interactive_caret_mid`]: super::node::set_interactive_caret_mid
+#[property(CONTEXT, default(INTERACTIVE_CARET_VISUAL_VAR), widget_impl(TextEditMix<P>))]
+pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
+    with_context_var(child, INTERACTIVE_CARET_VISUAL_VAR, visual)
+}
+
+/// Defines when the interactive carets are used.
+///
+/// By default only uses interactive carets for touch selections.
+#[property(CONTEXT, default(INTERACTIVE_CARET_MODE_VAR), widget_impl(TextEditMix<P>))]
+pub fn interactive_caret_mode(child: impl UiNode, mode: impl IntoVar<InteractiveCaretMode>) -> impl UiNode {
+    with_context_var(child, INTERACTIVE_CARET_MODE_VAR, mode)
 }
 
 /// Sets the [`SELECTION_COLOR_VAR`].

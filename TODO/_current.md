@@ -1,6 +1,7 @@
 # TextInput
 
-* Touch selection.
+* Interactive carets.
+    - Implement mouse drag.
     - Test with RTL and bidirectional text.
     - Test with multi-line.
 

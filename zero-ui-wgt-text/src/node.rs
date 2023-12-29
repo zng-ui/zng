@@ -1,11 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{
-    borrow::Cow,
-    fmt, mem, ops,
-    sync::{atomic::AtomicBool, Arc},
-    time::Instant,
-};
+use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Instant};
 
 use super::{
     cmd::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
@@ -223,6 +218,32 @@ impl TEXT {
     }
 }
 
+/// Defines the source of the current selection.
+///
+/// See [`ResolvedText::selection_by`] for more details.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, bytemuck::NoUninit)]
+#[repr(u8)]
+pub enum SelectionBy {
+    /// Command or other programmatic selection.
+    Command = 0,
+    /// Key press.
+    Keyboard = 1,
+    /// Mouse drag.
+    Mouse = 2,
+    /// Touch drag.
+    Touch = 3,
+}
+impl SelectionBy {
+    /// Returns `true` if the interactive carets must be used for the current selection given the interactive caret mode.
+    pub fn matches_interactive_mode(self, mode: InteractiveCaretMode) -> bool {
+        match mode {
+            InteractiveCaretMode::TouchOnly => matches!(self, SelectionBy::Touch),
+            InteractiveCaretMode::Always => true,
+            InteractiveCaretMode::Never => false,
+        }
+    }
+}
+
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
 ///
 /// Use [`TEXT`] to get.
@@ -252,10 +273,10 @@ pub struct ResolvedText {
     /// Caret index and animation.
     pub caret: Mutex<CaretInfo>,
 
-    /// Show touch carets.
+    /// Show interactive carets.
     ///
     /// Set to `true` on touch interactions and set to `false` on other interactions.
-    pub touch_carets: AtomicBool,
+    pub selection_by: Atomic<SelectionBy>,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
     baseline: Atomic<Px>,
@@ -270,7 +291,7 @@ impl fmt::Debug for ResolvedText {
             .field("pending_layout", &self.pending_layout)
             .field("pending_edit", &self.pending_edit)
             .field("caret", &self.caret)
-            .field("touch_carets", &self.touch_carets)
+            .field("selection_by", &self.selection_by)
             .finish_non_exhaustive()
     }
 }
@@ -285,7 +306,7 @@ impl Clone for ResolvedText {
             pending_layout: self.pending_layout,
             pending_edit: self.pending_edit,
             caret: Mutex::new(self.caret.lock().clone()),
-            touch_carets: AtomicBool::new(self.touch_carets.load(Ordering::Relaxed)),
+            selection_by: Atomic::new(self.selection_by.load(Ordering::Relaxed)),
             baseline: Atomic::new(self.baseline.load(Ordering::Relaxed)),
         }
     }
@@ -617,7 +638,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     used_retained_x: false,
                     skip_next_scroll: false,
                 }),
-                touch_carets: AtomicBool::new(false),
+                selection_by: Atomic::new(SelectionBy::Command),
             });
 
             if editable || TEXT_SELECTABLE_VAR.get() {
@@ -698,11 +719,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     if caret.selection_index.is_some() || caret.index.unwrap_or(CaretIndex::ZERO).index > 0 {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
-                                            *ctx.touch_carets.get_mut() = false;
+                                            *ctx.selection_by.get_mut() = SelectionBy::Keyboard;
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace_word().call(&text));
                                         } else if args.modifiers.is_empty() {
                                             args.propagation().stop();
-                                            *ctx.touch_carets.get_mut() = false;
+                                            *ctx.selection_by.get_mut() = SelectionBy::Keyboard;
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::backspace().call(&text));
                                         }
                                     }
@@ -713,11 +734,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     if caret.selection_index.is_some() || caret_idx.index < ctx.segmented_text.text().len() {
                                         if args.modifiers.is_only_ctrl() {
                                             args.propagation().stop();
-                                            *ctx.touch_carets.get_mut() = false;
+                                            *ctx.selection_by.get_mut() = SelectionBy::Keyboard;
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete_word().call(&text));
                                         } else if args.modifiers.is_empty() {
                                             args.propagation().stop();
-                                            *ctx.touch_carets.get_mut() = false;
+                                            *ctx.selection_by.get_mut() = SelectionBy::Keyboard;
                                             ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                                         }
                                     }
@@ -729,7 +750,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                             (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get());
                                         if !skip {
                                             args.propagation().stop();
-                                            *ctx.touch_carets.get_mut() = false;
+                                            *ctx.selection_by.get_mut() = SelectionBy::Keyboard;
                                             ResolvedText::call_edit_op(&mut resolved, || {
                                                 TextEditOp::insert(Txt::from_str(insert)).call(&text)
                                             });
@@ -787,7 +808,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         let ctx = resolved.as_mut().unwrap();
                         if let Some(range) = ctx.caret.get_mut().selection_char_range() {
                             args.propagation().stop();
-                            *ctx.touch_carets.get_mut() = false;
+                            *ctx.selection_by.get_mut() = SelectionBy::Command;
                             if CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range])).is_ok() {
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::delete().call(&text));
                             }
@@ -796,7 +817,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
                             if !paste.is_empty() {
                                 args.propagation().stop();
-                                *resolved.as_mut().unwrap().touch_carets.get_mut() = false;
+                                *resolved.as_mut().unwrap().selection_by.get_mut() = SelectionBy::Command;
                                 ResolvedText::call_edit_op(&mut resolved, || TextEditOp::insert(paste).call(&text));
                             }
                         }
@@ -902,7 +923,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 // actual insert
                                 {
                                     let resolved = resolved.as_mut().unwrap();
-                                    *resolved.touch_carets.get_mut() = false;
+                                    *resolved.selection_by.get_mut() = SelectionBy::Keyboard;
 
                                     // if the committed text is equal the last preview reshape is skipped
                                     // leaving behind the IME underline highlight.
@@ -1796,13 +1817,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             Key::Tab => {
                                 if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
                                     args.propagation().stop();
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
                                 }
                             }
                             Key::Enter => {
                                 if editable && args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
                                     args.propagation().stop();
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
                                 }
                             }
                             Key::ArrowRight => {
@@ -1812,7 +1833,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                     LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
@@ -1837,7 +1858,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                     LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
@@ -1862,7 +1883,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
-                                        resolved.touch_carets.store(false, Ordering::Relaxed);
+                                        resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                         LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
@@ -1882,7 +1903,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
-                                        resolved.touch_carets.store(false, Ordering::Relaxed);
+                                        resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                         LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
@@ -1902,7 +1923,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
-                                        resolved.touch_carets.store(false, Ordering::Relaxed);
+                                        resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                         LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
@@ -1922,7 +1943,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                     if modifiers.is_empty() && (editable || select) {
                                         args.propagation().stop();
 
-                                        resolved.touch_carets.store(false, Ordering::Relaxed);
+                                        resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                         LaidoutText::call_select_op(&mut txt.txt, || {
                                             if select {
@@ -1942,7 +1963,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                     LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
@@ -1967,7 +1988,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 if modifiers.is_empty() && (editable || select) {
                                     args.propagation().stop();
 
-                                    resolved.touch_carets.store(false, Ordering::Relaxed);
+                                    resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                                     LaidoutText::call_select_op(&mut txt.txt, || {
                                         if select {
@@ -1996,7 +2017,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         if modifiers.is_empty() {
                             args.propagation().stop();
 
-                            resolved.touch_carets.store(false, Ordering::Relaxed);
+                            resolved.selection_by.store(SelectionBy::Keyboard, Ordering::Relaxed);
 
                             click_count = if let Some(info) = &mut selection_mouse_down {
                                 let cfg = MOUSE.multi_click_config().get();
@@ -2070,7 +2091,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if args.modifiers.is_empty() {
                         args.propagation().stop();
 
-                        resolved.touch_carets.store(true, Ordering::Relaxed);
+                        resolved.selection_by.store(SelectionBy::Touch, Ordering::Relaxed);
 
                         LaidoutText::call_select_op(&mut txt.txt, || {
                             TextSelectOp::nearest_to(args.position).call();
@@ -2080,7 +2101,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     if args.modifiers.is_empty() && selectable {
                         args.propagation().stop();
 
-                        resolved.touch_carets.store(true, Ordering::Relaxed);
+                        resolved.selection_by.store(SelectionBy::Touch, Ordering::Relaxed);
 
                         LaidoutText::call_select_op(&mut txt.txt, || {
                             TextSelectOp::select_word_nearest_to(true, args.position).call();
@@ -2531,12 +2552,14 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 /// The caret is rendered after `child`, over it.
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
-pub fn render_caret(child: impl UiNode) -> impl UiNode {
+pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
     let color_key = FrameValueKey::new_unique();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_render_update(&CARET_COLOR_VAR);
+            WIDGET
+                .sub_var_render_update(&CARET_COLOR_VAR)
+                .sub_var_render_update(&INTERACTIVE_CARET_MODE_VAR);
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
@@ -2545,7 +2568,13 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 let t = TEXT.laidout();
                 let resolved = TEXT.resolved();
 
-                if let (false, Some(mut origin)) = (resolved.touch_carets.load(Ordering::Relaxed), t.caret_origin) {
+                if let (false, Some(mut origin)) = (
+                    resolved
+                        .selection_by
+                        .load(Ordering::Relaxed)
+                        .matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get()),
+                    t.caret_origin,
+                ) {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = resolved.caret.lock().opacity.get().0;
 
@@ -2563,7 +2592,11 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let resolved = TEXT.resolved();
 
-                if !resolved.touch_carets.load(Ordering::Relaxed) {
+                if !resolved
+                    .selection_by
+                    .load(Ordering::Relaxed)
+                    .matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get())
+                {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = TEXT.resolved().caret.lock().opacity.get().0;
 
@@ -2575,10 +2608,10 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// An Ui node that renders the touch carets and implement interaction.
+/// An Ui node that implements interaction and renders the interactive carets.
 ///
-/// Caret visuals defined by [`CARET_TOUCH_SHAPE_VAR`].
-pub fn touch_carets(child: impl UiNode) -> impl UiNode {
+/// Caret visuals defined by [`INTERACTIVE_CARET_VISUAL_VAR`].
+pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
     let mut carets: Vec<Caret> = vec![];
     struct Caret {
         id: WidgetId,
@@ -2586,7 +2619,9 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
     }
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&CARET_TOUCH_SHAPE_VAR);
+            WIDGET
+                .sub_var(&INTERACTIVE_CARET_VISUAL_VAR)
+                .sub_var_layout(&INTERACTIVE_CARET_MODE_VAR);
         }
         UiNodeOp::Deinit => {
             for caret in carets.drain(..) {
@@ -2594,7 +2629,7 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
             }
         }
         UiNodeOp::Update { .. } => {
-            if !carets.is_empty() && CARET_TOUCH_SHAPE_VAR.is_new() {
+            if !carets.is_empty() && INTERACTIVE_CARET_VISUAL_VAR.is_new() {
                 for caret in carets.drain(..) {
                     LAYERS.remove(caret.id);
                 }
@@ -2610,7 +2645,10 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
             let mut expected_len = 0;
             if caret.index.is_some()
                 && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id()))
-                && r_txt.touch_carets.load(Ordering::Relaxed)
+                && r_txt
+                    .selection_by
+                    .load(Ordering::Relaxed)
+                    .matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get())
             {
                 if caret.selection_index.is_some() {
                     if r_txt.segmented_text.is_bidi() {
@@ -2633,14 +2671,14 @@ pub fn touch_carets(child: impl UiNode) -> impl UiNode {
                     let c_layout = Arc::new(Mutex::new(CaretLayout::default()));
                     let id = WidgetId::new_unique();
 
-                    let caret = TouchCaret! {
+                    let caret = InteractiveCaret! {
                         id;
-                        touch_caret_input = TouchCaretInput {
+                        interactive_caret_input = InteractiveCaretInput {
                             ctx: LocalContext::capture(),
                             layout: c_layout.clone(),
                             parent_id: WIDGET.id(),
-                            shape: s,
-                            shape_fn: CARET_TOUCH_SHAPE_VAR.get(),
+                            visual: s,
+                            visual_fn: INTERACTIVE_CARET_VISUAL_VAR.get(),
                         };
                     };
 
@@ -2806,45 +2844,47 @@ impl Default for CaretLayout {
 }
 
 #[derive(Clone)]
-struct TouchCaretInput {
-    shape: CaretShape,
-    shape_fn: WidgetFn<CaretShape>,
+struct InteractiveCaretInput {
+    visual: CaretShape,
+    visual_fn: WidgetFn<CaretShape>,
     layout: Arc<Mutex<CaretLayout>>,
     ctx: LocalContext,
     parent_id: WidgetId,
 }
-impl fmt::Debug for TouchCaretInput {
+impl fmt::Debug for InteractiveCaretInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TouchCaretInput")
+        write!(f, "InteractiveCaretInput")
     }
 }
-impl PartialEq for TouchCaretInput {
+impl PartialEq for InteractiveCaretInput {
     fn eq(&self, other: &Self) -> bool {
-        self.shape == other.shape && self.shape_fn == other.shape_fn && Arc::ptr_eq(&self.layout, &other.layout)
+        self.visual == other.visual && self.visual_fn == other.visual_fn && Arc::ptr_eq(&self.layout, &other.layout)
     }
 }
 
-#[widget($crate::node::TouchCaret)]
-struct TouchCaret(WidgetBase);
-impl TouchCaret {
+#[widget($crate::node::InteractiveCaret)]
+struct InteractiveCaret(WidgetBase);
+impl InteractiveCaret {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|b| {
-            let input = b.capture_value::<TouchCaretInput>(property_id!(touch_caret_input)).unwrap();
+            let input = b
+                .capture_value::<InteractiveCaretInput>(property_id!(interactive_caret_input))
+                .unwrap();
 
-            let shape = (input.shape_fn)(input.shape);
+            let shape = (input.visual_fn)(input.visual);
             b.set_child(shape);
 
             let ctx = input.ctx.clone();
-            let shape = input.shape;
+            let shape = input.visual;
             let c_layout = input.layout.clone();
             let parent_id = input.parent_id;
-            b.push_intrinsic(NestGroup::SIZE, "touch_caret", move |c| {
-                Self::touch_caret(c, ctx, c_layout, shape, parent_id)
+            b.push_intrinsic(NestGroup::SIZE, "interactive_caret", move |c| {
+                Self::interactive_caret(c, ctx, c_layout, shape, parent_id)
             });
         });
     }
 
-    fn touch_caret(
+    fn interactive_caret(
         child: impl UiNode,
         mut ctx: LocalContext,
         c_layout: Arc<Mutex<CaretLayout>>,
@@ -2929,15 +2969,15 @@ impl TouchCaret {
         })
     }
 }
-#[property(CONTEXT, capture, widget_impl(TouchCaret))]
-fn touch_caret_input(input: impl IntoValue<TouchCaretInput>) {}
+#[property(CONTEXT, capture, widget_impl(InteractiveCaret))]
+fn interactive_caret_input(input: impl IntoValue<InteractiveCaretInput>) {}
 
-/// Default touch caret shape.
+/// Default interactive caret visual.
 ///
-/// See [`caret_touch_shape`] for more details.
+/// See [`interactive_caret_shape`] for more details.
 ///
-/// [`caret_touch_shape`]: fn@super::caret_touch_shape
-pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
+/// [`interactive_caret_shape`]: fn@super::interactive_caret_shape
+pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
             let factor = LAYOUT.scale_factor();
@@ -2958,7 +2998,7 @@ pub fn default_touch_caret(shape: CaretShape) -> impl UiNode {
                 }
                 CaretShape::Insert => final_size.width / 2 - caret_thickness / 2,
             };
-            set_touch_caret_mid(caret_offset);
+            set_interactive_caret_mid(caret_offset);
         }
         UiNodeOp::Render { frame } => {
             let size = Dip::new(16).to_px(frame.scale_factor());
@@ -3005,7 +3045,7 @@ context_local! {
 /// See [`caret_touch_shape`] for more details.
 ///
 /// [`caret_touch_shape`]: fn@super::caret_touch_shape
-pub fn set_touch_caret_mid(caret_line_middle: Px) {
+pub fn set_interactive_caret_mid(caret_line_middle: Px) {
     TOUCH_CARET_MID.get().store(caret_line_middle, Ordering::Relaxed);
 }
 
@@ -3744,7 +3784,7 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 let toolbar_fn = SELECTION_TOOLBAR_FN_VAR.get();
                 if let Some(node) = toolbar_fn.call_checked(SelectionToolbarArgs {
                     anchor_id: WIDGET.id(),
-                    is_touch: r_txt.touch_carets.load(Ordering::Relaxed),
+                    is_touch: matches!(r_txt.selection_by.load(Ordering::Relaxed), SelectionBy::Touch),
                 }) {
                     let (node, _) = node.init_widget();
 
