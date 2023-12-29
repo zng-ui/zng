@@ -26,7 +26,7 @@ use zero_ui_app::{
 };
 use zero_ui_app_context::app_local;
 use zero_ui_ext_window::WINDOWS;
-use zero_ui_layout::unit::{Dip, DipPoint, DipToPx, Factor};
+use zero_ui_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
 use zero_ui_state_map::{state_map, StaticStateId};
 use zero_ui_var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
 use zero_ui_view_api::touch::TouchPhase;
@@ -406,6 +406,11 @@ impl MouseHoverArgs {
             .map(|itr| itr.is_disabled())
             .unwrap_or(false)
     }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
+    }
 }
 
 impl MouseMoveArgs {
@@ -415,6 +420,11 @@ impl MouseMoveArgs {
     /// [`allows`]: CaptureInfo::allows
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
+    }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
     }
 }
 
@@ -473,6 +483,11 @@ impl MouseInputArgs {
     pub fn is_mouse_up(&self) -> bool {
         self.state == ButtonState::Released
     }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
+    }
 }
 
 impl MouseClickArgs {
@@ -513,6 +528,11 @@ impl MouseClickArgs {
     /// If the [`click_count`](Self::click_count) is `3`.
     pub fn is_triple(&self) -> bool {
         self.click_count.get() == 3
+    }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
     }
 }
 
@@ -604,6 +624,11 @@ impl MouseWheelArgs {
     /// [`target`]: Self::target
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
     }
 }
 

@@ -19,7 +19,7 @@ use std::{
 };
 use zero_ui_app_context::context_local;
 use zero_ui_handle::Handle;
-use zero_ui_layout::unit::{Layout1d, Layout2d, Px};
+use zero_ui_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
 use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zero_ui_task::ui::UiTask;
 use zero_ui_txt::{formatx, Txt};
@@ -1766,6 +1766,20 @@ impl WIDGET {
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
         WIDGET_CTX.get().parent_id.load(Relaxed)
+    }
+
+    /// Transform point in the window space to the widget inner bounds.
+    pub fn win_point_to_wgt(&self, point: DipPoint) -> Option<PxPoint> {
+        let wgt_info = WIDGET.info();
+        wgt_info
+            .inner_transform()
+            .inverse()?
+            .transform_point(point.to_px(wgt_info.tree().scale_factor()))
+    }
+
+    /// Gets the transform from the window space to the widget inner bounds.
+    pub fn win_to_wgt(&self) -> Option<PxTransform> {
+        WIDGET.info().inner_transform().inverse()
     }
 
     pub(crate) fn layout_is_pending(&self, layout_widgets: &LayoutUpdates) -> bool {

@@ -2781,14 +2781,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 }
 
                 if index_is_left {
-                    origin.x -= l[0].mid;
+                    origin.x -= l[0].spot.x;
                 } else {
-                    origin.x -= l[1].mid;
+                    origin.x -= l[1].spot.x;
                 }
                 if s_index_is_left {
-                    s_origin.x -= l[0].mid;
+                    s_origin.x -= l[0].spot.x;
                 } else {
-                    s_origin.x -= l[1].mid;
+                    s_origin.x -= l[1].spot.x;
                 }
 
                 let changed;
@@ -2856,7 +2856,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
 struct CaretLayout {
     // set by caret
     width: Px,
-    mid: Px,
+    spot: PxPoint,
     // set by Text
     inner_text: PxTransform,
     x: Px,
@@ -2867,7 +2867,7 @@ impl Default for CaretLayout {
     fn default() -> Self {
         Self {
             width: Px::MIN,
-            mid: Px::MIN,
+            spot: PxPoint::zero(),
             inner_text: Default::default(),
             x: Px::MIN,
             y: Px::MIN,
@@ -2928,6 +2928,7 @@ impl InteractiveCaret {
         let mut touch_move = None::<(TouchId, EventHandles)>;
         let mut mouse_move = EventHandles::dummy();
         let mut touch_area = PxSize::zero();
+        let mut move_start = PxPoint::zero();
 
         match_node(child, move |c, op| {
             ctx.with_context_blend(false, || match op {
@@ -2967,6 +2968,8 @@ impl InteractiveCaret {
                         }
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                         if args.is_mouse_down() && args.is_primary() {
+                            move_start = args.position_wgt().unwrap_or_default();
+
                             mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
                             mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
                             POINTER_CAPTURE.capture_subtree(WIDGET.id());
@@ -2975,7 +2978,19 @@ impl InteractiveCaret {
                         }
                     } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
                         if !mouse_move.is_dummy() {
-                            let pos = args.position;
+                            let wgt_info = WIDGET.info();
+                            let scale_factor = wgt_info.tree().scale_factor();
+                            let transform = wgt_info.inner_transform();
+                            let diff = transform
+                                .inverse()
+                                .unwrap()
+                                .transform_point(args.position.to_px(scale_factor))
+                                .unwrap_or_default()
+                                - move_start;
+
+                            let spot = c_layout.lock().spot + diff;
+                            let pos = transform.transform_point(spot).unwrap_or_default().to_dip(scale_factor);
+
                             let op = match shape {
                                 CaretShape::Insert => TextSelectOp::nearest_to(pos),
                                 _ => TextSelectOp::select_index_nearest_to(pos, c_layout.lock().is_selection_index),
@@ -2992,14 +3007,14 @@ impl InteractiveCaret {
                 UiNodeOp::Layout { wl, final_size } => {
                     *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || c.layout(wl));
                     touch_area = *final_size;
-                    let mid = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed).x;
+                    let spot = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed);
 
                     let mut c_layout = c_layout.lock();
 
-                    if c_layout.width != final_size.width || c_layout.mid != mid {
+                    if c_layout.width != final_size.width || c_layout.spot != spot {
                         UPDATES.layout(parent_id);
                         c_layout.width = final_size.width;
-                        c_layout.mid = mid;
+                        c_layout.spot = spot;
                     }
                 }
                 UiNodeOp::Render { frame } => {
