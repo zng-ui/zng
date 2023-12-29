@@ -2,6 +2,8 @@
 
 * Interactive carets.
     - Test with multi-line.
+    - Dragging caret over second causes both to start moving.
+        - In bidi text this can panic also.
 
 * Implement selection toolbar.
     - Touch carets vanish when the toolbar opens.

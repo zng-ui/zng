@@ -29,8 +29,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                let is_over = args.target.as_ref().map(|t| t.as_path().contains(WIDGET.id())).unwrap_or(false);
-                if is_over {
+                if args.is_over() {
                     if hovered_binding.is_none() {
                         // we are not already set, setup binding.
 
