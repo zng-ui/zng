@@ -4,6 +4,12 @@
     - Test with multi-line.
     - Dragging caret over second causes both to start moving.
         - In bidi text this can panic also.
+    - Selection extends to the touch/mouse point, not the middle of the caret line,
+        this causes the caret to "jump" under the point.
+        - At the same time we make the full height of the caret draggable.
+            - Need to record the first point on the caret.
+        - We already have a mid offset, make it a point?
+            - Like a cursor hotspot.
 
 * Implement selection toolbar.
     - Touch carets vanish when the toolbar opens.
