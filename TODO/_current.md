@@ -1,8 +1,6 @@
 # TextInput
 
 * Interactive carets.
-    - RTL only text SelectAll panics.
-        - Bidi with RTL start and end show a weird effect, the caret shape swaps at the end.
     - Test with multi-line.
 
 * Implement selection toolbar.

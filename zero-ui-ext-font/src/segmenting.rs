@@ -175,16 +175,10 @@ impl SegmentedText {
         self.base_direction
     }
 
-    /// Gets if the text contains segments in both directions.
+    /// Gets if the text contains segments not in the base direction.
     pub fn is_bidi(&self) -> bool {
-        let mut ltr = false;
-        let mut rtl = false;
         for seg in self.segments.iter() {
-            match seg.direction() {
-                LayoutDirection::LTR => ltr = true,
-                LayoutDirection::RTL => rtl = true,
-            }
-            if ltr && rtl {
+            if seg.direction() != self.base_direction {
                 return true;
             }
         }

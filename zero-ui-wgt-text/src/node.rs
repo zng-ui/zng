@@ -2767,6 +2767,8 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                     if seg.direction().is_rtl() {
                         index_is_left = !index_is_left;
                     }
+                } else if seg_txt.base_direction().is_rtl() {
+                    index_is_left = !index_is_left;
                 }
 
                 let mut s_index_is_left = s_index.index < index.index;
@@ -2774,6 +2776,8 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                     if seg.direction().is_rtl() {
                         s_index_is_left = !s_index_is_left;
                     }
+                } else if seg_txt.base_direction().is_rtl() {
+                    s_index_is_left = !s_index_is_left;
                 }
 
                 if index_is_left {
