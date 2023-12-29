@@ -3027,9 +3027,9 @@ fn interactive_caret_input(input: impl IntoValue<InteractiveCaretInput>) {}
 
 /// Default interactive caret visual.
 ///
-/// See [`interactive_caret_shape`] for more details.
+/// See [`interactive_caret_visual`] for more details.
 ///
-/// [`interactive_caret_shape`]: fn@super::interactive_caret_shape
+/// [`interactive_caret_visual`]: fn@super::interactive_caret_visual
 pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
     match_node_leaf(move |op| match op {
         UiNodeOp::Layout { final_size, .. } => {
@@ -3094,10 +3094,10 @@ context_local! {
 }
 
 /// Set the ***x*** offset to the middle of the caret line in the touch caret shape.
-/// ///
-/// See [`caret_touch_shape`] for more details.
 ///
-/// [`caret_touch_shape`]: fn@super::caret_touch_shape
+/// See [`interactive_caret_visual`] for more details.
+///
+/// [`interactive_caret_visual`]: fn@super::interactive_caret_visual
 pub fn set_interactive_caret_mid(caret_line_middle: Px) {
     TOUCH_CARET_MID.get().store(caret_line_middle, Ordering::Relaxed);
 }

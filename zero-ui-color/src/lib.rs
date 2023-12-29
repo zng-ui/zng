@@ -1312,7 +1312,7 @@ pub fn lerp_space() -> LerpSpace {
 
 /// Calls `f` with [`lerp_space`] set to `space`.
 ///
-/// See [`rgba_sampler`] and [`linear_hsla_sampler`] for a way to set the space in animations.
+/// See [`rgba_sampler`] and [`hsla_linear_sampler`] for a way to set the space in animations.
 pub fn with_lerp_space<R>(space: LerpSpace, f: impl FnOnce() -> R) -> R {
     LERP_SPACE.with_context_value(space, f)
 }
