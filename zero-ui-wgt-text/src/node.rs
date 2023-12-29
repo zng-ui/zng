@@ -2924,7 +2924,7 @@ impl InteractiveCaret {
         shape: CaretShape,
         parent_id: WidgetId,
     ) -> impl UiNode {
-        let mut caret_mid_buf = Some(Arc::new(Atomic::new(Px(0))));
+        let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
         let mut touch_move = None::<(TouchId, EventHandles)>;
         let mut mouse_move = EventHandles::dummy();
         let mut touch_area = PxSize::zero();
@@ -2990,9 +2990,9 @@ impl InteractiveCaret {
                     }
                 }
                 UiNodeOp::Layout { wl, final_size } => {
-                    *final_size = TOUCH_CARET_MID.with_context(&mut caret_mid_buf, || c.layout(wl));
+                    *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || c.layout(wl));
                     touch_area = *final_size;
-                    let mid = caret_mid_buf.as_ref().unwrap().load(Ordering::Relaxed);
+                    let mid = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed).x;
 
                     let mut c_layout = c_layout.lock();
 
@@ -3036,7 +3036,8 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
             let factor = LAYOUT.scale_factor();
             let size = Dip::new(16).to_px(factor);
             *final_size = PxSize::splat(size);
-            final_size.height += TEXT.laidout().shaped_text.line_height();
+            let line_height = TEXT.laidout().shaped_text.line_height();
+            final_size.height += line_height;
 
             let caret_thickness = Dip::new(1).to_px(factor);
 
@@ -3051,7 +3052,7 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
                 }
                 CaretShape::Insert => final_size.width / 2 - caret_thickness / 2,
             };
-            set_interactive_caret_mid(caret_offset);
+            set_interactive_caret_spot(PxPoint::new(caret_offset, line_height / Px(2)));
         }
         UiNodeOp::Render { frame } => {
             let size = Dip::new(16).to_px(frame.scale_factor());
@@ -3090,16 +3091,16 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
 }
 
 context_local! {
-    static TOUCH_CARET_MID: Atomic<Px> = Atomic::new(Px(0));
+    static TOUCH_CARET_SPOT: Atomic<PxPoint> = Atomic::new(PxPoint::zero());
 }
 
-/// Set the ***x*** offset to the middle of the caret line in the touch caret shape.
+/// Set the caret *hotspot* that marks the middle of the caret on the text line.
 ///
 /// See [`interactive_caret_visual`] for more details.
 ///
 /// [`interactive_caret_visual`]: fn@super::interactive_caret_visual
-pub fn set_interactive_caret_mid(caret_line_middle: Px) {
-    TOUCH_CARET_MID.get().store(caret_line_middle, Ordering::Relaxed);
+pub fn set_interactive_caret_spot(caret_line_spot: PxPoint) {
+    TOUCH_CARET_SPOT.get().store(caret_line_spot, Ordering::Relaxed);
 }
 
 /// An Ui node that renders the text selection background.

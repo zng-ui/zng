@@ -1382,13 +1382,13 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// The `visual` node becomes the content of a [layered widget] at the `ADORNER+1` layer, the text widget context is
 /// propagated so contextual variables and value work seamless inside the node.
 ///
-/// The `visual` node must set one special value during layout, the [`set_interactive_caret_mid`] must be called to
+/// The `visual` node must set one special value during layout, the [`set_interactive_caret_spot`] must be called to
 /// set the offset to the middle of the caret line in the visual inner-bounds, this is used to position the caret.
 ///
 /// Sets the [`INTERACTIVE_CARET_VISUAL_VAR`].
 ///
 /// [layered widget]: zero_ui_wgt_layer
-/// [`set_interactive_caret_mid`]: super::node::set_interactive_caret_mid
+/// [`set_interactive_caret_spot`]: super::node::set_interactive_caret_spot
 #[property(CONTEXT, default(INTERACTIVE_CARET_VISUAL_VAR), widget_impl(TextEditMix<P>))]
 pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
     with_context_var(child, INTERACTIVE_CARET_VISUAL_VAR, visual)
