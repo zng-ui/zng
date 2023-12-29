@@ -1,8 +1,8 @@
 # TextInput
 
 * Interactive carets.
-    - Implement mouse drag.
-    - Test with RTL and bidirectional text.
+    - RTL only text SelectAll panics.
+        - Bidi with RTL start and end show a weird effect, the caret shape swaps at the end.
     - Test with multi-line.
 
 * Implement selection toolbar.

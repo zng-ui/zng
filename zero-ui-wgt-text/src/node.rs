@@ -1,6 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Instant};
+use std::{borrow::Cow, fmt, mem, num::Wrapping, ops, sync::Arc, time::Instant};
 
 use super::{
     cmd::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
@@ -65,7 +65,7 @@ pub struct CaretInfo {
     ///
     /// This is used to signal interaction with the `index` value by [`TextEditOp`]
     /// even if the interaction only sets-it to the index same value.
-    pub index_version: u8,
+    pub index_version: Wrapping<u8>,
 
     /// If the index was set by using the [`caret_retained_x`].
     ///
@@ -91,7 +91,7 @@ impl CaretInfo {
     /// Set the index and update the index version.
     pub fn set_index(&mut self, index: CaretIndex) {
         self.index = Some(index);
-        self.index_version = self.index_version.wrapping_add(1);
+        self.index_version += 1;
     }
 
     /// Sets the selection start, end and update the index version.
@@ -106,7 +106,7 @@ impl CaretInfo {
     pub fn clear_selection(&mut self) {
         self.selection_index = None;
         self.initial_selection = None;
-        self.index_version = self.index_version.wrapping_add(1);
+        self.index_version += 1;
     }
 
     /// Set the char byte index and update the index version.
@@ -118,7 +118,7 @@ impl CaretInfo {
         } else {
             self.index = Some(CaretIndex { index, line: 0 });
         }
-        self.index_version = self.index_version.wrapping_add(1);
+        self.index_version += 1;
     }
 
     /// Set the char byte index of the selection start, end and update the index version.
@@ -634,7 +634,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     index: None,
                     selection_index: None,
                     initial_selection: None,
-                    index_version: 0,
+                    index_version: Wrapping(0),
                     used_retained_x: false,
                     skip_next_scroll: false,
                 }),
@@ -2922,15 +2922,17 @@ impl InteractiveCaret {
     ) -> impl UiNode {
         let mut caret_mid_buf = Some(Arc::new(Atomic::new(Px(0))));
         let mut touch_move = None::<(TouchId, EventHandles)>;
+        let mut mouse_move = EventHandles::dummy();
         let mut touch_area = PxSize::zero();
 
         match_node(child, move |c, op| {
             ctx.with_context_blend(false, || match op {
                 UiNodeOp::Init => {
-                    WIDGET.sub_event(&TOUCH_INPUT_EVENT);
+                    WIDGET.sub_event(&TOUCH_INPUT_EVENT).sub_event(&MOUSE_INPUT_EVENT);
                 }
                 UiNodeOp::Deinit => {
                     touch_move = None;
+                    mouse_move.clear();
                 }
                 UiNodeOp::Event { update } => {
                     c.event(update);
@@ -2959,9 +2961,27 @@ impl InteractiveCaret {
                                 }
                             }
                         }
+                    } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                        if args.is_mouse_down() && args.is_primary() {
+                            mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
+                            mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
+                            POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                        } else {
+                            mouse_move.clear();
+                        }
+                    } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
+                        if !mouse_move.is_dummy() {
+                            let pos = args.position;
+                            let op = match shape {
+                                CaretShape::Insert => TextSelectOp::nearest_to(pos),
+                                _ => TextSelectOp::select_index_nearest_to(pos, c_layout.lock().is_selection_index),
+                            };
+                            SELECT_CMD.scoped(parent_id).notify_param(op);
+                        }
                     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
                         if args.is_lost(WIDGET.id()) {
                             touch_move = None;
+                            mouse_move.clear();
                         }
                     }
                 }
