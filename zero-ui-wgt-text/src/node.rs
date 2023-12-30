@@ -2928,7 +2928,7 @@ impl InteractiveCaret {
         let mut touch_move = None::<(TouchId, EventHandles)>;
         let mut mouse_move = EventHandles::dummy();
         let mut touch_area = PxSize::zero();
-        let mut move_start = PxPoint::zero();
+        let mut move_start_to_spot = DipVector::zero();
 
         match_node(child, move |c, op| {
             ctx.with_context_blend(false, || match op {
@@ -2944,6 +2944,13 @@ impl InteractiveCaret {
 
                     if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
                         if args.is_touch_start() {
+                            let wgt_info = WIDGET.info();
+                            move_start_to_spot = wgt_info
+                                .inner_transform()
+                                .transform_vector(c_layout.lock().spot.to_vector())
+                                .to_dip(wgt_info.tree().scale_factor())
+                                - args.position.to_vector();
+
                             let mut handles = EventHandles::dummy();
                             handles.push(TOUCH_MOVE_EVENT.subscribe(WIDGET.id()));
                             handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
@@ -2956,10 +2963,11 @@ impl InteractiveCaret {
                         if let Some((id, _)) = &touch_move {
                             for t in &args.touches {
                                 if t.touch == *id {
-                                    let pos = t.position();
+                                    let spot = t.position() + move_start_to_spot;
+
                                     let op = match shape {
-                                        CaretShape::Insert => TextSelectOp::nearest_to(pos),
-                                        _ => TextSelectOp::select_index_nearest_to(pos, c_layout.lock().is_selection_index),
+                                        CaretShape::Insert => TextSelectOp::nearest_to(spot),
+                                        _ => TextSelectOp::select_index_nearest_to(spot, c_layout.lock().is_selection_index),
                                     };
                                     SELECT_CMD.scoped(parent_id).notify_param(op);
                                     break;
@@ -2968,7 +2976,12 @@ impl InteractiveCaret {
                         }
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                         if args.is_mouse_down() && args.is_primary() {
-                            move_start = args.position_wgt().unwrap_or_default();
+                            let wgt_info = WIDGET.info();
+                            move_start_to_spot = wgt_info
+                                .inner_transform()
+                                .transform_vector(c_layout.lock().spot.to_vector())
+                                .to_dip(wgt_info.tree().scale_factor())
+                                - args.position.to_vector();
 
                             mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
                             mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
@@ -2978,22 +2991,11 @@ impl InteractiveCaret {
                         }
                     } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
                         if !mouse_move.is_dummy() {
-                            let wgt_info = WIDGET.info();
-                            let scale_factor = wgt_info.tree().scale_factor();
-                            let transform = wgt_info.inner_transform();
-                            let diff = transform
-                                .inverse()
-                                .unwrap()
-                                .transform_point(args.position.to_px(scale_factor))
-                                .unwrap_or_default()
-                                - move_start;
-
-                            let spot = c_layout.lock().spot + diff;
-                            let pos = transform.transform_point(spot).unwrap_or_default().to_dip(scale_factor);
+                            let spot = args.position + move_start_to_spot;
 
                             let op = match shape {
-                                CaretShape::Insert => TextSelectOp::nearest_to(pos),
-                                _ => TextSelectOp::select_index_nearest_to(pos, c_layout.lock().is_selection_index),
+                                CaretShape::Insert => TextSelectOp::nearest_to(spot),
+                                _ => TextSelectOp::select_index_nearest_to(spot, c_layout.lock().is_selection_index),
                             };
                             SELECT_CMD.scoped(parent_id).notify_param(op);
                         }
