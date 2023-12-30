@@ -996,6 +996,212 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 }
 
+impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
+    /// Gets a read-only shared reference to the current context value.
+    pub fn read_only(&'static self) -> ReadOnlyRwLock<T> {
+        ReadOnlyRwLock::new(self.get())
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// See [`RwLock::read`] for more details.
+    pub fn read(&'static self) -> RwLockReadGuardOwned<T> {
+        RwLockReadGuardOwned::lock(self.get())
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// Unlike `read`, this method is guaranteed to succeed without blocking if
+    /// another read lock is held at the time of the call.
+    ///
+    /// See [`RwLock::read`] for more details.
+    pub fn read_recursive(&'static self) -> RwLockReadGuardOwned<T> {
+        RwLockReadGuardOwned::lock_recursive(self.get())
+    }
+
+    /// Locks this `RwLock` with exclusive write access, blocking the current
+    /// thread until it can be acquired.
+    ///
+    /// See [`RwLock::write`] for more details.
+    pub fn write(&'static self) -> RwLockWriteGuardOwned<T> {
+        RwLockWriteGuardOwned::lock(self.get())
+    }
+
+    /// Try lock this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// See [`RwLock::try_read`] for more details.
+    pub fn try_read(&'static self) -> Option<RwLockReadGuardOwned<T>> {
+        RwLockReadGuardOwned::try_lock(self.get())
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// See [`RwLock::try_lock_recursive`] for more details.
+    pub fn try_read_recursive(&'static self) -> Option<RwLockReadGuardOwned<T>> {
+        RwLockReadGuardOwned::try_lock_recursive(self.get())
+    }
+
+    /// Locks this `RwLock` with exclusive write access, blocking the current
+    /// thread until it can be acquired.
+    ///
+    /// See [`RwLock::try_write`] for more details.
+    pub fn try_write(&'static self) -> Option<RwLockWriteGuardOwned<T>> {
+        RwLockWriteGuardOwned::try_lock(self.get())
+    }
+}
+
+/// Represents read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+pub struct RwLockReadGuardOwned<T: 'static> {
+    lock: parking_lot::RwLockReadGuard<'static, T>,
+    _owned: Arc<RwLock<T>>,
+}
+impl<T> RwLockReadGuardOwned<T> {
+    /// Lock owned.    
+    ///
+    /// See [`RwLock::read`] for more details.
+    pub fn lock(own: Arc<RwLock<T>>) -> Self {
+        Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(own.read()) },
+            _owned: own,
+        }
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// See [`RwLock::read_recursive`] for more details.
+    pub fn lock_recursive(own: Arc<RwLock<T>>) -> Self {
+        Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(own.read_recursive()) },
+            _owned: own,
+        }
+    }
+
+    /// Try lock owned.
+    ///
+    /// See [`RwLock::try_read`] for more details.
+    pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
+        let lock = own.try_read()?;
+        Some(Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(lock) },
+            _owned: own,
+        })
+    }
+
+    /// Try lock owned.
+    ///
+    /// See [`RwLock::try_read`] for more details.
+    pub fn try_lock_recursive(own: Arc<RwLock<T>>) -> Option<Self> {
+        let lock = own.try_read_recursive()?;
+        Some(Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(lock) },
+            _owned: own,
+        })
+    }
+}
+impl<T> ops::Deref for RwLockReadGuardOwned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.lock.deref()
+    }
+}
+
+/// Represents read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+pub struct RwLockWriteGuardOwned<T: 'static> {
+    lock: parking_lot::RwLockWriteGuard<'static, T>,
+    _owned: Arc<RwLock<T>>,
+}
+impl<T> RwLockWriteGuardOwned<T> {
+    /// Lock owned.
+    ///
+    /// See [`RwLock::write`] for more details.
+    pub fn lock(own: Arc<RwLock<T>>) -> Self {
+        Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(own.write()) },
+            _owned: own,
+        }
+    }
+
+    /// Lock owned.
+    ///
+    /// See [`RwLock::try_write`] for more details.
+    pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
+        let lock = own.try_write()?;
+        Some(Self {
+            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            lock: unsafe { mem::transmute(lock) },
+            _owned: own,
+        })
+    }
+}
+impl<T> ops::Deref for RwLockWriteGuardOwned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.lock.deref()
+    }
+}
+impl<T> ops::DerefMut for RwLockWriteGuardOwned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.lock.deref_mut()
+    }
+}
+
+/// Read-only wrapper on an `Arc<RwLock<T>>` contextual value.
+pub struct ReadOnlyRwLock<T>(Arc<RwLock<T>>);
+impl<T> Clone for ReadOnlyRwLock<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T> ReadOnlyRwLock<T> {
+    /// New.
+    pub fn new(l: Arc<RwLock<T>>) -> Self {
+        Self(l)
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// See [`RwLock::read`] for more details.
+    pub fn read(&self) -> parking_lot::RwLockReadGuard<T> {
+        self.0.read()
+    }
+
+    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
+    ///
+    /// Unlike `read`, this method is guaranteed to succeed without blocking if
+    /// another read lock is held at the time of the call.
+    ///
+    /// See [`RwLock::read_recursive`] for more details.
+    pub fn read_recursive(&self) -> parking_lot::RwLockReadGuard<T> {
+        self.0.read_recursive()
+    }
+
+    /// Attempts to acquire this `RwLock` with shared read access.
+    ///
+    /// See [`RwLock::try_read`] for more details.
+    pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
+        self.0.try_read()
+    }
+
+    /// Attempts to acquire this `RwLock` with shared read access.
+    ///
+    /// See [`RwLock::try_read_recursive`] for more details.
+    pub fn try_read_recursive(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
+        self.0.try_read_recursive()
+    }
+
+    /// Gets if the read-only shared reference is to the same lock as `other`.
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 ///<span data-del-macro-root></span> Declares new app and context local variable.
 ///
 /// # Examples

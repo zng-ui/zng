@@ -937,7 +937,7 @@ pub mod app {
     };
     pub use zero_ui_app_context::{
         app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
-        RunOnDrop, StaticAppId,
+        ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned, StaticAppId,
     };
     pub use zero_ui_wgt_input::cmd::{
         on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD,
