@@ -42,7 +42,7 @@ command! {
 
 struct SharedTextEditOp {
     data: Box<dyn Any + Send>,
-    op: Box<dyn FnMut(&BoxedVar<Txt>, &mut dyn Any, UndoFullOp) + Send>,
+    op: Box<dyn FnMut(&mut dyn Any, UndoFullOp) + Send>,
 }
 
 /// Represents a text edit operation that can be send to an editable text using [`EDIT_CMD`].
@@ -57,24 +57,24 @@ impl TextEditOp {
     /// New text edit operation.
     ///
     /// The editable text widget that handles [`EDIT_CMD`] will call `op` during event handling in
-    /// the [`node::resolve_text`] context. You can position the caret using [`ResolvedText::caret`],
-    /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
-    /// the caret index is also snapped to the nearest grapheme start.
+    /// the [`node::resolve_text`] context meaning the [`TEXT.resolved`] and [`TEXT.resolve_caret`] service is available in `op`.
+    /// The text is edited by modifying [`ResolvedText::txt`]. The text widget will detect changes to the caret and react s
+    /// accordingly (updating caret position and animation), the caret index is also snapped to the nearest grapheme start.
     ///
-    /// The `op` arguments are the text variable, a custom data `D` and what [`UndoFullOp`] query, all
+    /// The `op` arguments are a custom data `D` and what [`UndoFullOp`] to run, all
     /// text edit operations must be undoable, first [`UndoOp::Redo`] is called to "do", then undo and redo again
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
     ///
     /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
     /// [`ResolvedText::pending_edit`]: super::node::ResolvedText::pending_edit
-    pub fn new<D>(data: D, mut op: impl FnMut(&BoxedVar<Txt>, &mut D, UndoFullOp) + Send + 'static) -> Self
+    pub fn new<D>(data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static) -> Self
     where
         D: Send + Any + 'static,
     {
         Self(Arc::new(Mutex::new(SharedTextEditOp {
             data: Box::new(data),
-            op: Box::new(move |var, data, o| op(var, data.downcast_mut().unwrap(), o)),
+            op: Box::new(move |data, o| op(data.downcast_mut().unwrap(), o)),
         })))
     }
 
@@ -94,17 +94,17 @@ impl TextEditOp {
             removed: Txt::from_static(""),
         };
 
-        Self::new(data, move |txt, data, op| match op {
+        Self::new(data, move |data, op| match op {
             UndoFullOp::Init { redo } => {
                 let ctx = TEXT.resolved();
-                let caret = ctx.caret.lock();
+                let caret = &ctx.caret;
 
                 let mut rmv_range = 0..0;
 
                 if let Some(range) = caret.selection_range() {
                     rmv_range = range.start.index..range.end.index;
 
-                    txt.with(|t| {
+                    ctx.txt.with(|t| {
                         let r = &t[rmv_range.clone()];
                         if r != data.removed {
                             data.removed = Txt::from_str(r);
@@ -120,35 +120,39 @@ impl TextEditOp {
                     data.selection_state = SelectionState::Caret(caret.index.unwrap_or(CaretIndex::ZERO));
                 }
 
-                Self::apply_max_count(redo, txt, rmv_range, &mut data.insert)
+                Self::apply_max_count(redo, &ctx.txt, rmv_range, &mut data.insert)
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
-
                 let insert = &data.insert;
 
                 match data.selection_state {
                     SelectionState::PreInit => unreachable!(),
                     SelectionState::Caret(insert_idx) => {
                         let i = insert_idx.index;
-                        txt.modify(clmv!(insert, |args| {
-                            args.to_mut().to_mut().insert_str(i, insert.as_str());
-                        }))
-                        .unwrap();
+                        TEXT.resolved()
+                            .txt
+                            .modify(clmv!(insert, |args| {
+                                args.to_mut().to_mut().insert_str(i, insert.as_str());
+                            }))
+                            .unwrap();
 
                         let mut i = insert_idx;
                         i.index += insert.len();
+
+                        let mut caret = TEXT.resolve_caret();
                         caret.set_index(i);
                         caret.clear_selection();
                     }
                     SelectionState::CaretSelection(start, end) | SelectionState::SelectionCaret(start, end) => {
                         let char_range = start.index..end.index;
-                        txt.modify(clmv!(insert, |args| {
-                            args.to_mut().to_mut().replace_range(char_range, insert.as_str());
-                        }))
-                        .unwrap();
+                        TEXT.resolved()
+                            .txt
+                            .modify(clmv!(insert, |args| {
+                                args.to_mut().to_mut().replace_range(char_range, insert.as_str());
+                            }))
+                            .unwrap();
 
+                        let mut caret = TEXT.resolve_caret();
                         caret.set_char_index(start.index + insert.len());
                         caret.clear_selection();
                     }
@@ -165,13 +169,14 @@ impl TextEditOp {
                 let i = insert_idx.index;
                 let removed = &data.removed;
 
-                txt.modify(clmv!(removed, |args| {
-                    args.to_mut().to_mut().replace_range(i..i + len, removed.as_str());
-                }))
-                .unwrap();
+                TEXT.resolved()
+                    .txt
+                    .modify(clmv!(removed, |args| {
+                        args.to_mut().to_mut().replace_range(i..i + len, removed.as_str());
+                    }))
+                    .unwrap();
 
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
+                let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx);
                 caret.selection_index = selection_idx;
             }
@@ -240,10 +245,10 @@ impl TextEditOp {
             removed: Txt::from_static(""),
         };
 
-        Self::new(data, move |txt, data, op| match op {
+        Self::new(data, move |data, op| match op {
             UndoFullOp::Init { .. } => {
                 let ctx = TEXT.resolved();
-                let caret = ctx.caret.lock();
+                let caret = &ctx.caret;
 
                 if let Some(range) = caret.selection_range() {
                     if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
@@ -256,11 +261,8 @@ impl TextEditOp {
                 }
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
-
                 let rmv = match data.selection_state {
-                    SelectionState::Caret(c) => backspace_range(&ctx.segmented_text, c.index, data.count),
+                    SelectionState::Caret(c) => backspace_range(&TEXT.resolved().segmented_text, c.index, data.count),
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
                     SelectionState::PreInit => unreachable!(),
                 };
@@ -269,20 +271,25 @@ impl TextEditOp {
                     return;
                 }
 
-                txt.with(|t| {
+                {
+                    let mut caret = TEXT.resolve_caret();
+                    caret.set_char_index(rmv.start);
+                    caret.clear_selection();
+                }
+
+                let ctx = TEXT.resolved();
+                ctx.txt.with(|t| {
                     let r = &t[rmv.clone()];
                     if r != data.removed {
                         data.removed = Txt::from_str(r);
                     }
                 });
 
-                caret.set_char_index(rmv.start);
-                caret.clear_selection();
-
-                txt.modify(move |args| {
-                    args.to_mut().to_mut().replace_range(rmv, "");
-                })
-                .unwrap();
+                ctx.txt
+                    .modify(move |args| {
+                        args.to_mut().to_mut().replace_range(rmv, "");
+                    })
+                    .unwrap();
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 if data.removed.is_empty() {
@@ -297,13 +304,14 @@ impl TextEditOp {
                 };
                 let removed = &data.removed;
 
-                txt.modify(clmv!(removed, |args| {
-                    args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
-                }))
-                .unwrap();
+                TEXT.resolved()
+                    .txt
+                    .modify(clmv!(removed, |args| {
+                        args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
+                    }))
+                    .unwrap();
 
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
+                let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx);
                 caret.selection_index = selection_idx;
             }
@@ -365,10 +373,10 @@ impl TextEditOp {
             removed: Txt::from_static(""),
         };
 
-        Self::new(data, move |txt, data, op| match op {
+        Self::new(data, move |data, op| match op {
             UndoFullOp::Init { .. } => {
                 let ctx = TEXT.resolved();
-                let caret = ctx.caret.lock();
+                let caret = &ctx.caret;
 
                 if let Some(range) = caret.selection_range() {
                     if range.start.index == caret.index.unwrap_or(CaretIndex::ZERO).index {
@@ -381,12 +389,9 @@ impl TextEditOp {
                 }
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
-
                 let rmv = match data.selection_state {
                     SelectionState::CaretSelection(s, e) | SelectionState::SelectionCaret(s, e) => s.index..e.index,
-                    SelectionState::Caret(c) => delete_range(&ctx.segmented_text, c.index, data.count),
+                    SelectionState::Caret(c) => delete_range(&TEXT.resolved().segmented_text, c.index, data.count),
                     SelectionState::PreInit => unreachable!(),
                 };
 
@@ -395,20 +400,24 @@ impl TextEditOp {
                     return;
                 }
 
-                txt.with(|t| {
+                {
+                    let mut caret = TEXT.resolve_caret();
+                    caret.set_char_index(rmv.start); // (re)start caret animation
+                    caret.clear_selection();
+                }
+
+                let ctx = TEXT.resolved();
+                ctx.txt.with(|t| {
                     let r = &t[rmv.clone()];
                     if r != data.removed {
                         data.removed = Txt::from_str(r);
                     }
                 });
-
-                caret.set_char_index(rmv.start); // (re)start caret animation
-                caret.clear_selection();
-
-                txt.modify(move |args| {
-                    args.to_mut().to_mut().replace_range(rmv, "");
-                })
-                .unwrap();
+                ctx.txt
+                    .modify(move |args| {
+                        args.to_mut().to_mut().replace_range(rmv, "");
+                    })
+                    .unwrap();
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let removed = &data.removed;
@@ -417,9 +426,6 @@ impl TextEditOp {
                     return;
                 }
 
-                let ctx = TEXT.resolved();
-                let mut caret = ctx.caret.lock();
-
                 let (insert_idx, selection_idx, caret_idx) = match data.selection_state {
                     SelectionState::Caret(c) => (c.index, None, c),
                     SelectionState::CaretSelection(s, e) => (s.index, Some(e), s),
@@ -427,11 +433,14 @@ impl TextEditOp {
                     SelectionState::PreInit => unreachable!(),
                 };
 
-                txt.modify(clmv!(removed, |args| {
-                    args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
-                }))
-                .unwrap();
+                TEXT.resolved()
+                    .txt
+                    .modify(clmv!(removed, |args| {
+                        args.to_mut().to_mut().insert_str(insert_idx, removed.as_str());
+                    }))
+                    .unwrap();
 
+                let mut caret = TEXT.resolve_caret();
                 caret.set_index(caret_idx); // (re)start caret animation
                 caret.selection_index = selection_idx;
             }
@@ -499,29 +508,28 @@ impl TextEditOp {
         let mut insert = insert.into();
         let mut removed = Txt::from_static("");
 
-        Self::new((), move |txt, _, op| match op {
+        Self::new((), move |_, op| match op {
             UndoFullOp::Init { redo } => {
                 let ctx = TEXT.resolved();
 
                 select_before.start = ctx.segmented_text.snap_grapheme_boundary(select_before.start);
                 select_before.end = ctx.segmented_text.snap_grapheme_boundary(select_before.end);
 
-                txt.with(|t| {
+                ctx.txt.with(|t| {
                     removed = Txt::from_str(&t[select_before.clone()]);
                 });
 
-                Self::apply_max_count(redo, txt, select_before.clone(), &mut insert);
+                Self::apply_max_count(redo, &ctx.txt, select_before.clone(), &mut insert);
             }
             UndoFullOp::Op(UndoOp::Redo) => {
-                let ctx = TEXT.resolved();
+                TEXT.resolved()
+                    .txt
+                    .modify(clmv!(select_before, insert, |args| {
+                        args.to_mut().to_mut().replace_range(select_before, insert.as_str());
+                    }))
+                    .unwrap();
 
-                txt.modify(clmv!(select_before, insert, |args| {
-                    args.to_mut().to_mut().replace_range(select_before, insert.as_str());
-                }))
-                .unwrap();
-
-                let mut caret = ctx.caret.lock();
-                caret.set_char_selection(select_after.start, select_after.end);
+                TEXT.resolve_caret().set_char_selection(select_after.start, select_after.end);
             }
             UndoFullOp::Op(UndoOp::Undo) => {
                 let ctx = TEXT.resolved();
@@ -529,12 +537,14 @@ impl TextEditOp {
                 select_after.start = ctx.segmented_text.snap_grapheme_boundary(select_after.start);
                 select_after.end = ctx.segmented_text.snap_grapheme_boundary(select_after.end);
 
-                txt.modify(clmv!(select_after, removed, |args| {
-                    args.to_mut().to_mut().replace_range(select_after, removed.as_str());
-                }))
-                .unwrap();
+                ctx.txt
+                    .modify(clmv!(select_after, removed, |args| {
+                        args.to_mut().to_mut().replace_range(select_after, removed.as_str());
+                    }))
+                    .unwrap();
 
-                ctx.caret.lock().set_char_selection(select_before.start, select_before.end);
+                drop(ctx);
+                TEXT.resolve_caret().set_char_selection(select_before.start, select_before.end);
             }
             UndoFullOp::Info { info } => *info = Some(Arc::new("replace")),
             UndoFullOp::Merge { .. } => {}
@@ -545,12 +555,14 @@ impl TextEditOp {
     pub fn apply_transforms() -> Self {
         let mut prev = Txt::from_static("");
         let mut transform = None::<(TextTransformFn, WhiteSpace)>;
-        Self::new((), move |txt, _, op| match op {
+        Self::new((), move |_, op| match op {
             UndoFullOp::Init { .. } => {}
             UndoFullOp::Op(UndoOp::Redo) => {
                 let (t, w) = transform.get_or_insert_with(|| (TEXT_TRANSFORM_VAR.get(), WHITE_SPACE_VAR.get()));
 
-                let new_txt = txt.with(|txt| {
+                let ctx = TEXT.resolved();
+
+                let new_txt = ctx.txt.with(|txt| {
                     let transformed = t.transform(txt);
                     let white_spaced = w.transform(transformed.as_ref());
                     if let Cow::Owned(w) = white_spaced {
@@ -563,15 +575,17 @@ impl TextEditOp {
                 });
 
                 if let Some(t) = new_txt {
-                    if txt.with(|t| t != prev.as_str()) {
-                        prev = txt.get();
+                    if ctx.txt.with(|t| t != prev.as_str()) {
+                        prev = ctx.txt.get();
                     }
-                    let _ = txt.set(t);
+                    let _ = ctx.txt.set(t);
                 }
             }
             UndoFullOp::Op(UndoOp::Undo) => {
-                if txt.with(|t| t != prev.as_str()) {
-                    let _ = txt.set(prev.clone());
+                let ctx = TEXT.resolved();
+
+                if ctx.txt.with(|t| t != prev.as_str()) {
+                    let _ = ctx.txt.set(prev.clone());
                 }
             }
             UndoFullOp::Info { info } => *info = Some(Arc::new("transform")),
@@ -579,24 +593,32 @@ impl TextEditOp {
         })
     }
 
-    pub(super) fn call(self, text: &BoxedVar<Txt>) -> bool {
+    fn call(self) -> bool {
         {
             let mut op = self.0.lock();
             let op = &mut *op;
 
             let mut redo = true;
-            (op.op)(text, &mut *op.data, UndoFullOp::Init { redo: &mut redo });
+            (op.op)(&mut *op.data, UndoFullOp::Init { redo: &mut redo });
             if !redo {
                 return false;
             }
 
-            (op.op)(text, &mut *op.data, UndoFullOp::Op(UndoOp::Redo));
+            (op.op)(&mut *op.data, UndoFullOp::Op(UndoOp::Redo));
         }
 
         if !OBSCURE_TXT_VAR.get() {
             UNDO.register(UndoTextEditOp::new(self));
         }
         true
+    }
+
+    pub(super) fn call_edit_op(self) {
+        let registered = self.call();
+        if registered && !TEXT.resolved().pending_edit {
+            TEXT.resolve().pending_edit = true;
+            WIDGET.update(); // in case the edit does not actually change the text.
+        }
     }
 }
 /// Used by `TextEditOp::insert`, `backspace` and `delete`.
@@ -624,10 +646,10 @@ impl UndoTextEditOp {
         }
     }
 
-    pub(super) fn call(&self, text: &BoxedVar<Txt>) {
+    pub(super) fn call(&self) {
         let mut op = self.edit_op.0.lock();
         let op = &mut *op;
-        (op.op)(text, &mut *op.data, UndoFullOp::Op(self.exec_op))
+        (op.op)(&mut *op.data, UndoFullOp::Op(self.exec_op))
     }
 }
 impl UndoAction for UndoTextEditOp {
@@ -644,8 +666,7 @@ impl UndoAction for UndoTextEditOp {
         let mut op = self.edit_op.0.lock();
         let op = &mut *op;
         let mut info = None;
-        let none_var = LocalVar(Txt::from_static("")).boxed();
-        (op.op)(&none_var, &mut *op.data, UndoFullOp::Info { info: &mut info });
+        (op.op)(&mut *op.data, UndoFullOp::Info { info: &mut info });
 
         info.unwrap_or_else(|| Arc::new("text edit"))
     }
@@ -661,12 +682,10 @@ impl UndoAction for UndoTextEditOp {
             {
                 let mut op = self.edit_op.0.lock();
                 let op = &mut *op;
-                let none_var = LocalVar(Txt::from_static("")).boxed();
 
                 let mut next_op = next.edit_op.0.lock();
 
                 (op.op)(
-                    &none_var,
                     &mut *op.data,
                     UndoFullOp::Merge {
                         next_data: &mut *next_op.data,
@@ -699,8 +718,7 @@ impl RedoAction for UndoTextEditOp {
         let mut op = self.edit_op.0.lock();
         let op = &mut *op;
         let mut info = None;
-        let none_var = LocalVar(Txt::from_static("")).boxed();
-        (op.op)(&none_var, &mut *op.data, UndoFullOp::Info { info: &mut info });
+        (op.op)(&mut *op.data, UndoFullOp::Info { info: &mut info });
 
         info.unwrap_or_else(|| Arc::new("text edit"))
     }
@@ -943,10 +961,10 @@ impl TextSelectOp {
     /// Select the full text.
     pub fn select_all() -> Self {
         Self::new(|| {
-            let resolved = TEXT.resolved();
-            let mut c = resolved.caret.lock();
-            c.set_char_selection(0, resolved.segmented_text.text().len());
-            c.skip_next_scroll = true;
+            let len = TEXT.resolved().segmented_text.text().len();
+            let mut caret = TEXT.resolve_caret();
+            caret.set_char_selection(0, len);
+            caret.skip_next_scroll = true;
         })
     }
 
@@ -961,20 +979,23 @@ fn next_prev(
     selection_index: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
 ) {
     let resolved = TEXT.resolved();
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut i = resolved.caret.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        i.index = if let Some(s) = c.selection_range() {
+        i.index = if let Some(s) = resolved.caret.selection_range() {
             selection_index(&resolved.segmented_text, s)
         } else {
             insert_index_fn(&resolved.segmented_text, i.index)
         };
-        c.clear_selection();
     } else {
-        if c.selection_index.is_none() {
-            c.selection_index = Some(i);
-        }
         i.index = insert_index_fn(&resolved.segmented_text, i.index);
+    }
+    drop(resolved);
+
+    let mut c = TEXT.resolve_caret();
+    if clear_selection {
+        c.clear_selection();
+    } else if c.selection_index.is_none() {
+        c.selection_index = Some(i);
     }
     c.set_index(i);
     c.used_retained_x = false;
@@ -982,24 +1003,25 @@ fn next_prev(
 
 fn line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
-    let resolved = TEXT.resolved();
-    let laidout = TEXT.laidout();
 
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut caret = TEXT.resolve_caret();
+    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.clear_selection();
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+        caret.clear_selection();
+    } else if caret.selection_index.is_none() {
+        caret.selection_index = Some(i);
     }
+    caret.used_retained_x = true;
 
-    c.used_retained_x = true;
+    let laidout = TEXT.laidout();
 
     if laidout.caret_origin.is_some() {
         let last_line = laidout.shaped_text.lines_len().saturating_sub(1);
         let li = i.line;
         let next_li = li.saturating_add_signed(diff).min(last_line);
         if li != next_li {
+            drop(caret);
+            let resolved = TEXT.resolved();
             match laidout.shaped_text.line(next_li) {
                 Some(l) => {
                     i.line = next_li;
@@ -1011,42 +1033,53 @@ fn line_up_down(clear_selection: bool, diff: i8) {
                 None => i = CaretIndex::ZERO,
             };
             i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
-            c.set_index(i);
+            drop(resolved);
+            caret = TEXT.resolve_caret();
+            caret.set_index(i);
         } else if diff == -1 {
-            c.set_char_index(0);
+            caret.set_char_index(0);
         } else if diff == 1 {
-            c.set_char_index(resolved.segmented_text.text().len());
+            drop(caret);
+            let len = TEXT.resolved().segmented_text.text().len();
+            caret = TEXT.resolve_caret();
+            caret.set_char_index(len);
         }
     }
 
-    if c.index.is_none() {
-        c.set_index(CaretIndex::ZERO);
-        c.clear_selection();
+    if caret.index.is_none() {
+        caret.set_index(CaretIndex::ZERO);
+        caret.clear_selection();
     }
 }
 
 fn page_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as i32;
-    let resolved = TEXT.resolved();
-    let laidout = TEXT.laidout();
 
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut caret = TEXT.resolve_caret();
+    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.clear_selection();
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+        caret.clear_selection();
+    } else if caret.selection_index.is_none() {
+        caret.selection_index = Some(i);
     }
 
+    let laidout = TEXT.laidout();
+
     let page_y = laidout.viewport.height * Px(diff);
-    c.used_retained_x = true;
+    caret.used_retained_x = true;
     if laidout.caret_origin.is_some() {
         let li = i.line;
         if diff == -1 && li == 0 {
-            c.set_char_index(0);
+            caret.set_char_index(0);
         } else if diff == 1 && li == laidout.shaped_text.lines_len() - 1 {
-            c.set_char_index(resolved.segmented_text.text().len());
+            drop(caret);
+            let len = TEXT.resolved().segmented_text.text().len();
+            caret = TEXT.resolve_caret();
+            caret.set_char_index(len);
         } else if let Some(li) = laidout.shaped_text.line(li) {
+            drop(caret);
+            let resolved = TEXT.resolved();
+
             let target_line_y = li.rect().origin.y + page_y;
             match laidout.shaped_text.nearest_line(target_line_y) {
                 Some(l) => {
@@ -1059,77 +1092,79 @@ fn page_up_down(clear_selection: bool, diff: i8) {
                 None => i = CaretIndex::ZERO,
             };
             i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
-            c.set_index(i);
+
+            drop(resolved);
+            caret = TEXT.resolve_caret();
+
+            caret.set_index(i);
         }
     }
 
-    if c.index.is_none() {
-        c.set_index(CaretIndex::ZERO);
-        c.clear_selection();
+    if caret.index.is_none() {
+        caret.set_index(CaretIndex::ZERO);
+        caret.clear_selection();
     }
 }
 
 fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize) {
-    let resolved = TEXT.resolved();
-    let laidout = TEXT.laidout();
-
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut caret = TEXT.resolve_caret();
+    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.clear_selection();
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+        caret.clear_selection();
+    } else if caret.selection_index.is_none() {
+        caret.selection_index = Some(i);
     }
 
-    if let Some(li) = laidout.shaped_text.line(i.line) {
+    if let Some(li) = TEXT.laidout().shaped_text.line(i.line) {
         i.index = index(li);
-        c.set_index(i);
-        c.used_retained_x = false;
+        caret.set_index(i);
+        caret.used_retained_x = false;
     }
 }
 
 fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
-    let resolved = TEXT.resolved();
+    let idx = index(TEXT.resolved().segmented_text.text());
 
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut caret = TEXT.resolve_caret();
+    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
     if clear_selection {
-        c.clear_selection();
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+        caret.clear_selection();
+    } else if caret.selection_index.is_none() {
+        caret.selection_index = Some(i);
     }
 
-    i.index = index(resolved.segmented_text.text());
+    i.index = idx;
 
-    c.set_index(i);
-    c.used_retained_x = false;
+    caret.set_index(i);
+    caret.used_retained_x = false;
 }
 
 fn nearest_to(clear_selection: bool, window_point: DipPoint) {
-    let resolved = TEXT.resolved();
-    let laidout = TEXT.laidout();
-
-    let mut c = resolved.caret.lock();
-    let mut i = c.index.unwrap_or(CaretIndex::ZERO);
+    let mut caret = TEXT.resolve_caret();
+    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
 
     if clear_selection {
-        c.clear_selection();
-    } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
-    } else if let Some((_, is_word)) = c.initial_selection.clone() {
-        drop(c);
+        caret.clear_selection();
+    } else if caret.selection_index.is_none() {
+        caret.selection_index = Some(i);
+    } else if let Some((_, is_word)) = caret.initial_selection.clone() {
+        drop(caret);
         return select_line_word_nearest_to(false, is_word, window_point);
     }
 
-    c.used_retained_x = false;
+    caret.used_retained_x = false;
 
     //if there was at least one layout
-    let info = laidout.render_info.lock();
-    if let Some(pos) = info
+    let laidout = TEXT.laidout();
+    if let Some(pos) = laidout
+        .render_info
         .transform
         .inverse()
-        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
+        .and_then(|t| t.project_point(window_point.to_px(laidout.render_info.scale_factor)))
     {
+        drop(caret);
+        let resolved = TEXT.resolved();
+
         //if has rendered
         i = match laidout.shaped_text.nearest_line(pos.y) {
             Some(l) => CaretIndex {
@@ -1142,44 +1177,43 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
             None => CaretIndex::ZERO,
         };
         i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
-        c.set_index(i);
+
+        drop(resolved);
+        caret = TEXT.resolve_caret();
+
+        caret.set_index(i);
     }
 
-    if c.index.is_none() {
-        c.set_index(CaretIndex::ZERO);
-        c.clear_selection();
+    if caret.index.is_none() {
+        caret.set_index(CaretIndex::ZERO);
+        caret.clear_selection();
     }
 }
 
 fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
-    let resolved = TEXT.resolved();
+    let mut caret = TEXT.resolve_caret();
+
+    if caret.index.is_none() {
+        caret.index = Some(CaretIndex::ZERO);
+    }
+    if caret.selection_index.is_none() {
+        caret.selection_index = Some(caret.index.unwrap());
+    }
+
+    caret.used_retained_x = false;
+    caret.index_version += 1;
+
     let laidout = TEXT.laidout();
-
-    let mut c = resolved.caret.lock();
-
-    if c.index.is_none() {
-        c.index = Some(CaretIndex::ZERO);
-    }
-    if c.selection_index.is_none() {
-        c.selection_index = Some(c.index.unwrap());
-    }
-
-    c.used_retained_x = false;
-    c.index_version += 1;
-
-    let i = if move_selection_index {
-        c.selection_index.as_mut().unwrap()
-    } else {
-        c.index.as_mut().unwrap()
-    };
-
-    let info = laidout.render_info.lock();
-    if let Some(pos) = info
+    if let Some(pos) = laidout
+        .render_info
         .transform
         .inverse()
-        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
+        .and_then(|t| t.project_point(window_point.to_px(laidout.render_info.scale_factor)))
     {
-        *i = match laidout.shaped_text.nearest_line(pos.y) {
+        drop(caret);
+        let resolved = TEXT.resolved();
+
+        let mut i = match laidout.shaped_text.nearest_line(pos.y) {
             Some(l) => CaretIndex {
                 line: l.index(),
                 index: match l.nearest_seg(pos.x) {
@@ -1190,21 +1224,28 @@ fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
             None => CaretIndex::ZERO,
         };
         i.index = resolved.segmented_text.snap_grapheme_boundary(i.index);
+
+        drop(resolved);
+        caret = TEXT.resolve_caret();
+
+        if move_selection_index {
+            caret.selection_index = Some(i);
+        } else {
+            caret.index = Some(i);
+        }
     }
 }
 
 fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
-    let resolved = TEXT.resolved();
-    let laidout = TEXT.laidout();
-
-    let mut c = resolved.caret.lock();
+    let mut caret = TEXT.resolve_caret();
 
     //if there was at least one laidout
-    let info = laidout.render_info.lock();
-    if let Some(pos) = info
+    let laidout = TEXT.laidout();
+    if let Some(pos) = laidout
+        .render_info
         .transform
         .inverse()
-        .and_then(|t| t.project_point(window_point.to_px(info.scale_factor)))
+        .and_then(|t| t.project_point(window_point.to_px(laidout.render_info.scale_factor)))
     {
         //if has rendered
         if let Some(l) = laidout.shaped_text.nearest_line(pos.y) {
@@ -1222,7 +1263,7 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
             let merge_with_selection = if replace_selection {
                 None
             } else {
-                c.initial_selection.clone().map(|(s, _)| s).or_else(|| c.selection_range())
+                caret.initial_selection.clone().map(|(s, _)| s).or_else(|| caret.selection_range())
             };
             if let Some(mut s) = merge_with_selection {
                 let caret_at_start = range.start < s.start.index;
@@ -1230,11 +1271,11 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                 s.end.index = s.end.index.max(range.end);
 
                 if caret_at_start {
-                    c.selection_index = Some(s.end);
-                    c.set_index(s.start);
+                    caret.selection_index = Some(s.end);
+                    caret.set_index(s.start);
                 } else {
-                    c.selection_index = Some(s.start);
-                    c.set_index(s.end);
+                    caret.selection_index = Some(s.start);
+                    caret.set_index(s.end);
                 }
             } else {
                 let start = CaretIndex {
@@ -1245,18 +1286,18 @@ fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, windo
                     line: l.index(),
                     index: range.end,
                 };
-                c.selection_index = Some(start);
-                c.set_index(end);
+                caret.selection_index = Some(start);
+                caret.set_index(end);
 
-                c.initial_selection = Some((start..end, select_word));
+                caret.initial_selection = Some((start..end, select_word));
             }
 
             return;
         };
     }
 
-    if c.index.is_none() {
-        c.set_index(CaretIndex::ZERO);
-        c.clear_selection();
+    if caret.index.is_none() {
+        caret.set_index(CaretIndex::ZERO);
+        caret.clear_selection();
     }
 }

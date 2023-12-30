@@ -1603,12 +1603,6 @@ pub struct ChangeStopArgs {
     /// Event cause.
     pub cause: ChangeStopCause,
 }
-impl ChangeStopArgs {
-    /// Resolved text is available in the handler.
-    pub fn txt(&self) -> std::sync::Arc<super::node::ResolvedText> {
-        super::node::TEXT.resolved()
-    }
-}
 
 /// Cause of an [`on_change_stop`].
 ///

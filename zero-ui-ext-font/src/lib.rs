@@ -1470,7 +1470,6 @@ pub struct FontFaceList {
     requested_weight: FontWeight,
     requested_stretch: FontStretch,
 }
-#[allow(clippy::len_without_is_empty)] // is never empty.
 impl FontFaceList {
     /// New list with only the [`FontFace::empty`].
     pub fn empty() -> Self {
@@ -1518,9 +1517,14 @@ impl FontFaceList {
 
     /// Number of font faces in the list.
     ///
-    /// This is at least `1`.
+    /// This is at least `1`, but can be the empty face.
     pub fn len(&self) -> usize {
         self.fonts.len()
+    }
+
+    /// Is length `1` and only contains the empty face.
+    pub fn is_empty(&self) -> bool {
+        self.fonts[0].is_empty() && self.fonts.len() == 1
     }
 
     /// Gets a sized font list.

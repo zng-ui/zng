@@ -17,6 +17,8 @@
 
 * Refactor TEXT context to use `Arc<RwLock<T>>` backing stores.
     - Only expose read lock.
+    - Test all.
+    - Merge.
 
 * Implement selection toolbar.
     - Touch carets vanish when the toolbar opens.

@@ -1036,7 +1036,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::try_lock_recursive`] for more details.
+    /// See [`RwLock::try_read_recursive`] for more details.
     pub fn try_read_recursive(&'static self) -> Option<RwLockReadGuardOwned<T>> {
         RwLockReadGuardOwned::try_lock_recursive(self.get())
     }
@@ -1050,7 +1050,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     }
 }
 
-/// Represents read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+/// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it.
 pub struct RwLockReadGuardOwned<T: 'static> {
     lock: parking_lot::RwLockReadGuard<'static, T>,
     _owned: Arc<RwLock<T>>,
@@ -1101,6 +1101,18 @@ impl<T> RwLockReadGuardOwned<T> {
             _owned: own,
         })
     }
+
+    /// Make a new `MappedRwLockReadGuardOwned` for a component of the locked data.
+    ///
+    /// This is an associated function that needs to be
+    /// used as `RwLockReadGuardOwned::map(...)`. A method would interfere with methods of
+    /// the same name on the contents of the locked data.
+    pub fn map<O>(guard: Self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuardOwned<T, O> {
+        MappedRwLockReadGuardOwned {
+            lock: parking_lot::RwLockReadGuard::map(guard.lock, map),
+            _owned: guard._owned,
+        }
+    }
 }
 impl<T> ops::Deref for RwLockReadGuardOwned<T> {
     type Target = T;
@@ -1110,7 +1122,33 @@ impl<T> ops::Deref for RwLockReadGuardOwned<T> {
     }
 }
 
-/// Represents read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+/// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it, mapped from another read guard.
+pub struct MappedRwLockReadGuardOwned<T: 'static, O: 'static> {
+    lock: parking_lot::MappedRwLockReadGuard<'static, O>,
+    _owned: Arc<RwLock<T>>,
+}
+impl<T, O> MappedRwLockReadGuardOwned<T, O> {
+    /// Make a new `MappedRwLockReadGuardOwned` for a component of the locked data.
+    ///
+    /// This is an associated function that needs to be
+    /// used as `MappedRwLockReadGuardOwned::map(...)`. A method would interfere with methods of
+    /// the same name on the contents of the locked data.
+    pub fn map<O2>(guard: Self, map: impl FnOnce(&O) -> &O2) -> MappedRwLockReadGuardOwned<T, O2> {
+        MappedRwLockReadGuardOwned {
+            lock: parking_lot::MappedRwLockReadGuard::map(guard.lock, map),
+            _owned: guard._owned,
+        }
+    }
+}
+impl<T, O> ops::Deref for MappedRwLockReadGuardOwned<T, O> {
+    type Target = O;
+
+    fn deref(&self) -> &Self::Target {
+        self.lock.deref()
+    }
+}
+
+/// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it.
 pub struct RwLockWriteGuardOwned<T: 'static> {
     lock: parking_lot::RwLockWriteGuard<'static, T>,
     _owned: Arc<RwLock<T>>,
@@ -1138,6 +1176,18 @@ impl<T> RwLockWriteGuardOwned<T> {
             _owned: own,
         })
     }
+
+    /// Make a new `MappedRwLockReadGuardOwned` for a component of the locked data.
+    ///
+    /// This is an associated function that needs to be
+    /// used as `MappedRwLockReadGuardOwned::map(...)`. A method would interfere with methods of
+    /// the same name on the contents of the locked data.
+    pub fn map<O>(guard: Self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuardOwned<T, O> {
+        MappedRwLockWriteGuardOwned {
+            lock: parking_lot::RwLockWriteGuard::map(guard.lock, map),
+            _owned: guard._owned,
+        }
+    }
 }
 impl<T> ops::Deref for RwLockWriteGuardOwned<T> {
     type Target = T;
@@ -1147,6 +1197,37 @@ impl<T> ops::Deref for RwLockWriteGuardOwned<T> {
     }
 }
 impl<T> ops::DerefMut for RwLockWriteGuardOwned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.lock.deref_mut()
+    }
+}
+
+/// Represents a write guard for an `Arc<RwLock<T>>` that owns a reference to it, mapped from another read guard.
+pub struct MappedRwLockWriteGuardOwned<T: 'static, O: 'static> {
+    lock: parking_lot::MappedRwLockWriteGuard<'static, O>,
+    _owned: Arc<RwLock<T>>,
+}
+impl<T, O> MappedRwLockWriteGuardOwned<T, O> {
+    /// Make a new `MappedRwLockWriteGuardOwned` for a component of the locked data.
+    ///
+    /// This is an associated function that needs to be
+    /// used as `MappedRwLockWriteGuardOwned::map(...)`. A method would interfere with methods of
+    /// the same name on the contents of the locked data.
+    pub fn map<O2>(guard: Self, map: impl FnOnce(&mut O) -> &mut O2) -> MappedRwLockWriteGuardOwned<T, O2> {
+        MappedRwLockWriteGuardOwned {
+            lock: parking_lot::MappedRwLockWriteGuard::map(guard.lock, map),
+            _owned: guard._owned,
+        }
+    }
+}
+impl<T, O> ops::Deref for MappedRwLockWriteGuardOwned<T, O> {
+    type Target = O;
+
+    fn deref(&self) -> &Self::Target {
+        self.lock.deref()
+    }
+}
+impl<T, O> ops::DerefMut for MappedRwLockWriteGuardOwned<T, O> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.lock.deref_mut()
     }
