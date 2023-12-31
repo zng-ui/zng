@@ -10,19 +10,18 @@
         - In bidi text this can panic also.
     - Use the caret spot to position.
         - Right now it only looks right because the default caret origin is at y=0.
-    - Laidout context does not update in capture.
-        - This is a limitation of resolved too.
-        - We first tough it was ok to modify the value before loading in in context.
-        - The current method is not the allocation free way to load a context either, an Arc is allocated for each text every call.
 
 * Refactor TEXT context to use `Arc<RwLock<T>>` backing stores.
-    - Only expose read lock.
     - Test all.
     - Merge.
 
 * Implement selection toolbar.
     - Touch carets vanish when the toolbar opens.
         - Because of focus, needs to still show if focus is in toolbar.
+
+* Opening a text file in the editor example causes an accesskit panic.
+
+* Editor example Save command operates like Save As for opened file.
 
 # Publish
 

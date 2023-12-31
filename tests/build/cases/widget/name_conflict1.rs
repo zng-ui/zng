@@ -4,6 +4,7 @@ use zero_ui::wgt_prelude::{widget, WidgetBase};
 macro_rules! TestWidget {
     () => {};
 }
+#[allow(unused_imports)]
 pub use crate::TestWidget;
 
 #[widget($crate::TestWidget)]
