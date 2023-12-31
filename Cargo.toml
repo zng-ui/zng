@@ -96,7 +96,7 @@ debug = 1
 
 [profile.release-lto]
 inherits = "release"
-lto = true
+lto = "thin"
 
 [profile.prebuild]
 inherits = "release-lto"
