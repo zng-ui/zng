@@ -79,7 +79,7 @@ fn resolve_text_context(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode 
             RESOLVED_TEXT.with_context(&mut resolved, || child.init());
         }
         UiNodeOp::Deinit => {
-            RESOLVED_TEXT.with_context(&mut resolved, || child.init());
+            RESOLVED_TEXT.with_context(&mut resolved, || child.deinit());
 
             resolved = None;
         }
@@ -142,6 +142,7 @@ fn resolve_text_font(child: impl UiNode) -> impl UiNode {
             }
             UiNodeOp::Deinit => {
                 state = State::Reload;
+                return;
             }
             _ => {}
         }
