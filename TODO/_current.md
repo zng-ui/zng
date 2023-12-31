@@ -11,10 +11,6 @@
     - Use the caret spot to position.
         - Right now it only looks right because the default caret origin is at y=0.
 
-* Refactor TEXT context to use `Arc<RwLock<T>>` backing stores.
-    - Test all.
-    - Merge.
-
 * Implement selection toolbar.
     - Touch carets vanish when the toolbar opens.
         - Because of focus, needs to still show if focus is in toolbar.
@@ -22,6 +18,8 @@
 * Opening a text file in the editor example causes an accesskit panic.
 
 * Editor example Save command operates like Save As for opened file.
+
+* Tooltip text does not render after reopen.
 
 # Publish
 
