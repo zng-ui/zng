@@ -17,8 +17,6 @@
 
 * Opening a text file in the editor example causes an accesskit panic.
 
-* Editor example Save command operates like Save As for opened file.
-
 * Tooltip text does not render after reopen.
 
 # Publish

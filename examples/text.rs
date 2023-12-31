@@ -677,12 +677,14 @@ impl TextEditor {
         dlg.push_filter("Text Files", &["txt", "md"]).push_filter("All Files", &["*"]);
         let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
         match r {
-            native_dialog::FileDialogResponse::Selected(s) => {
-                let r = task::wait(move || std::fs::read_to_string(&s[0])).await;
+            native_dialog::FileDialogResponse::Selected(mut s) => {
+                let file = s.remove(0);
+                let r = task::wait(clmv!(file, || std::fs::read_to_string(file))).await;
                 match r {
                     Ok(t) => {
                         self.txt.set(Txt::from_str(&t));
                         self.txt_touched.set(false);
+                        self.file.set(file);
                     }
                     Err(e) => {
                         self.handle_error("reading file", e.to_text()).await;
@@ -699,7 +701,9 @@ impl TextEditor {
     pub async fn save(&self) -> bool {
         if let Some(file) = self.file.get() {
             let _busy = self.enter_busy();
-            self.write(file).await
+            let ok = self.write(file).await;
+            self.txt_touched.set(!ok);
+            ok
         } else {
             self.save_as().await
         }
