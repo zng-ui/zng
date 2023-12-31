@@ -1208,6 +1208,7 @@ impl APP {
         }
     }
 
+    /// Application without extensions.
     #[cfg(not(dyn_app_extension))]
     pub fn minimal(&self) -> AppExtended<()> {
         assert_not_view_process();

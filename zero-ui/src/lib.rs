@@ -1690,7 +1690,7 @@ impl std::ops::Deref for APP {
 }
 
 mod defaults {
-    use zero_ui_app::{AppExtended, AppExtension, AppExtensionBoxed};
+    use zero_ui_app::{AppExtended, AppExtension};
     use zero_ui_ext_clipboard::ClipboardManager;
     use zero_ui_ext_config::ConfigManager;
     use zero_ui_ext_font::FontManager;
@@ -1707,7 +1707,7 @@ mod defaults {
     #[cfg(dyn_app_extension)]
     macro_rules! DefaultsAppExtended {
         () => {
-            AppExtended<Vec<Box<dyn AppExtensionBoxed>>>
+            AppExtended<Vec<Box<dyn zero_ui_app::AppExtensionBoxed>>>
         }
     }
     #[cfg(not(dyn_app_extension))]

@@ -287,7 +287,7 @@ pub use WidgetBaseMacro__ as WidgetBase;
 ///
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod node {
-    use zero_ui_layout::unit::{Px, PxCornerRadius, PxRect, PxSize};
+    use zero_ui_layout::unit::{PxCornerRadius, PxRect, PxSize};
     use zero_ui_var::Var;
 
     use crate::{
@@ -660,6 +660,8 @@ pub mod node {
                         // verify that inline row segments fit in row rectangle
                         #[cfg(debug_assertions)]
                         if let Some(inline) = wl.inline() {
+                            use zero_ui_layout::unit::Px;
+
                             for (name, row, segs) in inline
                                 .rows
                                 .first()
