@@ -509,7 +509,7 @@ fn check(args: Vec<&str>) {
     cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
-// do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [<cargo-build-args>]
+// do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
@@ -519,12 +519,30 @@ fn check(args: Vec<&str>) {
 //    build -p <crate> -t
 //       Compile crate and report in "target/cargo-timings"
 fn build(mut args: Vec<&str>) {
-    let mut cargo_args = vec![];
+    let mut nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
 
-    cargo_args.push("build");
+    let mut rust_flags = release_rust_flags(args.contains(&"--release"));
 
-    let rust_flags = release_rust_flags(args.contains(&"--release"));
+    args.retain(|f| {
+        if f.starts_with("-Z") {
+            if rust_flags.0.is_empty() {
+                rust_flags = ("RUSTFLAGS", String::new());
+            }
+            rust_flags.1.push(' ');
+            rust_flags.1.push_str(f);
+
+            if nightly.is_empty() {
+                nightly = "+nightly";
+            }
+
+            false
+        } else {
+            true
+        }
+    });
     let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
+
+    let mut cargo_args = vec![nightly, "build"];
 
     if take_flag(&mut args, &["-t", "--timings"]) {
         cargo_args.push("--timings");

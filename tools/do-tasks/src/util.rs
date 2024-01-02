@@ -25,8 +25,24 @@ pub fn cmd_env(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&s
 pub fn cmd_env_req(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)]) {
     cmd_impl(cmd, default_args, user_args, envs, true)
 }
-fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)], required: bool) {
-    let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
+fn cmd_impl(mut cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)], required: bool) {
+    let mut args: Vec<_> = default_args
+        .iter()
+        .chain(user_args.iter())
+        .filter(|a| !a.is_empty())
+        .map(|s| *s)
+        .collect();
+
+    if cfg!(windows) && cmd == "cargo" && default_args.first() == Some(&"+nightly") {
+        // nested cargo calls don't use rustup's cargo on Windows.
+        // https://github.com/rust-lang/rustup/issues/3036
+        //
+        // rustup run nightly cargo
+        cmd = "rustup";
+        args[0] = "run";
+        args.insert(1, "nightly");
+        args.insert(2, "cargo");
+    }
 
     let mut cmd = Command::new(cmd);
     cmd.args(&args[..]);
