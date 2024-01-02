@@ -523,8 +523,11 @@ fn build(mut args: Vec<&str>) {
 
     let mut rust_flags = release_rust_flags(args.contains(&"--release"));
 
+    let mut prev_z = false;
     args.retain(|f| {
         if f.starts_with("-Z") {
+            prev_z = true;
+
             if rust_flags.0.is_empty() {
                 rust_flags = ("RUSTFLAGS", String::new());
             }
@@ -536,7 +539,13 @@ fn build(mut args: Vec<&str>) {
             }
 
             false
+        } else if prev_z && !f.starts_with('-') {
+            prev_z = false;
+            rust_flags.1.push('=');
+            rust_flags.1.push_str(f);
+            false
         } else {
+            prev_z = false;
             true
         }
     });
