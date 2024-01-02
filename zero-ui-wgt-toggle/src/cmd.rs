@@ -1,7 +1,8 @@
 //! Commands that control toggle.
 
 use parking_lot::Mutex;
-use std::{any::Any, fmt, sync::Arc};
+use std::{fmt, sync::Arc};
+use zero_ui_var::AnyVarValue;
 
 use zero_ui_wgt::prelude::*;
 
@@ -67,7 +68,7 @@ impl SelectOp {
     }
 
     /// Select the `value`.
-    pub fn select(value: Box<dyn Any + Send>) -> Self {
+    pub fn select(value: Box<dyn AnyVarValue>) -> Self {
         let mut value = Some(value);
         Self::new(move || {
             if let Some(value) = value.take() {
@@ -79,9 +80,9 @@ impl SelectOp {
     }
 
     /// Deselect the `value`.
-    pub fn deselect(value: Box<dyn Any + Send>) -> Self {
+    pub fn deselect(value: Box<dyn AnyVarValue>) -> Self {
         Self::new(move || {
-            if let Err(e) = SELECTOR.get().deselect(&value) {
+            if let Err(e) = SELECTOR.get().deselect(&*value) {
                 tracing::error!("deselect error: {e}");
             }
         })

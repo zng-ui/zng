@@ -493,6 +493,14 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Get a clone of the current value, with type erased.
     fn get_any(&self) -> Box<dyn AnyVarValue>;
 
+    /// Visit the current value of the variable.
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue));
+
+    /// Visit the current value of the variable, if it [`is_new`].
+    ///
+    /// [`is_new`]: AnyVar::is_new
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool;
+
     /// Schedule a new `value` for the variable, it will be set in the end of the current app update.
     ///
     /// # Panics
@@ -1110,8 +1118,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::easing`].
     type Easing: Var<T>;
 
-    /// Visit the current value of the variable, inside `read` the variable is locked/borrowed and cannot
-    /// be modified.
+    /// Visit the current value of the variable.
     fn with<R, F>(&self, read: F) -> R
     where
         F: FnOnce(&T) -> R;

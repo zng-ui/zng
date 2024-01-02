@@ -472,6 +472,14 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         Box::new(self.get())
     }
 
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        self.with(|v| read(v))
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        self.with_new(|v| read(v)).is_some()
+    }
+
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         self.modify(var_set_any(value))
     }

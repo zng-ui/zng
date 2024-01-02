@@ -144,6 +144,14 @@ where
         Box::new(self.get())
     }
 
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        self.0.read().var.with_any(read)
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        self.0.read().var.with_new_any(read)
+    }
+
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         self.modify(var_set_any(value))
     }

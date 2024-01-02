@@ -32,6 +32,106 @@ impl Clone for BoxedAnyWeakVar {
     }
 }
 
+impl crate::private::Sealed for Box<dyn AnyVar> {}
+
+impl AnyVar for Box<dyn AnyVar> {
+    fn clone_any(&self) -> BoxedAnyVar {
+        (**self).clone_any()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        (**self).as_any()
+    }
+
+    fn as_unboxed_any(&self) -> &dyn Any {
+        (**self).as_unboxed_any()
+    }
+
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn var_type_id(&self) -> TypeId {
+        (**self).var_type_id()
+    }
+
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        (**self).get_any()
+    }
+
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        (**self).with_any(read)
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        (**self).with_new_any(read)
+    }
+
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        (**self).set_any(value)
+    }
+
+    fn last_update(&self) -> VarUpdateId {
+        (**self).last_update()
+    }
+
+    fn is_contextual(&self) -> bool {
+        (**self).is_contextual()
+    }
+
+    fn capabilities(&self) -> VarCapabilities {
+        (**self).capabilities()
+    }
+
+    fn is_animating(&self) -> bool {
+        (**self).is_animating()
+    }
+
+    fn modify_importance(&self) -> usize {
+        (**self).modify_importance()
+    }
+
+    fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+        (**self).hook_any(pos_modify_action)
+    }
+
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        (**self).hook_animation_stop(handler)
+    }
+
+    fn strong_count(&self) -> usize {
+        (**self).strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        (**self).weak_count()
+    }
+
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        (**self).actual_var_any()
+    }
+
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        (**self).downgrade_any()
+    }
+
+    fn var_ptr(&self) -> VarPtr {
+        (**self).var_ptr()
+    }
+
+    fn get_debug(&self) -> Txt {
+        (**self).get_debug()
+    }
+
+    fn update(&self) -> Result<(), VarIsReadOnlyError> {
+        (**self).update()
+    }
+
+    fn map_debug(&self) -> BoxedVar<Txt> {
+        (**self).map_debug()
+    }
+}
+
 #[doc(hidden)]
 pub trait VarBoxed<T: VarValue>: AnyVar {
     fn clone_boxed(&self) -> BoxedVar<T>;
@@ -149,6 +249,14 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
 
     fn get_any(&self) -> Box<dyn AnyVarValue> {
         (**self).get_any()
+    }
+
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        (**self).with_any(read)
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        (**self).with_new_any(read)
     }
 
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {

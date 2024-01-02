@@ -157,6 +157,14 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         Box::new(self.get())
     }
 
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        self.borrow_init().with_any(read)
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        self.borrow_init().with_new_any(read)
+    }
+
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         self.modify(var_set_any(value))
     }

@@ -198,6 +198,14 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         Box::new(self.get())
     }
 
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        self.with(|v| read(v))
+    }
+
+    fn with_new_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        self.with_new(|v| read(v)).is_some()
+    }
+
     fn set_any(&self, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

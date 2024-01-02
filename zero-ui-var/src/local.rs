@@ -36,6 +36,14 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Box::new(self.0.clone())
     }
 
+    fn with_any(&self, read: &mut dyn FnMut(&dyn AnyVarValue)) {
+        read(&self.0)
+    }
+
+    fn with_new_any(&self, _: &mut dyn FnMut(&dyn AnyVarValue)) -> bool {
+        false
+    }
+
     fn set_any(&self, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
