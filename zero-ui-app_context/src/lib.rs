@@ -8,6 +8,7 @@ use std::{
     cell::RefCell,
     fmt, mem, ops,
     sync::Arc,
+    thread::LocalKey,
     time::Duration,
 };
 
@@ -117,7 +118,7 @@ impl LocalContext {
 
     /// Start an app scope in the current thread.
     pub fn start_app(id: AppId) -> AppScope {
-        let valid = LOCAL.with_borrow_mut(|c| match c.entry(TypeId::of::<AppId>()) {
+        let valid = LOCAL.with_borrow_mut_dyn(|c| match c.entry(TypeId::of::<AppId>()) {
             hashbrown::hash_map::Entry::Occupied(_) => false,
             hashbrown::hash_map::Entry::Vacant(e) => {
                 e.insert((Arc::new(id), LocalValueKind::App));
@@ -132,7 +133,7 @@ impl LocalContext {
         }
     }
     fn end_app(id: AppId) {
-        let valid = LOCAL.with_borrow_mut(|c| {
+        let valid = LOCAL.with_borrow_mut_dyn(|c| {
             if c.get(&TypeId::of::<AppId>())
                 .map(|(v, _)| v.downcast_ref::<AppId>() == Some(&id))
                 .unwrap_or(false)
@@ -152,7 +153,7 @@ impl LocalContext {
 
     /// Get the ID of the app that owns the current context.
     pub fn current_app() -> Option<AppId> {
-        LOCAL.with_borrow(|c| {
+        LOCAL.with_borrow_dyn(|c| {
             c.get(&TypeId::of::<AppId>())
                 .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
                 .copied()
@@ -168,7 +169,7 @@ impl LocalContext {
         let cleanup = RunOnDrop::new(cleanup);
 
         type CleanupList = Vec<RunOnDrop<Box<dyn FnOnce() + Send>>>;
-        LOCAL.with_borrow_mut(|c| {
+        LOCAL.with_borrow_mut_dyn(|c| {
             let c = c
                 .entry(TypeId::of::<CleanupList>())
                 .or_insert_with(|| (Arc::new(Mutex::new(CleanupList::new())), LocalValueKind::App));
@@ -184,7 +185,7 @@ impl LocalContext {
     /// This is equivalent to [``CaptureFilter::All`].
     pub fn capture() -> Self {
         Self {
-            data: LOCAL.with_borrow(|c| c.clone()),
+            data: LOCAL.with_borrow_dyn(|c| c.clone()),
             tracing: Some(tracing::dispatcher::get_default(|d| d.clone())),
         }
     }
@@ -196,7 +197,7 @@ impl LocalContext {
             CaptureFilter::All => Self::capture(),
             CaptureFilter::ContextVars { exclude } => {
                 let mut data = LocalData::new();
-                LOCAL.with_borrow(|c| {
+                LOCAL.with_borrow_dyn(|c| {
                     for (k, (v, kind)) in c.iter() {
                         if kind.include_var() && !exclude.0.contains(k) {
                             data.insert(*k, (v.clone(), *kind));
@@ -207,7 +208,7 @@ impl LocalContext {
             }
             CaptureFilter::ContextLocals { exclude } => {
                 let mut data = LocalData::new();
-                LOCAL.with_borrow(|c| {
+                LOCAL.with_borrow_dyn(|c| {
                     for (k, (v, kind)) in c.iter() {
                         if kind.include_local() && !exclude.0.contains(k) {
                             data.insert(*k, (v.clone(), *kind));
@@ -221,7 +222,7 @@ impl LocalContext {
             }
             CaptureFilter::Include(set) => {
                 let mut data = LocalData::new();
-                LOCAL.with_borrow(|c| {
+                LOCAL.with_borrow_dyn(|c| {
                     for (k, v) in c.iter() {
                         if set.0.contains(k) {
                             data.insert(*k, v.clone());
@@ -239,7 +240,7 @@ impl LocalContext {
             }
             CaptureFilter::Exclude(set) => {
                 let mut data = LocalData::new();
-                LOCAL.with_borrow(|c| {
+                LOCAL.with_borrow_dyn(|c| {
                     for (k, v) in c.iter() {
                         if !set.0.contains(k) {
                             data.insert(*k, v.clone());
@@ -261,7 +262,7 @@ impl LocalContext {
     /// Collects a set of all the values in the context.
     pub fn value_set(&self) -> ContextValueSet {
         let mut set = ContextValueSet::new();
-        LOCAL.with_borrow(|c| {
+        LOCAL.with_borrow_dyn(|c| {
             for k in c.keys() {
                 set.0.insert(*k);
             }
@@ -277,10 +278,10 @@ impl LocalContext {
     /// [`with_context_blend`]: Self::with_context_blend
     pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
         let data = mem::take(&mut self.data);
-        let prev = LOCAL.with_borrow_mut(|c| mem::replace(c, data));
+        let prev = LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, data));
         let _tracing_restore = self.tracing.as_ref().map(tracing::dispatcher::set_default);
         let _restore = RunOnDrop::new(|| {
-            self.data = LOCAL.with_borrow_mut(|c| mem::replace(c, prev));
+            self.data = LOCAL.with_borrow_mut_dyn(|c| mem::replace(c, prev));
         });
         f()
     }
@@ -298,7 +299,7 @@ impl LocalContext {
         if self.data.is_empty() {
             f()
         } else {
-            let prev = LOCAL.with_borrow_mut(|c| {
+            let prev = LOCAL.with_borrow_mut_dyn(|c| {
                 let (mut base, over) = if over { (c.clone(), &self.data) } else { (self.data.clone(), &*c) };
                 for (k, v) in over {
                     base.insert(*k, v.clone());
@@ -307,8 +308,8 @@ impl LocalContext {
                 mem::replace(c, base)
             });
             let _restore = RunOnDrop::new(|| {
-                LOCAL.with(|c| {
-                    *c.borrow_mut() = prev;
+                LOCAL.with_borrow_mut_dyn(|c| {
+                    *c = prev;
                 });
             });
             f()
@@ -316,26 +317,26 @@ impl LocalContext {
     }
 
     fn contains(key: TypeId) -> bool {
-        LOCAL.with_borrow(|c| c.contains_key(&key))
+        LOCAL.with_borrow_dyn(|c| c.contains_key(&key))
     }
 
     fn get(key: TypeId) -> Option<LocalValue> {
-        LOCAL.with_borrow(|c| c.get(&key).cloned())
+        LOCAL.with_borrow_dyn(|c| c.get(&key).cloned())
     }
 
     fn set(key: TypeId, value: LocalValue) -> Option<LocalValue> {
-        LOCAL.with_borrow_mut(|c| c.insert(key, value))
+        LOCAL.with_borrow_mut_dyn(|c| c.insert(key, value))
     }
     fn remove(key: TypeId) -> Option<LocalValue> {
-        LOCAL.with_borrow_mut(|c| c.remove(&key))
+        LOCAL.with_borrow_mut_dyn(|c| c.remove(&key))
     }
 
-    fn with_value_ctx<T: Send + Sync + 'static, R>(
+    fn with_value_ctx<T: Send + Sync + 'static>(
         key: &'static ContextLocal<T>,
         kind: LocalValueKind,
         value: &mut Option<Arc<T>>,
-        f: impl FnOnce() -> R,
-    ) -> R {
+        f: impl FnOnce(),
+    ) {
         let key = key.key();
         let prev = Self::set(key, (value.take().expect("no `value` to set"), kind));
         let _restore = RunOnDrop::new(move || {
@@ -348,10 +349,10 @@ impl LocalContext {
             *value = Some(Arc::downcast(back.0).unwrap());
         });
 
-        f()
+        f();
     }
 
-    fn with_default_ctx<T: Send + Sync + 'static, R>(key: &'static ContextLocal<T>, f: impl FnOnce() -> R) -> R {
+    fn with_default_ctx<T: Send + Sync + 'static>(key: &'static ContextLocal<T>, f: impl FnOnce()) {
         let key = key.key();
         let prev = Self::remove(key);
         let _restore = RunOnDrop::new(move || {
@@ -377,6 +378,36 @@ impl ops::Deref for FullLocalContext {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+trait LocalKeyDyn {
+    fn with_borrow_dyn<R>(&'static self, f: impl FnOnce(&LocalData) -> R) -> R;
+    fn with_borrow_mut_dyn<R>(&'static self, f: impl FnOnce(&mut LocalData) -> R) -> R;
+}
+impl LocalKeyDyn for LocalKey<RefCell<LocalData>> {
+    fn with_borrow_dyn<R>(&'static self, f: impl FnOnce(&LocalData) -> R) -> R {
+        let mut r = None;
+        let f = |l: &LocalData| r = Some(f(l));
+
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce(&LocalData)> = Box::new(f);
+
+        self.with_borrow(f);
+
+        r.unwrap()
+    }
+
+    fn with_borrow_mut_dyn<R>(&'static self, f: impl FnOnce(&mut LocalData) -> R) -> R {
+        let mut r = None;
+        let f = |l: &mut LocalData| r = Some(f(l));
+
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce(&mut LocalData)> = Box::new(f);
+
+        self.with_borrow_mut(f);
+
+        r.unwrap()
     }
 }
 
@@ -892,18 +923,29 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     ///
     /// Panics if `value` is `None`.
     pub fn with_context<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
+        let mut r = None;
+        let f = || r = Some(f());
         #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        LocalContext::with_value_ctx(self, LocalValueKind::Local, value, f)
+        let f: Box<dyn FnOnce()> = Box::new(f);
+
+        LocalContext::with_value_ctx(self, LocalValueKind::Local, value, f);
+
+        r.unwrap()
     }
 
     /// Same as [`with_context`], but `value` represents a variable.
     ///
     /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
+        let mut r = None;
+        let f = || r = Some(f());
+
         #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        LocalContext::with_value_ctx(self, LocalValueKind::Var, value, f)
+        let f: Box<dyn FnOnce()> = Box::new(f);
+
+        LocalContext::with_value_ctx(self, LocalValueKind::Var, value, f);
+
+        r.unwrap()
     }
 
     /// Calls `f` with the `value` loaded in context.
@@ -934,9 +976,14 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
     /// Calls `f` with no value loaded in context.
     pub fn with_default<R>(&'static self, f: impl FnOnce() -> R) -> R {
+        let mut r = None;
+        let f = || r = Some(f());
+
         #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        LocalContext::with_default_ctx(self, f)
+        let f: Box<dyn FnOnce()> = Box::new(f);
+        LocalContext::with_default_ctx(self, f);
+
+        r.unwrap()
     }
 
     /// Gets if no value is set in the context.
