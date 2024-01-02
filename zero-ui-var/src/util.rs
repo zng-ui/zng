@@ -365,16 +365,21 @@ impl<T: VarValue> VarData<T> {
                 let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
 
                 let args = AnyVarHookArgs::new(&meta.value, update, &tags);
-                hooks.retain(|h| h.call(&args));
-
+                call_hooks(&mut hooks, args);
                 drop(meta);
 
                 let mut meta = self.0.write();
                 hooks.append(&mut meta.hooks);
+                meta.hooks = hooks;
+            } else {
                 meta.hooks = hooks;
             }
 
             VARS.wake_app();
         }
     }
+}
+
+fn call_hooks(hooks: &mut Vec<VarHook>, args: AnyVarHookArgs) {
+    hooks.retain(|h| h.call(&args));
 }
