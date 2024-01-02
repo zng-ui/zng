@@ -214,6 +214,8 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
+        #[cfg(dyn_closure)]
+        let modify: Box<dyn FnOnce(&mut VarModify<T>) + Send + 'static> = Box::new(modify);
         self.modify_impl(modify)
     }
 
