@@ -314,12 +314,12 @@ impl DATA {
     /// # Panics
     ///
     /// Panics if the context data is not set to a variable of type `T` on the first usage of the returned variable.
-    pub fn req<T: VarValue>(&self) -> ContextualizedVar<T, BoxedVar<T>> {
+    pub fn req<T: VarValue>(&self) -> ContextualizedVar<T> {
         self.get(|| panic!("expected DATA of type `{}`", std::any::type_name::<T>()))
     }
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
-    pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> ContextualizedVar<T, BoxedVar<T>> {
+    pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> ContextualizedVar<T> {
         ContextualizedVar::new(move || {
             DATA_CTX
                 .get()

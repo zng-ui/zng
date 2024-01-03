@@ -74,7 +74,7 @@ use parking_lot::Mutex;
 pub use zero_ui_var_proc_macros::when_var as __when_var;
 
 #[doc(hidden)]
-pub type ContextualizedArcWhenVar<T> = types::ContextualizedVar<T, ArcWhenVar<T>>;
+pub type ContextualizedArcWhenVar<T> = types::ContextualizedVar<T>;
 
 /// Manually build a [`ArcWhenVar<T>`].
 #[derive(Clone)]
@@ -100,8 +100,9 @@ impl<T: VarValue> WhenVarBuilder<T> {
     pub fn build(mut self) -> ArcWhenVar<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
+            #[allow(unreachable_code)]
             fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
-                types::ContextualizedVar::<T, BoxedVar<T>>::new(|| unreachable!()).boxed()
+                types::ContextualizedVar::<T>::new(|| LocalVar(unreachable!())).boxed()
             }
             take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
             take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
@@ -148,7 +149,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
     }
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build(self) -> types::ContextualizedVar<T, ArcWhenVar<T>> {
+    pub fn contextualized_build(self) -> types::ContextualizedVar<T> {
         types::ContextualizedVar::new(move || self.clone().build())
     }
 }
@@ -173,8 +174,16 @@ impl AnyWhenVarBuilder {
     }
 
     /// Create a builder from the parts of a formed [`when_var!`].
-    pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, ArcWhenVar<O>>) -> Self {
-        let var = var.borrow_init();
+    ///
+    /// # Panics
+    ///
+    /// Panics if called not called with a contextualized var produced by [`when_var!`].
+    pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O>) -> Self {
+        let g = var.borrow_init();
+        let var = g
+            .as_any()
+            .downcast_ref::<ArcWhenVar<O>>()
+            .expect("expected `when_var!` contextualized var");
         Self {
             default: var.0.default.clone_any(),
             conditions: var.0.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
@@ -240,7 +249,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, ArcWhenVar<T>>> {
+    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T>> {
         if self.default.var_type_id() == TypeId::of::<T>() {
             Some(types::ContextualizedVar::new(move || self.build().unwrap()))
         } else {
@@ -396,7 +405,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         &self,
         condition_easing: Vec<Option<(Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>)>>,
         default_easing: (Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>),
-    ) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+    ) -> types::ContextualizedVar<T>
     where
         T: Transitionable,
     {
@@ -592,18 +601,18 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
 
     type Downgrade = WeakWhenVar<T>;
 
-    type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type Map<O: VarValue> = contextualized::ContextualizedVar<O>;
+    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O>;
 
-    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>;
+    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O>;
 
-    type FilterMap<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type FilterMapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type FilterMap<O: VarValue> = contextualized::ContextualizedVar<O>;
+    type FilterMapBidi<O: VarValue> = contextualized::ContextualizedVar<O>;
 
     type MapRef<O: VarValue> = types::MapRef<T, O, Self>;
     type MapRefBidi<O: VarValue> = types::MapRefBidi<T, O, Self>;
 
-    type Easing = types::ContextualizedVar<T, ReadOnlyArcVar<T>>;
+    type Easing = types::ContextualizedVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -651,7 +660,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        var_map(self, map)
+        var_map_ctx(self, map)
     }
 
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
@@ -660,7 +669,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
-        var_map_bidi(self, map, map_back)
+        var_map_bidi_ctx(self, map, map_back)
     }
 
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -669,7 +678,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         V: Var<O>,
         M: FnMut(&T) -> V + Send + 'static,
     {
-        var_flat_map(self, map)
+        var_flat_map_ctx(self, map)
     }
 
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
@@ -678,7 +687,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         M: FnMut(&T) -> Option<O> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map(self, map, fallback)
+        var_filter_map_ctx(self, map, fallback)
     }
 
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
@@ -688,7 +697,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         B: FnMut(&O) -> Option<T> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map_bidi(self, map, map_back, fallback)
+        var_filter_map_bidi_ctx(self, map, map_back, fallback)
     }
 
     fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
@@ -713,7 +722,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         T: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing(self, duration, easing)
+        var_easing_ctx(self, duration, easing)
     }
 
     fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
@@ -722,7 +731,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
     {
-        var_easing_with(self, duration, easing, sampler)
+        var_easing_with_ctx(self, duration, easing, sampler)
     }
 }
 

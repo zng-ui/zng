@@ -183,18 +183,18 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
 
     type Downgrade = WeakMapRef<I, O, S::Downgrade>;
 
-    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
-    type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO, ArcVar<MO>>;
+    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO>;
+    type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO>;
 
-    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF, types::ArcFlatMapVar<OF, V>>;
+    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF>;
 
-    type FilterMap<OF: VarValue> = contextualized::ContextualizedVar<OF, ReadOnlyArcVar<OF>>;
-    type FilterMapBidi<OF: VarValue> = contextualized::ContextualizedVar<OF, ArcVar<OF>>;
+    type FilterMap<OF: VarValue> = contextualized::ContextualizedVar<OF>;
+    type FilterMapBidi<OF: VarValue> = contextualized::ContextualizedVar<OF>;
 
     type MapRef<OM: VarValue> = types::MapRef<O, OM, Self>;
     type MapRefBidi<OM: VarValue> = types::MapRef<O, OM, Self>;
 
-    type Easing = types::ContextualizedVar<O, ReadOnlyArcVar<O>>;
+    type Easing = types::ContextualizedVar<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -242,7 +242,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         MO: VarValue,
         M: FnMut(&O) -> MO + Send + 'static,
     {
-        var_map(self, map)
+        var_map_ctx(self, map)
     }
 
     fn map_bidi<MO, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<MO>
@@ -251,7 +251,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         M: FnMut(&O) -> MO + Send + 'static,
         B: FnMut(&MO) -> O + Send + 'static,
     {
-        var_map_bidi(self, map, map_back)
+        var_map_bidi_ctx(self, map, map_back)
     }
 
     fn flat_map<OF, V, M>(&self, map: M) -> Self::FlatMap<OF, V>
@@ -260,7 +260,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         V: Var<OF>,
         M: FnMut(&O) -> V + Send + 'static,
     {
-        var_flat_map(self, map)
+        var_flat_map_ctx(self, map)
     }
 
     fn filter_map<OF, M, IF>(&self, map: M, fallback: IF) -> Self::FilterMap<OF>
@@ -269,7 +269,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         M: FnMut(&O) -> Option<OF> + Send + 'static,
         IF: Fn() -> OF + Send + Sync + 'static,
     {
-        var_filter_map(self, map, fallback)
+        var_filter_map_ctx(self, map, fallback)
     }
 
     fn filter_map_bidi<OF, M, B, IF>(&self, map: M, map_back: B, fallback: IF) -> Self::FilterMapBidi<OF>
@@ -279,7 +279,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         B: FnMut(&OF) -> Option<O> + Send + 'static,
         IF: Fn() -> OF + Send + Sync + 'static,
     {
-        var_filter_map_bidi(self, map, map_back, fallback)
+        var_filter_map_bidi_ctx(self, map, map_back, fallback)
     }
 
     fn map_ref<OM, M>(&self, map: M) -> Self::MapRef<OM>
@@ -304,7 +304,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         O: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing(self, duration, easing)
+        var_easing_ctx(self, duration, easing)
     }
 
     fn easing_with<F, SE>(&self, duration: Duration, easing: F, sampler: SE) -> Self::Easing
@@ -313,7 +313,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         SE: Fn(&animation::Transition<O>, EasingStep) -> O + Send + Sync + 'static,
     {
-        var_easing_with(self, duration, easing, sampler)
+        var_easing_with_ctx(self, duration, easing, sampler)
     }
 }
 
@@ -513,18 +513,18 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
 
     type Downgrade = WeakMapRefBidi<I, O, S::Downgrade>;
 
-    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO, ReadOnlyArcVar<MO>>;
-    type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO, ArcVar<MO>>;
+    type Map<MO: VarValue> = contextualized::ContextualizedVar<MO>;
+    type MapBidi<MO: VarValue> = contextualized::ContextualizedVar<MO>;
 
-    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF, types::ArcFlatMapVar<OF, V>>;
+    type FlatMap<OF: VarValue, V: Var<OF>> = contextualized::ContextualizedVar<OF>;
 
-    type FilterMap<OF: VarValue> = contextualized::ContextualizedVar<OF, ReadOnlyArcVar<OF>>;
-    type FilterMapBidi<OF: VarValue> = contextualized::ContextualizedVar<OF, ArcVar<OF>>;
+    type FilterMap<OF: VarValue> = contextualized::ContextualizedVar<OF>;
+    type FilterMapBidi<OF: VarValue> = contextualized::ContextualizedVar<OF>;
 
     type MapRef<OM: VarValue> = types::MapRef<O, OM, Self>;
     type MapRefBidi<OM: VarValue> = types::MapRefBidi<O, OM, Self>;
 
-    type Easing = types::ContextualizedVar<O, ReadOnlyArcVar<O>>;
+    type Easing = types::ContextualizedVar<O>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -589,7 +589,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         MO: VarValue,
         M: FnMut(&O) -> MO + Send + 'static,
     {
-        var_map(self, map)
+        var_map_ctx(self, map)
     }
 
     fn map_bidi<MO, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<MO>
@@ -598,7 +598,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         M: FnMut(&O) -> MO + Send + 'static,
         B: FnMut(&MO) -> O + Send + 'static,
     {
-        var_map_bidi(self, map, map_back)
+        var_map_bidi_ctx(self, map, map_back)
     }
 
     fn flat_map<OF, V, M>(&self, map: M) -> Self::FlatMap<OF, V>
@@ -607,7 +607,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         V: Var<OF>,
         M: FnMut(&O) -> V + Send + 'static,
     {
-        var_flat_map(self, map)
+        var_flat_map_ctx(self, map)
     }
 
     fn filter_map<OF, M, IF>(&self, map: M, fallback: IF) -> Self::FilterMap<OF>
@@ -616,7 +616,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         M: FnMut(&O) -> Option<OF> + Send + 'static,
         IF: Fn() -> OF + Send + Sync + 'static,
     {
-        var_filter_map(self, map, fallback)
+        var_filter_map_ctx(self, map, fallback)
     }
 
     fn filter_map_bidi<OF, M, B, IF>(&self, map: M, map_back: B, fallback: IF) -> Self::FilterMapBidi<OF>
@@ -626,7 +626,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         B: FnMut(&OF) -> Option<O> + Send + 'static,
         IF: Fn() -> OF + Send + Sync + 'static,
     {
-        var_filter_map_bidi(self, map, map_back, fallback)
+        var_filter_map_bidi_ctx(self, map, map_back, fallback)
     }
 
     fn map_ref<OM, M>(&self, map: M) -> Self::MapRef<OM>
@@ -651,7 +651,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         O: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing(self, duration, easing)
+        var_easing_ctx(self, duration, easing)
     }
 
     fn easing_with<F, SA>(&self, duration: Duration, easing: F, sampler: SA) -> Self::Easing
@@ -660,7 +660,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         SA: Fn(&animation::Transition<O>, EasingStep) -> O + Send + Sync + 'static,
     {
-        var_easing_with(self, duration, easing, sampler)
+        var_easing_with_ctx(self, duration, easing, sampler)
     }
 }
 

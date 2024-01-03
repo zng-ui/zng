@@ -9,40 +9,40 @@ use super::{types::WeakContextInitHandle, *};
 
 #[cfg(dyn_closure)]
 macro_rules! ActualLock {
-    ($S:ident) => {
+    ($T:ident) => {
         parking_lot::RwLock<Vec<(WeakContextInitHandle, Box<dyn Any + Send + Sync>)>>
     }
 }
 #[cfg(not(dyn_closure))]
 macro_rules! ActualLock {
-    ($S:ident) => {
-        parking_lot::RwLock<Vec<(WeakContextInitHandle, $S)>>
+    ($T:ident) => {
+        parking_lot::RwLock<Vec<(WeakContextInitHandle, BoxedVar<$T>)>>
     }
 }
 
 #[cfg(dyn_closure)]
 macro_rules! ActualInit {
-    ($S:ident) => {
+    ($T:ident) => {
         Arc<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>
     }
 }
 #[cfg(not(dyn_closure))]
 macro_rules! ActualInit {
-    ($S:ident) => {
-        Arc<dyn Fn() -> $S + Send + Sync>,
+    ($T:ident) => {
+        Arc<dyn Fn() -> BoxedVar<$S> + Send + Sync>,
     }
 }
 
 #[cfg(dyn_closure)]
 macro_rules! ActualReadGuard {
-    ($a:tt, $S:ident) => {
+    ($a:tt, $T:ident) => {
         parking_lot::MappedRwLockReadGuard<$a, Box<dyn Any + Send + Sync>>
     }
 }
 #[cfg(not(dyn_closure))]
 macro_rules! ActualReadGuard {
-    ($a:tt, $S:ident) => {
-        parking_lot::MappedRwLockReadGuard<$a, $S>
+    ($a:tt, $T:ident) => {
+        parking_lot::MappedRwLockReadGuard<$a, $BoxedVar<$T>>
     }
 }
 
@@ -64,15 +64,15 @@ macro_rules! ActualReadGuard {
 ///
 /// In the example above the mapping var will bind with the `MY_CTX_VAR` context inside the property node, not
 /// the context at the moment the widget is instantiated.
-pub struct ContextualizedVar<T, S> {
-    _type: PhantomData<(T, fn() -> S)>,
+pub struct ContextualizedVar<T> {
+    _type: PhantomData<T>,
 
-    init: ActualInit![S],
-    actual: ActualLock![S],
+    init: ActualInit![T],
+    actual: ActualLock![T],
 }
 
 #[allow(clippy::extra_unused_type_parameters)]
-fn borrow_init_impl<'a, S>(actual: &'a ActualLock![S], init: &ActualInit![S], type_name: &'static str) -> ActualReadGuard!['a, S] {
+fn borrow_init_impl<'a, T>(actual: &'a ActualLock![S], init: &ActualInit![T], type_name: &'static str) -> ActualReadGuard!['a, T] {
     let current_ctx = ContextInitHandle::current();
     let current_ctx = current_ctx.downgrade();
 
@@ -108,17 +108,17 @@ fn borrow_init_impl<'a, S>(actual: &'a ActualLock![S], init: &ActualInit![S], ty
     })
 }
 
-impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
+impl<T: VarValue> ContextualizedVar<T> {
     /// New with initialization function.
     ///
     /// The `init` closure will be called on the first usage of the var, once after the var is cloned and any time
     /// a parent contextualized var is initializing.
-    pub fn new(init: impl Fn() -> S + Send + Sync + 'static) -> Self {
+    pub fn new<V: Var<T>>(init: impl Fn() -> V + Send + Sync + 'static) -> Self {
         Self {
             _type: PhantomData,
 
             #[cfg(dyn_closure)]
-            init: Arc::new(move || Box::new(init())),
+            init: Arc::new(move || Box::new(init().boxed())),
             #[cfg(not(dyn_closure))]
             init: Arc::new(init),
 
@@ -127,7 +127,7 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     }
 
     /// Borrow/initialize the actual var.
-    pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<S> {
+    pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
         #[cfg(debug_assertions)]
         let type_name = std::any::type_name::<T>();
 
@@ -147,7 +147,7 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     }
 
     /// Unwraps the initialized actual var or initializes it now.
-    pub fn into_init(self) -> S {
+    pub fn into_init(self) -> BoxedVar<T> {
         let mut act = self.actual.into_inner();
         let current_ctx = ContextInitHandle::current().downgrade();
 
@@ -174,17 +174,17 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
 }
 
 /// Weak var that upgrades to an uninitialized [`ContextualizedVar<T, S>`].
-pub struct WeakContextualizedVar<T, S> {
-    _type: PhantomData<(T, fn() -> S)>,
+pub struct WeakContextualizedVar<T> {
+    _type: PhantomData<T>,
 
     #[cfg(dyn_closure)]
     init: Weak<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>,
 
     #[cfg(not(dyn_closure))]
-    init: Weak<dyn Fn() -> S + Send + Sync>,
+    init: Weak<dyn Fn() -> BoxedVar<T> + Send + Sync>,
 }
 
-impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
+impl<T: VarValue> Clone for ContextualizedVar<T> {
     fn clone(&self) -> Self {
         let current_ctx_id = ContextInitHandle::current().downgrade();
         let act = self.actual.read_recursive();
@@ -193,7 +193,10 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
                 _type: PhantomData,
                 init: self.init.clone(),
                 #[cfg(dyn_closure)]
-                actual: RwLock::new(vec![(act[i].0.clone(), Box::new(act[i].1.downcast_ref::<S>().unwrap().clone()))]),
+                actual: RwLock::new(vec![(
+                    act[i].0.clone(),
+                    Box::new(act[i].1.downcast_ref::<BoxedVar<T>>().unwrap().clone()),
+                )]),
                 #[cfg(not(dyn_closure))]
                 actual: RwLock::new(vec![act[i].clone()]),
             };
@@ -205,7 +208,7 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
         }
     }
 }
-impl<T: VarValue, S: Var<T>> Clone for WeakContextualizedVar<T, S> {
+impl<T: VarValue> Clone for WeakContextualizedVar<T> {
     fn clone(&self) -> Self {
         Self {
             _type: PhantomData,
@@ -214,10 +217,10 @@ impl<T: VarValue, S: Var<T>> Clone for WeakContextualizedVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> crate::private::Sealed for ContextualizedVar<T, S> {}
-impl<T: VarValue, S: Var<T>> crate::private::Sealed for WeakContextualizedVar<T, S> {}
+impl<T: VarValue> crate::private::Sealed for ContextualizedVar<T> {}
+impl<T: VarValue> crate::private::Sealed for WeakContextualizedVar<T> {}
 
-impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
+impl<T: VarValue> AnyVar for ContextualizedVar<T> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
     }
@@ -315,7 +318,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         Var::map(self, var_debug).boxed()
     }
 }
-impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
+impl<T: VarValue> AnyWeakVar for WeakContextualizedVar<T> {
     fn clone_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.clone())
     }
@@ -337,7 +340,7 @@ impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> IntoVar<T> for ContextualizedVar<T, S> {
+impl<T: VarValue> IntoVar<T> for ContextualizedVar<T> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -345,25 +348,25 @@ impl<T: VarValue, S: Var<T>> IntoVar<T> for ContextualizedVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
+impl<T: VarValue> Var<T> for ContextualizedVar<T> {
     type ReadOnly = types::ReadOnlyVar<T, Self>;
 
-    type ActualVar = S::ActualVar;
+    type ActualVar = BoxedVar<T>;
 
-    type Downgrade = WeakContextualizedVar<T, S>;
+    type Downgrade = WeakContextualizedVar<T>;
 
-    type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type Map<O: VarValue> = contextualized::ContextualizedVar<O>;
+    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O>;
 
-    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>;
+    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O>;
 
-    type FilterMap<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type FilterMapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type FilterMap<O: VarValue> = contextualized::ContextualizedVar<O>;
+    type FilterMapBidi<O: VarValue> = contextualized::ContextualizedVar<O>;
 
     type MapRef<O: VarValue> = types::MapRef<T, O, Self>;
     type MapRefBidi<O: VarValue> = types::MapRefBidi<T, O, Self>;
 
-    type Easing = types::ContextualizedVar<T, ReadOnlyArcVar<T>>;
+    type Easing = types::ContextualizedVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -403,7 +406,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        var_map(self, map)
+        var_map_ctx(self, map)
     }
 
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
@@ -412,7 +415,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
-        var_map_bidi(self, map, map_back)
+        var_map_bidi_ctx(self, map, map_back)
     }
 
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -421,7 +424,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         V: Var<O>,
         M: FnMut(&T) -> V + Send + 'static,
     {
-        var_flat_map(self, map)
+        var_flat_map_ctx(self, map)
     }
 
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
@@ -430,7 +433,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         M: FnMut(&T) -> Option<O> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map(self, map, fallback)
+        var_filter_map_ctx(self, map, fallback)
     }
 
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
@@ -440,7 +443,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         B: FnMut(&O) -> Option<T> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map_bidi(self, map, map_back, fallback)
+        var_filter_map_bidi_ctx(self, map, map_back, fallback)
     }
 
     fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
@@ -465,7 +468,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         T: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing(self, duration, easing)
+        var_easing_ctx(self, duration, easing)
     }
 
     fn easing_with<F, SE>(&self, duration: Duration, easing: F, sampler: SE) -> Self::Easing
@@ -474,11 +477,11 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         SE: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
     {
-        var_easing_with(self, duration, easing, sampler)
+        var_easing_with_ctx(self, duration, easing, sampler)
     }
 }
-impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakContextualizedVar<T, S> {
-    type Upgrade = ContextualizedVar<T, S>;
+impl<T: VarValue> WeakVar<T> for WeakContextualizedVar<T> {
+    type Upgrade = ContextualizedVar<T>;
 
     fn upgrade(&self) -> Option<Self::Upgrade> {
         Some(ContextualizedVar {

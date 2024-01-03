@@ -5,10 +5,7 @@ use once_cell::sync::Lazy;
 use zero_ui_ext_fs_watcher::WatcherReadStatus;
 use zero_ui_layout::context::LayoutDirection;
 use zero_ui_txt::Txt;
-use zero_ui_var::{
-    context_var, impl_from_and_into_var, types::ContextualizedVar, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var,
-    VarValue,
-};
+use zero_ui_var::{context_var, impl_from_and_into_var, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue};
 
 use crate::{lang, service::L10N_SV, L10N};
 
@@ -259,7 +256,7 @@ impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
     }
 }
 impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &L10nSpecialize<ArcVar<T>> {
-    type Var = ContextualizedVar<L10nArgument, ReadOnlyArcVar<L10nArgument>>;
+    type Var = ReadOnlyArcVar<L10nArgument>;
 
     fn into_l10n_var(self) -> Self::Var {
         self.0.map_into()

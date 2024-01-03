@@ -97,7 +97,7 @@ pub trait easing_property_input_Transitionable: Any + Send {
 }
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
-        if let Some(when) = (*self).as_unboxed_any().downcast_ref::<ContextualizedVar<T, ArcWhenVar<T>>>() {
+        if let Some(when) = (*self).as_unboxed_any().downcast_ref::<ContextualizedVar<T>>() {
             let conditions: Vec<_> = when_conditions_data
                 .iter()
                 .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))
@@ -105,8 +105,14 @@ impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Boxe
 
             if conditions.iter().any(|c| c.is_some()) {
                 let when = when.clone();
-                return ContextualizedVar::new(move || when.borrow_init().easing_when(conditions.clone(), (duration, easing.clone())))
-                    .boxed();
+                return ContextualizedVar::new(move || {
+                    when.borrow_init()
+                        .as_any()
+                        .downcast_ref::<ArcWhenVar<T>>()
+                        .expect("expected `ArcWhenVar`")
+                        .easing_when(conditions.clone(), (duration, easing.clone()))
+                })
+                .boxed();
             }
         }
         Var::easing(&self, duration, move |t| easing(t)).boxed()

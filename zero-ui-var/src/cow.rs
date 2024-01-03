@@ -303,18 +303,18 @@ impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
 
     type Downgrade = WeakCowVar<T, S>;
 
-    type Map<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type MapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type Map<O: VarValue> = ReadOnlyArcVar<O>;
+    type MapBidi<O: VarValue> = ArcVar<O>;
 
-    type FlatMap<O: VarValue, V: Var<O>> = contextualized::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>;
+    type FlatMap<O: VarValue, V: Var<O>> = types::ArcFlatMapVar<O, V>;
 
-    type FilterMap<O: VarValue> = contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type FilterMapBidi<O: VarValue> = contextualized::ContextualizedVar<O, ArcVar<O>>;
+    type FilterMap<O: VarValue> = ReadOnlyArcVar<O>;
+    type FilterMapBidi<O: VarValue> = ArcVar<O>;
 
     type MapRef<O: VarValue> = types::MapRef<T, O, Self>;
     type MapRefBidi<O: VarValue> = types::MapRefBidi<T, O, Self>;
 
-    type Easing = types::ContextualizedVar<T, ReadOnlyArcVar<T>>;
+    type Easing = ReadOnlyArcVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where

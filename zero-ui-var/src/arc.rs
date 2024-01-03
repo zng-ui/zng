@@ -198,18 +198,18 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
 
     type Downgrade = WeakArcVar<T>;
 
-    type Map<O: VarValue> = types::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type MapBidi<O: VarValue> = types::ContextualizedVar<O, ArcVar<O>>;
+    type Map<O: VarValue> = ReadOnlyArcVar<O>;
+    type MapBidi<O: VarValue> = ArcVar<O>;
 
-    type FlatMap<O: VarValue, V: Var<O>> = types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>;
+    type FlatMap<O: VarValue, V: Var<O>> = types::ArcFlatMapVar<O, V>;
 
-    type FilterMap<O: VarValue> = types::ContextualizedVar<O, ReadOnlyArcVar<O>>;
-    type FilterMapBidi<O: VarValue> = types::ContextualizedVar<O, ArcVar<O>>;
+    type FilterMap<O: VarValue> = ReadOnlyArcVar<O>;
+    type FilterMapBidi<O: VarValue> = ArcVar<O>;
 
     type MapRef<O: VarValue> = types::MapRef<T, O, Self>;
     type MapRefBidi<O: VarValue> = types::MapRefBidi<T, O, Self>;
 
-    type Easing = types::ContextualizedVar<T, ReadOnlyArcVar<T>>;
+    type Easing = ReadOnlyArcVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where

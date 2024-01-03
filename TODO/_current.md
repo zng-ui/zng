@@ -17,6 +17,16 @@
 
 * Opening a text file in the editor example causes an accesskit panic.
 
+# Var
+
+* Merge and When var don't need to contextual if no input is contextual.
+    - Same for map_ref.
+    - These vars could map to `BoxedVar<T>` and dynamically select the implementation.
+
+# ContextLocal
+
+* Remove helpers with allocation (like `with_context_value`), they cause us to miss optimizations.
+
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.

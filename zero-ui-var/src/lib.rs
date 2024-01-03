@@ -1447,12 +1447,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a ref-counted var that maps to an inner variable that is found inside the value of this variable.
     ///
-    /// The `map` closure is called immediately to clone the initial inner var, and than once every time
-    /// the source variable updates.
+    /// The mapping var is [contextualized] if self is contextual, otherwise `map` evaluates immediately to start. Note
+    /// that the "mapped-to" var can be contextual even when the mapping var is not.
     ///
     /// The mapping var has the same capabilities of the inner var + `CAPS_CHANGE`, modifying the mapping var modifies the inner var.
-    ///
-    /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -2170,18 +2168,29 @@ where
     [self_to_other, other_to_self].into_iter().collect()
 }
 
-fn var_map<T: VarValue, O: VarValue>(
-    source: &impl Var<T>,
-    map: impl FnMut(&T) -> O + Send + 'static,
-) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
+fn var_map<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -> O + Send + 'static) -> ReadOnlyArcVar<O> {
     #[cfg(dyn_closure)]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
     var_map_impl(source, map)
 }
-fn var_map_impl<T: VarValue, O: VarValue>(
+fn var_map_impl<T: VarValue, O: VarValue>(source: &impl Var<T>, mut map: impl FnMut(&T) -> O + Send + 'static) -> ReadOnlyArcVar<O> {
+    let mapped = var(source.with(&mut map));
+    var_bind_map_impl(source, &mapped, map).perm();
+    mapped.read_only()
+}
+
+fn var_map_ctx<T: VarValue, O: VarValue>(
     source: &impl Var<T>,
     map: impl FnMut(&T) -> O + Send + 'static,
-) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
+) -> contextualized::ContextualizedVar<O> {
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+    var_map_ctx_impl(source, map)
+}
+fn var_map_ctx_impl<T: VarValue, O: VarValue>(
+    source: &impl Var<T>,
+    map: impl FnMut(&T) -> O + Send + 'static,
+) -> contextualized::ContextualizedVar<O> {
     let source = source.clone();
     let map = Arc::new(Mutex::new(map));
     types::ContextualizedVar::new(move || {
@@ -2192,7 +2201,47 @@ fn var_map_impl<T: VarValue, O: VarValue>(
     })
 }
 
-fn var_map_bidi<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O, ArcVar<O>>
+fn var_map_bidi<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> ArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> O + Send + 'static,
+    B: FnMut(&O) -> T + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
+
+    var_map_bidi_impl(source, map, map_back)
+}
+fn var_map_bidi_impl<T, O, M, B>(source: &impl Var<T>, mut map: M, map_back: B) -> ArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> O + Send + 'static,
+    B: FnMut(&O) -> T + Send + 'static,
+{
+    let mapped = var(source.with(&mut map));
+    var_bind_map_bidi_impl(source, &mapped, map, map_back).perm();
+    mapped
+}
+
+fn var_map_bidi_ctx<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> O + Send + 'static,
+    B: FnMut(&O) -> T + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
+
+    var_map_bidi_ctx_impl(source, map, map_back)
+}
+fn var_map_bidi_ctx_impl<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O>
 where
     T: VarValue,
     O: VarValue,
@@ -2211,7 +2260,41 @@ where
     })
 }
 
-fn var_flat_map<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>
+fn var_flat_map<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ArcFlatMapVar<O, V>
+where
+    T: VarValue,
+    O: VarValue,
+    V: Var<O>,
+    M: FnMut(&T) -> V + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
+
+    var_flat_map_impl(source, map)
+}
+fn var_flat_map_impl<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ArcFlatMapVar<O, V>
+where
+    T: VarValue,
+    O: VarValue,
+    V: Var<O>,
+    M: FnMut(&T) -> V + Send + 'static,
+{
+    types::ArcFlatMapVar::new(source, map)
+}
+
+fn var_flat_map_ctx<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    V: Var<O>,
+    M: FnMut(&T) -> V + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
+
+    var_flat_map_ctx_impl(source, map)
+}
+fn var_flat_map_ctx_impl<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O>
 where
     T: VarValue,
     O: VarValue,
@@ -2226,7 +2309,47 @@ where
     })
 }
 
-fn var_filter_map<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+fn var_filter_map<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> ReadOnlyArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    var_filter_map_impl(source, map, fallback)
+}
+fn var_filter_map_impl<T, O, M, I>(source: &impl Var<T>, mut map: M, fallback: I) -> ReadOnlyArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    let other = var(source.with(&mut map).unwrap_or_else(&fallback));
+    source.bind_filter_map(&other, map).perm();
+    other.read_only()
+}
+
+fn var_filter_map_ctx<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    var_filter_map_ctx_impl(source, map, fallback)
+}
+fn var_filter_map_ctx_impl<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O>
 where
     T: VarValue,
     O: VarValue,
@@ -2243,7 +2366,54 @@ where
     })
 }
 
-fn var_filter_map_bidi<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, ArcVar<O>>
+fn var_filter_map_bidi<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> ArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    B: FnMut(&O) -> Option<T> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    var_filter_map_bidi_impl(source, map, map_back, fallback)
+}
+fn var_filter_map_bidi_impl<T, O, M, B, I>(source: &impl Var<T>, mut map: M, map_back: B, fallback: I) -> ArcVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    B: FnMut(&O) -> Option<T> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    let other = var(source.with(&mut map).unwrap_or_else(&fallback));
+    source.bind_filter_map_bidi(&other, map, map_back).perm();
+    other
+}
+
+fn var_filter_map_bidi_ctx<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    B: FnMut(&O) -> Option<T> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    var_filter_map_bidi_ctx_impl(source, map, map_back, fallback)
+}
+fn var_filter_map_bidi_ctx_impl<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O>
 where
     T: VarValue,
     O: VarValue,
@@ -2285,7 +2455,24 @@ where
     types::MapRefBidi::new(source.clone(), Arc::new(map), Arc::new(map_mut))
 }
 
-fn var_easing<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+fn var_easing<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> ReadOnlyArcVar<T>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+{
+    let easing_fn = Arc::new(easing);
+    let easing_var = var(source.get());
+    let mut _anim_handle = animation::AnimationHandle::dummy();
+    var_bind(source, &easing_var, move |value, args, easing_var| {
+        _anim_handle = easing_var.ease(value.clone(), duration, clmv!(easing_fn, |t| easing_fn(t)));
+        if args.update {
+            easing_var.update();
+        }
+    })
+    .perm();
+    easing_var.read_only()
+}
+fn var_easing_ctx<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> types::ContextualizedVar<T>
 where
     T: VarValue + Transitionable,
     F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
@@ -2309,12 +2496,32 @@ where
     })
 }
 
-fn var_easing_with<T, F, S>(
-    source: &impl Var<T>,
-    duration: Duration,
-    easing: F,
-    sampler: S,
-) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
+fn var_easing_with<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> ReadOnlyArcVar<T>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+{
+    let fns = Arc::new((easing, sampler));
+    let easing_var = var(source.get());
+
+    let mut _anim_handle = animation::AnimationHandle::dummy();
+    var_bind(source, &easing_var, move |value, args, easing_var| {
+        _anim_handle = easing_var.ease_with(
+            value.clone(),
+            duration,
+            clmv!(fns, |t| (fns.0)(t)),
+            clmv!(fns, |t, s| (fns.1)(t, s)),
+        );
+        if args.update {
+            easing_var.update();
+        }
+    })
+    .perm();
+    easing_var.read_only()
+}
+
+fn var_easing_with_ctx<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> types::ContextualizedVar<T>
 where
     T: VarValue + Transitionable,
     F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
