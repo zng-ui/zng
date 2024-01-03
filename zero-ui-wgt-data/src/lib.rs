@@ -320,7 +320,7 @@ impl DATA {
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
     pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> ContextualizedVar<T, BoxedVar<T>> {
-        ContextualizedVar::new(Arc::new(move || {
+        ContextualizedVar::new(move || {
             DATA_CTX
                 .get()
                 .clone_any()
@@ -328,7 +328,7 @@ impl DATA {
                 .downcast::<BoxedVar<T>>()
                 .map(|b| *b)
                 .unwrap_or_else(|_| LocalVar(fallback()).boxed())
-        }))
+        })
     }
 
     /// Gets the current context data.

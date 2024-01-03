@@ -93,10 +93,10 @@ impl<T: VarValue> ArcMergeVar<T> {
         inputs: Box<[Box<dyn AnyVar>]>,
         merge: Arc<Mutex<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static>>,
     ) -> types::ContextualizedVar<T, ArcMergeVar<T>> {
-        types::ContextualizedVar::new(Arc::new(move || {
+        types::ContextualizedVar::new(move || {
             let merge = merge.clone();
             ArcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.lock()(values)))
-        }))
+        })
     }
 
     fn new_contextualized(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>) -> Self {

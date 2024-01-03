@@ -101,7 +101,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
             fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
-                types::ContextualizedVar::<T, BoxedVar<T>>::new(Arc::new(|| unreachable!())).boxed()
+                types::ContextualizedVar::<T, BoxedVar<T>>::new(|| unreachable!()).boxed()
             }
             take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
             take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
@@ -149,7 +149,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
     pub fn contextualized_build(self) -> types::ContextualizedVar<T, ArcWhenVar<T>> {
-        types::ContextualizedVar::new(Arc::new(move || self.clone().build()))
+        types::ContextualizedVar::new(move || self.clone().build())
     }
 }
 
@@ -242,7 +242,7 @@ impl AnyWhenVarBuilder {
     /// Defer build to a [`types::ContextualizedVar`] first use.
     pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, ArcWhenVar<T>>> {
         if self.default.var_type_id() == TypeId::of::<T>() {
-            Some(types::ContextualizedVar::new(Arc::new(move || self.build().unwrap())))
+            Some(types::ContextualizedVar::new(move || self.build().unwrap()))
         } else {
             None
         }
@@ -401,7 +401,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         T: Transitionable,
     {
         let source = self.clone();
-        types::ContextualizedVar::new(Arc::new(move || {
+        types::ContextualizedVar::new(move || {
             debug_assert_eq!(source.conditions().len(), condition_easing.len());
 
             let source_wk = source.downgrade();
@@ -428,7 +428,7 @@ impl<T: VarValue> ArcWhenVar<T> {
             })
             .perm();
             easing_var.read_only()
-        }))
+        })
     }
 }
 

@@ -1370,9 +1370,7 @@ impl WhenInputVar {
         let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
         (
             WhenInputVar { var: arc.clone() },
-            ContextualizedVar::new(Arc::new(move || {
-                arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()
-            })),
+            ContextualizedVar::new(move || arc.lock().as_any().downcast_mut::<WhenInputInitData<T>>().unwrap().get()),
         )
     }
 

@@ -105,10 +105,8 @@ impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Boxe
 
             if conditions.iter().any(|c| c.is_some()) {
                 let when = when.clone();
-                return ContextualizedVar::new(Arc::new(move || {
-                    when.borrow_init().easing_when(conditions.clone(), (duration, easing.clone()))
-                }))
-                .boxed();
+                return ContextualizedVar::new(move || when.borrow_init().easing_when(conditions.clone(), (duration, easing.clone())))
+                    .boxed();
             }
         }
         Var::easing(&self, duration, move |t| easing(t)).boxed()

@@ -7,6 +7,45 @@ use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::{types::WeakContextInitHandle, *};
 
+#[cfg(dyn_closure)]
+macro_rules! ActualLock {
+    ($S:ident) => {
+        parking_lot::RwLock<Vec<(WeakContextInitHandle, Box<dyn Any + Send + Sync>)>>
+    }
+}
+#[cfg(not(dyn_closure))]
+macro_rules! ActualLock {
+    ($S:ident) => {
+        parking_lot::RwLock<Vec<(WeakContextInitHandle, $S)>>
+    }
+}
+
+#[cfg(dyn_closure)]
+macro_rules! ActualInit {
+    ($S:ident) => {
+        Arc<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>
+    }
+}
+#[cfg(not(dyn_closure))]
+macro_rules! ActualInit {
+    ($S:ident) => {
+        Arc<dyn Fn() -> $S + Send + Sync>,
+    }
+}
+
+#[cfg(dyn_closure)]
+macro_rules! ActualReadGuard {
+    ($a:tt, $S:ident) => {
+        parking_lot::MappedRwLockReadGuard<$a, Box<dyn Any + Send + Sync>>
+    }
+}
+#[cfg(not(dyn_closure))]
+macro_rules! ActualReadGuard {
+    ($a:tt, $S:ident) => {
+        parking_lot::MappedRwLockReadGuard<$a, $S>
+    }
+}
+
 /// Represents a variable that delays initialization until the first usage.
 ///
 /// Usage that initializes the variable are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
@@ -26,58 +65,85 @@ use super::{types::WeakContextInitHandle, *};
 /// In the example above the mapping var will bind with the `MY_CTX_VAR` context inside the property node, not
 /// the context at the moment the widget is instantiated.
 pub struct ContextualizedVar<T, S> {
-    _type: PhantomData<T>,
-    init: Arc<dyn Fn() -> S + Send + Sync>,
-    actual: RwLock<Vec<(WeakContextInitHandle, S)>>,
+    _type: PhantomData<(T, fn() -> S)>,
+
+    init: ActualInit![S],
+    actual: ActualLock![S],
 }
+
+#[allow(clippy::extra_unused_type_parameters)]
+fn borrow_init_impl<'a, S>(actual: &'a ActualLock![S], init: &ActualInit![S], type_name: &'static str) -> ActualReadGuard!['a, S] {
+    let current_ctx = ContextInitHandle::current();
+    let current_ctx = current_ctx.downgrade();
+
+    let act = actual.read_recursive();
+    if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
+        return RwLockReadGuard::map(act, move |m| &m[i].1);
+    }
+    drop(act);
+
+    let mut acttual = actual.write();
+    acttual.retain(|(h, _)| h.is_alive());
+    let i = acttual.len();
+
+    #[cfg(debug_assertions)]
+    if i == 200 {
+        tracing::debug!("variable of type `{type_name}` actualized >200 times");
+    }
+
+    if !acttual.iter().any(|(c, _)| c == &current_ctx) {
+        acttual.push((current_ctx.clone(), init()));
+    }
+    drop(acttual);
+
+    let actual = actual.read_recursive();
+    RwLockReadGuard::map(actual, move |m| {
+        if i < m.len() && m[i].0 == current_ctx {
+            &m[i].1
+        } else if let Some(i) = m.iter().position(|(h, _)| h == &current_ctx) {
+            &m[i].1
+        } else {
+            unreachable!()
+        }
+    })
+}
+
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
     ///
     /// The `init` closure will be called on the first usage of the var, once after the var is cloned and any time
     /// a parent contextualized var is initializing.
-    pub fn new(init: Arc<dyn Fn() -> S + Send + Sync>) -> Self {
+    pub fn new(init: impl Fn() -> S + Send + Sync + 'static) -> Self {
         Self {
             _type: PhantomData,
-            init,
+
+            #[cfg(dyn_closure)]
+            init: Arc::new(move || Box::new(init())),
+            #[cfg(not(dyn_closure))]
+            init: Arc::new(init),
+
             actual: RwLock::new(Vec::with_capacity(1)),
         }
     }
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<S> {
-        let current_ctx = ContextInitHandle::current();
-        let current_ctx = current_ctx.downgrade();
-
-        let act = self.actual.read_recursive();
-        if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
-            return RwLockReadGuard::map(act, move |m| &m[i].1);
-        }
-        drop(act);
-
-        let mut act = self.actual.write();
-        act.retain(|(h, _)| h.is_alive());
-        let i = act.len();
-
         #[cfg(debug_assertions)]
-        if i == 200 {
-            tracing::debug!("variable of type `{:?}` actualized >200 times", std::any::type_name::<T>());
-        }
+        let type_name = std::any::type_name::<T>();
 
-        if !act.iter().any(|(c, _)| c == &current_ctx) {
-            act.push((current_ctx.clone(), (self.init)()));
-        }
-        drop(act);
+        #[cfg(not(debug_assertions))]
+        let type_name = "";
 
-        let act = self.actual.read_recursive();
-        RwLockReadGuard::map(act, move |m| {
-            if i < m.len() && m[i].0 == current_ctx {
-                &m[i].1
-            } else if let Some(i) = m.iter().position(|(h, _)| h == &current_ctx) {
-                &m[i].1
-            } else {
-                unreachable!()
-            }
-        })
+        #[cfg(dyn_closure)]
+        {
+            parking_lot::MappedRwLockReadGuard::map(borrow_init_impl::<()>(&self.actual, &self.init, type_name), |v| {
+                v.downcast_ref().unwrap()
+            })
+        }
+        #[cfg(not(dyn_closure))]
+        {
+            borrow_init_impl(&self.actual, &self.init, type_name)
+        }
     }
 
     /// Unwraps the initialized actual var or initializes it now.
@@ -86,23 +152,36 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         let current_ctx = ContextInitHandle::current().downgrade();
 
         if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
-            act.swap_remove(i).1
+            #[cfg(dyn_closure)]
+            {
+                *act.swap_remove(i).1.downcast().unwrap()
+            }
+            #[cfg(not(dyn_closure))]
+            {
+                act.swap_remove(i).1
+            }
         } else {
-            (self.init)()
+            #[cfg(dyn_closure)]
+            {
+                *(self.init)().downcast().unwrap()
+            }
+            #[cfg(not(dyn_closure))]
+            {
+                (self.init)()
+            }
         }
     }
 }
 
 /// Weak var that upgrades to an uninitialized [`ContextualizedVar<T, S>`].
 pub struct WeakContextualizedVar<T, S> {
-    _type: PhantomData<T>,
+    _type: PhantomData<(T, fn() -> S)>,
+
+    #[cfg(dyn_closure)]
+    init: Weak<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>,
+
+    #[cfg(not(dyn_closure))]
     init: Weak<dyn Fn() -> S + Send + Sync>,
-}
-impl<T: VarValue, S: Var<T>> WeakContextualizedVar<T, S> {
-    /// New with weak init function.
-    pub fn new(init: Weak<dyn Fn() -> S + Send + Sync>) -> Self {
-        Self { _type: PhantomData, init }
-    }
 }
 
 impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
@@ -113,10 +192,17 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
             return Self {
                 _type: PhantomData,
                 init: self.init.clone(),
+                #[cfg(dyn_closure)]
+                actual: RwLock::new(vec![(act[i].0.clone(), Box::new(act[i].1.downcast_ref::<S>().unwrap().clone()))]),
+                #[cfg(not(dyn_closure))]
                 actual: RwLock::new(vec![act[i].clone()]),
             };
         }
-        Self::new(self.init.clone())
+        Self {
+            _type: PhantomData,
+            init: self.init.clone(),
+            actual: RwLock::default(),
+        }
     }
 }
 impl<T: VarValue, S: Var<T>> Clone for WeakContextualizedVar<T, S> {
@@ -298,7 +384,10 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     }
 
     fn downgrade(&self) -> Self::Downgrade {
-        WeakContextualizedVar::new(Arc::downgrade(&self.init))
+        WeakContextualizedVar {
+            _type: PhantomData,
+            init: Arc::downgrade(&self.init),
+        }
     }
 
     fn into_value(self) -> T {
@@ -392,7 +481,11 @@ impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakContextualizedVar<T, S> {
     type Upgrade = ContextualizedVar<T, S>;
 
     fn upgrade(&self) -> Option<Self::Upgrade> {
-        self.init.upgrade().map(ContextualizedVar::new)
+        Some(ContextualizedVar {
+            _type: PhantomData,
+            init: self.init.upgrade()?,
+            actual: RwLock::default(),
+        })
     }
 }
 

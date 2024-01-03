@@ -2184,12 +2184,12 @@ fn var_map_impl<T: VarValue, O: VarValue>(
 ) -> contextualized::ContextualizedVar<O, ReadOnlyArcVar<O>> {
     let source = source.clone();
     let map = Arc::new(Mutex::new(map));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let other = var(source.with(&mut *map.lock()));
         let map = map.clone();
         source.bind_map(&other, move |t| map.lock()(t)).perm();
         other.read_only()
-    }))
+    })
 }
 
 fn var_map_bidi<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O, ArcVar<O>>
@@ -2202,13 +2202,13 @@ where
     let me = source.clone();
     let map = Arc::new(Mutex::new(map));
     let map_back = Arc::new(Mutex::new(map_back));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let other = var(me.with(&mut *map.lock()));
         let map = map.clone();
         let map_back = map_back.clone();
         me.bind_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o)).perm();
         other
-    }))
+    })
 }
 
 fn var_flat_map<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>
@@ -2220,10 +2220,10 @@ where
 {
     let me = source.clone();
     let map = Arc::new(Mutex::new(map));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let map = map.clone();
         types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
-    }))
+    })
 }
 
 fn var_filter_map<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
@@ -2235,12 +2235,12 @@ where
 {
     let me = source.clone();
     let map = Arc::new(Mutex::new(map));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
         let map = map.clone();
         me.bind_filter_map(&other, move |i| map.lock()(i)).perm();
         other.read_only()
-    }))
+    })
 }
 
 fn var_filter_map_bidi<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, ArcVar<O>>
@@ -2254,14 +2254,14 @@ where
     let me = source.clone();
     let map = Arc::new(Mutex::new(map));
     let map_back = Arc::new(Mutex::new(map_back));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
         let map = map.clone();
         let map_back = map_back.clone();
         me.bind_filter_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o))
             .perm();
         other
-    }))
+    })
 }
 
 fn var_map_ref<T, S, O, M>(source: &S, map: M) -> types::MapRef<T, O, S>
@@ -2292,7 +2292,7 @@ where
 {
     let source = source.clone();
     let easing_fn = Arc::new(easing);
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let easing_var = var(source.get());
 
         let easing_fn = easing_fn.clone();
@@ -2306,7 +2306,7 @@ where
         })
         .perm();
         easing_var.read_only()
-    }))
+    })
 }
 
 fn var_easing_with<T, F, S>(
@@ -2322,7 +2322,7 @@ where
 {
     let source = source.clone();
     let fns = Arc::new((easing, sampler));
-    types::ContextualizedVar::new(Arc::new(move || {
+    types::ContextualizedVar::new(move || {
         let easing_var = var(source.get());
 
         let fns = fns.clone();
@@ -2340,7 +2340,7 @@ where
         })
         .perm();
         easing_var.read_only()
-    }))
+    })
 }
 
 // Closure type independent of the variable type, hopefully reduces LLVM lines:
