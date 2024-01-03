@@ -2178,7 +2178,6 @@ fn var_map_impl<T: VarValue, O: VarValue>(source: &impl Var<T>, mut map: impl Fn
     var_bind_map_impl(source, &mapped, map).perm();
     mapped.read_only()
 }
-
 fn var_map_ctx<T: VarValue, O: VarValue>(
     source: &impl Var<T>,
     map: impl FnMut(&T) -> O + Send + 'static,
@@ -2199,6 +2198,18 @@ fn var_map_ctx_impl<T: VarValue, O: VarValue>(
         source.bind_map(&other, move |t| map.lock()(t)).perm();
         other.read_only()
     })
+}
+fn var_map_mixed<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -> O + Send + 'static) -> BoxedVar<O> {
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+
+    if source.is_contextual() {
+        var_map_ctx_impl(source, map).boxed()
+    } else if source.capabilities().is_always_static() {
+        LocalVar(source.with(map)).boxed()
+    } else {
+        var_map_impl(source, map).boxed()
+    }
 }
 
 fn var_map_bidi<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> ArcVar<O>
@@ -2226,7 +2237,6 @@ where
     var_bind_map_bidi_impl(source, &mapped, map, map_back).perm();
     mapped
 }
-
 fn var_map_bidi_ctx<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O>
 where
     T: VarValue,
@@ -2259,6 +2269,26 @@ where
         other
     })
 }
+fn var_map_bidi_mixed<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> BoxedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> O + Send + 'static,
+    B: FnMut(&O) -> T + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
+
+    if source.is_contextual() {
+        var_map_bidi_ctx_impl(source, map, map_back).boxed()
+    } else if source.capabilities().is_always_static() {
+        LocalVar(source.with(map)).boxed()
+    } else {
+        var_map_bidi_impl(source, map, map_back).boxed()
+    }
+}
 
 fn var_flat_map<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ArcFlatMapVar<O, V>
 where
@@ -2281,7 +2311,6 @@ where
 {
     types::ArcFlatMapVar::new(source, map)
 }
-
 fn var_flat_map_ctx<T, O, V, M>(source: &impl Var<T>, map: M) -> types::ContextualizedVar<O>
 where
     T: VarValue,
@@ -2307,6 +2336,24 @@ where
         let map = map.clone();
         types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
     })
+}
+fn var_flat_map_mixed<T, O, V, M>(source: &impl Var<T>, map: M) -> BoxedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    V: Var<O>,
+    M: FnMut(&T) -> V + Send + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
+
+    if source.is_contextual() {
+        var_flat_map_ctx_impl(source, map).boxed()
+    } else if source.capabilities().is_always_static() {
+        source.with(map).boxed()
+    } else {
+        var_flat_map_impl(source, map).boxed()
+    }
 }
 
 fn var_filter_map<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> ReadOnlyArcVar<O>
@@ -2334,7 +2381,6 @@ where
     source.bind_filter_map(&other, map).perm();
     other.read_only()
 }
-
 fn var_filter_map_ctx<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O>
 where
     T: VarValue,
@@ -2364,6 +2410,26 @@ where
         me.bind_filter_map(&other, move |i| map.lock()(i)).perm();
         other.read_only()
     })
+}
+fn var_filter_map_mixed<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> BoxedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    if source.is_contextual() {
+        var_filter_map_ctx_impl(source, map, fallback).boxed()
+    } else if source.capabilities().is_always_static() {
+        LocalVar(source.with(map).unwrap_or_else(fallback)).boxed()
+    } else {
+        var_filter_map_impl(source, map, fallback).boxed()
+    }
 }
 
 fn var_filter_map_bidi<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> ArcVar<O>
@@ -2395,7 +2461,6 @@ where
     source.bind_filter_map_bidi(&other, map, map_back).perm();
     other
 }
-
 fn var_filter_map_bidi_ctx<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O>
 where
     T: VarValue,
@@ -2432,6 +2497,29 @@ where
             .perm();
         other
     })
+}
+fn var_filter_map_bidi_mixed<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> BoxedVar<O>
+where
+    T: VarValue,
+    O: VarValue,
+    M: FnMut(&T) -> Option<O> + Send + 'static,
+    B: FnMut(&O) -> Option<T> + Send + 'static,
+    I: Fn() -> O + Send + Sync + 'static,
+{
+    #[cfg(dyn_closure)]
+    let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
+    #[cfg(dyn_closure)]
+    let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
+    #[cfg(dyn_closure)]
+    let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
+
+    if source.is_contextual() {
+        var_filter_map_bidi_ctx_impl(source, map, map_back, fallback).boxed()
+    } else if source.capabilities().is_always_static() {
+        LocalVar(source.with(map).unwrap_or_else(fallback)).boxed()
+    } else {
+        var_filter_map_bidi_impl(source, map, map_back, fallback).boxed()
+    }
 }
 
 fn var_map_ref<T, S, O, M>(source: &S, map: M) -> types::MapRef<T, O, S>
@@ -2495,6 +2583,19 @@ where
         easing_var.read_only()
     })
 }
+fn var_easing_mixed<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> BoxedVar<T>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+{
+    if source.is_contextual() {
+        var_easing_ctx(source, duration, easing).boxed()
+    } else if source.capabilities().is_always_static() {
+        source.clone().boxed()
+    } else {
+        var_easing(source, duration, easing).boxed()
+    }
+}
 
 fn var_easing_with<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> ReadOnlyArcVar<T>
 where
@@ -2520,7 +2621,6 @@ where
     .perm();
     easing_var.read_only()
 }
-
 fn var_easing_with_ctx<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> types::ContextualizedVar<T>
 where
     T: VarValue + Transitionable,
@@ -2548,6 +2648,20 @@ where
         .perm();
         easing_var.read_only()
     })
+}
+fn var_easing_with_mixed<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> BoxedVar<T>
+where
+    T: VarValue + Transitionable,
+    F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
+    S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
+{
+    if source.is_contextual() {
+        var_easing_with_ctx(source, duration, easing, sampler).boxed()
+    } else if source.capabilities().is_always_static() {
+        source.clone().boxed()
+    } else {
+        var_easing_with(source, duration, easing, sampler).boxed()
+    }
 }
 
 // Closure type independent of the variable type, hopefully reduces LLVM lines:

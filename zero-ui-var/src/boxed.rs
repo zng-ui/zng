@@ -406,11 +406,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        if !self.is_contextual() && self.capabilities().is_always_static() {
-            LocalVar(self.with(map)).boxed()
-        } else {
-            var_map(self, map).boxed()
-        }
+        var_map_mixed(self, map)
     }
 
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
@@ -419,11 +415,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
-        if !self.is_contextual() && self.capabilities().is_always_static() {
-            LocalVar(self.with(map)).boxed()
-        } else {
-            var_map_bidi(self, map, map_back).boxed()
-        }
+        var_map_bidi_mixed(self, map, map_back)
     }
 
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -432,7 +424,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         V: Var<O>,
         M: FnMut(&T) -> V + Send + 'static,
     {
-        var_flat_map(self, map).boxed()
+        var_flat_map_mixed(self, map)
     }
 
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
@@ -441,11 +433,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         M: FnMut(&T) -> Option<O> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        if !self.is_contextual() && self.capabilities().is_always_static() {
-            LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
-        } else {
-            var_filter_map(self, map, fallback).boxed()
-        }
+        var_filter_map_mixed(self, map, fallback)
     }
 
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
@@ -455,11 +443,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         B: FnMut(&O) -> Option<T> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        if !self.is_contextual() && self.capabilities().is_always_static() {
-            LocalVar(self.with(map).unwrap_or_else(fallback)).boxed()
-        } else {
-            var_filter_map_bidi(self, map, map_back, fallback).boxed()
-        }
+        var_filter_map_bidi_mixed(self, map, map_back, fallback)
     }
 
     fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
@@ -484,7 +468,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         T: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing(self, duration, easing).boxed()
+        var_easing_mixed(self, duration, easing)
     }
 
     fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
@@ -493,7 +477,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
     {
-        var_easing_with(self, duration, easing, sampler).boxed()
+        var_easing_with_mixed(self, duration, easing, sampler)
     }
 }
 
