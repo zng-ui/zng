@@ -66,6 +66,7 @@ impl TextEditOp {
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
     ///
+    /// [`ResolvedText::txt`]: super::node::ResolvedText::txt
     /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
     /// [`ResolvedText::pending_edit`]: super::node::ResolvedText::pending_edit
     pub fn new<D>(data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static) -> Self
