@@ -19,9 +19,10 @@
 
 # Var
 
-* Merge and When var don't need to contextual if no input is contextual.
-    - Same for map_ref.
-    - These vars could map to `BoxedVar<T>` and dynamically select the implementation.
+* MergeVar does not need to always be contextualized.
+    - The mapping can use the *_mixed variants.
+    - The macro itself contextualizes, why?
+* WhenVar does not need to always be contextualized.
 
 # ContextLocal
 
