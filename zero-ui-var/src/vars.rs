@@ -237,7 +237,9 @@ impl VARS {
     /// [`Animation`]: animation::Animation
     /// [`NilAnimationObserver`]: animation::NilAnimationObserver
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
-        animation::VARS_ANIMATION_CTRL_CTX.with_context_value(Box::new(controller), animate)
+        let controller: Box<dyn animation::AnimationController> = Box::new(controller);
+        let mut opt = Some(Arc::new(controller));
+        animation::VARS_ANIMATION_CTRL_CTX.with_context(&mut opt, animate)
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn, type_name: &'static str) {
@@ -368,7 +370,7 @@ impl VARS_APP {
             }
 
             for (info, update) in updates {
-                VARS_MODIFY_CTX.with_context_value(Some(info), update);
+                VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), update);
 
                 let mut vars = VARS_SV.write();
                 let updates = mem::take(vars.updates.get_mut());

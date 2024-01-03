@@ -2607,8 +2607,9 @@ impl WidgetBuilding {
 
         if let Some(handle) = when_init_context_handle {
             // ensure shared/cloned when input expressions work.
+            let mut handle = Some(Arc::new(handle));
             node = crate::widget::node::match_node(node, move |c, op| {
-                WHEN_INPUT_CONTEXT_INIT_ID.with_context_value(handle.clone(), || c.op(op));
+                WHEN_INPUT_CONTEXT_INIT_ID.with_context(&mut handle, || c.op(op));
             })
             .boxed();
         }

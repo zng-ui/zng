@@ -948,32 +948,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         r.unwrap()
     }
 
-    /// Calls `f` with the `value` loaded in context.
-    pub fn with_context_value<R>(&'static self, value: T, f: impl FnOnce() -> R) -> R {
-        self.with_context(&mut Some(Arc::new(value)), f)
-    }
-
-    /// Calls `f` with the `value` loaded in context.
-    ///
-    /// The `value` is moved in context, `f` is called, then restores the `value`. A clone is restored if
-    /// the value is still shared when `f` returns.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `value` is `None`.
-    pub fn with_context_opt<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R
-    where
-        T: Clone,
-    {
-        let mut val = value.take().map(Arc::new);
-        let r = self.with_context(&mut val, f);
-        match Arc::try_unwrap(val.unwrap()) {
-            Ok(val) => *value = Some(val),
-            Err(arc) => *value = Some(arc.as_ref().clone()),
-        }
-        r
-    }
-
     /// Calls `f` with no value loaded in context.
     pub fn with_default<R>(&'static self, f: impl FnOnce() -> R) -> R {
         let mut r = None;

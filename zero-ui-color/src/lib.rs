@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{fmt, ops};
+use std::{fmt, ops, sync::Arc};
 use zero_ui_app_context::context_local;
 
 use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
@@ -1314,7 +1314,7 @@ pub fn lerp_space() -> LerpSpace {
 ///
 /// See [`rgba_sampler`] and [`hsla_linear_sampler`] for a way to set the space in animations.
 pub fn with_lerp_space<R>(space: LerpSpace, f: impl FnOnce() -> R) -> R {
-    LERP_SPACE.with_context_value(space, f)
+    LERP_SPACE.with_context(&mut Some(Arc::new(space)), f)
 }
 
 /// Animation sampler that sets the [`lerp_space`] to [`LerpSpace::Rgba`].

@@ -359,6 +359,9 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 /// Context var that is always read-only, even if it is representing a read-write var.
 pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 
+#[derive(Default)]
+struct ContextInitHandleMarker;
+
 /// Identifies the unique context a [`ContextualizedVar`] is in.
 ///
 /// Each node that sets context-vars have an unique ID, it is different after each (re)init. The [`ContextualizedVar`]
@@ -367,9 +370,9 @@ pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 ///
 /// [`ContextualizedVar`]: crate::types::ContextualizedVar
 #[derive(Clone, Default)]
-pub struct ContextInitHandle(Arc<()>);
+pub struct ContextInitHandle(Arc<ContextInitHandleMarker>);
 context_local! {
-    static CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
+    static CONTEXT_INIT_ID: ContextInitHandleMarker = ContextInitHandleMarker;
 }
 impl ContextInitHandle {
     /// Generates a new unique handle.
@@ -379,14 +382,15 @@ impl ContextInitHandle {
 
     /// Gets the current context handle.
     pub fn current() -> Self {
-        CONTEXT_INIT_ID.get_clone()
+        Self(CONTEXT_INIT_ID.get())
     }
 
     /// Runs `action` with `self` as the current context ID.
     ///
     /// Note that [`ContextVar::with_context`] already calls this method.
     pub fn with_context<R>(&self, action: impl FnOnce() -> R) -> R {
-        CONTEXT_INIT_ID.with_context_value(self.clone(), action)
+        let mut opt = Some(self.0.clone());
+        CONTEXT_INIT_ID.with_context(&mut opt, action)
     }
 
     /// Create a weak handle that can be used to monitor `self`, but does not hold it.
@@ -414,7 +418,7 @@ impl std::hash::Hash for ContextInitHandle {
 
 /// Weak [`ContextInitHandle`].
 #[derive(Clone, Default)]
-pub struct WeakContextInitHandle(std::sync::Weak<()>);
+pub struct WeakContextInitHandle(std::sync::Weak<ContextInitHandleMarker>);
 impl WeakContextInitHandle {
     /// Returns `true` if the strong handle still exists.
     pub fn is_alive(&self) -> bool {

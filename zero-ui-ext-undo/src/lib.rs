@@ -319,7 +319,7 @@ impl UNDO {
         *scope.enabled.get_mut() = false;
         *scope.id.get_mut() = parent_scope.id.load(Ordering::Relaxed);
 
-        UNDO_SCOPE_CTX.with_context_value(scope, f)
+        UNDO_SCOPE_CTX.with_context(&mut Some(Arc::new(scope)), f)
     }
 
     /// Track changes on `var`, registering undo actions for it.

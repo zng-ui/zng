@@ -10,6 +10,7 @@ use zero_ui_var::{
 use std::{
     f32::consts::{PI, TAU},
     fmt, ops,
+    sync::Arc,
 };
 
 /// Spherical linear interpolation sampler.
@@ -37,7 +38,7 @@ pub fn is_slerp_enabled() -> bool {
 ///
 /// See [`slerp_sampler`] for a way to enable in animations.
 pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
-    SLERP_ENABLED.with_context_value(enabled, f)
+    SLERP_ENABLED.with_context(&mut Some(Arc::new(enabled)), f)
 }
 
 context_local! {

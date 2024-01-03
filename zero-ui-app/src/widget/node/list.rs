@@ -581,7 +581,7 @@ impl SORTING_LIST {
     }
 
     fn with<R>(&self, action: impl FnOnce() -> R) -> (R, bool) {
-        SORTING_LIST_PARENT.with_context_value(AtomicBool::new(false), || {
+        SORTING_LIST_PARENT.with_context(&mut Some(Arc::new(AtomicBool::new(false))), || {
             let r = action();
             (r, SORTING_LIST_PARENT.get().load(Relaxed))
         })
@@ -795,7 +795,7 @@ impl Z_INDEX {
             panel_id: Some(panel_id),
             resort: AtomicBool::new(false),
         };
-        Z_INDEX_CTX.with_context_value(ctx, || {
+        Z_INDEX_CTX.with_context(&mut Some(Arc::new(ctx)), || {
             action();
             Z_INDEX_CTX.get().resort.load(Relaxed)
         })

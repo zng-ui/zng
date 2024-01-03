@@ -1,6 +1,6 @@
 //! Border and line types.
 
-use std::{fmt, mem};
+use std::{fmt, mem, sync::Arc};
 
 use zero_ui_app_context::context_local;
 use zero_ui_color::{colors, Hsla, Hsva, Rgba};
@@ -805,7 +805,7 @@ impl BORDER {
         let border = WIDGET.border();
         data.add_inner(&border);
 
-        BORDER_DATA.with_context_value(data, || {
+        BORDER_DATA.with_context(&mut Some(Arc::new(data)), || {
             let corner_radius = BORDER.border_radius();
             border.set_corner_radius(corner_radius);
             border.set_offsets(PxSideOffsets::zero());
@@ -817,14 +817,14 @@ impl BORDER {
     pub fn measure_border(&self, offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
         let mut data = BORDER_DATA.get_clone();
         data.add_offset(None, offsets);
-        BORDER_DATA.with_context_value(data, f)
+        BORDER_DATA.with_context(&mut Some(Arc::new(data)), f)
     }
 
     /// Measure a border node, adding the `offsets` to the context for the `f` call.
     pub fn layout_border(&self, offsets: PxSideOffsets, f: impl FnOnce()) {
         let mut data = BORDER_DATA.get_clone();
         data.add_offset(Some(&WIDGET.border()), offsets);
-        BORDER_DATA.with_context_value(data, f);
+        BORDER_DATA.with_context(&mut Some(Arc::new(data)), f);
     }
 
     /// Indicates a boundary point where the [`CORNER_RADIUS_VAR`] backing context changes during layout.
@@ -837,7 +837,7 @@ impl BORDER {
     pub fn with_corner_radius<R>(&self, f: impl FnOnce() -> R) -> R {
         let mut data = BORDER_DATA.get_clone();
         data.set_corner_radius();
-        BORDER_DATA.with_context_value(data, f)
+        BORDER_DATA.with_context(&mut Some(Arc::new(data)), f)
     }
 
     /// Gets the computed border rect and side offsets for the border visual.
@@ -853,7 +853,7 @@ impl BORDER {
 
     /// Sets the border layout for the context of `f`.
     pub fn with_border_layout(&self, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
-        BORDER_LAYOUT.with_context_value(Some((rect, offsets)), f)
+        BORDER_LAYOUT.with_context(&mut Some(Arc::new(Some((rect, offsets)))), f)
     }
 }
 
