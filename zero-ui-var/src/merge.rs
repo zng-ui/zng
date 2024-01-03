@@ -18,8 +18,11 @@ use super::{util::VarData, *};
 ///
 /// # Contextualized
 ///
-/// The merge var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
-/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, ArcMergeVar<T>>`.
+/// The merge var is contextualized when needed, meaning is any input [`is_contextual`] at the moment the var is created it
+/// is also contextual. The full output type of this macro is a `BoxedVar<T>` that is either an `ArcMergeVar<T>` or
+/// a `ContextualizedVar<T, ArcMergeVar<T>>`.
+///
+/// [`is_contextual`]: AnyVar::is_contextual
 ///
 /// # Examples
 ///
@@ -61,6 +64,7 @@ impl<T: VarValue, V: Var<T>> ArcMergeVarInput<T, V> {
 }
 
 struct MergeData<T> {
+    _input_vars: Box<[BoxedAnyVar]>,
     inputs: Box<[Box<dyn AnyVarValue>]>,
     input_handles: Box<[VarHandle]>,
     merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>,
@@ -74,37 +78,32 @@ struct Data<T: VarValue> {
 /// See [`merge_var!`].
 pub struct ArcMergeVar<T: VarValue>(Arc<Data<T>>);
 
-#[doc(hidden)]
-pub type ContextualizedArcMergeVar<T> = types::ContextualizedVar<T>;
-
 /// Weak reference to [`ArcMergeVar<T>`].
 pub struct WeakMergeVar<T: VarValue>(Weak<Data<T>>);
 
 impl<T: VarValue> ArcMergeVar<T> {
     #[doc(hidden)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(
-        inputs: Box<[Box<dyn AnyVar>]>,
-        merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static,
-    ) -> ContextualizedArcMergeVar<T> {
-        Self::new_impl(inputs, Arc::new(Mutex::new(merge)))
+    pub fn new(inputs: Box<[BoxedAnyVar]>, merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static) -> BoxedVar<T> {
+        if inputs.iter().any(|v| v.is_contextual()) {
+            let merge = Arc::new(Mutex::new(merge));
+            types::ContextualizedVar::new(move || {
+                let merge = merge.clone();
+                ArcMergeVar::new_impl(Cow::Borrowed(&inputs), Box::new(move |values| merge.lock()(values)))
+            })
+            .boxed()
+        } else {
+            let merge = Mutex::new(merge);
+            ArcMergeVar::new_impl(Cow::Owned(inputs), Box::new(move |values| merge.lock()(values))).boxed()
+        }
     }
 
-    fn new_impl(
-        inputs: Box<[Box<dyn AnyVar>]>,
-        merge: Arc<Mutex<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static>>,
-    ) -> types::ContextualizedVar<T> {
-        types::ContextualizedVar::new(move || {
-            let merge = merge.clone();
-            ArcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.lock()(values)))
-        })
-    }
-
-    fn new_contextualized(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>) -> Self {
+    fn new_impl(input_vars: Cow<Box<[BoxedAnyVar]>>, mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>) -> Self {
         let inputs: Box<[_]> = input_vars.iter().map(|v| v.get_any()).collect();
         let rc_merge = Arc::new(Data {
             value: VarData::new(merge(&inputs)),
             m: Mutex::new(MergeData {
+                _input_vars: Box::new([]),
                 inputs,
                 input_handles: Box::new([]),
                 merge,
@@ -143,7 +142,13 @@ impl<T: VarValue> ArcMergeVar<T> {
             })
             .collect();
 
-        rc_merge.m.lock().input_handles = input_handles;
+        {
+            let mut l = rc_merge.m.lock();
+            l.input_handles = input_handles;
+            if let Cow::Owned(v) = input_vars {
+                l._input_vars = v;
+            } // else they are held by the ContextualizedVar
+        }
 
         Self(rc_merge)
     }
@@ -218,7 +223,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
     }
 
     fn is_contextual(&self) -> bool {
-        true
+        false // if inputs are contextual Self::new uses a ContextualizedVar wrapper.
     }
 
     fn capabilities(&self) -> VarCapabilities {
@@ -315,18 +320,18 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
 
     type Downgrade = WeakMergeVar<T>;
 
-    type Map<O: VarValue> = types::ContextualizedVar<O>;
-    type MapBidi<O: VarValue> = types::ContextualizedVar<O>;
+    type Map<O: VarValue> = ReadOnlyArcVar<O>;
+    type MapBidi<O: VarValue> = ArcVar<O>;
 
-    type FlatMap<O: VarValue, V: Var<O>> = types::ContextualizedVar<O>;
+    type FlatMap<O: VarValue, V: Var<O>> = types::ArcFlatMapVar<O, V>;
 
-    type FilterMap<O: VarValue> = types::ContextualizedVar<O>;
-    type FilterMapBidi<O: VarValue> = types::ContextualizedVar<O>;
+    type FilterMap<O: VarValue> = ReadOnlyArcVar<O>;
+    type FilterMapBidi<O: VarValue> = ArcVar<O>;
 
     type MapRef<O: VarValue> = types::MapRef<T, O, Self>;
     type MapRefBidi<O: VarValue> = types::MapRefBidi<T, O, Self>;
 
-    type Easing = types::ContextualizedVar<T>;
+    type Easing = ReadOnlyArcVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -368,7 +373,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
     {
-        var_map_ctx(self, map)
+        var_map(self, map)
     }
 
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
@@ -377,7 +382,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
-        var_map_bidi_ctx(self, map, map_back)
+        var_map_bidi(self, map, map_back)
     }
 
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -386,7 +391,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         V: Var<O>,
         M: FnMut(&T) -> V + Send + 'static,
     {
-        var_flat_map_ctx(self, map)
+        var_flat_map(self, map)
     }
 
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
@@ -395,7 +400,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         M: FnMut(&T) -> Option<O> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map_ctx(self, map, fallback)
+        var_filter_map(self, map, fallback)
     }
 
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
@@ -405,7 +410,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         B: FnMut(&O) -> Option<T> + Send + 'static,
         I: Fn() -> O + Send + Sync + 'static,
     {
-        var_filter_map_bidi_ctx(self, map, map_back, fallback)
+        var_filter_map_bidi(self, map, map_back, fallback)
     }
 
     fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
@@ -430,7 +435,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         T: Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
-        var_easing_ctx(self, duration, easing)
+        var_easing(self, duration, easing)
     }
 
     fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
@@ -439,7 +444,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
         S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static,
     {
-        var_easing_with_ctx(self, duration, easing, sampler)
+        var_easing_with(self, duration, easing, sampler)
     }
 }
 
@@ -479,7 +484,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
     }
 
     /// Build the merge var.
-    pub fn build<O: VarValue>(self, mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static) -> types::ContextualizedVar<O> {
+    pub fn build<O: VarValue>(self, mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static) -> BoxedVar<O> {
         ArcMergeVar::new(self.inputs.into_boxed_slice(), move |inputs| {
             merge(MergeVarInputs {
                 inputs,

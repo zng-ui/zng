@@ -80,7 +80,7 @@ pub mod types {
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNotAnimatingFut, WaitUpdateFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
-    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, MergeVarInputs, WeakMergeVar, __merge_var};
+    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, MergeVarInputs, WeakMergeVar, __merge_var};
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::vec::VecChange;

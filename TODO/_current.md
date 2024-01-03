@@ -19,10 +19,12 @@
 
 # Var
 
-* MergeVar does not need to always be contextualized.
-    - The mapping can use the *_mixed variants.
-    - The macro itself contextualizes, why?
 * WhenVar does not need to always be contextualized.
+    - We already have a normal `build` and a `contextualized_build`.
+    - Need a `build_mixed`?
+        - Or need only `build` and it returns BoxedVar.
+    - Some widget internals expected the Contextualized type.
+        - Review this first, those codes could downcast to both build outputs?
 
 # Publish
 
