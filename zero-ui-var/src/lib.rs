@@ -1391,6 +1391,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// For other variables types the `map` can run once in the caller context.
     ///
+    /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
+    ///
     /// [`map_bidi`]: Var::map_bidi
     /// [contextualized]: types::ContextualizedVar
     fn map<O, M>(&self, map: M) -> Self::Map<O>
@@ -1438,6 +1440,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
+    /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
+    ///
     /// [contextualized]: types::ContextualizedVar
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
     where
@@ -1451,6 +1455,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// that the "mapped-to" var can be contextual even when the mapping var is not.
     ///
     /// The mapping var has the same capabilities of the inner var + `CAPS_CHANGE`, modifying the mapping var modifies the inner var.
+    ///
+    /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
     /// [contextualized]: types::ContextualizedVar
     fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
@@ -1469,6 +1475,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping variable is read-only, use [`filter_map_bidi`] to map back.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
@@ -1514,6 +1522,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// is called every time the output value is modified directly, if it returns `Some(_)` the source variable is set.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
     /// [contextualized]: types::ContextualizedVar
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
@@ -1946,6 +1956,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
     /// in the `property` context, not the property instantiation.
     ///
+    /// If `self` can change the output variable will keep it alive.
+    ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
     fn easing<F>(&self, duration: Duration, easing: F) -> Self::Easing
@@ -1958,6 +1970,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
     /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
     /// in the `property` context, not the property instantiation.
+    ///
+    /// If `self` can change the output variable will keep it alive.
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease_with`]: Var::ease_with
@@ -2168,6 +2182,14 @@ where
     [self_to_other, other_to_self].into_iter().collect()
 }
 
+fn var_hold_hook(source: &dyn AnyVar) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
+    let source = source.clone_any();
+    Box::new(move |_| {
+        let _hold = &source;
+        true
+    })
+}
+
 fn var_map<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -> O + Send + 'static) -> ReadOnlyArcVar<O> {
     #[cfg(dyn_closure)]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
@@ -2176,6 +2198,7 @@ fn var_map<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -
 fn var_map_impl<T: VarValue, O: VarValue>(source: &impl Var<T>, mut map: impl FnMut(&T) -> O + Send + 'static) -> ReadOnlyArcVar<O> {
     let mapped = var(source.with(&mut map));
     var_bind_map_impl(source, &mapped, map).perm();
+    mapped.hook_any(var_hold_hook(source)).perm();
     mapped.read_only()
 }
 fn var_map_ctx<T: VarValue, O: VarValue>(
@@ -2235,6 +2258,7 @@ where
 {
     let mapped = var(source.with(&mut map));
     var_bind_map_bidi_impl(source, &mapped, map, map_back).perm();
+    mapped.hook_any(var_hold_hook(source)).perm();
     mapped
 }
 fn var_map_bidi_ctx<T, O, M, B>(source: &impl Var<T>, map: M, map_back: B) -> types::ContextualizedVar<O>
@@ -2377,9 +2401,10 @@ where
     M: FnMut(&T) -> Option<O> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    let other = var(source.with(&mut map).unwrap_or_else(&fallback));
-    source.bind_filter_map(&other, map).perm();
-    other.read_only()
+    let mapped = var(source.with(&mut map).unwrap_or_else(&fallback));
+    source.bind_filter_map(&mapped, map).perm();
+    mapped.hook_any(var_hold_hook(source)).perm();
+    mapped.read_only()
 }
 fn var_filter_map_ctx<T, O, M, I>(source: &impl Var<T>, map: M, fallback: I) -> types::ContextualizedVar<O>
 where
@@ -2457,9 +2482,10 @@ where
     B: FnMut(&O) -> Option<T> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    let other = var(source.with(&mut map).unwrap_or_else(&fallback));
-    source.bind_filter_map_bidi(&other, map, map_back).perm();
-    other
+    let mapped = var(source.with(&mut map).unwrap_or_else(&fallback));
+    source.bind_filter_map_bidi(&mapped, map, map_back).perm();
+    mapped.hook_any(var_hold_hook(source)).perm();
+    mapped
 }
 fn var_filter_map_bidi_ctx<T, O, M, B, I>(source: &impl Var<T>, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O>
 where
@@ -2558,6 +2584,7 @@ where
         }
     })
     .perm();
+    easing_var.hook_any(var_hold_hook(source)).perm();
     easing_var.read_only()
 }
 fn var_easing_ctx<T, F>(source: &impl Var<T>, duration: Duration, easing: F) -> types::ContextualizedVar<T>
@@ -2619,6 +2646,7 @@ where
         }
     })
     .perm();
+    easing_var.hook_any(var_hold_hook(source)).perm();
     easing_var.read_only()
 }
 fn var_easing_with_ctx<T, F, S>(source: &impl Var<T>, duration: Duration, easing: F, sampler: S) -> types::ContextualizedVar<T>

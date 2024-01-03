@@ -9,6 +9,7 @@ use super::*;
 
 struct Data<T, V> {
     _t: PhantomData<T>,
+    _source: BoxedAnyVar,
     var: V,
     source_handle: VarHandle,
     last_update: VarUpdateId,
@@ -31,6 +32,7 @@ where
     pub fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + Send + 'static) -> Self {
         let flat = Arc::new(RwLock::new(Data {
             _t: PhantomData,
+            _source: source.clone_any(),
             var: source.with(&mut map),
             last_update: VarUpdateId::never(),
             source_handle: VarHandle::dummy(),
