@@ -18,7 +18,7 @@ use super::{util::VarData, *};
 ///
 /// # Contextualized
 ///
-/// The merge var is contextualized when needed, meaning is any input [`is_contextual`] at the moment the var is created it
+/// The merge var is contextualized when needed, meaning if any input [`is_contextual`] at the moment the var is created it
 /// is also contextual. The full output type of this macro is a `BoxedVar<T>` that is either an `ArcMergeVar<T>` or
 /// a `ContextualizedVar<T, ArcMergeVar<T>>`.
 ///

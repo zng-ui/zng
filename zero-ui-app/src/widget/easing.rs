@@ -114,6 +114,15 @@ impl<T: VarValue + Transitionable> easing_property_input_Transitionable for Boxe
                 })
                 .boxed();
             }
+        } else if let Some(when) = (*self).as_unboxed_any().downcast_ref::<ArcWhenVar<T>>() {
+            let conditions: Vec<_> = when_conditions_data
+                .iter()
+                .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))
+                .collect();
+
+            if conditions.iter().any(|c| c.is_some()) {
+                return when.easing_when(conditions.clone(), (duration, easing.clone())).boxed();
+            }
         }
         Var::easing(&self, duration, move |t| easing(t)).boxed()
     }

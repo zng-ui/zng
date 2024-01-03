@@ -790,7 +790,7 @@ mod context {
 
         let mut var = AnyWhenVarBuilder::new(TEST_VAR);
         var.push(self::var(false), self::var("hello".to_text()));
-        let var = var.contextualized_build().unwrap();
+        let var = var.build().unwrap();
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 

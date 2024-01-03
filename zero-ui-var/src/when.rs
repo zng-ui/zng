@@ -57,8 +57,11 @@ use super::*;
 ///
 /// # Contextualized
 ///
-/// The when var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
-/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, ArcWhenVar<T>>`.
+/// The when var is contextualized when needed, meaning if any input [`is_contextual`] at the moment the var is created it
+/// is also contextual. The full output type of this macro is a `BoxedVar<T>` that is either an `ArcWhenVar<T>` or
+/// a `ContextualizedVar<T, ArcWhenVar<T>>`.
+///
+/// [`is_contextual`]: AnyVar::is_contextual
 #[macro_export]
 macro_rules! when_var {
     ($($tt:tt)*) => {
@@ -97,7 +100,14 @@ impl<T: VarValue> WhenVarBuilder<T> {
     }
 
     /// Finish the build.
-    pub fn build(mut self) -> ArcWhenVar<T> {
+    pub fn build(self) -> BoxedVar<T> {
+        if self.default.is_contextual() || self.conditions.iter().any(|(c, v)| c.is_contextual() || v.is_contextual()) {
+            types::ContextualizedVar::new(move || self.clone().build_impl()).boxed()
+        } else {
+            self.build_impl().boxed()
+        }
+    }
+    fn build_impl(mut self) -> ArcWhenVar<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
             #[allow(unreachable_code)]
@@ -146,11 +156,6 @@ impl<T: VarValue> WhenVarBuilder<T> {
         }
 
         ArcWhenVar(rc_when)
-    }
-
-    /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build(self) -> types::ContextualizedVar<T> {
-        types::ContextualizedVar::new(move || self.clone().build())
     }
 }
 
@@ -234,7 +239,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Build the when var if all value variables are of type [`BoxedVar<T>`].
-    pub fn build<T: VarValue>(&self) -> Option<ArcWhenVar<T>> {
+    pub fn build<T: VarValue>(&self) -> Option<BoxedVar<T>> {
         let default = *self.default.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
 
         let mut when = WhenVarBuilder::new(default);
@@ -246,15 +251,6 @@ impl AnyWhenVarBuilder {
         }
 
         Some(when.build())
-    }
-
-    /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T>> {
-        if self.default.var_type_id() == TypeId::of::<T>() {
-            Some(types::ContextualizedVar::new(move || self.build().unwrap()))
-        } else {
-            None
-        }
     }
 }
 impl fmt::Debug for AnyWhenVarBuilder {

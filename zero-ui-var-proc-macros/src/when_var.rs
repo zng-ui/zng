@@ -65,7 +65,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     out = quote! {
         {
             #out
-            __b.contextualized_build()
+            __b.build()
         }
     };
 

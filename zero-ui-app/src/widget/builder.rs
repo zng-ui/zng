@@ -1071,7 +1071,7 @@ pub fn new_dyn_var<'a, T: VarValue>(
     let item = inputs.next().expect("missing input");
 
     let item = match item.downcast::<AnyWhenVarBuilder>() {
-        Ok(builder) => builder.contextualized_build::<T>().expect("invalid when builder").boxed(),
+        Ok(builder) => builder.build::<T>().expect("invalid when builder").boxed(),
         Err(item) => *item.downcast::<BoxedVar<T>>().expect("input did not match expected var types"),
     };
 
