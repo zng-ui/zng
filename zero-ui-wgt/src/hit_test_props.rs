@@ -25,11 +25,11 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
             HitTestMode::Disabled => {
                 frame.with_hit_tests_disabled(|frame| child.render(frame));
             }
-            HitTestMode::Visual => frame.with_auto_hit_test(true, |frame| child.render(frame)),
+            HitTestMode::Detailed => frame.with_auto_hit_test(true, |frame| child.render(frame)),
             _ => frame.with_auto_hit_test(false, |frame| child.render(frame)),
         },
         UiNodeOp::RenderUpdate { update } => {
-            update.with_auto_hit_test(matches!(HIT_TEST_MODE_VAR.get(), HitTestMode::Visual), |update| {
+            update.with_auto_hit_test(matches!(HIT_TEST_MODE_VAR.get(), HitTestMode::Detailed), |update| {
                 child.render_update(update)
             });
         }

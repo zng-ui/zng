@@ -33,10 +33,11 @@ impl HitTestClips {
         }
     }
 
-    pub fn push_clip_rounded_rect(&mut self, clip_rect: PxBox, radii: PxCornerRadius, clip_out: bool) {
+    pub fn push_clip_rounded_rect(&mut self, clip_rect: PxBox, mut radii: PxCornerRadius, clip_out: bool) {
         if radii == PxCornerRadius::zero() {
             self.push_clip_rect(clip_rect, clip_out);
         } else {
+            ensure_no_corner_overlap(&mut radii, clip_rect.size());
             self.items
                 .push(HitTestItem::Clip(HitTestPrimitive::RoundedRect(clip_rect, radii), clip_out));
         }
@@ -375,6 +376,50 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
     let p = ((x - h).powi(2) / a.powi(2)) + ((y - k).powi(2) / b.powi(2));
 
     p <= 1.0
+}
+
+// matches webrender's implementation of the CSS spec:
+// https://github.com/servo/webrender/blob/b198248e2c836ec61c4dfdf443f97684bc281a0c/webrender/src/border.rs#L168
+pub fn ensure_no_corner_overlap(radii: &mut PxCornerRadius, size: PxSize) {
+    let mut ratio = 1.0;
+    let top_left_radius = &mut radii.top_left;
+    let top_right_radius = &mut radii.top_right;
+    let bottom_right_radius = &mut radii.bottom_right;
+    let bottom_left_radius = &mut radii.bottom_left;
+
+    let sum = top_left_radius.width + top_right_radius.width;
+    if size.width < sum {
+        ratio = f32::min(ratio, size.width.0 as f32 / sum.0 as f32);
+    }
+
+    let sum = bottom_left_radius.width + bottom_right_radius.width;
+    if size.width < sum {
+        ratio = f32::min(ratio, size.width.0 as f32 / sum.0 as f32);
+    }
+
+    let sum = top_left_radius.height + bottom_left_radius.height;
+    if size.height < sum {
+        ratio = f32::min(ratio, size.height.0 as f32 / sum.0 as f32);
+    }
+
+    let sum = top_right_radius.height + bottom_right_radius.height;
+    if size.height < sum {
+        ratio = f32::min(ratio, size.height.0 as f32 / sum.0 as f32);
+    }
+
+    if ratio < 1. {
+        top_left_radius.width *= ratio;
+        top_left_radius.height *= ratio;
+
+        top_right_radius.width *= ratio;
+        top_right_radius.height *= ratio;
+
+        bottom_left_radius.width *= ratio;
+        bottom_left_radius.height *= ratio;
+
+        bottom_right_radius.width *= ratio;
+        bottom_right_radius.height *= ratio;
+    }
 }
 
 fn inv_transform_point(t: &PxTransform, point: PxPoint) -> Option<PxPoint> {

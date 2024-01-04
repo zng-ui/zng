@@ -778,11 +778,11 @@ pub enum HitTestMode {
     /// Same as `Bounds`, but also excludes the outside of rounded corners.
     #[default]
     RoundedBounds,
-    /// Every render primitive used for rendering the widget is hit-testable, the widget is hit only by
-    /// points that intersect visible parts of the render primitives.
-    ///
-    /// Note that not all primitives implement pixel accurate hit-testing.
-    Visual,
+    /// Widget is hit by any point that intersects the hit-test shape defined on render by
+    /// [`FrameBuilder::hit_test`] and auto hit-test.
+    /// 
+    /// [`FrameBuilder::hit_test`]: crate::render::FrameBuilder::hit_test
+    Detailed,
 }
 impl HitTestMode {
     /// Returns `true` if is any mode other then [`Disabled`].
@@ -801,7 +801,7 @@ impl fmt::Debug for HitTestMode {
             Self::Disabled => write!(f, "Disabled"),
             Self::Bounds => write!(f, "Bounds"),
             Self::RoundedBounds => write!(f, "RoundedBounds"),
-            Self::Visual => write!(f, "Visual"),
+            Self::Detailed => write!(f, "Detailed"),
         }
     }
 }

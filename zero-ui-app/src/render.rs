@@ -1178,7 +1178,7 @@ impl FrameBuilder {
     /// If `clip_out` is `true` only pixels outside the rect are visible. If `hit_test` is `true` the hit-test shapes
     /// rendered inside `render` are also clipped.
     ///
-    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    /// Note that hit-test will be generated if `hit_test` or [`auto_hit_test`] is `true`.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, hit_test: bool, render: impl FnOnce(&mut FrameBuilder)) {
@@ -1190,7 +1190,7 @@ impl FrameBuilder {
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible. If `hit_test` is `true` the hit-test shapes
     /// rendered inside `render` are also clipped.
     ///
-    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    /// Note that hit-test will be generated if `hit_test` or [`auto_hit_test`] is `true`.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_clip_rounded_rect(
@@ -2008,7 +2008,7 @@ impl<'a> ClipBuilder<'a> {
     /// If `clip_out` is `true` only pixels outside the rect are visible. If `hit_test` is `true` the hit-test shapes
     /// rendered inside `render` are also clipped.
     ///
-    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    /// Note that hit-test will be generated if `hit_test` or [`auto_hit_test`] is `true`.
     ///
     /// [`auto_hit_test`]: FrameBuilder::auto_hit_test
     pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, hit_test: bool) {
@@ -2028,7 +2028,7 @@ impl<'a> ClipBuilder<'a> {
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible. If `hit_test` is `true` the hit-test shapes
     /// rendered inside `render` are also clipped.
     ///
-    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    /// Note that hit-test will be generated if `hit_test` or [`auto_hit_test`] is `true`.
     ///
     /// [`auto_hit_test`]: FrameBuilder::auto_hit_test
     pub fn push_clip_rounded_rect(&mut self, clip_rect: PxRect, corners: PxCornerRadius, clip_out: bool, hit_test: bool) {

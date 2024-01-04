@@ -255,8 +255,8 @@ impl SelectionBy {
     pub fn matches_interactive_mode(self, mode: InteractiveCaretMode) -> bool {
         match mode {
             InteractiveCaretMode::TouchOnly => matches!(self, SelectionBy::Touch),
-            InteractiveCaretMode::Always => true,
-            InteractiveCaretMode::Never => false,
+            InteractiveCaretMode::Enabled => true,
+            InteractiveCaretMode::Disabled => false,
         }
     }
 }

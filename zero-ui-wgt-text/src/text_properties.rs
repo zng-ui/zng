@@ -1237,7 +1237,7 @@ context_var! {
     pub static INTERACTIVE_CARET_VISUAL_VAR: WidgetFn<CaretShape> = wgt_fn!(|s| super::node::default_interactive_caret_visual(s));
 
     /// Interactive caret mode.
-    pub static INTERACTIVE_CARET_MODE_VAR: InteractiveCaretMode = InteractiveCaretMode::default();
+    pub static INTERACTIVE_CARET_VAR: InteractiveCaretMode = InteractiveCaretMode::default();
 
     /// Selection background color.
     pub static SELECTION_COLOR_VAR: Rgba = colors::AZURE.with_alpha(30.pct());
@@ -1273,6 +1273,7 @@ impl TextEditMix<()> {
         set.insert(&ACCEPTS_ENTER_VAR);
         set.insert(&CARET_COLOR_VAR);
         set.insert(&INTERACTIVE_CARET_VISUAL_VAR);
+        set.insert(&INTERACTIVE_CARET_VAR);
         set.insert(&SELECTION_COLOR_VAR);
         set.insert(&TXT_PARSE_LIVE_VAR);
         set.insert(&CHANGE_STOP_DELAY_VAR);
@@ -1315,9 +1316,9 @@ pub enum InteractiveCaretMode {
     #[default]
     TouchOnly,
     /// Uses interactive carets for all selections.
-    Always,
+    Enabled,
     /// Uses non-interactive carets for all selections.
-    Never,
+    Disabled,
 }
 impl fmt::Debug for InteractiveCaretMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1326,8 +1327,17 @@ impl fmt::Debug for InteractiveCaretMode {
         }
         match self {
             Self::TouchOnly => write!(f, "TouchOnly"),
-            Self::Always => write!(f, "Always"),
-            Self::Never => write!(f, "Never"),
+            Self::Enabled => write!(f, "Enabled"),
+            Self::Disabled => write!(f, "Disabled"),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(enabled: bool) -> InteractiveCaretMode {
+        if enabled {
+            InteractiveCaretMode::Enabled
+        } else {
+            InteractiveCaretMode::Disabled
         }
     }
 }
@@ -1397,9 +1407,9 @@ pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetF
 /// Defines when the interactive carets are used.
 ///
 /// By default only uses interactive carets for touch selections.
-#[property(CONTEXT, default(INTERACTIVE_CARET_MODE_VAR), widget_impl(TextEditMix<P>))]
-pub fn interactive_caret_mode(child: impl UiNode, mode: impl IntoVar<InteractiveCaretMode>) -> impl UiNode {
-    with_context_var(child, INTERACTIVE_CARET_MODE_VAR, mode)
+#[property(CONTEXT, default(INTERACTIVE_CARET_VAR), widget_impl(TextEditMix<P>))]
+pub fn interactive_caret(child: impl UiNode, mode: impl IntoVar<InteractiveCaretMode>) -> impl UiNode {
+    with_context_var(child, INTERACTIVE_CARET_VAR, mode)
 }
 
 /// Sets the [`SELECTION_COLOR_VAR`].

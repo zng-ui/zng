@@ -32,7 +32,7 @@ use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
 use crate::{
     cmd::{TextSelectOp, SELECT_CMD},
-    CaretShape, CARET_COLOR_VAR, INTERACTIVE_CARET_MODE_VAR, INTERACTIVE_CARET_VISUAL_VAR, TEXT_EDITABLE_VAR,
+    CaretShape, CARET_COLOR_VAR, INTERACTIVE_CARET_VAR, INTERACTIVE_CARET_VISUAL_VAR, TEXT_EDITABLE_VAR,
 };
 
 use super::TEXT;
@@ -51,7 +51,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var_render_update(&CARET_COLOR_VAR)
-                .sub_var_render_update(&INTERACTIVE_CARET_MODE_VAR);
+                .sub_var_render_update(&INTERACTIVE_CARET_VAR);
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
@@ -61,7 +61,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
                 let resolved = TEXT.resolved();
 
                 if let (false, Some(mut origin)) = (
-                    resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get()),
+                    resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get()),
                     t.caret_origin,
                 ) {
                     let mut c = CARET_COLOR_VAR.get();
@@ -81,7 +81,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let resolved = TEXT.resolved();
 
-                if !resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get()) {
+                if !resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get()) {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = TEXT.resolved().caret.opacity.get().0;
 
@@ -104,9 +104,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
     }
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET
-                .sub_var(&INTERACTIVE_CARET_VISUAL_VAR)
-                .sub_var_layout(&INTERACTIVE_CARET_MODE_VAR);
+            WIDGET.sub_var(&INTERACTIVE_CARET_VISUAL_VAR).sub_var_layout(&INTERACTIVE_CARET_VAR);
         }
         UiNodeOp::Deinit => {
             for caret in carets.drain(..) {
@@ -129,7 +127,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             let mut expected_len = 0;
             if r_txt.caret.index.is_some()
                 && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id()))
-                && r_txt.selection_by.matches_interactive_mode(INTERACTIVE_CARET_MODE_VAR.get())
+                && r_txt.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get())
             {
                 if r_txt.caret.selection_index.is_some() {
                     if r_txt.segmented_text.is_bidi() {
@@ -381,6 +379,10 @@ impl PartialEq for InteractiveCaretInput {
 struct InteractiveCaret(WidgetBase);
 impl InteractiveCaret {
     fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zero_ui_wgt::hit_test_mode = zero_ui_wgt::HitTestMode::Detailed;
+        };
         self.widget_builder().push_build_action(|b| {
             let input = b
                 .capture_value::<InteractiveCaretInput>(property_id!(interactive_caret_input))
@@ -409,7 +411,6 @@ impl InteractiveCaret {
         let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
         let mut touch_move = None::<(TouchId, EventHandles)>;
         let mut mouse_move = EventHandles::dummy();
-        let mut touch_area = PxSize::zero();
         let mut move_start_to_spot = DipVector::zero();
 
         match_node(child, move |c, op| {
@@ -438,8 +439,9 @@ impl InteractiveCaret {
                             handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
                             touch_move = Some((args.touch, handles));
                             POINTER_CAPTURE.capture_subtree(WIDGET.id());
-                        } else {
+                        } else if touch_move.is_some() {
                             touch_move = None;
+                            POINTER_CAPTURE.release_capture();
                         }
                     } else if let Some(args) = TOUCH_MOVE_EVENT.on_unhandled(update) {
                         if let Some((id, _)) = &touch_move {
@@ -457,7 +459,7 @@ impl InteractiveCaret {
                             }
                         }
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                        if args.is_mouse_down() && args.is_primary() {
+                        if !args.is_click && args.is_mouse_down() && args.is_primary() {
                             let wgt_info = WIDGET.info();
                             move_start_to_spot = wgt_info
                                 .inner_transform()
@@ -468,7 +470,8 @@ impl InteractiveCaret {
                             mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
                             mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
                             POINTER_CAPTURE.capture_subtree(WIDGET.id());
-                        } else {
+                        } else if !mouse_move.is_dummy() {
+                            POINTER_CAPTURE.release_capture();
                             mouse_move.clear();
                         }
                     } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
@@ -490,7 +493,6 @@ impl InteractiveCaret {
                 }
                 UiNodeOp::Layout { wl, final_size } => {
                     *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || c.layout(wl));
-                    touch_area = *final_size;
                     let spot = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed);
 
                     let mut c_layout = c_layout.lock();
@@ -512,7 +514,6 @@ impl InteractiveCaret {
                         transform = transform.then(&PxTransform::from(PxVector::new(l.x, l.y)));
                         frame.push_inner_transform(&transform, |frame| {
                             c.render(frame);
-                            frame.hit_test().push_rect(PxRect::from_size(touch_area));
                         });
                     }
                 }
@@ -581,9 +582,10 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
                 CaretShape::Insert => PxPoint::new(size.width / 2 - caret_thickness / 2, Px(0)),
                 CaretShape::SelectionRight => PxPoint::zero(),
             };
-
             let rect = PxRect::new(line_pos, PxSize::new(caret_thickness, line_height));
-            frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+            frame.with_hit_tests_disabled(|frame| {
+                frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+            });
         }
         _ => {}
     })

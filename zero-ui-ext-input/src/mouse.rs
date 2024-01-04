@@ -116,6 +116,11 @@ event_args! {
         /// Current pointer capture.
         pub capture: Option<CaptureInfo>,
 
+        /// If [`MOUSE_CLICK_EVENT`] will notify because of this input.
+        ///
+        /// The click event shares the same propagation handle as this event.
+        pub is_click: bool,
+
         ..
 
         /// The [`target`], and [`capture`].
@@ -840,6 +845,7 @@ impl MouseManager {
             hits.clone(),
             wgt_path.clone(),
             capture_info,
+            click,
         );
 
         // on_mouse_input
@@ -1073,6 +1079,7 @@ impl MouseManager {
                             HitTestInfo::no_hits(window_id),
                             path.clone(),
                             None,
+                            false,
                         );
                         MOUSE_INPUT_EVENT.notify(args);
                     }
