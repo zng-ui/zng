@@ -3,7 +3,7 @@ use super::*;
 use std::{future::*, pin::Pin, task::Poll};
 
 /// See [`Var::wait_update`].
-pub struct WaitUpdateFut<'a, V: AnyVar> {
+pub(crate) struct WaitUpdateFut<'a, V: AnyVar> {
     var: &'a V,
     update_id: VarUpdateId,
 }
@@ -53,7 +53,7 @@ impl<'a, V: AnyVar> Future for WaitUpdateFut<'a, V> {
 }
 
 /// See [`Var::wait_animation`].
-pub struct WaitIsNotAnimatingFut<'a, V: AnyVar> {
+pub(crate) struct WaitIsNotAnimatingFut<'a, V: AnyVar> {
     var: &'a V,
     observed_animation_start: bool,
 }

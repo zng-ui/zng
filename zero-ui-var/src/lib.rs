@@ -78,7 +78,6 @@ pub mod types {
     pub use super::cow::{ArcCowVar, WeakCowVar};
     pub use super::expr::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
-    pub use super::future::{WaitIsNotAnimatingFut, WaitUpdateFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{ArcMergeVar, ArcMergeVarInput, MergeVarInputs, WeakMergeVar, __merge_var};
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
@@ -1178,9 +1177,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.hook_any(Box::new(move |a| pos_modify_action(&a.as_strong().unwrap())))
     }
 
-    /// Create a future that awaits for the [`last_update`] to change.
+    /// Awaits for the [`last_update`] to change.
     ///
-    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only when polled
+    /// Note that [`is_new`] will be `true` when the future elapses only when polled
     /// in sync with the UI, but it will elapse in any thread when the variable updates after the future is instantiated.
     ///
     /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
@@ -1189,20 +1188,22 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`get`]: Var::get
     /// [`last_update`]: AnyVar::last_update
     /// [`is_new`]: AnyVar::is_new
-    fn wait_update(&self) -> types::WaitUpdateFut<Self> {
-        types::WaitUpdateFut::new(self)
+    #[allow(async_fn_in_trait)]
+    async fn wait_update(&self) -> VarUpdateId {
+        crate::future::WaitUpdateFut::new(self).await
     }
 
-    /// Create a future that awaits for [`is_animating`] to change from `true` to `false`.
+    /// Awaits for [`is_animating`] to change from `true` to `false`.
     ///
-    /// The future can only be used in app bound async code, it can be reused. If the variable
+    /// The future can only be used in app bound async code. If the variable
     /// is not animating at the moment of this call the future will await until the animation starts and stops.
     ///
-    /// If the variable does have the [`VarCapabilities::NEW`] the returned future is always ready.
+    /// If the variable does have the [`VarCapabilities::NEW`] the future is always ready.
     ///
     /// [`is_animating`]: AnyVar::is_animating
-    fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<Self> {
-        types::WaitIsNotAnimatingFut::new(self)
+    #[allow(async_fn_in_trait)]
+    async fn wait_animation(&self) {
+        crate::future::WaitIsNotAnimatingFut::new(self).await
     }
 
     /// Visit the current value of the variable, if it [`is_new`].

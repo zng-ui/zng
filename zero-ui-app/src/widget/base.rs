@@ -780,7 +780,7 @@ pub enum HitTestMode {
     RoundedBounds,
     /// Widget is hit by any point that intersects the hit-test shape defined on render by
     /// [`FrameBuilder::hit_test`] and auto hit-test.
-    /// 
+    ///
     /// [`FrameBuilder::hit_test`]: crate::render::FrameBuilder::hit_test
     Detailed,
 }
