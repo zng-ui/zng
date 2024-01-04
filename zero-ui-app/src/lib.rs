@@ -1255,6 +1255,53 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         }
         self.extend(EnableDeviceEvents)
     }
+
+    fn run_dyn(mut self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+
+        UPDATES.run(start).perm();
+
+        app.run_headed();
+    }
+
+    fn run_headless_dyn(mut self, with_renderer: bool) -> HeadlessApp {
+        let app = RunningApp::start(
+            self._cleanup,
+            self.extensions.boxed(),
+            false,
+            with_renderer,
+            self.view_process_exe.take(),
+        );
+
+        HeadlessApp { app }
+    }
+}
+
+// Monomorphize dyn app. Without this the entire RunningApp code is generic that must build on the dependent crates.
+#[cfg(dyn_app_extension)]
+impl<E: AppExtension> AppExtended<E> {
+    fn cast_app(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        let app: Box<dyn std::any::Any> = Box::new(self);
+        match app.downcast::<AppExtended<Vec<Box<dyn AppExtensionBoxed>>>>() {
+            Ok(ok) => *ok,
+            Err(e) => {
+                let app = *e.downcast::<Self>().unwrap();
+                AppExtended {
+                    extensions: vec![app.extensions.boxed()],
+                    view_process_exe: app.view_process_exe,
+                    _cleanup: app._cleanup,
+                }
+            }
+        }
+    }
+
+    fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
+        self.cast_app().run_dyn(Box::pin(start))
+    }
+
+    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
+        self.cast_app().run_headless_dyn(with_renderer)
+    }
 }
 
 #[cfg(not(dyn_app_extension))]
@@ -1282,6 +1329,26 @@ impl<E: AppExtension> AppExtended<E> {
         }
         self.extend(EnableDeviceEvents)
     }
+
+    fn run_impl(mut self, start: impl Future<Output = ()> + Send + 'static) {
+        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+
+        UPDATES.run(start).perm();
+
+        app.run_headed();
+    }
+
+    fn run_headless_impl(mut self, with_renderer: bool) -> HeadlessApp {
+        let app = RunningApp::start(
+            self._cleanup,
+            self.extensions.boxed(),
+            false,
+            with_renderer,
+            self.view_process_exe.take(),
+        );
+
+        HeadlessApp { app }
+    }
 }
 impl<E: AppExtension> AppExtended<E> {
     /// Set the path to the executable for the *View Process*.
@@ -1304,28 +1371,18 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
     /// by opening a window, the app will keep running after `start` is finished.
-    pub fn run(mut self, start: impl Future<Output = ()> + Send + 'static) {
-        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
-
-        UPDATES.run(start).perm();
-
-        app.run_headed();
+    pub fn run(self, start: impl Future<Output = ()> + Send + 'static) {
+        #[cfg(dyn_closure)]
+        let start = Box::pin(start);
+        self.run_impl(start)
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
     ///
     /// If `with_renderer` is `true` spawns a renderer process for headless rendering. See [`HeadlessApp::renderer_enabled`]
     /// for more details.
-    pub fn run_headless(mut self, with_renderer: bool) -> HeadlessApp {
-        let app = RunningApp::start(
-            self._cleanup,
-            self.extensions.boxed(),
-            false,
-            with_renderer,
-            self.view_process_exe.take(),
-        );
-
-        HeadlessApp { app }
+    pub fn run_headless(self, with_renderer: bool) -> HeadlessApp {
+        self.run_headless_impl(with_renderer)
     }
 }
 

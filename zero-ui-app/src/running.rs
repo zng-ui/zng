@@ -464,11 +464,16 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     pub(crate) fn run_headed(mut self) {
-        self.apply_updates(&mut ());
-        self.apply_update_events(&mut ());
+        #[allow(clippy::let_unit_value)]
+        let mut observer = ();
+        #[cfg(dyn_app_extension)]
+        let mut observer = observer.as_dyn();
+
+        self.apply_updates(&mut observer);
+        self.apply_update_events(&mut observer);
         let mut wait = false;
         loop {
-            wait = match self.poll(wait, &mut ()) {
+            wait = match self.poll_impl(wait, &mut observer) {
                 ControlFlow::Poll => false,
                 ControlFlow::Wait => true,
                 ControlFlow::Exit => break,
