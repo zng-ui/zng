@@ -134,13 +134,13 @@ where
     }
 
     /// Returns a future that receives the oldest send update, awaits until an event update occurs.
-    pub fn recv_async(&self) -> RecvFut<A> {
-        self.receiver.recv_async().into()
+    pub async fn recv_async(&self) -> Result<A, AppDisconnected<()>> {
+        RecvFut::from(self.receiver.recv_async()).await
     }
 
     /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
-    pub fn into_recv_async(self) -> RecvFut<'static, A> {
-        self.receiver.into_recv_async().into()
+    pub async fn into_recv_async(self) -> impl Future<Output = Result<A, AppDisconnected<()>>> + 'static {
+        RecvFut::from(self.receiver.into_recv_async())
     }
 
     /// Creates a blocking iterator over event updates, if there are no updates sent the iterator blocks,
@@ -256,7 +256,7 @@ impl fmt::Display for TimeoutOrAppDisconnected {
 impl std::error::Error for TimeoutOrAppDisconnected {}
 
 /// A future that receives a single message from a running app.
-pub struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
+struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
 impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
     fn from(f: flume::r#async::RecvFut<'a, M>) -> Self {
         Self(f)
