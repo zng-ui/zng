@@ -158,7 +158,12 @@ impl<T: VarValue> ArcMergeVar<T> {
             let mut m = rc_merge.m.lock();
             let m = &mut *m;
             let new_value = (m.merge)(&m.inputs);
-            rc_merge.value.apply_modify(|v| v.set(new_value));
+            {
+                let modify = |v: &mut VarModify<T>| v.set(new_value);
+                #[cfg(dyn_closure)]
+                let modify = Box::new(modify);
+                rc_merge.value.apply_modify(modify)
+            };
         })
     }
 }

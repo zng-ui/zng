@@ -80,9 +80,11 @@ macro_rules! impl_from_and_into_var {
     };
 }
 
+use std::marker::PhantomData;
+
 use parking_lot::RwLock;
 
-use crate::AnyVarHookArgs;
+use crate::{AnyVarHookArgs, AnyVarValue};
 
 use super::{animation::ModifyInfo, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, VARS};
 
@@ -288,95 +290,216 @@ macro_rules! __impl_from_and_into_var {
     };
 }
 
-struct VarDataInner<T> {
-    value: T,
+struct VarMeta {
     last_update: VarUpdateId,
     hooks: Vec<VarHook>,
     animation: ModifyInfo,
 }
+impl VarMeta {
+    fn push_hook(&mut self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
+        let (hook, weak) = VarHandle::new(pos_modify_action);
+        self.hooks.push(weak);
+        hook
+    }
 
+    fn skip_modify(&mut self) -> bool {
+        let curr_anim = VARS.current_modify();
+        if curr_anim.importance() < self.animation.importance() {
+            return true;
+        }
+        self.animation = curr_anim;
+        false
+    }
+}
+
+#[cfg(dyn_closure)]
+struct VarDataInner {
+    value: Box<dyn AnyVarValue>,
+    meta: VarMeta,
+}
+
+#[cfg(not(dyn_closure))]
+struct VarDataInner<T> {
+    value: T,
+    meta: VarMeta,
+}
+
+#[cfg(dyn_closure)]
+pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner>, PhantomData<T>);
+
+#[cfg(not(dyn_closure))]
 pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner<T>>);
+
 impl<T: VarValue> VarData<T> {
     pub fn new(value: T) -> Self {
-        Self(RwLock::new(VarDataInner {
+        #[cfg(dyn_closure)]
+        let value = Box::new(value);
+        let inner = RwLock::new(VarDataInner {
             value,
-            last_update: VarUpdateId::never(),
-            hooks: vec![],
-            animation: ModifyInfo::never(),
-        }))
+            meta: VarMeta {
+                last_update: VarUpdateId::never(),
+                hooks: vec![],
+                animation: ModifyInfo::never(),
+            },
+        });
+
+        #[cfg(dyn_closure)]
+        {
+            Self(inner, PhantomData)
+        }
+
+        #[cfg(not(dyn_closure))]
+        {
+            Self(inner)
+        }
     }
 
     pub fn into_value(self) -> T {
-        self.0.into_inner().value
+        #[cfg(dyn_closure)]
+        {
+            *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
+        }
+        #[cfg(not(dyn_closure))]
+        {
+            self.0.into_inner().value
+        }
     }
 
     /// Read the value.
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(&self.0.read().value)
+        #[cfg(dyn_closure)]
+        {
+            f(self.0.read().value.as_any().downcast_ref::<T>().unwrap())
+        }
+
+        #[cfg(not(dyn_closure))]
+        {
+            f(&self.0.read().value)
+        }
     }
 
     pub fn last_update(&self) -> VarUpdateId {
-        self.0.read().last_update
+        self.0.read().meta.last_update
     }
 
     pub fn is_animating(&self) -> bool {
-        self.0.read().animation.is_animating()
+        self.0.read().meta.animation.is_animating()
     }
 
     pub fn modify_importance(&self) -> usize {
-        self.0.read().animation.importance()
+        self.0.read().meta.animation.importance()
     }
 
     pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
-        let (hook, weak) = VarHandle::new(pos_modify_action);
-        self.0.write().hooks.push(weak);
-        hook
+        self.0.write().meta.push_hook(pos_modify_action)
     }
 
     pub fn push_animation_hook(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
-        self.0.write().animation.hook_animation_stop(handler)
+        self.0.write().meta.animation.hook_animation_stop(handler)
     }
 
-    /// Calls `modify` on the value.
-    pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>)) {
-        let mut meta = self.0.write();
-        let curr_anim = VARS.current_modify();
-        if curr_anim.importance() < meta.animation.importance() {
-            return;
+    #[cfg(dyn_closure)]
+    pub fn apply_modify(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + 'static>) {
+        apply_modify(
+            &self.0,
+            Box::new(move |v| {
+                let mut value = VarModify::new(v.as_any().downcast_ref::<T>().unwrap());
+                modify(&mut value);
+                let (notify, new_value, update, tags) = value.finish();
+                (
+                    notify,
+                    match new_value {
+                        Some(v) => Some(Box::new(v)),
+                        None => None,
+                    },
+                    update,
+                    tags,
+                )
+            }),
+        )
+    }
+
+    #[cfg(not(dyn_closure))]
+    pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>) + 'static) {
+        apply_modify(&self.0, modify)
+    }
+}
+
+#[cfg(dyn_closure)]
+fn apply_modify(
+    inner: &RwLock<VarDataInner>,
+    modify: Box<dyn FnOnce(&dyn AnyVarValue) -> (bool, Option<Box<dyn AnyVarValue>>, bool, Vec<Box<dyn AnyVarValue>>)>,
+) {
+    let mut data = inner.write();
+    if data.meta.skip_modify() {
+        return;
+    }
+
+    let data = parking_lot::RwLockWriteGuard::downgrade(data);
+
+    let (notify, new_value, update, tags) = modify(&*data.value);
+
+    if notify {
+        drop(data);
+        let mut data = inner.write();
+        if let Some(nv) = new_value {
+            data.value = nv;
         }
-        meta.animation = curr_anim;
+        data.meta.last_update = VARS.update_id();
 
-        let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
-        let mut value = VarModify::new(&meta.value);
-        modify(&mut value);
-        let (notify, new_value, update, tags) = value.finish();
+        if !data.meta.hooks.is_empty() {
+            let mut hooks = std::mem::take(&mut data.meta.hooks);
 
-        if notify {
+            let meta = parking_lot::RwLockWriteGuard::downgrade(data);
+
+            let args = AnyVarHookArgs::new(&*meta.value, update, &tags);
+            call_hooks(&mut hooks, args);
             drop(meta);
-            let mut meta = self.0.write();
-            if let Some(nv) = new_value {
-                meta.value = nv;
-            }
-            meta.last_update = VARS.update_id();
 
-            let mut hooks = std::mem::take(&mut meta.hooks);
-
-            if !hooks.is_empty() {
-                let meta = parking_lot::RwLockWriteGuard::downgrade(meta);
-
-                let args = AnyVarHookArgs::new(&meta.value, update, &tags);
-                call_hooks(&mut hooks, args);
-                drop(meta);
-
-                let mut meta = self.0.write();
-                hooks.append(&mut meta.hooks);
-                meta.hooks = hooks;
-            } else {
-                meta.hooks = hooks;
-            }
-
-            VARS.wake_app();
+            let mut data = inner.write();
+            hooks.append(&mut data.meta.hooks);
+            data.meta.hooks = hooks;
         }
+
+        VARS.wake_app();
+    }
+}
+
+#[cfg(not(dyn_closure))]
+fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner>, modify: impl FnOnce(&mut VarModify<T>)) {
+    let mut data = inner.write();
+    if data.meta.skip_modify() {
+        return;
+    }
+
+    let meta = parking_lot::RwLockWriteGuard::downgrade(data);
+    let mut value = VarModify::new(&meta.value);
+    modify(&mut value);
+    let (notify, new_value, update, tags) = value.finish();
+
+    if notify {
+        drop(meta);
+        let mut data = inner.write();
+        if let Some(nv) = new_value {
+            data.value = nv;
+        }
+        data.meta.last_update = VARS.update_id();
+
+        if !data.meta.hooks.is_empty() {
+            let mut hooks = std::mem::take(&mut data.meta.hooks);
+
+            let meta = parking_lot::RwLockWriteGuard::downgrade(data);
+
+            let args = AnyVarHookArgs::new(&meta.value, update, &tags);
+            call_hooks(&mut hooks, args);
+            drop(meta);
+
+            let mut data = inner.write();
+            hooks.append(&mut data.meta.hooks);
+            data.meta.hooks = hooks;
+        }
+
+        VARS.wake_app();
     }
 }
 

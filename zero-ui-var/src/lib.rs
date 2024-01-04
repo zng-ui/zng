@@ -2784,6 +2784,10 @@ where
     if input.capabilities().is_always_static() || output.capabilities().is_always_read_only() {
         VarHandle::dummy()
     } else {
+        #[cfg(dyn_closure)]
+        let update_output: Box<dyn FnMut(&I, &AnyVarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static> =
+            Box::new(update_output);
+
         var_bind_ok(input, output.downgrade(), update_output)
     }
 }

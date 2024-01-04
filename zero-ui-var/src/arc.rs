@@ -175,6 +175,19 @@ impl<T: VarValue> IntoVar<T> for ArcVar<T> {
 }
 
 impl<T: VarValue> ArcVar<T> {
+    #[cfg(dyn_closure)]
+    fn modify_impl(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + Send + 'static>) -> Result<(), VarIsReadOnlyError> {
+        let me = self.clone();
+        VARS.schedule_update(
+            Box::new(move || {
+                me.0.apply_modify(modify);
+            }),
+            std::any::type_name::<T>(),
+        );
+        Ok(())
+    }
+
+    #[cfg(not(dyn_closure))]
     fn modify_impl(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         VARS.schedule_update(
