@@ -1,8 +1,3 @@
-# Context Menu
-
-* Opening and closing a ContextMenu by clicking on the window causes the app to become stuck.
-    - Does not print update trace.
-
 # TextInput
 
 * Implement selection toolbar.

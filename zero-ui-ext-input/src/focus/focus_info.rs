@@ -2049,7 +2049,7 @@ impl<'a> FocusInfoBuilder<'a> {
     }
 
     /// Sets [`focusable`], only if it was not already set.
-    /// 
+    ///
     /// [`focusable`]: Self::focusable
     pub fn focusable_passive(&mut self, is_focusable: bool) -> &mut Self {
         self.with_data(|data| {

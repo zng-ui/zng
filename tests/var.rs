@@ -482,8 +482,8 @@ mod context {
     use zero_ui::{
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
-        var::{AnyWhenVarBuilder, ContextInitHandle},
         prelude_wgt::*,
+        var::{AnyWhenVarBuilder, ContextInitHandle},
     };
 
     context_var! {
