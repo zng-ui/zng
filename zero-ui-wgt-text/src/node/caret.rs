@@ -122,6 +122,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             *final_size = c.layout(wl);
 
             let r_txt = TEXT.resolved();
+            let line_height_half = TEXT.laidout().shaped_text.line_height() / Px(2);
 
             let mut expected_len = 0;
             if r_txt.caret.index.is_some()
@@ -190,7 +191,9 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 }
 
                 let mut origin = origin;
-                origin.x -= l.width / 2;
+                origin.x -= l.spot.x;
+                origin.y += line_height_half - l.spot.y;
+
                 if l.x != origin.x || l.y != origin.y {
                     l.x = origin.x;
                     l.y = origin.y;
@@ -262,6 +265,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 let mut origins = [origin, s_origin];
                 for i in 0..2 {
                     origins[i].x -= l[i].spot.x;
+                    origins[i].y += line_height_half - l[i].spot.y;
                     if l[i].x != origins[i].x || l[i].y != origins[i].y {
                         l[i].x = origins[i].x;
                         l[i].y = origins[i].y;
