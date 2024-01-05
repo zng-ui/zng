@@ -6,9 +6,10 @@
 
 * Interactive carets.
     - Test with multi-line.
-    - Dragging caret over second causes both to start moving.
-        - In bidi text this can panic also.
+    - Test with mixed text.
+    - Dragging caret that flips ends-up not under the cursor.
     - Use the caret spot to position.
+        - Make a custom caret to test this.
         - Right now it only looks right because the default caret origin is at y=0.
 
 * Implement selection toolbar.

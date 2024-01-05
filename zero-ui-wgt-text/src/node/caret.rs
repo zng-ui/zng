@@ -9,7 +9,6 @@ use zero_ui_app::{
     update::UPDATES,
     widget::{
         base::WidgetBase,
-        builder::NestGroup,
         node::{match_node, match_node_leaf, UiNode, UiNodeOp},
         property, widget, WidgetId, WIDGET,
     },
@@ -100,7 +99,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
     let mut carets: Vec<Caret> = vec![];
     struct Caret {
         id: WidgetId,
-        layout: Arc<Mutex<CaretLayout>>,
+        input: Arc<Mutex<InteractiveCaretInputMut>>,
     }
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -130,11 +129,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 && r_txt.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get())
             {
                 if r_txt.caret.selection_index.is_some() {
-                    if r_txt.segmented_text.is_bidi() {
-                        expected_len = 4;
-                    } else {
-                        expected_len = 2;
-                    }
+                    expected_len = 2;
                 } else {
                     expected_len = 1;
                 }
@@ -147,35 +142,30 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 carets.reserve_exact(expected_len);
 
                 // caret shape node, inserted as ADORNER+1, anchored, propagates LocalContext and collects size+caret mid
-                let mut open_caret = |s| {
-                    let c_layout = Arc::new(Mutex::new(CaretLayout::default()));
+                for i in 0..expected_len {
+                    let input = Arc::new(Mutex::new(InteractiveCaretInputMut {
+                        inner_text: PxTransform::identity(),
+                        x: Px::MIN,
+                        y: Px::MIN,
+                        shape: CaretShape::Insert,
+                        width: Px::MIN,
+                        spot: PxPoint::zero(),
+                    }));
                     let id = WidgetId::new_unique();
 
                     let caret = InteractiveCaret! {
                         id;
                         interactive_caret_input = InteractiveCaretInput {
                             ctx: LocalContext::capture(),
-                            layout: c_layout.clone(),
                             parent_id: WIDGET.id(),
-                            visual: s,
                             visual_fn: INTERACTIVE_CARET_VISUAL_VAR.get(),
+                            is_selection_index: i == 1,
+                            m: input.clone(),
                         };
                     };
 
                     LAYERS.insert_anchored(LayerIndex::ADORNER + 1, WIDGET.id(), AnchorMode::foreground(), caret);
-                    carets.push(Caret { id, layout: c_layout })
-                };
-
-                if expected_len == 1 {
-                    open_caret(CaretShape::Insert);
-                } else if expected_len == 2 {
-                    open_caret(CaretShape::SelectionLeft);
-                    open_caret(CaretShape::SelectionRight);
-                } else if expected_len == 4 {
-                    open_caret(CaretShape::SelectionLeft);
-                    open_caret(CaretShape::SelectionRight);
-                    open_caret(CaretShape::SelectionLeft);
-                    open_caret(CaretShape::SelectionRight);
+                    carets.push(Caret { id, input })
                 }
             }
 
@@ -184,15 +174,8 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 return;
             }
 
-            for caret in &carets {
-                if caret.layout.lock().width == Px::MIN {
-                    // wait carets first layout.
-                    return;
-                }
-            }
-
             let t = TEXT.laidout();
-            let Some(mut origin) = t.caret_origin else {
+            let Some(origin) = t.caret_origin else {
                 tracing::error!("caret instance, but no caret in context");
                 return;
             };
@@ -200,8 +183,13 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             if carets.len() == 1 {
                 // no selection, one caret rendered.
 
-                let mut l = carets[0].layout.lock();
+                let mut l = carets[0].input.lock();
+                if l.shape != CaretShape::Insert {
+                    l.shape = CaretShape::Insert;
+                    UPDATES.update(carets[0].id);
+                }
 
+                let mut origin = origin;
                 origin.x -= l.width / 2;
                 if l.x != origin.x || l.y != origin.y {
                     l.x = origin.x;
@@ -212,33 +200,11 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             } else {
                 // selection, two carets rendered, but if text is bidirectional the two can have the same shape.
 
-                let (Some(index), Some(s_index), Some(mut s_origin)) =
+                let (Some(index), Some(s_index), Some(s_origin)) =
                     (r_txt.caret.index, r_txt.caret.selection_index, t.caret_selection_origin)
                 else {
                     tracing::error!("caret instance, but no caret in context");
                     return;
-                };
-
-                let mut locked_2;
-                let mut locked_4;
-
-                let l = if carets.len() == 2 {
-                    // two carets of different shapes.
-                    locked_2 = [carets[0].layout.lock(), carets[1].layout.lock()];
-
-                    &mut locked_2[..]
-                } else if carets.len() == 4 {
-                    // two carets, maybe of the same shape.
-                    locked_4 = [
-                        carets[0].layout.lock(),
-                        carets[1].layout.lock(),
-                        carets[2].layout.lock(),
-                        carets[3].layout.lock(),
-                    ];
-
-                    &mut locked_4[..]
-                } else {
-                    unreachable!()
                 };
 
                 let mut index_is_left = index.index <= s_index.index;
@@ -260,56 +226,46 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                     s_index_is_left = !s_index_is_left;
                 }
 
-                if index_is_left {
-                    origin.x -= l[0].spot.x;
-                } else {
-                    origin.x -= l[1].spot.x;
-                }
-                if s_index_is_left {
-                    s_origin.x -= l[0].spot.x;
-                } else {
-                    s_origin.x -= l[1].spot.x;
-                }
+                let mut l = [carets[0].input.lock(), carets[1].input.lock()];
 
-                let changed;
+                let mut delay = false;
 
-                if index_is_left == s_index_is_left {
-                    let i = if index_is_left { 0 } else { 1 };
+                let shapes = [
+                    if index_is_left {
+                        CaretShape::SelectionLeft
+                    } else {
+                        CaretShape::SelectionRight
+                    },
+                    if s_index_is_left {
+                        CaretShape::SelectionLeft
+                    } else {
+                        CaretShape::SelectionRight
+                    },
+                ];
 
-                    changed = l[i].x != origin.x || l[i].y != origin.y || l[i + 2].x != s_origin.x || l[i + 2].y != s_origin.y;
-
-                    for l in l.iter_mut() {
-                        l.x = Px::MIN;
-                        l.y = Px::MIN;
-                        l.is_selection_index = false;
+                for i in 0..2 {
+                    if l[i].shape != shapes[i] {
+                        l[i].shape = shapes[i];
+                        l[i].width = Px::MIN;
+                        UPDATES.update(carets[i].id);
+                        delay = true;
+                    } else if l[i].width == Px::MIN {
+                        delay = true;
                     }
-
-                    l[i].x = origin.x;
-                    l[i].y = origin.y;
-                    l[i + 2].x = s_origin.x;
-                    l[i + 2].y = s_origin.y;
-                    l[i + 2].is_selection_index = true;
-                } else {
-                    let (lft, rgt) = if index_is_left { (0, 1) } else { (1, 0) };
-
-                    changed = l[lft].x != origin.x || l[lft].y != origin.y || l[rgt].x != s_origin.x || l[rgt].y != s_origin.y;
-
-                    for l in l.iter_mut() {
-                        l.x = Px::MIN;
-                        l.y = Px::MIN;
-                        l.is_selection_index = false;
-                    }
-
-                    l[lft].x = origin.x;
-                    l[lft].y = origin.y;
-                    l[rgt].x = s_origin.x;
-                    l[rgt].y = s_origin.y;
-                    l[rgt].is_selection_index = true;
                 }
 
-                if changed {
-                    for c in &carets {
-                        UPDATES.render(c.id);
+                if delay {
+                    // wait first layout of shape.
+                    return;
+                }
+
+                let mut origins = [origin, s_origin];
+                for i in 0..2 {
+                    origins[i].x -= l[i].spot.x;
+                    if l[i].x != origins[i].x || l[i].y != origins[i].y {
+                        l[i].x = origins[i].x;
+                        l[i].y = origins[i].y;
+                        UPDATES.render(carets[i].id);
                     }
                 }
             }
@@ -319,7 +275,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 let text = TEXT.laidout().render_info.transform.then(&inner_rev);
 
                 for c in &carets {
-                    let mut l = c.layout.lock();
+                    let mut l = c.input.lock();
                     if l.inner_text != text {
                         l.inner_text = text;
 
@@ -333,36 +289,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
         _ => {}
     })
 }
-struct CaretLayout {
-    // set by caret
-    width: Px,
-    spot: PxPoint,
-    // set by Text
-    inner_text: PxTransform,
-    x: Px,
-    y: Px,
-    is_selection_index: bool,
-}
-impl Default for CaretLayout {
-    fn default() -> Self {
-        Self {
-            width: Px::MIN,
-            spot: PxPoint::zero(),
-            inner_text: Default::default(),
-            x: Px::MIN,
-            y: Px::MIN,
-            is_selection_index: false,
-        }
-    }
-}
 
 #[derive(Clone)]
 struct InteractiveCaretInput {
-    visual: CaretShape,
     visual_fn: WidgetFn<CaretShape>,
-    layout: Arc<Mutex<CaretLayout>>,
     ctx: LocalContext,
     parent_id: WidgetId,
+    is_selection_index: bool,
+    m: Arc<Mutex<InteractiveCaretInputMut>>,
 }
 impl fmt::Debug for InteractiveCaretInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -371,8 +305,168 @@ impl fmt::Debug for InteractiveCaretInput {
 }
 impl PartialEq for InteractiveCaretInput {
     fn eq(&self, other: &Self) -> bool {
-        self.visual == other.visual && self.visual_fn == other.visual_fn && Arc::ptr_eq(&self.layout, &other.layout)
+        self.visual_fn == other.visual_fn && Arc::ptr_eq(&self.m, &other.m)
     }
+}
+
+struct InteractiveCaretInputMut {
+    // # set by Text:
+    inner_text: PxTransform,
+    // request render for Caret after changing.
+    x: Px,
+    y: Px,
+    // request update for Caret after changing.
+    shape: CaretShape,
+
+    // # set by Caret:
+    // request layout for Text after changing.
+    width: Px,
+    spot: PxPoint,
+}
+
+fn interactive_caret_shape_node(input: Arc<Mutex<InteractiveCaretInputMut>>, visual_fn: WidgetFn<CaretShape>) -> impl UiNode {
+    let mut shape = CaretShape::Insert;
+
+    match_node(NilUiNode.boxed(), move |visual, op| match op {
+        UiNodeOp::Init => {
+            shape = input.lock().shape;
+            *visual.child() = visual_fn(shape);
+            visual.init();
+        }
+        UiNodeOp::Deinit => {
+            visual.deinit();
+            *visual.child() = NilUiNode.boxed();
+        }
+        UiNodeOp::Update { .. } => {
+            let new_shape = input.lock().shape;
+            if new_shape != shape {
+                shape = new_shape;
+                visual.deinit();
+                *visual.child() = visual_fn(shape);
+                visual.init();
+                WIDGET.layout().render();
+            }
+        }
+        _ => {}
+    })
+}
+
+fn interactive_caret_node(
+    child: impl UiNode,
+    parent_id: WidgetId,
+    is_selection_index: bool,
+    input: Arc<Mutex<InteractiveCaretInputMut>>,
+) -> impl UiNode {
+    let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
+    let mut touch_move = None::<(TouchId, EventHandles)>;
+    let mut mouse_move = EventHandles::dummy();
+    let mut move_start_to_spot = DipVector::zero();
+
+    match_node(child, move |visual, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&TOUCH_INPUT_EVENT).sub_event(&MOUSE_INPUT_EVENT);
+        }
+        UiNodeOp::Deinit => {
+            touch_move = None;
+            mouse_move.clear();
+        }
+        UiNodeOp::Event { update } => {
+            visual.event(update);
+
+            if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+                if args.is_touch_start() {
+                    let wgt_info = WIDGET.info();
+                    move_start_to_spot = wgt_info
+                        .inner_transform()
+                        .transform_vector(input.lock().spot.to_vector())
+                        .to_dip(wgt_info.tree().scale_factor())
+                        - args.position.to_vector();
+
+                    let mut handles = EventHandles::dummy();
+                    handles.push(TOUCH_MOVE_EVENT.subscribe(WIDGET.id()));
+                    handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
+                    touch_move = Some((args.touch, handles));
+                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                } else if touch_move.is_some() {
+                    touch_move = None;
+                    POINTER_CAPTURE.release_capture();
+                }
+            } else if let Some(args) = TOUCH_MOVE_EVENT.on_unhandled(update) {
+                if let Some((id, _)) = &touch_move {
+                    for t in &args.touches {
+                        if t.touch == *id {
+                            let spot = t.position() + move_start_to_spot;
+
+                            let op = match input.lock().shape {
+                                CaretShape::Insert => TextSelectOp::nearest_to(spot),
+                                _ => TextSelectOp::select_index_nearest_to(spot, is_selection_index),
+                            };
+                            SELECT_CMD.scoped(parent_id).notify_param(op);
+                            break;
+                        }
+                    }
+                }
+            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                if !args.is_click && args.is_mouse_down() && args.is_primary() {
+                    let wgt_info = WIDGET.info();
+                    move_start_to_spot = wgt_info
+                        .inner_transform()
+                        .transform_vector(input.lock().spot.to_vector())
+                        .to_dip(wgt_info.tree().scale_factor())
+                        - args.position.to_vector();
+
+                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
+                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
+                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                } else if !mouse_move.is_dummy() {
+                    POINTER_CAPTURE.release_capture();
+                    mouse_move.clear();
+                }
+            } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
+                if !mouse_move.is_dummy() {
+                    let spot = args.position + move_start_to_spot;
+
+                    let op = match input.lock().shape {
+                        CaretShape::Insert => TextSelectOp::nearest_to(spot),
+                        _ => TextSelectOp::select_index_nearest_to(spot, is_selection_index),
+                    };
+                    SELECT_CMD.scoped(parent_id).notify_param(op);
+                }
+            } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
+                if args.is_lost(WIDGET.id()) {
+                    touch_move = None;
+                    mouse_move.clear();
+                }
+            }
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || visual.layout(wl));
+            let spot = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed);
+
+            let mut input_m = input.lock();
+
+            if input_m.width != final_size.width || input_m.spot != spot {
+                UPDATES.layout(parent_id);
+                input_m.width = final_size.width;
+                input_m.spot = spot;
+            }
+        }
+        UiNodeOp::Render { frame } => {
+            let input_m = input.lock();
+
+            visual.delegated();
+
+            let mut transform = input_m.inner_text;
+
+            if input_m.x > Px::MIN && input_m.y > Px::MIN {
+                transform = transform.then(&PxTransform::from(PxVector::new(input_m.x, input_m.y)));
+                frame.push_inner_transform(&transform, |frame| {
+                    visual.render(frame);
+                });
+            }
+        }
+        _ => {}
+    })
 }
 
 #[widget($crate::node::caret::InteractiveCaret)]
@@ -388,138 +482,13 @@ impl InteractiveCaret {
                 .capture_value::<InteractiveCaretInput>(property_id!(interactive_caret_input))
                 .unwrap();
 
-            let shape = (input.visual_fn)(input.visual);
-            b.set_child(shape);
+            b.set_child(interactive_caret_shape_node(input.m.clone(), input.visual_fn));
 
-            let ctx = input.ctx.clone();
-            let shape = input.visual;
-            let c_layout = input.layout.clone();
-            let parent_id = input.parent_id;
-            b.push_intrinsic(NestGroup::SIZE, "interactive_caret", move |c| {
-                Self::interactive_caret(c, ctx, c_layout, shape, parent_id)
+            b.push_intrinsic(NestGroup::SIZE, "interactive_caret", move |child| {
+                let child = interactive_caret_node(child, input.parent_id, input.is_selection_index, input.m);
+                with_context_blend(input.ctx, false, child)
             });
         });
-    }
-
-    fn interactive_caret(
-        child: impl UiNode,
-        mut ctx: LocalContext,
-        c_layout: Arc<Mutex<CaretLayout>>,
-        shape: CaretShape,
-        parent_id: WidgetId,
-    ) -> impl UiNode {
-        let mut caret_spot_buf = Some(Arc::new(Atomic::new(PxPoint::zero())));
-        let mut touch_move = None::<(TouchId, EventHandles)>;
-        let mut mouse_move = EventHandles::dummy();
-        let mut move_start_to_spot = DipVector::zero();
-
-        match_node(child, move |c, op| {
-            ctx.with_context_blend(false, || match op {
-                UiNodeOp::Init => {
-                    WIDGET.sub_event(&TOUCH_INPUT_EVENT).sub_event(&MOUSE_INPUT_EVENT);
-                }
-                UiNodeOp::Deinit => {
-                    touch_move = None;
-                    mouse_move.clear();
-                }
-                UiNodeOp::Event { update } => {
-                    c.event(update);
-
-                    if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-                        if args.is_touch_start() {
-                            let wgt_info = WIDGET.info();
-                            move_start_to_spot = wgt_info
-                                .inner_transform()
-                                .transform_vector(c_layout.lock().spot.to_vector())
-                                .to_dip(wgt_info.tree().scale_factor())
-                                - args.position.to_vector();
-
-                            let mut handles = EventHandles::dummy();
-                            handles.push(TOUCH_MOVE_EVENT.subscribe(WIDGET.id()));
-                            handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
-                            touch_move = Some((args.touch, handles));
-                            POINTER_CAPTURE.capture_subtree(WIDGET.id());
-                        } else if touch_move.is_some() {
-                            touch_move = None;
-                            POINTER_CAPTURE.release_capture();
-                        }
-                    } else if let Some(args) = TOUCH_MOVE_EVENT.on_unhandled(update) {
-                        if let Some((id, _)) = &touch_move {
-                            for t in &args.touches {
-                                if t.touch == *id {
-                                    let spot = t.position() + move_start_to_spot;
-
-                                    let op = match shape {
-                                        CaretShape::Insert => TextSelectOp::nearest_to(spot),
-                                        _ => TextSelectOp::select_index_nearest_to(spot, c_layout.lock().is_selection_index),
-                                    };
-                                    SELECT_CMD.scoped(parent_id).notify_param(op);
-                                    break;
-                                }
-                            }
-                        }
-                    } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                        if !args.is_click && args.is_mouse_down() && args.is_primary() {
-                            let wgt_info = WIDGET.info();
-                            move_start_to_spot = wgt_info
-                                .inner_transform()
-                                .transform_vector(c_layout.lock().spot.to_vector())
-                                .to_dip(wgt_info.tree().scale_factor())
-                                - args.position.to_vector();
-
-                            mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
-                            mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
-                            POINTER_CAPTURE.capture_subtree(WIDGET.id());
-                        } else if !mouse_move.is_dummy() {
-                            POINTER_CAPTURE.release_capture();
-                            mouse_move.clear();
-                        }
-                    } else if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                        if !mouse_move.is_dummy() {
-                            let spot = args.position + move_start_to_spot;
-
-                            let op = match shape {
-                                CaretShape::Insert => TextSelectOp::nearest_to(spot),
-                                _ => TextSelectOp::select_index_nearest_to(spot, c_layout.lock().is_selection_index),
-                            };
-                            SELECT_CMD.scoped(parent_id).notify_param(op);
-                        }
-                    } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-                        if args.is_lost(WIDGET.id()) {
-                            touch_move = None;
-                            mouse_move.clear();
-                        }
-                    }
-                }
-                UiNodeOp::Layout { wl, final_size } => {
-                    *final_size = TOUCH_CARET_SPOT.with_context(&mut caret_spot_buf, || c.layout(wl));
-                    let spot = caret_spot_buf.as_ref().unwrap().load(Ordering::Relaxed);
-
-                    let mut c_layout = c_layout.lock();
-
-                    if c_layout.width != final_size.width || c_layout.spot != spot {
-                        UPDATES.layout(parent_id);
-                        c_layout.width = final_size.width;
-                        c_layout.spot = spot;
-                    }
-                }
-                UiNodeOp::Render { frame } => {
-                    let l = c_layout.lock();
-
-                    c.delegated();
-
-                    let mut transform = l.inner_text;
-
-                    if l.x > Px::MIN && l.y > Px::MIN {
-                        transform = transform.then(&PxTransform::from(PxVector::new(l.x, l.y)));
-                        frame.push_inner_transform(&transform, |frame| {
-                            c.render(frame);
-                        });
-                    }
-                }
-                op => c.op(op),
-            })
-        })
     }
 }
 #[property(CONTEXT, capture, widget_impl(InteractiveCaret))]
