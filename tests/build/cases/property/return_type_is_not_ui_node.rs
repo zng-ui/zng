@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{property, IntoVar, UiNode};
+use zero_ui::prelude_wgt::{property, IntoVar, UiNode};
 
 pub struct NotUiNode;
 

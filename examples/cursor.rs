@@ -5,7 +5,7 @@ use zero_ui::{
     image::ImageFit,
     mouse::CursorIcon,
     prelude::*,
-    wgt_prelude::NilUiNode,
+    prelude_wgt::NilUiNode,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -136,7 +136,7 @@ pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] =
     &[("custom", (include_bytes!("res/image/RGBA8.png"), 4, 6), CursorIcon::Default)];
 
 mod widgets {
-    use zero_ui::{prelude::*, wgt_prelude::*};
+    use zero_ui::{prelude::*, prelude_wgt::*};
 
     #[widget($crate::widgets::DemoEntry)]
     pub struct DemoEntry(Container);

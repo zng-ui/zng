@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{widget, WidgetBase};
+use zero_ui::prelude_wgt::{widget, WidgetBase};
 
 #[widget($crate::test_widget, invalid)]
 pub struct TestWidget(WidgetBase);

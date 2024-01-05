@@ -109,7 +109,7 @@ fn clip_to_bounds_demo() -> impl UiNode {
 mod widgets {
     use zero_ui::{
         container::Container,
-        wgt_prelude::*,
+        prelude_wgt::*,
         widget::{self, border},
     };
 

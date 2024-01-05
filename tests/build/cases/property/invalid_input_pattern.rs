@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{property, UiNode};
+use zero_ui::prelude_wgt::{property, UiNode};
 
 #[property(CONTEXT)]
 pub fn invalid_destruct(child: impl UiNode, (a, b): (bool, u8)) -> impl UiNode {

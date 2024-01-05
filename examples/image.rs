@@ -557,7 +557,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
     }
 }
 
-#[zero_ui::wgt_prelude::widget($crate::ImgWindow {
+#[zero_ui::prelude_wgt::widget($crate::ImgWindow {
     ($title:expr, $child:expr $(,)?) => {
         title = $title;
         child = $child;
@@ -566,7 +566,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 pub struct ImgWindow(Window);
 impl ImgWindow {
     fn widget_intrinsic(&mut self) {
-        zero_ui::wgt_prelude::widget_set! {
+        zero_ui::prelude_wgt::widget_set! {
             self;
             // renderer_debug = {
             //     use zero_ui::core::render::webrender_api::DebugFlags;

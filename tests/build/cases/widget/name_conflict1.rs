@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{widget, WidgetBase};
+use zero_ui::prelude_wgt::{widget, WidgetBase};
 
 #[allow(unused_macros)]
 macro_rules! TestWidget {

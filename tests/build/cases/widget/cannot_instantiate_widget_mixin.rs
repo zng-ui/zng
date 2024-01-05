@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::widget_mixin;
+use zero_ui::prelude_wgt::widget_mixin;
 
 #[widget_mixin]
 pub struct TextMix<P>(P);

@@ -431,7 +431,7 @@ pub use zero_ui_app::__proc_macro_util;
 
 /// Types for general app development.
 ///
-/// See also [`wgt_prelude`] for declaring new widgets and properties.
+/// See also [`prelude_wgt`] for declaring new widgets and properties.
 pub mod prelude {
     pub use crate::APP;
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
@@ -563,7 +563,7 @@ pub mod prelude {
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::{prelude::*, wgt_prelude::*};
+/// use zero_ui::{prelude::*, prelude_wgt::*};
 ///
 /// /// A button with only text child.
 /// #[widget($crate::TextButton)]
@@ -584,7 +584,7 @@ pub mod prelude {
 ///     }
 /// }
 /// ```
-pub mod wgt_prelude {
+pub mod prelude_wgt {
     pub use zero_ui_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
@@ -1391,13 +1391,15 @@ pub mod text {
         font_style, font_style_set, font_stylistic, font_swash, font_synthesis, font_variations, font_weight, get_caret_index,
         get_caret_status, get_chars_count, get_lines_len, get_lines_wrap_count, get_overflow, hyphen_char, hyphens, ime_underline,
         interactive_caret, interactive_caret_visual, is_line_overflown, is_overflown, is_parse_pending, justify, lang, letter_spacing,
-        line_break, line_height, line_spacing, max_chars_count, obscure_txt, obscuring_char, on_change_stop, overline, overline_color,
-        paragraph_spacing, selection_color, selection_toolbar, selection_toolbar_anchor, selection_toolbar_fn, strikethrough,
-        strikethrough_color, tab_length, txt_align, txt_editable, txt_highlight, txt_overflow, txt_overflow_align, underline,
-        underline_color, underline_skip, white_space, word_break, word_spacing, AutoSelection, CaretShape, CaretStatus, ChangeStopArgs,
-        ChangeStopCause, Em, FontFeaturesMix, FontMix, InteractiveCaretMode, LangMix, LinesWrapCount, ParagraphMix, SelectionToolbarArgs,
-        Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix, TextFillMix, TextOverflow, TextSpacingMix, TextTransformMix,
-        TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip, FONT_COLOR_VAR,
+        line_break, line_height, line_spacing, max_chars_count,
+        node::{set_interactive_caret_spot, TEXT},
+        obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, selection_color, selection_toolbar,
+        selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align, txt_editable,
+        txt_highlight, txt_overflow, txt_overflow_align, underline, underline_color, underline_skip, white_space, word_break, word_spacing,
+        AutoSelection, CaretShape, CaretStatus, ChangeStopArgs, ChangeStopCause, Em, FontFeaturesMix, FontMix, InteractiveCaretMode,
+        LangMix, LinesWrapCount, ParagraphMix, SelectionToolbarArgs, Strong, Text, TextAlignMix, TextDecorationMix, TextEditMix,
+        TextFillMix, TextOverflow, TextSpacingMix, TextTransformMix, TextWrapMix, TxtParseValue, UnderlinePosition, UnderlineSkip,
+        FONT_COLOR_VAR,
     };
 }
 

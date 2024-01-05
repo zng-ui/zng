@@ -1,6 +1,6 @@
 use zero_ui::{
     layout::margin,
-    wgt_prelude::{property, UiNode},
+    prelude_wgt::{property, UiNode},
     widget::Wgt,
     APP,
 };

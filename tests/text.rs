@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use zero_ui::{
     font::SegmentedText,
     layout::TextSegmentKind,
-    wgt_prelude::{LayoutDirection, Txt},
+    prelude_wgt::{LayoutDirection, Txt},
 };
 
 #[test]

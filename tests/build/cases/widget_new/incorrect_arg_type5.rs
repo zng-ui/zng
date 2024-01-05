@@ -1,5 +1,5 @@
 use zero_ui::{
-    wgt_prelude::{property, IntoVar, UiNode},
+    prelude_wgt::{property, IntoVar, UiNode},
     widget::Wgt,
     APP,
 };

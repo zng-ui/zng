@@ -7,7 +7,7 @@ error: expected `delegate = <expr>`
 warning: unused import: `UiNode`
  --> cases/ui_node/incorrect_assign_token.rs:1:48
   |
-1 | use zero_ui::wgt_prelude::{ui_node, NilUiNode, UiNode};
+1 | use zero_ui::prelude_wgt::{ui_node, NilUiNode, UiNode};
   |                                                ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{property, IntoVar, UiNode};
+use zero_ui::prelude_wgt::{property, IntoVar, UiNode};
 
 #[property(CONTEXT, default)]
 pub fn missing_default_parethesis(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {

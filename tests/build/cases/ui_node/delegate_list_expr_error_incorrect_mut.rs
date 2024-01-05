@@ -1,4 +1,4 @@
-use zero_ui::wgt_prelude::{ui_node, UiNode, UiNodeList};
+use zero_ui::prelude_wgt::{ui_node, UiNode, UiNodeList};
 struct NodeNotMut<C> {
     inner: C,
 }

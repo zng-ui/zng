@@ -1,7 +1,7 @@
 use zero_ui::{
     gesture::is_pressed,
     layout::margin,
-    wgt_prelude::{property, IntoValue, UiNode},
+    prelude_wgt::{property, IntoValue, UiNode},
     widget::Wgt,
     APP,
 };

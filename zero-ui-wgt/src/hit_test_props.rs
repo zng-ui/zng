@@ -10,8 +10,8 @@ use crate::prelude::*;
 /// this is very efficient, but assumes that the widget is *filled*, if the widget has visual *holes* the user may be able
 /// to see another widget underneath but be unable to click on it.
 ///
-/// If you have a widget with a complex shape or with *holes*, set this property to [`HitTestMode::Visual`] to enable the full
-/// hit-testing power where all render primitives and clips used to render the widget are considered during hit-testing.
+/// If you have a widget with a complex shape or with *holes*, set this property to [`HitTestMode::Detailed`] to enable the 
+/// full hit-testing power where all render primitives and clips used to render the widget are considered during hit-testing.
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`corner_radius`]: fn@crate::corner_radius

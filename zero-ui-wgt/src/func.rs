@@ -161,6 +161,9 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// ```
 #[macro_export]
 macro_rules! wgt_fn {
+    ($fn:path) => {
+        $crate::WidgetFn::new($fn)
+    };
     ($($tt:tt)+) => {
         $crate::WidgetFn::new($crate::__clmv! {
             $($tt)+

@@ -122,7 +122,7 @@ pub mod using_display_items {
     pub mod app_side {
         use zero_ui::{
             mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
-            wgt_prelude::*,
+            prelude_wgt::*,
         };
         use zero_ui_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
         use zero_ui_view_api::api_extension::ApiExtensionId;
@@ -241,7 +241,7 @@ pub mod using_display_items {
     pub mod view_side {
         use std::collections::HashMap;
 
-        use zero_ui::wgt_prelude::PxPoint;
+        use zero_ui::prelude_wgt::PxPoint;
         use zero_ui_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{

@@ -3,7 +3,7 @@ use zero_ui::{
     keyboard::{Key, KeyCode},
     layout::size,
     prelude::*,
-    wgt_prelude::*,
+    prelude_wgt::*,
     widget::parallel,
 };
 

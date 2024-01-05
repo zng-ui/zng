@@ -483,7 +483,7 @@ mod context {
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
         var::{AnyWhenVarBuilder, ContextInitHandle},
-        wgt_prelude::*,
+        prelude_wgt::*,
     };
 
     context_var! {
