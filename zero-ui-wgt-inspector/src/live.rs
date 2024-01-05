@@ -251,6 +251,7 @@ mod inspector_window {
     };
     use zero_ui_color::RenderColor;
     use zero_ui_ext_font::{FontStyle, FontWeight};
+    use zero_ui_ext_input::focus::FOCUS;
     use zero_ui_ext_l10n::lang;
     use zero_ui_ext_window::{WindowIcon, WindowRoot, WINDOWS};
     use zero_ui_var::{animation::easing, var_from};
@@ -297,13 +298,30 @@ mod inspector_window {
             var(WindowIcon::Default).boxed()
         };
 
+        let select_focused = var(false);
         let wgt_filter = var(Txt::from_static(""));
 
-        let data_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
+        let hit_select_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
             if let HitSelect::Select(id) = a.value {
                 let _ = selected_wgt.set(inspected_tree.inspect(id));
             }
         }));
+        let mut last_focused = None;
+        let focus_selected = merge_var!(
+            FOCUS.focused(),
+            select_focused.clone(),
+            clmv!(inspected_tree, selected_wgt, |focused, select| {
+                if let Some(p) = focused {
+                    if p.window_id() == inspected {
+                        last_focused = Some(p.widget_id())
+                    }
+                }
+
+                if let (Some(id), true) = (last_focused, *select) {
+                    let _ = selected_wgt.set(inspected_tree.inspect(id));
+                }
+            })
+        );
 
         window::Window! {
             parent;
@@ -317,7 +335,7 @@ mod inspector_window {
                 let _ = selected_wgt.set(None);
             });
             child = Container! {
-                child_top = menu(hit_select, adorn_selected, wgt_filter.clone()), 0;
+                child_top = menu(hit_select, adorn_selected, select_focused, wgt_filter.clone()), 0;
                 child = Scroll! {
                     toggle::selector = toggle::Selector::single_opt(selected_wgt.clone());
                     child = tree_view(inspected_tree, wgt_filter.clone());
@@ -333,7 +351,9 @@ mod inspector_window {
                 background_color = SELECTED_BKG_VAR;
             }, 0;
 
-            zero_ui_wgt_data::data = data_handle; // keep alive
+            zero_ui_wgt::on_deinit = hn!(|_| {
+                let _keep_alive = (&hit_select_handle, &focus_selected);
+            });
         }
     }
 
@@ -369,7 +389,12 @@ mod inspector_window {
         pub static SELECTED_BORDER_VAR: Rgba = colors::AZURE;
     }
 
-    fn menu(hit_test_select: impl Var<HitSelect>, adorn_selected: impl Var<bool>, search: impl Var<Txt>) -> impl UiNode {
+    fn menu(
+        hit_test_select: impl Var<HitSelect>,
+        adorn_selected: impl Var<bool>,
+        select_focused: impl Var<bool>,
+        search: impl Var<Txt>,
+    ) -> impl UiNode {
         Container! {
             background_color = MENU_BKG_VAR;
             child_left = Stack! {
@@ -402,6 +427,18 @@ mod inspector_window {
                         tooltip = Tip!(Text!("highlight selected widget"));
                         checked = adorn_selected;
                     },
+                    Toggle! {
+                        child = Wgt! {
+                            size = 14;
+                            corner_radius = 14;
+                            border = {
+                                widths: 1,
+                                sides: SELECTED_BORDER_VAR.map(|c| BorderSides::dashed(*c)),
+                            }
+                        };
+                        tooltip = Tip!(Text!("select focused widget"));
+                        checked = select_focused;
+                    }
 
                 ]
             }, 0;

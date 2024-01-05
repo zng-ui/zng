@@ -33,7 +33,6 @@ zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
 zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
 zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
-zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
 zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }
 zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
