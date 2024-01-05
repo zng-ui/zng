@@ -246,6 +246,9 @@ impl FieldStyle {
             };
             data_notes_adorner_fn = adorn.map(move |&(top_txt_empty, help_empty)| if !top_txt_empty {
                 wgt_fn!(top_txt, top_color, |_| Text! {
+                    focusable = false;
+                    txt_editable = false;
+                    txt_selectable = false;
                     txt = top_txt.clone();
                     font_color = top_color.clone();
                     font_size = 0.8.em();
@@ -255,6 +258,9 @@ impl FieldStyle {
                 })
             } else if !help_empty {
                 wgt_fn!(|_| Text! {
+                    focusable = false;
+                    txt_editable = false;
+                    txt_selectable = false;
                     txt = FIELD_HELP_VAR;
                     font_size = 0.8.em();
                     font_color = text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
@@ -268,6 +274,9 @@ impl FieldStyle {
 
             max_chars_count_adorner_fn = has_max_count.map(move |&has| if has {
                 wgt_fn!(chars_count, |_| Text! {
+                    focusable = false;
+                    txt_editable = false;
+                    txt_selectable = false;
                     txt = merge_var!(chars_count.clone(), text::MAX_CHARS_COUNT_VAR, |c, m| formatx!("{c}/{m}"));
                     font_color = text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
                     font_size = 0.8.em();

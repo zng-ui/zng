@@ -189,7 +189,7 @@ fn resolve_text_access(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Info { info } => {
             let editable = TEXT_EDITABLE_VAR.get();
             if editable || TEXT_SELECTABLE_VAR.get() {
-                FocusInfoBuilder::new(info).focusable(true);
+                FocusInfoBuilder::new(info).focusable_passive(true);
             }
 
             child.info(info);

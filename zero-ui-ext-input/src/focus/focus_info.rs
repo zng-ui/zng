@@ -2048,6 +2048,18 @@ impl<'a> FocusInfoBuilder<'a> {
         self
     }
 
+    /// Sets [`focusable`], only if it was not already set.
+    /// 
+    /// [`focusable`]: Self::focusable
+    pub fn focusable_passive(&mut self, is_focusable: bool) -> &mut Self {
+        self.with_data(|data| {
+            if data.focusable.is_none() {
+                data.focusable = Some(is_focusable);
+            }
+        });
+        self
+    }
+
     /// If the widget is definitely a focus scope or not.
     pub fn scope(&mut self, is_focus_scope: bool) -> &mut Self {
         self.with_data(|data| {
