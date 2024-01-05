@@ -1,4 +1,5 @@
 use zero_ui_app::access::ACCESS_CLICK_EVENT;
+use zero_ui_ext_config::CONFIG;
 use zero_ui_ext_input::{
     gesture::CLICK_EVENT,
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT},
@@ -10,13 +11,37 @@ use zero_ui_wgt::prelude::*;
 
 use crate::INSPECT_CMD;
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+struct Config {
+    adorn_selected: bool,
+    select_focused: bool,
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            adorn_selected: true,
+            select_focused: false,
+        }
+    }
+}
+
 pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
     let mut inspected_tree = None::<data_model::InspectedTree>;
     let inspector = WindowId::new_unique();
 
     let selected_wgt = var(None);
     let hit_select = var(HitSelect::Disabled);
-    let show_selected = var(true);
+
+    let config = CONFIG.get::<Config>(
+        if WINDOW.id().name().is_empty() {
+            formatx!("window.sequential({}).inspector", WINDOW.id().sequential())
+        } else {
+            formatx!("window.{}.inspector", WINDOW.id().name())
+        },
+        Config::default,
+    );
+    let adorn_selected = config.map_ref_bidi(|c| &c.adorn_selected, |c| &mut c.adorn_selected);
+    let select_focused = config.map_ref_bidi(|c| &c.select_focused, |c| &mut c.select_focused);
 
     let can_inspect = can_inspect.into_var();
     let mut cmd_handle = CommandHandle::dummy();
@@ -26,7 +51,7 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
         Render,
     }
 
-    let child = match_node_leaf(clmv!(selected_wgt, hit_select, show_selected, |op| match op {
+    let child = match_node_leaf(clmv!(selected_wgt, hit_select, adorn_selected, select_focused, |op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&can_inspect);
             cmd_handle = INSPECT_CMD.scoped(WINDOW.id()).subscribe_wgt(can_inspect.get(), WIDGET.id());
@@ -75,8 +100,8 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
                     let inspected = WINDOW.id();
                     WINDOWS.focus_or_open(
                         inspector,
-                        async_clmv!(inspected_tree, selected_wgt, hit_select, show_selected, {
-                            inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, show_selected)
+                        async_clmv!(inspected_tree, selected_wgt, hit_select, adorn_selected, select_focused, {
+                            inspector_window::new(inspected, inspected_tree, selected_wgt, hit_select, adorn_selected, select_focused)
                         }),
                     );
                 }
@@ -88,7 +113,7 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
         _ => {}
     }));
 
-    let child = adorn_selected(child, selected_wgt, show_selected);
+    let child = self::adorn_selected(child, selected_wgt, adorn_selected);
     select_on_click(child, hit_select)
 }
 
@@ -283,6 +308,7 @@ mod inspector_window {
         selected_wgt: impl Var<Option<InspectedWidget>>,
         hit_select: impl Var<HitSelect>,
         adorn_selected: impl Var<bool>,
+        select_focused: impl Var<bool>,
     ) -> WindowRoot {
         let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
@@ -298,7 +324,6 @@ mod inspector_window {
             var(WindowIcon::Default).boxed()
         };
 
-        let select_focused = var(false);
         let wgt_filter = var(Txt::from_static(""));
 
         let hit_select_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
