@@ -1,6 +1,7 @@
-# Pointer Event Args
+# Context Menu
 
-* Add helper functions for getting the position in the widget space.
+* Opening and closing a ContextMenu by clicking on the window causes the app to become stuck.
+    - Does not print update trace.
 
 # TextInput
 
