@@ -7,7 +7,6 @@
 * Interactive carets.
     - Test with multi-line.
     - Test with mixed text.
-    - Dragging caret that flips ends-up not under the cursor.
     - Use the caret spot to position.
         - Make a custom caret to test this.
         - Right now it only looks right because the default caret origin is at y=0.
