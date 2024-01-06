@@ -738,15 +738,15 @@ where
 /// ```
 /// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_txt::{formatx, ToText};
+/// # use zero_ui_txt::{formatx, ToTxt};
 /// # use zero_ui_var::{var, Var};
 /// # use zero_ui_app::handler::app_hn;
 /// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
-/// let foo = var("".to_text());
+/// let foo = var("".to_txt());
 ///
 /// CLICK_EVENT.on_event(app_hn!(foo, |args: &ClickArgs, _| {
-///     foo.set(args.target.to_text());
+///     foo.set(args.target.to_txt());
 /// })).perm();
 ///
 /// // can still use after:
@@ -986,11 +986,11 @@ where
 /// # use zero_ui_app::handler::async_app_hn;
 /// # use zero_ui_var::{var, Var};
 /// # use zero_ui_task as task;
-/// # use zero_ui_txt::{formatx, ToText};
+/// # use zero_ui_txt::{formatx, ToTxt};
 /// #
 /// # let _scope = zero_ui_app::APP.minimal();
 /// # fn assert_type() {
-/// let status = var("pending..".to_text());
+/// let status = var("pending..".to_txt());
 ///
 /// CLICK_EVENT.on_event(async_app_hn!(status, |args: ClickArgs, _| {
 ///     status.set(formatx!("processing {}..", args.target));

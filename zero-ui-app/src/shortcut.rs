@@ -6,7 +6,7 @@
 use std::fmt;
 
 use bitflags::bitflags;
-use zero_ui_txt::{ToText, Txt};
+use zero_ui_txt::{ToTxt, Txt};
 use zero_ui_var::{impl_from_and_into_var, BoxedVar, Var};
 
 #[doc(hidden)]
@@ -767,7 +767,7 @@ pub trait CommandShortcutExt {
         Self: Sized,
     {
         self.shortcut()
-            .map(|c| if c.is_empty() { Txt::from("") } else { c[0].to_text() })
+            .map(|c| if c.is_empty() { Txt::from("") } else { c[0].to_txt() })
             .boxed()
     }
 

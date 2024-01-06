@@ -5,7 +5,7 @@ use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
-use zero_ui_txt::{ToText, Txt};
+use zero_ui_txt::{ToTxt, Txt};
 use zero_ui_unit::*;
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
@@ -931,9 +931,9 @@ impl SupressedPanic {
             ("<unknown>", 0, 0)
         };
         Self {
-            thread: thread.to_text(),
-            msg: msg.to_text(),
-            file: file.to_text(),
+            thread: thread.to_txt(),
+            msg: msg.to_txt(),
+            file: file.to_txt(),
             line,
             column,
             backtrace,

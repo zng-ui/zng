@@ -10,11 +10,12 @@ use glutin::{
 };
 use rustc_hash::FxHashSet;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
+use zero_ui_txt::ToTxt as _;
 use zero_ui_view_api::window::{RenderMode, WindowId};
 
 use raw_window_handle::*;
 
-use crate::{util, AppEvent};
+use crate::{util, AppEvent, AppEventSender};
 
 /// Create and track the current OpenGL context.
 pub(crate) struct GlContextManager {
@@ -41,6 +42,7 @@ impl GlContextManager {
         window: winit::window::WindowBuilder,
         window_target: &EventLoopWindowTarget<AppEvent>,
         render_mode: RenderMode,
+        sender: &AppEventSender,
     ) -> (winit::window::Window, GlContext) {
         let mut errors = vec![];
 
@@ -61,7 +63,19 @@ impl GlContextManager {
             let error = match r {
                 Ok(Ok(ctx)) => return (window, ctx),
                 Ok(Err(e)) => e,
-                Err(panic) => panic.msg.into(),
+                Err(panic) => {
+                    let component = match config.mode {
+                        RenderMode::Dedicated => "glutin (headed, dedicated)",
+                        RenderMode::Integrated => "glutin (headed, integrated)",
+                        RenderMode::Software => "swgl (headed)",
+                    };
+                    let _ = sender.send(AppEvent::Notify(zero_ui_view_api::Event::RecoveredFromComponentPanic {
+                        component: component.into(),
+                        recover: "will try other modes".into(),
+                        panic: panic.to_txt(),
+                    }));
+                    panic.msg.into()
+                }
             };
 
             tracing::error!("[{}] {}", config.name(), error);
@@ -85,6 +99,7 @@ impl GlContextManager {
         id: WindowId,
         window_target: &EventLoopWindowTarget<AppEvent>,
         render_mode: RenderMode,
+        sender: &AppEventSender,
     ) -> GlContext {
         let mut errors = vec![];
 
@@ -103,7 +118,19 @@ impl GlContextManager {
             let error = match r {
                 Ok(Ok(ctx)) => return ctx,
                 Ok(Err(e)) => e,
-                Err(panic) => panic.msg.into(),
+                Err(panic) => {
+                    let component = match config.mode {
+                        RenderMode::Dedicated => "glutin (headless, dedicated)",
+                        RenderMode::Integrated => "glutin (headless, integrated)",
+                        RenderMode::Software => "swgl (headless)",
+                    };
+                    let _ = sender.send(AppEvent::Notify(zero_ui_view_api::Event::RecoveredFromComponentPanic {
+                        component: component.into(),
+                        recover: "will try other modes".into(),
+                        panic: panic.to_txt(),
+                    }));
+                    panic.msg.into()
+                }
             };
 
             tracing::error!("[{}] {}", config.name(), error);

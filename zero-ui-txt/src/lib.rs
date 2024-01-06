@@ -607,7 +607,7 @@ impl std::fmt::Write for Txt {
 /// This trait is automatically implemented for any type which implements the [`ToString`] trait.
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
-pub trait ToText {
+pub trait ToTxt {
     /// Converts the given value to an owned [`Txt`].
     ///
     /// # Examples
@@ -618,14 +618,14 @@ pub trait ToText {
     /// use zero_ui_txt::*;
     ///
     /// let expected = formatx!("10");
-    /// let actual = 10.to_text();
+    /// let actual = 10.to_txt();
     ///
     /// assert_eq!(expected, actual);
     /// ```
-    fn to_text(&self) -> Txt;
+    fn to_txt(&self) -> Txt;
 }
-impl<T: ToString> ToText for T {
-    fn to_text(&self) -> Txt {
+impl<T: ToString> ToTxt for T {
+    fn to_txt(&self) -> Txt {
         self.to_string().into()
     }
 }

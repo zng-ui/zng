@@ -31,7 +31,7 @@ fn app_main() {
                 if args.repeat_count > 0 {
                     return;
                 }
-                shortcut_text.set(args.shortcut.to_text());
+                shortcut_text.set(args.shortcut.to_txt());
                 shortcut_error.set(false);
             }))
             .perm();

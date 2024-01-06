@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc};
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
-use zero_ui_txt::{formatx, ToText, Txt};
+use zero_ui_txt::{formatx, ToTxt, Txt};
 use zero_ui_unit::{Px, PxPoint, PxSize};
 use zero_ui_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
@@ -115,7 +115,7 @@ impl ImageCache {
                             }));
                             match Self::image_decode(&data[..], fmt, downscale) {
                                 Ok(img) => Ok(Self::convert_decoded(img, mask)),
-                                Err(e) => Err(e.to_text()),
+                                Err(e) => Err(e.to_txt()),
                             }
                         }
                     }
@@ -231,7 +231,7 @@ impl ImageCache {
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                             image: id,
-                            error: e.to_text(),
+                            error: e.to_txt(),
                         }));
                     }
                 }
@@ -302,7 +302,7 @@ impl ImageCache {
             Some(fmt) => image::io::Reader::with_format(std::io::Cursor::new(data), fmt),
             None => image::io::Reader::new(std::io::Cursor::new(data))
                 .with_guessed_format()
-                .map_err(|e| e.to_text())?,
+                .map_err(|e| e.to_txt())?,
         };
 
         match reader.format() {

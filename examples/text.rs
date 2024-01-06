@@ -302,7 +302,7 @@ fn defaults() -> impl UiNode {
                 &lang!(und),
             )
             .map(|f| match f.done() {
-                Some(f) => f.best().family_name().to_text(),
+                Some(f) => f.best().family_name().to_txt(),
                 None => Txt::from_str(""),
             });
 
@@ -687,7 +687,7 @@ impl TextEditor {
                         self.file.set(file);
                     }
                     Err(e) => {
-                        self.handle_error("reading file", e.to_text()).await;
+                        self.handle_error("reading file", e.to_txt()).await;
                     }
                 }
             }
@@ -734,7 +734,7 @@ impl TextEditor {
             }
             native_dialog::FileDialogResponse::Cancel => {}
             native_dialog::FileDialogResponse::Error(e) => {
-                self.handle_error("saving file", e.to_text()).await;
+                self.handle_error("saving file", e.to_txt()).await;
             }
         }
 
@@ -757,7 +757,7 @@ impl TextEditor {
         match r {
             Ok(()) => true,
             Err(e) => {
-                self.handle_error("writing file", e.to_text()).await;
+                self.handle_error("writing file", e.to_txt()).await;
                 false
             }
         }
@@ -951,17 +951,17 @@ impl std::str::FromStr for Version {
         let mut split = s.split('.');
         if let Some(major) = split.next() {
             if !major.is_empty() {
-                r.major = u32::from_str(major).map_err(|e| e.to_text())?;
+                r.major = u32::from_str(major).map_err(|e| e.to_txt())?;
             }
         }
         if let Some(minor) = split.next() {
             if !minor.is_empty() {
-                r.minor = u32::from_str(minor).map_err(|e| e.to_text())?;
+                r.minor = u32::from_str(minor).map_err(|e| e.to_txt())?;
             }
         }
         if let Some(rev) = split.next() {
             if !rev.is_empty() {
-                r.rev = u32::from_str(rev).map_err(|e| e.to_text())?;
+                r.rev = u32::from_str(rev).map_err(|e| e.to_txt())?;
             }
         }
         if split.next().is_some() {

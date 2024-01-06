@@ -93,7 +93,7 @@ fn example() -> impl UiNode {
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
                     let mode = |m: easing::EasingModifierFn| Toggle! {
-                        child = Text!(m.to_text());
+                        child = Text!(m.to_txt());
                         value = m;
                     };
                     ui_vec![

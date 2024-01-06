@@ -88,7 +88,7 @@ rayon = "1"
 serde = "1"
 rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
 accesskit = "0.12"
-accesskit_winit = "0.17"
+accesskit_winit = "0.18"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0" # matches winit, glutin, other crates

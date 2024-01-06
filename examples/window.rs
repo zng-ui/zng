@@ -158,9 +158,9 @@ fn screenshot() -> impl UiNode {
         Button! {
             child = Text!(enabled.map(|&enabled| {
                 if enabled {
-                    "screenshot".to_text()
+                    "screenshot".to_txt()
                 } else {
-                    "saving..".to_text()
+                    "saving..".to_txt()
                 }
             }));
             on_click = async_hn!(enabled, |_| {
@@ -197,9 +197,9 @@ fn screenshot() -> impl UiNode {
         Button! {
             child = Text!(enabled.map(|&enabled| {
                 if enabled {
-                    "headless".to_text()
+                    "headless".to_txt()
                 } else {
-                    "saving..".to_text()
+                    "saving..".to_txt()
                 }
             }));
             enabled = enabled.clone();
@@ -686,7 +686,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                 children = ui_vec![
                     SelectableText! {
                         txt = match windows.len() {
-                            1 => "Close Confirmation\n\nClose 1 window?".to_text(),
+                            1 => "Close Confirmation\n\nClose 1 window?".to_txt(),
                             n => formatx!("Close Confirmation\n\nClose {n} windows?")
                         };
                         margin = 15;

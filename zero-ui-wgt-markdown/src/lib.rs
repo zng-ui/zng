@@ -297,7 +297,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         blocks.push(code_block_view(CodeBlockFnArgs {
                             lang: match kind {
                                 CodeBlockKind::Indented => Txt::from_str(""),
-                                CodeBlockKind::Fenced(l) => l.to_text(),
+                                CodeBlockKind::Fenced(l) => l.to_txt(),
                             },
                             txt: txt.into(),
                         }))
@@ -349,7 +349,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         let label = html_escape::decode_html_entities(label.as_ref());
                         let items = blocks.drain(i..).collect();
                         blocks.push(footnote_def_view(FootnoteDefFnArgs {
-                            label: label.to_text(),
+                            label: label.to_txt(),
                             items,
                         }));
                     }
@@ -397,7 +397,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(&url);
                             if let Some(txt) = text_view.call_checked(TextFnArgs {
-                                txt: url.to_text(),
+                                txt: url.to_txt(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
                                     emphasis: emphasis > 0,
@@ -413,7 +413,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                             let items = inlines.drain(s..).collect();
                             if let Some(lnk) = link_view.call_checked(LinkFnArgs {
                                 url,
-                                title: title.to_text(),
+                                title: title.to_txt(),
                                 items,
                             }) {
                                 inlines.push(lnk);
@@ -425,7 +425,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     let title = html_escape::decode_html_entities(title.as_ref());
                     blocks.push(image_view(ImageFnArgs {
                         source: image_resolver.resolve(&url),
-                        title: title.to_text(),
+                        title: title.to_txt(),
                         alt_items: mem::take(&mut inlines).into(),
                         alt_txt: image_alt.take().unwrap_or_default().into(),
                     }));
@@ -498,7 +498,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     }
                 }
 
-                if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs { txt: txt.to_text(), style }) {
+                if let Some(txt) = code_inline_view.call_checked(CodeInlineFnArgs { txt: txt.to_txt(), style }) {
                     inlines.push(txt);
                 }
             }
@@ -513,7 +513,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                if let Some(txt) = footnote_ref_view.call_checked(FootnoteRefFnArgs { label: label.to_text() }) {
+                if let Some(txt) = footnote_ref_view.call_checked(FootnoteRefFnArgs { label: label.to_txt() }) {
                     inlines.push(txt);
                 }
             }

@@ -9,7 +9,7 @@ use zero_ui_layout::unit::{
     Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
 };
 use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::{ToText, Txt};
+use zero_ui_txt::{ToTxt, Txt};
 use zero_ui_unique_id::IdSet;
 use zero_ui_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zero_ui_view_api::{
@@ -98,7 +98,7 @@ impl WindowVars {
             cursor: var(Some(CursorIcon::Default)),
             cursor_img: var(None),
             actual_cursor_img: var(None),
-            title: var("".to_text()),
+            title: var("".to_txt()),
 
             state: var(WindowState::Normal),
             focus_indicator: var(None),

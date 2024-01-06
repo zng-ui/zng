@@ -24,7 +24,7 @@ use winit::{
     monitor::{MonitorHandle, VideoMode as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
-use zero_ui_txt::{ToText, Txt};
+use zero_ui_txt::{ToTxt, Txt};
 use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -226,7 +226,7 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode);
+        let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
         render_mode = context.render_mode();
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
@@ -1676,7 +1676,7 @@ impl Window {
                 let _ = event_sender.send(AppEvent::Notify(Event::RecoveredFromComponentPanic {
                     component: Txt::from_static("accesskit_winit::Adapter::update_if_active"),
                     recover: Txt::from_static("accessibility disabled for this window instance"),
-                    panic: p.to_text(),
+                    panic: p.to_txt(),
                 }));
             }
         }

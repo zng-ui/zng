@@ -20,13 +20,13 @@ use super::*;
 ///
 /// ```
 /// # use zero_ui_var::*;
-/// # use zero_ui_txt::ToText;
+/// # use zero_ui_txt::ToTxt;
 /// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// let condition = var(true);
-/// let when_false = var("condition: false".to_text());
+/// let when_false = var("condition: false".to_txt());
 ///
 /// let t = Text!(when_var! {
-///     condition.clone() => "condition: true".to_text(),
+///     condition.clone() => "condition: true".to_txt(),
 ///     _ => when_false.clone(),
 /// });
 /// ```
@@ -45,10 +45,10 @@ use super::*;
 /// # let condition1 = var(true);
 /// let t = Text!(when_var! {
 ///     #[cfg(some_flag)]
-///     condition0 => "is condition 0".to_text(),
+///     condition0 => "is condition 0".to_txt(),
 ///     #[cfg(not(some_flag))]
-///     condition1 => "is condition 1".to_text(),
-///     _ => "is default".to_text(),
+///     condition1 => "is condition 1".to_txt(),
+///     _ => "is default".to_txt(),
 /// });
 /// ```
 ///

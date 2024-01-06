@@ -718,7 +718,7 @@ fn into_unic_level(d: LayoutDirection) -> unicode_bidi::Level {
 #[cfg(test)]
 mod tests {
     use zero_ui_layout::context::{LayoutDirection, TextSegmentKind};
-    use zero_ui_txt::ToText;
+    use zero_ui_txt::ToTxt;
 
     use crate::{BidiLevel, SegmentedText, TextSegment};
 
@@ -737,7 +737,7 @@ mod tests {
         use TextSegmentKind::*;
 
         let expected = SegmentedText {
-            text: test.to_text(),
+            text: test.to_txt(),
             segments: vec![
                 seg(LeftToRight, 1),
                 seg(LineBreak, 2),

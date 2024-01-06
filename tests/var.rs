@@ -52,11 +52,11 @@ mod bindings {
     #[test]
     fn one_way_binding() {
         let a = var(10);
-        let b = var("".to_text());
+        let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
 
-        a.bind_map(&b, |a| a.to_text()).perm();
+        a.bind_map(&b, |a| a.to_txt()).perm();
 
         let mut updated = 0;
         let _ = app.update_observe(
@@ -75,7 +75,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_text()), b.get_new());
+                assert_eq!(Some("20".to_txt()), b.get_new());
             },
             false,
         );
@@ -89,7 +89,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(13i32), a.get_new());
-                assert_eq!(Some("13".to_text()), b.get_new());
+                assert_eq!(Some("13".to_txt()), b.get_new());
             },
             false,
         );
@@ -99,11 +99,11 @@ mod bindings {
     #[test]
     fn two_way_binding() {
         let a = var(10);
-        let b = var("".to_text());
+        let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
 
-        a.bind_map_bidi(&b, |a| a.to_text(), |b| b.parse().unwrap()).perm();
+        a.bind_map_bidi(&b, |a| a.to_txt(), |b| b.parse().unwrap()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -122,7 +122,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_text()), b.get_new());
+                assert_eq!(Some("20".to_txt()), b.get_new());
             },
             false,
         );
@@ -135,7 +135,7 @@ mod bindings {
             || {
                 assert!(!updated, "expected one update");
                 updated = true;
-                assert_eq!(Some("55".to_text()), b.get_new());
+                assert_eq!(Some("55".to_txt()), b.get_new());
                 assert_eq!(Some(55i32), a.get_new());
             },
             false,
@@ -146,11 +146,11 @@ mod bindings {
     #[test]
     fn one_way_filtered_binding() {
         let a = var(10);
-        let b = var("".to_text());
+        let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
 
-        a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_text()) }).perm();
+        a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_txt()) }).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -169,7 +169,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_text()), b.get_new());
+                assert_eq!(Some("20".to_txt()), b.get_new());
             },
             false,
         );
@@ -183,7 +183,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(13i32), a.get_new());
-                assert_eq!("20".to_text(), b.get());
+                assert_eq!("20".to_txt(), b.get());
                 assert!(!b.is_new());
             },
             false,
@@ -194,11 +194,11 @@ mod bindings {
     #[test]
     fn two_way_filtered_binding() {
         let a = var(10);
-        let b = var("".to_text());
+        let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
 
-        a.bind_filter_map_bidi(&b, |a| Some(a.to_text()), |b| b.parse().ok()).perm();
+        a.bind_filter_map_bidi(&b, |a| Some(a.to_txt()), |b| b.parse().ok()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -217,7 +217,7 @@ mod bindings {
                 assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_text()), b.get_new());
+                assert_eq!(Some("20".to_txt()), b.get_new());
             },
             false,
         );
@@ -230,7 +230,7 @@ mod bindings {
             || {
                 assert!(!updated, "expected one update");
                 updated = true;
-                assert_eq!(Some("55".to_text()), b.get_new());
+                assert_eq!(Some("55".to_txt()), b.get_new());
                 assert_eq!(Some(55i32), a.get_new());
             },
             false,
@@ -244,7 +244,7 @@ mod bindings {
             || {
                 assert!(!updated, "expected one update");
                 updated = true;
-                assert_eq!(Some("not a i32".to_text()), b.get_new());
+                assert_eq!(Some("not a i32".to_txt()), b.get_new());
                 assert_eq!(55i32, a.get());
                 assert!(!a.is_new());
             },
@@ -730,8 +730,8 @@ mod context {
     fn context_var_binding() {
         let app = APP.defaults();
 
-        let input_var = var("Input!".to_text());
-        let other_var = var(".".to_text());
+        let input_var = var("Input!".to_txt());
+        let other_var = var(".".to_txt());
 
         let mut test = test_app(
             app,
@@ -761,7 +761,7 @@ mod context {
         let _scope = APP.minimal();
 
         let var = when_var! {
-            false => var("hello".to_text()),
+            false => var("hello".to_txt()),
             _ => TEST_VAR,
         };
 
@@ -776,7 +776,7 @@ mod context {
 
         let var = when_var! {
             true => TEST_VAR,
-            _ => var("hello".to_text()),
+            _ => var("hello".to_txt()),
         };
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
@@ -789,7 +789,7 @@ mod context {
         let _scope = APP.minimal();
 
         let mut var = AnyWhenVarBuilder::new(TEST_VAR);
-        var.push(self::var(false), self::var("hello".to_text()));
+        var.push(self::var(false), self::var("hello".to_txt()));
         let var = var.build().unwrap();
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());

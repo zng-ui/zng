@@ -36,7 +36,7 @@ mod render;
 pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
 use zero_ui_layout::unit::{ByteLength, ByteUnits};
 use zero_ui_task::ui::UiTask;
-use zero_ui_txt::{formatx, ToText, Txt};
+use zero_ui_txt::{formatx, ToTxt, Txt};
 use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
 use zero_ui_view_api::{image::ImageRequest, ipc::IpcBytes, ViewProcessOffline};
@@ -560,7 +560,7 @@ impl ImagesService {
                     let mut file = match task::fs::File::open(path).await {
                         Ok(f) => f,
                         Err(e) => {
-                            r.r = Err(e.to_text());
+                            r.r = Err(e.to_txt());
                             return r;
                         }
                     };
@@ -568,7 +568,7 @@ impl ImagesService {
                     let len = match file.metadata().await {
                         Ok(m) => m.len() as usize,
                         Err(e) => {
-                            r.r = Err(e.to_text());
+                            r.r = Err(e.to_txt());
                             return r;
                         }
                     };
@@ -581,7 +581,7 @@ impl ImagesService {
                     let mut data = Vec::with_capacity(len);
                     r.r = match file.read_to_end(&mut data).await {
                         Ok(_) => Ok(IpcBytes::from_vec(data)),
-                        Err(e) => Err(e.to_text()),
+                        Err(e) => Err(e.to_txt()),
                     };
 
                     r
@@ -805,7 +805,7 @@ impl IMAGES {
     pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Txt>) -> ImageVar {
         match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
-            Err(e) => self.dummy(Some(e.to_text())),
+            Err(e) => self.dummy(Some(e.to_txt())),
         }
     }
 

@@ -311,7 +311,7 @@ fn cube_example() -> impl UiNode {
                     transform_style = TransformStyle::Preserve3D;
 
                     children = (1..=6u8).map(|i| Text! {
-                        txt = i.to_text();
+                        txt = i.to_txt();
                         // size = 200;
                         font_size = 62;
                         font_weight = FontWeight::BOLD;
@@ -351,7 +351,7 @@ fn cube_example() -> impl UiNode {
                 children = (1..=6u8).map(|i| Toggle! {
                     style_fn = toggle::RadioStyle!();
                     value::<u8> = i;
-                    child = Text!(i.to_text());
+                    child = Text!(i.to_txt());
                 }).collect::<UiNodeVec>();
             }
         ];

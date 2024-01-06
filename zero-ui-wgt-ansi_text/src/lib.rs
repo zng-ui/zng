@@ -646,7 +646,7 @@ fn generate_ansi(txt: &impl Var<Txt>) -> BoxedUiNode {
             let text = ansi_parse::AnsiTextParser::new(line)
                 .filter_map(|txt| {
                     text_fn.call_checked(TextFnArgs {
-                        txt: txt.txt.to_text(),
+                        txt: txt.txt.to_txt(),
                         style: txt.style,
                     })
                 })

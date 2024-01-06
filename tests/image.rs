@@ -9,7 +9,7 @@ use zero_ui::{image::Img, prelude::*, widget::parallel};
 fn error_view_recursion() {
     zero_ui_app::test_log();
 
-    let img = var(Img::dummy(Some("test error".to_text()))).read_only();
+    let img = var(Img::dummy(Some("test error".to_txt()))).read_only();
 
     let mut app = APP.defaults().run_headless(false);
     IMAGES.load_in_headless().set(true);

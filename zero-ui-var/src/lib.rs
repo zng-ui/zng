@@ -25,7 +25,7 @@ use std::{
 };
 use zero_ui_app_context::ContextLocal;
 use zero_ui_clone_move::clmv;
-use zero_ui_txt::{formatx, ToText, Txt};
+use zero_ui_txt::{formatx, ToTxt, Txt};
 use zero_ui_unique_id::unique_id_32;
 use zero_ui_unit::{Factor, FactorUnits};
 
@@ -1232,7 +1232,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: fmt::Display,
     {
-        self.with(ToText::to_text)
+        self.with(ToTxt::to_txt)
     }
 
     /// Gets the value as a display [`String`].
@@ -1412,16 +1412,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.map(|v| v.clone().into())
     }
 
-    /// Creates a [`map`] that converts from `T` to [`Txt`] using [`ToText`].
+    /// Creates a [`map`] that converts from `T` to [`Txt`] using [`ToTxt`].
     ///
     /// [`map`]: Var::map
     /// [`Txt`]: Txt
-    /// [`ToText`]: ToText
+    /// [`ToTxt`]: ToTxt
     fn map_to_text(&self) -> Self::Map<Txt>
     where
-        T: ToText,
+        T: ToTxt,
     {
-        self.map(ToText::to_text)
+        self.map(ToTxt::to_txt)
     }
 
     /// Create a [`map`] that converts from `T` to [`String`] using [`ToString`].

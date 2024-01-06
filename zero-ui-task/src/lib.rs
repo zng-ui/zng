@@ -88,7 +88,7 @@
 //! ```
 //! # macro_rules! demo { () => {
 //! let enabled = var(false);
-//! let msg = var("loading..".to_text());
+//! let msg = var("loading..".to_txt());
 //! Button! {
 //!     on_click = async_hn!(enabled, msg, |_| {
 //!         enabled.set(false);

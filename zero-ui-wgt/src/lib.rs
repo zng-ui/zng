@@ -65,7 +65,7 @@ pub mod prelude {
         },
     };
 
-    pub use zero_ui_txt::{formatx, ToText as _, Txt};
+    pub use zero_ui_txt::{formatx, ToTxt, Txt};
 
     pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 

@@ -468,7 +468,7 @@ pub mod prelude {
         LineFromTuplesBuilder as _, PxToDip as _, RectFromTuplesBuilder as _, ResolutionUnits as _, TimeUnits as _,
     };
 
-    pub use zero_ui_txt::{formatx, ToText as _, Txt};
+    pub use zero_ui_txt::{formatx, ToTxt as _, Txt};
 
     pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
@@ -632,7 +632,7 @@ pub mod prelude_wgt {
         },
     };
 
-    pub use zero_ui_txt::{formatx, ToText as _, Txt};
+    pub use zero_ui_txt::{formatx, ToTxt as _, Txt};
 
     pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 

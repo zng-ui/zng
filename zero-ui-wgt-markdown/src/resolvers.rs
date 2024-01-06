@@ -136,7 +136,7 @@ impl LinkResolver {
     /// Resolve the link.
     pub fn resolve(&self, url: &str) -> Txt {
         match self {
-            Self::Default => url.to_text(),
+            Self::Default => url.to_txt(),
             Self::Resolve(r) => r(url),
         }
     }
@@ -161,12 +161,12 @@ impl LinkResolver {
                 if is_not_uri {
                     if let Ok(path) = url.parse::<PathBuf>() {
                         if let Ok(path) = base.join(path).absolutize() {
-                            return path.display().to_text();
+                            return path.display().to_txt();
                         }
                     }
                 }
             }
-            url.to_text()
+            url.to_txt()
         })
     }
 }

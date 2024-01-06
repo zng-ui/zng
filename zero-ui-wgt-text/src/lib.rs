@@ -182,11 +182,11 @@ where
     <Self as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn from_txt(txt: &Txt) -> Result<Self, Txt> {
-        T::from_str(txt).map_err(|e| e.to_text())
+        T::from_str(txt).map_err(|e| e.to_txt())
     }
 
     fn to_txt(&self) -> Txt {
-        self.to_text()
+        ToTxt::to_txt(self)
     }
 }
 

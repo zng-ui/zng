@@ -8,7 +8,7 @@ use zero_ui::{
     layout::{size, Line},
     prelude::*,
     stack::stack_nodes,
-    text::ToText,
+    text::ToTxt,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -174,8 +174,8 @@ fn stack_linear() -> impl UiNode {
     ])
 }
 
-fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
-    let name = name.to_text();
+fn sample(name: impl ToTxt, gradient: impl UiNode) -> impl UiNode {
+    let name = name.to_txt();
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
