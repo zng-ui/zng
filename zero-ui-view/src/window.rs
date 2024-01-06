@@ -24,7 +24,7 @@ use winit::{
     monitor::{MonitorHandle, VideoMode as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
-use zero_ui_txt::Txt;
+use zero_ui_txt::{ToText, Txt};
 use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -111,7 +111,7 @@ pub(crate) struct Window {
 
     modal_dialog_active: Arc<AtomicBool>,
 
-    access: accesskit_winit::Adapter,
+    access: Option<accesskit_winit::Adapter>, // None if has panicked
 
     ime_area: Option<DipRect>,
     #[cfg(windows)]
@@ -398,7 +398,7 @@ impl Window {
             focused: None,
             modal_dialog_active: Arc::new(AtomicBool::new(false)),
             render_mode,
-            access,
+            access: Some(access),
             ime_area: cfg.ime_area,
             #[cfg(windows)]
             ime_open: false,
@@ -1656,13 +1656,30 @@ impl Window {
     }
 
     /// Pump the accessibility adapter.
-    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
-        self.access.process_event(&self.window, event);
+    pub fn pump_access(&self, event: &winit::event::WindowEvent) {
+        if let Some(a) = &self.access {
+            a.process_event(&self.window, event);
+        }
     }
 
     /// Update the accessibility info.
-    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate) {
-        self.access.update_if_active(|| crate::util::access_tree_update_to_kit(update))
+    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate, event_sender: &AppEventSender) {
+        if let Some(a) = &self.access {
+            // SAFETY: we drop `access` in case of panic.
+            let a = std::panic::AssertUnwindSafe(a);
+            let panic = crate::util::catch_supress(|| {
+                a.update_if_active(|| crate::util::access_tree_update_to_kit(update));
+            });
+            if let Err(p) = panic {
+                self.access = None;
+
+                let _ = event_sender.send(AppEvent::Notify(Event::RecoveredFromComponentPanic {
+                    component: Txt::from_static("accesskit_winit::Adapter::update_if_active"),
+                    recover: Txt::from_static("accessibility disabled for this window instance"),
+                    panic: p.to_text(),
+                }));
+            }
+        }
     }
 
     pub(crate) fn on_low_memory(&mut self) {

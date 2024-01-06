@@ -448,6 +448,10 @@ impl<E: AppExtension> RunningApp<E> {
 
             Event::LowMemory => {}
 
+            Event::RecoveredFromComponentPanic { component, recover, panic } => {
+                tracing::error!("view-process component panicked\n  component: {component}\n  recover: {recover}\n```panic\n{panic}\n```");
+            }
+
             // Others
             Event::Inited(zero_ui_view_api::Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }

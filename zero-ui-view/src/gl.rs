@@ -61,7 +61,7 @@ impl GlContextManager {
             let error = match r {
                 Ok(Ok(ctx)) => return (window, ctx),
                 Ok(Err(e)) => e,
-                Err(panic) => util::panic_msg(&*panic).to_owned().into(),
+                Err(panic) => panic.msg.into(),
             };
 
             tracing::error!("[{}] {}", config.name(), error);
@@ -103,7 +103,7 @@ impl GlContextManager {
             let error = match r {
                 Ok(Ok(ctx)) => return ctx,
                 Ok(Err(e)) => e,
-                Err(panic) => util::panic_msg(&*panic).to_owned().into(),
+                Err(panic) => panic.msg.into(),
             };
 
             tracing::error!("[{}] {}", config.name(), error);

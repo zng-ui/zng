@@ -1,8 +1,11 @@
+use std::backtrace::Backtrace;
+use std::cell::RefCell;
+use std::fmt;
 use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
-use zero_ui_txt::Txt;
+use zero_ui_txt::{ToText, Txt};
 use zero_ui_unit::*;
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
@@ -889,6 +892,7 @@ pub(crate) fn winit_physical_key_to_key_code(key: WinitPhysicalKey) -> KeyCode {
 
 thread_local! {
     static SUPPRESS: Cell<bool> = const { Cell::new(false) };
+    static SUPPRESSED_PANIC: RefCell<Option<SupressedPanic>> = const { RefCell::new(None) };
 }
 
 /// If `true` our custom panic hook must not log anything.
@@ -896,21 +900,62 @@ pub(crate) fn suppress_panic() -> bool {
     SUPPRESS.get()
 }
 
-/// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
-pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> std::thread::Result<T> {
-    SUPPRESS.set(true);
-    let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
-    std::panic::catch_unwind(f)
+pub(crate) fn set_supressed_panic(panic: SupressedPanic) {
+    SUPPRESSED_PANIC.set(Some(panic));
 }
 
-pub(crate) fn panic_msg(payload: &dyn std::any::Any) -> &str {
-    match payload.downcast_ref::<&'static str>() {
-        Some(s) => s,
-        None => match payload.downcast_ref::<String>() {
-            Some(s) => &s[..],
-            None => "Box<dyn Any>",
-        },
+#[derive(Debug)]
+pub(crate) struct SupressedPanic {
+    pub thread: Txt,
+    pub msg: Txt,
+    pub file: Txt,
+    pub line: u32,
+    pub column: u32,
+    pub backtrace: Backtrace,
+}
+impl SupressedPanic {
+    pub fn new(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
+        let current_thread = std::thread::current();
+        let thread = current_thread.name().unwrap_or("<unnamed>");
+        let msg = match info.payload().downcast_ref::<&'static str>() {
+            Some(s) => s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<dyn Any>",
+            },
+        };
+
+        let (file, line, column) = if let Some(l) = info.location() {
+            (l.file(), l.line(), l.column())
+        } else {
+            ("<unknown>", 0, 0)
+        };
+        Self {
+            thread: thread.to_text(),
+            msg: msg.to_text(),
+            file: file.to_text(),
+            line,
+            column,
+            backtrace,
+        }
     }
+}
+impl std::error::Error for SupressedPanic {}
+impl fmt::Display for SupressedPanic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "thread '{}' panicked at '{}', {}:{}:{}\n {}",
+            self.thread, self.msg, self.file, self.line, self.column, self.backtrace,
+        )
+    }
+}
+
+/// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
+pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, Box<SupressedPanic>> {
+    SUPPRESS.set(true);
+    let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
+    std::panic::catch_unwind(f).map_err(|_| SUPPRESSED_PANIC.with_borrow_mut(|p| Box::new(p.take().unwrap())))
 }
 
 struct RunOnDrop<F: FnOnce()>(Option<F>);

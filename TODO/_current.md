@@ -1,5 +1,6 @@
-# TextInput
-
+* Upgrade crates.
+* Review `catch_supress` usage during glutin startup.
+* Rename `to_text` to `to_txt`.
 * Opening a text file in the editor example causes an accesskit panic.
 
 # Publish

@@ -537,6 +537,17 @@ pub enum Event {
     /// System low memory warning, some platforms may kill the app if it does not release memory.
     LowMemory,
 
+    /// An internal component panicked, but the view-process manager to recover from it without
+    /// needing to respawn.
+    RecoveredFromComponentPanic {
+        /// Component identifier.
+        component: Txt,
+        /// How the view-process recovered from the panic.
+        recover: Txt,
+        /// The panic.
+        panic: Txt,
+    },
+
     /// Represents a custom event send by the extension.
     ExtensionEvent(ApiExtensionId, ApiExtensionPayload),
 }

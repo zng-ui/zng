@@ -303,27 +303,16 @@ fn ffi_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to avoid unwind across FFI");
 }
 fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
-    if crate::util::suppress_panic() {
-        return;
-    }
-
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
 
-    let current_thread = std::thread::current();
-    let name = current_thread.name().unwrap_or("<unnamed>");
+    let panic = util::SupressedPanic::new(info, std::backtrace::Backtrace::force_capture());
 
-    let (file, line, column) = if let Some(l) = info.location() {
-        (l.file(), l.line(), l.column())
+    if crate::util::suppress_panic() {
+        crate::util::set_supressed_panic(panic);
     } else {
-        ("<unknown>", 0, 0)
-    };
-
-    let msg = util::panic_msg(info.payload());
-
-    let backtrace = backtrace::Backtrace::new();
-
-    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n {details}\n{backtrace:?}");
-    std::process::exit(101) // Rust panic exit code.
+        eprintln!("{panic}\n{details}");
+        std::process::exit(101) // Rust panic exit code.
+    }
 }
 
 /// The backend implementation.
@@ -1795,7 +1784,7 @@ impl Api for App {
 
     fn access_update(&mut self, id: WindowId, update: access::AccessTreeUpdate) {
         if let Some(s) = self.windows.iter_mut().find(|s| s.id() == id) {
-            s.access_update(update);
+            s.access_update(update, &self.app_sender);
         }
     }
 
