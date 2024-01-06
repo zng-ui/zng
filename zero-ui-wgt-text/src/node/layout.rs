@@ -99,6 +99,7 @@ fn layout_text_layout(child: impl UiNode) -> impl UiNode {
         pending: PendingLayout::empty(),
         txt_is_measured: false,
         last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
+        baseline: Px(0),
     };
 
     match_node(child, move |child, op| match op {
@@ -348,7 +349,7 @@ fn layout_text_layout(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            wl.set_baseline(TEXT.resolved().baseline);
+            wl.set_baseline(txt.baseline);
 
             LAYOUT.with_constraints(metrics.constraints().with_new_min_size(*final_size), || {
                 // foreign nodes in the CHILD_LAYOUT+100 ..= CHILD range may change the size
@@ -370,6 +371,7 @@ struct LayoutTextFinal {
 
     txt_is_measured: bool,
     last_layout: (LayoutMetrics, Option<InlineConstraintsMeasure>),
+    baseline: Px,
 }
 impl LayoutTextFinal {
     fn measure(&mut self, metrics: &LayoutMetrics) -> Option<PxSize> {
@@ -569,7 +571,7 @@ impl LayoutTextFinal {
                 );
                 ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 drop(resolved);
-                TEXT.resolve().baseline = ctx.shaped_text.baseline();
+                self.baseline = ctx.shaped_text.baseline();
                 resolved = TEXT.resolved();
                 ctx.caret_origin = None;
                 ctx.caret_selection_origin = None;

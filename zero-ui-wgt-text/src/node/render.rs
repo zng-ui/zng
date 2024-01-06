@@ -177,7 +177,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let new_is_focused = args.is_focused(WIDGET.id());
+                let new_is_focused = args.is_focus_within(WIDGET.id());
                 if is_focused != new_is_focused {
                     WIDGET.render();
                     is_focused = new_is_focused;
@@ -189,14 +189,14 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
 
             if let Some(range) = r_txt.caret.selection_range() {
                 let l_txt = TEXT.laidout();
-                let r_txt = r_txt.segmented_text.text();
+                let txt = r_txt.segmented_text.text();
 
                 let mut selection_color = SELECTION_COLOR_VAR.get();
-                if !is_focused {
+                if !is_focused && !r_txt.selection_toolbar_is_open {
                     selection_color = selection_color.desaturate(100.pct());
                 }
 
-                for line_rect in l_txt.shaped_text.highlight_rects(range, r_txt) {
+                for line_rect in l_txt.shaped_text.highlight_rects(range, txt) {
                     if !line_rect.size.is_empty() {
                         frame.push_color(line_rect, FrameValue::Value(selection_color.into()));
                     }

@@ -235,6 +235,11 @@ impl FocusChangedArgs {
     pub fn is_focused(&self, widget_id: WidgetId) -> bool {
         self.new_focus.as_ref().map(|p| p.widget_id() == widget_id).unwrap_or(false)
     }
+
+    /// If the widget is in the new focus path.
+    pub fn is_focus_within(&self, widget_id: WidgetId) -> bool {
+        self.new_focus.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
+    }
 }
 
 impl ReturnFocusChangedArgs {

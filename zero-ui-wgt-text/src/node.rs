@@ -295,8 +295,8 @@ pub struct ResolvedText {
     /// Set to `true` on touch interactions and set to `false` on other interactions.
     pub selection_by: SelectionBy,
 
-    /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
-    baseline: Px,
+    /// If the selection toolbar is open.
+    pub selection_toolbar_is_open: bool,
 }
 impl fmt::Debug for ResolvedText {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -308,6 +308,7 @@ impl fmt::Debug for ResolvedText {
             .field("pending_edit", &self.pending_edit)
             .field("caret", &self.caret)
             .field("selection_by", &self.selection_by)
+            .field("selection_toolbar_is_open", &self.selection_toolbar_is_open)
             .finish_non_exhaustive()
     }
 }
@@ -903,6 +904,18 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                 if SELECTION_TOOLBAR_FN_VAR.is_new() {
                     close = true;
                 }
+                if let Some(state) = popup_state.as_ref().and_then(|s| s.get_new()) {
+                    let is_open = !matches!(state, PopupState::Closed);
+                    let mut r_txt = TEXT.resolve();
+                    if r_txt.selection_toolbar_is_open != is_open {
+                        r_txt.selection_toolbar_is_open = is_open;
+                        WIDGET.layout().render();
+
+                        if !is_open {
+                            popup_state = None;
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -910,6 +923,8 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             if let Some(state) = &popup_state.take() {
                 selection_range = None;
                 POPUP.close(state);
+                TEXT.resolve().selection_toolbar_is_open = false;
+                WIDGET.layout().render();
             }
         }
         if open {
@@ -1009,7 +1024,12 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
 
                     let mut anchor_mode = AnchorMode::tooltip();
                     anchor_mode.transform = AnchorTransform::None;
-                    popup_state = Some(POPUP.open_config(node, anchor_mode, capture));
+                    let state = POPUP.open_config(node, anchor_mode, capture);
+                    state.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+                    popup_state = Some(state);
+                    drop(r_txt);
+                    TEXT.resolve().selection_toolbar_is_open = true;
+                    WIDGET.layout().render();
                 }
             };
         }

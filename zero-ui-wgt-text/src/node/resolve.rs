@@ -22,10 +22,7 @@ use zero_ui_ext_input::{
 use zero_ui_ext_l10n::LANG_VAR;
 use zero_ui_ext_undo::UNDO;
 use zero_ui_ext_window::{cmd::CANCEL_IME_CMD, WINDOW_Ext as _, WindowLoadingHandle, IME_EVENT};
-use zero_ui_layout::{
-    context::{LayoutDirection, DIRECTION_VAR},
-    unit::Px,
-};
+use zero_ui_layout::context::{LayoutDirection, DIRECTION_VAR};
 use zero_ui_view_api::keyboard::{Key, KeyState};
 use zero_ui_wgt::prelude::*;
 
@@ -63,7 +60,6 @@ fn resolve_text_context(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode 
                 segmented_text: SegmentedText::new(Txt::from_static(""), LayoutDirection::LTR),
                 pending_layout: PendingLayout::empty(),
                 pending_edit: false,
-                baseline: Px(0),
                 caret: CaretInfo {
                     opacity: var(0.fct()).read_only(),
                     index: None,
@@ -74,6 +70,7 @@ fn resolve_text_context(child: impl UiNode, text: BoxedVar<Txt>) -> impl UiNode 
                     skip_next_scroll: false,
                 },
                 selection_by: SelectionBy::Command,
+                selection_toolbar_is_open: false,
             })));
 
             RESOLVED_TEXT.with_context(&mut resolved, || child.init());

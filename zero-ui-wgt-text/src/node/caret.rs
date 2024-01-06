@@ -16,7 +16,7 @@ use zero_ui_app::{
 use zero_ui_app_context::{context_local, LocalContext};
 use zero_ui_color::colors;
 use zero_ui_ext_input::{
-    focus::FOCUS,
+    focus::FOCUS_CHANGED_EVENT,
     mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::{TOUCH_INPUT_EVENT, TOUCH_MOVE_EVENT},
@@ -97,6 +97,8 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
 /// Caret visuals defined by [`INTERACTIVE_CARET_VISUAL_VAR`].
 pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
     let mut carets: Vec<Caret> = vec![];
+    let mut is_focused = false;
+
     struct Caret {
         id: WidgetId,
         input: Arc<Mutex<InteractiveCaretInputMut>>,
@@ -104,10 +106,20 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&INTERACTIVE_CARET_VISUAL_VAR).sub_var_layout(&INTERACTIVE_CARET_VAR);
+            is_focused = false;
         }
         UiNodeOp::Deinit => {
             for caret in carets.drain(..) {
                 LAYERS.remove(caret.id);
+            }
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                let new_is_focused = args.is_focus_within(WIDGET.id());
+                if is_focused != new_is_focused {
+                    WIDGET.layout();
+                    is_focused = new_is_focused;
+                }
             }
         }
         UiNodeOp::Update { .. } => {
@@ -125,8 +137,9 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             let line_height_half = TEXT.laidout().shaped_text.line_height() / Px(2);
 
             let mut expected_len = 0;
+
             if r_txt.caret.index.is_some()
-                && FOCUS.focused().with(|p| matches!(p, Some(p) if p.widget_id() == WIDGET.id()))
+                && (is_focused || r_txt.selection_toolbar_is_open)
                 && r_txt.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get())
             {
                 if r_txt.caret.selection_index.is_some() {
