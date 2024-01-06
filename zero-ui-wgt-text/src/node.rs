@@ -14,6 +14,7 @@ use zero_ui_ext_input::{
     mouse::MOUSE_INPUT_EVENT,
     touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT},
 };
+use zero_ui_ext_window::WINDOW_Ext as _;
 use zero_ui_view_api::{mouse::ButtonState, touch::TouchPhase};
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_data::{DataNoteHandle, DATA};
@@ -994,6 +995,8 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         UiNodeOp::Render { frame } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
+                            let transform = adjust_viewport_bound(transform, c);
+
                             frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
                                 c.render(frame)
                             });
@@ -1001,6 +1004,8 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
                         UiNodeOp::RenderUpdate { update } => {
                             let l_txt = TEXT.laidout();
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
+                            let transform = adjust_viewport_bound(transform, c);
+
                             update.with_transform(transform_key.update(transform, true), false, |update| c.render_update(update));
                         }
                         _ => {}
@@ -1034,4 +1039,25 @@ pub fn selection_toolbar_node(child: impl UiNode) -> impl UiNode {
             };
         }
     })
+}
+fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
+    let window_bounds = WINDOW.vars().actual_size_px().get();
+    let wgt_bounds = PxBox::from(
+        widget
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.bounds().outer_size())
+            .unwrap_or_else(PxSize::zero),
+    );
+    let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
+
+    let x_underflow = -wgt_bounds.min.x.min(Px(0));
+    let x_overflow = (wgt_bounds.max.x - window_bounds.width).max(Px(0));
+    let y_underflow = -wgt_bounds.min.y.min(Px(0));
+    let y_overflow = (wgt_bounds.max.y - window_bounds.height).max(Px(0));
+
+    let x = x_underflow - x_overflow;
+    let y = y_underflow - y_overflow;
+
+    let correction = PxVector::new(x, y);
+
+    transform.then_translate(correction.cast())
 }

@@ -1,9 +1,5 @@
 # TextInput
 
-* Selection toolbar is not viewport bound.
-    - Opening it close to a window border clips the toolbar.
-    - The layer uses AnchorMode::viewport_bound, but we manually implement positioning.
-
 * Opening a text file in the editor example causes an accesskit panic.
 
 # Publish

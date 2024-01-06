@@ -1226,6 +1226,8 @@ pub struct AnchorMode {
 
     /// After the `transform` and `size` are resolved the transform is adjusted so that the layered widget is
     /// fully visible in the window.
+    ///
+    /// Has no effect if [`AnchorTransform::None`].
     pub viewport_bound: bool,
 
     /// If the widget is only layout if the anchor widget is not [`Collapsed`] and is only rendered
