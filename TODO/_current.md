@@ -1,6 +1,14 @@
 * Scroll changing to start showing scrollbar causes accesskit panic.
-    - Scrollbar "Controls" the scroll.
-    - Scroll not included in update.
+    - Scrollbar inserted, but parent node with updated children list not included.
+    - Scrollbar is present in info tree from the start, but it is collapsed.
+        - Collapsed widgets are not send to accesskit.
+    - Test setting actual Visibility does not cause panic.
+        - Something about how the scrollbar is collapsed?
+
+# TextInput
+
+* on_click does not work in TextInput.
+    - We stop propagation of mouse input?
 
 # Publish
 
