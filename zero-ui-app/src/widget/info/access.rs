@@ -560,9 +560,20 @@ impl WidgetInfo {
             .map(|w| w.access().unwrap())
     }
 
-    fn access_children_ids(&self) -> Vec<zero_ui_view_api::access::AccessNodeId> {
+    fn access_children_ids(&self, is_prev: bool) -> Vec<zero_ui_view_api::access::AccessNodeId> {
         self.access_children()
-            .filter_map(|w| if w.is_local_accessible() { Some(w.info.id().into()) } else { None })
+            .filter_map(|w| {
+                if w.is_local_accessible() {
+                    if is_prev && w.access().view_bounds.lock().is_none() {
+                        // was collapsed
+                        None
+                    } else {
+                        Some(w.info.id().into())
+                    }
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 
@@ -1032,6 +1043,7 @@ impl WidgetAccessInfo {
         }
 
         let mut bounds_changed = false;
+        let mut vis_changed = false;
         if self.info.is_reused() {
             // no info change, check bounds that can change every render
 
@@ -1045,18 +1057,21 @@ impl WidgetAccessInfo {
                 return;
             }
 
+            vis_changed = prev_bounds.is_none() && bounds.is_some();
+
             *prev_bounds = bounds;
         }
         let bounds_changed = bounds_changed;
+        let vis_changed = vis_changed;
 
         if let Some(prev) = prev_tree.get(self.info.id()) {
-            let was_accessible = prev.access().map(|w| w.is_local_accessible()).unwrap_or(false);
+            let was_accessible = !vis_changed && prev.access().map(|w| w.is_local_accessible()).unwrap_or(false);
             if let (true, Some(prev)) = (was_accessible, prev.access()) {
                 let mut children = None;
                 if bounds_changed || !prev.access().info_eq(self.access()) || {
                     // check children and cache result
-                    let c = self.info.access_children_ids();
-                    let changed = c != prev.info.access_children_ids();
+                    let c = self.info.access_children_ids(false);
+                    let changed = c != prev.info.access_children_ids(true);
                     children = Some(c);
                     changed
                 } {
@@ -1158,7 +1173,7 @@ impl WidgetAccessInfo {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 struct ViewBoundsInfo {
     transform: PxTransform,
     size: PxSize,
