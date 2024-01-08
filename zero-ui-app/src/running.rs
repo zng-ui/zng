@@ -449,7 +449,7 @@ impl<E: AppExtension> RunningApp<E> {
             Event::LowMemory => {}
 
             Event::RecoveredFromComponentPanic { component, recover, panic } => {
-                tracing::error!("view-process component panicked\n  component: {component}\n  recover: {recover}\n```panic\n{panic}\n```");
+                tracing::error!("view-process recovered from internal component panic\n  component: {component}\n  recover: {recover}\n```panic\n{panic}\n```");
             }
 
             // Others

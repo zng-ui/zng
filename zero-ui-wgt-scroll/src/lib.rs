@@ -29,7 +29,22 @@ use zero_ui_wgt_container::{child_align, Container};
 use zero_ui_wgt_input::focus::{focus_scope, focus_scope_behavior};
 
 /// A single content container that can be larger on the inside.
-#[widget($crate::Scroll)]
+///
+/// # Shorthand
+///
+/// The `Scroll!` macro provides shorthand syntax:
+///
+/// * `Scroll!($child:expr)` creates a default scroll with the child widget.
+/// * `Scroll!($mode:expr, $child:expr)` Creates a scroll with the [`ScrollMode`] and child widget.
+#[widget($crate::Scroll {
+    ($mode:expr, $child:expr) => {
+        mode = $mode;
+        $child = $child;
+    };
+    ($child:expr) => {
+        child = $child;
+    };
+})]
 pub struct Scroll(ScrollUnitsMix<ScrollbarFnMix<Container>>);
 
 /// Scroll mode.
