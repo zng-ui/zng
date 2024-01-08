@@ -46,8 +46,9 @@ pub use types::*;
 /// The `Stack!` macro provides shorthand syntax:
 ///
 /// * `Stack!($children:expr)` creates a Z stack.
-/// * `Stack!($direction:ident, $children:expr)` create stack on the given direction, the first parameter is
+/// * `Stack!($direction:ident, $children:expr)` create stack on the given direction. The first parameter is the first parameter is
 ///   the name of one of the [`LayoutDirection`] associated functions.
+/// * `Stack!($direction:ident, $spacing:expr, $children:expr)` create stack with the given direction, spacing between items and the items.
 ///
 /// # `stack_nodes`
 ///
@@ -64,7 +65,12 @@ pub use types::*;
     ($direction:ident, $children:expr) => {
         direction = $crate::StackDirection::$direction();
         children = $children;
-    }
+    };
+    ($direction:ident, $spacing:expr, $children:expr) => {
+        direction = $crate::StackDirection::$direction();
+        spacing = $spacing;
+        children = $children;
+    };
 })]
 pub struct Stack(WidgetBase);
 impl Stack {

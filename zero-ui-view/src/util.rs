@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::backtrace::Backtrace;
 use std::cell::RefCell;
 use std::fmt;
@@ -914,16 +915,10 @@ pub(crate) struct SupressedPanic {
     pub backtrace: Backtrace,
 }
 impl SupressedPanic {
-    pub fn new(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
+    pub fn from_hook(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
-        let msg = match info.payload().downcast_ref::<&'static str>() {
-            Some(s) => s,
-            None => match info.payload().downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<dyn Any>",
-            },
-        };
+        let msg = Self::payload(info.payload());
 
         let (file, line, column) = if let Some(l) = info.location() {
             (l.file(), l.line(), l.column())
@@ -932,12 +927,34 @@ impl SupressedPanic {
         };
         Self {
             thread: thread.to_txt(),
-            msg: msg.to_txt(),
+            msg,
             file: file.to_txt(),
             line,
             column,
             backtrace,
         }
+    }
+
+    pub fn from_catch(p: Box<dyn Any>) -> Self {
+        Self {
+            thread: Txt::from("<unknown>"),
+            msg: Self::payload(&*p),
+            file: Txt::from("<unknown>"),
+            line: 0,
+            column: 0,
+            backtrace: Backtrace::disabled(),
+        }
+    }
+
+    fn payload(p: &dyn Any) -> Txt {
+        match p.downcast_ref::<&'static str>() {
+            Some(s) => s,
+            None => match p.downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<dyn Any>",
+            },
+        }
+        .to_txt()
     }
 }
 impl std::error::Error for SupressedPanic {}
@@ -955,7 +972,12 @@ impl fmt::Display for SupressedPanic {
 pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, Box<SupressedPanic>> {
     SUPPRESS.set(true);
     let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
-    std::panic::catch_unwind(f).map_err(|_| SUPPRESSED_PANIC.with_borrow_mut(|p| Box::new(p.take().unwrap())))
+    std::panic::catch_unwind(f).map_err(|e| {
+        SUPPRESSED_PANIC.with_borrow_mut(|p| match p.take() {
+            Some(p) => Box::new(p),
+            None => Box::new(SupressedPanic::from_catch(e)),
+        })
+    })
 }
 
 struct RunOnDrop<F: FnOnce()>(Option<F>);
