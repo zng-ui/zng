@@ -1,4 +1,6 @@
-* Opening a text file in the editor example causes an accesskit panic.
+* Scroll changing to start showing scrollbar causes accesskit panic.
+    - Scrollbar "Controls" the scroll.
+    - Scroll not included in update.
 
 # Publish
 
