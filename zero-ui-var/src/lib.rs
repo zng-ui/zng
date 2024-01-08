@@ -1173,7 +1173,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: impl Fn(&VarHookArgs<T>) -> bool + Send + Sync + 'static) -> VarHandle {
-        // !!: TODO, rename after refactor, so we don't miss any .hook.
         self.hook_any(Box::new(move |a| pos_modify_action(&a.as_strong().unwrap())))
     }
 
