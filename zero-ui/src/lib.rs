@@ -695,6 +695,108 @@ pub mod task {
 
 /// Color and gradient types, functions, properties and macros.
 ///
+/// # Colors
+///
+/// The example demonstrates multiple ways of declaring or selecting a color, all blue in this case.
+///  
+/// ```
+/// use zero_ui::prelude::*;
+///
+/// fn sample(color: impl IntoVar<color::Rgba>) -> impl UiNode {
+///     Wgt! {
+///         layout::size = (100, 40);
+///         widget::background_color = color;
+///     }
+/// }
+///
+/// # let _scope = APP.defaults();
+/// # let _ = 
+/// Window! {
+///     child = Stack!(top_to_bottom, 5, ui_vec![
+///         sample(hex!(#00F)),
+///         sample(rgb(0, 0, 255)),
+///         sample(rgb(0.0, 0.0, 1.0)),
+///         sample(colors::BLUE),
+///         sample(hsv(240.deg(), 100.pct(), 100.pct())),
+///         sample(hsl(240.deg(), 100.pct(), 50.pct())),
+///     ]);
+/// }
+/// # ;
+/// ```
+///
+/// The [`color::Rgba`] type also provides methods for basic color manipulation and mixing.
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # fn sample(_: impl IntoVar<color::Rgba>) -> impl UiNode {
+/// # widget::node::NilUiNode
+/// # }
+/// # let _ = ui_vec![
+/// sample(colors::GREEN.darken(50.pct())),
+/// sample(colors::GREEN),
+/// sample(colors::GREEN.lighten(50.pct())),
+/// sample(colors::GREEN.desaturate(50.pct())),
+/// sample(colors::GREEN.with_alpha(50.pct()).mix_normal(colors::BLUE)),
+/// # ];
+/// ```
+///
+/// Color mixing methods apply the color over the parameter, that is `foreground.mix_normal(background)`.
+/// 
+/// # Color Filters
+/// 
+/// The [`color::filter`] module provides implementation of pixel filter graphical effects that you may be
+/// familiar with from CSS. 
+/// 
+/// ```
+/// use zero_ui::prelude::*;
+/// 
+/// # let _scope = APP.defaults();
+/// # let _ =
+/// Window! {
+///     clear_color = colors::BLACK.transparent();
+///     color::filter::opacity = 50.pct();
+///     child = Text!("translucent window");
+/// } 
+/// # ;
+/// ```
+/// 
+/// The example above applies [`color::filter::opacity`] on the window, making it translucent in view-process
+/// implementations that support transparent windows.
+/// 
+/// [`color::filter::opacity`]: fn@color::filter::opacity
+/// 
+/// # Gradients
+///
+/// The [`color::gradient`] module provides implementation of linear, radial and conic gradients. Usually the
+/// gradient nodes are wrapped in some other property like [`widget::background_conic`], but they can be used directly.
+/// 
+/// [`widget::background_conic`]: fn@widget::background_conic
+/// 
+/// ```
+/// use zero_ui::prelude::*;
+/// 
+/// # let _scope = APP.defaults();
+/// # let _ =
+/// Window! {
+///     widget::background = color::gradient::conic_gradient(50.pct(), 45.deg(), color::gradient::stops![
+///         colors::GREEN, (colors::RED, 30.pct()), colors::BLUE
+///     ]);
+///     // OR
+///     widget::background_conic = {
+///         center: 50.pct(),
+///         angle: 45.deg(),
+///         stops: color::gradient::stops![
+///             colors::GREEN, (colors::RED, 30.pct()), colors::BLUE
+///         ],
+///     };
+/// }
+/// # ;
+/// ```
+/// 
+/// See [`color::gradient::stops!`] for the macro syntax.
+/// 
+/// # Full API
+///
 /// See [`zero_ui_color`], [`zero_ui_wgt_filter`] and [`zero_ui_wgt_fill`] for the full API.
 pub mod color {
     pub use zero_ui_color::{

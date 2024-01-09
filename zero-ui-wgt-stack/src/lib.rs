@@ -46,9 +46,13 @@ pub use types::*;
 /// The `Stack!` macro provides shorthand syntax:
 ///
 /// * `Stack!($children:expr)` creates a Z stack.
-/// * `Stack!($direction:ident, $children:expr)` create stack on the given direction. The first parameter is the first parameter is
+/// * `Stack!($direction:ident, $children:expr)` create stack on the given direction. The first parameter is
 ///   the name of one of the [`LayoutDirection`] associated functions.
 /// * `Stack!($direction:ident, $spacing:expr, $children:expr)` create stack with the given direction, spacing between items and the items.
+/// * `Stack!($direction:expr, $children:expr)` create stack on the given direction. The first parameter is an expression of
+/// type [`LayoutDirection`]. Note that to avoid conflict with the alternative (`$direction:ident`) you can use braces `{my_direction}`.
+/// * `Stack!($direction:expr, $spacing:expr, $children:expr)` create stack with the given direction expression, spacing between items 
+/// and the items.
 ///
 /// # `stack_nodes`
 ///
@@ -68,6 +72,15 @@ pub use types::*;
     };
     ($direction:ident, $spacing:expr, $children:expr) => {
         direction = $crate::StackDirection::$direction();
+        spacing = $spacing;
+        children = $children;
+    };
+    ($direction:expr, $children:expr) => {
+        direction = $direction;
+        children = $children;
+    };
+    ($direction:expr, $spacing:expr, $children:expr) => {
+        direction = $direction;
         spacing = $spacing;
         children = $children;
     };
