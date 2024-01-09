@@ -1,3 +1,8 @@
+# Documentation
+
+* Add better documentation, examples, for all modules in the main crate.
+* Review docs in other crates, they must link to the main crate?
+
 # Publish
 
 * Publish if there is no missing component that could cause a core API refactor.
@@ -8,7 +13,6 @@
     - `zerui`.
     - `nestui`.
 
-* Review all docs.
 * Review prebuild distribution.
 * Pick license and code of conduct.
 * Create a GitHub user for the project?

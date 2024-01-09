@@ -51,7 +51,7 @@ pub use types::*;
 /// * `Stack!($direction:ident, $spacing:expr, $children:expr)` create stack with the given direction, spacing between items and the items.
 /// * `Stack!($direction:expr, $children:expr)` create stack on the given direction. The first parameter is an expression of
 /// type [`LayoutDirection`]. Note that to avoid conflict with the alternative (`$direction:ident`) you can use braces `{my_direction}`.
-/// * `Stack!($direction:expr, $spacing:expr, $children:expr)` create stack with the given direction expression, spacing between items 
+/// * `Stack!($direction:expr, $spacing:expr, $children:expr)` create stack with the given direction expression, spacing between items
 /// and the items.
 ///
 /// # `stack_nodes`

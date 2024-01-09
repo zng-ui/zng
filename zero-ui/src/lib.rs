@@ -710,7 +710,7 @@ pub mod task {
 /// }
 ///
 /// # let _scope = APP.defaults();
-/// # let _ = 
+/// # let _ =
 /// Window! {
 ///     child = Stack!(top_to_bottom, 5, ui_vec![
 ///         sample(hex!(#00F)),
@@ -741,40 +741,40 @@ pub mod task {
 /// ```
 ///
 /// Color mixing methods apply the color over the parameter, that is `foreground.mix_normal(background)`.
-/// 
+///
 /// # Color Filters
-/// 
+///
 /// The [`color::filter`] module provides implementation of pixel filter graphical effects that you may be
-/// familiar with from CSS. 
-/// 
+/// familiar with from CSS.
+///
 /// ```
 /// use zero_ui::prelude::*;
-/// 
+///
 /// # let _scope = APP.defaults();
 /// # let _ =
 /// Window! {
 ///     clear_color = colors::BLACK.transparent();
 ///     color::filter::opacity = 50.pct();
 ///     child = Text!("translucent window");
-/// } 
+/// }
 /// # ;
 /// ```
-/// 
+///
 /// The example above applies [`color::filter::opacity`] on the window, making it translucent in view-process
 /// implementations that support transparent windows.
-/// 
+///
 /// [`color::filter::opacity`]: fn@color::filter::opacity
-/// 
+///
 /// # Gradients
 ///
 /// The [`color::gradient`] module provides implementation of linear, radial and conic gradients. Usually the
 /// gradient nodes are wrapped in some other property like [`widget::background_conic`], but they can be used directly.
-/// 
+///
 /// [`widget::background_conic`]: fn@widget::background_conic
-/// 
+///
 /// ```
 /// use zero_ui::prelude::*;
-/// 
+///
 /// # let _scope = APP.defaults();
 /// # let _ =
 /// Window! {
@@ -792,9 +792,9 @@ pub mod task {
 /// }
 /// # ;
 /// ```
-/// 
+///
 /// See [`color::gradient::stops!`] for the macro syntax.
-/// 
+///
 /// # Full API
 ///
 /// See [`zero_ui_color`], [`zero_ui_wgt_filter`] and [`zero_ui_wgt_fill`] for the full API.
@@ -837,6 +837,8 @@ pub mod color {
 
 /// Layout service, units and other types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
 pub mod layout {
     pub use zero_ui_layout::unit::{
@@ -875,6 +877,8 @@ pub mod layout {
 
 /// Frame builder and other types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::render`] for the full API.
 pub mod render {
     pub use zero_ui_app::render::{
@@ -885,6 +889,8 @@ pub mod render {
 }
 
 /// Variables API.
+///
+/// # Full API
 ///
 /// See [`zero_ui_var`] for the full var API.
 pub mod var {
@@ -1050,6 +1056,8 @@ pub mod app {
 
 /// Event and command API.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::event`] for the full event API.
 pub mod event {
     pub use zero_ui_app::event::{
@@ -1062,6 +1070,8 @@ pub mod event {
 
 /// App update service and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::update`] for the full update API.
 pub mod update {
     pub use zero_ui_app::update::{
@@ -1072,6 +1082,8 @@ pub mod update {
 
 /// App timers service and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::timer`] for the full time API. Also see [`task::deadline`] for a timer decoupled from the app loop.
 pub mod timer {
     pub use zero_ui_app::timer::{
@@ -1080,6 +1092,8 @@ pub mod timer {
 }
 
 /// Widget info, builder and base, UI node and list.
+///
+/// # Full API
 ///
 /// See [`zero_ui_app::widget`] for the full API.
 pub mod widget {
@@ -1172,6 +1186,8 @@ pub mod widget {
 
 /// Event handler API.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::handler`] for the full handler API.
 pub mod handler {
     pub use zero_ui_app::handler::{
@@ -1182,6 +1198,8 @@ pub mod handler {
 
 /// Clipboard service, commands and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_clipboard`] for the full clipboard API.
 pub mod clipboard {
     pub use zero_ui_ext_clipboard::{ClipboardError, CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
@@ -1189,6 +1207,8 @@ pub mod clipboard {
 }
 
 /// Config service, sources and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_config`] for the full config API.
 pub mod config {
@@ -1199,6 +1219,8 @@ pub mod config {
 }
 
 /// Fonts service and text shaping.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_font`] for the full font and shaping API.
 pub mod font {
@@ -1215,6 +1237,8 @@ pub mod font {
 
 /// File system watcher service and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_fs_watcher`] for the full watcher API.
 pub mod fs_watcher {
     pub use zero_ui_ext_fs_watcher::{
@@ -1224,6 +1248,8 @@ pub mod fs_watcher {
 }
 
 /// Images service, widget and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_image`] for the full image API and [`zero_ui_wgt_image`] for the full widget API.
 pub mod image {
@@ -1253,6 +1279,8 @@ pub mod image {
 
 /// Accessibility service, events and properties.
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::access`] and [`zero_ui_wgt_access`] for the full API.
 pub mod access {
     pub use zero_ui_app::access::{
@@ -1275,6 +1303,8 @@ pub mod access {
 
 /// Keyboard service, properties, events and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_input::keyboard`] and [`zero_ui_wgt_input::keyboard`] for the full keyboard API.
 pub mod keyboard {
     pub use zero_ui_app::shortcut::ModifiersState;
@@ -1291,6 +1321,8 @@ pub mod keyboard {
 }
 
 /// Mouse service, properties, events and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_input::mouse`] and [`zero_ui_wgt_input::mouse`] for the full mouse API.
 pub mod mouse {
@@ -1317,6 +1349,8 @@ pub mod mouse {
 
 /// Touch service, properties, events and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_input::touch`] and [`zero_ui_wgt_input::touch`] for the full touch API.
 pub mod touch {
     pub use zero_ui_ext_input::touch::{
@@ -1338,6 +1372,8 @@ pub mod touch {
 
 /// Touch service, properties, events and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
 pub mod focus {
     pub use zero_ui_ext_input::focus::{
@@ -1356,6 +1392,8 @@ pub mod focus {
 
 /// Pointer capture service, properties, events and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_input::pointer_capture`] and [`zero_ui_wgt_input::pointer_capture`] for the full pointer capture API.
 pub mod pointer_capture {
     pub use zero_ui_ext_input::pointer_capture::{CaptureInfo, CaptureMode, PointerCaptureArgs, POINTER_CAPTURE, POINTER_CAPTURE_EVENT};
@@ -1367,6 +1405,8 @@ pub mod pointer_capture {
 }
 
 /// Gesture service, properties, events, shortcuts and other types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_input::gesture`] and [`zero_ui_wgt_input::gesture`] for the full gesture API
 /// and [`zero_ui_app::shortcut`] for the shortcut API.
@@ -1394,6 +1434,8 @@ pub mod gesture {
 
 /// Localization service, sources and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_ext_l10n`] for the full localization API.
 pub mod l10n {
     pub use zero_ui_ext_l10n::{
@@ -1403,6 +1445,8 @@ pub mod l10n {
 }
 
 /// Undo service, commands and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_undo`] for the full undo API.
 pub mod undo {
@@ -1427,6 +1471,8 @@ pub mod undo {
 
 /// Data context types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_data`] for the full API.
 pub mod data_context {
     pub use zero_ui_wgt_data::{
@@ -1438,6 +1484,8 @@ pub mod data_context {
 }
 
 /// Window service, widget, events, commands and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_ext_window`], [`zero_ui_app::window`] and [`zero_ui_wgt_window`] for the full window API.
 pub mod window {
@@ -1473,6 +1521,10 @@ pub mod window {
 }
 
 /// Debug inspection helpers.
+///
+/// # Full API
+///
+/// See [`zero_ui_wgt_inspector`] for the full API.
 pub mod inspector {
     pub use zero_ui_wgt_inspector::debug::{
         show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode,
@@ -1480,6 +1532,8 @@ pub mod inspector {
 }
 
 /// Text widget, properties and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_text`] for the full widget API.
 pub mod text {
@@ -1507,6 +1561,8 @@ pub mod text {
 
 /// Icon widget and types.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_text::icon`] for the full widget API.
 pub mod icon {
     pub use zero_ui_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
@@ -1517,6 +1573,8 @@ pub mod icon {
 
 /// Container widget.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_container`] for the full widget API.
 pub mod container {
     pub use zero_ui_wgt_container::{
@@ -1525,6 +1583,8 @@ pub mod container {
 }
 
 /// Button widget, style and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_button`] for the full widget API.
 pub mod button {
@@ -1535,6 +1595,8 @@ pub mod button {
 
 /// ANSI text widget.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_ansi_text`] for the full widget API.
 pub mod ansi_text {
     pub use zero_ui_wgt_ansi_text::{
@@ -1544,12 +1606,16 @@ pub mod ansi_text {
 
 /// Checkerboard visual widget.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_checkerboard`] for the full widget API.
 pub mod checkerboard {
     pub use zero_ui_wgt_checkerboard::{cb_offset, cb_size, colors, node, Checkerboard};
 }
 
 /// Grid layout widgets.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_grid`] for the full widget API.
 pub mod grid {
@@ -1575,12 +1641,16 @@ pub mod grid {
 
 /// Window layers.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_layer`] for the full layers API.
 pub mod layer {
     pub use zero_ui_wgt_layer::{adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
 }
 
 /// Popup widget and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_layer::popup`] for the full widget API.
 pub mod popup {
@@ -1592,6 +1662,8 @@ pub mod popup {
 }
 
 /// Markdown widget, properties and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_markdown`] for the full widget API.
 pub mod markdown {
@@ -1606,6 +1678,8 @@ pub mod markdown {
 }
 
 /// Menu widgets, properties and types.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_menu`] for the full widget API.
 pub mod menu {
@@ -1634,12 +1708,16 @@ pub mod menu {
 
 /// Panel layout widget.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_panel`] for the full widget API.
 pub mod panel {
     pub use zero_ui_wgt_panel::{node, panel_fn, Panel, PanelArgs};
 }
 
 /// Rule line widgets and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_rule_line`] for the full widget API.
 pub mod rule_line {
@@ -1657,6 +1735,8 @@ pub mod rule_line {
 }
 
 /// Scroll widgets, commands and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_scroll`] for the full widget API.
 pub mod scroll {
@@ -1690,6 +1770,8 @@ pub mod scroll {
 
 /// Stack layout widget, nodes and properties.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_stack`] for the full widget API.
 pub mod stack {
     pub use zero_ui_wgt_stack::{
@@ -1699,6 +1781,8 @@ pub mod stack {
 }
 
 /// Text input widget and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_text_input`] for the full widget API.
 pub mod text_input {
@@ -1710,6 +1794,8 @@ pub mod text_input {
 
 /// Label widget and properties.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_text_input::label`] for the full widget API.
 pub mod label {
     pub use zero_ui_wgt_text_input::label::{extend_style, replace_style, DefaultStyle, Label};
@@ -1717,12 +1803,16 @@ pub mod label {
 
 /// Selectable text widget and properties.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_text_input::selectable`] for the full widget API.
 pub mod selectable {
     pub use zero_ui_wgt_text_input::selectable::{extend_style, replace_style, DefaultStyle, SelectableText};
 }
 
 /// Toggle button widget and styles for check box, combo box, radio button and switch button.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_toggle`] for the full widget API.
 pub mod toggle {
@@ -1740,6 +1830,8 @@ pub mod toggle {
 
 /// Tooltip properties and widget.
 ///
+/// # Full API
+///
 /// See [`zero_ui_wgt_tooltip`] for the full tooltip API.
 pub mod tip {
     pub use zero_ui_wgt_tooltip::{
@@ -1750,6 +1842,8 @@ pub mod tip {
 }
 
 /// View widgets and nodes.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_view`] for the full view API.
 pub mod view {
@@ -1764,6 +1858,8 @@ pub mod switch {
 }
 
 /// Wrap layout widget and properties.
+///
+/// # Full API
 ///
 /// See [`zero_ui_wgt_wrap`] for the full view API.
 pub mod wrap {
