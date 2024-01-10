@@ -4,18 +4,11 @@
 
 # zero-ui
 
-Zero-Ui is the pure Rust GUI framework with batteries included.
+Zero-Ui is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
+fast and responsive multi-platform apps. Ready made highly customizable widgets, automatic focus and accessibility
+management, responsive layout, data binding, easy localization and async tasks.
 
-It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
-that allow you to get started quickly, without sacrificing customization or performance. With features like gesture events,
-common widgets, layouts, data binding, async tasks, accessibility and localization
-you can focus on what makes your app unique, not the boilerplate required to get modern apps up to standard.
-
-When you do need to customize, Zero-Ui is rightly flexible, you can create new widgets or customize existing ones, not just
-new looks but new behavior, at a lower level you can introduce new event types or new event sources, making custom hardware seamless
-integrate into the framework.
-
-# Usage
+## Usage
 
 First add this to your `Cargo.toml`:
 
@@ -52,36 +45,6 @@ fn main() {
 
 See the [`API docs`] front page for more details.
 
-# Dependencies
-
-Extra system dependencies needed for building a crate that uses the `zero-ui` crate.
-
-## Windows
-
-You just need the latest stable Rust toolchain installed.
-
-## Linux
-
-* Latest stable Rust.
-* `build-essential` or equivalent C/C++ compiler package.
-* `cmake`
-* `pkg-config`
-* `libssl-dev`
-* `libfreetype6-dev`
-* `libfontconfig1-dev`
-
-Linux support is tested using the Windows Subsystem for Linux (Ubuntu image).
-
-## Other Dependencies
-
-For debugging this project you may also need [`cargo-expand`]
-and the nightly toolchain for debugging macros (`do expand`), [`cargo-asm`] for checking
-optimization (`do asm`).
-
-You also need the nightly toolchain for building the documentation (`do doc`), although you can
-build the documentation in stable using `cargo doc`, but custom pages like widget items may not
-render properly because of changes in the `cargo-doc` HTML templates.
-
 ## `cargo do`
 
 There is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
@@ -95,7 +58,12 @@ Shell script to run `do` are also provided:
  * PowerShell: `./do.ps1 help`.
  * Bash: `/.do help`.
 
- ## VSCode & Rust Analyzer
+### `cargo do install`
+
+The task runner depends on multiple cargo commands, you can run `cargo do install` to see a list of all required commands and run `cargo do install --accept` to run the installation commands.
+
+
+## VSCode & Rust Analyzer
 
 Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
 and runnables are redirected to the `do` tool.

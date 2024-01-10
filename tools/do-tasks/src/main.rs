@@ -40,18 +40,6 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["component", "add", "clippy"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
-        cmd(
-            "cargo",
-            &[
-                "install",
-                "--git",
-                "https://github.com/rust-lang/measureme",
-                "--branch",
-                "stable",
-                "summarize",
-            ],
-            &[],
-        );
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -62,7 +50,6 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-asm");
-        println("   cargo install --git https://github.com/rust-lang/measureme --branch stable summarize");
     }
 }
 

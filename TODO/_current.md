@@ -1,6 +1,7 @@
 # Documentation
 
-* Split off a `CONTRIBUTING.md` for the main crate.
+* Add build dependencies for each operating system on the main `README.md`.
+* Add feature documentation in `README.md` usage.
 * Add `description`, `documentation`, `repository`, `readme`, `caregories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
