@@ -58,3 +58,8 @@
 
 * Hyphenation does not backtrack, the word hyphenation end-up split as "hy-phe-nation" when it could be "hyphe-nation".
     - This is because the split segments are never rejoined?
+
+# ANSI Text
+
+* Implement way to modify the parsed style.
+* Implement way to override colors.
