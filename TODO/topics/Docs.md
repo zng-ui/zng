@@ -7,11 +7,6 @@
 * Review all docs.
     - Mentions of threads in particular.
 
-* Figure out how to test some doc examples. 
-  There are multiple code examples wrapped in a `macro_rules! _demo {() => { .. }}` declaration because
-  it demonstrates the widget or property integrated on a full app context, but the crate can't depend on
-  the full app.
-
 * Widget image/videos rendering from doc-tests.
 
 * Generate feature docs from `Cargo.toml` comments.

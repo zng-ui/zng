@@ -1,14 +1,16 @@
 # Documentation
 
+* Split main crate lib.rs into modules, because of docs mostly.
+    - Internal docs `//!` can reference items in the module without needing to import.
 * Split off a `CONTRIBUTING.md` for the main crate.
 * Add `description`, `documentation`, `repository`, `readme`, `caregories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
 * Add better documentation, examples, for all modules in the main crate.
-    - Search TODO in doc comments.
 * Review docs in the component crates.
     - They must link to the main crate on the start page.
     - Remove all examples using hidden macro_rules! hack.
+        - Search for `///.*macro_rules! _`.
 * Add `README.md` for each crate that mentions that it is a component of the project crate.
     - Use `#[doc = include_str!("README.md")]` in all crates.
 
