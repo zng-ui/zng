@@ -1907,7 +1907,7 @@ impl ContentCtrl {
     #[must_use]
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         let win_id = WINDOW.id();
-        if info_widgets.delivery_list().enter_window(win_id) {
+        if info_widgets.delivery_list().enter_window(win_id) && matches!(self.init_state, InitState::Inited) {
             let mut info = WidgetInfoBuilder::new(
                 info_widgets,
                 win_id,
@@ -1946,9 +1946,12 @@ impl ContentCtrl {
     }
 
     pub fn ui_event(&mut self, update: &EventUpdate) {
-        debug_assert!(matches!(self.init_state, InitState::Inited));
-
         update.with_window(|| {
+            if !matches!(self.init_state, InitState::Inited) {
+                tracing::error!("cannot deliver `{:?}`, window `{}` is not inited", update.event(), WINDOW.id());
+                return;
+            }
+
             WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 update.with_widget(|| {
                     self.root.event(update);
@@ -1987,7 +1990,9 @@ impl ContentCtrl {
         root_font_size: Px,
         skip_auto_size: bool,
     ) -> PxSize {
-        debug_assert!(matches!(self.init_state, InitState::Inited));
+        if !matches!(self.init_state, InitState::Inited) {
+            return PxSize::zero();
+        }
 
         let _s = tracing::trace_span!("window.on_layout", window = %WINDOW.id().sequential()).entered();
 
@@ -2046,6 +2051,10 @@ impl ContentCtrl {
         render_widgets: Arc<RenderUpdates>,
         render_update_widgets: Arc<RenderUpdates>,
     ) {
+        if !matches!(self.init_state, InitState::Inited) {
+            return;
+        }
+
         let w_id = WINDOW.id();
         if render_widgets.delivery_list().enter_window(w_id) {
             // RENDER FULL FRAME

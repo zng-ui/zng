@@ -664,16 +664,9 @@ impl WindowVars {
     /// This variable can only add flags, you can enable it in the app-process using [`enable_access`], the
     /// view-process can also enable it on the first request for accessibility info by an external tool.
     ///
-    /// [`enable_access`]: Self::enable_access
+    /// [`enable_access`]: crate::WINDOW_Ext::enable_access
     pub fn access_enabled(&self) -> ReadOnlyArcVar<AccessEnabled> {
         self.0.access_enabled.read_only()
-    }
-
-    /// Enable accessibility info for the window in the app-process only if it is not already enabled.
-    pub fn enable_access(&self) {
-        if self.0.access_enabled.get().is_disabled() {
-            self.0.access_enabled.modify(|e| *e.to_mut() |= AccessEnabled::APP);
-        }
     }
 }
 impl PartialEq for WindowVars {

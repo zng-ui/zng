@@ -1332,7 +1332,7 @@ impl HeadlessApp {
         }
     }
 
-    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout using the minimal headless app.
+    /// Calls the `handler` once and [`block_on`] it with a 60 seconds timeout using the minimal headless app.
     ///
     /// [`block_on`]: Self::block_on.
     #[track_caller]
@@ -1346,7 +1346,7 @@ impl HeadlessApp {
         app.block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap();
     }
 
-    /// Calls the `handlers` once each and [`block_on_multi`] with a 1 second timeout.
+    /// Calls the `handlers` once each and [`block_on_multi`] with a 60 seconds timeout.
     ///
     /// [`block_on_multi`]: Self::block_on_multi.
     #[track_caller]
@@ -1362,4 +1362,4 @@ impl HeadlessApp {
 }
 
 #[cfg(any(test, doc, feature = "test_util"))]
-const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(5);
+const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(60);

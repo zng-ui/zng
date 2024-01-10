@@ -1454,6 +1454,15 @@ pub trait WINDOW_Ext {
         WINDOWS.is_loaded(WINDOW.id())
     }
 
+    /// Enable accessibility info for the window in the app-process only if it is not already enabled.
+    fn enable_access(&self) {
+        let vars = WINDOW.vars();
+        let access_enabled = &vars.0.access_enabled;
+        if access_enabled.get().is_disabled() {
+            access_enabled.modify(|e| *e.to_mut() |= zero_ui_app::widget::info::access::AccessEnabled::APP);
+        }
+    }
+
     /// Gets a handle that stops the window from loading while it exists.
     ///
     /// The window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*

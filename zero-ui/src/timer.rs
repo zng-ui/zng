@@ -3,7 +3,7 @@
 //! # Full API
 //!
 //! See [`zero_ui_app::timer`] for the full time API. Also see [`task::deadline`] for a timer decoupled from the app loop.
-//! 
+//!
 //! [`task::deadline`]: crate::task::deadline
 
 pub use zero_ui_app::timer::{

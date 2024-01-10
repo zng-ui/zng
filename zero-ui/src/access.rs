@@ -1,5 +1,138 @@
 //! Accessibility service, events and properties.
 //!
+//! The accessibility API helps external tools to query the state of an widget and issue programmatic commands to it.
+//! This API is mainly used by accessibility assistants like [`NVDA`] to narrate and operate the current screen, but
+//! usage is not limited to accessibility, the access provided to widgets also enables external automation tools and
+//! internal operations such as programmatically clicking a button.
+//!
+//! [`NVDA`]: https://en.wikipedia.org/wiki/NonVisual_Desktop_Access
+//!
+//! # Metadata
+//!
+//! Metadata is collected on demand during info build, there is a small performance impact to this so the access
+//! builder is only available after accessibility was requested at least once for the window.
+//!
+//! ```
+//! use zero_ui::prelude_wgt::*;
+//!
+//! # let _ =
+//! match_node_leaf(|op| match op {
+//!     UiNodeOp::Info { info } => {
+//!         if let Some(mut a) = info.access() {
+//!             // accessibility requested for this window
+//!             a.set_label("label");
+//!         }
+//!     }
+//!     _ => {}
+//! })
+//! # ;
+//! ```
+//!
+//! You can also enables access info programmatically using [`WINDOW.enable_access()`], if the view-process did not
+//! request accessibility the window still skips sending the access tree, so the performance impact is minimal.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! # let mut app = APP.defaults().run_headless(false);
+//! # app.doc_test_window(async {
+//! WINDOW.enable_access();
+//!
+//! Window! {
+//!     child = Button! { id = "btn-1"; child = Text!("Button 1") };
+//!
+//!     widget::on_info_init = hn!(|_| {
+//!         let btn_info = WINDOW.info().get("btn-1").unwrap().access().unwrap();
+//!         let txt_info = btn_info.info().children().next().unwrap().access().unwrap();
+//!     
+//!         assert_eq!(None, btn_info.label());
+//!         assert_eq!(Some(Txt::from("Button 1")), txt_info.label());
+//! # WINDOW.close();
+//!     });
+//! }
+//! # });
+//! ```
+//!
+//! When accessibility info is build you it can be accessed using [`WidgetInfo::access`]. Note that this is a low level
+//! access, the data is not processed, in the example above the *label* value is only found on the text widget, accessibility
+//! tools recognize this pattern and use the label for the button.
+//!
+//! [`WINDOW.enable_access()`]: crate::window::WINDOW_Ext::enable_access
+//! [`WidgetInfo::access`]: crate::widget::info::WidgetInfo::access
+//!
+//! ## Properties
+//!
+//! Properties of this module only define metadata that indicate that the widget implements a certain UI pattern, by
+//! setting a property you must make sure that the widget actually implements said pattern, for this reason most
+//! of the accessibility definitions are provided by the widget implementations.
+//!
+//! In the example below a `TextInput!` widget instance changes its role to [`AccessRole::SearchBox`], the default
+//! role is set by the widget itself to [`AccessRole::TextInput`], this usage of the widget has a more specific role
+//! so it can be changed, in this case it is up to the app developer to actually implement the search.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! use zero_ui::access::{access_role, AccessRole};
+//!
+//! # let _scope = APP.defaults();
+//! let search_txt = var(Txt::from(""));
+//! # let _ =
+//! TextInput! {
+//!     access_role = AccessRole::SearchBox;
+//!
+//!     widget::background = Text! {
+//!         txt = "search";
+//!         layout::padding = (8, 16, 8, 16);
+//!         color::filter::opacity = 50.pct();
+//!         widget::visibility = search_txt.map(|t| t.is_empty().into());
+//!     };
+//!     txt = search_txt;
+//! }
+//! # ;
+//! ```
+//!
+//! # Service & Events
+//!
+//! The [`ACCESS`] service provides methods that control widgets by notifying accessibility events. Access events
+//! are handled by widgets even when accessibility is disabled.
+//!
+//! In the example below the button shows and hides the tooltip of a different widget using [`ACCESS.show_tooltip`]
+//! and [`ACCESS.hide_tooltip`].
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! let mut show_tooltip = false;
+//! # let _scope = APP.defaults(); let _ =
+//! Window! {
+//!     child_align = Align::CENTER;
+//!     child = Stack!(top_to_bottom, 50,  ui_vec![
+//!         Button! {
+//!             on_click = hn!(|_| {
+//!                 use zero_ui::access::ACCESS;
+//!
+//!                 show_tooltip = !show_tooltip;
+//!                 if show_tooltip {
+//!                     ACCESS.show_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                 } else {
+//!                     ACCESS.hide_tooltip(WINDOW.id(), "tooltip-anchor");
+//!                 }
+//!             });
+//!             child = Text!("Toggle Tooltip");
+//!         },
+//!         Text! {
+//!             id = "tooltip-anchor";
+//!             txt = "tooltip anchor";
+//!             tooltip = Tip!(Text!("Tooltip"));
+//!         }
+//!     ])
+//! }
+//! # ;
+//! ```
+//!
+//! [`ACCESS.show_tooltip`]: ACCESS::show_tooltip
+//! [`ACCESS.hide_tooltip`]: ACCESS::hide_tooltip
+//!
 //! # Full API
 //!
 //! See [`zero_ui_app::access`] and [`zero_ui_wgt_access`] for the full API.

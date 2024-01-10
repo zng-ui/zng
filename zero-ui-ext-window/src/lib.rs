@@ -164,7 +164,8 @@ pub trait HeadlessAppWindowExt {
     ///
     /// The `new_window` runs inside the [`WINDOW`] context of the new window.
     ///
-    /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame.
+    /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame
+    /// or if the window already closed before the first frame.
     ///
     /// [`WINDOW`]: zero_ui_app::window::WINDOW
     fn open_window<F>(&mut self, new_window: F) -> WindowId
@@ -188,6 +189,12 @@ pub trait HeadlessAppWindowExt {
     fn run_window<F>(&mut self, new_window: F)
     where
         F: Send + Future<Output = WindowRoot> + 'static;
+
+    /// Open a new headless window and update the app until the window closes or 60 seconds elapse.
+    #[cfg(any(test, doc, feature = "test_util"))]
+    fn doc_test_window<F>(&mut self, new_window: F)
+    where
+        F: Send + Future<Output = WindowRoot> + 'static;
 }
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window<F>(&mut self, new_window: F) -> WindowId
@@ -200,12 +207,25 @@ impl HeadlessAppWindowExt for HeadlessApp {
         self.run_task(async move {
             let window_id = response.wait_rsp().await;
             if !WINDOWS.is_loaded(window_id) {
-                let rcv = FRAME_IMAGE_READY_EVENT.receiver();
-                while let Ok(args) = rcv.recv_async().await {
-                    if args.window_id == window_id {
-                        break;
+                let close_rcv = WINDOW_CLOSE_EVENT.receiver();
+                let frame_rcv = FRAME_IMAGE_READY_EVENT.receiver();
+                zero_ui_task::any!(
+                    async {
+                        while let Ok(args) = close_rcv.recv_async().await {
+                            if args.windows.contains(&window_id) {
+                                break;
+                            }
+                        }
+                    },
+                    async {
+                        while let Ok(args) = frame_rcv.recv_async().await {
+                            if args.window_id == window_id {
+                                break;
+                            }
+                        }
                     }
-                }
+                )
+                .await;
             }
             window_id
         })
@@ -261,6 +281,32 @@ impl HeadlessAppWindowExt for HeadlessApp {
         while WINDOWS.is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {
                 return;
+            }
+        }
+    }
+
+    #[cfg(any(test, doc, feature = "test_util"))]
+    fn doc_test_window<F>(&mut self, new_window: F)
+    where
+        F: Future<Output = WindowRoot> + Send + 'static,
+    {
+        use zero_ui_layout::unit::TimeUnits;
+        use zero_ui_var::Var;
+        let timer = zero_ui_app::timer::TIMERS.deadline(60.secs());
+
+        zero_ui_task::spawn(async {
+            zero_ui_task::deadline(65.secs()).await;
+            eprintln!("doc_test_window reached 65s fallback deadline");
+            std::process::exit(-1);
+        });
+        let window_id = self.open_window(new_window);
+
+        while WINDOWS.is_open(window_id) {
+            if let ControlFlow::Exit = self.update(true) {
+                return;
+            }
+            if timer.get().has_elapsed() {
+                panic!("doc_test_window reached 60s deadline");
             }
         }
     }
