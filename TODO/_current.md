@@ -1,7 +1,5 @@
 # Documentation
 
-* Split main crate lib.rs into modules, because of docs mostly.
-    - Internal docs `//!` can reference items in the module without needing to import.
 * Split off a `CONTRIBUTING.md` for the main crate.
 * Add `description`, `documentation`, `repository`, `readme`, `caregories`, `keywords`.
     - Review what other large crates do.
