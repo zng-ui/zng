@@ -1,4 +1,5 @@
 * Test touch context menu.
+* Add description tooltip (with shortcut) for command button.
 * Finish documenting button module.
 
 # Documentation

@@ -154,11 +154,18 @@ pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
 ///
 /// When this is set the button widget sets these properties if they are not set:
 ///
-/// * `child`: Set to an widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
+/// * [`child`]: Set to an widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
 /// * [`enabled`]: Set to `cmd.is_enabled()`.
 /// * [`visibility`]: Set to `cmd.has_handlers().into()`.
 /// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.
 /// * [`on_disabled_click`]: Set to a handler that notifies the command if `!cmd.is_enabled()`.
+///
+/// [`child`]: struct@Button#child
+/// [`Command`]: zero_ui_app::event::Command
+/// [`enabled`]: fn@zero_ui_wgt::enabled
+/// [`visibility`]: fn@zero_ui_wgt::visibility
+/// [`on_click`]: fn@on_click
+/// [`on_disabled_click`]: fn@on_disabled_click
 #[property(CHILD, capture, widget_impl(Button))]
 pub fn cmd(cmd: impl IntoVar<Command>) {}
 
