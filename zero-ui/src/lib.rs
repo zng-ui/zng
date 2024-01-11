@@ -519,7 +519,7 @@ pub mod prelude {
     };
 
     pub use zero_ui_app::{
-        event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, EventArgs as _},
+        event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
         shortcut::{shortcut, CommandShortcutExt as _},
         widget::{
@@ -663,8 +663,8 @@ pub mod prelude {
 pub mod prelude_wgt {
     pub use zero_ui_app::{
         event::{
-            command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
-            EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
+            command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam,
+            Event, EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
         },
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},

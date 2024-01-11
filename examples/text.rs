@@ -514,11 +514,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     child = Icon!(icon::sharp::CUT);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    enabled = cmd.flat_map(|c| c.is_enabled());
-
-                    on_click = hn!(|_| {
-                        cmd.get().notify();
-                    });
+                    visibility = true;
+                    cmd;
                 }
             },
             {
@@ -527,11 +524,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     child = Icon!(icon::sharp::COPY);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    enabled = cmd.flat_map(|c| c.is_enabled());
-
-                    on_click = hn!(|_| {
-                        cmd.get().notify();
-                    });
+                    visibility = true;
+                    cmd;
                 }
             },
             {
@@ -540,11 +534,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     child = Icon!(icon::sharp::PASTE);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    enabled = cmd.flat_map(|c| c.is_enabled());
-
-                    on_click = hn!(|_| {
-                        cmd.get().notify();
-                    });
+                    visibility = true;
+                    cmd;
                 }
             },
             rule_line::vr::Vr!(),

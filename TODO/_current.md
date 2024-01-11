@@ -1,3 +1,6 @@
+* Replace `CmdButton` with `Button!` and the default menu button style.
+* Finish documenting button module.
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

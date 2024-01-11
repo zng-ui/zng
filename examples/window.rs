@@ -725,11 +725,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
 fn cmd_btn(cmd: Command) -> impl UiNode {
     Button! {
         child = Text!(cmd.name_with_shortcut());
-        enabled = cmd.is_enabled();
-        visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|_| {
-            cmd.notify();
-        })
+        cmd;
     }
 }
 

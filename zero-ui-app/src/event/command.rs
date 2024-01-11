@@ -695,10 +695,23 @@ impl Default for CommandHandle {
 /// Represents a reference counted `dyn Any` object.
 #[derive(Clone)]
 pub struct CommandParam(pub Arc<dyn Any + Send + Sync>);
+impl PartialEq for CommandParam {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for CommandParam {}
 impl CommandParam {
     /// New param.
+    ///
+    /// If `param` is already a [`CommandParam`] returns a clone.
     pub fn new(param: impl Any + Send + Sync + 'static) -> Self {
-        CommandParam(Arc::new(param))
+        let p: &dyn Any = &param;
+        if let Some(p) = p.downcast_ref::<Self>() {
+            p.clone()
+        } else {
+            CommandParam(Arc::new(param))
+        }
     }
 
     /// Gets the [`TypeId`] of the parameter.
@@ -720,6 +733,9 @@ impl fmt::Debug for CommandParam {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("CommandParam").field(&self.0.type_id()).finish()
     }
+}
+zero_ui_var::impl_from_and_into_var! {
+    fn from(param: CommandParam) -> Option<CommandParam>;
 }
 
 unique_id_64! {

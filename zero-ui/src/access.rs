@@ -46,6 +46,7 @@
 //!         let txt_info = btn_info.info().children().next().unwrap().access().unwrap();
 //!     
 //!         assert_eq!(None, btn_info.label());
+//!         assert!(btn_info.labelled_by_child());
 //!         assert_eq!(Some(Txt::from("Button 1")), txt_info.label());
 //! # WINDOW.close();
 //!     });
@@ -54,8 +55,8 @@
 //! ```
 //!
 //! When accessibility info is build you it can be accessed using [`WidgetInfo::access`]. Note that this is a low level
-//! access, the data is not processed, in the example above the *label* value is only found on the text widget, accessibility
-//! tools recognize this pattern and use the label for the button.
+//! access info, provided as it was set by the widgets, in the example above the *label* value is only found on the text widget,
+//! accessibility tools will use the text label for the button.
 //!
 //! [`WINDOW.enable_access()`]: crate::window::WINDOW_Ext::enable_access
 //! [`WidgetInfo::access`]: crate::widget::info::WidgetInfo::access

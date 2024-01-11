@@ -1,4 +1,24 @@
-//! Button widget, style and properties.
+//! Button widget, styles and properties.
+//!
+//! A simple clickable widget.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! # let _scope = APP.defaults();
+//! let count = var(0u32);
+//! # let _ =
+//! Button! {
+//!     child = Text!(count.map(|c| match *c {
+//!         0 => Txt::from("Click Me!"),
+//!         n => formatx!("Clicked {n} times."),
+//!     }));
+//!     on_click = hn!(|_| {
+//!         count.set(count.get() + 1);
+//!     });
+//! }
+//! # ;
+//! ```
 //!
 //! # Full API
 //!

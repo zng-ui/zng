@@ -477,8 +477,7 @@ fn open_or_paste_image() -> impl UiNode {
                                             padding = (2, 5);
                                             child_left = widget::node::presenter((), cmd.icon()), 0;
                                             child = Text!(cmd.name_with_shortcut());
-                                            widget::enabled = cmd.is_enabled();
-                                            on_click = hn!(|_| cmd.notify());
+                                            cmd;
                                         }
                                     };
                                     ui_vec![

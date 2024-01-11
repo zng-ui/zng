@@ -5,6 +5,8 @@
 
 zero_ui_wgt::enable_widget_macros!();
 
+use zero_ui_app::event::CommandParam;
+use zero_ui_var::ReadOnlyContextVar;
 use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*};
 use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zero_ui_wgt_container::{child_align, padding, Container};
@@ -13,7 +15,7 @@ use zero_ui_wgt_filter::{child_opacity, saturate};
 use zero_ui_wgt_input::{
     cursor,
     focus::FocusableMix,
-    gesture::{on_click, ClickArgs},
+    gesture::{on_click, on_disabled_click, ClickArgs},
     is_cap_hovered, is_pressed,
     pointer_capture::{capture_pointer, CaptureMode},
     CursorIcon,
@@ -21,7 +23,15 @@ use zero_ui_wgt_input::{
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 
 /// A clickable container.
-#[widget($crate::Button)]
+///
+/// # Shorthand
+///
+/// The `Button!` macro provides a shorthand init that sets the command, `Button!(SOME_CMD)`.
+#[widget($crate::Button {
+    ($cmd:expr) => {
+        cmd = $cmd;
+    };
+})]
 pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     fn widget_intrinsic(&mut self) {
@@ -31,6 +41,77 @@ impl Button {
             capture_pointer = true;
             labelled_by_child = true;
         }
+
+        self.widget_builder().push_build_action(|wgt| {
+            if let Some(cmd) = wgt.capture_var::<Command>(property_id!(Self::cmd)) {
+                if wgt.property(property_id!(Self::child)).is_none() {
+                    wgt.set_child(presenter(cmd.clone(), CMD_CHILD_FN_VAR));
+                }
+
+                let enabled = wgt.property(property_id!(zero_ui_wgt::enabled)).is_none();
+                let visibility = wgt.property(property_id!(zero_ui_wgt::visibility)).is_none();
+                wgt.push_intrinsic(
+                    NestGroup::CONTEXT,
+                    "cmd-context",
+                    clmv!(cmd, |mut child| {
+                        if enabled {
+                            child = zero_ui_wgt::enabled(child, cmd.flat_map(|c| c.has_handlers())).boxed();
+                        }
+                        if visibility {
+                            child = zero_ui_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();
+                        }
+
+                        with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
+                    }),
+                );
+
+                let on_click = wgt.property(property_id!(Self::on_click)).is_none();
+                let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
+                if on_click || on_disabled_click {
+                    wgt.push_intrinsic(
+                        NestGroup::EVENT,
+                        "cmd-event",
+                        clmv!(cmd, |mut child| {
+                            if on_click {
+                                child = self::on_click(
+                                    child,
+                                    hn!(cmd, |args: &ClickArgs| {
+                                        let cmd = cmd.get();
+                                        if cmd.is_enabled_value() {
+                                            if let Some(param) = CMD_PARAM_VAR.get() {
+                                                cmd.notify_param(param);
+                                            } else {
+                                                cmd.notify();
+                                            }
+                                            args.propagation().stop();
+                                        }
+                                    }),
+                                )
+                                .boxed();
+                            }
+                            if on_disabled_click {
+                                child = self::on_disabled_click(
+                                    child,
+                                    hn!(cmd, |args: &ClickArgs| {
+                                        let cmd = cmd.get();
+                                        if !cmd.is_enabled_value() {
+                                            if let Some(param) = CMD_PARAM_VAR.get() {
+                                                cmd.notify_param(param);
+                                            } else {
+                                                cmd.notify();
+                                            }
+                                            args.propagation().stop();
+                                        }
+                                    }),
+                                )
+                                .boxed();
+                            }
+                            child
+                        }),
+                    );
+                }
+            }
+        });
     }
 
     widget_impl! {
@@ -54,6 +135,48 @@ context_var! {
 
     /// Idle background dark and light color.
     pub static BASE_COLORS_VAR: ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+
+    /// Optional parameter for the button to use when notifying command.
+    pub static CMD_PARAM_VAR: Option<CommandParam> = None;
+
+    /// Widget function used when `cmd` is set and `child` is not.
+    pub static CMD_CHILD_FN_VAR: WidgetFn<Command> = WidgetFn::new(default_cmd_child_fn);
+
+    static CMD_VAR: Option<Command> = None;
+}
+
+/// Default [`CMD_CHILD_FN_VAR`].
+pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
+    zero_ui_wgt_text::Text!(cmd.name())
+}
+
+/// Sets the [`Command`] the button represents.
+///
+/// When this is set the button widget sets these properties if they are not set:
+///
+/// * `child`: Set to an widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
+/// * [`enabled`]: Set to `cmd.is_enabled()`.
+/// * [`visibility`]: Set to `cmd.has_handlers().into()`.
+/// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.
+/// * [`on_disabled_click`]: Set to a handler that notifies the command if `!cmd.is_enabled()`.
+#[property(CHILD, capture, widget_impl(Button))]
+pub fn cmd(cmd: impl IntoVar<Command>) {}
+
+/// Optional command parameter for the button to use when notifying [`cmd`].
+///
+/// [`cmd`]: fn@cmd
+#[property(CONTEXT, default(CMD_PARAM_VAR), widget_impl(Button))]
+pub fn cmd_param(child: impl UiNode, cmd_param: impl IntoVar<Option<CommandParam>>) -> impl UiNode {
+    with_context_var(child, CMD_PARAM_VAR, cmd_param)
+}
+
+/// Sets the widget function used to produce the button child when [`cmd`] is set and [`child`] is not.
+///
+/// [`cmd`]: fn@cmd
+/// [`child`]: fn@zero_ui_wgt_container::child
+#[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button))]
+pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> impl UiNode {
+    with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)
 }
 
 /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button style.
@@ -129,5 +252,23 @@ impl DefaultStyle {
                 cursor = CursorIcon::NotAllowed;
             }
         }
+    }
+}
+
+/// Button context.
+pub struct BUTTON;
+impl BUTTON {
+    /// The [`cmd`] value, if set.
+    ///
+    /// [`cmd`]: fn@cmd
+    pub fn cmd(&self) -> ReadOnlyContextVar<Option<Command>> {
+        CMD_VAR.read_only()
+    }
+
+    /// The [`cmd_param`] value.
+    ///
+    /// [`cmd_param`]: fn@cmd_param
+    pub fn cmd_param(&self) -> ReadOnlyContextVar<Option<CommandParam>> {
+        CMD_PARAM_VAR.read_only()
     }
 }
