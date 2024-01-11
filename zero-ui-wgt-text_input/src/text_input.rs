@@ -18,6 +18,7 @@ use zero_ui_wgt_size_offset::{offset, y};
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 use zero_ui_wgt_undo::{undo_scope, UndoMix};
+use zero_ui_wgt_button::Button;
 
 /// Simple text editor widget.
 ///
@@ -103,11 +104,11 @@ pub fn border_color_focused() -> impl Var<Rgba> {
 pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
     let id = args.anchor_id;
     ContextMenu!(ui_vec![
-        menu::CmdButton!(CUT_CMD.scoped(id)),
-        menu::CmdButton!(COPY_CMD.scoped(id)),
-        menu::CmdButton!(PASTE_CMD.scoped(id)),
+        Button!(CUT_CMD.scoped(id)),
+        Button!(COPY_CMD.scoped(id)),
+        Button!(PASTE_CMD.scoped(id)),
         Hr!(),
-        menu::CmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+        Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
     ])
 }
 
@@ -120,10 +121,10 @@ pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNod
         ContextMenu! {
             style_fn = menu::context::TouchStyle!();
             children = ui_vec![
-                menu::TouchCmdButton!(CUT_CMD.scoped(id)),
-                menu::TouchCmdButton!(COPY_CMD.scoped(id)),
-                menu::TouchCmdButton!(PASTE_CMD.scoped(id)),
-                menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+                Button!(CUT_CMD.scoped(id)),
+                Button!(COPY_CMD.scoped(id)),
+                Button!(PASTE_CMD.scoped(id)),
+                Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
             ]
         }
         .boxed()

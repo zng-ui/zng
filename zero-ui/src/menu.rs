@@ -5,8 +5,8 @@
 //! See [`zero_ui_wgt_menu`] for the full widget API.
 
 pub use zero_ui_wgt_menu::{
-    extend_style, icon, icon_fn, panel_fn, replace_style, shortcut_spacing, shortcut_txt, ButtonStyle, CmdButton, DefaultStyle, Menu,
-    ToggleStyle, TouchCmdButton,
+    extend_style, icon, icon_fn, panel_fn, replace_style, shortcut_spacing, shortcut_txt, ButtonStyle, DefaultStyle, Menu, ToggleStyle,
+    TouchButtonStyle,
 };
 
 /// Context menu widget and properties.

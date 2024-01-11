@@ -9,6 +9,7 @@ use zero_ui_wgt_menu::{
 };
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
+use zero_ui_wgt_button::Button;
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
 #[widget($crate::selectable::SelectableText)]
@@ -70,8 +71,8 @@ impl DefaultStyle {
 pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
     let id = args.anchor_id;
     ContextMenu!(ui_vec![
-        menu::CmdButton!(COPY_CMD.scoped(id)),
-        menu::CmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+        Button!(COPY_CMD.scoped(id)),
+        Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
     ])
 }
 
@@ -84,8 +85,8 @@ pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> impl UiNod
         ContextMenu! {
             style_fn = menu::context::TouchStyle!();
             children = ui_vec![
-                menu::TouchCmdButton!(COPY_CMD.scoped(id)),
-                menu::TouchCmdButton!(text::cmd::SELECT_ALL_CMD.scoped(id)),
+                Button!(COPY_CMD.scoped(id)),
+                Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
             ]
         }
         .boxed()

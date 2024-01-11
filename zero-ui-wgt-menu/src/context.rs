@@ -1,14 +1,14 @@
 //! Context menu widget and properties.
 
 use zero_ui_ext_input::gesture::CLICK_EVENT;
-use zero_ui_wgt::{corner_radius, prelude::*};
+use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_input::focus::alt_focus_scope;
 use zero_ui_wgt_layer::{
     popup::{PopupState, CONTEXT_CAPTURE_VAR, POPUP},
     AnchorMode,
 };
 use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_style::{style_fn, Style, StyleFn};
+use zero_ui_wgt_style::{style_fn, StyleFn};
 
 /// Defines the context menu shown when the widget is enabled and receives a context click.
 ///
@@ -208,9 +208,7 @@ impl TouchStyle {
                 direction = StackDirection::left_to_right();
                 children = args.children;
             });
-            zero_ui_wgt_button::extend_style = style_fn!(|_| Style!{
-                corner_radius = 0;
-            });
+            zero_ui_wgt_button::extend_style = style_fn!(|_| super::TouchButtonStyle!());
             zero_ui_wgt_rule_line::vr::color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
         }
     }

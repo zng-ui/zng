@@ -1,4 +1,4 @@
-* Replace `CmdButton` with `Button!` and the default menu button style.
+* Test touch context menu.
 * Finish documenting button module.
 
 # Documentation

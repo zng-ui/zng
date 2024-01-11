@@ -6,11 +6,11 @@
 zero_ui_wgt::enable_widget_macros!();
 
 use zero_ui_ext_font::FontNames;
-use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs, mouse::ClickMode};
+use zero_ui_ext_input::{focus::FOCUS, mouse::ClickMode};
 use zero_ui_ext_l10n::lang;
-use zero_ui_wgt::{align, enabled, is_disabled, margin, prelude::*, visibility};
+use zero_ui_wgt::{align, is_disabled, margin, prelude::*};
 use zero_ui_wgt_access::{access_role, AccessRole};
-use zero_ui_wgt_button::Button;
+use zero_ui_wgt_button::BUTTON;
 use zero_ui_wgt_container::{child_align, child_end, padding};
 use zero_ui_wgt_fill::{background_color, foreground_highlight};
 use zero_ui_wgt_filter::{opacity, saturate};
@@ -18,6 +18,7 @@ use zero_ui_wgt_input::{click_mode, focus::is_focused, mouse::on_pre_mouse_enter
 use zero_ui_wgt_input::{cursor, focus::alt_focus_scope, CursorIcon};
 use zero_ui_wgt_size_offset::size;
 use zero_ui_wgt_style::{style_fn, Style, StyleFn, StyleMix};
+use zero_ui_wgt_text::icon::CommandIconExt as _;
 use zero_ui_wgt_text::Text;
 
 pub mod context;
@@ -144,6 +145,18 @@ impl ButtonStyle {
                 FOCUS.focus_widget(WIDGET.id(), false);
             });
 
+            shortcut_txt = Text! {
+                txt = BUTTON.cmd().flat_map(|c| match c {
+                    Some(c) => c.shortcut_txt(),
+                    None => LocalVar(Txt::from("")).boxed()
+                });
+                align = Align::CENTER;
+            };
+            icon_fn = BUTTON.cmd().flat_map(|c| match c {
+                Some(c) => c.icon().boxed(),
+                None => LocalVar(WidgetFn::nil()).boxed()
+            });
+
             when *#is_focused {
                 background_color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
                 opacity = 100.pct();
@@ -154,6 +167,25 @@ impl ButtonStyle {
                 opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;
             }
+        }
+    }
+}
+
+/// Command button for touch.
+///
+/// This a menu button style that has a `cmd` property, it changes the visibility to collapse when the command
+/// is disabled.
+#[widget($crate::TouchButtonStyle)]
+pub struct TouchButtonStyle(Style);
+impl TouchButtonStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zero_ui_wgt::corner_radius = 0;
+            zero_ui_wgt::visibility = BUTTON.cmd().flat_map(|c| match c {
+                Some(c) => c.is_enabled().boxed(),
+                None => LocalVar(true).boxed(),
+            }).map_into();
         }
     }
 }
@@ -242,94 +274,4 @@ pub fn shortcut_txt(child: impl UiNode, shortcut: impl UiNode) -> impl UiNode {
 #[property(CONTEXT, default(SHORTCUT_SPACING_VAR))]
 pub fn shortcut_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, SHORTCUT_SPACING_VAR, spacing)
-}
-
-/// Command button.
-///
-/// This a menu button that has a `cmd` property, if the property is set the button `child`, `icon_fn` and `shortcut_txt`
-/// are set with values from the command metadata, the `on_click` handle is set to call the command and the `enabled` and
-/// `visibility` are set from the command handle status.
-#[widget($crate::CmdButton {
-    ($cmd:expr) => {
-        cmd = $cmd;
-    }
-})]
-pub struct CmdButton(Button);
-impl CmdButton {
-    /// Build the button from the `cmd` value.
-    pub fn widget_build(&mut self) -> impl UiNode {
-        use zero_ui_wgt_text::icon::CommandIconExt as _;
-
-        if let Some(cmd) = self.widget_builder().capture_value::<Command>(property_id!(Self::cmd)) {
-            widget_set! {
-                self;
-
-                enabled = cmd.is_enabled();
-                visibility = cmd.has_handlers().map_into();
-
-                child = Text!(cmd.name());
-
-                shortcut_txt = Text! {
-                    txt = cmd.shortcut_txt();
-                    align = Align::CENTER;
-                };
-                icon_fn = cmd.icon();
-
-                on_click = hn!(|args: &ClickArgs| {
-                    if cmd.is_enabled_value() {
-                        args.propagation().stop();
-                        cmd.notify();
-                    }
-                });
-            }
-        }
-
-        let base: &mut WidgetBase = self;
-        base.widget_build()
-    }
-}
-/// The button command.
-#[property(CONTEXT, capture, widget_impl(CmdButton))]
-pub fn cmd(cmd: impl IntoValue<Command>) {}
-
-/// Command button for touch.
-///
-/// This a menu button that has a `cmd` property, if the property is set the button `child` is set with value from the
-/// command metadata, the `on_click` handle is set to call the command and the `enabled` and `visibility` are set from
-/// the command `is_enabled` status.
-#[widget($crate::TouchCmdButton {
-    ($cmd:expr) => {
-        cmd = $cmd;
-    }
-})]
-pub struct TouchCmdButton(Button);
-impl TouchCmdButton {
-    /// Build the button from the `cmd` value.
-    pub fn widget_build(&mut self) -> impl UiNode {
-        if let Some(cmd) = self.widget_builder().capture_value::<Command>(property_id!(Self::cmd)) {
-            widget_set! {
-                self;
-
-                enabled = cmd.is_enabled();
-                visibility = cmd.is_enabled().map_into();
-
-                child = Text!(cmd.name());
-
-                on_click = hn!(|args: &ClickArgs| {
-                    if cmd.is_enabled_value() {
-                        args.propagation().stop();
-                        cmd.notify();
-                    }
-                });
-            }
-        }
-
-        let base: &mut WidgetBase = self;
-        base.widget_build()
-    }
-
-    widget_impl! {
-        /// The button command.
-        pub cmd(cmd: impl IntoValue<Command>);
-    }
 }

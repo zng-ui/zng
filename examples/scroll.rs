@@ -72,7 +72,6 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
     use zero_ui::scroll::cmd::*;
 
     let scope = WidgetId::named("scroll");
-    use menu::CmdButton;
 
     Menu! {
         id = "menu";
@@ -80,28 +79,28 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
             SubMenu!(
                 "Scroll",
                 ui_vec![
-                    CmdButton!(SCROLL_UP_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_DOWN_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_LEFT_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_RIGHT_CMD.scoped(scope)),
+                    Button!(SCROLL_UP_CMD.scoped(scope)),
+                    Button!(SCROLL_DOWN_CMD.scoped(scope)),
+                    Button!(SCROLL_LEFT_CMD.scoped(scope)),
+                    Button!(SCROLL_RIGHT_CMD.scoped(scope)),
                 ]
             ),
             SubMenu!(
                 "Page",
                 ui_vec![
-                    CmdButton!(PAGE_UP_CMD.scoped(scope)),
-                    CmdButton!(PAGE_DOWN_CMD.scoped(scope)),
-                    CmdButton!(PAGE_LEFT_CMD.scoped(scope)),
-                    CmdButton!(PAGE_RIGHT_CMD.scoped(scope)),
+                    Button!(PAGE_UP_CMD.scoped(scope)),
+                    Button!(PAGE_DOWN_CMD.scoped(scope)),
+                    Button!(PAGE_LEFT_CMD.scoped(scope)),
+                    Button!(PAGE_RIGHT_CMD.scoped(scope)),
                 ]
             ),
             SubMenu!(
                 "Scroll to",
                 ui_vec![
-                    CmdButton!(SCROLL_TO_TOP_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_TO_LEFTMOST_CMD.scoped(scope)),
-                    CmdButton!(SCROLL_TO_RIGHTMOST_CMD.scoped(scope)),
+                    Button!(SCROLL_TO_TOP_CMD.scoped(scope)),
+                    Button!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
+                    Button!(SCROLL_TO_LEFTMOST_CMD.scoped(scope)),
+                    Button!(SCROLL_TO_RIGHTMOST_CMD.scoped(scope)),
                     Hr!(),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
@@ -112,9 +111,9 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
             SubMenu!(
                 "Zoom",
                 ui_vec![
-                    CmdButton!(ZOOM_IN_CMD.scoped(scope)),
-                    CmdButton!(ZOOM_OUT_CMD.scoped(scope)),
-                    CmdButton!(ZOOM_RESET_CMD.scoped(scope)),
+                    Button!(ZOOM_IN_CMD.scoped(scope)),
+                    Button!(ZOOM_OUT_CMD.scoped(scope)),
+                    Button!(ZOOM_RESET_CMD.scoped(scope)),
                     Hr!(),
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 200.pct()),
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 50.pct()),
