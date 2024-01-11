@@ -106,6 +106,39 @@
 //! }
 //! ```
 //!
+//! # Headless
+//!
+//! The app can also run *headless*, where no window is actually created, optionally with real rendering.
+//! This mode is useful for running integration tests, or for rendering images.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! let mut app = APP.defaults().run_headless(/* with_renderer: */ false);
+//! app.run_window(async {
+//!     Window! {
+//!         child = Text!("Some text");
+//!         auto_size = true;
+//!
+//!         render_mode = window::RenderMode::Software;
+//!         frame_capture_mode = window::FrameCaptureMode::Next;
+//!
+//!         on_frame_image_ready = async_hn!(|args: window::FrameImageReadyArgs| {
+//!             if let Some(img) = args.frame_image {
+//!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
+//!                 // and saved here.
+//!                 img.save("screenshot.png").await.unwrap();
+//!             }
+//!
+//!             // close the window, causing the app to exit.
+//!             WINDOW.close();
+//!         });
+//!     }
+//! });
+//! ```
+//!
+//! You can also run multiple headless apps in the same process, one per thread, if the crate is build using the `"multi_app"` feature.
+//!
 //! # Full API
 //!
 //! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
