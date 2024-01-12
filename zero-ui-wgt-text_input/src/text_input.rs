@@ -32,7 +32,7 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 ///
 /// Undo/redo is enabled by default, the widget is an undo scope and handles undo commands. Note that external
 /// changes to the `txt` variable will clear the undo stack, only changes done by the widget can be undone.
-/// 
+///
 /// # Shorthand
 ///
 /// The `TextInput!` macro provides shorthand syntax sets the text variable, `TextInput!(var(Txt::from("")))` creates
