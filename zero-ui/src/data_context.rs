@@ -3,25 +3,25 @@
 //! The [`data`](fn@data) property can be set on a widget to any type that can be used in variables ([`VarValue`]). The
 //! [`DATA`] service can then be used on the widget or descendant widgets to retrieve the data and to set validation annotations
 //! about the data.
-//! 
+//!
 //! The example below TODO!
-//! 
+//!
 //! ```
 //! mod view {
 //!     use crate::view_model::*;
 //!     use zero_ui::{data_context, prelude::*, text_input, window::WindowRoot};
-//! 
+//!
 //!     pub fn window() -> WindowRoot {
 //!         Window! {
 //!             // set data context for entire window.
 //!             data = ViewModel::default();
-//! 
+//!
 //!             // bind title from data context.
 //!             title = DATA.req::<ViewModel>().map(|vm| vm.title());
 //!             child = content();
 //!         }
 //!     }
-//! 
+//!
 //!     fn content() -> impl UiNode {
 //!         Container! {
 //!             child = TextInput! {
@@ -36,7 +36,7 @@
 //!                     DATA.req::<ViewModel>().modify(|vm| vm.to_mut().submit()).unwrap()
 //!                 });
 //!             }, 5;
-//! 
+//!
 //!             // set data error for all widgets in this container.
 //!             data_context::data_error = DATA.req::<ViewModel>().map_ref(|vm| vm.last_error());
 //!             // data_context::FieldStyle displays data errors.
@@ -44,10 +44,10 @@
 //!         }
 //!     }
 //! }
-//! 
+//!
 //! mod view_model {
 //!     use zero_ui::text::*;
-//! 
+//!
 //!     #[derive(Clone, Debug, PartialEq, Default)]
 //!     pub struct ViewModel {
 //!         items: Vec<u32>,
@@ -58,18 +58,18 @@
 //!         pub fn title(&self) -> Txt {
 //!             formatx!("App - {} items", self.items.len())
 //!         }
-//! 
+//!
 //!         pub fn typing(&self) -> &Txt {
 //!             &self.typing
 //!         }
 //!         pub fn typing_mut(&mut self) -> &mut Txt {
 //!             &mut self.typing
 //!         }
-//! 
+//!
 //!         pub fn last_error(&self) -> &Txt {
 //!             &self.last_error
 //!         }
-//! 
+//!
 //!         pub fn submit(&mut self) {
 //!             match self.typing.parse::<u32>() {
 //!                 Ok(item) => {
@@ -83,10 +83,10 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! [`data`]: fn@data
 //! [`VarValue`]: crate::var::VarValue
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_data`] for the full API.

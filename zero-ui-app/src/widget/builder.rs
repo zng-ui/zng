@@ -217,7 +217,7 @@ use zero_ui_unique_id::{unique_id_32, IdEntry, IdMap, IdSet};
 use zero_ui_var::{
     impl_from_and_into_var,
     types::{AnyWhenVarBuilder, ContextualizedVar, WeakContextInitHandle},
-    var, AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue, WeakVar,
+    AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue,
 };
 
 use super::{
@@ -923,22 +923,7 @@ impl dyn PropertyArgs + '_ {
     pub fn live_debug(&self, i: usize) -> BoxedVar<Txt> {
         let p = self.property();
         match p.inputs[i].kind {
-            InputKind::Var => {
-                let in_var = self.var(i);
-                let out_var = var(formatx!("{:?}", in_var.get_any()));
-                let wk_out_var = out_var.downgrade();
-                in_var
-                    .hook_any(Box::new(move |args| {
-                        if let Some(out_var) = wk_out_var.upgrade() {
-                            let _ = out_var.set_any(Box::new(formatx!("{:?}", args.value())));
-                            true
-                        } else {
-                            false
-                        }
-                    }))
-                    .perm();
-                out_var.boxed()
-            }
+            InputKind::Var => self.var(i).map_debug(),
             InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
             InputKind::UiNode => LocalVar(Txt::from_static("<impl UiNode>")).boxed(),
             InputKind::UiNodeList => LocalVar(Txt::from_static("<impl UiNodeList>")).boxed(),
@@ -2559,7 +2544,13 @@ impl WidgetBuilding {
                     }
 
                     #[cfg(inspector)]
-                    inspector_items.push(crate::widget::inspector::InstanceItem::Property { args, captured });
+                    {
+                        if args.property().inputs.iter().any(|i| matches!(i.kind, InputKind::Var)) {
+                            node = crate::widget::inspector::actualize_var_info(node, args.id()).boxed();
+                        }
+
+                        inspector_items.push(crate::widget::inspector::InstanceItem::Property { args, captured });
+                    }
                 }
                 #[allow(unused_variables)]
                 WidgetItem::Intrinsic { new, name } => {
@@ -2588,7 +2579,7 @@ impl WidgetBuilding {
                 crate::widget::inspector::InspectorInfo {
                     builder,
                     items: inspector_items.into_boxed_slice(),
-                    context: crate::widget::inspector::InspectorContext::new(),
+                    actual_vars: crate::widget::inspector::InspectorActualVars::default(),
                 },
             )
             .boxed();

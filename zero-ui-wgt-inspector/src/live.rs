@@ -271,7 +271,7 @@ mod inspector_window {
     use zero_ui_app::widget::{
         border::{BorderSide, BorderSides},
         builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
-        inspector::{InspectorContext, InstanceItem, WidgetInfoInspectorExt as _},
+        inspector::{InspectorActualVars, InstanceItem, WidgetInfoInspectorExt as _},
         OnVarArgs,
     };
     use zero_ui_color::RenderColor;
@@ -314,13 +314,19 @@ mod inspector_window {
 
         let tree = WINDOWS.widget_tree(inspected).unwrap();
         let info = tree.root().inspector_info();
-        let title = if let (Some(info), Some(title)) = (info, tree.root().inspect_property(property_id!(window::title))) {
-            info.context.latest_capture().with_context(|| title.downcast_var::<Txt>(0).clone().actual_var().map(|t| formatx!("{t} - Inspector")).boxed())
+        let title = if let (Some(info), Some(title)) = (&info, tree.root().inspect_property(property_id!(window::title))) {
+            info.actual_vars
+                .downcast::<Txt>(property_id!(window::title), 0)
+                .unwrap_or_else(|| title.downcast_var::<Txt>(0).clone())
+                .map(|t| formatx!("{t} - Inspector"))
+                .boxed()
         } else {
             var_from("Inspector").boxed()
         };
-        let icon = if let Some(icon) = tree.root().inspect_property(property_id!(window::icon)) {
-            icon.downcast_var::<WindowIcon>(0).clone().boxed()
+        let icon = if let (Some(info), Some(icon)) = (info, tree.root().inspect_property(property_id!(window::icon))) {
+            info.actual_vars
+                .downcast::<WindowIcon>(property_id!(window::icon), 0)
+                .unwrap_or_else(|| icon.downcast_var::<WindowIcon>(0).clone())
         } else {
             var(WindowIcon::Default).boxed()
         };
@@ -685,7 +691,6 @@ mod inspector_window {
         let mut current_group = None;
         let mut group_items = UiNodeVec::new();
         let mut out = UiNodeVec::new();
-        let ctx = &info.context;
 
         for item in info.items.iter() {
             match item {
@@ -704,7 +709,7 @@ mod inspector_window {
                         current_group = Some(p_info.group);
                     }
 
-                    group_items.push(property_view(ctx, &**args, p_info, *captured, user_assigned));
+                    group_items.push(property_view(&info.actual_vars, &**args, p_info, *captured, user_assigned));
                 }
                 InstanceItem::Intrinsic { group, name } => {
                     if current_group.as_ref() != Some(group) {
@@ -759,14 +764,13 @@ mod inspector_window {
     }
 
     fn property_view(
-        ctx: &InspectorContext,
+        actual_vars: &InspectorActualVars,
         args: &dyn PropertyArgs,
         info: PropertyInfo,
         captured: bool,
         user_assigned: bool,
     ) -> impl UiNode {
         // TODO, indicators for user or widget set properties.
-        let mut ctx = ctx.latest_capture();
         let mut children = ui_vec![
             Text! {
                 txt = info.name;
@@ -780,7 +784,7 @@ mod inspector_window {
             Text!(" = "),
         ];
         if info.inputs.len() == 1 {
-            let value = ctx.with_context(|| args.live_debug(0));
+            let value = actual_vars.get_debug(info.id, 0).unwrap_or_else(|| args.live_debug(0));
             let flash = value_background(&value);
 
             children.push(Text! {
@@ -799,7 +803,7 @@ mod inspector_window {
             for (i, input) in info.inputs.iter().enumerate() {
                 children.push(Text!("    {}: ", input.name));
 
-                let value = ctx.with_context(|| args.live_debug(i));
+                let value = actual_vars.get_debug(info.id, i).unwrap_or_else(|| args.live_debug(i));
                 let flash = value_background(&value);
 
                 children.push(Text! {

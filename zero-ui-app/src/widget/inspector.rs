@@ -7,29 +7,49 @@
 mod inspector_only {
     use std::sync::Arc;
 
-    use zero_ui_app_context::LocalContext;
-
-    use crate::widget::node::{match_node, BoxedUiNode, UiNode, UiNodeOp};
+    use crate::widget::{
+        builder::{InputKind, PropertyId},
+        node::{match_node, BoxedUiNode, UiNode, UiNodeOp},
+    };
 
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
         let insp_info = Arc::new(info);
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
-                let ctx = LocalContext::capture();
-                *insp_info.context.ctx.lock() = ctx;
-
                 info.set_meta(&super::INSPECTOR_INFO_ID, insp_info.clone());
+            }
+        })
+    }
+
+    pub(crate) fn actualize_var_info(child: BoxedUiNode, property: PropertyId) -> impl UiNode {
+        match_node(child, move |_, op| {
+            if let UiNodeOp::Info { info } = op {
+                info.with_meta(|mut m| {
+                    let info = m.get_mut(&super::INSPECTOR_INFO_ID).unwrap();
+                    let prop = info.properties().find(|p| p.0.id() == property).unwrap().0;
+                    for (i, input) in prop.property().inputs.iter().enumerate() {
+                        if matches!(input.kind, InputKind::Var) {
+                            let var = prop.var(i);
+                            if var.is_contextual() {
+                                let var = var.actual_var_any();
+                                info.actual_vars.insert(property, i, var);
+                            }
+                        }
+                    }
+                });
             }
         })
     }
 }
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
-use parking_lot::Mutex;
-use zero_ui_app_context::LocalContext;
-use zero_ui_state_map::StaticStateId;
 
-use std::{any::TypeId, sync::Arc};
+use parking_lot::RwLock;
+use zero_ui_state_map::StaticStateId;
+use zero_ui_txt::Txt;
+use zero_ui_var::{BoxedAnyVar, BoxedVar, VarValue};
+
+use std::{any::TypeId, collections::HashMap, sync::Arc};
 
 use super::{
     builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
@@ -64,10 +84,35 @@ pub enum InstanceItem {
     },
 }
 
+/// Inspected contextual variables actualized at the moment of info build.
+#[derive(Default)]
+pub struct InspectorActualVars(RwLock<HashMap<(PropertyId, usize), BoxedAnyVar>>);
+impl InspectorActualVars {
+    /// Get the actualized property var, if at the moment of info build it was contextual (and existed).
+    pub fn get(&self, property: PropertyId, member: usize) -> Option<BoxedAnyVar> {
+        self.0.read().get(&(property, member)).cloned()
+    }
+
+    /// Get and downcast.
+    pub fn downcast<T: VarValue>(&self, property: PropertyId, member: usize) -> Option<BoxedVar<T>> {
+        let b = self.get(property, member)?.double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
+        Some(*b)
+    }
+
+    /// Get and map debug.
+    pub fn get_debug(&self, property: PropertyId, member: usize) -> Option<BoxedVar<Txt>> {
+        let b = self.get(property, member)?;
+        Some(b.map_debug())
+    }
+
+    fn insert(&self, property: PropertyId, member: usize, var: BoxedAnyVar) {
+        self.0.write().insert((property, member), var);
+    }
+}
+
 /// Widget instance inspector info.
 ///
 /// Can be accessed and queried using [`WidgetInfoInspectorExt`].
-#[derive(Debug)]
 pub struct InspectorInfo {
     /// Builder that was used to instantiate the widget.
     pub builder: WidgetBuilder,
@@ -75,10 +120,18 @@ pub struct InspectorInfo {
     /// Final instance items.
     pub items: Box<[InstanceItem]>,
 
-    /// Widget context.
-    ///
-    /// Property variables can only be resolved inside this context.
-    pub context: InspectorContext,
+    /// Inspected contextual variables actualized at the moment of info build.
+    pub actual_vars: InspectorActualVars,
+}
+
+impl std::fmt::Debug for InspectorInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InspectorInfo")
+            .field("builder", &self.builder)
+            .field("items", &self.items)
+            .field("actual_vars", &self.actual_vars.0.read().keys())
+            .finish()
+    }
 }
 impl InspectorInfo {
     /// Iterate over property items.
@@ -87,37 +140,6 @@ impl InspectorInfo {
             InstanceItem::Property { args, captured } => Some((&**args, *captured)),
             InstanceItem::Intrinsic { .. } => None,
         })
-    }
-}
-
-/// Latest info [`LocalContext`] that must be used to inspect property variables.
-///
-/// The context is captured every info update, so may not reflect the exact context the
-/// widget properties read the variable.
-pub struct InspectorContext {
-    ctx: Arc<Mutex<LocalContext>>,
-}
-impl std::fmt::Debug for InspectorContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InspectorContext").finish_non_exhaustive()
-    }
-}
-impl InspectorContext {
-    /// New with empty context.
-    pub fn new() -> Self {
-        Self {
-            ctx: Arc::new(Mutex::new(LocalContext::new())),
-        }
-    }
-
-    /// Clone the latest context.
-    pub fn latest_capture(&self) -> LocalContext {
-        self.ctx.lock().clone()
-    }
-}
-impl Default for InspectorContext {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

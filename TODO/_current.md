@@ -2,7 +2,6 @@
 * Add description tooltip (with shortcut) for command button.
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.
-* Inspector context captures only the context of the parent widget, so properties in the widget inspect the parent value (or the default value, for the `Window!` widget).
 
 # Documentation
 

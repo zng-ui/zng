@@ -63,7 +63,7 @@ pub mod info {
     /// Helper types for inspecting an UI tree.
     pub mod inspector {
         pub use zero_ui_app::widget::inspector::{
-            InspectPropertyPattern, InspectWidgetPattern, InspectorContext, InspectorInfo, InstanceItem, WidgetInfoInspectorExt,
+            InspectPropertyPattern, InspectWidgetPattern, InspectorActualVars, InspectorInfo, InstanceItem, WidgetInfoInspectorExt,
         };
     }
 }

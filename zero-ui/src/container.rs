@@ -80,7 +80,7 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! [`UiNode`]: crate::widget::node::UiNode
 //!
 //! # Full API
