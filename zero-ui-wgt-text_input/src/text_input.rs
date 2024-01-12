@@ -1,6 +1,7 @@
 use zero_ui_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zero_ui_wgt::{align, is_disabled, margin, prelude::*};
 use zero_ui_wgt_access::{access_role, AccessRole};
+use zero_ui_wgt_button::Button;
 use zero_ui_wgt_data::{DataNoteLevel, DataNotes, DATA};
 use zero_ui_wgt_fill::foreground_highlight;
 use zero_ui_wgt_filter::{child_opacity, saturate};
@@ -18,7 +19,6 @@ use zero_ui_wgt_size_offset::{offset, y};
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 use zero_ui_wgt_undo::{undo_scope, UndoMix};
-use zero_ui_wgt_button::Button;
 
 /// Simple text editor widget.
 ///

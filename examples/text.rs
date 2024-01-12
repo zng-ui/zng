@@ -437,7 +437,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         child_bottom = Text! {
             margin = (0, 4);
             align = Align::RIGHT;
-            txt = editor.caret_status.map_to_text();
+            txt = editor.caret_status.map_to_txt();
         }, 0;
     }
 }

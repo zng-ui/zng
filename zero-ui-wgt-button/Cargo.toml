@@ -8,6 +8,7 @@ license = "Apache-2.0"
 [dependencies]
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-ext-font = { path = "../zero-ui-ext-font" }
 zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
@@ -16,3 +17,4 @@ zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
 zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
+zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }

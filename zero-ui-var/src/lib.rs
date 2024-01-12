@@ -1416,7 +1416,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`map`]: Var::map
     /// [`Txt`]: Txt
     /// [`ToTxt`]: ToTxt
-    fn map_to_text(&self) -> Self::Map<Txt>
+    fn map_to_txt(&self) -> Self::Map<Txt>
     where
         T: ToTxt,
     {

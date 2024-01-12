@@ -2,16 +2,16 @@
 //!
 //! A simple clickable container widget, it can be used by directly handling the click events or by setting it to
 //! operate a [`Command`].
-//! 
+//!
 //! [`Command`]: crate::event::Command
-//! 
+//!
 //! # Click Events
-//! 
+//!
 //! The button widget implements the [`gesture::on_click`] event so you can use it directly, but like any
 //! other widget all events can be set. The example below demonstrates both ways of setting events.
-//! 
+//!
 //! [`gesture::on_click`]: fn@crate::gesture::on_click
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //!
@@ -36,16 +36,16 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! # Command
-//! 
+//!
 //! Instead of handling events directly the button widget can be set to represents a command.
 //! If the [`cmd`](struct@Button#cmd) property is set the button widget will automatically set properties
 //! from command metadata, you can manually set some of these properties to override the command default.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Stack!(left_to_right, 5, ui_vec![
@@ -59,48 +59,66 @@
 //! ])
 //! # ;
 //! ```
-//! 
-//! The properties a command button sets are documented in the [`cmd`](struct@Button#cmd) property docs.
 //!
-//! <details>
-//! <summary>Equivalent command button.</summary>
-//! 
-//! This example shows an equivalent command button implementation, for a single command.
-//! There are some differences, the real `cmd` is a variable so commands can dynamically change and
-//! the handlers also pass on the[`cmd_param`](struct@Button#cmd_param) if set.
-//! 
+//! The properties a command button sets are documented in the [`cmd`](struct@Button#cmd) property docs.
+//! Of particular importance is the [`widget::visibility`], it is set so that the button is only visible if
+//! the command has any handlers, enabled or disabled, this is done because commands are considered irrelevant
+//! in the current context if they don't even have a disabled handler. The example above will only be
+//! visible if you set handlers for those commands.
+//!
 //! ```
 //! # use zero_ui::prelude::*;
-//! let cmd = zero_ui::clipboard::COPY_CMD;
-//! # let _scope = APP.defaults(); let _ = 
-//! Button! {
-//!     child = Text!(cmd.name());
-//!     widget::enabled = cmd.is_enabled();
-//!     widget::visibility = cmd.has_handlers().map_into();
-//!     on_click = hn!(|args: &gesture::ClickArgs| {
-//!         if cmd.is_enabled_value() {
-//!             args.propagation().stop();
-//!             cmd.notify();
-//!         }
-//!     });
-//!     gesture::on_disabled_click = hn!(|args: &gesture::ClickArgs| {
-//!         if !cmd.is_enabled_value() {
-//!             args.propagation().stop();
-//!             cmd.notify();
-//!         }
-//!     });
+//! # let _scope = APP.defaults();
+//! # fn cmd_btn_example() -> impl UiNode { widget::node::NilUiNode }
+//! # let _ =
+//! zero_ui::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
+//! zero_ui::clipboard::PASTE_CMD.on_event(true, app_hn!(|_, _| { println!("paste") })).perm();
+//! Window! {
+//!     child = cmd_btn_example();
 //! }
 //! # ;
 //! ```
-//! 
-//! </details>
-//! 
+//!
+//! [`widget::visibility`]: fn@crate::widget::visibility
+//!
 //! # Style
-//! 
-//! TODO, also mention BUTTON.cmd.
-//! 
+//!
+//! The button widget is styleable and implements the [extend/replace] pattern, the [`extend_style`] property can be
+//! set in any parent widget or the button itself to add to the button style,  the [`replace_style`] property
+//! can be set to fully replace the style.
+//!
+//! [extend/replace]: crate::style#extend-replace
+//! [`extend_style`]: fn@extend_style
+//! [`replace_style`]: fn@replace_style
+//!
 //! ## Base Colors
-//! 
+//!
+//! The default style derive all colors from the [`base_colors`](fn@base_colors), so if you
+//! only want to change color of buttons you can use this property.
+//!
+//! The example below extends the button style to change the button color to red when it represents
+//! an specific command.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! use zero_ui::button;
+//!
+//! # let _scope = APP.defaults(); let _ =
+//! Window! {
+//!     button::extend_style = Style! {
+//!         when *#{button::BUTTON.cmd()} == Some(window::cmd::CLOSE_CMD) {
+//!             button::base_colors = color::ColorPair {
+//!                 // dark theme base
+//!                 dark: colors::BLACK.with_alpha(80.pct()).mix_normal(colors::RED),
+//!                 // light theme base
+//!                 light: colors::WHITE.with_alpha(80.pct()).mix_normal(colors::RED),
+//!             };
+//!         }
+//!     };
+//! }
+//! # ;
+//! ```
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_button`] for the full widget API.

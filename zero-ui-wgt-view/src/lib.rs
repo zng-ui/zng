@@ -83,7 +83,7 @@ impl<D: VarValue> ViewArgs<D> {
 ///                 Text! {
 ///                     font_size = 28;
 ///                     // bind data, same view will be used for all n > 0 values.
-///                     txt = a.data().map_to_text();
+///                     txt = a.data().map_to_txt();
 ///                 }
 ///             } else {
 ///                 // finished view

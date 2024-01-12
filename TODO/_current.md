@@ -1,6 +1,7 @@
 * Test touch context menu.
 * Add description tooltip (with shortcut) for command button.
-* Finish documenting button module.
+* `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
+  to promote this pattern.
 
 # Documentation
 

@@ -2,6 +2,7 @@
 
 use zero_ui_ext_clipboard::COPY_CMD;
 use zero_ui_wgt::prelude::*;
+use zero_ui_wgt_button::Button;
 use zero_ui_wgt_input::focus::FocusableMix;
 use zero_ui_wgt_menu::{
     self as menu,
@@ -9,7 +10,6 @@ use zero_ui_wgt_menu::{
 };
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
-use zero_ui_wgt_button::Button;
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
 #[widget($crate::selectable::SelectableText)]
@@ -70,10 +70,7 @@ impl DefaultStyle {
 /// [`DefaultStyle!`]: struct@DefaultStyle
 pub fn default_context_menu(args: menu::context::ContextMenuArgs) -> impl UiNode {
     let id = args.anchor_id;
-    ContextMenu!(ui_vec![
-        Button!(COPY_CMD.scoped(id)),
-        Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),
-    ])
+    ContextMenu!(ui_vec![Button!(COPY_CMD.scoped(id)), Button!(text::cmd::SELECT_ALL_CMD.scoped(id)),])
 }
 
 /// Selection toolbar set by the [`DefaultStyle!`].

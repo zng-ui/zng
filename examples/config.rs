@@ -123,7 +123,7 @@ fn app_main() {
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
             widget::background = Text! {
-                txt = CONFIG.status().map_to_text();
+                txt = CONFIG.status().map_to_txt();
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;

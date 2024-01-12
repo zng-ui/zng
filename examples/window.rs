@@ -127,7 +127,7 @@ fn background_color_example(color: impl Var<Rgba>) -> impl UiNode {
                         background_color = c.clone();
                         size = (16, 16);
                     },
-                    Text!(c.map_to_text()),
+                    Text!(c.map_to_txt()),
                 ];
             };
         }
@@ -403,7 +403,7 @@ fn exclusive_mode() -> impl UiNode {
         tooltip = Tip!(Text!("Exclusive video mode"));
 
         child = Text! {
-            txt = WINDOW.vars().video_mode().map_to_text();
+            txt = WINDOW.vars().video_mode().map_to_txt();
             txt_align = Align::CENTER;
             padding = 2;
         };

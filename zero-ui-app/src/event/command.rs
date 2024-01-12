@@ -1,7 +1,7 @@
 use std::{
     any::TypeId,
     collections::{hash_map, HashMap},
-    mem,
+    mem, ops,
 };
 
 use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, APP};
@@ -424,6 +424,40 @@ impl Command {
         ))
     }
 
+    /// Creates a preview event handler for the command.
+    ///
+    /// This is similar to [`Event::on_pre_event`], but `handler` is only called if the command
+    /// scope matches and a command subscription exists for the lifetime of the handler.
+    ///
+    /// The `enabled` parameter defines the initial state of the command subscription, the subscription
+    /// handle is available in the handler args.
+    pub fn on_pre_event<H>(&self, enabled: bool, handler: H) -> EventHandle
+    where
+        H: AppHandler<AppCommandArgs>,
+    {
+        self.event().on_pre_event(CmdAppHandler {
+            handler,
+            handle: Arc::new(self.subscribe(enabled)),
+        })
+    }
+
+    /// Creates an event handler for the command.
+    ///
+    /// This is similar to [`Event::on_event`], but `handler` is only called if the command
+    /// scope matches and a command subscription exists for the lifetime of the handler.
+    ///
+    /// The `enabled` parameter defines the initial state of the command subscription, the subscription
+    /// handle is available in the handler args.
+    pub fn on_event<H>(&self, enabled: bool, handler: H) -> EventHandle
+    where
+        H: AppHandler<AppCommandArgs>,
+    {
+        self.event().on_event(CmdAppHandler {
+            handler,
+            handle: Arc::new(self.subscribe(enabled)),
+        })
+    }
+
     /// Update state vars, returns if the command must be retained.
     #[must_use]
     pub(crate) fn update_state(&self) -> bool {
@@ -473,6 +507,20 @@ impl PartialEq for Command {
     }
 }
 impl Eq for Command {}
+
+struct CmdAppHandler<H> {
+    handler: H,
+    handle: Arc<CommandHandle>,
+}
+impl<H: AppHandler<AppCommandArgs>> AppHandler<CommandArgs> for CmdAppHandler<H> {
+    fn event(&mut self, args: &CommandArgs, handler_args: &AppHandlerArgs) {
+        let args = AppCommandArgs {
+            args: args.clone(),
+            handle: self.handle.clone(),
+        };
+        self.handler.event(&args, handler_args);
+    }
+}
 
 /// Represents the scope of a [`Command`].
 ///
@@ -577,6 +625,44 @@ impl CommandArgs {
         result
     }
 }
+
+/// Arguments for [`Command::on_event`].
+#[derive(Debug, Clone)]
+pub struct AppCommandArgs {
+    /// The command args.
+    pub args: CommandArgs,
+    /// The command handle held by the event handler.
+    pub handle: Arc<CommandHandle>,
+}
+impl ops::Deref for AppCommandArgs {
+    type Target = CommandArgs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.args
+    }
+}
+impl AnyEventArgs for AppCommandArgs {
+    fn clone_any(&self) -> Box<dyn AnyEventArgs> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn timestamp(&self) -> Instant {
+        self.args.timestamp()
+    }
+
+    fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+        self.args.delivery_list(list)
+    }
+
+    fn propagation(&self) -> &EventPropagationHandle {
+        self.args.propagation()
+    }
+}
+impl EventArgs for AppCommandArgs {}
 
 /// A handle to a [`Command`].
 ///

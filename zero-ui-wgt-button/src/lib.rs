@@ -5,6 +5,8 @@
 
 zero_ui_wgt::enable_widget_macros!();
 
+use std::ops;
+
 use zero_ui_app::event::CommandParam;
 use zero_ui_var::ReadOnlyContextVar;
 use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*};
@@ -21,6 +23,8 @@ use zero_ui_wgt_input::{
     CursorIcon,
 };
 use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_text::Text;
+use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.
 ///
@@ -67,7 +71,8 @@ impl Button {
 
                 let on_click = wgt.property(property_id!(Self::on_click)).is_none();
                 let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
-                if on_click || on_disabled_click {
+                let tooltip = wgt.property(property_id!(tooltip)).is_none() && wgt.property(property_id!(tooltip_fn)).is_none();
+                if on_click || on_disabled_click || tooltip {
                     wgt.push_intrinsic(
                         NestGroup::EVENT,
                         "cmd-event",
@@ -101,6 +106,19 @@ impl Button {
                                                 cmd.notify();
                                             }
                                             args.propagation().stop();
+                                        }
+                                    }),
+                                )
+                                .boxed();
+                            }
+                            if tooltip {
+                                child = self::tooltip_fn(
+                                    child,
+                                    merge_var!(cmd, CMD_TOOLTIP_FN_VAR, |cmd, tt_fn| {
+                                        if tt_fn.is_nil() {
+                                            WidgetFn::nil()
+                                        } else {
+                                            wgt_fn!(cmd, tt_fn, |tooltip| { tt_fn(CmdTooltipArgs { tooltip, cmd }) })
                                         }
                                     }),
                                 )
@@ -142,12 +160,60 @@ context_var! {
     /// Widget function used when `cmd` is set and `child` is not.
     pub static CMD_CHILD_FN_VAR: WidgetFn<Command> = WidgetFn::new(default_cmd_child_fn);
 
+    /// Widget function used when `cmd` is set and `tooltip_fn`, `tooltip` are not set.
+    pub static CMD_TOOLTIP_FN_VAR: WidgetFn<CmdTooltipArgs> = WidgetFn::new(default_cmd_tooltip_fn);
+
     static CMD_VAR: Option<Command> = None;
+}
+
+/// Arguments for [`cmd_tooltip_fn`].
+///
+/// [`cmd_tooltip_fn`]: fn@cmd_tooltip_fn
+#[derive(Clone)]
+pub struct CmdTooltipArgs {
+    /// The tooltip arguments.
+    pub tooltip: TooltipArgs,
+    /// The command.
+    pub cmd: Command,
+}
+impl ops::Deref for CmdTooltipArgs {
+    type Target = TooltipArgs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tooltip
+    }
 }
 
 /// Default [`CMD_CHILD_FN_VAR`].
 pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
-    zero_ui_wgt_text::Text!(cmd.name())
+    Text!(cmd.name())
+}
+
+/// Default [`CMD_TOOLTIP_FN_VAR`].
+pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
+    let info = args.cmd.info();
+    let has_info = info.map(|s| !s.is_empty());
+    let shortcut = args.cmd.shortcut().map(|s| match s.first() {
+        Some(s) => s.to_txt(),
+        None => Txt::from(""),
+    });
+    let has_shortcut = shortcut.map(|s| !s.is_empty());
+    Tip! {
+        child = Text! {
+            zero_ui_wgt::visibility = has_info.map_into();
+            txt = info;
+        };
+        child_bottom = {
+            insert: Text! {
+                font_weight = zero_ui_ext_font::FontWeight::BOLD;
+                zero_ui_wgt::visibility = has_shortcut.map_into();
+                txt = shortcut;
+            },
+            spacing: 4,
+        };
+
+        zero_ui_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
+    }
 }
 
 /// Sets the [`Command`] the button represents.
@@ -155,12 +221,15 @@ pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
 /// When this is set the button widget sets these properties if they are not set:
 ///
 /// * [`child`]: Set to an widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
+/// * [`tooltip_fn`]: Set to a widget function provided by [`cmd_tooltip_fn`](fn@cmd_tooltip_fn), by default it 
+///    shows the command info and first shortcut.
 /// * [`enabled`]: Set to `cmd.is_enabled()`.
 /// * [`visibility`]: Set to `cmd.has_handlers().into()`.
 /// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.
 /// * [`on_disabled_click`]: Set to a handler that notifies the command if `!cmd.is_enabled()`.
 ///
 /// [`child`]: struct@Button#child
+/// [`tooltip_fn`]: fn@tooltip_fn
 /// [`Command`]: zero_ui_app::event::Command
 /// [`enabled`]: fn@zero_ui_wgt::enabled
 /// [`visibility`]: fn@zero_ui_wgt::visibility
@@ -184,6 +253,14 @@ pub fn cmd_param(child: impl UiNode, cmd_param: impl IntoVar<Option<CommandParam
 #[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button))]
 pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> impl UiNode {
     with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)
+}
+
+/// Sets the widget function used to produce the button tooltip when [`cmd`] is set and tooltip is not.
+///
+/// [`cmd`]: fn@cmd
+#[property(CONTEXT, default(CMD_TOOLTIP_FN_VAR), widget_impl(Button))]
+pub fn cmd_tooltip_fn(child: impl UiNode, cmd_tooltip: impl IntoVar<WidgetFn<CmdTooltipArgs>>) -> impl UiNode {
+    with_context_var(child, CMD_TOOLTIP_FN_VAR, cmd_tooltip)
 }
 
 /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button style.
