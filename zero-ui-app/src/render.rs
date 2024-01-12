@@ -1653,6 +1653,7 @@ impl FrameBuilder {
         line: PxLine,
         stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -1675,6 +1676,7 @@ impl FrameBuilder {
                     extend_mode,
                 },
                 stops,
+                tile_origin,
                 tile_size,
                 tile_spacing,
             );
@@ -1703,6 +1705,7 @@ impl FrameBuilder {
         radius: PxSize,
         stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -1727,6 +1730,7 @@ impl FrameBuilder {
                     extend_mode,
                 },
                 stops,
+                tile_origin,
                 tile_size,
                 tile_spacing,
             );
@@ -1752,6 +1756,7 @@ impl FrameBuilder {
         angle: AngleRadian,
         stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -1776,6 +1781,7 @@ impl FrameBuilder {
                     extend_mode,
                 },
                 stops,
+                tile_origin,
                 tile_size,
                 tile_spacing,
             );
@@ -1876,8 +1882,14 @@ impl FrameBuilder {
 
         let offset = offset - radius.to_vector();
 
-        self.display_list
-            .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
+        self.display_list.push_radial_gradient(
+            PxRect::new(offset, bounds),
+            gradient,
+            &stops,
+            PxPoint::zero(),
+            bounds,
+            PxSize::zero(),
+        );
     }
 
     /// Push a custom display extension context with custom encoding.

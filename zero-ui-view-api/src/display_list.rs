@@ -363,6 +363,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         gradient: wr::Gradient,
         stops: &[wr::GradientStop],
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -370,6 +371,7 @@ impl DisplayListBuilder {
             clip_rect,
             gradient,
             stops: stops.to_vec().into_boxed_slice(),
+            tile_origin,
             tile_size,
             tile_spacing,
         })
@@ -381,6 +383,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         gradient: wr::RadialGradient,
         stops: &[wr::GradientStop],
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -388,6 +391,7 @@ impl DisplayListBuilder {
             clip_rect,
             gradient,
             stops: stops.to_vec().into_boxed_slice(),
+            tile_origin,
             tile_size,
             tile_spacing,
         });
@@ -399,6 +403,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         gradient: wr::ConicGradient,
         stops: &[wr::GradientStop],
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     ) {
@@ -406,6 +411,7 @@ impl DisplayListBuilder {
             clip_rect,
             gradient,
             stops: stops.to_vec().into_boxed_slice(),
+            tile_origin,
             tile_size,
             tile_spacing,
         });
@@ -1147,6 +1153,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         gradient: wr::Gradient,
         stops: Box<[wr::GradientStop]>,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },
@@ -1154,6 +1161,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         gradient: wr::RadialGradient,
         stops: Box<[wr::GradientStop]>,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },
@@ -1161,6 +1169,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         gradient: wr::ConicGradient,
         stops: Box<[wr::GradientStop]>,
+        tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },
@@ -1494,17 +1503,21 @@ impl DisplayItem {
                 clip_rect,
                 gradient,
                 stops,
+                mut tile_origin,
                 tile_size,
                 tile_spacing,
             } => {
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+
                 let clip = sc.clip_chain_id(wr_list);
-                let bounds = clip_rect.to_wr();
                 // stops needs to immediately followed by the gradient, if the clip-chain item
                 // is inserted in the between the stops are lost.
                 wr_list.push_stops(stops);
                 wr_list.push_gradient(
                     &wr::CommonItemProperties {
-                        clip_rect: bounds,
+                        clip_rect: clip_rect.to_wr(),
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: sc.primitive_flags(),
@@ -1519,15 +1532,19 @@ impl DisplayItem {
                 clip_rect,
                 gradient,
                 stops,
+                mut tile_origin,
                 tile_size,
                 tile_spacing,
             } => {
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+
                 let clip = sc.clip_chain_id(wr_list);
-                let bounds = clip_rect.to_wr();
                 wr_list.push_stops(stops);
                 wr_list.push_radial_gradient(
                     &wr::CommonItemProperties {
-                        clip_rect: bounds,
+                        clip_rect: clip_rect.to_wr(),
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: sc.primitive_flags(),
@@ -1542,15 +1559,19 @@ impl DisplayItem {
                 clip_rect,
                 gradient,
                 stops,
+                mut tile_origin,
                 tile_size,
                 tile_spacing,
             } => {
+                tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
+                tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
+                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+
                 let clip = sc.clip_chain_id(wr_list);
-                let bounds = clip_rect.to_wr();
                 wr_list.push_stops(stops);
                 wr_list.push_conic_gradient(
                     &wr::CommonItemProperties {
-                        clip_rect: bounds,
+                        clip_rect: clip_rect.to_wr(),
                         clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: sc.primitive_flags(),

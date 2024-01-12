@@ -1237,6 +1237,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                         radius,
                         &stops,
                         ExtendMode::Clamp.into(),
+                        PxPoint::zero(),
                         v_rect.size,
                         PxSize::zero(),
                     );
@@ -1254,6 +1255,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                         radius,
                         &stops,
                         ExtendMode::Clamp.into(),
+                        PxPoint::zero(),
                         h_rect.size,
                         PxSize::zero(),
                     );

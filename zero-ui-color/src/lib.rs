@@ -1271,6 +1271,21 @@ impl_from_and_into_var! {
             light: light.into(),
         }
     }
+
+    /// From same color to both.
+    fn from(color: Rgba) -> ColorPair {
+        ColorPair { dark: color, light: color }
+    }
+
+    /// From same color to both.
+    fn from(color: Hsva) -> ColorPair {
+        Rgba::from(color).into()
+    }
+
+    /// From same color to both.
+    fn from(color: Hsla) -> ColorPair {
+        Rgba::from(color).into()
+    }
 }
 impl ColorPair {
     /// Overlay white with `highlight` amount as alpha over the [`dark`] color.
@@ -1285,6 +1300,14 @@ impl ColorPair {
     /// [`light`]: ColorPair::light
     pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
         colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
+    }
+
+    /// Gets the color for the scheme.
+    pub fn color(self, scheme: ColorScheme) -> Rgba {
+        match scheme {
+            ColorScheme::Light => self.light,
+            ColorScheme::Dark => self.dark,
+        }
     }
 }
 

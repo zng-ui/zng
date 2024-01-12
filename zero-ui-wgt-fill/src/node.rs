@@ -155,7 +155,7 @@ where
     }
 
     /// Continue building a tiled linear gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledLinearGradient<S, A, E, T::Var, TS::Var>
+    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledLinearGradient<S, A, E, LocalVar<Point>, T::Var, TS::Var>
     where
         T: IntoVar<Size>,
         TS: IntoVar<Size>,
@@ -164,6 +164,7 @@ where
             stops: self.stops,
             axis: self.axis,
             extend_mode: self.extend_mode,
+            tile_origin: LocalVar(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -175,7 +176,7 @@ where
     ///
     /// Relative values are resolved on the full available size, so settings this to `100.pct()` is
     /// the same as not tiling.
-    pub fn tile_size<T>(self, size: T) -> TiledLinearGradient<S, A, E, T::Var, LocalVar<Size>>
+    pub fn tile_size<T>(self, size: T) -> TiledLinearGradient<S, A, E, LocalVar<Point>, T::Var, LocalVar<Size>>
     where
         T: IntoVar<Size>,
     {
@@ -192,20 +193,22 @@ where
 /// Use [`gradient`], [`linear_gradient`] to build.
 ///
 /// [`gradient`]: fn@gradient
-pub struct TiledLinearGradient<S, A, E, T, TS> {
+pub struct TiledLinearGradient<S, A, E, O, T, TS> {
     stops: S,
     axis: A,
     extend_mode: E,
+    tile_origin: O,
     tile_size: T,
     tile_spacing: TS,
     data: LinearNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, A, E, T, TS> TiledLinearGradient<S, A, E, T, TS>
+impl<S, A, E, O, T, TS> TiledLinearGradient<S, A, E, O, T, TS>
 where
     S: Var<GradientStops>,
     A: Var<LinearGradientAxis>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -218,7 +221,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledLinearGradient<S, A, E, T::Var, TS2::Var>
+    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledLinearGradient<S, A, E, O, T, TS2::Var>
     where
         TS2: IntoVar<Size>,
     {
@@ -226,8 +229,29 @@ where
             stops: self.stops,
             axis: self.axis,
             extend_mode: self.extend_mode,
+            tile_origin: self.tile_origin,
             tile_size: self.tile_size,
             tile_spacing: spacing.into_var(),
+            data: self.data,
+            tile_data: self.tile_data,
+        }
+    }
+
+    /// Sets the tile offset.
+    ///
+    /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
+    /// offset a full *turn*.
+    pub fn tile_origin<O2>(self, origin: O2) -> TiledLinearGradient<S, A, E, O2::Var, T, TS>
+    where
+        O2: IntoVar<Point>,
+    {
+        TiledLinearGradient {
+            stops: self.stops,
+            axis: self.axis,
+            extend_mode: self.extend_mode,
+            tile_origin: origin.into_var(),
+            tile_size: self.tile_size,
+            tile_spacing: self.tile_spacing,
             data: self.data,
             tile_data: self.tile_data,
         }
@@ -281,7 +305,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledRadialGradient<S, C, R, E, T::Var, TS::Var>
+    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledRadialGradient<S, C, R, E, LocalVar<Point>, T::Var, TS::Var>
     where
         T: IntoVar<Size>,
         TS: IntoVar<Size>,
@@ -291,6 +315,7 @@ where
             center: self.center,
             radius: self.radius,
             extend_mode: self.extend_mode,
+            tile_origin: LocalVar(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -299,7 +324,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile_size<T>(self, size: T) -> TiledRadialGradient<S, C, R, E, T::Var, LocalVar<Size>>
+    pub fn tile_size<T>(self, size: T) -> TiledRadialGradient<S, C, R, E, LocalVar<Point>, T::Var, LocalVar<Size>>
     where
         T: IntoVar<Size>,
     {
@@ -315,22 +340,24 @@ where
 /// Use [`gradient`], [`radial_gradient`] to build.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct TiledRadialGradient<S, C, R, E, T, TS> {
+pub struct TiledRadialGradient<S, C, R, E, O, T, TS> {
     stops: S,
     center: C,
     radius: R,
     extend_mode: E,
+    tile_origin: O,
     tile_size: T,
     tile_spacing: TS,
     data: RadialNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, C, R, E, T, TS> TiledRadialGradient<S, C, R, E, T, TS>
+impl<S, C, R, E, O, T, TS> TiledRadialGradient<S, C, R, E, O, T, TS>
 where
     S: Var<GradientStops>,
     C: Var<Point>,
     R: Var<GradientRadius>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -343,7 +370,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledRadialGradient<S, C, R, E, T::Var, TS2::Var>
+    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledRadialGradient<S, C, R, E, O, T, TS2::Var>
     where
         TS2: IntoVar<Size>,
     {
@@ -352,8 +379,30 @@ where
             center: self.center,
             radius: self.radius,
             extend_mode: self.extend_mode,
+            tile_origin: self.tile_origin,
             tile_size: self.tile_size,
             tile_spacing: spacing.into_var(),
+            data: self.data,
+            tile_data: self.tile_data,
+        }
+    }
+
+    /// Sets the tile offset.
+    ///
+    /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
+    /// offset a full *turn*.
+    pub fn tile_origin<O2>(self, origin: O2) -> TiledRadialGradient<S, C, R, E, O2::Var, T, TS>
+    where
+        O2: IntoVar<Point>,
+    {
+        TiledRadialGradient {
+            stops: self.stops,
+            center: self.center,
+            radius: self.radius,
+            extend_mode: self.extend_mode,
+            tile_origin: origin.into_var(),
+            tile_size: self.tile_size,
+            tile_spacing: self.tile_spacing,
             data: self.data,
             tile_data: self.tile_data,
         }
@@ -407,7 +456,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledConicGradient<S, C, A, E, T::Var, TS::Var>
+    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledConicGradient<S, C, A, E, LocalVar<Point>, T::Var, TS::Var>
     where
         T: IntoVar<Size>,
         TS: IntoVar<Size>,
@@ -417,6 +466,7 @@ where
             center: self.center,
             angle: self.angle,
             extend_mode: self.extend_mode,
+            tile_origin: LocalVar(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -425,7 +475,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile_size<T>(self, size: T) -> TiledConicGradient<S, C, A, E, T::Var, LocalVar<Size>>
+    pub fn tile_size<T>(self, size: T) -> TiledConicGradient<S, C, A, E, LocalVar<Point>, T::Var, LocalVar<Size>>
     where
         T: IntoVar<Size>,
     {
@@ -440,22 +490,24 @@ where
 /// Use [`gradient`], [`conic_gradient`] to build.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct TiledConicGradient<S, C, A, E, T, TS> {
+pub struct TiledConicGradient<S, C, A, E, O, T, TS> {
     stops: S,
     center: C,
     angle: A,
     extend_mode: E,
+    tile_origin: O,
     tile_size: T,
     tile_spacing: TS,
     data: ConicNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, C, A, E, T, TS> TiledConicGradient<S, C, A, E, T, TS>
+impl<S, C, A, E, O, T, TS> TiledConicGradient<S, C, A, E, O, T, TS>
 where
     S: Var<GradientStops>,
     C: Var<Point>,
     A: Var<AngleRadian>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -468,7 +520,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledConicGradient<S, C, A, E, T::Var, TS2::Var>
+    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledConicGradient<S, C, A, E, O, T, TS2::Var>
     where
         TS2: IntoVar<Size>,
     {
@@ -477,8 +529,30 @@ where
             center: self.center,
             angle: self.angle,
             extend_mode: self.extend_mode,
+            tile_origin: self.tile_origin,
             tile_size: self.tile_size,
             tile_spacing: spacing.into_var(),
+            data: self.data,
+            tile_data: self.tile_data,
+        }
+    }
+
+    /// Sets the tile offset.
+    ///
+    /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
+    /// offset a full *turn*.
+    pub fn tile_origin<O2>(self, origin: O2) -> TiledConicGradient<S, C, A, E, O2::Var, T, TS>
+    where
+        O2: IntoVar<Point>,
+    {
+        TiledConicGradient {
+            stops: self.stops,
+            center: self.center,
+            angle: self.angle,
+            extend_mode: self.extend_mode,
+            tile_origin: origin.into_var(),
+            tile_size: self.tile_size,
+            tile_spacing: self.tile_spacing,
             data: self.data,
             tile_data: self.tile_data,
         }
@@ -533,6 +607,7 @@ where
             self.data.line,
             &self.data.stops,
             self.extend_mode.get().into(),
+            PxPoint::zero(),
             self.data.size,
             PxSize::zero(),
         );
@@ -541,15 +616,17 @@ where
 
 #[derive(Default)]
 struct TiledNodeData {
+    origin: PxPoint,
     size: PxSize,
     spacing: PxSize,
 }
 #[ui_node(none)]
-impl<S, A, E, T, TS> UiNode for TiledLinearGradient<S, A, E, T, TS>
+impl<S, A, E, O, T, TS> UiNode for TiledLinearGradient<S, A, E, O, T, TS>
 where
     S: Var<GradientStops>,
     A: Var<LinearGradientAxis>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -558,6 +635,7 @@ where
             .sub_var_layout(&self.axis)
             .sub_var_layout(&self.stops)
             .sub_var_layout(&self.extend_mode)
+            .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
     }
@@ -579,6 +657,7 @@ where
                     self.tile_data.spacing = self.tile_spacing.layout();
                 });
                 self.data.line = self.axis.layout();
+                self.tile_data.origin = self.tile_origin.layout();
             });
 
             let length = self.data.line.length();
@@ -598,6 +677,7 @@ where
             self.data.line,
             &self.data.stops,
             self.extend_mode.get().into(),
+            self.tile_data.origin,
             self.tile_data.size,
             self.tile_data.spacing,
         );
@@ -663,6 +743,7 @@ where
             self.data.radius,
             &self.data.stops,
             self.extend_mode.get().into(),
+            PxPoint::zero(),
             self.data.size,
             PxSize::zero(),
         );
@@ -670,12 +751,13 @@ where
 }
 
 #[ui_node(none)]
-impl<S, C, R, E, T, TS> UiNode for TiledRadialGradient<S, C, R, E, T, TS>
+impl<S, C, R, E, O, T, TS> UiNode for TiledRadialGradient<S, C, R, E, O, T, TS>
 where
     S: Var<GradientStops>,
     C: Var<Point>,
     R: Var<GradientRadius>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -685,6 +767,7 @@ where
             .sub_var_layout(&self.radius)
             .sub_var_layout(&self.stops)
             .sub_var_layout(&self.extend_mode)
+            .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
     }
@@ -706,6 +789,7 @@ where
                 });
                 self.data.center = self.center.layout_dft(self.tile_data.size.to_vector().to_point() * 0.5.fct());
                 self.data.radius = self.radius.get().layout(self.data.center);
+                self.tile_data.origin = self.tile_origin.layout();
             });
 
             LAYOUT.with_constraints(
@@ -730,6 +814,7 @@ where
             self.data.radius,
             &self.data.stops,
             self.extend_mode.get().into(),
+            self.tile_data.origin,
             self.tile_data.size,
             self.tile_data.spacing,
         );
@@ -793,6 +878,7 @@ where
             self.angle.get(),
             &self.data.stops,
             self.extend_mode.get().into(),
+            PxPoint::zero(),
             self.data.size,
             PxSize::zero(),
         );
@@ -800,12 +886,13 @@ where
 }
 
 #[ui_node(none)]
-impl<S, C, A, E, T, TS> UiNode for TiledConicGradient<S, C, A, E, T, TS>
+impl<S, C, A, E, O, T, TS> UiNode for TiledConicGradient<S, C, A, E, O, T, TS>
 where
     S: Var<GradientStops>,
     C: Var<Point>,
     A: Var<AngleRadian>,
     E: Var<ExtendMode>,
+    O: Var<Point>,
     T: Var<Size>,
     TS: Var<Size>,
 {
@@ -815,6 +902,7 @@ where
             .sub_var_layout(&self.angle)
             .sub_var_layout(&self.stops)
             .sub_var_layout(&self.extend_mode)
+            .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
     }
@@ -835,6 +923,7 @@ where
                     self.tile_data.spacing = self.tile_spacing.layout();
                 });
                 self.data.center = self.center.get().layout_dft(self.tile_data.size.to_vector().to_point() * 0.5.fct());
+                self.tile_data.origin = self.tile_origin.layout();
             });
 
             let perimeter = Px({
@@ -859,6 +948,7 @@ where
             self.angle.get(),
             &self.data.stops,
             self.extend_mode.get().into(),
+            self.tile_data.origin,
             self.tile_data.size,
             self.tile_data.spacing,
         );

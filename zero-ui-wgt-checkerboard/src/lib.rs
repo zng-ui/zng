@@ -3,10 +3,14 @@
 
 //! Checkerboard widget, properties and nodes.
 
+use std::ops;
+
+use zero_ui_color::COLOR_SCHEME_VAR;
 use zero_ui_wgt::prelude::{
     gradient::{RenderExtendMode, RenderGradientStop},
     *,
 };
+
 /// A checkerboard visual.
 ///
 /// This widget draws a checkerboard pattern, with configurable dimensions and colors.
@@ -18,51 +22,72 @@ impl Checkerboard {
     }
 }
 
+/// Checker board colors.
+///
+/// See [`colors`](fn@colors) for more details.
+#[derive(Debug, Clone, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct Colors(pub [ColorPair; 2]);
+impl ops::Deref for Colors {
+    type Target = [ColorPair; 2];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl_from_and_into_var! {
+    fn from<C: Into<ColorPair>>([c0, c1]: [C; 2]) -> Colors {
+        Colors([c0.into(), c1.into()])
+    }
+    fn from<C0: Into<ColorPair>, C1: Into<ColorPair>>((c0, c1): (C0, C1)) -> Colors {
+        Colors([c0.into(), c1.into()])
+    }
+}
+
 context_var! {
     /// The checkerboard colors.
-    ///
-    /// Default depends on the color scheme.
-    ///
-    /// [`BLACK`]: colors::BLACK
-    /// [`WHITE`]: colors::WHITE
-    pub static COLORS_VAR: (Rgba, Rgba) = color_scheme_map(
-        (rgb(20, 20, 20), rgb(40, 40, 40)),
-        (rgb(202, 202, 204), rgb(253, 253, 253))
-    );
-
-    /// The size of one color rectangle in the checkerboard.
-    ///
-    /// Default is `(20, 20)`.
-    pub static SIZE_VAR: Size = (20, 20);
+    pub static COLORS_VAR: Colors = [
+        ColorPair { dark: rgb(20, 20, 20), light: rgb(202, 202, 204) },
+        ColorPair { dark: rgb(40, 40, 40), light: rgb(253, 253, 253) },
+    ];
 
     /// Offset applied to the checkerboard pattern.
     ///
     /// Default is no offset `(0, 0)`.
-    pub static OFFSET_VAR: Vector = Vector::zero();
+    pub static ORIGIN_VAR: Point = Point::zero();
+
+    /// The size of one color rectangle in the checkerboard.
+    ///
+    /// Default is `(20, 20)`.
+    pub static SIZE_VAR: Size = 20;
 }
 
 /// Set both checkerboard colors.
 ///
+/// The values are the interchanging colors for a given color scheme, for example in the dark
+/// color scheme the `(colors.0.dark, colors.1.dark)` colors are used.
+///
 /// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
-#[property(CONTEXT, default(COLORS_VAR))]
-pub fn colors(child: impl UiNode, colors: impl IntoVar<(Rgba, Rgba)>) -> impl UiNode {
+#[property(CONTEXT, default(COLORS_VAR), widget_impl(Checkerboard))]
+pub fn colors(child: impl UiNode, colors: impl IntoVar<Colors>) -> impl UiNode {
     with_context_var(child, COLORS_VAR, colors)
 }
 
 /// Set the size of a checkerboard color rectangle.
 ///
 /// This property sets the [`SIZE_VAR`] for all inner checkerboard widgets.
-#[property(CONTEXT, default(SIZE_VAR))]
+#[property(CONTEXT, default(SIZE_VAR), widget_impl(Checkerboard))]
 pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     with_context_var(child, SIZE_VAR, size)
 }
 
 /// Sets the offset of the checkerboard pattern.
 ///
+/// Relative values are resolved in the context of a [`cb_size`](fn@cb_size).
+///
 /// This property sets the [`OFFSET_VAR`] for all inner checkerboard widgets.
-#[property(CONTEXT, default(OFFSET_VAR))]
-pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
-    with_context_var(child, OFFSET_VAR, offset)
+#[property(CONTEXT, default(ORIGIN_VAR), widget_impl(Checkerboard))]
+pub fn cb_origin(child: impl UiNode, offset: impl IntoVar<Point>) -> impl UiNode {
+    with_context_var(child, ORIGIN_VAR, offset)
 }
 
 /// Checkerboard node.
@@ -70,15 +95,16 @@ pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNod
 /// The node is configured by the contextual variables defined in the widget.
 pub fn node() -> impl UiNode {
     let mut render_size = PxSize::zero();
+    let mut tile_origin = PxPoint::zero();
     let mut tile_size = PxSize::zero();
-    let mut center = PxPoint::zero();
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var_render(&COLORS_VAR)
+                .sub_var_render(&COLOR_SCHEME_VAR)
                 .sub_var_layout(&SIZE_VAR)
-                .sub_var_layout(&OFFSET_VAR);
+                .sub_var_layout(&ORIGIN_VAR);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -91,31 +117,23 @@ pub fn node() -> impl UiNode {
             }
 
             let ts = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
+            let to = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(ts), || ORIGIN_VAR.layout());
 
-            let mut offset = OFFSET_VAR.layout();
-            if offset.x > ts.width {
-                offset.x /= ts.width;
-            }
-            if offset.y > ts.height {
-                offset.y /= ts.height;
-            }
-
-            let mut c = ts.to_vector().to_point() / 2.0.fct();
-            c += offset;
-
-            if tile_size != ts || center != c {
+            if tile_origin != to || tile_size != ts {
+                tile_origin = to;
                 tile_size = ts;
-                center = c;
 
                 WIDGET.render();
             }
         }
         UiNodeOp::Render { frame } => {
-            let (c0, c1) = COLORS_VAR.get();
-            let colors = [c0.into(), c1.into()];
+            let [c0, c1] = COLORS_VAR.get().0;
+            let sch = COLOR_SCHEME_VAR.get();
+            let colors = [c0.color(sch).into(), c1.color(sch).into()];
+
             frame.push_conic_gradient(
                 PxRect::from_size(render_size),
-                center,
+                tile_size.to_vector().to_point() / 2.fct(),
                 0.rad(),
                 &[
                     RenderGradientStop {
@@ -152,6 +170,7 @@ pub fn node() -> impl UiNode {
                     },
                 ],
                 RenderExtendMode::Repeat,
+                tile_origin,
                 tile_size,
                 PxSize::zero(),
             );

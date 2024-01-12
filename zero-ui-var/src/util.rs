@@ -213,6 +213,21 @@ macro_rules! __impl_from_and_into_var {
             $($rest)+
         }
     };
+    // INPUT ARRAY:
+    (
+        =input=>
+        [$($config:tt)*]
+        ([ $($destruct:tt)+ ] : $Input:ty) $($rest:tt)+
+    ) => {
+        $crate::__impl_from_and_into_var! {
+            =output=>
+            [
+                input_type { $Input }
+                $($config)*
+            ]
+            $($rest)+
+        }
+    };
 
     // OUTPUT (without From):
     (
