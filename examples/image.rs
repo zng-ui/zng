@@ -10,7 +10,7 @@ use zero_ui::{
         filter::{drop_shadow, filter, mix_blend, Filter},
         gradient::stops,
     },
-    image::{self, img_error_fn, img_loading_fn, mask::mask_image, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs},
+    image::{self, img_error_fn, img_loading_fn, mask::mask_image, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs, IMAGES},
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,

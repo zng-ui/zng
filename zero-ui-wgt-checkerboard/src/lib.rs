@@ -52,13 +52,13 @@ context_var! {
 
     /// Offset applied to the checkerboard pattern.
     ///
-    /// Default is no offset `(0, 0)`.
+    /// Default is no offset, `0`.
     pub static ORIGIN_VAR: Point = Point::zero();
 
     /// The size of one color rectangle in the checkerboard.
     ///
-    /// Default is `(20, 20)`.
-    pub static SIZE_VAR: Size = 20;
+    /// Default is `10`.
+    pub static SIZE_VAR: Size = 10;
 }
 
 /// Set both checkerboard colors.
@@ -84,7 +84,7 @@ pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// Relative values are resolved in the context of a [`cb_size`](fn@cb_size).
 ///
-/// This property sets the [`OFFSET_VAR`] for all inner checkerboard widgets.
+/// This property sets the [`ORIGIN_VAR`] for all inner checkerboard widgets.
 #[property(CONTEXT, default(ORIGIN_VAR), widget_impl(Checkerboard))]
 pub fn cb_origin(child: impl UiNode, offset: impl IntoVar<Point>) -> impl UiNode {
     with_context_var(child, ORIGIN_VAR, offset)
@@ -116,8 +116,11 @@ pub fn node() -> impl UiNode {
                 WIDGET.render();
             }
 
-            let ts = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
+            let mut ts = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
             let to = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(ts), || ORIGIN_VAR.layout());
+
+            // each gradient tile has 4 color rectangles.
+            ts *= 2.fct();
 
             if tile_origin != to || tile_size != ts {
                 tile_origin = to;

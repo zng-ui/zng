@@ -556,7 +556,7 @@ pub mod prelude {
 
     pub use zero_ui_ext_font::{FontStretch, FontStyle, FontWeight};
 
-    pub use zero_ui_ext_image::{ImageSource, IMAGES};
+    pub use zero_ui_ext_image::ImageSource;
 
     pub use zero_ui_wgt_image::Image;
 
