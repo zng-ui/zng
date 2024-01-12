@@ -32,12 +32,12 @@
 //! # use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
 //! # fn tools() -> impl UiNode { widget::node::NilUiNode }
-//! # fn main() -> impl UiNode { widget::node::NilUiNode }
+//! # fn content() -> impl UiNode { widget::node::NilUiNode }
 //! # fn status() -> impl UiNode { widget::node::NilUiNode }
 //! # let _ =
 //! Window! {
 //!     child_top = tools(), 0;
-//!     child = main();
+//!     child = content();
 //!     child_bottom = status(), 0;
 //! }
 //! # ;
