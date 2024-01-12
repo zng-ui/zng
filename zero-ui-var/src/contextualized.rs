@@ -82,19 +82,19 @@ fn borrow_init_impl<'a, T>(actual: &'a ActualLock![S], init: &ActualInit![T], ty
     }
     drop(act);
 
-    let mut acttual = actual.write();
-    acttual.retain(|(h, _)| h.is_alive());
-    let i = acttual.len();
+    let mut actual_mut = actual.write();
+    actual_mut.retain(|(h, _)| h.is_alive());
+    let i = actual_mut.len();
 
     #[cfg(debug_assertions)]
     if i == 200 {
         tracing::debug!("variable of type `{type_name}` actualized >200 times");
     }
 
-    if !acttual.iter().any(|(c, _)| c == &current_ctx) {
-        acttual.push((current_ctx.clone(), init()));
+    if !actual_mut.iter().any(|(c, _)| c == &current_ctx) {
+        actual_mut.push((current_ctx.clone(), init()));
     }
-    drop(acttual);
+    drop(actual_mut);
 
     let actual = actual.read_recursive();
     RwLockReadGuard::map(actual, move |m| {

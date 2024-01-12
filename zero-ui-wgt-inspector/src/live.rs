@@ -313,8 +313,9 @@ mod inspector_window {
         let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
         let tree = WINDOWS.widget_tree(inspected).unwrap();
-        let title = if let Some(title) = tree.root().inspect_property(property_id!(window::title)) {
-            title.downcast_var::<Txt>(0).map(|t| formatx!("{t} - Inspector")).boxed()
+        let info = tree.root().inspector_info();
+        let title = if let (Some(info), Some(title)) = (info, tree.root().inspect_property(property_id!(window::title))) {
+            info.context.latest_capture().with_context(|| title.downcast_var::<Txt>(0).clone().actual_var().map(|t| formatx!("{t} - Inspector")).boxed())
         } else {
             var_from("Inspector").boxed()
         };
