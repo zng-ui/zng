@@ -59,7 +59,7 @@ impl Button {
                     "cmd-context",
                     clmv!(cmd, |mut child| {
                         if enabled {
-                            child = zero_ui_wgt::enabled(child, cmd.flat_map(|c| c.has_handlers())).boxed();
+                            child = zero_ui_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled())).boxed();
                         }
                         if visibility {
                             child = zero_ui_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();

@@ -136,6 +136,7 @@ impl ButtonStyle {
             background_color = color_scheme_pair(zero_ui_wgt_button::BASE_COLORS_VAR);
             opacity = 90.pct();
             foreground_highlight = unset!;
+            zero_ui_wgt_tooltip::tooltip_fn = WidgetFn::nil(); // cmd sets tooltip
 
             click_mode = ClickMode::release();// part of press-and-drag to click (see SubMenuPopup)
 
