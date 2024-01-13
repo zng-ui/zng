@@ -1,11 +1,13 @@
-* Test touch context menu.
+* Accept http links in `Markdown!` even when `http` feature is not enabled.
+
+* Add `deadlock_detection` to `debug_default`.
+
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.
 
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
-* Add feature documentation in `README.md` usage.
 * Add `description`, `documentation`, `repository`, `readme`, `caregories`, `keywords`.
     - Review what other large crates do.
     - Review badges.

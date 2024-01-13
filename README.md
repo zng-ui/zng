@@ -45,6 +45,33 @@ fn main() {
 
 See the [`API docs`] front page for more details.
 
+## Cargo Features
+
+Zero-Ui provides the following features which can be enabled in your `Cargo.toml` file:
+
+- **`inspector`** — Instrument each property and widget instance with inspector nodes and extend windows to be inspected on Ctrl+Shift+I.
+- **`trace_widget`** — Instrument every widget outer-most node to trace UI methods.
+- **`trace_wgt_item`** — Instrument every property and intrinsic node to trace UI methods.
+- **`deadlock_detection`** — Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+- **`http`** — Enables HTTP tasks, images download.
+- **`test_util`** — Test utilities.
+- **`multi_app`** — Allows multiple app instances per-process, one app per thread at a time. The `LocalContext` tracks
+what app is currently running in each thread and `app_local!` statics switch to the value of each app
+depending on the current thread.
+- **`hyphenation_embed_all`** — Embed hyphenation dictionaries for all supported languages. If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the `Hyphenation::dictionary_source` method.
+- **`dyn_node`** — Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
+- **`dyn_app_extension`** — Use dynamic dispatch at the app-extension level.
+- **`dyn_closure`** — Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+- **`toml`** — Enable TOML configs.
+- **`ron`** — Enable RON configs.
+- **`yaml`** — Enable YAML configs.
+
+These features are enabled by default:
+
+* **`debug_default`** — Enable the `dyn_*` and `inspector` features for debug builds only.
+* **`ipc`** — Enables pre-build views and connecting to views running in another process.
+* **`material_icons`** — Include material icons in the default app.
+
 ## `cargo do`
 
 There is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.

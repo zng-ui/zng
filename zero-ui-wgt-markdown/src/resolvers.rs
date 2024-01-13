@@ -23,8 +23,8 @@ use zero_ui_wgt_text::{self as text, Text};
 use super::Markdown;
 
 use path_absolutize::*;
-#[cfg(feature = "http")]
-use task::http::Uri;
+
+use http::Uri;
 
 context_var! {
     /// Markdown image resolver.
@@ -153,10 +153,7 @@ impl LinkResolver {
         let base = base.into();
         Self::new(move |url| {
             if !url.starts_with('#') {
-                #[cfg(feature = "http")]
                 let is_not_uri = url.parse::<Uri>().is_err();
-                #[cfg(not(feature = "http"))]
-                let is_not_uri = true;
 
                 if is_not_uri {
                     if let Ok(path) = url.parse::<PathBuf>() {
@@ -275,12 +272,10 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     }
 
     enum Link {
-        #[cfg(feature = "http")]
         Url(Uri),
         Path(PathBuf),
     }
 
-    #[cfg(feature = "http")]
     let link = if let Ok(url) = args.url.parse() {
         Link::Url(url)
     } else if let Ok(path) = args.url.parse() {
@@ -289,12 +284,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         return false;
     };
 
-    #[cfg(not(feature = "http"))]
-    let link = if let Ok(path) = args.url.parse() {
-        Link::Path(path)
-    } else {
-        return false;
-    };
+    
 
     let popup_id = WidgetId::new_unique();
 
@@ -374,7 +364,6 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         args.propagation().stop();
 
                         let url = match link {
-                            #[cfg(feature = "http")]
                             Link::Url(u) => u.to_string(),
                             Link::Path(p) => {
                                 match p.canonicalize() {

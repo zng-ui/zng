@@ -5,10 +5,6 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
-[features]
-# Enable web links and images.
-http = ["zero-ui-wgt/http"]
-
 [dependencies]
 zero-ui-wgt = { path = "../zero-ui-wgt" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
@@ -36,6 +32,7 @@ zero-ui-ext-font = { path = "../zero-ui-ext-font" }
 zero-ui-app = { path = "../zero-ui-app" }
 
 pulldown-cmark = "0.9"
+http = "1"
 path-absolutize = "3"
 html-escape = "0.2"
 serde = { version = "1", features = ["derive"] }

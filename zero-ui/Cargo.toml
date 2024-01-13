@@ -7,7 +7,7 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [features]
-default = ["ipc", "http", "material_icons", "debug_default"]
+default = ["ipc", "material_icons", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
@@ -15,16 +15,13 @@ default = ["ipc", "http", "material_icons", "debug_default"]
 ipc = ["zero-ui-app/ipc"]
 
 # Enables http tasks.
-#
-# Enabled by default.
 http = [
     "zero-ui-task/http",
     "zero-ui-wgt/http",
-    "zero-ui-wgt-markdown/http",
     "zero-ui-ext-image/http",
 ]
 
-# Signal the `zero-ui-core` build script to enable the `dyn_*` and `inspector` features for debug builds.
+# Enable the `dyn_*` and `inspector` features for debug builds only.
 #
 # Enabled by default.
 debug_default = [
@@ -34,7 +31,7 @@ debug_default = [
     "zero-ui-wgt-window/debug_default",
 ]
 
-# Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
+# Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
 #
 # This speeds-up compilation time at the cost of runtime.
 dyn_node = ["zero-ui-app/dyn_node"]
@@ -57,7 +54,7 @@ dyn_closure = [
     "zero-ui-wgt-window/dyn_closure",
 ]
 
-# like cfg(test) but also visible in docs and integration tests.
+# Test utilities.
 #
 # USAGE:
 #

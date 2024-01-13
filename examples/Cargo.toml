@@ -13,6 +13,7 @@ regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 
 zero-ui = { path = "../zero-ui", features = [
+    "http",
     "hyphenation_embed_all",
     "inspector",
     "deadlock_detection",
