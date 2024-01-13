@@ -311,7 +311,7 @@
 //! The default app provides multiple services, some common ones are [`APP`], [`WINDOWS`], [`WINDOW`], [`WIDGET`],
 //! [`FOCUS`], [`POPUP`], [`DATA`] and more. Services all follow the same pattern, they are a unit struct named like a static
 //! item, if you see such a type it is a service.
-//! 
+//!
 //! Most services are synchronized with the update cycle. If the service provides a value that value does not change mid-update, all
 //! widgets read the same value in the same update. If the service run some operation it takes requests to run the operation, the
 //! requests are only applied after the current UI update.

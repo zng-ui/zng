@@ -137,7 +137,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! gesture::CLICK_EVENT.on_pre_event(app_hn!(|_, _| {
 //!     println!("click, before all UI handlers");
 //! })).perm();
@@ -198,18 +198,18 @@
 //! }
 //! # }
 //! ```
-//! 
+//!
 //! The example above declares `FooArgs`, `FOO_EVENT`, `on_pre_foo` and `on_foo`. The example then declares
 //! an widget that sends the `FOO_EVENT` to itself on init and receives it using the event properties.
 //!
 //! # Commands
-//! 
+//!
 //! Command events are represented by a static instance of [`Command`] with name suffix `_CMD`. Commands have
 //! custom argument type [`CommandArgs`]. Every command event is also an `Event<CommandArgs>`, commands extend
 //! the event type to provide associated metadata, scope and *enabled* control.
 //!
 //! # Command Macros
-//! 
+//!
 //! TODO !!:
 //!
 //! # Full API

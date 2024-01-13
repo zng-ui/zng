@@ -12,7 +12,7 @@ default = ["ipc", "debug_default"]
 # 
 # Enabled by default.
 ipc = ["zero-ui-view-api/ipc"]
-# Signal the build script to enable the `dyn_*`, `inspector` and `trace_widget` features for debug builds.
+# Enable the `dyn_*`, `inspector` features for debug builds only.
 #
 # Enabled by default.
 debug_default = ["zero-ui-var/debug_default", "zero-ui-app_context/dyn_closure"]

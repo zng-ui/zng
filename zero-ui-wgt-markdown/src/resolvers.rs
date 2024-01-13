@@ -284,8 +284,6 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         return false;
     };
 
-    
-
     let popup_id = WidgetId::new_unique();
 
     let url = args.url.clone();

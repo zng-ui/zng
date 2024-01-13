@@ -147,7 +147,7 @@
 //!
 //! ```
 //! use zero_ui::{app::{AppExtended, AppExtension}, APP};
-//! 
+//!
 //! #[derive(Default)]
 //! pub struct HelloManager {}
 //! impl AppExtension for HelloManager {

@@ -1,7 +1,3 @@
-* Accept http links in `Markdown!` even when `http` feature is not enabled.
-
-* Add `deadlock_detection` to `debug_default`.
-
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.
 

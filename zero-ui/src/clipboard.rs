@@ -3,7 +3,7 @@
 //! This module provides the [`CLIPBOARD`] service and clipboard related commands and command handlers.
 //! The service does not implement the commands, widgets implement the commands and optionally use the service.
 //!
-//! Note that the [`CLIPBOARD`] service uses the view-process the interact with the system clipboard, so it will only 
+//! Note that the [`CLIPBOARD`] service uses the view-process the interact with the system clipboard, so it will only
 //! work if a headed app or headless app with renderer is running.
 //!
 //! # Text

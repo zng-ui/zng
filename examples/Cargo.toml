@@ -17,7 +17,7 @@ zero-ui = { path = "../zero-ui", features = [
     "hyphenation_embed_all",
     "inspector",
     "deadlock_detection",
-] } # , "deadlock_detection"
+] }
 
 zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
