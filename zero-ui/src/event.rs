@@ -1,5 +1,11 @@
 //! Event and command API.
 //!
+//! Events are represented by a static instance of [`Event<A>`] with name suffix `_EVENT`, they are declared.
+//!
+//! # Commands
+//!
+//! TODO !!:
+//!
 //! # Full API
 //!
 //! See [`zero_ui_app::event`] for the full event API.

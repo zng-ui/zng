@@ -139,6 +139,42 @@
 //!
 //! You can also run multiple headless apps in the same process, one per thread, if the crate is build using the `"multi_app"` feature.
 //!
+//! # App Extension
+//!
+//! Apps can be extended to provide new services and events, in fact all default services and events are implemented as extensions
+//! loaded by [`APP.defaults()`]. The app extension API is [`AppExtension`]. Usually extensions are named with suffix `Manager`, but
+//! that is not a requirement.
+//!
+//! ```
+//! use zero_ui::{app::{AppExtended, AppExtension}, APP};
+//! 
+//! #[derive(Default)]
+//! pub struct HelloManager {}
+//! impl AppExtension for HelloManager {
+//!     fn init(&mut self) {
+//!         println!("Hello init!");
+//!     }
+//!
+//!     fn update_preview(&mut self) {
+//!         println!("Hello before UI!");
+//!     }
+//!
+//!     fn update(&mut self) {
+//!         println!("Hello after UI!");
+//!     }
+//! }
+//!
+//! pub fn app() -> AppExtended<impl AppExtension> {
+//!     APP.defaults().extend(HelloManager::default())
+//! }
+//! ```
+//!
+//! ## Services
+//!
+//!
+//!
+//! [`APP.defaults()`]: crate::APP::defaults
+//!
 //! # Full API
 //!
 //! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API

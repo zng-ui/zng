@@ -8,6 +8,7 @@ license = "Apache-2.0"
 [dependencies]
 zero-ui-app_context = { path = "../zero-ui-app_context" }
 zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-ext-image = { path = "../zero-ui-ext-image" }

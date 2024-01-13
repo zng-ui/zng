@@ -3,8 +3,8 @@
 //! This module provides the [`CLIPBOARD`] service and clipboard related commands and command handlers.
 //! The service does not implement the commands, widgets implement the commands and optionally use the service.
 //!
-//! Note that the [`CLIPBOARD`] service uses the view-process the interact with the system clipboard, this
-//! means that it will only work if a headed app or headless app with renderer is running.
+//! Note that the [`CLIPBOARD`] service uses the view-process the interact with the system clipboard, so it will only 
+//! work if a headed app or headless app with renderer is running.
 //!
 //! # Text
 //!
@@ -21,8 +21,8 @@
 //!     child = TextInput!(txt.clone());
 //!     child_end = Button! {
 //!         child = Text!(copied.map(|&c| if !c { "Copy" } else { "Copied!" }.into()));
-//!         on_click = hn!(|_| {
-//!             if zero_ui::clipboard::CLIPBOARD.set_text(txt.get()).is_ok() {
+//!         on_click = async_hn!(txt, copied, |_| {
+//!             if zero_ui::clipboard::CLIPBOARD.set_text(txt.get()).wait_rsp().await.is_ok() {
 //!                 copied.set(true);
 //!             }
 //!         });

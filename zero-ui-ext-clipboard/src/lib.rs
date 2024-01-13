@@ -1,6 +1,5 @@
 //! Clipboard app extension, service and commands.
 //!
-//! This module is a thin wrapper around the [`VIEW_PROCESS`] provided clipboard service.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
@@ -14,8 +13,10 @@ use zero_ui_app::{
     view_process::{ViewClipboard, VIEW_PROCESS},
     AppExtension,
 };
+use zero_ui_app_context::app_local;
 use zero_ui_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
 use zero_ui_txt::Txt;
+use zero_ui_var::{response_var, ResponderVar, ResponseVar};
 use zero_ui_view_api::ViewProcessOffline;
 
 use zero_ui_view_api::clipboard as clipboard_api;
@@ -31,12 +32,130 @@ use zero_ui_view_api::ipc::IpcBytes;
 #[derive(Default)]
 pub struct ClipboardManager {}
 
-impl AppExtension for ClipboardManager {}
+impl AppExtension for ClipboardManager {
+    fn update(&mut self) {
+        let mut clipboard = CLIPBOARD_SV.write();
+        clipboard.text.update(|v, txt| v.write_text(txt));
+        clipboard.image.map_update(
+            |img| {
+                if let Some(img) = img.view() {
+                    Ok(img.clone())
+                } else {
+                    Err(ClipboardError::ImageNotLoaded)
+                }
+            },
+            |v, img| v.write_image(&img),
+        );
+        clipboard.file_list.update(|v, list| v.write_file_list(list));
+        clipboard.ext.update(|v, (data_type, data)| v.write_extension(data_type, data))
+    }
+}
+
+app_local! {
+    static CLIPBOARD_SV: ClipboardService  = ClipboardService::default();
+}
+
+#[derive(Default)]
+struct ClipboardService {
+    text: ClipboardData<Txt, Txt>,
+    image: ClipboardData<ImageVar, Img>,
+    file_list: ClipboardData<Vec<PathBuf>, Vec<PathBuf>>,
+    ext: ClipboardData<IpcBytes, (Txt, IpcBytes)>,
+}
+struct ClipboardData<O: 'static, I: 'static> {
+    latest: Option<Result<Option<O>, ClipboardError>>,
+    request: Option<(I, ResponderVar<Result<bool, ClipboardError>>)>,
+}
+impl<O: 'static, I: 'static> Default for ClipboardData<O, I> {
+    fn default() -> Self {
+        Self {
+            latest: None,
+            request: None,
+        }
+    }
+}
+impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
+    pub fn get(
+        &mut self,
+        getter: impl FnOnce(&ViewClipboard) -> Result<Result<O, clipboard_api::ClipboardError>, ViewProcessOffline>,
+    ) -> Result<Option<O>, ClipboardError> {
+        self.latest
+            .get_or_insert_with(|| {
+                let r = CLIPBOARD.view().and_then(|v| match getter(v) {
+                    Ok(r) => match r {
+                        Ok(r) => Ok(Some(r)),
+                        Err(e) => match e {
+                            clipboard_api::ClipboardError::NotFound => Ok(None),
+                            clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
+                            clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                        },
+                    },
+                    Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
+                });
+                if let Err(e) = &r {
+                    tracing::error!("clipboard get error, {e:?}");
+                }
+                r
+            })
+            .clone()
+    }
+
+    pub fn request(&mut self, r: I) -> ResponseVar<Result<bool, ClipboardError>> {
+        let (responder, response) = response_var();
+
+        if let Some((_, r)) = self.request.replace((r, responder)) {
+            r.respond(Ok(false));
+        }
+
+        response
+    }
+
+    pub fn update(
+        &mut self,
+        setter: impl FnOnce(&ViewClipboard, I) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
+    ) {
+        self.map_update(Ok, setter)
+    }
+
+    pub fn map_update<VI>(
+        &mut self,
+        to_view: impl FnOnce(I) -> Result<VI, ClipboardError>,
+        setter: impl FnOnce(&ViewClipboard, VI) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
+    ) {
+        if let Some((i, rsp)) = self.request.take() {
+            let vi = match to_view(i) {
+                Ok(vi) => vi,
+                Err(e) => {
+                    tracing::error!("clipboard set error, {e:?}");
+                    rsp.respond(Err(e));
+                    return;
+                }
+            };
+            let r = CLIPBOARD.view().and_then(|v| match setter(v, vi) {
+                Ok(r) => match r {
+                    Ok(()) => Ok(true),
+                    Err(e) => match e {
+                        clipboard_api::ClipboardError::NotFound => {
+                            Err(ClipboardError::Other(Txt::from_static("not found error in set operation")))
+                        }
+                        clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
+                        clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                    },
+                },
+                Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
+            });
+            if let Err(e) = &r {
+                tracing::error!("clipboard set error, {e:?}");
+            }
+            rsp.respond(r);
+        }
+    }
+}
 
 /// Error getting or setting the clipboard.
 ///
 /// The [`CLIPBOARD`] service already logs the error.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardError {
     /// No view-process available to process the request.
     ViewProcessOffline,
@@ -66,8 +185,12 @@ impl fmt::Display for ClipboardError {
 
 /// Clipboard service.
 ///
-/// This service is a thin wrapper around the [`VIEW_PROCESS`] provided clipboard service. This means
-/// the clipboard will not work in headless app without renderer mode.
+/// This service needs a running view-process to actually interact with the system clipboard, in a headless app
+/// without renderer (no view-process) the service will always return [`ClipboardError::ViewProcessOffline`].
+///
+/// This service synchronizes with the UI update cycle, the getter methods provide the same data for all requests in the
+/// same update pass, even if the system clipboard happens to change mid update, the setter methods only set the system clipboard
+/// at the end of the update pass.
 pub struct CLIPBOARD;
 impl CLIPBOARD {
     fn view(&self) -> Result<&ViewClipboard, ClipboardError> {
@@ -77,108 +200,67 @@ impl CLIPBOARD {
         }
     }
 
-    fn get<T>(
-        &self,
-        getter: impl FnOnce(&ViewClipboard) -> Result<Result<T, clipboard_api::ClipboardError>, ViewProcessOffline>,
-    ) -> Result<Option<T>, ClipboardError> {
-        let r = self.view().and_then(|v| match getter(v) {
-            Ok(r) => match r {
-                Ok(r) => Ok(Some(r)),
-                Err(e) => match e {
-                    clipboard_api::ClipboardError::NotFound => Ok(None),
-                    clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
-                    clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
-                },
-            },
-            Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
-        });
-        if let Err(e) = &r {
-            tracing::error!("clipboard get error, {e:?}");
-        }
-        r
-    }
-
-    fn set(
-        &self,
-        setter: impl FnOnce(&ViewClipboard) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
-    ) -> Result<(), ClipboardError> {
-        let r = self.view().and_then(|v| match setter(v) {
-            Ok(r) => match r {
-                Ok(()) => Ok(()),
-                Err(e) => match e {
-                    clipboard_api::ClipboardError::NotFound => {
-                        Err(ClipboardError::Other(Txt::from_static("not found error in set operation")))
-                    }
-                    clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
-                    clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
-                },
-            },
-            Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
-        });
-        if let Err(e) = &r {
-            tracing::error!("clipboard set error, {e:?}");
-        }
-        r
-    }
-
     /// Gets a text string from the clipboard.
     pub fn text(&self) -> Result<Option<Txt>, ClipboardError> {
-        self.get(|v| v.read_text()).map(|s| s.map(|s| Txt::from_str(&s)))
+        CLIPBOARD_SV
+            .write()
+            .text
+            .get(|v| v.read_text())
+            .map(|s| s.map(|s| Txt::from_str(&s)))
     }
-    /// Sets the text string on the clipboard, returns `Ok(())` if the operation succeeded.
-    pub fn set_text(&self, txt: impl Into<Txt>) -> Result<(), ClipboardError> {
-        self.set(|v| v.write_text(txt.into()))
+    /// Sets the text string on the clipboard after the current update.
+    pub fn set_text(&self, txt: impl Into<Txt>) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().text.request(txt.into())
     }
 
     /// Gets an image from the clipboard.
     ///
     /// The image is loaded in parallel and cached by the [`IMAGES`] service.
     pub fn image(&self) -> Result<Option<ImageVar>, ClipboardError> {
-        self.get(|v| v.read_image()).map(|i| {
-            i.map(|img| {
-                let mut hash = ImageHasher::new();
-                hash.update("zero_ui_core::CLIPBOARD");
-                hash.update(img.id().unwrap().get().to_be_bytes());
-
-                match IMAGES.register(hash.finish(), img) {
-                    Ok(r) => r,
-                    Err((_, r)) => r,
+        CLIPBOARD_SV.write().image.get(|v| {
+            let img = v.read_image()?;
+            match img {
+                Ok(img) => {
+                    let mut hash = ImageHasher::new();
+                    hash.update("zero_ui_ext_clipboard::CLIPBOARD");
+                    hash.update(img.id().unwrap().get().to_be_bytes());
+                    match IMAGES.register(hash.finish(), img) {
+                        Ok(r) => Ok(Ok(r)),
+                        Err((_, r)) => Ok(Ok(r)),
+                    }
                 }
-            })
+                Err(e) => Ok(Err(e)),
+            }
         })
     }
 
-    /// Set the image on the clipboard if it is loaded.
-    pub fn set_image(&self, img: &Img) -> Result<(), ClipboardError> {
-        if let Some(img) = img.view() {
-            self.set(|v| v.write_image(img))
-        } else {
-            Err(ClipboardError::ImageNotLoaded)
-        }
+    /// Set the image on the clipboard after the current update, if it is loaded.
+    pub fn set_image(&self, img: Img) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().image.request(img)
     }
 
     /// Gets a file list from the clipboard.
     pub fn file_list(&self) -> Result<Option<Vec<PathBuf>>, ClipboardError> {
-        self.get(|v| v.read_file_list())
+        CLIPBOARD_SV.write().file_list.get(|v| v.read_file_list())
     }
 
-    /// Sets the file list on the clipboard.
-    pub fn set_file_list(&self, list: impl Into<Vec<PathBuf>>) -> Result<(), ClipboardError> {
-        self.set(|v| v.write_file_list(list.into()))
+    /// Sets the file list on the clipboard after the current update.
+    pub fn set_file_list(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().file_list.request(list.into())
     }
 
     /// Gets custom data from the clipboard.
     ///
     /// The current view-process must support `data_type`.
     pub fn extension(&self, data_type: impl Into<Txt>) -> Result<Option<IpcBytes>, ClipboardError> {
-        self.get(|v| v.read_extension(data_type.into()))
+        CLIPBOARD_SV.write().ext.get(|v| v.read_extension(data_type.into()))
     }
 
     /// Set a custom data on the clipboard.
     ///
-    /// The current view-process must support `data_type`.
-    pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> Result<(), ClipboardError> {
-        self.set(|v| v.write_extension(data_type.into(), data))
+    /// The current view-process must support `data_type` after the current update.
+    pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> ResponseVar<Result<bool, ClipboardError>> {
+        CLIPBOARD_SV.write().ext.request((data_type.into(), data))
     }
 }
 

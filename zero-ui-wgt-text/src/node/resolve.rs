@@ -496,10 +496,9 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
         if let Some(range) = ctx.caret.selection_char_range() {
             args.propagation().stop();
             ctx.selection_by = SelectionBy::Command;
-            if CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range])).is_ok() {
-                drop(ctx);
-                TextEditOp::delete().call_edit_op();
-            }
+            CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range]));
+            drop(ctx);
+            TextEditOp::delete().call_edit_op();
         }
     } else if let Some(args) = PASTE_CMD.scoped(widget.id()).on_unhandled(update) {
         if let Some(paste) = CLIPBOARD.text().ok().flatten() {
