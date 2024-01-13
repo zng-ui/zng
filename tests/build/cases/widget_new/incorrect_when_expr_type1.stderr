@@ -1,4 +1,4 @@
-error[E0277]: the trait bound `impl zero_ui::prelude::Var<SideOffsets>: zero_ui::prelude::Var<bool>` is not satisfied
+error[E0277]: the trait bound `impl zero_ui::var::Var<SideOffsets>: zero_ui::var::Var<bool>` is not satisfied
   --> cases/widget_new/incorrect_when_expr_type1.rs:14:14
    |
 10 |       let _ = Wgt! {
@@ -7,13 +7,13 @@ error[E0277]: the trait bound `impl zero_ui::prelude::Var<SideOffsets>: zero_ui:
 12 | |         background_color = colors::BLACK;
 13 | |
 14 | |         when *#margin {
-   | |              ^ the trait `zero_ui::prelude::Var<bool>` is not implemented for `impl zero_ui::prelude::Var<SideOffsets>`
+   | |              ^ the trait `zero_ui::var::Var<bool>` is not implemented for `impl zero_ui::var::Var<SideOffsets>`
 15 | |             background_color = colors::WHITE;
 16 | |         }
 17 | |     };
    | |_____- required by a bound introduced by this call
    |
-   = help: the following other types implement trait `zero_ui::prelude::Var<T>`:
+   = help: the following other types implement trait `zero_ui::var::Var<T>`:
             <implementers-list>
 note: required by a bound in `when_condition_expr_var`
   --> $WORKSPACE/zero-ui-app/src/widget/builder.rs

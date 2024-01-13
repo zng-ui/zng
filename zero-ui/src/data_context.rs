@@ -10,6 +10,7 @@
 //! [MVVM]: https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93viewmodel
 //!
 //! ```
+//! # fn main() { }
 //! mod view {
 //!     use crate::view_model::*;
 //!     use zero_ui::{data_context, prelude::*, window::WindowRoot};

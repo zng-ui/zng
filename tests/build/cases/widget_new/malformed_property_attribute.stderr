@@ -1,11 +1,27 @@
-error: expected square brackets
- --> cases/widget_new/malformed_property_attribute.rs:6:10
+error: an inner attribute is not permitted in this context
+ --> cases/widget_new/malformed_property_attribute.rs:6:9
   |
 6 |         #![allow(inner_attribute)]
-  |          ^
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: inner attributes, like `#![no_std]`, annotate the item enclosing them, and are usually found at the beginning of source files
+  = note: outer attributes, like `#[test]`, annotate the item following them
 
-error: expected identifier
+error: expected identifier, found `!`
  --> cases/widget_new/malformed_property_attribute.rs:7:11
   |
 7 |         #[!foo]
-  |           ^
+  |           ^ expected identifier
+  |
+ ::: $WORKSPACE/zero-ui-wgt-button/src/lib.rs
+  |
+  |     ($cmd:expr) => {
+  |      --------- while parsing argument for this `expr` macro fragment
+
+warning: unused import: `layout::margin`
+ --> cases/widget_new/malformed_property_attribute.rs:1:31
+  |
+1 | use zero_ui::{button::Button, layout::margin, APP};
+  |                               ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
