@@ -27,7 +27,7 @@ pub use segmenting::*;
 
 mod shaping;
 pub use shaping::*;
-use zero_ui_clone_move::clmv;
+use zero_ui_clone_move::{async_clmv, clmv};
 
 mod hyphenation;
 pub use self::hyphenation::*;
@@ -53,7 +53,8 @@ use zero_ui_app::{
 use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::{lang, Lang, LangMap};
 use zero_ui_layout::unit::{
-    about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, EQ_EPSILON, EQ_EPSILON_100,
+    about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, EQ_EPSILON,
+    EQ_EPSILON_100,
 };
 use zero_ui_task as task;
 use zero_ui_txt::Txt;
@@ -1829,39 +1830,38 @@ impl FontFaceLoader {
             }
         }
 
-        if pending.is_empty() {
-            if list.is_empty() {
-                tracing::error!(target: "font_loading", "failed to load fallback font");
-                list.push(FontFace::empty());
-            } else {
-                return response_done_var(FontFaceList {
-                    fonts: list.into_boxed_slice(),
-                    requested_style: style,
-                    requested_weight: weight,
-                    requested_stretch: stretch,
-                });
-            }
-        }
-
-        let r = task::respond(async move {
-            for (i, pending) in pending.into_iter().rev() {
-                if let Some(rsp) = pending.wait_into_rsp().await {
-                    list.insert(i, rsp);
-                }
-            }
-
+        let r = if pending.is_empty() {
             if list.is_empty() {
                 tracing::error!(target: "font_loading", "failed to load fallback font");
                 list.push(FontFace::empty());
             }
-
-            FontFaceList {
+            response_done_var(FontFaceList {
                 fonts: list.into_boxed_slice(),
                 requested_style: style,
                 requested_weight: weight,
                 requested_stretch: stretch,
-            }
-        });
+            })
+        } else {
+            task::respond(async move {
+                for (i, pending) in pending.into_iter().rev() {
+                    if let Some(rsp) = pending.wait_into_rsp().await {
+                        list.insert(i, rsp);
+                    }
+                }
+
+                if list.is_empty() {
+                    tracing::error!(target: "font_loading", "failed to load fallback font");
+                    list.push(FontFace::empty());
+                }
+
+                FontFaceList {
+                    fonts: list.into_boxed_slice(),
+                    requested_style: style,
+                    requested_weight: weight,
+                    requested_stretch: stretch,
+                }
+            })
+        };
 
         self.list_cache
             .entry(families.iter().cloned().collect())
@@ -1938,7 +1938,7 @@ impl FontFaceLoader {
             return cached;
         }
 
-        let result = task::wait_respond(clmv!(font_name, || {
+        let load = task::wait(clmv!(font_name, || {
             let handle = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {
@@ -1958,6 +1958,15 @@ impl FontFaceLoader {
                 Err(FontLoadingError::UnknownFormat) => None,
                 Err(e) => {
                     tracing::error!(target: "font_loading", "failed to load system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
+                    None
+                }
+            }
+        }));
+        let result = task::respond(async_clmv!(font_name, {
+            match task::with_deadline(load, 10.secs()).await {
+                Ok(r) => r,
+                Err(_) => {
+                    tracing::error!(target: "font_loading", "timeout loading {font_name:?}");
                     None
                 }
             }

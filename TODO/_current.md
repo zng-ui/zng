@@ -1,3 +1,13 @@
+* Repeatedly opening the markdown example sometimes shows blank spaces where text should be.
+    - Happens more often if accessibility is enabled.
+    - Blank spaces are the null char (0).
+    - Font was `"<empty>"` when it failed, is shaping before font load and then never updating?
+    - `"<empty>"` is on the list, not an empty list.
+    - After fail all requests for the same font return empty font.
+    - Font query never responds (after 5s).
+    - Waiting a single font ResponseVar times-out, but the task itself of that font loading does not.
+        - Bug in the response future?
+
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.
 
