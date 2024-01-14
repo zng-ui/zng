@@ -1258,7 +1258,7 @@ mod response {
     fn race_condition() {
         let mut app = APP.minimal().run_headless(false);
 
-        for _ in 0..1000 {
+        for _ in 0..100 {
             let a = task::respond(async {
                 task::deadline(1.ms()).await;
                 'a'

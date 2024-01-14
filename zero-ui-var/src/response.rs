@@ -128,13 +128,7 @@ impl<T: VarValue> ResponseVar<T> {
     ///
     /// [`rsp`]: Self::rsp
     pub async fn wait_done(&self) {
-        while !self.is_done() {
-            let w = self.wait_update();
-            if self.is_done() {
-                break;
-            }
-            w.await;
-        }
+        self.wait_value(Response::is_done).await
     }
 
     /// Clone the response, if present and new.

@@ -1182,14 +1182,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// in sync with the UI, but it will elapse in any thread when the variable updates after the future is instantiated.
     ///
     /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
-    /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_is_new`.
+    /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_update`. The returned
+    /// future captures the [`last_update`] at the moment this method is called, this can be leveraged by *double-checking* to
+    /// avoid race conditions, see the [`wait_value`] default implementation for more details.
     ///
     /// [`get`]: Var::get
+    /// [`wait_value`]: Var::wait_value
     /// [`last_update`]: AnyVar::last_update
     /// [`is_new`]: AnyVar::is_new
-    #[allow(async_fn_in_trait)]
-    async fn wait_update(&self) -> VarUpdateId {
-        crate::future::WaitUpdateFut::new(self).await
+    fn wait_update(&self) -> impl std::future::Future<Output = VarUpdateId> {
+        crate::future::WaitUpdateFut::new(self)
     }
 
     /// Awaits for [`is_animating`] to change from `true` to `false`.
@@ -1200,9 +1202,20 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// If the variable does have the [`VarCapabilities::NEW`] the future is always ready.
     ///
     /// [`is_animating`]: AnyVar::is_animating
+    fn wait_animation(&self) -> impl std::future::Future<Output = ()> {
+        crate::future::WaitIsNotAnimatingFut::new(self)
+    }
+
+    ///Awaits for a value that passes the `predicate`.
     #[allow(async_fn_in_trait)]
-    async fn wait_animation(&self) {
-        crate::future::WaitIsNotAnimatingFut::new(self).await
+    async fn wait_value(&self, mut predicate: impl FnMut(&T) -> bool) {
+        while !self.with(&mut predicate) {
+            let future = self.wait_update();
+            if self.with(&mut predicate) {
+                break;
+            }
+            future.await;
+        }
     }
 
     /// Visit the current value of the variable, if it [`is_new`].
