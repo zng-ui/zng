@@ -1,14 +1,33 @@
 * Repeatedly opening the markdown example sometimes shows blank spaces where text should be.
-    - Happens more often if accessibility is enabled.
-    - Blank spaces are the null char (0).
-    - Font was `"<empty>"` when it failed, is shaping before font load and then never updating?
-    - `"<empty>"` is on the list, not an empty list.
-    - After fail all requests for the same font return empty font.
-    - Font query never responds (after 5s).
+    - Blank spaces are the null char (0). Font was `"<empty>"` when it failed, is shaping before font load and then never updating?
     - Waiting a single font ResponseVar times-out, but the task itself of that font loading does not.
         - Bug in the response future?
         - Yes, replacing `wait_into_rsp` loop probing and sleeping *fixes* the bug.
         - Need an actual fix.
+    - `WaitUpdateFut` timeout, hook never called.
+        - Having trouble tracing modify (bug vanishes if there are prints).
+```
+ok:
+
+!!: modify Arc(0x23dd0339870)
+!!: apply modify Arc(0x23dd0339870)
+!!: modify Arc(0x23dd0339ab0)
+!!: apply modify Arc(0x23dd0339ab0)
+!!: modify Arc(0x23dd0338eb0)
+!!: apply modify Arc(0x23dd0338eb0)
+!!: modify Arc(0x23dd0339630)
+!!: apply modify Arc(0x23dd0339630)
+
+timeout:
+
+!!: modify Arc(0x23dfa6a1da0)
+!!: apply modify Arc(0x23dfa6a1da0)
+!!: modify Arc(0x23dfa6a2340)
+!!: modify Arc(0x23dfa6a2520)
+!!: apply modify Arc(0x23dfa6a2340)
+!!: apply modify Arc(0x23dfa6a2520)
+!!: TIMEOUT Arc(0x23dfa6a2520)
+```
 
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.

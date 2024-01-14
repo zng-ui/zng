@@ -1250,3 +1250,37 @@ mod vec {
         .assert_wait();
     }
 }
+
+mod response {
+    use zero_ui::prelude::*;
+
+    #[test]
+    fn race_condition() {
+        let mut app = APP.minimal().run_headless(false);
+
+        for _ in 0..1000 {
+            let a = task::respond(async {
+                task::deadline(1.ms()).await;
+                'a'
+            });
+            let b = task::respond(async {
+                task::deadline(1.ms()).await;
+                'b'
+            });
+            let ab = task::respond(async {
+                let mut r = String::new();
+                for v in [a, b] {
+                    r.push(v.wait_into_rsp().await);
+                }
+                r
+            });
+
+            let ab = app
+                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 10.secs()).await })
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(ab, "ab");
+        }
+    }
+}
