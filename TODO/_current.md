@@ -7,6 +7,8 @@
     - Font query never responds (after 5s).
     - Waiting a single font ResponseVar times-out, but the task itself of that font loading does not.
         - Bug in the response future?
+        - Yes, replacing `wait_into_rsp` loop probing and sleeping *fixes* the bug.
+        - Need an actual fix.
 
 * `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
   to promote this pattern.
