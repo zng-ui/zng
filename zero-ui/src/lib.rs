@@ -881,3 +881,7 @@ mod defaults {
         }
     }
 }
+
+#[doc = include_str!("../../README.md")]
+#[cfg(doctest)]
+pub mod read_me_test {}

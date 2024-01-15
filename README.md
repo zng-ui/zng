@@ -20,7 +20,7 @@ zero-ui-view = "0.1"
 
 Then create your first window:
 
-```rust
+```rust ,no_run
 use zero_ui::prelude::*;
 
 fn main() {

@@ -15,11 +15,7 @@ default = ["ipc", "material_icons", "debug_default"]
 ipc = ["zero-ui-app/ipc"]
 
 # Enables http tasks.
-http = [
-    "zero-ui-task/http",
-    "zero-ui-wgt/http",
-    "zero-ui-ext-image/http",
-]
+http = ["zero-ui-task/http", "zero-ui-wgt/http", "zero-ui-ext-image/http"]
 
 # Enable the `dyn_*`, `inspector` features for debug builds only.
 #
@@ -167,3 +163,6 @@ zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
 zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
 
 zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", optional = true }
+
+[dev-dependencies]
+zero-ui-view = { path = "../zero-ui-view" }

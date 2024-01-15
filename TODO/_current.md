@@ -1,7 +1,10 @@
+# `zero-ui`
+* Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
-* Add `description`, `documentation`, `repository`, `readme`, `caregories`, `keywords`.
+* Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
 * Add better documentation, examples, for all modules in the main crate.
