@@ -675,7 +675,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::extend_style = Style! {
+            button::style_fn = Style! {
                 padding = 4;
                 corner_radius = unset!;
             };

@@ -16,7 +16,7 @@ use zero_ui_wgt_menu::{
 };
 use zero_ui_wgt_rule_line::hr::Hr;
 use zero_ui_wgt_size_offset::{offset, y};
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 use zero_ui_wgt_undo::{undo_scope, UndoMix};
 
@@ -45,6 +45,7 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 pub struct TextInput(StyleMix<UndoMix<Text>>);
 impl TextInput {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
 
@@ -56,19 +57,13 @@ impl TextInput {
             focusable = true;
             undo_scope = true;
             undo_limit = 100;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
+impl_style_fn!(TextInput);
 
 context_var! {
-    /// Text input style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-
     /// Idle background dark and light color.
     pub static BASE_COLORS_VAR: ColorPair = (rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));
 }
@@ -77,19 +72,6 @@ context_var! {
 #[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
 pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_context_var(child, BASE_COLORS_VAR, color)
-}
-
-/// Sets the text input style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the text input style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
 }
 
 /// Default border color.
@@ -178,6 +160,7 @@ impl DefaultStyle {
 
         widget_set! {
             self;
+            replace = true;
             padding = (7, 15);
             cursor = CursorIcon::Text;
             background_color = color_scheme_pair(BASE_COLORS_VAR);

@@ -290,7 +290,7 @@ mod inspector_window {
     use zero_ui_wgt_scroll::{Scroll, ScrollMode};
     use zero_ui_wgt_size_offset::{size, width};
     use zero_ui_wgt_stack::{Stack, StackDirection};
-    use zero_ui_wgt_style::{Style, StyleFn};
+    use zero_ui_wgt_style::Style;
     use zero_ui_wgt_text::{font_family, lang, Text};
     use zero_ui_wgt_text_input::TextInput;
     use zero_ui_wgt_toggle::{self as toggle, Toggle};
@@ -433,7 +433,7 @@ mod inspector_window {
                 padding = 4;
                 spacing = 2;
                 direction = StackDirection::left_to_right();
-                toggle::extend_style = Style! {
+                toggle::style_fn = Style! {
                     padding = 2;
                     corner_radius = 2;
                 };
@@ -568,7 +568,7 @@ mod inspector_window {
             child = Toggle! {
                 toggle::value = wgt.clone();
 
-                style_fn = StyleFn::nil();
+                style_fn = Style!(replace = true);
                 padding = 2;
                 when *#is_hovered {
                     background_color = TREE_ITEM_BKG_HOVERED_VAR;

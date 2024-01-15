@@ -12,7 +12,7 @@ use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
 use zero_ui_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
 use zero_ui_wgt_stack::Stack;
-use zero_ui_wgt_style::StyleFn;
+use zero_ui_wgt_style::{impl_style_fn, style_fn};
 
 use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 
@@ -21,9 +21,10 @@ use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 pub struct SubMenuPopup(zero_ui_wgt_layer::popup::Popup);
 impl SubMenuPopup {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
 
             // Supports press-and-drag to click gesture:
             //
@@ -45,6 +46,7 @@ impl SubMenuPopup {
         });
     }
 }
+impl_style_fn!(SubMenuPopup);
 
 /// Sub-menu items.
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(SubMenuPopup))]
@@ -61,13 +63,6 @@ context_var! {
     ///
     /// [`SubMenuPopup!`]: struct@SubMenuPopup
     pub static PANEL_FN_VAR: WidgetFn<zero_ui_wgt_panel::PanelArgs> = WidgetFn::new(default_panel_fn);
-
-    /// Sub-menu popup style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 }
 
 /// Widget function that generates the sub-menu popup layout.
@@ -78,19 +73,6 @@ pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zero_ui_wgt_pan
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
-/// Sets the sub-menu popup style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the sub-menu popup style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Sub-menu popup default style.
 #[widget($crate::popup::DefaultStyle)]
 pub struct DefaultStyle(zero_ui_wgt_layer::popup::DefaultStyle);
@@ -99,7 +81,7 @@ impl DefaultStyle {
         widget_set! {
             self;
 
-            super::sub::replace_style = super::sub::SubMenuStyle!();
+            super::sub::style_fn = style_fn!(|_| super::sub::SubMenuStyle!());
 
             background_color = color_scheme_pair(zero_ui_wgt_button::BASE_COLORS_VAR);
             border = {

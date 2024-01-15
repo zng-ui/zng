@@ -5,8 +5,7 @@
 //! See [`zero_ui_wgt_menu`] for the full widget API.
 
 pub use zero_ui_wgt_menu::{
-    extend_style, icon, icon_fn, panel_fn, replace_style, shortcut_spacing, shortcut_txt, ButtonStyle, DefaultStyle, Menu, ToggleStyle,
-    TouchButtonStyle,
+    icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn, ButtonStyle, DefaultStyle, Menu, ToggleStyle, TouchButtonStyle,
 };
 
 /// Context menu widget and properties.
@@ -14,8 +13,8 @@ pub use zero_ui_wgt_menu::{
 /// See [`zero_ui_wgt_menu::context`] for the full widget API.
 pub mod context {
     pub use zero_ui_wgt_menu::context::{
-        context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn, extend_style, panel_fn,
-        replace_style, ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle,
+        context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn, panel_fn, style_fn,
+        ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle,
     };
 }
 
@@ -23,5 +22,5 @@ pub mod context {
 ///
 /// See [`zero_ui_wgt_menu::popup`] for the full widget API.
 pub mod popup {
-    pub use zero_ui_wgt_menu::popup::{extend_style, panel_fn, replace_style, DefaultStyle, SubMenuPopup};
+    pub use zero_ui_wgt_menu::popup::{panel_fn, style_fn, DefaultStyle, SubMenuPopup};
 }

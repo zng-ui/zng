@@ -8,7 +8,7 @@ use zero_ui_wgt_layer::{
     AnchorMode,
 };
 use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_style::{style_fn, StyleFn};
+use zero_ui_wgt_style::{impl_style_fn, style_fn};
 
 /// Defines the context menu shown when the widget is enabled and receives a context click.
 ///
@@ -118,13 +118,15 @@ pub fn context_menu_anchor(child: impl UiNode, click_shortcut: impl IntoVar<(Anc
 pub struct ContextMenu(crate::popup::SubMenuPopup);
 impl ContextMenu {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
             alt_focus_scope = true;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
+impl_style_fn!(ContextMenu);
 
 /// Arguments for context menu widget functions.
 pub struct ContextMenuArgs {
@@ -150,13 +152,6 @@ context_var! {
     ///
     /// [`ContextMenu!`]: struct@ContextMenu
     pub static PANEL_FN_VAR: WidgetFn<zero_ui_wgt_panel::PanelArgs> = WidgetFn::new(crate::popup::default_panel_fn);
-
-    /// Context-menu popup style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 }
 
 /// Widget function that generates the context menu layout.
@@ -167,19 +162,6 @@ pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zero_ui_wgt_pan
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
-/// Sets the sub-menu popup style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the sub-menu popup style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Context menu popup default style.
 #[widget($crate::context::DefaultStyle)]
 pub struct DefaultStyle(crate::popup::DefaultStyle);
@@ -187,9 +169,9 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-
-            zero_ui_wgt_button::replace_style = style_fn!(|_| super::ButtonStyle!());
-            zero_ui_wgt_toggle::replace_style = style_fn!(|_| super::ToggleStyle!());
+            replace = true;
+            zero_ui_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
+            zero_ui_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
             zero_ui_wgt_rule_line::hr::color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
             zero_ui_wgt_text::icon::ico_size = 18;
         }
@@ -208,7 +190,7 @@ impl TouchStyle {
                 direction = StackDirection::left_to_right();
                 children = args.children;
             });
-            zero_ui_wgt_button::extend_style = style_fn!(|_| super::TouchButtonStyle!());
+            zero_ui_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
             zero_ui_wgt_rule_line::vr::color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
         }
     }

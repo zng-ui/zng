@@ -22,7 +22,7 @@ use zero_ui_wgt_input::{
     pointer_capture::{capture_pointer, CaptureMode},
     CursorIcon,
 };
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zero_ui_wgt_text::Text;
 use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
@@ -39,9 +39,11 @@ use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
+
         widget_set! {
             self;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
             capture_pointer = true;
             labelled_by_child = true;
         }
@@ -142,15 +144,9 @@ impl Button {
         pub capture_pointer(mode: impl IntoVar<CaptureMode>);
     }
 }
+impl_style_fn!(Button);
 
 context_var! {
-    /// Button style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-
     /// Idle background dark and light color.
     pub static BASE_COLORS_VAR: ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
 
@@ -269,19 +265,6 @@ pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl U
     with_context_var(child, BASE_COLORS_VAR, color)
 }
 
-/// Sets the button style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the button style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Create a [`color_scheme_highlight`] of `0.08`.
 pub fn color_scheme_hovered(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
     color_scheme_highlight(pair, 0.08)
@@ -299,6 +282,8 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            replace = true;
 
             access_role = AccessRole::Button;
 

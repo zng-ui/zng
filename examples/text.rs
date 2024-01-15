@@ -107,7 +107,7 @@ fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
         });
     }
     Stack! {
-        button::extend_style = Style! { padding = (0, 5) };
+        button::style_fn = Style! { padding = (0, 5) };
         direction = StackDirection::left_to_right();
         spacing = 5;
         corner_radius = 4;
@@ -456,7 +456,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         direction = StackDirection::left_to_right();
         padding = 4;
         layout::actual_width = menu_width;
-        button::extend_style = Style! {
+        button::style_fn = Style! {
             padding = (2, 4);
             corner_radius = 2;
             icon::ico_size = 16;
@@ -837,8 +837,8 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             spacing = (5, 10);
             padding = 20;
 
-            label::extend_style = Style! { text::txt_align = Align::END; };
-            text_input::replace_style = style_fn!(|_| text_input::FieldStyle!());
+            label::style_fn = Style! { text::txt_align = Align::END; };
+            text_input::style_fn = style_fn!(|_| text_input::FieldStyle!());
 
             cells = ui_vec![
                 Label! {

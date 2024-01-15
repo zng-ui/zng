@@ -8,7 +8,7 @@ use zero_ui_wgt_menu::{
     self as menu,
     context::{context_menu_fn, ContextMenu},
 };
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
@@ -16,35 +16,15 @@ use zero_ui_wgt_text::{self as text, *};
 pub struct SelectableText(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
 impl SelectableText {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
             txt_selectable = true;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
-
-context_var! {
-    /// Selectable text style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-}
-
-/// Sets the selectable text style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the selectable text in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
+impl_style_fn!(SelectableText);
 
 /// Default selectable text style.
 #[widget($crate::selectable::DefaultStyle)]
@@ -56,6 +36,7 @@ impl DefaultStyle {
 
         widget_set! {
             self;
+            replace = true;
             cursor = CursorIcon::Text;
 
             popup::context_capture = crate::default_popup_context_capture();

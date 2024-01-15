@@ -8,7 +8,7 @@ use zero_ui_ext_input::{
 };
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_input::focus::FocusableMix;
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 /// Styleable and focusable read-only text widget.
 ///
@@ -18,38 +18,26 @@ use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
 pub struct Label(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
 impl Label {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 }
-
-context_var! {
-    /// Label style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-}
-
-/// Sets the label style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the label style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
+impl_style_fn!(Label);
 
 /// Default label style.
 #[widget($crate::label::DefaultStyle)]
 pub struct DefaultStyle(Style);
+impl DefaultStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            replace = true;
+        }
+    }
+}
 
 /// Defines the widget the label is for.
 ///

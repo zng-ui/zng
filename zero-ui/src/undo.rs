@@ -17,7 +17,7 @@ pub use zero_ui_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, 
 /// See [`zero_ui_wgt_undo_history`] for the full undo API.
 pub mod history {
     pub use zero_ui_wgt_undo_history::{
-        extend_undo_button_style, group_by_undo_interval, is_cap_hovered_timestamp, replace_undo_button_style, UndoEntryArgs, UndoHistory,
-        UndoPanelArgs, UndoRedoButtonStyle, UndoStackArgs,
+        group_by_undo_interval, is_cap_hovered_timestamp, undo_button_style_fn, UndoEntryArgs, UndoHistory, UndoPanelArgs,
+        UndoRedoButtonStyle, UndoStackArgs,
     };
 }

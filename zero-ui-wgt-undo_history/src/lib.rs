@@ -62,11 +62,11 @@ context_var! {
 
 /// Widget function that converts [`UndoEntryArgs`] to widgets.
 ///
-/// Try [`extend_undo_button_style`] for making only visual changes.
+/// Try [`undo_button_style_fn`] for making only visual changes.
 ///
 /// Sets the [`UNDO_ENTRY_FN_VAR`].
 ///
-/// [`extend_undo_button_style`]: fn@extend_undo_button_style
+/// [`undo_button_style_fn`]: fn@undo_button_style_fn
 #[property(CONTEXT+1, default(UNDO_ENTRY_FN_VAR), widget_impl(UndoHistory))]
 pub fn undo_entry_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<UndoEntryArgs>>) -> impl UiNode {
     with_context_var(child, UNDO_ENTRY_FN_VAR, wgt_fn)
@@ -106,7 +106,7 @@ pub fn op(op: impl IntoValue<UndoOp>) {}
 
 /// Default [`UNDO_ENTRY_FN_VAR`].
 ///
-/// Returns a `Button!` with the [`UNDO_BUTTON_STYLE_VAR`] and the entry displayed in a `Text!` child.
+/// Returns a `Button!` with the [`UNDO_BUTTON_STYLE_FN_VAR`] and the entry displayed in a `Text!` child.
 /// The button notifies [`UNDO_CMD`] or [`REDO_CMD`] with the entry timestamp, the command is scoped on the
 /// undo parent of the caller not of the button.
 ///
@@ -140,7 +140,7 @@ pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
     Button! {
         child = Text!(label);
         undo_entry = args;
-        style_fn = UNDO_BUTTON_STYLE_VAR;
+        style_fn = UNDO_BUTTON_STYLE_FN_VAR;
         on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
             cmd.notify_param(ts);
@@ -387,20 +387,13 @@ context_var! {
     ///
     /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
     /// [`Button!`]: struct@Button
-    pub static UNDO_BUTTON_STYLE_VAR: StyleFn = style_fn!(|_| UndoRedoButtonStyle!());
+    pub static UNDO_BUTTON_STYLE_FN_VAR: StyleFn = style_fn!(|_| UndoRedoButtonStyle!());
 }
 
-/// Sets the undo/redo entry button style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(UNDO_BUTTON_STYLE_VAR))]
-pub fn replace_undo_button_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, UNDO_BUTTON_STYLE_VAR, style)
-}
-
-/// Extends the undo/redo entry button style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
+/// Extend or replace the undo/redo entry button style in a context.
 #[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_undo_button_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, UNDO_BUTTON_STYLE_VAR, style)
+pub fn undo_button_style_fn(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
+    zero_ui_wgt_style::with_style_fn(child, UNDO_BUTTON_STYLE_FN_VAR, style)
 }
 
 /// Sets the undo/redo entry widget context.

@@ -22,7 +22,7 @@ use zero_ui_wgt_layer::{
     popup::{ContextCapture, Popup, PopupState, POPUP},
     AnchorMode,
 };
-use zero_ui_wgt_style::{Style, StyleFn};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style};
 
 /// Widget tooltip.
 ///
@@ -508,6 +508,7 @@ context_var! {
 pub struct Tip(Popup);
 impl Tip {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
             hit_test_mode = false;
@@ -517,7 +518,7 @@ impl Tip {
             focusable = false;
             focus_on_init = unset!;
 
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
         }
     }
 
@@ -528,15 +529,9 @@ impl Tip {
         pub hit_test_mode(mode: impl IntoVar<HitTestMode>);
     }
 }
+impl_style_fn!(Tip);
 
 context_var! {
-    /// Tip style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-
     /// Idle background dark and light color.
     pub static BASE_COLORS_VAR: ColorPair = (rgb(20, 20, 20), rgb(235, 235, 235));
 }
@@ -547,19 +542,6 @@ pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl U
     with_context_var(child, BASE_COLORS_VAR, color)
 }
 
-/// Sets the tip style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the tip style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Tip default style.
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -567,6 +549,7 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            replace = true;
             padding = (2, 4);
             corner_radius = 3;
             background_color = color_scheme_pair(BASE_COLORS_VAR);

@@ -10,7 +10,7 @@ use zero_ui_wgt_container::Container;
 use zero_ui_wgt_fill::background_color;
 use zero_ui_wgt_filter::drop_shadow;
 use zero_ui_wgt_input::focus::{alt_focus_scope, directional_nav, focus_click_behavior, tab_nav, FocusClickBehavior, FocusableMix};
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 
@@ -37,9 +37,11 @@ use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 pub struct Popup(FocusableMix<StyleMix<Container>>);
 impl Popup {
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
+
         widget_set! {
             self;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
 
             alt_focus_scope = true;
             directional_nav = DirectionalNav::Cycle;
@@ -57,15 +59,9 @@ impl Popup {
         pub focus_click_behavior(behavior: impl IntoVar<FocusClickBehavior>);
     }
 }
+impl_style_fn!(Popup);
 
 context_var! {
-    /// Popup style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-
     /// If popup will close when it it is no longer contains the focused widget.
     ///
     /// Is `true` by default.
@@ -309,19 +305,6 @@ pub enum PopupState {
     Closed,
 }
 
-/// Sets the popup style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the popup style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Popup default style.
 #[widget($crate::popup::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -329,6 +312,8 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            replace = true;
 
             // same as window
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));

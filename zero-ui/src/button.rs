@@ -83,13 +83,8 @@
 //!
 //! # Style
 //!
-//! The button widget is styleable and implements the [extend/replace] pattern, the [`extend_style`] property can be
-//! set in any parent widget or the button itself to add to the button style,  the [`replace_style`] property
-//! can be set to fully replace the style.
-//!
-//! [extend/replace]: crate::style#extend-replace
-//! [`extend_style`]: fn@extend_style
-//! [`replace_style`]: fn@replace_style
+//! The button widget is styleable, the [`style_fn`](fn@style_fn) property can be set in any parent widget or the button
+//! itself to extend or replace the button style.
 //!
 //! ## Base Colors
 //!
@@ -105,7 +100,7 @@
 //!
 //! # let _scope = APP.defaults(); let _ =
 //! Window! {
-//!     button::extend_style = Style! {
+//!     button::style_fn = Style! {
 //!         when *#{button::BUTTON.cmd()} == Some(window::cmd::CLOSE_CMD) {
 //!             button::base_colors = color::ColorPair {
 //!                 // dark theme base
@@ -123,6 +118,6 @@
 //!
 //! See [`zero_ui_wgt_button`] for the full widget API.
 
-pub use zero_ui_wgt_button::{base_colors, extend_style, replace_style, Button, DefaultStyle, BUTTON};
+pub use zero_ui_wgt_button::{base_colors, style_fn, Button, DefaultStyle, BUTTON};
 
 pub use zero_ui_wgt_link::LinkStyle;

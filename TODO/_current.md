@@ -1,5 +1,4 @@
-* `StyleMix` does not capture `extend_style`/`replace_style` on the same widget, so it ends-up ignored. Need
-  to promote this pattern.
+* Pressing alt after clicking the example (focus) window highlights a button, not the menu.
 
 # Documentation
 

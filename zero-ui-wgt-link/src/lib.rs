@@ -19,6 +19,8 @@ impl LinkStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            replace = true;
+
             font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
             cursor = CursorIcon::Pointer;
             access_role = AccessRole::Link;

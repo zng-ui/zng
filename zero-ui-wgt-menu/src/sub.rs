@@ -27,7 +27,7 @@ use zero_ui_wgt_layer::{
     AnchorMode, AnchorOffset, AnchorSize,
 };
 use zero_ui_wgt_size_offset::{size, width};
-use zero_ui_wgt_style::{Style, StyleFn, StyleMix};
+use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 #[doc(hidden)]
 pub use zero_ui_wgt_text::Text;
 
@@ -46,9 +46,10 @@ impl SubMenu {
     }
 
     fn widget_intrinsic(&mut self) {
+        self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
         widget_set! {
             self;
-            style_fn = STYLE_VAR;
+            style_base_fn = style_fn!(|_| DefaultStyle!());
             focusable = true;
             click_mode = ClickMode::press();
             focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
@@ -71,6 +72,7 @@ impl SubMenu {
         });
     }
 }
+impl_style_fn!(SubMenu);
 
 /// Sub-menu implementation.
 pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>) -> impl UiNode {
@@ -300,19 +302,6 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
     })
 }
 
-/// Sets the sub-menu style in a context, the parent style is fully replaced.
-#[property(CONTEXT, default(STYLE_VAR))]
-pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    with_context_var(child, STYLE_VAR, style)
-}
-
-/// Extends the sub-menu style in a context, the parent style is used, properties of the same name set in
-/// `style` override the parent style.
-#[property(CONTEXT, default(StyleFn::nil()))]
-pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_extension(child, STYLE_VAR, style)
-}
-
 /// Defines the sub-menu header child.
 #[property(CHILD, capture, default(FillUiNode), widget_impl(SubMenu))]
 pub fn header(child: impl UiNode) {}
@@ -418,13 +407,6 @@ pub fn column_width_padding(child: impl UiNode, enabled: impl IntoVar<bool>) -> 
 }
 
 context_var! {
-    /// Sub-menu style in a context.
-    ///
-    /// Is the [`DefaultStyle!`] by default.
-    ///
-    /// [`DefaultStyle!`]: struct@DefaultStyle
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
-
     /// Width of the icon/checkmark column.
     pub static START_COLUMN_WIDTH_VAR: Length = 32;
 
@@ -465,6 +447,8 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            replace = true;
 
             padding = (4, 10);
             opacity = 90.pct();
