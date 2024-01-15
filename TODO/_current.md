@@ -1,5 +1,3 @@
-* Pressing alt after clicking the example (focus) window highlights a button, not the menu.
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

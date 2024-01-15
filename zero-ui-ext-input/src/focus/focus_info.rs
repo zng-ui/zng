@@ -795,7 +795,11 @@ impl WidgetFocusInfo {
             None
         } else if let Some(scope) = self.scope() {
             // search sibling ALT scope.
-            scope.inner_alt_scope_skip(self)
+            if self.is_focusable() {
+                scope.inner_alt_scope_skip(self)
+            } else {
+                scope.inner_alt_scope()
+            }
         } else {
             // we reached root, no ALT found.
             None
