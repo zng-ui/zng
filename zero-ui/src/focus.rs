@@ -12,16 +12,16 @@
 //!
 //! ```
 //! use zero_ui::{prelude::*, focus};
-//! 
+//!
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! focus::FOCUS_CHANGED_EVENT
 //! .on_pre_event(app_hn!(|args: &focus::FocusChangedArgs, _| {
 //!     println!("new_focus: {:?}", args.new_focus);
 //! }))
 //! .perm();
-//! 
-//! # let _ = 
+//!
+//! # let _ =
 //! Stack!(
 //! top_to_bottom,
 //! 5,
@@ -29,13 +29,13 @@
 //!     Wgt! {
 //!         id = "subject";
 //!         focus::focusable = true;
-//! 
+//!
 //!         layout::size = (100, 30);
 //!         widget::background_color = colors::RED;
 //!         when *#focus::is_focused {
 //!             widget::background_color = colors::GREEN;
 //!         }
-//! 
+//!
 //!         focus::on_focus = hn!(|_| {
 //!             println!("subject on_focus");
 //!         });
@@ -56,10 +56,8 @@
 //! )
 //! # ;
 //! ```
-//! 
+//!
 //! # Navigation
-//! 
-//! TODO !!:
 //!
 //! The keyboard focus can be moved from one widget to the next using the keyboard or the [`FOCUS`] service methods.
 //! There are two styles of movement: [tabbing](#tab-navigation) that follows the logical order and [directional](#directional-navigation)
@@ -71,10 +69,10 @@
 //! ## Tab Navigation
 //!
 //! Tab navigation follows a logical order, the position of the widget in the [widget tree](FocusInfoTree),
-//! optionally overridden with a [custom index](TabIndex).
+//! optionally overridden using [`tab_index`](fn@tab_index).
 //!
-//! Focus is moved forward by pressing `TAB` or calling [`focus_next`](FOCUS::focus_next) and backward by pressing `SHIFT+TAB` or
-//! calling [`focus_prev`](FOCUS::focus_prev).
+//! Focus is moved forward by pressing `TAB` or calling [`FOCUS.focus_next`](FOCUS::focus_next) and backward by pressing `SHIFT+TAB` or
+//! calling [`FOCUS.focus_prev`](FOCUS::focus_prev).
 //!
 //! ## Directional Navigation
 //!
@@ -88,14 +86,18 @@
 //! when the scope widget is focused, how the navigation flows inside their screen region and even if the navigation
 //! can naturally mode out of their region.
 //!
+//! You can use the [`focus_scope`](fn@focus_scope) property on an widget to turn it into a focus scope and use
+//! the [`tab_nav`](fn@tab_nav), [`directional_nav`](fn@directional_nav) and other properties on this module to
+//! configure the focus scope.
+//!
 //! ### Alt Scopes
 //!
 //! Alt scopes are specially marked focus scopes that receive focus when the `ALT`
-//! key is pressed or [`focus_alt`](FOCUS::focus_alt) is called in the [`FOCUS`] service. The alt scope of a widget
+//! key is pressed or [`FOCUS.focus_alt`](FOCUS::focus_alt) is called. The alt scope of a widget
 //! is selected by [`WidgetFocusInfo::alt_scope`].
 //!
 //! Alt scopes remember the previously focused widget as a [return focus](#return-focus). The focus returns ALT is pressed again,
-//! or [`focus_exit`](FOCUS::focus_exit) is called in the [`FOCUS`] service and the parent is the focus scope.
+//! or [`FOCUS.focus_exit`](FOCUS::focus_exit) is called and the parent is the focus scope.
 //!
 //! ### Return Focus
 //!
@@ -103,14 +105,17 @@
 //! this widget when the scope receives focus. Alt scopes also remember the widget from which the *alt* focus happened
 //! and can also return focus back to that widget.
 //!
-//! Widgets can keep track of this by listening to the [`RETURN_FOCUS_CHANGED_EVENT`] event or by calling
-//! [`return_focused`](FOCUS::return_focused) in the [`FOCUS`] service. Usually the window root scope remembers
-//! return focus and some widgets, like *text inputs* visually indicate that they will be focused when the window
+//! You can track the return focus by listening to the [`RETURN_FOCUS_CHANGED_EVENT`] event or
+//! [`FOCUS.return_focused`](FOCUS::return_focused) variable. Usually the window root scope remembers
+//! return focus and some widgets, like text fields visually indicate that they will be focused when the window
 //! is focused.
+//!
+//! You can use the [`focus_scope_behavior`](fn@focus_scope_behavior) property to configure a custom focus scope
+//! to remember the return focus.
 //!
 //! # Configuring Widgets
 //!
-//! Focusable configuration is set as render metadata using the [`FocusInfoBuilder`]. You can use this type to make a widget
+//! Focusable configuration is set as info metadata using the [`FocusInfoBuilder`]. You can use this type to make a widget
 //! focusable or a focus scope and customize how the focus manager interacts with the widget.
 //!
 //! Note that the main crate already provides properties for configuring focus in widgets, you only need to
@@ -120,7 +125,7 @@
 //!
 //! Focus information exists as metadata associated with a window widget tree. This metadata can be manually queried by
 //! creating a [`FocusInfoTree`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
