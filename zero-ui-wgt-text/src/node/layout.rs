@@ -798,6 +798,8 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
                 }
             }
             UiNodeOp::Event { update } => {
+                child.event(update);
+
                 if let Some(e) = &mut edit {
                     layout_text_edit_events(update, e);
                 }

@@ -282,6 +282,8 @@ fn resolve_text_edit(child: impl UiNode) -> impl UiNode {
                 }
             }
             UiNodeOp::Event { update } => {
+                child.event(update);
+
                 if let Some(edit) = &mut edit {
                     if TEXT_EDITABLE_VAR.get() && TEXT.resolved().txt.capabilities().can_modify() {
                         resolve_text_edit_events(update, edit);
@@ -289,8 +291,6 @@ fn resolve_text_edit(child: impl UiNode) -> impl UiNode {
                     if TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get() {
                         resolve_text_edit_or_select_events(update, edit);
                     }
-
-                    child.event(update);
 
                     let enable = !OBSCURE_TXT_VAR.get() && TEXT.resolved().caret.selection_range().is_some();
                     edit.cut.set_enabled(enable);
@@ -332,10 +332,10 @@ fn resolve_text_edit(child: impl UiNode) -> impl UiNode {
 
                 edit.events[4] = ACCESS_SELECTION_EVENT.subscribe(id);
 
-                let obscure = OBSCURE_TXT_VAR.get();
-                edit.copy = COPY_CMD.scoped(id).subscribe(!obscure);
+                let enabled = !OBSCURE_TXT_VAR.get() && TEXT.resolved().caret.selection_range().is_some();
+                edit.copy = COPY_CMD.scoped(id).subscribe(enabled);
                 if editable {
-                    edit.cut = CUT_CMD.scoped(id).subscribe(!obscure);
+                    edit.cut = CUT_CMD.scoped(id).subscribe(enabled);
                 } else {
                     // used in `render_selection`
                     edit.events[0] = FOCUS_CHANGED_EVENT.subscribe(id);
