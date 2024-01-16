@@ -24,6 +24,8 @@ pub struct MaterialFonts;
 #[cfg(feature = "embedded")]
 impl MaterialFonts {
     /// Register the material fonts in an app.
+    ///
+    /// The fonts will be available after the current update.
     pub fn register() {
         let sets = [
             (outlined::meta::FONT_NAME, outlined::meta::FONT_BYTES),
@@ -34,15 +36,14 @@ impl MaterialFonts {
 
         for (name, bytes) in sets {
             let font = zero_ui_ext_font::CustomFont::from_bytes(name, zero_ui_ext_font::FontDataRef::from_static(bytes), 0);
-            // memory font loads instantly.
-            zero_ui_ext_font::FONTS.register(font).into_rsp().unwrap().unwrap();
+            zero_ui_ext_font::FONTS.register(font);
         }
     }
 }
 #[cfg(feature = "embedded")]
 impl zero_ui_app::AppExtension for MaterialFonts {
     fn init(&mut self) {
-        Self::register()
+        MaterialFonts::register();
     }
 }
 

@@ -122,6 +122,7 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
         to_view: impl FnOnce(I) -> Result<VI, ClipboardError>,
         setter: impl FnOnce(&ViewClipboard, VI) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
     ) {
+        self.latest = None;
         if let Some((i, rsp)) = self.request.take() {
             let vi = match to_view(i) {
                 Ok(vi) => vi,

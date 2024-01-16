@@ -264,6 +264,7 @@ async fn set_fallback_font() {
     {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
+        println!("!!: HEY!");
         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
         let fallback = CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 

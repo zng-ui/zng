@@ -17,3 +17,7 @@
 * Function to get source code file and line at property declaration.
 
 * Make text selectable.
+
+* Let widgets set custom info watchers.
+    - Like `interactivity` and `visibility` in the info section of the properties panel.
+    - Custom watcher is a name, category and `BoxedVar<Txt>` that shows the value. 

@@ -59,12 +59,12 @@ use zero_ui_layout::unit::{
 use zero_ui_task as task;
 use zero_ui_txt::Txt;
 use zero_ui_var::{
-    animation::Transitionable, impl_from_and_into_var, response_done_var, var, AnyVar, ArcEq, ArcVar, IntoVar, LocalVar, ResponseVar, Var,
+    animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var, AnyVar, ArcVar, IntoVar, LocalVar,
+    ResponderVar, ResponseVar, Var,
 };
 use zero_ui_view_api::webrender_api as wr;
 use zero_ui_view_api::{config::FontAntiAliasing, ViewProcessOffline};
 
-pub use font_kit::error::FontLoadingError;
 pub use font_kit::properties::Style as FontStyle;
 
 /// Font family name.
@@ -632,8 +632,33 @@ impl AppExtension for FontManager {
     fn update(&mut self) {
         let mut fonts = FONTS_SV.write();
 
-        for args in fonts.take_updates() {
-            FONT_CHANGED_EVENT.notify(args);
+        {
+            let mut f = GENERIC_FONTS_SV.write();
+            for request in std::mem::take(&mut f.requests) {
+                request(&mut f);
+            }
+        }
+
+        let mut changed = false;
+        for (request, responder) in std::mem::take(&mut fonts.loader.unregister_requests) {
+            let r = if let Some(removed) = fonts.loader.custom_fonts.remove(&request) {
+                // cut circular reference so that when the last font ref gets dropped
+                // this font face also gets dropped. Also tag the font as unregistered
+                // so it does not create further circular references.
+                for removed in removed {
+                    removed.on_refresh();
+                }
+
+                changed = true;
+
+                true
+            } else {
+                false
+            };
+            responder.respond(r);
+        }
+        if changed {
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
         }
 
         if fonts.prune_requested {
@@ -665,10 +690,6 @@ impl FontsService {
         self.loader.on_prune();
         self.prune_requested = false;
     }
-
-    fn take_updates(&mut self) -> Vec<FontChangedArgs> {
-        std::mem::take(&mut GENERIC_FONTS_SV.write().updates)
-    }
 }
 
 /// Font loading, custom fonts and app font configuration.
@@ -682,7 +703,7 @@ impl FONTS {
     ///
     /// See the event documentation for more information.
     pub fn refresh(&self) {
-        GENERIC_FONTS_SV.write().notify(FontChange::Refesh);
+        FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Refesh));
     }
 
     /// Remove all unused fonts from cache.
@@ -705,26 +726,17 @@ impl FONTS {
     /// Fonts sourced from a file are not monitored for changes, you can *reload* the font
     /// by calling `register` again with the same font name.
     ///
-    /// The returned response is already set if the font is [`CustomFont::from_bytes`] or [`CustomFont::from_other`] and the other
-    /// is already loaded, otherwise the returned response will update once when the font finishes loading.
-    pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<(), ArcEq<FontLoadingError>>> {
-        task::poll_respond(async move {
-            FontFaceLoader::register(custom_font).await.map_err(ArcEq::new)?;
-            GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
-            Ok(())
-        })
+    /// The returned response will update once when the font finishes loading with the new font.
+    /// At minimum the new font will be available on the next update.
+    pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<FontFace, FontLoadingError>> {
+        FontFaceLoader::register(custom_font)
     }
 
     /// Removes a custom font family. If the font faces are not in use it is also unloaded.
     ///
-    /// Returns if any was removed.
-    pub fn unregister(&self, custom_family: &FontName) -> bool {
-        let mut ft = FONTS_SV.write();
-        let unregistered = ft.loader.unregister(custom_family);
-        if unregistered {
-            GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
-        }
-        unregistered
+    /// Returns a response var that updates once with a value that indicates if any custom font was removed.
+    pub fn unregister(&self, custom_family: FontName) -> ResponseVar<bool> {
+        FONTS_SV.write().loader.unregister(custom_family)
     }
 
     /// Gets a font list that best matches the query.
@@ -1683,6 +1695,7 @@ impl<I: SliceIndex<[Font]>> std::ops::Index<I> for FontList {
 
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFace>>,
+    unregister_requests: Vec<(FontName, ResponderVar<bool>)>,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
     list_cache: HashMap<Box<[FontName]>, Vec<FontFaceListQuery>>,
 }
@@ -1699,6 +1712,7 @@ impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
+            unregister_requests: vec![],
             system_fonts_cache: HashMap::new(),
             list_cache: HashMap::new(),
         }
@@ -1748,34 +1762,44 @@ impl FontFaceLoader {
         self.list_cache.clear();
     }
 
-    async fn register(custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let face = FontFace::load_custom(custom_font).await?;
+    fn register(custom_font: CustomFont) -> ResponseVar<Result<FontFace, FontLoadingError>> {
+        // start loading
+        let resp = task::respond(FontFace::load_custom(custom_font));
 
-        let mut fonts = FONTS_SV.write();
-        let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
+        // modify loader.custom_fonts at the end of whatever update is happening when finishes loading.
+        resp.hook(|args| {
+            if let Some(done) = args.value().done() {
+                if let Ok(face) = done {
+                    let mut fonts = FONTS_SV.write();
+                    let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
+                    let existing = family.iter().position(|f| f.0.properties == face.0.properties);
 
-        let existing = family.iter().position(|f| f.0.properties == face.0.properties);
+                    if let Some(i) = existing {
+                        family[i] = face.clone();
+                    } else {
+                        family.push(face.clone());
+                    }
 
-        if let Some(i) = existing {
-            family[i] = face;
-        } else {
-            family.push(face);
-        }
-        Ok(())
+                    FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::CustomFonts));
+                }
+                false
+            } else {
+                true
+            }
+        })
+        .perm();
+        resp
     }
 
-    fn unregister(&mut self, custom_family: &FontName) -> bool {
-        if let Some(removed) = self.custom_fonts.remove(custom_family) {
-            // cut circular reference so that when the last font ref gets dropped
-            // this font face also gets dropped. Also tag the font as unregistered
-            // so it does not create further circular references.
-            for removed in removed {
-                removed.on_refresh();
-            }
-            true
-        } else {
-            false
+    fn unregister(&mut self, custom_family: FontName) -> ResponseVar<bool> {
+        let (responder, response) = response_var();
+
+        if !self.unregister_requests.is_empty() {
+            UPDATES.update(None);
         }
+        self.unregister_requests.push((custom_family, responder));
+
+        response
     }
 
     fn try_list(
@@ -2175,7 +2199,8 @@ struct GenericFontsService {
     cursive: LangMap<FontName>,
     fantasy: LangMap<FontName>,
     fallback: LangMap<FontName>,
-    updates: Vec<FontChangedArgs>,
+
+    requests: Vec<Box<dyn FnOnce(&mut GenericFontsService) + Send + Sync>>,
 }
 impl GenericFontsService {
     fn new() -> Self {
@@ -2207,15 +2232,8 @@ impl GenericFontsService {
 
             fallback: default(fallback),
 
-            updates: vec![],
+            requests: vec![],
         }
-    }
-
-    fn notify(&mut self, change: FontChange) {
-        if self.updates.is_empty() {
-            UPDATES.update(None);
-        }
-        self.updates.push(FontChangedArgs::now(change));
     }
 }
 
@@ -2249,13 +2267,19 @@ macro_rules! impl_fallback_accessors {
 
     #[doc = "Sets the fallback *"$name_str "* font for the given language."]
     ///
-    /// Returns the previous registered font for the language.
+    /// The change applied for the next update.
     ///
     /// Use `lang!(und)` to set name used when no language matches.
-    pub fn [<set_ $name>]<F: Into<FontName>>(&self, lang: Lang, font_name: F) -> Option<FontName> {
+    pub fn [<set_ $name>]<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
         let mut g = GENERIC_FONTS_SV.write();
-        g.notify(FontChange::GenericFont(FontName::$name(), lang.clone()));
-        g.$name.insert(lang, font_name.into())
+        let font_name = font_name.into();
+        if g.requests.is_empty() {
+            UPDATES.update(None);
+        }
+        g.requests.push(Box::new(move |g| {
+            g.$name.insert(lang.clone(), font_name);
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::GenericFont(FontName::$name(), lang)));
+        }));
     }
     })+};
 }
@@ -2273,15 +2297,19 @@ impl GenericFonts {
 
     /// Sets the ultimate fallback font used when none of other fonts support a glyph.
     ///
-    /// This should be a font that cover as many glyphs as possible.
-    ///
-    /// Returns the previous registered font for the language.
+    /// The change applies for the next update.
     ///
     /// Use `lang!(und)` to set name used when no language matches.
-    pub fn set_fallback<F: Into<FontName>>(&self, lang: Lang, font_name: F) -> Option<FontName> {
+    pub fn set_fallback<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
         let mut g = GENERIC_FONTS_SV.write();
-        g.notify(FontChange::Fallback(lang.clone()));
-        g.fallback.insert(lang, font_name.into())
+        if g.requests.is_empty() {
+            UPDATES.update(None);
+        }
+        let font_name = font_name.into();
+        g.requests.push(Box::new(move |g| {
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Fallback(lang.clone())));
+            g.fallback.insert(lang, font_name);
+        }));
     }
 
     /// Returns the font name registered for the generic `name` and `lang`.
@@ -3110,6 +3138,71 @@ impl PartialOrd for CaretIndex {
 impl Ord for CaretIndex {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.index.cmp(&other.index)
+    }
+}
+
+/// Reasons why a loader might fail to load a font.
+#[derive(Debug, Clone)]
+pub enum FontLoadingError {
+    /// The data was of a format the loader didn't recognize.
+    UnknownFormat,
+    /// Attempted to load an invalid index in a TrueType or OpenType font collection.
+    ///
+    /// For example, if a `.ttc` file has 2 fonts in it, and you ask for the 5th one, you'll get
+    /// this error.
+    NoSuchFontInCollection,
+    /// Attempted to load a malformed or corrupted font.
+    Parse,
+    /// Attempted to load a font from the filesystem, but there is no filesystem (e.g. in
+    /// WebAssembly).
+    NoFilesystem,
+    /// A disk or similar I/O error occurred while attempting to load the font.
+    Io(Arc<std::io::Error>),
+}
+impl PartialEq for FontLoadingError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Io(l0), Self::Io(r0)) => Arc::ptr_eq(l0, r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+impl From<font_kit::error::FontLoadingError> for FontLoadingError {
+    fn from(ve: font_kit::error::FontLoadingError) -> Self {
+        match ve {
+            font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
+            font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
+            font_kit::error::FontLoadingError::Parse => Self::Parse,
+            font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
+            font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
+        }
+    }
+}
+impl From<std::io::Error> for FontLoadingError {
+    fn from(error: std::io::Error) -> FontLoadingError {
+        Self::Io(Arc::new(error))
+    }
+}
+impl fmt::Display for FontLoadingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let e = match self {
+            Self::UnknownFormat => font_kit::error::FontLoadingError::UnknownFormat,
+            Self::NoSuchFontInCollection => font_kit::error::FontLoadingError::NoSuchFontInCollection,
+            Self::Parse => font_kit::error::FontLoadingError::Parse,
+            Self::NoFilesystem => font_kit::error::FontLoadingError::NoFilesystem,
+            Self::Io(e) => {
+                return fmt::Display::fmt(e, f);
+            }
+        };
+        fmt::Display::fmt(&e, f)
+    }
+}
+impl std::error::Error for FontLoadingError {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            FontLoadingError::Io(e) => Some(e),
+            _ => None,
+        }
     }
 }
 

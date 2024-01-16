@@ -123,6 +123,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
                 || IMAGE_RESOLVER_VAR.is_new()
                 || LINK_RESOLVER_VAR.is_new()
             {
+                c.delegated();
                 c.child().deinit();
                 *c.child() = md.with(|md| markdown_view_fn(md.as_str())).boxed();
                 c.child().init();
