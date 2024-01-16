@@ -26,7 +26,10 @@
 //! The example below demonstrates a font query and custom embedded font installation.
 //!
 //! ```
-//! set custom fallback font for the ⌫ symbol.
+//! # macro_rules! include_bytes { ($tt:tt) => { &[] } }
+//! # use zero_ui::{font::*, l10n::*};
+//! # fn main() { }
+//! /// set custom fallback font for the ⌫ symbol.
 //! async fn set_fallback_font() {
 //!     use zero_ui::font::*;
 //!     let und = lang!(und);
@@ -75,12 +78,13 @@
 //! The example below segments and shapes a text, generating a markdown report from some of the data computed.
 //!
 //! ```
+//! # fn main() { }
 //! use std::fmt::Write as _;
-//! use zero_ui::{font::*, l10n::Lang, prelude_wgt::Px, text::Txt, var::Var};
+//! use zero_ui::{font::*, l10n::Lang, prelude_wgt::Px, text::*, var::Var};
 //!
-//! pub async fn report_segment_and_glyphs(txt: &str, lang: &Lang) -> Txt {
+//! async fn report_segment_and_glyphs(txt: &str, lang: &Lang) -> Txt {
 //!     let mut report = formatx!("# Shape & Segment\n\n{txt}\n\n");
-//! 
+//!
 //!     // start font query in parallel
 //!     let font_face = FONTS.list(
 //!         &FontNames::system_ui(lang),
@@ -89,20 +93,20 @@
 //!         FontStretch::NORMAL,
 //!         lang,
 //!     );
-//! 
+//!
 //!     // segment text
 //!     let segmented_txt = SegmentedText::new(Txt::from_str(txt), lang.direction());
-//! 
+//!
 //!     write!(&mut report, "### Segments\n\n|text|kind|\n|--|--|\n").unwrap();
 //!     for (txt, seg) in segmented_txt.iter() {
 //!         writeln!(&mut report, "|{txt:?}|{:?}|", seg.kind).unwrap();
 //!     }
-//! 
+//!
 //!     // wait font query
 //!     let font = font_face.wait_into_rsp().await;
 //!     // gets the best font for the size
 //!     let font = font.sized(Px(20), vec![]);
-//! 
+//!
 //!     write!(&mut report, "### Fonts\n\n").unwrap();
 //!     let mut sep = "";
 //!     for f in font.iter() {
@@ -110,7 +114,7 @@
 //!         sep = ", ";
 //!     }
 //!     writeln!(&mut report, "\n").unwrap();
-//! 
+//!
 //!     // shape text
 //!     let shaped_txt = font.shape_text(
 //!         &segmented_txt,
@@ -121,7 +125,7 @@
 //!             ..TextShapingArgs::default()
 //!         },
 //!     );
-//! 
+//!
 //!     write!(&mut report, "### Glyphs\n\n|text|glyphs|\n|--|--|\n").unwrap();
 //!     for line in shaped_txt.lines() {
 //!         for seg in line.segs() {
@@ -131,7 +135,7 @@
 //!             for (font, glyphs) in seg.glyphs() {
 //!                 write!(&mut report, "{sep}**{}** ", font.face().family_name(),).unwrap();
 //!                 sep = " | ";
-//! 
+//!
 //!                 let mut sep = "";
 //!                 for g in glyphs {
 //!                     write!(&mut report, "{sep}{}", g.index).unwrap();
@@ -141,7 +145,7 @@
 //!             writeln!(&mut report).unwrap();
 //!         }
 //!     }
-//! 
+//!
 //!     report
 //! }
 //! ```
