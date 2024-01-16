@@ -259,7 +259,8 @@ async fn set_fallback_font() {
         .wait_rsp()
         .await
         .iter()
-        .all(|f| f.font_kit().unwrap().glyph_for_char('⌫').is_none())
+        .flat_map(|f| f.font_kit())
+        .all(|f| f.glyph_for_char('⌫').is_none())
     {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 

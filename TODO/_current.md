@@ -1,3 +1,6 @@
+* `GenericFonts` changes apply immediately, should wait the end of the current update.
+* `Markdown!` from variable update causes may error logs.
+
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
 

@@ -37,9 +37,9 @@ use zero_ui_wgt_input::focus::{focus_scope, focus_scope_behavior};
 /// * `Scroll!($child:expr)` creates a default scroll with the child widget.
 /// * `Scroll!($mode:expr, $child:expr)` Creates a scroll with the [`ScrollMode`] and child widget.
 #[widget($crate::Scroll {
-    ($mode:expr, $child:expr) => {
+    ($mode:expr, $child:expr $(,)?) => {
         mode = $mode;
-        $child = $child;
+        child = $child;
     };
     ($child:expr) => {
         child = $child;
