@@ -165,4 +165,5 @@ zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
 zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", optional = true }
 
 [dev-dependencies]
+# used in the README.md and lib.rs doc examples.
 zero-ui-view = { path = "../zero-ui-view" }

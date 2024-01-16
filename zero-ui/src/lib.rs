@@ -20,7 +20,6 @@
 //! Then create your first app:
 //!
 //! ```no_run
-//! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {

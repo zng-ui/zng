@@ -171,9 +171,131 @@
 //!
 //! ## Services
 //!
-//! TODO !!:, app_local, services sync with update, etc.
+//! App services are defined by convention, there is no service trait or struct, the convention of an app
+//! service cannot be modeled by the Rust type system. Never the less all proper service implementations follow
+//! these rules:
+//!
+//! #### App services are an unit struct named like a static
+//!
+//! This is because services are a kind of *singleton*. The service API is implemented as methods on the service struct.
+//!
+//! ```
+//! # use zero_ui::var::*;
+//! #[allow(non_camel_case_types)]
+//! pub struct SCREAMING_CASE;
+//! impl SCREAMING_CASE {
+//!     pub fn state(&self) -> impl Var<bool> {
+//! #       var(true)
+//!     }
+//! }
+//! ```
+//!
+//! Note that you need to suppress a lint if the service name has more then one word.
+//!
+//! Service state and config methods should prefer variables over direct values. The use of variables allows the service state
+//! to be plugged directly into the UI. Async operations should prefer using [`ResponseVar<R>`] over `async` methods for
+//! the same reason.
+//!
+//! #### App services lifetime is the current app lifetime
+//!
+//! Unlike a simple singleton app services must only live for the duration of the app and must support
+//! multiple parallel instances if built with the `"multi_app"` feature. You can use private
+//! [`app_local!`] static variables as backing storage to fulfill this requirement.
+//!
+//! A common pattern in the zero-ui services is to name the app locals with a `_SV` suffix.
+//!
+//! Services do not expose the app local locking, all state output is cloned the state is only locked
+//! for the duration of the service method call.
+//!
+//! #### App services don't change public state mid update
+//!
+//! All widgets using the service during the same update see the same state. State change requests are scheduled
+//! for the next update, just like variable updates or event notifications. Services also request
+//! an [`UPDATES.update`] after scheduling to wake-up the app in case the service request was made from a [`task`] thread.
+//!
+//! ### Examples
+//!
+//! Fulfilling service requests is where the [`AppExtension`] comes in, it is possible to declare a simple standalone
+//! service using only variables, `Event::on_event` and `UPDATES.run_hn_once`, but an app extension is more efficient
+//! and more easy to implement.
+//!
+//! If the service request can fail or be delayed it is common for the request method to return a [`ResponseVar<R>`]
+//! that is updated once the request is finished. You can also make the method `async`, but a response var is superior
+//! because it can be plugged directly into any UI property, and it can still be awaited using the variable async methods.
+//!
+//! If the service request cannot fail and it is guaranteed to affect an observable change in the service state in the
+//! next update a response var is not needed.
+//!
+//! The example below demonstrates an app extension implementation that provides a service.
+//!
+//! ```
+//! use zero_ui::{prelude_wgt::*, app::AppExtension};
+//!
+//! /// Foo service.
+//! pub struct FOO;
+//!
+//! impl FOO {
+//!     /// Foo read-write var.
+//!     pub fn config(&self) -> impl Var<bool> {
+//!         FOO_SV.read().config.clone()
+//!     }
+//!
+//!     /// Foo request.
+//!     pub fn request(&self, request: char) -> ResponseVar<char> {
+//!         UPDATES.update(None);
+//!
+//!         let mut foo = FOO_SV.write();
+//!         let (responder, response) = response_var();
+//!         foo.requests.push((request, responder));
+//!         response
+//!     }
+//! }
+//!
+//! struct FooService {
+//!     config: ArcVar<bool>,
+//!     requests: Vec<(char, ResponderVar<char>)>,
+//! }
+//!
+//! app_local! {
+//!     static FOO_SV: FooService = FooService { config: var(false), requests: vec![] };
+//! }
+//!
+//! /// Foo app extension.
+//! ///
+//! /// # Services
+//! ///
+//! /// Services provided by this extension.
+//! ///
+//! /// * [`FOO`]
+//! #[derive(Default)]
+//! pub struct FooManager { }
+//!
+//! impl AppExtension for FooManager {
+//!     fn update(&mut self) {
+//!         let mut foo = FOO_SV.write();
+//!
+//!         if let Some(cfg) = foo.config.get_new() {
+//!             println!("foo cfg={cfg}");
+//!         }
+//!
+//!         for (request, responder) in foo.requests.drain(..) {
+//!             println!("foo request {request:?}");
+//!             responder.respond(request);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! Note that in the example requests are processed in the [`AppExtension::update`] update that is called
+//! after all widgets have had a chance to make requests. Requests can also be made from parallel [`task`] threads so
+//! the service also requests an [`UPDATES.update`] just in case there is no update running. If you expect to receive many
+//! requests from parallel tasks you can also process requests in the [`AppExtension::update`] instead, but there is probably
+//! little practical difference.
 //!
 //! [`APP.defaults()`]: crate::APP::defaults
+//! [`UPDATES.update`]: crate::update::UPDATES::update
+//! [`task`]: crate::task
+//! [`ResponseVar<R>`]: crate::var::ResponseVar
 //!
 //! # Full API
 //!
