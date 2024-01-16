@@ -210,7 +210,9 @@
 //!
 //! # Command Macros
 //!
-//! TODO !!:
+//! Commands can be declared using the [`command!`] macro. Command properties can be declared using [`command_property!`].
+//! 
+//! !!: TODO
 //!
 //! # Full API
 //!

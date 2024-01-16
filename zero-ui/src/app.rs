@@ -171,8 +171,7 @@
 //!
 //! ## Services
 //!
-//! App services are defined by convention, there is no service trait or struct, the convention of an app
-//! service cannot be modeled by the Rust type system. Never the less all proper service implementations follow
+//! App services are defined by convention, there is no service trait or struct. Proper service implementations follow
 //! these rules:
 //!
 //! #### App services are an unit struct named like a static
