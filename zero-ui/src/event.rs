@@ -200,7 +200,7 @@
 //! ```
 //!
 //! The example above declares `FooArgs`, `FOO_EVENT`, `on_pre_foo` and `on_foo`. The example then declares
-//! an widget that sends the `FOO_EVENT` to itself on init and receives it using the event properties.
+//! a widget that sends the `FOO_EVENT` to itself on init and receives it using the event properties.
 //!
 //! # Commands
 //!
@@ -208,11 +208,103 @@
 //! custom argument type [`CommandArgs`]. Every command event is also an `Event<CommandArgs>`, commands extend
 //! the event type to provide associated metadata, scope and *enabled* control.
 //!
-//! # Command Macros
+//! ## Command Macros
 //!
 //! Commands can be declared using the [`command!`] macro. Command properties can be declared using [`command_property!`].
 //! 
-//! !!: TODO
+//! ```
+//! # fn main() { }
+//! use zero_ui::prelude_wgt::*;
+//! 
+//! command! {
+//!     /// Foo docs.
+//!     pub static FOO_CMD = {
+//!         name: "Foo",
+//!         info: "foo bar",
+//!         shortcut: shortcut![CTRL+'F'],
+//!     };
+//! }
+//! 
+//! command_property! {
+//!     pub fn foo {
+//!         cmd: FOO_CMD.scoped(WIDGET.id()),
+//!     }
+//! }
+//! 
+//! # fn usage() -> impl UiNode {
+//! zero_ui::widget::Wgt! {
+//!     zero_ui::widget::on_info_init = hn!(|_| {
+//!         FOO_CMD.scoped(WIDGET.id()).notify();
+//!     });
+//!
+//!     on_pre_foo = hn!(|_| {
+//!         println!("on_pre_foo!");
+//!     });
+//!     on_foo = hn!(|_| {
+//!         println!("on_foo!");
+//!     });
+//! }
+//! # }
+//! ``` 
+//! 
+//! The example above declares `FOO_CMD`, `on_pre_foo` and `on_foo`. The example then declares
+//! a widget that sends the `FOO_CMD` to itself on init and receives it using the event properties.
+//! 
+//! ## Metadata
+//! 
+//! All commands provide an [`Command::with_meta`] access point for reading and writing arbitrary metadata. Usually
+//! metadata is declared following the [command extensions] pattern. In the example above the `name`, `info` and `shortcut`
+//! are actually command extensions declared as [`CommandNameExt`], [`CommandInfoExt`] and [`CommandShortcutExt`].
+//! 
+//! [command extensions]: Command#extensions
+//! [`CommandShortcutExt`]: crate::gesture::CommandShortcutExt
+//! 
+//! ## Scopes
+//! 
+//! Commands can be scoped to a window or widget, a scoped command is a different instance of [`Command`], it
+//! inherits metadata from the main command (app scoped), but metadata can be set for a specific scope.
+//! 
+//! ```
+//! use zero_ui::prelude::*;
+//! use zero_ui::{clipboard, event::CommandArgs};
+//! 
+//! # let _scope = APP.defaults();
+//! # let _ = 
+//! Stack!(
+//!     top_to_bottom,
+//!     5,
+//!     ui_vec![
+//!         SelectableText! {
+//!             id = "print-copy";
+//!             txt = "Print Copy";
+//! 
+//!             widget::on_init = hn!(|_| {
+//!                 let cmd = clipboard::COPY_CMD.scoped(WIDGET.id());
+//!                 cmd.name().set(r#"Print "copy!""#).unwrap();
+//!                 cmd.info().set("").unwrap();
+//!             });
+//!             clipboard::on_pre_copy = hn!(|args: &CommandArgs| {
+//!                 args.propagation().stop();
+//!                 println!("copy!");
+//!             });
+//!         },
+//!         SelectableText! {
+//!             id = "default-copy";
+//!             txt = "Default Copy";
+//!         },
+//!         Button!(clipboard::COPY_CMD.scoped(WidgetId::named("print-copy"))),
+//!         Button!(clipboard::COPY_CMD.scoped(WidgetId::named("default-copy"))),
+//!         Button!(clipboard::COPY_CMD.focus_scoped()),
+//!     ]
+//! )
+//! # ;
+//! ```
+//! 
+//! The example above overrides the metadata and implementation of the copy command for the "print-copy" widget, buttons
+//! targeting that widget show the new metadata.
+//! 
+//! Widgets should prefer subscribing only to the command scoped to the widget. App scoped commands target all subscribers,
+//! widget scoped commands target the widget only.
 //!
 //! # Full API
 //!

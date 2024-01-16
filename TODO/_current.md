@@ -1,3 +1,8 @@
+# Text
+
+* COPY_CMD should be handled in the bubble route to give `on_pre_copy` a chance to override the default behavior.
+* 
+
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
 
