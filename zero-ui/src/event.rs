@@ -296,7 +296,7 @@
 //!         Button!(clipboard::COPY_CMD.scoped(WidgetId::named("default-copy"))),
 //!         Button! {
 //!             cmd = clipboard::COPY_CMD.focus_scoped();
-//!             widget::visibility = true;
+//!             zero_ui::focus::alt_focus_scope = true;
 //!         },
 //!     ]
 //! )

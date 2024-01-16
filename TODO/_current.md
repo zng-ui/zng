@@ -1,5 +1,3 @@
-* `focus_scoped` command button loses target on click, before the click happens.
-
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
 
