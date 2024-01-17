@@ -1,14 +1,4 @@
 //! Handler types and macros.
-//!
-//! A handler is a closure that takes a *context* and *arguments*, the context can be [`WIDGET`] or the app
-//! with handler types implementing [`WidgetHandler`] or [`AppHandler`] respectively. These traits allow a single caller
-//! to support multiple different flavors of handlers, both synchronous and asynchronous, and both `FnMut` and `FnOnce` all
-//! by implementing a single entry point.
-//!
-//! Macros are provided for declaring the various flavors of handlers, [`hn!`], [`hn_once!`], [`async_hn!`], [`async_hn_once!`]
-//! for widget contexts and [`app_hn!`], [`app_hn_once!`], [`async_app_hn!`], [`async_app_hn_once!`] for the app context. These
-//! macros also build on top of the primitive macros [`clmv!`], [`async_clmv_fn!`] and [`async_clmv_fn_once!`] to
-//! provide a very easy way to *clone-move* captured variables into the handler.
 
 use std::any::Any;
 use std::future::Future;
