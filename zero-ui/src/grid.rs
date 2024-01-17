@@ -62,7 +62,7 @@
 //!         }
 //!     });
 //! 
-//!     cells = (0..3).flat_map(|col| (0..6usize).map(move |row| Text! {
+//!      cells = (0..6).flat_map(|row| (0..3usize).map(move |col| Text! {
 //!         grid::cell::at = grid::cell::AT_AUTO;
 //!         txt = formatx!("({col}, {row})");
 //! 
