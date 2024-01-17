@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! App window and monitors manager.
 
 #![warn(unused_extern_crates)]

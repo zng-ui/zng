@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Dynamically links to [`zero-ui-view`] pre-builds.
 //!
 //! [`zero-ui-view`]: https://docs.rs/zero-ui-view

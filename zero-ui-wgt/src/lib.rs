@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Basic widget properties and helpers for declaring widgets and properties.
 //!
 //! # Widget Instantiation

@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Image widget, properties and nodes..
 
 #![warn(unused_extern_crates)]

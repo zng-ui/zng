@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Macros for declaring clone-move closures and async blocks.
 
 #![warn(unused_extern_crates)]

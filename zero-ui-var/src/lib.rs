@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Batch updated variables in an app context.
 
 // suppress nag about very simple boxed closure signatures.

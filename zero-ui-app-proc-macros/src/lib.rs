@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! [`zero-ui`](../zero_ui/index.html) proc-macros.
 
 #![warn(unused_extern_crates)]

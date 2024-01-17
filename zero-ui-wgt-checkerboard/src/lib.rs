@@ -1,7 +1,9 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
+//! Checkerboard widget, properties and nodes.
+
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
-
-//! Checkerboard widget, properties and nodes.
 
 use std::ops;
 

@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Color filter properties, [`opacity`](fn@opacity), [`filter`](fn@filter) and more.
 
 #![warn(unused_extern_crates)]

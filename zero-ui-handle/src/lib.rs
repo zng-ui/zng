@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Resource handle type.
 
 #![warn(unused_extern_crates)]

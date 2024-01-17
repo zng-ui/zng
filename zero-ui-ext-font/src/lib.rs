@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Font loading, text segmenting and shaping.
 
 // suppress nag about very simple boxed closure signatures.

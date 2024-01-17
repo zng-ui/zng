@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Switch widget.
 
 use zero_ui_wgt::prelude::*;

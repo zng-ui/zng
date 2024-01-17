@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+//!
 //! App process implementation.
 //!
 //! # Widget Instantiation

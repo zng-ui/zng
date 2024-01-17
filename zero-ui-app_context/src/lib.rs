@@ -1,4 +1,6 @@
-//!: App execution context statics.
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
+//! App execution context statics.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Proc-macros for `zero-ui-task`, don't use directly.
 
 #![warn(unused_extern_crates)]

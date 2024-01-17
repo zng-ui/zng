@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Undo properties.
 
 #![warn(unused_extern_crates)]

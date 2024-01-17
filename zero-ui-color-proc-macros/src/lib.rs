@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Proc-macros for `zero-ui-color`.
 
 #![warn(unused_extern_crates)]

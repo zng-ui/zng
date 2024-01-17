@@ -1,1 +1,1 @@
-This crate is part of the `Zero-Ui` project.
+*This crate is part of the `Zero-Ui` project.*

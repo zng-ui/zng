@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Color and gradient types, functions and macros, [`Rgba`], [`filter`], [`hex!`] and more.
 
 #![warn(unused_extern_crates)]

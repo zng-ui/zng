@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+
 pub mod pseudo;
 pub mod scraper;
 

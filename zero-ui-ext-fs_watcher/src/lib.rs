@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! File system events and service.
 
 // suppress nag about very simple boxed closure signatures.

@@ -1,7 +1,9 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
+//! Button widget.
+
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
-
-//! Button widget.
 
 zero_ui_wgt::enable_widget_macros!();
 

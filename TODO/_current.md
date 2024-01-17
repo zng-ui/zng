@@ -17,8 +17,6 @@ we split the text during segmentation.
     - They must link to the main crate on the start page.
     - Remove all examples using hidden macro_rules! hack.
         - Search for `///.*macro_rules! _`.
-* Add `README.md` for each crate that mentions that it is a component of the project crate.
-    - Use `#[doc = include_str!("README.md")]` in all crates.
 
 # Publish
 

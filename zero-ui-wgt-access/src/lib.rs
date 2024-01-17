@@ -1,6 +1,5 @@
-#![warn(unused_extern_crates)]
-#![warn(missing_docs)]
-
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Properties that define accessibility metadata.
 //!
 //! The properties in this crate should only be used by widget implementers, they only
@@ -12,6 +11,9 @@
 //! [`AccessRole::Button`]: zero_ui_app::widget::info::access::AccessRole::Button
 //! [`AccessRole::TabList`]: zero_ui_app::widget::info::access::AccessRole::TabList
 //! [`AccessRole::Tab`]: zero_ui_app::widget::info::access::AccessRole::Tab
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 mod events;
 mod meta;

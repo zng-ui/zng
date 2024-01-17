@@ -1,4 +1,4 @@
-//!: Keyboard types.
+//! Keyboard types.
 
 use std::{fmt, mem};
 

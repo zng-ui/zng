@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Zero-Ui View Process API.
 //!
 //! Zero-Ui isolates all render and windowing related code to a different process (the view-process), this crate

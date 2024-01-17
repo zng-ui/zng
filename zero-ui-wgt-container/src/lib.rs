@@ -1,7 +1,9 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
+//! Single child container base.
+
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
-
-//! Single child container base.
 
 use std::fmt;
 

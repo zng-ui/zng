@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Text input and label widgets.
 
 #![warn(unused_extern_crates)]

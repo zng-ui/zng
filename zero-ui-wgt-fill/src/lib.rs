@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Properties that fill the widget inner bounds and nodes that fill the available space.
 
 #![warn(unused_extern_crates)]

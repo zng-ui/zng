@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Input events and focused widget.
 
 #![warn(unused_extern_crates)]

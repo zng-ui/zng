@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Button link style.
 
 #![warn(unused_extern_crates)]

@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Stack widgets, properties and nodes.
 
 zero_ui_wgt::enable_widget_macros!();

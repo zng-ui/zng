@@ -1,8 +1,5 @@
-#![allow(clippy::needless_doctest_main)]
-#![doc(test(no_crate_inject))]
-#![warn(missing_docs)]
-#![warn(unused_extern_crates)]
-
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! View-Process implementation using [`glutin`].
 //!
 //! This backend supports headed and headless apps and all .
@@ -97,6 +94,11 @@
 //!
 //! [`glutin`]: https://docs.rs/glutin/
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
+
+#![allow(clippy::needless_doctest_main)]
+#![doc(test(no_crate_inject))]
+#![warn(missing_docs)]
+#![warn(unused_extern_crates)]
 
 use std::{
     fmt, mem, thread,

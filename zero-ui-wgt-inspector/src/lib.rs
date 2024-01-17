@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Debug properties and inspector implementation.
 
 #![warn(unused_extern_crates)]

@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Grid widgets, properties and nodes..
 
 #![warn(unused_extern_crates)]

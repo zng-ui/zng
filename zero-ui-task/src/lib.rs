@@ -1,9 +1,11 @@
-#![warn(unused_extern_crates)]
-#![warn(missing_docs)]
-
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Parallel async tasks and async task runners.
 //!
 //! This crate is part of the Zero-UI project, in the main crate it is re-exported as `zero_ui::task` where it is fully documented.
+
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 use std::{
     fmt,

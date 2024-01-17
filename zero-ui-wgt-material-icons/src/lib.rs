@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Material icons for the [`Icon!`] widget.
 //!
 //! The constants are defined in a module for each font. The font files are embedded

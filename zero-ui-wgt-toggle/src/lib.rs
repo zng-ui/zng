@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Toggle widget, properties and commands.
 
 #![warn(unused_extern_crates)]

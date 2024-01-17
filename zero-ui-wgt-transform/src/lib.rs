@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Transform properties, [`scale`](fn@scale), [`rotate`](fn@rotate), [`transform`](fn@transform) and more.
 
 #![warn(unused_extern_crates)]

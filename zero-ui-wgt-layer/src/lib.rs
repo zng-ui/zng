@@ -1,3 +1,5 @@
+#![doc = include_str!("../../zero-ui-app/README.md")]
+//!
 //! Window layers and popup.
 
 #![warn(unused_extern_crates)]
