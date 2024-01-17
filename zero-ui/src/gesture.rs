@@ -1,5 +1,32 @@
 //! Gesture service, properties, events, shortcuts and other types.
 //!
+//! A gesture is an event that is generated from multiple lower-level events. A shortcut is a gesture generated
+//! from one or more keyboard inputs, a click is also a gesture generated from mouse clicks, accessibility clicks,
+//! touch taps and some shortcuts. In essence, events, types and states that aggregate multiple difference sources
+//! are found here, gestures generated from a single event source are defined in other modules, for example touch gestures
+//! are defined in [`touch`](crate::touch).
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! # let _scope = APP.defaults();
+//! # let _ =
+//! Window! {
+//!     gesture::on_click = hn!(|args: &gesture::ClickArgs| {
+//!         use gesture::ClickArgsSource::*;
+//!         match args.source {
+//!             Mouse { .. } => println!("mouse click"),
+//!             Touch { .. } => println!("touch tap"),
+//!             Shortcut { .. } => println!("shortcut press"),
+//!             Access { .. } => println!("access click"),
+//!         }
+//!     });
+//! }
+//! # ;
+//! ```
+//!
+//! The example above handles the click gesture on a window and prints what underlying event was interpreted as a click.
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::gesture`] and [`zero_ui_wgt_input::gesture`] for the full gesture API
