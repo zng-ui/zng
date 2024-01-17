@@ -822,12 +822,7 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
-            use zero_ui_ext_window::WINDOWS;
-            use zero_ui_wgt::wgt_fn;
-            use zero_ui_wgt_text::icon::CommandIconExt as _;
-            use zero_ui_wgt_text::icon::Icon;
-
-            WINDOWS.register_root_extender(|a| {
+            zero_ui_ext_window::WINDOWS.register_root_extender(|a| {
                 let child = a.root;
 
                 #[cfg(inspector)]
@@ -848,9 +843,12 @@ mod defaults {
                 use zero_ui_ext_clipboard::*;
                 use zero_ui_ext_undo::*;
                 use zero_ui_ext_window::cmd::*;
+                use zero_ui_wgt::wgt_fn;
                 use zero_ui_wgt_input::cmd::*;
                 use zero_ui_wgt_material_icons::outlined as icons;
                 use zero_ui_wgt_scroll::cmd::*;
+                use zero_ui_wgt_text::icon::CommandIconExt as _;
+                use zero_ui_wgt_text::icon::Icon;
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));

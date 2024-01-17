@@ -96,7 +96,7 @@ pub fn rows(cells: impl UiNodeList) {}
 pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 
 /// Defines the direction the grid auto-grows and the maximum inclusive index that can be covered by auto-generated columns or rows.
-/// If a cell is outside this index and is not covered by predefined columns or rows a new one is auto generated for it, but if the 
+/// If a cell is outside this index and is not covered by predefined columns or rows a new one is auto generated for it, but if the
 /// cell is also outside this max it is *collapsed*.
 ///
 /// Is `AutoGrowMode::Rows(u32::MAX)` by default.

@@ -3214,14 +3214,14 @@ mod tests {
 
     #[test]
     fn generic_fonts_default() {
-        let _app = APP.minimal().run_headless(false);
+        let _app = APP.minimal().extend(FontManager::default()).run_headless(false);
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(und)))
     }
 
     #[test]
     fn generic_fonts_fallback() {
-        let _app = APP.minimal().run_headless(false);
+        let _app = APP.minimal().extend(FontManager::default()).run_headless(false);
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(en_US)));
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(es)));
@@ -3229,8 +3229,9 @@ mod tests {
 
     #[test]
     fn generic_fonts_get1() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en_US), "Test Value");
+        app.update(false).assert_wait();
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
@@ -3238,8 +3239,9 @@ mod tests {
 
     #[test]
     fn generic_fonts_get2() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
+        app.update(false).assert_wait();
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
@@ -3247,9 +3249,10 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_best() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
         GenericFonts {}.set_sans_serif(lang!(en_US), "Best");
+        app.update(false).assert_wait();
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Best");
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
@@ -3258,8 +3261,9 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_no_lang_match() {
-        let _app = APP.minimal().run_headless(false);
+        let mut app = APP.minimal().extend(FontManager::default()).run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(es_US), "Test Value");
+        app.update(false).assert_wait();
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "sans-serif");
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("es")), "Test Value");

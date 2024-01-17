@@ -64,6 +64,11 @@ macro_rules! ActualReadGuard {
 ///
 /// In the example above the mapping var will bind with the `MY_CTX_VAR` context inside the property node, not
 /// the context at the moment the widget is instantiated.
+///
+/// # Clone
+///
+/// Note that a clone of this variable may call the init closure again for the same context, the inited actual var
+/// is only reused if it is already inited when clone is called and clone is called on the same context.
 pub struct ContextualizedVar<T> {
     _type: PhantomData<T>,
 
@@ -77,6 +82,7 @@ fn borrow_init_impl<'a, T>(actual: &'a ActualLock![S], init: &ActualInit![T], ty
     let current_ctx = current_ctx.downgrade();
 
     let act = actual.read_recursive();
+
     if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
         return RwLockReadGuard::map(act, move |m| &m[i].1);
     }
@@ -489,59 +495,5 @@ impl<T: VarValue> WeakVar<T> for WeakContextualizedVar<T> {
             init: self.init.upgrade()?,
             actual: RwLock::default(),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use zero_ui_app_context::{AppId, LocalContext};
-
-    use super::*;
-
-    #[test]
-    fn nested_contextualized_vars() {
-        let _app_scope = LocalContext::start_app(AppId::new_unique());
-
-        let source = var(0u32);
-        let mapped = source.map(|n| n + 1);
-        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
-        let mapped2_copy = mapped2.clone();
-
-        // init, same effect as subscribe in widgets, the last to init breaks the other.
-        assert_eq!(0, mapped2.get());
-        assert_eq!(0, mapped2_copy.get());
-
-        source.set(10u32);
-
-        VARS_APP.apply_updates();
-
-        assert_eq!(Some(10), mapped2.get_new());
-        assert_eq!(Some(10), mapped2_copy.get_new());
-    }
-
-    #[test]
-    fn nested_contextualized_vars_diff_contexts() {
-        let _app_scope = LocalContext::start_app(AppId::new_unique());
-
-        let source = var(0u32);
-        let mapped = source.map(|n| n + 1);
-        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
-        let mapped2_copy = mapped2.clone();
-
-        // init, same effect as subscribe in widgets, the last to init breaks the other.
-        assert_eq!(0, mapped2.get());
-        let other_ctx = ContextInitHandle::new();
-        other_ctx.with_context(|| {
-            assert_eq!(0, mapped2_copy.get());
-        });
-
-        source.set(10u32);
-
-        VARS_APP.apply_updates();
-
-        assert_eq!(Some(10), mapped2.get_new());
-        other_ctx.with_context(|| {
-            assert_eq!(Some(10), mapped2_copy.get_new());
-        });
     }
 }

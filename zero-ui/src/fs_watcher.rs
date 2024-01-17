@@ -17,7 +17,7 @@
 //!
 //! The next example created a read-write binding with the text file, any external change made to the text file updates the
 //! `TextInput!` and any change made using the `TextInput!` updates the file contents.
-//! 
+//!
 //! ```
 //! use zero_ui::{prelude::*, fs_watcher::WATCHER};
 //!
@@ -43,13 +43,13 @@
 //! ))
 //! # ;
 //! ```
-//! 
+//!
 //! The [`WATCHER`] service abstracts away most of the headache of interacting with the file system. This service
 //! is used internally by the implementations of [`CONFIG`] and [`L10N`].
-//! 
+//!
 //! [`CONFIG`]: crate::config::CONFIG
 //! [`L10N`]: crate::l10n::L10N
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_fs_watcher`] for the full watcher API.

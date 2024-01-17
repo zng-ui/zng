@@ -1139,22 +1139,26 @@ mod threads {
 }
 
 mod contextualized {
-    use zero_ui::{prelude::*, var::ContextInitHandle};
+    use zero_ui::{
+        prelude::*,
+        var::{ContextInitHandle, ContextualizedVar},
+    };
 
     #[test]
     fn nested_contextualized_vars() {
         let mut app = APP.defaults().run_headless(false);
 
-        let source = var(0u32);
+        let var = var(0u32);
+        let source = ContextualizedVar::new(move || var.clone());
         let mapped = source.map(|n| n + 1);
-        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+        let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
 
         // init, same effect as subscribe in widgets, the last to init breaks the other.
         assert_eq!(0, mapped2.get());
         assert_eq!(0, mapped2_copy.get());
 
-        source.set(10u32);
+        source.set(10u32).unwrap();
         let mut updated = false;
         app.update_observe(
             || {
@@ -1174,9 +1178,10 @@ mod contextualized {
     fn nested_contextualized_vars_diff_contexts() {
         let mut app = APP.defaults().run_headless(false);
 
-        let source = var(0u32);
+        let var = var(0u32);
+        let source = ContextualizedVar::new(move || var.clone());
         let mapped = source.map(|n| n + 1);
-        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+        let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
 
         // init, same effect as subscribe in widgets, the last to init breaks the other.
@@ -1186,7 +1191,7 @@ mod contextualized {
             assert_eq!(0, mapped2_copy.get());
         });
 
-        source.set(10u32);
+        source.set(10u32).unwrap();
         let mut updated = false;
         app.update_observe(
             || {
