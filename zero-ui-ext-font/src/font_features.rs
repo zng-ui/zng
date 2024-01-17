@@ -5,6 +5,7 @@ use std::{
     fmt,
     marker::PhantomData,
     num::NonZeroU32,
+    ops,
 };
 
 use num_enum::FromPrimitive;
@@ -15,9 +16,47 @@ use num_enum::FromPrimitive;
 ///
 /// ```
 /// # use zero_ui_ext_font::font_features::*;
-/// let historical_lig: FontFeatureName = b"hlig";
+/// let historical_lig: FontFeatureName = b"hlig".into();
 /// ```
-pub type FontFeatureName = &'static [u8; 4];
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct FontFeatureName(pub [u8; 4]);
+impl FontFeatureName {
+    /// As UTF-8.
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).unwrap_or_default()
+    }
+}
+impl From<&'static [u8; 4]> for FontFeatureName {
+    fn from(name: &'static [u8; 4]) -> Self {
+        FontFeatureName(*name)
+    }
+}
+impl From<FontFeatureName> for harfbuzz_rs::Tag {
+    fn from(value: FontFeatureName) -> Self {
+        harfbuzz_rs::Tag::from(&value.0)
+    }
+}
+impl ops::Deref for FontFeatureName {
+    type Target = [u8; 4];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl fmt::Debug for FontFeatureName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.as_str().is_empty() {
+            write!(f, "{:?}", self.0)
+        } else {
+            write!(f, "{}", self.as_str())
+        }
+    }
+}
+impl fmt::Display for FontFeatureName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 /// The raw value used when a feature is set to `true`.
 pub const FEATURE_ENABLED: u32 = 1;
@@ -27,7 +66,7 @@ pub const FEATURE_DISABLED: u32 = 0;
 type FontFeaturesMap = HashMap<FontFeatureName, u32>;
 
 /// Font features configuration.
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FontFeatures(FontFeaturesMap);
 impl FontFeatures {
     /// New default.
@@ -59,7 +98,7 @@ impl FontFeatures {
                     self.0.insert(name, state);
                 }
                 None => {
-                    self.0.remove(name);
+                    self.0.remove(&name);
                 }
             }
         }
@@ -122,7 +161,7 @@ impl fmt::Debug for FontFeatures {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut map = f.debug_map();
         for (name, state) in self.0.iter() {
-            map.entry(&name_to_str(name), state);
+            map.entry(&name.as_str(), state);
         }
         map.finish()
     }
@@ -132,10 +171,6 @@ impl fmt::Debug for FontFeatures {
 ///
 /// This is a vec of [harfbuzz features](harfbuzz_rs::Feature).
 pub type RFontFeatures = Vec<harfbuzz_rs::Feature>;
-
-fn name_to_str(name: &[u8; 4]) -> &str {
-    std::str::from_utf8(name).unwrap_or_default()
-}
 
 /// A builder for [`FontFeatures`].
 ///
@@ -210,7 +245,8 @@ macro_rules! font_features {
         $(#[$docs])*
 
         pub fn $name(&mut self) -> FontFeatureSet {
-            self.feature_set(&[$feat0, $feat1])
+            static FEATS: [FontFeatureName; 2] = [FontFeatureName(*$feat0), FontFeatureName(*$feat1)];
+            self.feature_set(&FEATS)
         }
 
     };
@@ -219,7 +255,7 @@ macro_rules! font_features {
         $(#[$docs])*
 
         pub fn $name(&mut self) -> FontFeature {
-            self.feature($feat0)
+            self.feature(FontFeatureName(*$feat0))
         }
 
     };
@@ -415,7 +451,7 @@ pub struct FontFeature<'a>(hash_map::Entry<'a, FontFeatureName, u32>);
 impl<'a> FontFeature<'a> {
     /// Gets the OpenType name of the feature.
     pub fn name(&self) -> FontFeatureName {
-        self.0.key()
+        *self.0.key()
     }
 
     /// Gets the current state of the feature.
@@ -488,7 +524,7 @@ impl<'a> FontFeature<'a> {
 }
 impl<'a> fmt::Debug for FontFeature<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "b\"{}\": {:?}", name_to_str(self.name()), self.state())
+        write!(f, "b\"{}\": {:?}", self.name(), self.state())
     }
 }
 
@@ -507,7 +543,7 @@ impl<'a> FontFeatureSet<'a> {
     ///
     /// Returns `Auto` if the features are mixed.
     pub fn state(&self) -> FontFeatureState {
-        if let Some(&a) = self.features.get(self.names[0]) {
+        if let Some(&a) = self.features.get(&self.names[0]) {
             for name in &self.names[1..] {
                 if self.features.get(name) != Some(&a) {
                     return FontFeatureState::auto();
@@ -548,7 +584,7 @@ impl<'a> FontFeatureSet<'a> {
 
     fn set_explicit(self, state: u32) {
         for name in self.names {
-            self.features.insert(name, state);
+            self.features.insert(*name, state);
         }
     }
 
@@ -571,12 +607,7 @@ impl<'a> FontFeatureSet<'a> {
 }
 impl<'a> fmt::Debug for FontFeatureSet<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:?}: {:?}",
-            self.names.iter().map(|s| name_to_str(s)).collect::<Vec<_>>(),
-            self.state()
-        )
+        write!(f, "{:?}: {:?}", self.names, self.state())
     }
 }
 
@@ -668,13 +699,13 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
     pub fn state(&self) -> S {
         let mut active = HashSet::new();
         for &names in self.names() {
-            for &name in names {
+            for name in names {
                 if let Some(&s) = self.features.get(name) {
                     if s != FEATURE_ENABLED {
                         // custom external state, we only set to FEATURE_ENABLED.
                         return S::auto();
                     } else {
-                        active.insert(name);
+                        active.insert(*name);
                     }
                 }
             }
@@ -700,7 +731,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
         let mut force_auto = false;
 
         for &names in self.names() {
-            for &name in names {
+            for name in names {
                 if let Some(s) = self.features.remove(name) {
                     if force_auto {
                         continue;
@@ -744,7 +775,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
         let prev = self.take_state();
         if let Some(state) = state.into().variant() {
             for name in self.names()[state as usize - 1] {
-                self.features.insert(name, FEATURE_ENABLED);
+                self.features.insert(*name, FEATURE_ENABLED);
             }
         }
         prev
@@ -932,14 +963,14 @@ impl Default for CapsVariant {
 }
 impl FontFeatureExclusiveSetsState for CapsVariant {
     fn names() -> &'static [&'static [FontFeatureName]] {
-        &[
-            &[b"smcp"],
-            &[b"c2sc", b"smcp"],
-            &[b"pcap"],
-            &[b"c2pc", b"pcap"],
-            &[b"unic"],
-            &[b"titl"],
-        ]
+        static N0: [FontFeatureName; 1] = [FontFeatureName(*b"smcp")];
+        static N1: [FontFeatureName; 2] = [FontFeatureName(*b"c2sc"), FontFeatureName(*b"smcp")];
+        static N2: [FontFeatureName; 1] = [FontFeatureName(*b"pcap")];
+        static N3: [FontFeatureName; 2] = [FontFeatureName(*b"c2pc"), FontFeatureName(*b"pcap")];
+        static N4: [FontFeatureName; 1] = [FontFeatureName(*b"unic")];
+        static N5: [FontFeatureName; 1] = [FontFeatureName(*b"titl")];
+        static NAMES: [&[FontFeatureName]; 6] = [&N0, &N1, &N2, &N3, &N4, &N5];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -995,7 +1026,8 @@ impl Default for NumVariant {
 }
 impl FontFeatureExclusiveSetState for NumVariant {
     fn names() -> &'static [FontFeatureName] {
-        &[b"lnum", b"onum"]
+        static NAMES: [FontFeatureName; 2] = [FontFeatureName(*b"lnum"), FontFeatureName(*b"onum")];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1051,7 +1083,8 @@ impl Default for NumSpacing {
 }
 impl FontFeatureExclusiveSetState for NumSpacing {
     fn names() -> &'static [FontFeatureName] {
-        &[b"pnum", b"tnum"]
+        static NAMES: [FontFeatureName; 2] = [FontFeatureName(*b"pnum"), FontFeatureName(*b"tnum")];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1107,7 +1140,8 @@ impl Default for NumFraction {
 }
 impl FontFeatureExclusiveSetState for NumFraction {
     fn names() -> &'static [FontFeatureName] {
-        &[b"frac", b"afrc"]
+        static NAMES: [FontFeatureName; 2] = [FontFeatureName(*b"frac"), FontFeatureName(*b"afrc")];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1186,10 +1220,29 @@ impl_from_and_into_var! {
 
 impl FontFeatureExclusiveSetState for FontStyleSet {
     fn names() -> &'static [FontFeatureName] {
-        &[
-            b"ss01", b"ss02", b"ss03", b"ss04", b"ss05", b"ss06", b"ss07", b"ss08", b"ss09", b"ss10", b"ss11", b"ss12", b"ss13", b"ss14",
-            b"ss15", b"ss16", b"ss17", b"ss18", b"ss19", b"ss20",
-        ]
+        static NAMES: [FontFeatureName; 20] = [
+            FontFeatureName(*b"ss01"),
+            FontFeatureName(*b"ss02"),
+            FontFeatureName(*b"ss03"),
+            FontFeatureName(*b"ss04"),
+            FontFeatureName(*b"ss05"),
+            FontFeatureName(*b"ss06"),
+            FontFeatureName(*b"ss07"),
+            FontFeatureName(*b"ss08"),
+            FontFeatureName(*b"ss09"),
+            FontFeatureName(*b"ss10"),
+            FontFeatureName(*b"ss11"),
+            FontFeatureName(*b"ss12"),
+            FontFeatureName(*b"ss13"),
+            FontFeatureName(*b"ss14"),
+            FontFeatureName(*b"ss15"),
+            FontFeatureName(*b"ss16"),
+            FontFeatureName(*b"ss17"),
+            FontFeatureName(*b"ss18"),
+            FontFeatureName(*b"ss19"),
+            FontFeatureName(*b"ss20"),
+        ];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1244,16 +1297,109 @@ impl_from_and_into_var! {
 }
 impl FontFeatureExclusiveSetState for CharVariant {
     fn names() -> &'static [FontFeatureName] {
-        &[
-            b"cv01", b"cv02", b"cv03", b"cv04", b"cv05", b"cv06", b"cv07", b"cv08", b"cv09", b"cv20", b"cv21", b"cv22", b"cv23", b"cv24",
-            b"cv25", b"cv26", b"cv27", b"cv28", b"cv29", b"cv30", b"cv31", b"cv32", b"cv33", b"cv34", b"cv35", b"cv36", b"cv37", b"cv38",
-            b"cv39", b"cv40", b"cv41", b"cv42", b"cv43", b"cv44", b"cv45", b"cv46", b"cv47", b"cv48", b"cv49", b"cv50", b"cv51", b"cv52",
-            b"cv53", b"cv54", b"cv55", b"cv56", b"cv57", b"cv58", b"cv59", b"cv60", b"cv61", b"cv62", b"cv63", b"cv64", b"cv65", b"cv66",
-            b"cv67", b"cv68", b"cv69", b"cv70", b"cv71", b"cv72", b"cv73", b"cv74", b"cv75", b"cv76", b"cv77", b"cv78", b"cv79", b"cv70",
-            b"cv71", b"cv72", b"cv73", b"cv74", b"cv75", b"cv76", b"cv77", b"cv78", b"cv79", b"cv80", b"cv81", b"cv82", b"cv83", b"cv84",
-            b"cv85", b"cv86", b"cv87", b"cv88", b"cv89", b"cv90", b"cv91", b"cv92", b"cv93", b"cv94", b"cv95", b"cv96", b"cv97", b"cv98",
-            b"cv99", b"cv99",
-        ]
+        static NAMES: [FontFeatureName; 100] = [
+            FontFeatureName(*b"cv01"),
+            FontFeatureName(*b"cv02"),
+            FontFeatureName(*b"cv03"),
+            FontFeatureName(*b"cv04"),
+            FontFeatureName(*b"cv05"),
+            FontFeatureName(*b"cv06"),
+            FontFeatureName(*b"cv07"),
+            FontFeatureName(*b"cv08"),
+            FontFeatureName(*b"cv09"),
+            FontFeatureName(*b"cv20"),
+            FontFeatureName(*b"cv21"),
+            FontFeatureName(*b"cv22"),
+            FontFeatureName(*b"cv23"),
+            FontFeatureName(*b"cv24"),
+            FontFeatureName(*b"cv25"),
+            FontFeatureName(*b"cv26"),
+            FontFeatureName(*b"cv27"),
+            FontFeatureName(*b"cv28"),
+            FontFeatureName(*b"cv29"),
+            FontFeatureName(*b"cv30"),
+            FontFeatureName(*b"cv31"),
+            FontFeatureName(*b"cv32"),
+            FontFeatureName(*b"cv33"),
+            FontFeatureName(*b"cv34"),
+            FontFeatureName(*b"cv35"),
+            FontFeatureName(*b"cv36"),
+            FontFeatureName(*b"cv37"),
+            FontFeatureName(*b"cv38"),
+            FontFeatureName(*b"cv39"),
+            FontFeatureName(*b"cv40"),
+            FontFeatureName(*b"cv41"),
+            FontFeatureName(*b"cv42"),
+            FontFeatureName(*b"cv43"),
+            FontFeatureName(*b"cv44"),
+            FontFeatureName(*b"cv45"),
+            FontFeatureName(*b"cv46"),
+            FontFeatureName(*b"cv47"),
+            FontFeatureName(*b"cv48"),
+            FontFeatureName(*b"cv49"),
+            FontFeatureName(*b"cv50"),
+            FontFeatureName(*b"cv51"),
+            FontFeatureName(*b"cv52"),
+            FontFeatureName(*b"cv53"),
+            FontFeatureName(*b"cv54"),
+            FontFeatureName(*b"cv55"),
+            FontFeatureName(*b"cv56"),
+            FontFeatureName(*b"cv57"),
+            FontFeatureName(*b"cv58"),
+            FontFeatureName(*b"cv59"),
+            FontFeatureName(*b"cv60"),
+            FontFeatureName(*b"cv61"),
+            FontFeatureName(*b"cv62"),
+            FontFeatureName(*b"cv63"),
+            FontFeatureName(*b"cv64"),
+            FontFeatureName(*b"cv65"),
+            FontFeatureName(*b"cv66"),
+            FontFeatureName(*b"cv67"),
+            FontFeatureName(*b"cv68"),
+            FontFeatureName(*b"cv69"),
+            FontFeatureName(*b"cv70"),
+            FontFeatureName(*b"cv71"),
+            FontFeatureName(*b"cv72"),
+            FontFeatureName(*b"cv73"),
+            FontFeatureName(*b"cv74"),
+            FontFeatureName(*b"cv75"),
+            FontFeatureName(*b"cv76"),
+            FontFeatureName(*b"cv77"),
+            FontFeatureName(*b"cv78"),
+            FontFeatureName(*b"cv79"),
+            FontFeatureName(*b"cv70"),
+            FontFeatureName(*b"cv71"),
+            FontFeatureName(*b"cv72"),
+            FontFeatureName(*b"cv73"),
+            FontFeatureName(*b"cv74"),
+            FontFeatureName(*b"cv75"),
+            FontFeatureName(*b"cv76"),
+            FontFeatureName(*b"cv77"),
+            FontFeatureName(*b"cv78"),
+            FontFeatureName(*b"cv79"),
+            FontFeatureName(*b"cv80"),
+            FontFeatureName(*b"cv81"),
+            FontFeatureName(*b"cv82"),
+            FontFeatureName(*b"cv83"),
+            FontFeatureName(*b"cv84"),
+            FontFeatureName(*b"cv85"),
+            FontFeatureName(*b"cv86"),
+            FontFeatureName(*b"cv87"),
+            FontFeatureName(*b"cv88"),
+            FontFeatureName(*b"cv89"),
+            FontFeatureName(*b"cv90"),
+            FontFeatureName(*b"cv91"),
+            FontFeatureName(*b"cv92"),
+            FontFeatureName(*b"cv93"),
+            FontFeatureName(*b"cv94"),
+            FontFeatureName(*b"cv95"),
+            FontFeatureName(*b"cv96"),
+            FontFeatureName(*b"cv97"),
+            FontFeatureName(*b"cv98"),
+            FontFeatureName(*b"cv99"),
+            FontFeatureName(*b"cv99"),
+        ];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1313,7 +1459,8 @@ impl Default for FontPosition {
 }
 impl FontFeatureExclusiveSetState for FontPosition {
     fn names() -> &'static [FontFeatureName] {
-        &[b"subs", b"sups"]
+        static NAMES: [FontFeatureName; 2] = [FontFeatureName(*b"subs"), FontFeatureName(*b"sups")];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1386,7 +1533,14 @@ impl Default for JpVariant {
 }
 impl FontFeatureExclusiveSetState for JpVariant {
     fn names() -> &'static [FontFeatureName] {
-        &[b"jp78", b"jp83", b"jp90", b"jp04", b"nlck"]
+        static NAMES: [FontFeatureName; 5] = [
+            FontFeatureName(*b"jp78"),
+            FontFeatureName(*b"jp83"),
+            FontFeatureName(*b"jp90"),
+            FontFeatureName(*b"jp04"),
+            FontFeatureName(*b"nlck"),
+        ];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1441,7 +1595,8 @@ impl Default for CnVariant {
 }
 impl FontFeatureExclusiveSetState for CnVariant {
     fn names() -> &'static [FontFeatureName] {
-        &[b"smpl", b"trad"]
+        static NAMES: [FontFeatureName; 2] = [FontFeatureName(*b"smpl"), FontFeatureName(*b"trad")];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1535,7 +1690,17 @@ impl Default for EastAsianWidth {
 }
 impl FontFeatureExclusiveSetState for EastAsianWidth {
     fn names() -> &'static [FontFeatureName] {
-        &[b"pwid", b"palt", b"pkna", b"fwid", b"hwid", b"halt", b"twid", b"qwid"]
+        static NAMES: [FontFeatureName; 8] = [
+            FontFeatureName(*b"pwid"),
+            FontFeatureName(*b"palt"),
+            FontFeatureName(*b"pkna"),
+            FontFeatureName(*b"fwid"),
+            FontFeatureName(*b"hwid"),
+            FontFeatureName(*b"halt"),
+            FontFeatureName(*b"twid"),
+            FontFeatureName(*b"qwid"),
+        ];
+        &NAMES
     }
 
     fn variant(self) -> Option<u32> {
@@ -1561,9 +1726,47 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
 ///
 /// ```
 /// # use zero_ui_ext_font::font_features::*;
-/// let devocar_worm: FontVariationName = b"BLDB";
+/// let historical_lig: FontVariationName = b"BLDB".into();
 /// ```
-pub type FontVariationName = &'static [u8; 4];
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct FontVariationName(pub [u8; 4]);
+impl FontVariationName {
+    /// As UTF-8.
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).unwrap_or_default()
+    }
+}
+impl From<&'static [u8; 4]> for FontVariationName {
+    fn from(name: &'static [u8; 4]) -> Self {
+        FontVariationName(*name)
+    }
+}
+impl From<FontVariationName> for harfbuzz_rs::Tag {
+    fn from(value: FontVariationName) -> Self {
+        harfbuzz_rs::Tag::from(&value.0)
+    }
+}
+impl ops::Deref for FontVariationName {
+    type Target = [u8; 4];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl fmt::Debug for FontVariationName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.as_str().is_empty() {
+            write!(f, "{:?}", self.0)
+        } else {
+            write!(f, "{}", self.as_str())
+        }
+    }
+}
+impl fmt::Display for FontVariationName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 /// A small map of font variations.
 ///
@@ -1585,7 +1788,7 @@ impl FontVariations {
     pub fn from_pairs(pairs: &[(FontVariationName, f32)]) -> Self {
         let mut r = Self::with_capacity(pairs.len());
         for (name, value) in pairs {
-            r.insert(name, *value);
+            r.insert(*name, *value);
         }
         r
     }
@@ -1657,7 +1860,7 @@ impl fmt::Debug for FontVariations {
                 } else {
                     write!(f, ", ")?;
                 }
-                write!(f, r#", b"{}": {}"#, name_to_str(entry.0), entry.1)?;
+                write!(f, r#", b"{}": {}"#, entry.0, entry.1)?;
             }
             write!(f, "]")
         }

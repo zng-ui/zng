@@ -65,10 +65,7 @@ impl MaterialIcon {
 }
 zero_ui_var::impl_from_and_into_var! {
     fn from(icon: MaterialIcon) -> GlyphIcon {
-        GlyphIcon {
-            font: icon.font,
-            glyph: icon.code.into(),
-        }
+        GlyphIcon::new(icon.font, icon.code)
     }
 }
 impl fmt::Display for MaterialIcon {

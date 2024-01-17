@@ -1,7 +1,7 @@
 //! Glyph icon widget, properties and nodes..
 
 use zero_ui_app::event::{CommandMetaVar, StaticCommandMetaVarId};
-use zero_ui_ext_font::FontName;
+use zero_ui_ext_font::{font_features::FontFeatures, FontName};
 use zero_ui_wgt::prelude::*;
 
 use std::fmt;
@@ -47,6 +47,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
         let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
         let node = crate::font_size(node, ICON_SIZE_VAR);
+        let node = crate::font_features(node, icon.map_ref(|i| &i.features));
         crate::font_color(node, ICON_COLOR_VAR)
     });
 }
@@ -97,10 +98,12 @@ impl fmt::Display for GlyphSource {
 }
 
 /// Represents an icon glyph and font.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GlyphIcon {
     /// Icon set font name.
     pub font: FontName,
+    /// Font features, like ligatures.
+    pub features: FontFeatures,
     /// Icon glyph.
     pub glyph: GlyphSource,
 }
@@ -109,8 +112,17 @@ impl GlyphIcon {
     pub fn new(font: impl Into<FontName>, glyph: impl Into<GlyphSource>) -> Self {
         GlyphIcon {
             font: font.into(),
+            features: FontFeatures::new(),
             glyph: glyph.into(),
         }
+    }
+
+    /// Enable all ligatures.
+    pub fn with_ligatures(mut self) -> Self {
+        self.features.common_lig().enable();
+        self.features.historical_lig().enable();
+        self.features.discretionary_lig().enable();
+        self
     }
 }
 impl_from_and_into_var! {
