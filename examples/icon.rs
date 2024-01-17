@@ -39,7 +39,7 @@ fn app_main() {
         Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| Icon! {
-                ico = icon::filled::LIGHTBULB;
+                ico = icon::material_filled::LIGHTBULB;
                 ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
@@ -109,7 +109,7 @@ fn icons() -> impl UiNode {
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
                 widget::foreground = Icon! {
                     align = Align::LEFT;
-                    ico = icon::outlined::SEARCH;
+                    ico = icon::material_outlined::SEARCH;
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
                 };
@@ -140,10 +140,10 @@ fn icons() -> impl UiNode {
                 hn!(|a: &ViewArgs<(&'static str, Txt)>| {
                     if let Some((f, s)) = a.get_new() {
                         let mut icons = match f {
-                            "filled" => icon::filled::all(),
-                            "outlined" => icon::outlined::all(),
-                            "rounded" => icon::rounded::all(),
-                            "sharp" => icon::sharp::all(),
+                            "filled" => icon::material_filled::all(),
+                            "outlined" => icon::material_outlined::all(),
+                            "rounded" => icon::material_rounded::all(),
+                            "sharp" => icon::material_sharp::all(),
                             _ => unreachable!(),
                         };
                         if let Some(len) = s.strip_prefix("-len") {
@@ -315,7 +315,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                 Button! {
                     id = "close-btn";
                     icon::ico_size = 14;
-                    child = Icon!(icon::filled::CLOSE);
+                    child = Icon!(icon::material_filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;

@@ -843,7 +843,7 @@ mod defaults {
                 })
             });
 
-            #[cfg(feature = "material_icons")]
+            #[cfg(feature = "material_icons_outlined")]
             {
                 use zero_ui_ext_clipboard::*;
                 use zero_ui_ext_undo::*;

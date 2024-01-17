@@ -7,7 +7,7 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [features]
-default = ["ipc", "material_icons", "debug_default"]
+default = ["ipc", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
@@ -88,10 +88,36 @@ deadlock_detection = ["zero-ui-app/deadlock_detection"]
 # Not enabled by default.
 hyphenation_embed_all = ["zero-ui-ext-font/hyphenation_embed_all"]
 
-# Include material icons in the default app.
+# Include all Material Icons icon sets in the default app.
 #
-# Enabled by default.
-material_icons = ["zero-ui-wgt-material-icons"]
+# Not enabled by default.
+material_icons = [
+    "material_icons_outlined",
+    "material_icons_filled",
+    "material_icons_rounded",
+    "material_icons_sharp",
+]
+# Material Icons Outlined icon set.
+#
+# If enabled some icons of this set are used for some of the commands.
+#
+# Not enabled by default.
+material_icons_outlined = ["zero-ui-wgt-material-icons", "zero-ui-wgt-material-icons/embedded", "zero-ui-wgt-material-icons/outlined"]
+
+# Material Icons Filled icon set.
+#
+# Not enabled by default.
+material_icons_filled = ["zero-ui-wgt-material-icons", "zero-ui-wgt-material-icons/embedded", "zero-ui-wgt-material-icons/filled"]
+
+# Material Icons Rounded icon set.
+#
+# Not enabled by default.
+material_icons_rounded = ["zero-ui-wgt-material-icons", "zero-ui-wgt-material-icons/embedded", "zero-ui-wgt-material-icons/rounded"]
+
+# Material Icons Sharp icon set.
+#
+# Not enabled by default.
+material_icons_sharp = ["zero-ui-wgt-material-icons", "zero-ui-wgt-material-icons/embedded", "zero-ui-wgt-material-icons/sharp"]
 
 # Enable TOML configs.
 toml = ["zero-ui-ext-config/toml"]
@@ -162,7 +188,7 @@ zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
 zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
 zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
 
-zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", optional = true }
+zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", default-features = false, optional = true }
 
 [dev-dependencies]
 # used in the README.md and lib.rs doc examples.

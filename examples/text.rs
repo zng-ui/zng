@@ -464,7 +464,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         rule_line::vr::margin = 0;
         children = ui_vec![
             Button! {
-                child = Icon!(icon::sharp::INSERT_DRIVE_FILE);
+                child = Icon!(icon::material_sharp::INSERT_DRIVE_FILE);
                 child_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
 
@@ -474,7 +474,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(icon::sharp::FOLDER_OPEN);
+                child = Icon!(icon::material_sharp::FOLDER_OPEN);
                 child_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
 
@@ -484,7 +484,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(icon::sharp::SAVE);
+                child = Icon!(icon::material_sharp::SAVE);
                 child_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
@@ -497,7 +497,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             Button! {
                 child = Text!(SAVE_AS_CMD.name());
                 when #{gt_500}.is_collapsed() {
-                    child = Icon!(icon::sharp::SAVE_AS);
+                    child = Icon!(icon::material_sharp::SAVE_AS);
                 }
 
                 tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));
@@ -511,7 +511,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = CUT_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(icon::sharp::CUT);
+                    child = Icon!(icon::material_sharp::CUT);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     visibility = true;
@@ -521,7 +521,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = COPY_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(icon::sharp::COPY);
+                    child = Icon!(icon::material_sharp::COPY);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     visibility = true;
@@ -531,7 +531,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             {
                 let cmd = PASTE_CMD.focus_scoped();
                 Button! {
-                    child = Icon!(icon::sharp::PASTE);
+                    child = Icon!(icon::material_sharp::PASTE);
                     child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
                     tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                     visibility = true;
@@ -548,7 +548,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
                     child = Button! {
-                        child = Icon!(icon::sharp::UNDO);
+                        child = Icon!(icon::material_sharp::UNDO);
                         child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 
@@ -571,7 +571,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                     enabled = cmd.flat_map(|c| c.is_enabled());
 
                     child = Button! {
-                        child = Icon!(icon::sharp::REDO);
+                        child = Icon!(icon::material_sharp::REDO);
                         child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                         tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
 

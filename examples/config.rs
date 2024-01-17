@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::{
     color::filter::opacity,
-    icon::{outlined as icons, Icon},
+    icon::{material_outlined as icons, Icon},
     layout::{align, margin},
     prelude::*,
     var::BoxedVar,

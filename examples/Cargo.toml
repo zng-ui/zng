@@ -17,6 +17,7 @@ zero-ui = { path = "../zero-ui", features = [
     "hyphenation_embed_all",
     "inspector",
     "deadlock_detection",
+    "material_icons",
     # "multi_app",
 ] }
 

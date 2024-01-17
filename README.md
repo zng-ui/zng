@@ -65,12 +65,16 @@ depending on the current thread.
 - **`toml`** — Enable TOML configs.
 - **`ron`** — Enable RON configs.
 - **`yaml`** — Enable YAML configs.
+- **`material_icons`** — Include all *Material Icons* icon sets, each icon set embeds some 300KB of data.
+- **`material_icons_outlined`** Include *Material Icons Outlined* icon set. If enabled some icons of this set are used for some of the commands.
+- **`material_icons_filled`** Include *Material Icons Filled* icon set.
+- **`material_icons_rounded`** Include *Material Icons Rounded* icon set.
+- **`material_icons_sharp`** Include *Material Icons Sharp* icon set.
 
 These features are enabled by default:
 
-* **`debug_default`** — Enable the `dyn_*` and `inspector` features for debug builds only.
-* **`ipc`** — Enables pre-build views and connecting to views running in another process.
-* **`material_icons`** — Include material icons in the default app.
+- **`debug_default`** — Enable the `dyn_*` and `inspector` features for debug builds only.
+- **`ipc`** — Enables pre-build views and connecting to views running in another process.
 
 ## `cargo do`
 
