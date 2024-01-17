@@ -1,3 +1,8 @@
+# Text
+
+* Font ligatures with more then one word like "address-book" don't activate the ligature because
+we split the text during segmentation.
+
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
 
