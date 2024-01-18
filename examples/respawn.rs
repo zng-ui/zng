@@ -88,7 +88,7 @@ fn image() -> impl UiNode {
         spacing = 3;
         children = ui_vec![
             text::Strong!("Image:"),
-            Image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
+            Image! { source = include_bytes!("res/window/icon-bytes.png"); size = (32, 32); },
         ];
     }
 }

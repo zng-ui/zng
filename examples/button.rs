@@ -101,7 +101,7 @@ fn image_button() -> impl UiNode {
         on_click = hn!(|_| tracing::info!("Clicked image button"));
         child_start = {
             insert: Image! {
-                source = "examples/res/window/icon-bytes.png";
+                source = include_bytes!("res/window/icon-bytes.png");
                 layout::size = 16;
                 align = Align::CENTER;
             },
