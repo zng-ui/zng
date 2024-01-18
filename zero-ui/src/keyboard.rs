@@ -16,9 +16,13 @@
 //! # ;
 //! ```
 //!
+//! Keyboard events are send to the focused widget, if there is no focused widget no event is send. You can
+//! subscribe directly to the [`KEY_INPUT_EVENT`] to monitor all keyboard events for any focused widget.
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::keyboard`] and [`zero_ui_wgt_input::keyboard`] for the full keyboard API.
+//! See [`zero_ui_app::view_process::raw_events`] for raw keyboard events that are processed to generate the key input event.
 
 pub use zero_ui_app::shortcut::ModifiersState;
 
@@ -31,3 +35,20 @@ pub use zero_ui_wgt_input::keyboard::{
     on_disabled_key_input, on_key_down, on_key_input, on_key_up, on_pre_disabled_key_input, on_pre_key_down, on_pre_key_input,
     on_pre_key_up,
 };
+
+/// Raw keyboard hardware events, received independent of what window or widget is focused.
+///
+/// You must enable device events in the app to receive this events.
+///
+/// ```no_run
+/// use zero_ui::prelude::*;
+///
+/// APP.defaults().enable_device_events().run_window(async {
+///     keyboard::raw_device_events::KEY_EVENT.on_pre_event(app_hn!(|args: &keyboard::raw_device_events::KeyArgs, _| {
+///         println!("key log {:?}", args.key);
+///     })).perm();
+/// });
+/// ```
+pub mod raw_device_events {
+    pub use zero_ui_app::view_process::raw_device_events::{KeyArgs, TextArgs, KEY_EVENT, TEXT_EVENT};
+}

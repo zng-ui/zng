@@ -23,3 +23,12 @@ pub use zero_ui_wgt_input::mouse::{
 };
 
 pub use zero_ui_wgt_input::{click_mode, cursor, cursor_img, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImg};
+
+/// Raw mouse hardware events, received independent of what window is under the pointer.
+///
+/// You must enable device events in the app to receive this events.
+pub mod raw_device_events {
+    pub use zero_ui_app::view_process::raw_device_events::{
+        ButtonArgs, MouseMotionArgs, MouseWheelArgs, BUTTON_EVENT, MOUSE_MOTION_EVENT, MOUSE_WHEEL_EVENT,
+    };
+}

@@ -311,3 +311,14 @@ pub use zero_ui_app_context::{
 pub use zero_ui_wgt_input::cmd::{
     on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD,
 };
+
+/// Input device hardware ID and events.
+///
+/// # Full API
+///
+/// See [`zero_ui_app::view_process::raw_device_events`] for the full API.
+pub mod raw_device_events {
+    pub use zero_ui_app::view_process::raw_device_events::{
+        DeviceArgs, DeviceId, MotionArgs, StaticDeviceId, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
+    };
+}

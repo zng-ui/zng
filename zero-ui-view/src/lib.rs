@@ -382,11 +382,15 @@ impl fmt::Debug for App {
     }
 }
 impl App {
-    fn disable_device_events(&mut self, t: Option<&EventLoopWindowTarget<AppEvent>>) {
-        self.device_events = false;
+    fn init_device_events(&mut self, enabled: bool, t: Option<&EventLoopWindowTarget<AppEvent>>) {
+        self.device_events = enabled;
 
         if let Some(t) = t {
-            t.listen_device_events(winit::event_loop::DeviceEvents::Never);
+            if enabled {
+                t.listen_device_events(winit::event_loop::DeviceEvents::Always);
+            } else {
+                t.listen_device_events(winit::event_loop::DeviceEvents::Never);
+            }
         }
     }
 
@@ -466,8 +470,8 @@ impl App {
                         app.image_cache.loaded(data);
                     }
                     AppEvent::MonitorPowerChanged => {} // headless
-                    AppEvent::DisableDeviceEvents => {
-                        app.disable_device_events(None);
+                    AppEvent::InitDeviceEvents(enabled) => {
+                        app.init_device_events(enabled, None);
                     }
                 },
                 Err(_) => {
@@ -560,8 +564,8 @@ impl App {
                                     w.redraw();
                                 }
                             }
-                            AppEvent::DisableDeviceEvents => {
-                                app.disable_device_events(Some(target));
+                            AppEvent::InitDeviceEvents(enabled) => {
+                                app.init_device_events(enabled, Some(target));
                             }
                         },
                         WEvent::Suspended => {}
@@ -1479,9 +1483,7 @@ impl Api for App {
         self.device_events = device_events;
         self.headless = headless;
 
-        if !device_events {
-            self.app_sender.send(AppEvent::DisableDeviceEvents).unwrap();
-        }
+        self.app_sender.send(AppEvent::InitDeviceEvents(device_events)).unwrap();
 
         let available_monitors = self.available_monitors();
         self.notify(Event::Inited(Inited {
@@ -1979,8 +1981,8 @@ pub(crate) enum AppEvent {
     /// Image finished decoding, must call [`ImageCache::loaded`].
     ImageLoaded(ImageLoadedData),
 
-    /// Send after init if `device_events` are not requested.
-    DisableDeviceEvents,
+    /// Send after init with `device_events`.
+    InitDeviceEvents(bool),
 
     /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
     #[allow(unused)]
