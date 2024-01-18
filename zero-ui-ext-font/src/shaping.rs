@@ -3032,7 +3032,8 @@ impl<'a> ShapedSegment<'a> {
     /// All glyph points are set as offsets to the top-left of the text full text.
     ///
     /// Note that multiple glyphs can map to the same char and multiple chars can map to the same glyph, you can use the [`clusters`]
-    /// map to find the char for each glyph.
+    /// map to find the char for each glyph. Some font ligatures also bridge multiple segments, in this case only the first shaped
+    /// segment has glyphs the subsequent ones are empty.
     ///
     /// [`clusters`]: Self::clusters
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> {
@@ -3049,7 +3050,8 @@ impl<'a> ShapedSegment<'a> {
 
     /// Map glyph -> char.
     ///
-    /// Each [`glyphs`] glyph pairs with an entry in this slice that is the char byte index in [`text`].
+    /// Each [`glyphs`] glyph pairs with an entry in this slice that is the char byte index in [`text`]. If
+    /// a font ligature bridges multiple segments only the first segment will have a non-empty map.
     ///
     /// [`glyphs`]: Self::glyphs
     /// [`text`]: Self::text
@@ -3082,7 +3084,7 @@ impl<'a> ShapedSegment<'a> {
 
         let start_x = match self.direction() {
             LayoutDirection::LTR => {
-                if is_line_break {
+                if is_line_break || start == self.text.glyphs.len() {
                     let x = self.text.lines.x_offset(self.line_index);
                     let w = self.text.lines.width(self.line_index);
                     return (Px((x + w) as i32), Px(0));
@@ -3090,8 +3092,9 @@ impl<'a> ShapedSegment<'a> {
                 self.text.glyphs[start].point.x
             }
             LayoutDirection::RTL => {
-                if is_line_break {
-                    return (Px(0), Px(0));
+                if is_line_break || start == self.text.glyphs.len() {
+                    let x = self.text.lines.x_offset(self.line_index);
+                    return (Px(x as i32), Px(0));
                 }
 
                 self.text.glyphs[start..end]
