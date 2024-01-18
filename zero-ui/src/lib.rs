@@ -454,7 +454,6 @@ pub mod grid;
 pub mod handler;
 pub mod icon;
 pub mod image;
-pub mod inspector;
 pub mod keyboard;
 pub mod l10n;
 pub mod label;
