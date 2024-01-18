@@ -251,14 +251,6 @@ impl SegmentedText {
     ///     println!("s: {sub_str:?} is a `{:?}`", seg.kind);
     /// }
     /// ```
-    /// Prints
-    /// ```text
-    /// "Foo" is a `Word`
-    /// " " is a `Space`
-    /// "bar!" is a `Word`
-    /// "\n" is a `LineBreak`
-    /// "Baz." is a `Word`
-    /// ```
     pub fn iter(&self) -> SegmentedTextIter {
         SegmentedTextIter {
             text: &self.text,
