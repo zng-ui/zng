@@ -52,6 +52,7 @@
 //!
 //! ```
 //! use zero_ui::{prelude::*, image};
+//! # let _scope = APP.defaults();
 //!
 //! image::IMAGES.limits().modify(|l| {
 //!     let l = l.to_mut();
