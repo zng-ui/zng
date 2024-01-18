@@ -1059,12 +1059,12 @@ impl ImageLimits {
 impl Default for ImageLimits {
     /// 100 megabytes encoded and 4096 megabytes decoded (BMP max).
     ///
-    /// Allows all paths, blocks all URIs.
+    /// Allows only paths in the executable directory, blocks all downloads.
     fn default() -> Self {
         Self {
             max_encoded_len: 100.megabytes(),
             max_decoded_len: 4096.megabytes(),
-            allow_path: PathFilter::AllowAll,
+            allow_path: PathFilter::allow_exe_dir(),
             #[cfg(feature = "http")]
             allow_uri: UriFilter::BlockAll,
         }

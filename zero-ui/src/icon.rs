@@ -24,20 +24,20 @@
 //! You can implement your own icon sets by providing [`GlyphIcon`] instances or a type that converts to `GlyphIcon`, the
 //! [`MaterialIcon`] type is an example of this. Glyph icons define a font name and a [`GlyphSource`] that can be a `char`
 //! or a ligature text.
-//! 
+//!
 //! ```
 //! # fn main() { }
-//! use zero_ui::{prelude::*, icon};
-//! # fn demo() {
+//! use zero_ui::{prelude::*, icon, font};
+//! # async fn demo() {
 //! # let _ = APP.defaults();
-//! 
-//! let font = CustomFont::from_file(
+//!
+//! let font = font::CustomFont::from_file(
 //!     "Font Awesome 6 Free-Regular",
 //!     r#"Font Awesome 6 Free-Regular-400.otf"#,
 //!     0,
 //! );
-//! FONTS.register(font).wait_into_rsp().await.unwrap();
-//! 
+//! font::FONTS.register(font).wait_into_rsp().await.unwrap();
+//!
 //! # let _ =
 //! icon::Icon! {
 //!     ico = icon::GlyphIcon::new("Font Awesome 6 Free-Regular", "address-book").with_ligatures();

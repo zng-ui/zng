@@ -35,10 +35,13 @@ fn main() {
 
 fn app_main() {
     APP.defaults().run_window(async {
-        // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
-        // in here and overridden for each image with the "img_limits" property.
+        // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
+        // is limited to only the exe dir. The limits can be set globally in here and overridden 
+        // for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
-            l.to_mut().allow_uri = image::UriFilter::AllowAll;
+            let l = l.to_mut();
+            l.allow_uri = image::UriFilter::AllowAll;
+            l.allow_path = image::PathFilter::AllowAll;
         });
 
         // setup a file cache so we don't download the images every run.
