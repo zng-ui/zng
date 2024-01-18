@@ -1027,7 +1027,6 @@ impl ShapedText {
         false
     }
 
-    #[track_caller]
     fn debug_assert_ranges(&self) {
         #[cfg(debug_assertions)]
         {
@@ -1051,7 +1050,7 @@ impl ShapedText {
 
             let mut prev_seg_end = 0;
             for seg in &self.segments.0 {
-                assert!(seg.end >= prev_seg_end);
+                trace_assert!(seg.end >= prev_seg_end);
                 prev_seg_end = seg.end;
             }
             trace_assert!(self.segments.0.last().map(|s| s.end == self.glyphs.len()).unwrap_or(true));
@@ -2087,8 +2086,10 @@ impl ShapedTextBuilder {
                             self.push_glyphs(shaped_seg, self.letter_spacing);
                         }
                         self.push_glyphs(shaped_seg, self.letter_spacing);
+                        let mut seg = seg;
                         for info in &text.segs()[words_start..words_end] {
                             self.push_text_seg(seg, *info);
+                            seg = "";
                         }
 
                         return true;
@@ -3058,6 +3059,20 @@ impl<'a> ShapedSegment<'a> {
     pub fn clusters(&self) -> &[u32] {
         let r = self.glyphs_range();
         self.text.clusters_range(r)
+    }
+
+    /// Number of next segments that are empty because their text is included in a ligature
+    /// glyph or glyphs started in this segment.
+    pub fn ligature_segs_count(&self) -> usize {
+        let range = self.glyphs_range();
+        if range.iter().is_empty() {
+            0
+        } else {
+            self.text.segments.0[self.index + 1..]
+                .iter()
+                .filter(|s| s.end == range.end())
+                .count()
+        }
     }
 
     /// Glyphs in the segment, paired with the *x-advance*.
