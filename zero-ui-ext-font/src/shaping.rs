@@ -1991,6 +1991,16 @@ impl ShapedTextBuilder {
     }
 
     fn push_text(&mut self, fonts: &[Font], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
+        // static LIG: [&[u8]; 4] = [b"liga", b"clig", b"dlig", b"hlig"];
+        // let ligature_enabled = fonts[0].face().has_ligatures()
+        //     && features.iter().any(|f| {
+        //         let tag = f.tag().to_bytes();
+        //         LIG.iter().any(|l| *l == tag)
+        //     });
+        // if ligature_enabled {
+        //     tracing::info!("TODO !!: try matching composite words first");
+        // }
+
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction();
             let max_width = self.actual_max_width();

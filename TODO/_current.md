@@ -2,6 +2,14 @@
 
 * Font ligatures with more then one word like "address-book" don't activate the ligature because
 we split the text during segmentation.
+    - Ligatures are implemented as substitution from glyphs to glyphs.
+    - See https://docs.rs/ttf-parser/0.20.0/ttf_parser/gsub/index.html
+    - There is no way to get a list of "keywords" that can be used during segmentation.
+        - We don't want that anyway, we don't want to depend on the top font for segmentation.
+    - We could try matching compound words during shaping.
+        - How to detect if a ligature was applied?
+    - Implemented detection of ligatures in fonts and in features during text shaping.
+        - Use this to go a different path that joins words for a try first.
 
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).

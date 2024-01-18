@@ -864,6 +864,7 @@ struct LoadedFontFace {
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
     color_glyphs: ColorGlyphs,
+    has_ligatures: bool,
     lig_carets: LigatureCaretList,
     m: Mutex<FontFaceMut>,
 }
@@ -929,6 +930,7 @@ impl FontFace {
             },
             color_palettes: ColorPalettes::empty(),
             color_glyphs: ColorGlyphs::empty(),
+            has_ligatures: false,
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
@@ -981,6 +983,7 @@ impl FontFace {
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
                         color_glyphs: other_font.0.color_glyphs.clone(),
+                        has_ligatures: other_font.0.has_ligatures,
                         lig_carets: other_font.0.lig_carets.clone(),
                     }))),
                     None => Err(FontLoadingError::NoSuchFontInCollection),
@@ -1008,7 +1011,12 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
-        let lig_carets = LigatureCaretList::load(&font)?;
+        let has_ligatures = face.table_with_tag(b"GSUB").is_some();
+        let lig_carets = if has_ligatures {
+            LigatureCaretList::empty()
+        } else {
+            LigatureCaretList::load(&font)?
+        };
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
@@ -1026,6 +1034,7 @@ impl FontFace {
             metrics: font.metrics().into(),
             color_palettes,
             color_glyphs,
+            has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
@@ -1077,7 +1086,12 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
-        let lig_carets = LigatureCaretList::load(&font)?;
+        let has_ligatures = face.table_with_tag(b"GSUB").is_some();
+        let lig_carets = if has_ligatures {
+            LigatureCaretList::empty()
+        } else {
+            LigatureCaretList::load(&font)?
+        };
 
         let metrics = font.metrics();
         if metrics.units_per_em == 0 {
@@ -1098,6 +1112,7 @@ impl FontFace {
             metrics: metrics.into(),
             color_palettes,
             color_glyphs,
+            has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 font_kit: {
@@ -1286,6 +1301,11 @@ impl FontFace {
     /// Is empty if not provided by the font.
     pub fn color_glyphs(&self) -> &ColorGlyphs {
         &self.0.color_glyphs
+    }
+
+    /// If the font provides glyph substitutions.
+    pub fn has_ligatures(&self) -> bool {
+        self.0.has_ligatures
     }
 
     /// If this font provides custom positioned carets for some or all ligature glyphs.
