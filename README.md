@@ -14,8 +14,7 @@ First add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zero-ui = "0.1"
-zero-ui-view = "0.1"
+zero-ui = { version = "0.1", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -24,7 +23,7 @@ Then create your first window:
 use zero_ui::prelude::*;
 
 fn main() {
-    zero_ui_view::init();
+    zero_ui::view_process::prebuilt::init();
     APP.defaults().run_window(async {
         let size = var(layout::Size::new(800, 600));
         Window! {
@@ -49,6 +48,8 @@ See the [`API docs`] front page for more details.
 
 Zero-Ui provides the following features which can be enabled in your `Cargo.toml` file:
 
+- **`view`** — Include the default view-process implementation.
+- **`view_prebuilt`** — Include the default view-process implementation as an embedded precompiled binary.
 - **`inspector`** — Instrument each property and widget instance with inspector nodes and extend windows to be inspected on Ctrl+Shift+I.
 - **`trace_widget`** — Instrument every widget outer-most node to trace UI methods.
 - **`trace_wgt_item`** — Instrument every property and intrinsic node to trace UI methods.
@@ -75,6 +76,7 @@ These features are enabled by default:
 
 - **`debug_default`** — Enable the `dyn_*` and `inspector` features for debug builds only.
 - **`ipc`** — Enables pre-build views and connecting to views running in another process.
+- **`view_software`** — Enables software renderer fallback in the default view-process (`"view"`).
 
 ## `cargo do`
 

@@ -13,8 +13,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view = "0.1"
+//! zero-ui = { version = "0.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! Then create your first app:
@@ -23,7 +22,7 @@
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
-//!     zero_ui_view::init();
+//!     zero_ui::view_process::prebuilt::init();
 //!     app();
 //! }
 //!
@@ -484,6 +483,7 @@ pub mod undo;
 pub mod update;
 pub mod var;
 pub mod view;
+pub mod view_process;
 pub mod widget;
 pub mod window;
 pub mod wrap;

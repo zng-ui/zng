@@ -11,13 +11,13 @@ use zero_ui::{
     text::ToTxt,
 };
 
-use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    view_process::init();
 
-    // zero_ui_view::run_same_process(app_main);
+    // view_process::run_same_process(app_main);
     app_main();
 }
 

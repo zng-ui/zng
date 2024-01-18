@@ -22,17 +22,15 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view = "0.1"
+//! zero-ui = { version = "0.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! ```no_run
-//! # mod zero_ui_view { pub fn init() { } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
 //!     app_and_view();
-//!     zero_ui_view::init(); // init only returns if it is not called in the view-process.
+//!     zero_ui::view_process::prebuilt::init(); // init only returns if it is not called in the view-process.
 //!     app();
 //! }
 //!

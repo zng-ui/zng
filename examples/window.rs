@@ -22,15 +22,15 @@ use zero_ui::{
     window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowChrome, WindowState},
 };
 
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui::view_process::default as view_process;
 
 fn main() {
     examples_util::print_info();
-    // zero_ui_view::init();
+    // view_process::init();
 
     // let rec = examples_util::record_profile("window");
 
-    zero_ui_view::run_same_process(app_main);
+    view_process::run_same_process(app_main);
     // app_main();
 
     // rec.finish();

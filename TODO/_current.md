@@ -1,5 +1,4 @@
-# `zero-ui`
-* Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
+* Add docs to readme.
 
 # Documentation
 

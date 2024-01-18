@@ -9,13 +9,13 @@ use zero_ui::{
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
-use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    view_process::init();
 
-    // zero_ui_view::run_same_process(headless_example);
+    // view_process::run_same_process(headless_example);
 
     // images_render();
     headless_example();

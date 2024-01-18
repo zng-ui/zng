@@ -18,14 +18,14 @@ zero-ui = { path = "../zero-ui", features = [
     "inspector",
     "deadlock_detection",
     "material_icons",
+    "view",
+    "view_prebuilt",
     # "multi_app",
 ] }
 
-zero-ui-view = { path = "../zero-ui-view" }
-zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
-
 zero-ui-app = { path = "../zero-ui-app" }           # for respawn and extend_view examples
-zero-ui-view-api = { path = "../zero-ui-view-api" } # for and extend_view example
+zero-ui-view-api = { path = "../zero-ui-view-api" } # for the extend_view example
+zero-ui-view = { path = "../zero-ui-view" } # for the extend_view example
 
 examples-util = { path = "util" }
 # backtrace-on-stack-overflow = "0.2"

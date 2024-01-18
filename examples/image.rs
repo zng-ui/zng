@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use zero_ui::view_process::prebuilt as view_process;
 use zero_ui::{
     app, button,
     checkerboard::Checkerboard,
@@ -19,15 +20,14 @@ use zero_ui::{
     widget::{background_color, border, BorderSides},
     window::{RenderMode, WindowState},
 };
-use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
-    // zero_ui_view::init();
+    // view_process::init();
 
     // let rec = examples_util::record_profile("image");
 
-    zero_ui_view::run_same_process(app_main);
+    view_process::run_same_process(app_main);
 
     // app_main();
     // rec.finish();

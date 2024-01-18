@@ -1,12 +1,12 @@
 //! Keyboard service, properties, events and types.
-//! 
+//!
 //! The example below defines a window that shows the pressed keys and prints the key state changes.
 //!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
-//! # let _ = 
+//!
+//! # let _ =
 //! Window! {
 //!     child = Text!(keyboard::KEYBOARD.keys().map_debug());
 //!     keyboard::on_key_input = hn!(|args: &keyboard::KeyInputArgs| {
@@ -15,7 +15,7 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::keyboard`] and [`zero_ui_wgt_input::keyboard`] for the full keyboard API.
