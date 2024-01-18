@@ -1,3 +1,8 @@
+# Text
+
+* Test cross word ligatures in text with more chars than the ligature.
+    - Panic on click.
+
 # `zero-ui`
 * Include view crate in the main crate behind features (one for prebuilt, one for just `zero-ui-view`).
 
