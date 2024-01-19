@@ -95,6 +95,18 @@
 //! See the [`l10n!`] documentation for a full explanation of how the Scraper converts comments and the
 //! `l10n!` calls into Fluent files.
 //!
+//! # Localize Commands
+//!
+//! Currently [`command!`](zero_ui::event::command) declarations are not integrated with the localization
+//! service yet, you will need to manually bind localization to command metadata to localize it.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! l10n!("COPY_CMD.name", "Copy").set_bind(&zero_ui::clipboard::COPY_CMD.name()).perm();
+//! ```
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_l10n`] for the full localization API.

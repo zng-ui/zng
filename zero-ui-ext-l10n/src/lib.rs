@@ -198,7 +198,7 @@ impl L10N {
     }
 
     /// Call [`load_dir`], with a relative `dir` that is relative to the current executable directory.
-    /// 
+    ///
     /// [`load_dir`]: Self::load_dir
     pub fn load_exe_dir(&self, dir: impl Into<PathBuf>) {
         self.load_exe_dir_impl(dir.into())

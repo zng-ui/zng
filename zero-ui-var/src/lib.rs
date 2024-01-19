@@ -1645,6 +1645,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.bind_map(other, Clone::clone)
     }
 
+    /// Calls `other.set_from(self)` and `self.bind(other)`.
+    fn set_bind<V2>(&self, other: &V2) -> VarHandle
+    where
+        V2: Var<T>,
+    {
+        let _ = other.set_from(self);
+        self.bind(other)
+    }
+
     /// Setup two hooks that assigns `other` with the new values of `self` and `self` with the new values of `other`.
     ///
     /// Only a  weak reference to each variable is held by the other.
