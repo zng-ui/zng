@@ -1,5 +1,17 @@
 //! Markdown widget, properties and types.
 //!
+//! This widget displays [CommonMark] text, without support for HTML code yet .
+//!
+//! [CommonMark]: https://commonmark.org/
+//!
+//! ```
+//! # let _scope = zero_ui::APP.defaults(); let _ =
+//! zero_ui::markdown::Markdown! {
+//!     txt = "# Title\n\n- List item 1.\n- List item 2.";
+//! }
+//! # ;
+//! ```
+//! 
 //! # Full API
 //!
 //! See [`zero_ui_wgt_markdown`] for the full widget API.

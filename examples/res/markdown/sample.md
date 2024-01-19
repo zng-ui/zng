@@ -15,6 +15,8 @@ Sample of other blocks items:
 Unordered lists:
 
 * Item 1
+
+  Is a paragraph item.
 * Item 2
 * Item 3
 
