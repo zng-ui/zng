@@ -1,10 +1,105 @@
 //! Localization service, sources and types.
 //!
+//! Localized text is declared using the [`l10n!`] macro, it provides a read-only text variable that automatically
+//! updates to be best localized text available given the current loaded localization and the app language.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! let click_count = var(0u32);
+//! # let _ =
+//! Window! {
+//!     title = l10n!("window-title", "Window Title");
+//!     child = Button! {
+//!         on_click = hn!(click_count, |_| click_count.set(click_count.get() + 1));
+//!         child = Text!(l10n!("click-count", "Clicked {$n} times", n = click_count.clone()));
+//!     };
+//! }
+//! # ;
+//! ```
+//!
+//! In the example above declares two localization messages, "window.title" and "btn.click_count", if
+//! these messages are localized for the current language the localized text is used, otherwise the provided
+//! fallback is used.
+//!
+//! The [`L10N`] service can be used to set the app language and load localization resources. The example below
+//! sets the language to en-US and loads localization from a directory.
+//!
+//! ```no_run
+//! use zero_ui::prelude::*;
+//!
+//! APP.defaults().run_window(async {
+//!     // start loading localization resources
+//!     L10N.load_exe_dir("res/fluent");
+//!     // set the app language, by default is the system language
+//!     L10N.app_lang().set(lang!("en-US"));
+//!     // preload the localization resources for a language
+//!     L10N.wait_first(lang!("en-US")).await;
+//!     
+//!     Window! {
+//!         // ..
+//!     }
+//! });
+//! ```
+//!
+//! # Fluent
+//!
+//! The localization files are in the [Fluent](https://projectfluent.org/) format. Fluent empowers translators to
+//! script things like plural forms, for this reason a localization file should be provided even for the same
+//! language the `l10n!` fallback text is written in.
+//!
+//! ```ftl
+//! click-count = {$n ->
+//!     [one] Clicked {$n} time
+//!     *[other] Clicked {$n} times
+//! }
+//! ```
+//!
+//! The example above demonstrates a localized message that provides plural alternatives for the English language.
+//!
+//! # Scraper
+//!
+//! The `zero-ui-l10n-scraper` tool can be used to generate a Fluent file from source code, the Fluent file can be
+//! used as a template for translators, it will include the fallback text and comments written close the the key
+//! declaration.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! // l10n-### This standalone comment is added to all scraped template files.
+//!
+//! let click_count = var(0u32);
+//! # let _ =
+//! Window! {
+//!     title = l10n!("window-title", "Window Title");
+//!     child = Button! {
+//!         on_click = hn!(click_count, |_| click_count.set(click_count.get() + 1));
+//!         // l10n-# This comment is added to the `"click-count"` entry.
+//!         child = Text!(l10n!("click-count", "Clicked {$n} times", n = click_count.clone()));
+//!     };
+//! }
+//! # ;
+//! ```
+//!
+//! When the example above is scrapped it generates:
+//!
+//! ```ftl
+//! ### This standalone comment is added to all scraped template files.
+//!
+//! # This comment is added to the `"click-count"` entry.
+//! click-count = Clicked {$n} times
+//! ```
+//!
+//! See the [`l10n!`] documentation for a full explanation of how the Scraper converts comments and the
+//! `l10n!` calls into Fluent files.
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_l10n`] for the full localization API.
 
 pub use zero_ui_ext_l10n::{
-    lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, Lang, LangMap, LangResource, LangResourceStatus,
+    l10n, lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, Lang, LangMap, LangResource, LangResourceStatus,
     LangResources, Langs, NilL10nSource, SwapL10nSource, L10N, LANG_VAR,
 };

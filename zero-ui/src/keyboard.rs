@@ -49,6 +49,8 @@ pub use zero_ui_wgt_input::keyboard::{
 ///             println!("key pressed {:?}", args.key_code);
 ///         }
 ///     })).perm();
+///
+///     Window!()
 /// });
 /// ```
 pub mod raw_device_events {

@@ -104,8 +104,7 @@ impl AppExtension for L10nManager {
 ///     .attr = message
 /// ```
 ///
-/// And a key `"id.attr"` will be search the file `{dir}/{lang}.ftl`.
-///
+/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}.ftl`.
 ///
 /// # Scrap Template
 ///
@@ -196,6 +195,30 @@ impl L10N {
     /// [`available_langs`]: Self::available_langs
     pub fn load_dir(&self, dir: impl Into<PathBuf>) {
         self.load(L10nDir::open(dir))
+    }
+
+    /// Call [`load_dir`], with a relative `dir` that is relative to the current executable directory.
+    /// 
+    /// [`load_dir`]: Self::load_dir
+    pub fn load_exe_dir(&self, dir: impl Into<PathBuf>) {
+        self.load_exe_dir_impl(dir.into())
+    }
+    fn load_exe_dir_impl(&self, dir: PathBuf) {
+        if dir.is_absolute() {
+            tracing::warn!("absolute path in `load_exe_dir`");
+            self.load_dir(dir);
+        } else {
+            match std::env::current_exe() {
+                Ok(p) => {
+                    if let Some(p) = p.parent() {
+                        self.load_dir(p.join(dir));
+                    } else {
+                        self.load_dir(dir);
+                    }
+                }
+                Err(e) => tracing::error!("no executable path, {e}"),
+            }
+        }
     }
 
     /// Available localization files.
