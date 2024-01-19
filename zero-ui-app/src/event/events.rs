@@ -11,6 +11,7 @@ app_local! {
 pub(crate) struct EventsService {
     updates: Mutex<Vec<EventUpdate>>, // not locked, used to make service Sync.
     commands: Vec<Command>,
+    register_commands: Vec<Command>,
 }
 
 impl EventsService {
@@ -18,14 +19,15 @@ impl EventsService {
         Self {
             updates: Mutex::new(vec![]),
             commands: vec![],
+            register_commands: vec![],
         }
     }
 
     pub(super) fn register_command(&mut self, command: Command) {
-        if self.commands.iter().any(|c| c == &command) {
-            panic!("command `{command:?}` is already registered")
+        if self.register_commands.is_empty() {
+            UPDATES.update(None);
         }
-        self.commands.push(command);
+        self.register_commands.push(command);
     }
 
     pub(super) fn sender<A>(&mut self, event: Event<A>) -> EventSender<A>
@@ -55,7 +57,8 @@ impl EVENTS {
 
     /// Commands that had handles generated in this app.
     ///
-    /// When [`Command::subscribe`] is called for the first time in an app, the command gets added to this list.
+    /// When [`Command::subscribe`] is called for the first time in an app, the command gets added
+    /// to this list after the current update.
     ///
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> Vec<Command> {
@@ -67,8 +70,20 @@ impl EVENTS {
         let _s = tracing::trace_span!("EVENTS").entered();
 
         let mut ev = EVENTS_SV.write();
-
         ev.commands.retain(|c| c.update_state());
+
+        {
+            let ev = &mut *ev;
+            for cmd in ev.register_commands.drain(..) {
+                if cmd.update_state() {
+                    if ev.commands.iter().any(|c| c == &cmd) {
+                        tracing::error!("command `{cmd:?}` is already registered")
+                    } else {
+                        ev.commands.push(cmd);
+                    }
+                }
+            }
+        }
 
         let mut updates: Vec<_> = ev.updates.get_mut().drain(..).collect();
         drop(ev);
