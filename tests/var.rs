@@ -55,6 +55,7 @@ mod bindings {
         let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_map(&b, |a| a.to_txt()).perm();
 
@@ -102,6 +103,7 @@ mod bindings {
         let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_map_bidi(&b, |a| a.to_txt(), |b| b.parse().unwrap()).perm();
 
@@ -149,6 +151,7 @@ mod bindings {
         let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_txt()) }).perm();
 
@@ -197,6 +200,7 @@ mod bindings {
         let b = var("".to_txt());
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_filter_map_bidi(&b, |a| Some(a.to_txt()), |b| b.parse().ok()).perm();
 
@@ -261,6 +265,7 @@ mod bindings {
         let d = var(0);
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_map(&b, |a| *a + 1).perm();
         b.bind_map(&c, |b| *b + 1).perm();
@@ -318,6 +323,7 @@ mod bindings {
         let d = var(0);
 
         let mut app = APP.minimal().run_headless(false);
+        app.update(false).assert_wait();
 
         a.bind_bidi(&b).perm();
         b.bind_bidi(&c).perm();
