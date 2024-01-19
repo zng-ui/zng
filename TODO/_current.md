@@ -1,3 +1,5 @@
+* Panic clicking an `EXIT_CMD` context menu button.
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
