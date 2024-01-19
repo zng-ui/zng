@@ -1887,7 +1887,7 @@ macro_rules! font_variations {
     ),* $(,)?] => {
         $crate::font_features::FontVariations::from_pairs(&[
             $(
-                ($name, $value),
+                ($name.into(), $value),
             )*
         ])
     }
