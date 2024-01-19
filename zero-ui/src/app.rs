@@ -16,7 +16,7 @@
 //! To simplify distribution the view-process is an instance of the same app executable, the view-process crate provides
 //! and `init` function that either spawns the view-process or becomes the view-process never returning.
 //!
-//! On the first instance of the app executable the `zero_ui_view::init` function spawns another instance marked to
+//! On the first instance of the app executable the `init` function spawns another instance marked to
 //! become the view-process, on this second instance the init function never returns, for this reason the function
 //! must be called early in main.
 //!
@@ -54,50 +54,14 @@
 //! will also run in a different thread, not the main.
 //!
 //! ```no_run
-//! # mod zero_ui_view { pub fn run_same_process(_: impl FnOnce()) { } }
 //! use zero_ui::prelude::*;
 //!
 //! fn main() {
-//!     zero_ui_view::run_same_process(app);
+//!     zero_ui::view_process::prebuilt::run_same_process(app);
 //! }
 //!
 //! fn app() {
 //!     // code here runs in a different thread, the main thread becomes the view.
-//!     APP.defaults().run(async {
-//!         // ..
-//!     })
-//! }
-//! ```
-//!
-//!
-//!
-//! ## Prebuild
-//!
-//! You can also use a prebuild view, using a prebuild view will give you much better performance in debug builds,
-//! and also that you don't need to build `zero-ui-view`, cutting initial build time by half.
-//!
-//! ```toml
-//! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view-prebuilt = "0.1"
-//! ```
-//!
-//! ```no_run
-//! # mod zero_ui_view_prebuilt { pub fn init() { } pub fn same_process(_: impl FnOnce()) { } }
-//! use zero_ui::prelude::*;
-//!
-//! use zero_ui_view_prebuilt as zero_ui_view;
-//!
-//! fn main() {
-//!     if std::env::var("MY_APP_EXEC_MODE").unwrap_or_default() == "same_process" {
-//!         zero_ui_view::same_process(app);
-//!     } else {
-//!         zero_ui_view::init();
-//!         app();
-//!     }
-//! }
-//!
-//! fn app() {
 //!     APP.defaults().run(async {
 //!         // ..
 //!     })

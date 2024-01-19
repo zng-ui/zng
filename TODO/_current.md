@@ -1,5 +1,3 @@
-* Review doc mentions of view-process.
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
