@@ -27,7 +27,7 @@ struct LayersCtx {
 
 /// Windows layers.
 ///
-/// The window layers is z-order stacking panel that fills the window content area, widgets can be inserted
+/// The window layers is a z-order stacking panel that fills the window content area, widgets can be inserted
 /// with a *z-index* that is the [`LayerIndex`]. The inserted widgets parent is the window root widget and
 /// it is affected by the context properties set on the window only.
 ///
