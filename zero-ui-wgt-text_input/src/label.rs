@@ -14,7 +14,16 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 ///
 /// Optionally can be the label of a [`target`] widget, in this case the label is not focusable, it transfers focus
 /// to the target.
-#[widget($crate::label::Label)]
+/// 
+/// # Shorthand
+/// 
+/// The widget macro supports the shorthand `Label!("txt-expr", "target-expr")`.
+#[widget($crate::label::Label {
+    ($txt:expr, $target:expr $(,)?) => {
+        txt = $txt;
+        target = $target;
+    };
+})]
 pub struct Label(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
 impl Label {
     fn widget_intrinsic(&mut self) {
