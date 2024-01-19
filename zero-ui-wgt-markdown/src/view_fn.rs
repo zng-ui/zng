@@ -137,8 +137,8 @@ pub struct ListItemFnArgs {
     /// Inline items of the list item.
     pub items: UiNodeVec,
 
-    /// Inner list defined inside this item.
-    pub nested_list: Option<BoxedUiNode>,
+    /// Inner block items, paragraphs and nested lists.
+    pub blocks: UiNodeVec,
 }
 
 /// Arguments for a markdown image view.
@@ -646,46 +646,34 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
 ///
 /// See [`LIST_ITEM_FN_VAR`] for more details.
 pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
+    let mut blocks = args.blocks;
     let mut items = args.items;
 
     if items.is_empty() {
-        return if let Some(inner) = args.nested_list {
-            inner
-        } else {
-            NilUiNode.boxed()
-        };
+        if blocks.is_empty() {
+            return NilUiNode.boxed();
+        }
+    } else {
+        let r = if items.len() == 1 { items.remove(0) } else { Wrap!(items).boxed() };
+        blocks.insert(0, r);
     }
 
-    let mut r = if items.len() == 1 {
-        Container! {
-            access_role = AccessRole::ListItem;
-            grid::cell::at = grid::cell::AT_AUTO;
-            child = items.remove(0);
-        }
-        .boxed()
-    } else {
-        Wrap! {
-            access_role = AccessRole::ListItem;
-            grid::cell::at = grid::cell::AT_AUTO;
-            children = items;
-        }
-        .boxed()
-    };
-
-    if let Some(inner) = args.nested_list {
-        r = Stack! {
+    if blocks.len() > 1 {
+        Stack! {
             access_role = AccessRole::ListItem;
             grid::cell::at = grid::cell::AT_AUTO;
             direction = StackDirection::top_to_bottom();
-            children = ui_vec![
-                r,
-                inner
-            ]
+            children = blocks;
         }
-        .boxed();
+        .boxed()
+    } else {
+        Container! {
+            access_role = AccessRole::ListItem;
+            grid::cell::at = grid::cell::AT_AUTO;
+            child = blocks.remove(0);
+        }
+        .boxed()
     }
-
-    r
 }
 
 /// Default image view.

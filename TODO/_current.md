@@ -1,9 +1,5 @@
 * Review doc mentions of view-process.
 
-# Markdown
-
-* Does not support paragraph in list items.
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

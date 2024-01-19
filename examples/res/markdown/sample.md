@@ -16,7 +16,7 @@ Unordered lists:
 
 * Item 1
 
-  Is a paragraph item.
+  A paragraph item.
 * Item 2
 * Item 3
 

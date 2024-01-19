@@ -3,17 +3,17 @@
 //! The window layers is a z-order stacking panel that fills the window content area, widgets can be inserted
 //! with a *z-index* that is the [`LayerIndex`]. Layers can be anchored to a normal widget, positioned relative
 //! to it with linked visibility.
-//! 
+//!
 //! The [`LAYERS`] service can be used to insert and remove layers, the example below uses it to *toggle* a
 //! an adorner positioned relative to the button that inserts and removes it.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! let inserted = var(false);
 //! let anchored = WidgetId::new_unique();
-//! # let _ = 
+//! # let _ =
 //! Button! {
 //!     on_click = hn!(inserted, |_| {
 //!         if !inserted.get() {
@@ -33,11 +33,11 @@
 //! }
 //! # ;
 //! ```
-//! 
-//! Node operations always apply to the window content first then the layers, even with parallelism enabled, 
-//! this means that layers always render over the window content and that layer widgets can react to normal widget 
+//!
+//! Node operations always apply to the window content first then the layers, even with parallelism enabled,
+//! this means that layers always render over the window content and that layer widgets can react to normal widget
 //! updates within the same frame.
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_layer`] for the full layers API.

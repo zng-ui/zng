@@ -11,7 +11,7 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_markdown`] for the full widget API.

@@ -217,6 +217,9 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::Item => {
                     last_txt_end = '\0';
+                    if let Some(list) = list_info.last_mut() {
+                        list.block_start = blocks.len();
+                    }
                 }
                 Tag::FootnoteDefinition(_) => {
                     last_txt_end = '\0';
@@ -327,13 +330,6 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                             None => None,
                         };
 
-                        let nested_list = if list.block_start < blocks.len() {
-                            debug_assert_eq!(blocks.len() - list.block_start, 1);
-                            blocks.pop()
-                        } else {
-                            None
-                        };
-
                         let bullet_args = ListItemBulletFnArgs {
                             depth: depth as u32,
                             num,
@@ -343,7 +339,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         list_items.push(list_item_view(ListItemFnArgs {
                             bullet: bullet_args,
                             items: inlines.drain(list.inline_start..).collect(),
-                            nested_list,
+                            blocks: blocks.drain(list.block_start..).collect(),
                         }));
                     }
                 }
