@@ -45,7 +45,9 @@ pub use zero_ui_wgt_input::keyboard::{
 ///
 /// APP.defaults().enable_device_events().run_window(async {
 ///     keyboard::raw_device_events::KEY_EVENT.on_pre_event(app_hn!(|args: &keyboard::raw_device_events::KeyArgs, _| {
-///         println!("key log {:?}", args.key);
+///         if args.state == keyboard::KeyState::Pressed {
+///             println!("key pressed {:?}", args.key_code);
+///         }
 ///     })).perm();
 /// });
 /// ```

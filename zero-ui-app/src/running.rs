@@ -114,6 +114,8 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
 
+        update.event().on_update(&mut update);
+
         self.extensions.event_preview(&mut update);
         observer.event_preview(&mut update);
         update.call_pre_actions();

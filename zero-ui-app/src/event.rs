@@ -454,7 +454,7 @@ impl AnyEvent {
         !self.local.read().hooks.is_empty()
     }
 
-    fn on_update(&self, update: &mut EventUpdate) {
+    pub(crate) fn on_update(&self, update: &mut EventUpdate) {
         let mut hooks = mem::take(&mut self.local.write().hooks);
         hooks.retain(|h| h.call(update));
 
