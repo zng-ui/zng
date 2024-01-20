@@ -242,13 +242,13 @@ impl_from_and_into_var! {
         GradientRadius::farthest_corner(radii)
     }
 
-    /// Conversion to [`Length::Relative`] and to radius.
+    /// Conversion to [`Length::Factor`] and to radius.
     fn from(percent: FactorPercent) -> GradientRadius {
-        Length::Relative(percent.into()).into()
+        Length::Factor(percent.into()).into()
     }
-    /// Conversion to [`Length::Relative`] and to radius.
+    /// Conversion to [`Length::Factor`] and to radius.
     fn from(norm: Factor) -> GradientRadius {
-        Length::Relative(norm).into()
+        Length::Factor(norm).into()
     }
     /// Conversion to [`Length::DipF32`] and to radius.
     fn from(f: f32) -> GradientRadius {
@@ -539,12 +539,12 @@ impl_from_and_into_var! {
         GradientStop::ColorHint(color_hint)
     }
 
-    /// Conversion to [`Length::Relative`] color hint.
+    /// Conversion to [`Length::Factor`] color hint.
     fn from(color_hint: FactorPercent) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
     }
 
-    /// Conversion to [`Length::Relative`] color hint.
+    /// Conversion to [`Length::Factor`] color hint.
     fn from(color_hint: Factor) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
     }
@@ -738,11 +738,11 @@ impl GradientStops {
                 middle: vec![
                     GradientStop::Color(ColorStop {
                         color,
-                        offset: Length::Relative(Factor(0.5 - tran)),
+                        offset: Length::Factor(Factor(0.5 - tran)),
                     }),
                     GradientStop::Color(ColorStop {
                         color: end.color,
-                        offset: Length::Relative(Factor(0.5 + tran)),
+                        offset: Length::Factor(Factor(0.5 + tran)),
                     }),
                 ],
                 end,
@@ -784,7 +784,7 @@ impl GradientStops {
 
             let end = ColorStop {
                 color: colors[last].into(),
-                offset: Length::Relative(Factor(1.0)),
+                offset: Length::Factor(Factor(1.0)),
             };
             middle.push(
                 ColorStop {

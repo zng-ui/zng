@@ -990,7 +990,7 @@ pub enum WidgetLength {
     #[default]
     Default,
     /// The [`Length::Leftover`] value. Evaluates to the [`LayoutMetrics::leftover`] value when measured, if
-    /// a leftover value is not provided evaluates like a [`Length::Relative`].
+    /// a leftover value is not provided evaluates like a [`Length::Factor`].
     ///
     /// The *leftover* length needs to be computed by the parent panel, as it depends on the length of the sibling widgets,
     /// not just the panel constraints. Panels that support this, compute the value for each widget and measure/layout each using

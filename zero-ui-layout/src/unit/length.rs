@@ -25,8 +25,6 @@ use crate::context::LAYOUT;
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Length {
     /// The default (initial) value.
-    ///
-    /// This is usually `0.px()`, unless the property redefines it.
     Default,
     /// The exact length in device independent units.
     Dip(Dip),
@@ -35,7 +33,7 @@ pub enum Length {
     /// The exact length in font points.
     Pt(f32),
     /// Relative to the fill length.
-    Relative(Factor),
+    Factor(Factor),
     /// Relative to the leftover fill length.
     Leftover(Factor),
     /// Relative to the font-size of the widget.
@@ -83,7 +81,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (Dip(a), Dip(b)) => Dip(a + b),
             (Px(a), Px(b)) => Px(a + b),
             (Pt(a), Pt(b)) => Pt(a + b),
-            (Relative(a), Relative(b)) => Relative(a + b),
+            (Factor(a), Factor(b)) => Factor(a + b),
             (Leftover(a), Leftover(b)) => Leftover(a + b),
             (Em(a), Em(b)) => Em(a + b),
             (RootEm(a), RootEm(b)) => RootEm(a + b),
@@ -123,7 +121,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (Dip(a), Dip(b)) => Dip(a - b),
             (Px(a), Px(b)) => Px(a - b),
             (Pt(a), Pt(b)) => Pt(a - b),
-            (Relative(a), Relative(b)) => Relative(a - b),
+            (Factor(a), Factor(b)) => Factor(a - b),
             (Leftover(a), Leftover(b)) => Leftover(a - b),
             (Em(a), Em(b)) => Em(a - b),
             (RootEm(a), RootEm(b)) => RootEm(a - b),
@@ -164,7 +162,7 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             Dip(e) => DipF32(e.to_f32() * rhs.0),
             Px(e) => PxF32(e.0 as f32 * rhs.0),
             Pt(e) => Pt(e * rhs.0),
-            Relative(r) => Relative(r * rhs),
+            Factor(r) => Factor(r * rhs),
             Leftover(r) => Leftover(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
@@ -200,7 +198,7 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             Dip(e) => DipF32(e.to_f32() / rhs.0),
             Px(e) => PxF32(e.0 as f32 / rhs.0),
             Pt(e) => Pt(e / rhs.0),
-            Relative(r) => Relative(r / rhs),
+            Factor(r) => Factor(r / rhs),
             Leftover(r) => Leftover(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
@@ -235,7 +233,7 @@ impl Transitionable for Length {
             (Dip(a), Dip(b)) => Dip(a.lerp(b, step)),
             (Px(a), Px(b)) => Px(a.lerp(b, step)),
             (Pt(a), Pt(b)) => Pt(a.lerp(b, step)),
-            (Relative(a), Relative(b)) => Relative(a.lerp(b, step)),
+            (Factor(a), Factor(b)) => Factor(a.lerp(b, step)),
             (Leftover(a), Leftover(b)) => Leftover(a.lerp(b, step)),
             (Em(a), Em(b)) => Em(a.lerp(b, step)),
             (RootEm(a), RootEm(b)) => RootEm(a.lerp(b, step)),
@@ -262,7 +260,7 @@ impl ops::Neg for Length {
             Length::Dip(e) => Length::Dip(-e),
             Length::Px(e) => Length::Px(-e),
             Length::Pt(e) => Length::Pt(-e),
-            Length::Relative(e) => Length::Relative(-e),
+            Length::Factor(e) => Length::Factor(-e),
             Length::Leftover(e) => Length::Leftover(-e),
             Length::Em(e) => Length::Em(-e),
             Length::RootEm(e) => Length::RootEm(-e),
@@ -294,7 +292,7 @@ impl PartialEq for Length {
 
             (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EQ_EPSILON_100),
 
-            (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) | (Leftover(a), Leftover(b)) => a == b,
+            (Factor(a), Factor(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) | (Leftover(a), Leftover(b)) => a == b,
 
             (ViewportWidth(a), ViewportWidth(b))
             | (ViewportHeight(a), ViewportHeight(b))
@@ -319,7 +317,7 @@ impl fmt::Debug for Length {
                 Dip(e) => f.debug_tuple("Length::Dip").field(e).finish(),
                 Px(e) => f.debug_tuple("Length::Px").field(e).finish(),
                 Pt(e) => f.debug_tuple("Length::Pt").field(e).finish(),
-                Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
+                Factor(e) => f.debug_tuple("Length::Factor").field(e).finish(),
                 Leftover(e) => f.debug_tuple("Length::Leftover").field(e).finish(),
                 Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
                 RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
@@ -337,7 +335,7 @@ impl fmt::Debug for Length {
                 Dip(e) => write!(f, "{}.dip()", e.to_f32()),
                 Px(e) => write!(f, "{}.px()", e.0),
                 Pt(e) => write!(f, "{e}.pt()"),
-                Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
+                Factor(e) => write!(f, "{}.pct()", e.0 * 100.0),
                 Leftover(e) => write!(f, "{}.lft()", e.0),
                 Em(e) => write!(f, "{}.em()", e.0),
                 RootEm(e) => write!(f, "{}.rem()", e.0),
@@ -360,7 +358,7 @@ impl fmt::Display for Length {
             Dip(l) => write!(f, "{l}"),
             Px(l) => write!(f, "{l}"),
             Pt(l) => write!(f, "{l}pt"),
-            Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
+            Factor(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
             Leftover(l) => write!(f, "{l}lft"),
             Em(e) => write!(f, "{e}em"),
             RootEm(re) => write!(f, "{re}rem"),
@@ -375,14 +373,14 @@ impl fmt::Display for Length {
     }
 }
 impl_from_and_into_var! {
-    /// Conversion to [`Length::Relative`]
+    /// Conversion to [`Length::Factor`]
     fn from(percent: FactorPercent) -> Length {
-        Length::Relative(percent.into())
+        Length::Factor(percent.into())
     }
 
-    /// Conversion to [`Length::Relative`]
+    /// Conversion to [`Length::Factor`]
     fn from(norm: Factor) -> Length {
-        Length::Relative(norm)
+        Length::Factor(norm)
     }
 
     /// Conversion to [`Length::DipF32`]
@@ -413,12 +411,12 @@ impl Length {
 
     /// Length that fills the available space.
     pub const fn fill() -> Length {
-        Length::Relative(Factor(1.0))
+        Length::Factor(Factor(1.0))
     }
 
     /// Length that fills 50% of the available space.
     pub const fn half() -> Length {
-        Length::Relative(Factor(0.5))
+        Length::Factor(Factor(0.5))
     }
 
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
@@ -429,7 +427,7 @@ impl Length {
             (Dip(a), Dip(b)) => Dip(a.max(b)),
             (Px(a), Px(b)) => Px(a.max(b)),
             (Pt(a), Pt(b)) => Pt(a.max(b)),
-            (Relative(a), Relative(b)) => Relative(a.max(b)),
+            (Factor(a), Factor(b)) => Factor(a.max(b)),
             (Leftover(a), Leftover(b)) => Leftover(a.max(b)),
             (Em(a), Em(b)) => Em(a.max(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.max(b)),
@@ -453,7 +451,7 @@ impl Length {
             (Dip(a), Dip(b)) => Dip(a.min(b)),
             (Px(a), Px(b)) => Px(a.min(b)),
             (Pt(a), Pt(b)) => Pt(a.min(b)),
-            (Relative(a), Relative(b)) => Relative(a.min(b)),
+            (Factor(a), Factor(b)) => Factor(a.min(b)),
             (Leftover(a), Leftover(b)) => Leftover(a.min(b)),
             (Em(a), Em(b)) => Em(a.min(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.min(b)),
@@ -482,7 +480,7 @@ impl Length {
             Dip(e) => Dip(e.abs()),
             Px(e) => Px(e.abs()),
             Pt(e) => Pt(e.abs()),
-            Relative(r) => Relative(r.abs()),
+            Factor(r) => Factor(r.abs()),
             Leftover(r) => Leftover(r.abs()),
             Em(e) => Em(e.abs()),
             RootEm(r) => RootEm(r.abs()),
@@ -508,7 +506,7 @@ impl Length {
             Dip(l) => Some(*l == self::Dip::new(0)),
             Px(l) => Some(*l == self::Px(0)),
             Pt(l) => Some(l.abs() < EQ_EPSILON),
-            Relative(f) => Some(f.0.abs() < EQ_EPSILON),
+            Factor(f) => Some(f.0.abs() < EQ_EPSILON),
             Leftover(f) => Some(f.0.abs() < EQ_EPSILON),
             Em(f) => Some(f.0.abs() < EQ_EPSILON),
             RootEm(f) => Some(f.0.abs() < EQ_EPSILON),
@@ -596,7 +594,7 @@ impl super::Layout1d for Length {
             Dip(l) => l.to_px(LAYOUT.scale_factor()),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constraints_for(axis).fill() * f.0,
+            Factor(f) => LAYOUT.constraints_for(axis).fill() * f.0,
             Leftover(f) => {
                 if let Some(l) = LAYOUT.leftover_for(axis) {
                     l
@@ -624,7 +622,7 @@ impl super::Layout1d for Length {
             Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
             Px(l) => l.0 as f32,
             Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constraints_for(axis).fill().0 as f32 * f.0,
+            Factor(f) => LAYOUT.constraints_for(axis).fill().0 as f32 * f.0,
             Leftover(f) => {
                 if let Some(l) = LAYOUT.leftover_for(axis) {
                     l.0 as f32
@@ -652,7 +650,7 @@ impl super::Layout1d for Length {
             Dip(_) => LayoutMask::SCALE_FACTOR,
             Px(_) => LayoutMask::empty(),
             Pt(_) => LayoutMask::SCALE_FACTOR,
-            Relative(_) => LayoutMask::CONSTRAINTS,
+            Factor(_) => LayoutMask::CONSTRAINTS,
             Leftover(_) => LayoutMask::LEFTOVER,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
@@ -884,6 +882,22 @@ pub trait LengthUnits {
     /// Returns [`Length::Pt`].
     fn pt(self) -> Length;
 
+    /// Factor of the fill length.
+    ///
+    /// This is the same as [`FactorUnits::fct`], but produces a [`Length`] directly. This might be needed
+    /// in places that don't automatically convert [`Factor`] to [`Length`].
+    ///
+    /// Returns [`Length::Factor`].
+    fn fct_l(self) -> Length;
+
+    /// Percentage of the fill length.
+    ///
+    /// This is the same as [`FactorUnits::pct`], but produces a [`Length`] directly. This might be needed
+    /// in places that don't automatically convert [`FactorPercent`] to [`Length`].
+    ///
+    /// Returns [`Length::Factor`].
+    fn pct_l(self) -> Length;
+
     /// Factor of the font-size of the widget.
     ///
     /// Returns [`Length::Em`].
@@ -965,6 +979,14 @@ impl LengthUnits for f32 {
         Length::Pt(self)
     }
 
+    fn fct_l(self) -> Length {
+        Length::Factor(self.fct())
+    }
+
+    fn pct_l(self) -> Length {
+        Length::Factor(self.pct().fct())
+    }
+
     fn em(self) -> Length {
         Length::Em(self.into())
     }
@@ -1028,6 +1050,14 @@ impl LengthUnits for i32 {
 
     fn pt(self) -> Length {
         Length::Pt(self as f32)
+    }
+
+    fn fct_l(self) -> Length {
+        Length::Factor(self.fct())
+    }
+
+    fn pct_l(self) -> Length {
+        Length::Factor(self.pct().fct())
     }
 
     fn em(self) -> Length {

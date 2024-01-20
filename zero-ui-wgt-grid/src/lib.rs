@@ -1477,7 +1477,7 @@ impl GridLayout {
                 }
             }
 
-            // individual factors under `1.0` behave like `Length::Relative`.
+            // individual factors under `1.0` behave like `Length::Factor`.
             if total_factor < Factor(1.0) {
                 total_factor = Factor(1.0);
             }
@@ -1606,7 +1606,7 @@ impl GridLayout {
                 }
             }
 
-            // individual factors under `1.0` behave like `Length::Relative`.
+            // individual factors under `1.0` behave like `Length::Factor`.
             if total_factor < Factor(1.0) {
                 total_factor = Factor(1.0);
             }

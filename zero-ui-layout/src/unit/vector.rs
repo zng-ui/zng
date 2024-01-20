@@ -147,12 +147,12 @@ impl_from_and_into_var! {
         Vector::splat(length)
     }
 
-    /// Conversion to [`Length::Relative`] then to vector.
+    /// Conversion to [`Length::Factor`] then to vector.
     fn from(percent: FactorPercent) -> Vector {
         Length::from(percent).into()
     }
 
-    /// Conversion to [`Length::Relative`] then to vector.
+    /// Conversion to [`Length::Factor`] then to vector.
     fn from(norm: Factor) -> Vector {
         Length::from(norm).into()
     }

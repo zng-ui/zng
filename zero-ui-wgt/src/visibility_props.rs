@@ -146,8 +146,8 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 ///     Container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;
 ///
-///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-///         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Factor(fct) - 1.vw() * fct);
+///         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Factor(fct) - 1.vh() * fct);
 ///         max_size = (1.vw(), 1.vh());
 ///         content_align = Align::CENTER;
 ///      
