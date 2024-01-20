@@ -55,10 +55,11 @@
 //! This module also provides a context menu. The example below declares a context menu for the window, it will show
 //! on context click, that is, by right-clicking the window, long pressing it or pressing the context menu key.
 //!
-//! ```no_run
+//! ```
 //! use zero_ui::prelude::*;
-//! # APP.defaults().run_window(async {
+//! # fn demo() {
 //!
+//! # let _ =
 //! Window! {
 //!     context_menu = ContextMenu!(ui_vec![
 //!         Button!(zero_ui::app::NEW_CMD.scoped(WINDOW.id())),
@@ -76,7 +77,7 @@
 //!         Button!(zero_ui::app::EXIT_CMD),
 //!     ]);
 //! }
-//! # });
+//! # ; }
 //! ```
 //!
 //! # Full API
