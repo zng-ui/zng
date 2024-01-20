@@ -1041,7 +1041,13 @@ impl MouseManager {
     fn continue_hovered(&mut self, window_id: WindowId) {
         if self.pos_window == Some(window_id) {
             // update hovered if widgets moved under the cursor position.
-            let frame_info = WINDOWS.widget_tree(window_id).unwrap();
+            let frame_info = match WINDOWS.widget_tree(window_id) {
+                Ok(f) => f,
+                Err(_) => {
+                    self.clean_all_state();
+                    return;
+                }
+            };
             let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor()));
             self.pos_hits = Some(pos_hits.clone());
             let target = if let Some(t) = pos_hits.target() {
