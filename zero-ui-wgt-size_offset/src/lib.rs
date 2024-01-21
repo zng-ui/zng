@@ -311,11 +311,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 
 /// Exact size of the widget.
 ///
-/// When set the widget is layout with exact size constraints, clamped by the contextual min/max.
-/// Note that this means nested exact sized widgets will have the size of the parent, the exact size constraints
-/// set by the parent clamp the requested size on the child, you can use the [`align`] property on the child to
-/// loosen the minimum size constrain, the parent's size will still be enforced as the maximum size.
-///
+/// When set the widget is layout with exact size constraints, clamped by the contextual max.
 /// Relative size values are computed from the constraints maximum bounded size.
 ///
 /// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`].
@@ -351,61 +347,22 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let size = with_fill_metrics(|d| size.layout_dft(d));
-            let size = LAYOUT.constraints().clamp_size(size);
-            wm.measure_block(&mut NilUiNode); // no need to actually measure child
-            *desired_size = size;
-        }
-        UiNodeOp::Layout { wl, final_size } => {
-            let size = with_fill_metrics(|d| size.layout_dft(d));
-            let size = LAYOUT.constraints().clamp_size(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
-            *final_size = size;
-        }
-        _ => {}
-    })
-}
+            let parent_constraints = LAYOUT.constraints();
 
-/// Exact size of the widget ignoring the contextual min/max.
-///
-/// When set the widget is layout with exact size constraints, overriding the contextual min/max.
-/// Relative values are computed from the constraints maximum bounded size.
-///
-/// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`size`](fn@size) instead to set an exact size that is coerced by the contextual min/max.
-///
-/// # `force_width` and `force_height`
-///
-/// You can use the [`force_width`] and [`force_height`] properties to only set the size of one dimension.
-///
-/// [`force_width`]: fn@force_width
-/// [`force_height`]: fn@force_height
-#[property(SIZE)]
-pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-    let size = size.into_var();
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&size);
-            child.init();
-            size.with(|l| WIDGET_SIZE.set(l));
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            size.with_new(|s| {
-                WIDGET_SIZE.set(s);
-                WIDGET.layout();
-            });
-        }
-        UiNodeOp::Measure { wm, desired_size } => {
-            child.delegated();
-            let size = with_fill_metrics(|d| size.layout_dft(d));
+            *desired_size = with_fill_metrics_from(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
+            *desired_size = parent_constraints.clamp_size(*desired_size); // Align::TOP_LEFT
+
             wm.measure_block(&mut NilUiNode); // no need to actually measure child
-            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let size = with_fill_metrics(|d| size.layout_dft(d));
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min(Px(0), Px(0));
+
+            let size = with_fill_metrics_from(constraints, |d| size.layout_dft(d));
+            let size = constraints.clamp_size(size);
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
-            *final_size = size;
+
+            *final_size = parent_constraints.clamp_size(size);
         }
         _ => {}
     })
@@ -413,7 +370,7 @@ pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 
 /// Exact width of the widget.
 ///
-/// When set the widget is layout with exact size constraints, clamped by the contextual min/max.
+/// When set the widget is layout with exact size constraints, clamped by the contextual max.
 /// Relative values are computed from the constraints maximum bounded width.
 ///
 /// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`] width.
@@ -445,65 +402,22 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
-            let c = LAYOUT.constraints();
-            let width = c.x.clamp(width);
-            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || wm.measure_block(child));
-            size.width = width;
-            *desired_size = size;
-        }
-        UiNodeOp::Layout { wl, final_size } => {
-            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
-            let c = LAYOUT.constraints();
-            let width = c.x.clamp(width);
-            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || child.layout(wl));
-            size.width = width;
-            *final_size = size;
-        }
-        _ => {}
-    })
-}
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_x(Px(0));
 
-/// Exact width of the widget ignoring the contextual min/max.
-///
-/// When set the widget is layout with exact size constraints, overriding the contextual min/max.
-/// Relative values are computed from the constraints maximum bounded width.
-///
-/// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`width`](fn@width) instead to set an exact width that is coerced by the contextual min/max.
-///
-/// # `force_size`
-///
-/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
-#[property(SIZE)]
-pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
-    let width = width.into_var();
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&width);
-            child.init();
-            width.with(|s| WIDGET_SIZE.set_width(s));
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            width.with_new(|w| {
-                WIDGET_SIZE.set_width(w);
-                WIDGET.layout();
-            });
-        }
-        UiNodeOp::Measure { wm, desired_size } => {
-            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_unbounded_x().with_exact_x(width), || {
-                wm.measure_block(child)
-            });
-            size.width = width;
-            *desired_size = size;
+            let width = with_fill_metrics_from(constraints, |d| width.layout_dft_x(d.width));
+            let width = constraints.x.clamp(width);
+            *desired_size = LAYOUT.with_constraints(constraints.with_exact_x(width), || wm.measure_block(child));
+            desired_size.width = parent_constraints.x.clamp(width);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_unbounded_x().with_exact_x(width), || child.layout(wl));
-            size.width = width;
-            *final_size = size;
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_x(Px(0));
+
+            let width = with_fill_metrics_from(constraints, |d| width.layout_dft_x(d.width));
+            let width = constraints.x.clamp(width);
+            *final_size = LAYOUT.with_constraints(constraints.with_exact_x(width), || child.layout(wl));
+            final_size.width = parent_constraints.x.clamp(width);
         }
         _ => {}
     })
@@ -544,32 +458,130 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
-            let c = LAYOUT.constraints();
-            let height = c.y.clamp(height);
-            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || wm.measure_block(child));
-            size.height = height;
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_y(Px(0));
+
+            let height = with_fill_metrics_from(constraints, |d| height.layout_dft_x(d.height));
+            let height = constraints.x.clamp(height);
+            *desired_size = LAYOUT.with_constraints(constraints.with_exact_y(height), || wm.measure_block(child));
+            desired_size.height = parent_constraints.y.clamp(height);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_y(Px(0));
+
+            let height = with_fill_metrics_from(constraints, |d| height.layout_dft_y(d.height));
+            let height = constraints.y.clamp(height);
+            *final_size = LAYOUT.with_constraints(constraints.with_exact_y(height), || child.layout(wl));
+            final_size.height = parent_constraints.y.clamp(height);
+        }
+        _ => {}
+    })
+}
+
+/// Exact size of the widget ignoring the contextual max.
+///
+/// When set the widget is layout with exact size constraints, ignoring the contextual max.
+/// Relative values are computed from the constraints maximum bounded size.
+///
+/// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
+/// can use [`size`](fn@size) instead to set an exact size that is coerced by the contextual max.
+///
+/// # `force_width` and `force_height`
+///
+/// You can use the [`force_width`] and [`force_height`] properties to only set the size of one dimension.
+///
+/// [`force_width`]: fn@force_width
+/// [`force_height`]: fn@force_height
+#[property(SIZE)]
+pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+    let size = size.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&size);
+            child.init();
+            size.with(|l| WIDGET_SIZE.set(l));
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            size.with_new(|s| {
+                WIDGET_SIZE.set(s);
+                WIDGET.layout();
+            });
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            child.delegated();
+            let parent_constraints = LAYOUT.constraints();
+            let size = with_fill_metrics_from(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
+            wm.measure_block(&mut NilUiNode);
+            *desired_size = parent_constraints.clamp_size(size);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let parent_constraints = LAYOUT.constraints();
+            let size = with_fill_metrics_from(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
+            *final_size = parent_constraints.clamp_size(size);
+        }
+        _ => {}
+    })
+}
+
+/// Exact width of the widget ignoring the contextual max.
+///
+/// When set the widget is layout with exact size constraints, ignoring the contextual max.
+/// Relative values are computed from the constraints maximum bounded width.
+///
+/// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
+/// can use [`width`](fn@width) instead to set an exact width that is coerced by the contextual max.
+///
+/// # `force_size`
+///
+/// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
+#[property(SIZE)]
+pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+    let width = width.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&width);
+            child.init();
+            width.with(|s| WIDGET_SIZE.set_width(s));
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            width.with_new(|w| {
+                WIDGET_SIZE.set_width(w);
+                WIDGET.layout();
+            });
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_x(Px(0));
+
+            let width = with_fill_metrics_from(constraints, |d| width.layout_dft_x(d.width));
+            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_x().with_exact_x(width), || wm.measure_block(child));
+            size.width = width;
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
-            let c = LAYOUT.constraints();
-            let height = c.y.clamp(height);
-            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || child.layout(wl));
-            size.height = height;
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_x(Px(0));
+
+            let width = with_fill_metrics_from(constraints, |d| width.layout_dft_x(d.width));
+            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_x().with_exact_x(width), || child.layout(wl));
+            size.width = parent_constraints.x.clamp(width);
             *final_size = size;
         }
         _ => {}
     })
 }
 
-/// Exact height of the widget ignoring the contextual min/max.
+/// Exact height of the widget ignoring the contextual max.
 ///
-/// When set the widget is layout with exact size constraints, overriding the contextual min/max.
-/// Relative values are computed from the constraints maximum bounded width.
+/// When set the widget is layout with exact size constraints, ignoring the contextual max.
+/// Relative values are computed from the constraints maximum bounded height.
 ///
 /// Note that this property deliberately breaks layout and causes out-of-bounds rendering. You
-/// can use [`height`](fn@height) instead to set an exact height that is coerced by the contextual min/max.
+/// can use [`height`](fn@height) instead to set an exact height that is coerced by the contextual max.
 ///
 /// # `force_size`
 ///
@@ -592,19 +604,21 @@ pub fn force_height(child: impl UiNode, height: impl IntoVar<Length>) -> impl Ui
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_unbounded_y().with_new_exact_y(height), || {
-                wm.measure_block(child)
-            });
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_y(Px(0));
+
+            let height = with_fill_metrics_from(constraints, |d| height.layout_dft_y(d.height));
+            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_y().with_exact_y(height), || wm.measure_block(child));
             size.height = height;
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_unbounded_y().with_new_exact_y(height), || {
-                child.layout(wl)
-            });
-            size.height = height;
+            let parent_constraints = LAYOUT.constraints();
+            let constraints = parent_constraints.with_new_min_y(Px(0));
+
+            let height = with_fill_metrics_from(constraints, |d| height.layout_dft_y(d.height));
+            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_y().with_exact_y(height), || child.layout(wl));
+            size.height = parent_constraints.y.clamp(height);
             *final_size = size;
         }
         _ => {}
@@ -612,7 +626,9 @@ pub fn force_height(child: impl UiNode, height: impl IntoVar<Length>) -> impl Ui
 }
 
 fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
-    let c = LAYOUT.constraints();
+    with_fill_metrics_from(LAYOUT.constraints(), f)
+}
+fn with_fill_metrics_from<R>(c: PxConstraints2d, f: impl FnOnce(PxSize) -> R) -> R {
     let dft = c.fill_size();
     LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || f(dft))
 }
