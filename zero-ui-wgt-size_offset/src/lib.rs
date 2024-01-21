@@ -347,12 +347,12 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
+            wm.measure_block(&mut NilUiNode); // no need to actually measure child
+
             let parent_constraints = LAYOUT.constraints();
 
             *desired_size = with_fill_metrics_from(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
             *desired_size = parent_constraints.clamp_size(*desired_size); // Align::TOP_LEFT
-
-            wm.measure_block(&mut NilUiNode); // no need to actually measure child
         }
         UiNodeOp::Layout { wl, final_size } => {
             let parent_constraints = LAYOUT.constraints();
@@ -362,7 +362,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             let size = constraints.clamp_size(size);
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
 
-            *final_size = parent_constraints.clamp_size(size);
+            *final_size = dbg!(parent_constraints).clamp_size(size);
         }
         _ => {}
     })

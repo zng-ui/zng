@@ -1,3 +1,15 @@
+* Exact size properties still not doing the same as an Align::TOP_LEFT.
+```
+Window! {
+    padding = 20;
+    child = Wgt! {
+        layout::size = 80;
+        layout::align = layout::Align::TOP_LEFT; // comment this to see the outer-bounds vanish.
+        window::inspector::show_bounds = true;
+    };
+}
+```
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

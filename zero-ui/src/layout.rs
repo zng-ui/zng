@@ -8,9 +8,6 @@
 //! during render and only influence the size and position of the widget and descendants, the other properties are true layout
 //! and influence the size and position of the parent widget and siblings too.
 //!
-//! [`UiNode::Layout`]: crate::widget::node::UiNode::layout
-//! [`UiNode::render`]: crate::widget::node::UiNode::render
-//!
 //! ## Widget Intrinsics
 //!
 //! Each widget defines a size preference, the default widget has no minimum nor maximum size, it fills available space and collapses
@@ -232,19 +229,72 @@
 //! grids this means *auto-size*, the column is sized to fit all cells. In the standalone [`width`](fn@width) property
 //! the default width means the fill width.
 //!
-//! # Layout Pass
+//! # Measure & Layout
 //!
-//! !!:
+//! Nodes that implement custom layout must handle [`UiNode::measure`] and [`UiNode::layout`].
+//! Measure and layout provide a desired size and final size respectively, given the same context both methods return the
+//! same size, the different is that the measure call must not actually affect the widget, it exists to allow a parent widget
+//! to query what the layout result would be for a given context.
 //!
-//! ## Service
+//! Consider a `Stack!` that is aligned `CENTER` and has children aligned `FILL`, to fulfill these constraints
+//! the stack does the layout in two passes, first it measures each child to find the width, then it layouts
+//! each child constrained to this width. If this same stack is given an exact size it will skip the measure
+//! pass and just do the layout directly.
 //!
-//! ## Constraints & Align
+//! The coordination between layout properties on a widget and between widgets is centered on the [`LAYOUT`], [`WidgetMeasure`],
+//! [`WidgetLayout`] and the return [`PxSize`]. Parent nodes set context metrics and constraints using the [`LAYOUT`] service,
+//! child nodes returns the size and optionally set more return metadata in the [`WidgetMeasure`] and [`WidgetLayout`] args.
+//! The parent node then sets the child position using [`WidgetLayout`] or by manually transforming the child during render.
+//!
+//! Other contextual services and variables may complement the layout computation, the [`WIDGET_SIZE`] is used to implement
+//! [`Length::Leftover`] layouts, the [`widget::BORDER`] is used to implement the alignment between borders and the background.
+//! Widgets can use context vars to define layout preferences that only apply to their special layout, the `Text!` and `Image!`
+//! widgets are examples of this.
+//!
+//! UI components are very modular, during layout is when they are the closest coupled, implementers must careful consider
+//! the full [`LAYOUT`], [`WidgetMeasure`] [`WidgetLayout`] APIs, understand what properties placed in the [`NestGroup::LAYOUT`] can do
+//! and what the widget outer and inner bounds are. Implementers also must consider if their layout will support inlining or
+//! if it will only be a block. After reading the APIs a good way to learn is by studying the source code of properties in this
+//! module, followed by the `Image!`, `Stack!`, `Grid!` and `Wrap!` implementations.
 //!
 //! ## Outer & Inner Bounds
 //!
+//! Each laidout widget has two computed rectangles, the inner bounds define the rendered area, the outer bounds define
+//! the extra space taken by the widget layout, properties like [`align`](fn@align) and [`margin`](fn@margin) are still
+//! a part of the widget, the blank space they add *around* the widget is inside the widget outer bounds.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! # let _ =
+//! Window! {
+//!     padding = 20;
+//!     child = Wgt! {
+//!         layout::size = 80;
+//!         layout::align = layout::Align::CENTER;
+//!         window::inspector::show_bounds = true;
+//!     };
+//! }
+//! # ;
+//! ```
+//!
+//! The example above uses the [`window::inspector::show_bounds`] property to inspect the bounds of an widget, it shows the
+//! outer bounds of the widget extend to almost cover the entire window, that happens because the window default `child_align` is
+//! `FILL` and it only reserved `20` of padding space, leaving the rest of the space for the child widget to handle. The widget
+//! wants to have an exact size of `80` centered on the available space, so it ends up with the outer bounds taking the available space
+//! and the inner bounds taking the exact size.
+//!
 //! ## Inline
 //!
-//! ## Border?
+//! !!:
+//!
+//! [`UiNode::measure`]: crate::widget::node::UiNode::measure
+//! [`UiNode::Layout`]: crate::widget::node::UiNode::layout
+//! [`UiNode::render`]: crate::widget::node::UiNode::render
+//! [`widget::BORDER`]: crate::widget::BORDER
+//! [`NestGroup::LAYOUT`]: crate::widget::builder::NestGroup::LAYOUT
+//! [`window::inspector::show_bounds`]: fn@crate::window::inspector::show_bounds
 //!
 //! # Full API
 //!

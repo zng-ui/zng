@@ -63,6 +63,8 @@ pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -
 }
 
 /// Draws a border for every target widget's outer and inner bounds.
+/// 
+/// The outer bounds is drawn dotted and in pink, the inner bounds is drawn solid and in blue.
 #[property(CONTEXT, default(false))]
 pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     show_widget_tree(
