@@ -9,7 +9,7 @@ use zero_ui_var::{
     impl_from_and_into_var,
 };
 
-use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints2d, PxSize, PxVector};
+use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints, PxConstraints2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -177,6 +177,18 @@ impl Align {
     pub fn measure(self, child_size: PxSize, parent_constraints: PxConstraints2d) -> PxSize {
         let size = parent_constraints.fill_size().max(child_size);
         parent_constraints.clamp_size(size)
+    }
+
+    /// Computes the width returned by layout for the given child width and ***x*** constraints.
+    pub fn measure_x(self, child_width: Px, parent_constraints_x: PxConstraints) -> Px {
+        let width = parent_constraints_x.fill().max(child_width);
+        parent_constraints_x.clamp(width)
+    }
+
+    /// Computes the height returned by layout for the given child height and ***y*** constraints.
+    pub fn measure_y(self, child_height: Px, parent_constraints_y: PxConstraints) -> Px {
+        let height = parent_constraints_y.fill().max(child_height);
+        parent_constraints_y.clamp(height)
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node, the translate offset and if
