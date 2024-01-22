@@ -524,7 +524,7 @@ impl InlineLayout {
 
             (first, Px(0), last)
         };
-        let panel_height = last.origin.y + last.size.height;
+        let panel_height = constraints.y.fill_or(last.origin.y - first.origin.y + last.size.height);
 
         let child_constraints = PxConstraints2d::new_unbounded().with_fill_x(true).with_max_x(panel_width);
 
