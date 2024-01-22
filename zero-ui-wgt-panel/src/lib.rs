@@ -10,9 +10,7 @@ zero_ui_wgt::enable_widget_macros!();
 use zero_ui_wgt::prelude::*;
 use zero_ui_wgt_wrap::Wrap;
 
-/// Represents a styleable widget list container.
-///
-/// This widget can swap between actual layout
+/// Represents a dynamic layout panel.
 #[widget($crate::Panel)]
 pub struct Panel(WidgetBase);
 
