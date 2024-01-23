@@ -1,7 +1,3 @@
-* Example image, exiting while the large image is decoding causes a STATUS_ACCESS_VIOLATION.
-    - Only prebuild same_process.
-    - Happens on libloading::Library::close
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

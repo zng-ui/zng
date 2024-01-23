@@ -48,7 +48,7 @@
 //!
 //! The example above declares a scroll with zoom and mouse pan features enabled, is also makes use of the [`SCROLL`] service
 //! to implement the `center_viewport` widget that is place in the content, but transforms to always be in the viewport.
-//! 
+//!
 //! The `SCROLL` service can be used to interact with the parent `Scroll!`, you can also use commands in [`cmd`] to
 //! control any `Scroll!` widget.
 //!
