@@ -1,5 +1,39 @@
 //! Toggle button widget and styles for check box, combo box, radio button and switch button.
 //!
+//! # Combo
+//!
+//! !!: TODO
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! let txt = var(Txt::from_static("Combo"));
+//! let options = ["Combo", "Congo", "Pombo"];
+//! # let _ =
+//! Toggle! {
+//!     child = TextInput! {
+//!         txt = txt.clone();
+//!         gesture::on_click = hn!(|a: &gesture::ClickArgs| a.propagation().stop());
+//!     };
+//!     style_fn = toggle::ComboStyle!();
+//!
+//!     checked_popup = wgt_fn!(|_| popup::Popup! {
+//!         id = "popup";
+//!         child = Stack! {
+//!             toggle::selector = toggle::Selector::single(txt.clone());
+//!             direction = StackDirection::top_to_bottom();
+//!             children = options.into_iter().map(|o| Toggle! {
+//!                 child = Text!(o);
+//!                 value::<Txt> = o;
+//!             })
+//!             .collect::<UiNodeVec>();
+//!         };
+//!     })
+//! }
+//! # ;
+//! ```
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_toggle`] for the full widget API.
