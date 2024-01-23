@@ -309,29 +309,39 @@ fn large_image() -> impl UiNode {
         child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {
+                let mouse_pan = var(false);
+                let mode = var(ScrollMode::NONE);
                 ImgWindow! {
                     title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
                     child_align = Align::FILL;
-                    child = Image! {
-                        source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                        img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
-                        img_downscale = ImageDownscale::from(layout::Px(8000));
+                    child = Scroll! {
+                        mode = mode.clone();
+                        mouse_pan = mouse_pan.clone();
+                        child = Image! {
+                            source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                            img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
+                            img_downscale = ImageDownscale::from(layout::Px(8000));
 
-                        on_error = hn!(|args: &ImgErrorArgs| {
-                            tracing::error!(target: "unexpected", "{}", args.error);
-                        });
+                            on_error = hn!(|args: &ImgErrorArgs| {
+                                tracing::error!(target: "unexpected", "{}", args.error);
+                            });
+                            on_load = hn!(|_| {
+                                mode.set(ScrollMode::ZOOM);
+                                mouse_pan.set(true);
+                            });
 
-                        img_loading_fn = wgt_fn!(|_| {
-                            // thumbnail
-                            Stack! {
-                                children = ui_vec![
-                                    Image! {
-                                        source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                                    },
-                                    loading(),
-                                ];
-                            }
-                        });
+                            img_loading_fn = wgt_fn!(|_| {
+                                // thumbnail
+                                Stack! {
+                                    children = ui_vec![
+                                        Image! {
+                                            source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                                        },
+                                        loading(),
+                                    ];
+                                }
+                            });
+                        };
                     }
                 }
             });
@@ -348,6 +358,7 @@ fn panorama_image() -> impl UiNode {
                     "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                     Scroll! {
                         mode = ScrollMode::HORIZONTAL;
+                        mouse_pan = true;
                         child = Image! {
                             img_fit = ImageFit::Fill;
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
@@ -376,8 +387,8 @@ fn block_window_load_image() -> impl UiNode {
                     state = WindowState::Normal;
 
                     child = Scroll! {
+                        mouse_pan = true;
                         child = Image! {
-
                             // block window load until the image is ready to present or 5 minutes have elapsed.
                             // usually you want to set a shorter deadline, `true` converts to 1 second.
                             img_block_window_load = 5.minutes();
@@ -389,6 +400,7 @@ fn block_window_load_image() -> impl UiNode {
                             on_error = hn!(|args: &ImgErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
+
                         }
                     };
 

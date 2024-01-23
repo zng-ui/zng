@@ -13,6 +13,7 @@
     - "Sliver" widgets may change size due to scrolling.
 
 * Scroll-to-fill/fit.
+    - When mode is changed to ZOOM set scale to cause minimum visual change.
 
 * Auto-scrolling after middle click.
 

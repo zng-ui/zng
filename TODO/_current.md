@@ -1,3 +1,5 @@
+* Example image, exiting while the large image is decoding causes a STATUS_ACCESS_VIOLATION.
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

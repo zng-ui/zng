@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Scroll widgets, properties and nodes..
+//! Scroll widgets, properties and nodes.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

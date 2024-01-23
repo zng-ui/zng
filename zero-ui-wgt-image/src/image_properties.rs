@@ -389,7 +389,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
     with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
 }
 
-/// Sets the [`wgt_fn!`] that is used to create a content for the error message.
+/// Sets the [`wgt_fn!`] that is used to create a content for the loading message.
 ///
 /// [`wgt_fn!`]: zero_ui_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
@@ -421,7 +421,8 @@ pub struct ImgErrorArgs {
 
 /// Image load or decode error event.
 ///
-/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a different error.
+/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a different error or on the first update
+/// after init if the image is already in error on init.
 ///
 /// # Handlers
 ///
@@ -435,20 +436,20 @@ pub struct ImgErrorArgs {
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
     let mut error = Txt::from_str("");
+    let mut first_update = false;
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            CONTEXT_IMAGE_VAR.with(|i| {
-                if let Some(e) = i.error() {
-                    error = e;
-                    handler.event(&ImgErrorArgs { error: error.clone() });
-                }
-            });
+            if CONTEXT_IMAGE_VAR.with(Img::is_error) {
+                first_update = true;
+                WIDGET.update();
+            }
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
+                first_update = false;
                 if let Some(e) = new_img.error() {
                     if error != e {
                         error = e;
@@ -457,6 +458,13 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
                 } else {
                     error = "".into();
                 }
+            } else if std::mem::take(&mut first_update) {
+                CONTEXT_IMAGE_VAR.with(|i| {
+                    if let Some(e) = i.error() {
+                        error = e;
+                        handler.event(&ImgErrorArgs { error: error.clone() });
+                    }
+                });
             }
 
             handler.update();
@@ -467,7 +475,8 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 
 /// Image loaded event.
 ///
-/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a successfully loaded image.
+/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a successfully loaded image or on the first
+/// update after init if the image is already loaded on init.
 ///
 /// # Handlers
 ///
@@ -480,20 +489,25 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
+    let mut first_update = false;
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
-                handler.event(&ImgLoadArgs {});
+                first_update = true;
+                WIDGET.update();
             }
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
+                first_update = false;
                 if new_img.is_loaded() {
                     handler.event(&ImgLoadArgs {});
                 }
+            } else if std::mem::take(&mut first_update) && CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
+                handler.event(&ImgLoadArgs {});
             }
 
             handler.update();
