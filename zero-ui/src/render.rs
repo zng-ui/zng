@@ -1,4 +1,13 @@
 //! Frame builder and other types.
+//! 
+//! Frame rendering means building a display list and updating all widget transforms, no actual pixel rendering happens
+//! during the render pass, the built display list is send to the view-process where it is actually rendered.
+//! 
+//! Widgets render is centered around [`UiNode::render`] and [`UiNode::render_update`] using the [`FrameBuilder`]
+//! and [`FrameUpdate`] types. During render 
+//! 
+//! [`UiNode::render`]: crate::widget::node::UiNode::render
+//! [`UiNode::render_update`]: crate::widget::node::UiNode::render_update
 //!
 //! # Full API
 //!
