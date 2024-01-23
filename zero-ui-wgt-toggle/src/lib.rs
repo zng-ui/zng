@@ -65,22 +65,6 @@ context_var! {
 
 /// Toggle cycles between `true` and `false`, updating the variable.
 ///
-/// # Examples
-///
-/// The variable `foo` is toggled on click and it also controls the checked state of the widget.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// let foo = var(false);
-///
-/// Toggle! {
-///     checked = foo.clone();
-///
-///     child = Text!(foo.map(|b| formatx!("foo = {b}")));
-/// }
-/// # }}
-/// ```
-///
 /// Note that you can read the checked state of the widget using [`is_checked`].
 ///
 /// [`is_checked`]: fn@is_checked
@@ -144,23 +128,6 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 
 /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
 /// widget is `tristate` also sets to `None` in the toggle cycle.
-///
-/// # Examples
-///
-/// The variable `foo` is cycles the three states on click.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// let foo = var(Some(false));
-///
-/// Toggle! {
-///     checked_opt = foo.clone();
-///     tristate = true;
-///
-///     child = Text!(foo.map(|b| formatx!("foo = {b:?}")));
-/// }
-/// # }}
-/// ```
 #[property(CONTEXT + 1, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
     let checked = checked.into_var();
@@ -259,31 +226,6 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 /// If the toggle is checked from any of the three primary properties.
 ///
 /// Note to read the tristate use [`IS_CHECKED_VAR`] directly.
-///
-/// # Examples
-///
-/// The `is_checked` state is set when the [`checked`] is `true`, or [`checked_opt`] is `Some(true)` or the [`value`]
-/// is selected.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Toggle! {
-///     checked = var(false);
-///     // checked_opt = var(Some(false));
-///     // value<i32> = 42;
-///
-///     child = Text!("Toggle Background");
-///     background_color = colors::RED;
-///     when *#is_checked {
-///         background_color = colors::GREEN;
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// [`checked`]: fn@checked
-/// [`checked_opt`]: fn@checked_opt
-/// [`value`]: fn@value.
 #[property(EVENT, widget_impl(Toggle))]
 pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
@@ -298,29 +240,6 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selector`], type
 /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in
 /// this property type inference cannot resolve the type automatically and a type annotation is required: `value<T> = t;`.
-///
-/// # Examples
-///
-/// The variable `foo` is set to a `value` clone on click, or if the `value` updates when the previous was selected.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// let foo = var(1_i32);
-///
-/// Stack! {
-///     toggle::selector = toggle::Selector::single(foo.clone());
-///
-///     spacing = 5;
-///     children = (1..=10_i32).map(|i| {
-///         Toggle! {
-///             child = Text!("Item {i}");
-///             value::<i32> = i;
-///         }
-///         .boxed()
-///     }).collect::<Vec<_>>();
-/// }
-/// # }}
-/// ```
 ///
 /// [`is_checked`]: fn@is_checked
 /// [`selector`]: fn@selector
