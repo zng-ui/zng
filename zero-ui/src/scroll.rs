@@ -1,5 +1,57 @@
 //! Scroll widgets, commands and properties.
 //!
+//! The [`Scroll!`](struct@Scroll) widget allows content to be of any size, overflow is clipped and can be brought
+//! into view by scrolling, the widget also supports content zooming and scrolling in only one dimension. The
+//! [`mode`](struct@Scroll#mode) property can be used to dynamically change the [`ScrollMode`].
+//!
+//! ```
+//! # fn main() { }
+//! use zero_ui::prelude::*;
+//!
+//! # fn demo() { let _ =
+//! Scroll! {
+//!     // ZOOM includes PAN that includes VERTICAL and HORIZONTAL
+//!     mode = zero_ui::scroll::ScrollMode::ZOOM;
+//!     // mouse press and drag scrolls
+//!     mouse_pan = true;
+//!     
+//!     child = Image! {
+//!         // center_viewport uses the SCROLL service
+//!         img_loading_fn = wgt_fn!(|_| center_viewport(Text!("loading..")));
+//!         
+//!         // content is a large image
+//!         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+//!         img_limits = zero_ui::image::ImageLimits::none();
+//!         img_downscale = zero_ui::image::ImageDownscale::from(layout::Px(8000));
+//!     }
+//! }
+//! # ; }
+//!
+//! fn center_viewport(msg: impl UiNode) -> impl UiNode {
+//!     use zero_ui::scroll::SCROLL;
+//!     Container! {
+//!         // center the message on the scroll viewport:
+//!         //
+//!         // the large images can take a moment to decode in debug builds, but the size
+//!         // is already known after read, so the "loading.." message ends-up off-screen
+//!         // because it is centered on the image.
+//!         layout::x = SCROLL.horizontal_offset().map(|&fct| fct.0.fct_l() - 1.vw() * fct);
+//!         layout::y = SCROLL.vertical_offset().map(|&fct| fct.0.fct_l() - 1.vh() * fct);
+//!         widget::can_auto_hide = false;
+//!         layout::max_size = (1.vw(), 1.vh());
+//!         child_align = Align::CENTER;
+//!
+//!         child = msg;
+//!     }
+//! }
+//! ```
+//!
+//! The example above declares a scroll with zoom and mouse pan features enabled, is also makes use of the [`SCROLL`] service
+//! to implement the `center_viewport` widget that is place in the content, but transforms to always be in the viewport.
+//! 
+//! The `SCROLL` service can be used to interact with the parent `Scroll!`, you can also use commands in [`cmd`] to
+//! control any `Scroll!` widget.
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_scroll`] for the full widget API.
