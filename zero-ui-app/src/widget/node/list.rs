@@ -2313,6 +2313,15 @@ where
         self.data[index].get_mut()
     }
 
+    /// Finish child offset, requesting render_update for each child that needs it.
+    pub fn finish_layout(&mut self) {
+        self.for_each(|_, c, o| {
+            if c.with_context(WidgetUpdateMode::Bubble, || o.commit()).is_none() {
+                o.commit();
+            }
+        });
+    }
+
     /// Key used to define reference frames for each item.
     ///
     /// The default implementation of `render_all` uses this key and the item index.
@@ -2538,6 +2547,9 @@ pub struct DefaultPanelListData {
     pub child_offset: PxVector,
     /// If a new reference frame should be created for the item during render.
     pub define_reference_frame: bool,
+
+    prev_child_offset: PxVector,
+    prev_define_reference_frame: bool,
 }
 impl PanelListData for DefaultPanelListData {
     fn child_offset(&self) -> PxVector {
@@ -2546,6 +2558,16 @@ impl PanelListData for DefaultPanelListData {
 
     fn define_reference_frame(&self) -> bool {
         self.define_reference_frame
+    }
+
+    fn commit(&mut self) {
+        if self.define_reference_frame != self.prev_define_reference_frame {
+            WIDGET.render();
+        } else if self.child_offset != self.prev_child_offset {
+            WIDGET.render_update();
+        }
+        self.prev_define_reference_frame = self.prev_define_reference_frame;
+        self.prev_child_offset = self.child_offset;
     }
 }
 
@@ -2556,15 +2578,12 @@ pub trait PanelListData: Default + Send + Any {
 
     /// If a new reference frame should be created for the item during render.
     fn define_reference_frame(&self) -> bool;
-}
-impl PanelListData for PxVector {
-    fn child_offset(&self) -> PxVector {
-        *self
-    }
 
-    fn define_reference_frame(&self) -> bool {
-        true
-    }
+    /// Commit `child_offset` and `define_reference_frame` changes and requests render or render_update.
+    ///
+    /// This method is called inside the child context if the child is a full widget, otherwise it is called in the
+    /// panel widget  context.
+    fn commit(&mut self);
 }
 impl PanelListData for () {
     fn child_offset(&self) -> PxVector {
@@ -2574,6 +2593,8 @@ impl PanelListData for () {
     fn define_reference_frame(&self) -> bool {
         false
     }
+
+    fn commit(&mut self) {}
 }
 
 struct PanelObserver<'d, D>
