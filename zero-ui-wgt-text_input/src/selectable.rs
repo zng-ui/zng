@@ -12,7 +12,21 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
-#[widget($crate::selectable::SelectableText)]
+/// 
+/// # Shorthand
+///
+/// The same [`Text!`](struct@zero_ui_wgt_text::Text#shorthand) shorthand can be used in this macro.
+#[widget($crate::selectable::SelectableText {
+    ($txt:literal) => {
+        txt = $crate::__formatx!($txt);
+    };
+    ($txt:expr) => {
+        txt = $txt;
+    };
+    ($txt:tt, $($format:tt)*) => {
+        txt = $crate::__formatx!($txt, $($format)*);
+    };
+})]
 pub struct SelectableText(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
 impl SelectableText {
     fn widget_intrinsic(&mut self) {
