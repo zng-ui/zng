@@ -100,13 +100,16 @@ impl ImageCache {
                     }
                 }
                 fmt => match Self::get_format_and_size(&fmt, &data[..]) {
-                    Ok((fmt, size)) => {
+                    Ok((fmt, mut size)) => {
                         let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
                         if decoded_len > max_decoded_len {
                             Err(formatx!(
                                 "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                             ))
                         } else {
+                            if let Some(d) = downscale {
+                                size = d.resize_dimensions(size);
+                            }
                             let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
                                 image: id,
                                 size,

@@ -93,6 +93,51 @@ zero_ui_var::impl_from_and_into_var! {
     fn from(fit: Px) -> ImageDownscale;
     fn from(some: ImageDownscale) -> Option<ImageDownscale>;
 }
+impl ImageDownscale {
+    /// Compute the expected final size if the downscale is applied on an image of `source_size`.
+    pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
+        // code from image crate
+        fn resize_dimensions(width: u32, height: u32, nwidth: u32, nheight: u32, fill: bool) -> (u32, u32) {
+            use std::cmp::max;
+
+            let wratio = nwidth as f64 / width as f64;
+            let hratio = nheight as f64 / height as f64;
+
+            let ratio = if fill { f64::max(wratio, hratio) } else { f64::min(wratio, hratio) };
+
+            let nw = max((width as f64 * ratio).round() as u64, 1);
+            let nh = max((height as f64 * ratio).round() as u64, 1);
+
+            if nw > u64::from(u32::MAX) {
+                let ratio = u32::MAX as f64 / width as f64;
+                (u32::MAX, max((height as f64 * ratio).round() as u32, 1))
+            } else if nh > u64::from(u32::MAX) {
+                let ratio = u32::MAX as f64 / height as f64;
+                (max((width as f64 * ratio).round() as u32, 1), u32::MAX)
+            } else {
+                (nw as u32, nh as u32)
+            }
+        }
+
+        let (x, y) = match self {
+            ImageDownscale::Fit(s) => resize_dimensions(
+                source_size.width.0.max(0) as _,
+                source_size.height.0.max(0) as _,
+                s.width.0.max(0) as _,
+                s.height.0.max(0) as _,
+                false,
+            ),
+            ImageDownscale::Fill(s) => resize_dimensions(
+                source_size.width.0.max(0) as _,
+                source_size.height.0.max(0) as _,
+                s.width.0.max(0) as _,
+                s.height.0.max(0) as _,
+                true,
+            ),
+        };
+        PxSize::new(Px(x as _), Px(y as _))
+    }
+}
 
 /// Format of the image bytes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
