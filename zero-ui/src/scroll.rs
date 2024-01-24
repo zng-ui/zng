@@ -35,12 +35,14 @@
 //!         // the large images can take a moment to decode in debug builds, but the size
 //!         // is already known after read, so the "loading.." message ends-up off-screen
 //!         // because it is centered on the image.
-//!         layout::x = SCROLL.horizontal_offset().map(|&fct| fct.0.fct_l() - 1.vw() * fct);
-//!         layout::y = SCROLL.vertical_offset().map(|&fct| fct.0.fct_l() - 1.vh() * fct);
+//!         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+//!         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
+//!         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
+//!         layout::transform_origin = 0;
 //!         widget::can_auto_hide = false;
 //!         layout::max_size = (1.vw(), 1.vh());
+//!         
 //!         child_align = Align::CENTER;
-//!
 //!         child = msg;
 //!     }
 //! }
