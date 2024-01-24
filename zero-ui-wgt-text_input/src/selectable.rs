@@ -12,7 +12,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zero_ui_wgt_text::{self as text, *};
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
-/// 
+///
 /// # Shorthand
 ///
 /// The same [`Text!`](struct@zero_ui_wgt_text::Text#shorthand) shorthand can be used in this macro.

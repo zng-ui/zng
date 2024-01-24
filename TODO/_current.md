@@ -1,3 +1,5 @@
+* Stack direction animation does not update frame.
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
