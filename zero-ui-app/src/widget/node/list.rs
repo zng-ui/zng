@@ -1951,13 +1951,16 @@ impl PanelListRange {
 /// Represents the final [`UiNodeList`] in a panel layout node.
 ///
 /// Panel widgets should wrap their children list on this type to support z-index sorting list and easily track
-/// item data. By default the item data is a [`PxVector`] that represents the offset of each item inside the panel,
-/// but it can be any type that implements [`PanelListData`].
+/// item data. By default the item data is a [`DefaultPanelListData`] that represents the offset of each item inside the panel,
+/// but it can be any type that implements [`PanelListData`]. The panel list default render implementation uses this data
+/// to position the children widgets, note that you must [`commit_data`] changes to this data at the end of a layout pass in
+/// case render or render update needs to be requested for each child.
 ///
 /// Panel widgets can also mark the list using [`track_info_range`] and implement getter properties for the items
 /// to enable styling of each odd/even item for example.
 ///
 /// [`track_info_range`]: Self::track_info_range
+/// [`commit_data`]: Self::commit_data
 pub struct PanelList<D = DefaultPanelListData>
 where
     D: PanelListData,
@@ -2313,13 +2316,19 @@ where
         self.data[index].get_mut()
     }
 
-    /// Finish child offset, requesting render_update for each child that needs it.
-    pub fn finish_layout(&mut self) {
-        self.for_each(|_, c, o| {
-            if c.with_context(WidgetUpdateMode::Bubble, || o.commit()).is_none() {
-                o.commit();
-            }
-        });
+    /// Calls [`commit`] for each child data, aggregate changes.
+    ///
+    /// This must be called after the last update to the children data in a layout pass. Note that
+    /// you can call [`commit`] directly in a `for_each` iteration if you know that that iteration is the
+    /// last in the layout pass.
+    ///
+    /// [`commit`]: PanelListData::commit
+    pub fn commit_data(&mut self) -> PanelListDataChanges {
+        let mut changes = PanelListDataChanges::empty();
+        for data in self.data.iter_mut() {
+            changes |= data.get_mut().commit();
+        }
+        changes
     }
 
     /// Key used to define reference frames for each item.
@@ -2540,6 +2549,29 @@ where
     }
 }
 
+bitflags::bitflags! {
+    /// Identifies changes in [`PanelListData`] since last layout.
+    #[must_use = "|= with other item changes, call request_render"]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct PanelListDataChanges: u8 {
+        /// The [`PanelListData::child_offset`] changed since last layout.
+        const CHILD_OFFSET = 0b01;
+        /// The [`PanelListData::define_reference_frame`] changed since last layout.
+        const DEFINE_REFERENCE_FRAME = 0b10;
+    }
+}
+impl PanelListDataChanges {
+    /// Request render or render update if there are any changes.
+    pub fn request_render(self) {
+        if self.contains(Self::DEFINE_REFERENCE_FRAME) {
+            WIDGET.render();
+        } else if self.contains(Self::CHILD_OFFSET) {
+            WIDGET.render_update();
+        }
+    }
+}
+
 /// Default [`PanelList`] associated data.
 #[derive(Clone, Debug, Default)]
 pub struct DefaultPanelListData {
@@ -2560,14 +2592,17 @@ impl PanelListData for DefaultPanelListData {
         self.define_reference_frame
     }
 
-    fn commit(&mut self) {
+    fn commit(&mut self) -> PanelListDataChanges {
+        let mut changes = PanelListDataChanges::empty();
         if self.define_reference_frame != self.prev_define_reference_frame {
-            WIDGET.render();
-        } else if self.child_offset != self.prev_child_offset {
-            WIDGET.render_update();
+            changes |= PanelListDataChanges::DEFINE_REFERENCE_FRAME;
         }
-        self.prev_define_reference_frame = self.prev_define_reference_frame;
+        if self.child_offset != self.prev_child_offset {
+            changes |= PanelListDataChanges::CHILD_OFFSET;
+        }
+        self.prev_define_reference_frame = self.define_reference_frame;
         self.prev_child_offset = self.child_offset;
+        changes
     }
 }
 
@@ -2579,11 +2614,10 @@ pub trait PanelListData: Default + Send + Any {
     /// If a new reference frame should be created for the item during render.
     fn define_reference_frame(&self) -> bool;
 
-    /// Commit `child_offset` and `define_reference_frame` changes and requests render or render_update.
+    /// Commit `child_offset` and `define_reference_frame` changes and requests render or render update if needed.
     ///
-    /// This method is called inside the child context if the child is a full widget, otherwise it is called in the
-    /// panel widget  context.
-    fn commit(&mut self);
+    /// Returns
+    fn commit(&mut self) -> PanelListDataChanges;
 }
 impl PanelListData for () {
     fn child_offset(&self) -> PxVector {
@@ -2594,7 +2628,9 @@ impl PanelListData for () {
         false
     }
 
-    fn commit(&mut self) {}
+    fn commit(&mut self) -> PanelListDataChanges {
+        PanelListDataChanges::empty()
+    }
 }
 
 struct PanelObserver<'d, D>

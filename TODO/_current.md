@@ -1,11 +1,7 @@
 # PanelList
 
-* PanelListData update does not invalidate render for each children.
-    - Tried implementing a `finish_layout`, but this needs to be manually called.
-    - Can't we check for changes on render automatically?
-    - Only tested in `Stack!`, other panels need to call this too?
-    - Can we have a flag in `for_each` that indicates that it is the last for_each in layout?
-        - Saves from having another pass just to check.
+* Render not invalidated for child that has `push_child` or `with_child` offset changed.
+* Call `commit_data` in other panels.
 
 * Figure out why Stack children jumps when transitioning directions.
 

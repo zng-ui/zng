@@ -416,7 +416,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
         }
     });
 
-    children.finish_layout();
+    children.commit_data().request_render();
 
     panel_size
 }
