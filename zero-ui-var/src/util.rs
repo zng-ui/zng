@@ -80,11 +80,9 @@ macro_rules! impl_from_and_into_var {
     };
 }
 
-use std::marker::PhantomData;
-
 use parking_lot::RwLock;
 
-use crate::{AnyVarHookArgs, AnyVarValue};
+use crate::AnyVarHookArgs;
 
 use super::{animation::ModifyInfo, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, VARS};
 
@@ -329,7 +327,7 @@ impl VarMeta {
 
 #[cfg(dyn_closure)]
 struct VarDataInner {
-    value: Box<dyn AnyVarValue>,
+    value: Box<dyn crate::AnyVarValue>,
     meta: VarMeta,
 }
 
@@ -340,7 +338,7 @@ struct VarDataInner<T> {
 }
 
 #[cfg(dyn_closure)]
-pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner>, PhantomData<T>);
+pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner>, std::marker::PhantomData<T>);
 
 #[cfg(not(dyn_closure))]
 pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner<T>>);
@@ -360,7 +358,7 @@ impl<T: VarValue> VarData<T> {
 
         #[cfg(dyn_closure)]
         {
-            Self(inner, PhantomData)
+            Self(inner, std::marker::PhantomData)
         }
 
         #[cfg(not(dyn_closure))]
@@ -443,7 +441,7 @@ impl<T: VarValue> VarData<T> {
 #[cfg(dyn_closure)]
 fn apply_modify(
     inner: &RwLock<VarDataInner>,
-    modify: Box<dyn FnOnce(&dyn AnyVarValue) -> (bool, Option<Box<dyn AnyVarValue>>, bool, Vec<Box<dyn AnyVarValue>>)>,
+    modify: Box<dyn FnOnce(&dyn crate::AnyVarValue) -> (bool, Option<Box<dyn crate::AnyVarValue>>, bool, Vec<Box<dyn crate::AnyVarValue>>)>,
 ) {
     let mut data = inner.write();
     if data.meta.skip_modify() {
@@ -481,7 +479,7 @@ fn apply_modify(
 }
 
 #[cfg(not(dyn_closure))]
-fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner>, modify: impl FnOnce(&mut VarModify<T>)) {
+fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnce(&mut VarModify<T>)) {
     let mut data = inner.write();
     if data.meta.skip_modify() {
         return;

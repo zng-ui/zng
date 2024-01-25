@@ -29,7 +29,7 @@ macro_rules! ActualInit {
 #[cfg(not(dyn_closure))]
 macro_rules! ActualInit {
     ($T:ident) => {
-        Arc<dyn Fn() -> BoxedVar<$S> + Send + Sync>,
+        Arc<dyn Fn() -> BoxedVar<$T> + Send + Sync>
     }
 }
 
@@ -42,7 +42,7 @@ macro_rules! ActualReadGuard {
 #[cfg(not(dyn_closure))]
 macro_rules! ActualReadGuard {
     ($a:tt, $T:ident) => {
-        parking_lot::MappedRwLockReadGuard<$a, $BoxedVar<$T>>
+        parking_lot::MappedRwLockReadGuard<$a, BoxedVar<$T>>
     }
 }
 
@@ -77,7 +77,11 @@ pub struct ContextualizedVar<T> {
 }
 
 #[allow(clippy::extra_unused_type_parameters)]
-fn borrow_init_impl<'a, T>(actual: &'a ActualLock![S], init: &ActualInit![T], type_name: &'static str) -> ActualReadGuard!['a, T] {
+fn borrow_init_impl<'a, T>(
+    actual: &'a ActualLock![T],
+    init: &ActualInit![T],
+    #[cfg(debug_assertions)] type_name: &'static str,
+) -> ActualReadGuard!['a, T] {
     let current_ctx = ContextInitHandle::current();
     let current_ctx = current_ctx.downgrade();
 
@@ -126,7 +130,7 @@ impl<T: VarValue> ContextualizedVar<T> {
             #[cfg(dyn_closure)]
             init: Arc::new(move || Box::new(init().boxed())),
             #[cfg(not(dyn_closure))]
-            init: Arc::new(init),
+            init: Arc::new(move || init().boxed()),
 
             actual: RwLock::new(Vec::with_capacity(1)),
         }
@@ -134,21 +138,15 @@ impl<T: VarValue> ContextualizedVar<T> {
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
-        #[cfg(debug_assertions)]
-        let type_name = std::any::type_name::<T>();
-
-        #[cfg(not(debug_assertions))]
-        let type_name = "";
-
         #[cfg(dyn_closure)]
         {
-            parking_lot::MappedRwLockReadGuard::map(borrow_init_impl::<()>(&self.actual, &self.init, type_name), |v| {
+            parking_lot::MappedRwLockReadGuard::map(borrow_init_impl::<()>(&self.actual, &self.init, std::any::type_name::<T>()), |v| {
                 v.downcast_ref().unwrap()
             })
         }
         #[cfg(not(dyn_closure))]
         {
-            borrow_init_impl(&self.actual, &self.init, type_name)
+            borrow_init_impl(&self.actual, &self.init)
         }
     }
 
