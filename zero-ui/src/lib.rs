@@ -471,7 +471,6 @@ pub mod selectable;
 pub mod stack;
 pub mod state_map;
 pub mod style;
-pub mod switch;
 pub mod task;
 pub mod text;
 pub mod text_input;

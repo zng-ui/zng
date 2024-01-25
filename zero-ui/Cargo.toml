@@ -200,7 +200,6 @@ zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
 zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
 zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
 zero-ui-wgt-undo = { path = "../zero-ui-wgt-undo" }
-zero-ui-wgt-switch = { path = "../zero-ui-wgt-switch" }
 zero-ui-wgt-view = { path = "../zero-ui-wgt-view" }
 zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
 zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }

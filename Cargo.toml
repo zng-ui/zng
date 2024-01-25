@@ -48,7 +48,6 @@ members = [
     "zero-ui-wgt-size_offset",
     "zero-ui-wgt-container",
     "zero-ui-wgt-undo",
-    "zero-ui-wgt-switch",
     "zero-ui-wgt-view",
     "zero-ui-wgt-fill",
     "zero-ui-wgt-style",

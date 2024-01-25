@@ -95,11 +95,11 @@
 //! closure that instantiates the style for each usage. The property values that can't be cloned are `impl UiNode` and `impl UiNodeList`.
 //!
 //! The example below demonstrates this issue:
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! # let _ =
 //! Stack!(
 //!     top_to_bottom,
@@ -109,7 +109,7 @@
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
 //!             widget::parallel = false; // init buttons sequentially
-//! 
+//!
 //!             zero_ui::button::style_fn = Style! {
 //!                 // background is `impl UiNode` that can't be cloned. Nodes
 //!                 // are moved to the last place that requests it.
@@ -124,7 +124,7 @@
 //!         Stack! {
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
-//! 
+//!
 //!             // Sets the style to a closure that will be called for each button.
 //!             zero_ui::button::style_fn = style_fn!(|_| Style! {
 //!                 widget::background = zero_ui::color::flood(colors::AZURE);
