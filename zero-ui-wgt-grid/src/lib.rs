@@ -260,6 +260,7 @@ pub fn node(
                 },
                 |_, _| PxSize::zero(),
             );
+            cells.commit_data().request_render();
 
             *final_size = constraints.fill_size_or(grid_size);
         }

@@ -725,6 +725,8 @@ impl InlineLayout {
             }
         });
 
+        children.commit_data().request_render();
+
         constraints.clamp_size(PxSize::new(panel_width, panel_height))
     }
 

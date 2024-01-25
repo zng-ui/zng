@@ -1,4 +1,3 @@
-* Call `commit_data` in other panels.
 * Figure out why Stack children jumps when transitioning directions.
 
 # Documentation
