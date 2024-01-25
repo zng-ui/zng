@@ -15,7 +15,7 @@ use zero_ui::{
     layout::{align, margin, padding},
     prelude::*,
     scroll::{lazy, LazyMode, ScrollMode},
-    view::{View, ViewArgs},
+    data_view::{DataView, DataViewArgs},
     widget::{background_color, corner_radius},
     wrap,
 };
@@ -134,10 +134,10 @@ fn icons() -> impl UiNode {
                     select_font("sharp"),
                 ]
             },
-            View!(
+            DataView!(
                 ::<(&'static str, Txt)>,
                 merge_var!(selected_font, search, |f, s| (*f, s.clone())),
-                hn!(|a: &ViewArgs<(&'static str, Txt)>| {
+                hn!(|a: &DataViewArgs<(&'static str, Txt)>| {
                     if let Some((f, s)) = a.get_new() {
                         let mut icons = match f {
                             "filled" => icon::material_filled::all(),

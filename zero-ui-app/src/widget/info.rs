@@ -484,7 +484,7 @@ impl WidgetBoundsInfo {
     ///
     /// If the widget's child is another widget this is zero and the offset is set on that child's [`parent_child_offset`] instead.
     ///
-    /// Self [`parent_child_offset`]: Self::parent_child_offset
+    /// [`parent_child_offset`]: Self::parent_child_offset
     pub fn child_offset(&self) -> PxVector {
         self.0.lock().child_offset
     }

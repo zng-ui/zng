@@ -444,6 +444,7 @@ pub mod color;
 pub mod config;
 pub mod container;
 pub mod data_context;
+pub mod data_view;
 pub mod event;
 pub mod focus;
 pub mod font;
@@ -481,7 +482,6 @@ pub mod touch;
 pub mod undo;
 pub mod update;
 pub mod var;
-pub mod view;
 pub mod view_process;
 pub mod widget;
 pub mod window;
@@ -630,6 +630,8 @@ pub mod prelude {
     pub use zero_ui_wgt_stack::{Stack, StackDirection};
 
     pub use zero_ui_wgt_wrap::Wrap;
+
+    pub use zero_ui_wgt_data_view::{DataView, DataViewArgs};
 }
 
 /// Prelude for declaring new properties and widgets.

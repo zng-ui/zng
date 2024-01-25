@@ -9,7 +9,7 @@ use zero_ui::{
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,
-    view::{View, ViewArgs},
+    data_view::{DataView, DataViewArgs},
     widget::{info::InteractionPath, interactive, node::ArcNode, visibility, Visibility, WidgetUpdateMode},
 };
 
@@ -1103,7 +1103,7 @@ pub fn focused_removed_by_deleting() {
 
     let buttons = ui_vec! {
         Button! { child = Text!("Button 0") },
-        View!(::<bool>, exist.clone(), hn!(|a: &ViewArgs<bool>| {
+        DataView!(::<bool>, exist.clone(), hn!(|a: &DataViewArgs<bool>| {
             if a.data().get() {
                 a.set_view(Button! { id = button1_id; child = Text!("Button 1") });
             } else {
@@ -1204,10 +1204,10 @@ pub fn focus_continued_after_widget_id_move() {
 
     let do_move_id = var(false);
 
-    let mut app = app.run(View!(
+    let mut app = app.run(DataView!(
         ::<bool>,
         do_move_id.clone(),
-        hn!(|a: &ViewArgs<bool>| {
+        hn!(|a: &DataViewArgs<bool>| {
             if a.data().get() {
                 a.set_view(Container! {
                     id = "some_other_place";
