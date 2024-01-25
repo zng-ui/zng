@@ -369,6 +369,7 @@ impl fmt::Debug for WidgetInfoTree {
 struct WidgetBoundsData {
     inner_offset: PxVector,
     child_offset: PxVector,
+    parent_child_offset: PxVector,
 
     inline: Option<WidgetInlineInfo>,
     measure_inline: Option<WidgetInlineMeasure>,
@@ -481,7 +482,9 @@ impl WidgetBoundsInfo {
 
     /// Gets the widget's child offset inside the inner bounds.
     ///
-    /// If the widget's child is another widget this is zero and the offset is added to that child's outer offset instead.
+    /// If the widget's child is another widget this is zero and the offset is set on that child's [`parent_child_offset`] instead.
+    ///
+    /// Self [`parent_child_offset`]: Self::parent_child_offset
     pub fn child_offset(&self) -> PxVector {
         self.0.lock().child_offset
     }
@@ -522,6 +525,11 @@ impl WidgetBoundsInfo {
     /// Gets the global transform of the widget's outer bounds during the last render or render update.
     pub fn outer_transform(&self) -> PxTransform {
         self.0.lock().outer_transform
+    }
+
+    /// Offset applied to the inner transform set by the parent widget.
+    pub fn parent_child_offset(&self) -> PxVector {
+        self.0.lock().parent_child_offset
     }
 
     /// Gets the global transform of the widget's inner bounds during the last render or render update.
@@ -611,6 +619,10 @@ impl WidgetBoundsInfo {
 
         m.outer_bounds = bounds;
         m.outer_transform = transform;
+    }
+
+    pub(crate) fn set_parent_child_offset(&self, offset: PxVector) {
+        self.0.lock().parent_child_offset = offset;
     }
 
     pub(crate) fn set_inner_transform(

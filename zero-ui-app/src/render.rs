@@ -207,7 +207,7 @@ impl From<TransformStyle> for webrender_api::TransformStyle {
 }
 
 struct WidgetData {
-    outer_offset: PxVector,
+    parent_child_offset: PxVector,
     inner_is_set: bool, // used to flag if frame is always 2d translate/scale.
     inner_transform: PxTransform,
     filter: RenderFilter,
@@ -317,7 +317,7 @@ impl FrameBuilder {
                 filter: vec![],
                 blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
-                outer_offset: PxVector::zero(),
+                parent_child_offset: PxVector::zero(),
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
             }),
@@ -534,10 +534,12 @@ impl FrameBuilder {
 
         let prev_outer = bounds.outer_transform();
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
-        if prev_outer != outer_transform {
+        bounds.set_outer_transform(outer_transform, tree);
+
+        if bounds.parent_child_offset() != self.child_offset {
+            bounds.set_parent_child_offset(self.child_offset);
             try_reuse = false;
         }
-        bounds.set_outer_transform(outer_transform, tree);
         let outer_bounds = bounds.outer_bounds();
 
         let parent_visible = self.visible;
@@ -625,7 +627,7 @@ impl FrameBuilder {
                 filter: vec![],
                 blend: RenderMixBlendMode::Normal,
                 backdrop_filter: vec![],
-                outer_offset: child_offset,
+                parent_child_offset: child_offset,
                 inner_is_set: frame.perspective.is_some(),
                 inner_transform: PxTransform::identity(),
             });
@@ -1012,7 +1014,7 @@ impl FrameBuilder {
                     .then_translate(euclid::vec2(x, y));
                 inner_transform = inner_transform.then(&p);
             }
-            let inner_transform = inner_transform.then_translate((data.outer_offset + inner_offset).cast());
+            let inner_transform = inner_transform.then_translate((data.parent_child_offset + inner_offset).cast());
 
             self.transform = inner_transform.then(&parent_transform);
 
