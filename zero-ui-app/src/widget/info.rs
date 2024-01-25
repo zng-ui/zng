@@ -527,7 +527,9 @@ impl WidgetBoundsInfo {
         self.0.lock().outer_transform
     }
 
-    /// Offset applied to the inner transform set by the parent widget.
+    /// Offset rendered in the widget inner set by the parent widget.
+    ///
+    /// Note that this offset is applied to the [`outer_transform`](Self::outer_transform) already.
     pub fn parent_child_offset(&self) -> PxVector {
         self.0.lock().parent_child_offset
     }

@@ -533,7 +533,8 @@ impl FrameBuilder {
         let mut try_reuse = true;
 
         let prev_outer = bounds.outer_transform();
-        bounds.set_outer_transform(self.transform, tree);
+        let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
+        bounds.set_outer_transform(outer_transform, tree);
 
         if bounds.parent_child_offset() != self.child_offset {
             bounds.set_parent_child_offset(self.child_offset);
@@ -646,7 +647,7 @@ impl FrameBuilder {
             let _span = tracing::trace_span!("reuse-descendants", ?id).entered();
 
             let transform_patch = undo_prev_outer_transform.and_then(|t| {
-                let t = t.then(&self.transform);
+                let t = t.then(&outer_transform);
                 if t != PxTransform::identity() {
                     Some(t)
                 } else {
@@ -2271,7 +2272,7 @@ pub struct FrameUpdate {
 
     widget_id: WidgetId,
     transform: PxTransform,
-    outer_offset: PxVector,
+    parent_child_offset: PxVector,
     perspective: Option<(f32, PxPoint)>,
     inner_transform: Option<PxTransform>,
     child_offset: PxVector,
@@ -2318,7 +2319,7 @@ impl FrameUpdate {
 
             transform: PxTransform::identity(),
             perspective: None,
-            outer_offset: PxVector::zero(),
+            parent_child_offset: PxVector::zero(),
             inner_transform: Some(PxTransform::identity()),
             child_offset: PxVector::zero(),
             can_reuse_widget: true,
@@ -2545,6 +2546,8 @@ impl FrameUpdate {
             }
         }
 
+        let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
+
         if !WIDGET.take_update(UpdateFlags::RENDER_UPDATE)
             && self.can_reuse_widget
             && !self.render_update_widgets.delivery_list().enter_widget(id)
@@ -2553,9 +2556,9 @@ impl FrameUpdate {
             let _span = tracing::trace_span!("reuse-descendants", id=?self.widget_id).entered();
 
             let prev_outer = bounds.outer_transform();
-            if prev_outer != self.transform {
+            if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
-                    let patch = undo_prev.then(&self.transform);
+                    let patch = undo_prev.then(&outer_transform);
 
                     let update = |info: WidgetInfo| {
                         let bounds = info.bounds_info();
@@ -2585,8 +2588,8 @@ impl FrameUpdate {
         }
 
         bounds.set_parent_child_offset(self.child_offset);
-        bounds.set_outer_transform(self.transform, tree);
-        self.outer_offset = mem::take(&mut self.child_offset);
+        bounds.set_outer_transform(outer_transform, tree);
+        self.parent_child_offset = mem::take(&mut self.child_offset);
         self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = id;
@@ -2597,7 +2600,7 @@ impl FrameUpdate {
             i.parent_perspective = self.perspective;
             bounds.set_rendered(Some(i), tree);
         }
-        self.outer_offset = PxVector::zero();
+        self.parent_child_offset = PxVector::zero();
         self.inner_transform = None;
         self.widget_id = parent_id;
         self.can_reuse_widget = parent_can_reuse;
@@ -2643,7 +2646,7 @@ impl FrameUpdate {
                     .then_translate(euclid::vec2(x, y));
                 inner_transform = inner_transform.then(&p);
             }
-            let inner_transform = inner_transform.then_translate((self.outer_offset + inner_offset).cast());
+            let inner_transform = inner_transform.then_translate((self.parent_child_offset + inner_offset).cast());
             self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;
 
@@ -2730,7 +2733,7 @@ impl FrameUpdate {
             widget_id: self.widget_id,
             transform: self.transform,
             perspective: self.perspective,
-            outer_offset: self.outer_offset,
+            parent_child_offset: self.parent_child_offset,
             inner_transform: self.inner_transform,
             child_offset: self.child_offset,
             can_reuse_widget: self.can_reuse_widget,
