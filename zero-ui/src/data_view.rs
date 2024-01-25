@@ -36,16 +36,15 @@
 //! You can also use the normal widget syntax and set the `view` property.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//!
-//! fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
-//!     DataView! {
-//!         view::<usize> = {
-//!             data: n,
-//!             update: hn!(|a: &DataViewArgs<usize>| { }),
-//!         };
-//!     }
+//! # use zero_ui::prelude::*;
+//! # let _scope = APP.defaults(); let n = var(0usize); let _ =
+//! DataView! {
+//!     view::<usize> = {
+//!         data: n,
+//!         update: hn!(|a: &DataViewArgs<usize>| { }),
+//!     };
 //! }
+//! # ;
 //! ```
 //!
 //! # Full API
