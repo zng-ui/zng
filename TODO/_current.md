@@ -1,4 +1,5 @@
 * Figure out why Stack children jumps when transitioning directions.
+    - Only happens with the `spacing` property set.
 
 # Documentation
 
