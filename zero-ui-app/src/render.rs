@@ -533,8 +533,7 @@ impl FrameBuilder {
         let mut try_reuse = true;
 
         let prev_outer = bounds.outer_transform();
-        let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
-        bounds.set_outer_transform(outer_transform, tree);
+        bounds.set_outer_transform(self.transform, tree);
 
         if bounds.parent_child_offset() != self.child_offset {
             bounds.set_parent_child_offset(self.child_offset);
@@ -647,7 +646,7 @@ impl FrameBuilder {
             let _span = tracing::trace_span!("reuse-descendants", ?id).entered();
 
             let transform_patch = undo_prev_outer_transform.and_then(|t| {
-                let t = t.then(&outer_transform);
+                let t = t.then(&self.transform);
                 if t != PxTransform::identity() {
                     Some(t)
                 } else {
@@ -2531,8 +2530,6 @@ impl FrameUpdate {
 
         let tree = wgt_info.tree();
 
-        let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
-
         let parent_can_reuse = self.can_reuse_widget;
         let parent_perspective = mem::replace(&mut self.perspective, wgt_info.perspective());
         let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
@@ -2551,13 +2548,14 @@ impl FrameUpdate {
         if !WIDGET.take_update(UpdateFlags::RENDER_UPDATE)
             && self.can_reuse_widget
             && !self.render_update_widgets.delivery_list().enter_widget(id)
+            && bounds.parent_child_offset() == self.child_offset
         {
             let _span = tracing::trace_span!("reuse-descendants", id=?self.widget_id).entered();
 
             let prev_outer = bounds.outer_transform();
-            if prev_outer != outer_transform {
+            if prev_outer != self.transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
-                    let patch = undo_prev.then(&outer_transform);
+                    let patch = undo_prev.then(&self.transform);
 
                     let update = |info: WidgetInfo| {
                         let bounds = info.bounds_info();
@@ -2586,7 +2584,8 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        bounds.set_outer_transform(outer_transform, tree);
+        bounds.set_parent_child_offset(self.child_offset);
+        bounds.set_outer_transform(self.transform, tree);
         self.outer_offset = mem::take(&mut self.child_offset);
         self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;

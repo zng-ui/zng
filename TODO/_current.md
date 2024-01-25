@@ -1,14 +1,3 @@
-* Render update not invalidated for child that has `push_child` or `with_child` offset changed.
-    - It is invalidated, it just does not register an update for the renderer.
-    - Render does not reuse if the outer transform is different.
-        - This is actually bad?
-            - Yes, a parent widget with many children moving causes all children to render.
-    - Outer transform is not supposed to be rendered by the widget, child_offset is.
-        - Child offset is part of the outer_transform in info.
-    - We need to compare if the child_offset changed for the widget, that invalidates render.
-        - Just the outer really changing only needs to update info transforms.
-    - How is child transform included in widget transform?
-
 * Call `commit_data` in other panels.
 
 * Figure out why Stack children jumps when transitioning directions.
