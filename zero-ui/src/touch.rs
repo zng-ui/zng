@@ -1,5 +1,50 @@
 //! Touch service, properties, events and types.
 //!
+//! The example below defines a window that shows the active touches and prints the touch state changes. The
+//! touches text text follows the first touch position.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! # let _ =
+//! Window! {
+//!     child_align = layout::Align::TOP_LEFT;
+//!     child = Text! {
+//!         txt = touch::TOUCH.positions().map(|p| {
+//!             let mut t = Txt::from("[\n");
+//!             for p in p {
+//!                 use std::fmt::Write as _;
+//!                 writeln!(&mut t, "   ({:?}, {:?})", p.touch, p.position).unwrap();
+//!             }
+//!             t.push(']');
+//!             t.end_mut();
+//!             t
+//!         });
+//!         font_size = 1.4.em();
+//!         layout::offset = touch::TOUCH.positions().map(|p| match p.first() {
+//!             Some(p) => layout::Vector::from(p.position.to_vector()) - layout::Vector::new(0, 100.pct()),
+//!             None => layout::Vector::zero(),
+//!         });
+//!     };
+//!     touch::on_touch_input = hn!(|args: &touch::TouchInputArgs| {
+//!         println!("touch {:?} {:?}", args.touch, args.phase);
+//!     });
+//! }
+//! # ;
+//! ```
+//!
+//! Touch events are send to the the top widget under the touch point. This module also provides touch exclusive gestures like 
+//! tap, touch enter/leave and [`on_touch_transform`]. Note some touch gestures are composed with others in [`gesture`] to provide the 
+//! final pointer gestures. You should prefer using [`gesture::on_click`] over [`on_touch_tap`], unless you really want to exclusively 
+//! touch clicks.
+//!
+//! [`on_touch_tap`]: fn@on_touch_tap
+//! [`on_touch_transform`]: fn@on_touch_transform
+//! [`gesture`]: crate::gesture
+//! [`gesture::on_click`]: fn@crate::gesture::on_click
+//! [`on_mouse_click`]: fn@on_mouse_click
+//! 
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::touch`] and [`zero_ui_wgt_input::touch`] for the full touch API.
