@@ -1,5 +1,6 @@
 use zero_ui::{
     app::{AppExtended, AppExtension, HeadlessApp},
+    data_view::{DataView, DataViewArgs},
     event::EventReceiver,
     focus::{
         alt_focus_scope,
@@ -9,7 +10,6 @@ use zero_ui::{
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,
-    data_view::{DataView, DataViewArgs},
     widget::{info::InteractionPath, interactive, node::ArcNode, visibility, Visibility, WidgetUpdateMode},
 };
 

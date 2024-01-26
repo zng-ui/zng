@@ -7,6 +7,7 @@ use zero_ui::{
         color_scheme_map,
         filter::{backdrop_blur, drop_shadow, opacity},
     },
+    data_view::{DataView, DataViewArgs},
     focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
     font::FontName,
     gesture::{on_click, ClickArgs},
@@ -15,7 +16,6 @@ use zero_ui::{
     layout::{align, margin, padding},
     prelude::*,
     scroll::{lazy, LazyMode, ScrollMode},
-    data_view::{DataView, DataViewArgs},
     widget::{background_color, corner_radius},
     wrap,
 };

@@ -1,5 +1,35 @@
 //! Wrap layout widget and properties.
 //!
+//! The [`Wrap!`](struct@Wrap) widget implements [inline layout](crate::layout#inline). The example below demonstrates
+//! a *rich text* composed of multiple `Wrap!` and `Text!` widgets.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! # let _ =
+//! Wrap!(ui_vec![
+//!     Text!("Some text that "),
+//!     text::Strong!("wraps"),
+//!     Text!(" together."),
+//!     Wrap! {
+//!         text::font_color = colors::GREEN;
+//!         children = ui_vec![
+//!             Text!(" Nested Wrap panels can be used to set "),
+//!             text::Em!("contextual"),
+//!             Text!(" properties for a sequence of widgets.")
+//!         ]
+//!     },
+//!     Text!(" The nested Wrap panel content items "),
+//!     text::Strong!("wraps"),
+//!     Text!(" with the parent items"),
+//! ])
+//! # ;
+//! ```
+//!
+//! Note that only some widgets and properties support inline layout, see the [`layout`](crate::layout#inline)
+//! module documentation for more details.
+//!
 //! # Full API
 //!
 //! See [`zero_ui_wgt_wrap`] for the full view API.

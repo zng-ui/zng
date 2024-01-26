@@ -34,9 +34,9 @@
 //! # ;
 //! ```
 //!
-//! Touch events are send to the the top widget under the touch point. This module also provides touch exclusive gestures like 
-//! tap, touch enter/leave and [`on_touch_transform`]. Note some touch gestures are composed with others in [`gesture`] to provide the 
-//! final pointer gestures. You should prefer using [`gesture::on_click`] over [`on_touch_tap`], unless you really want to exclusively 
+//! Touch events are send to the the top widget under the touch point. This module also provides touch exclusive gestures like
+//! tap, touch enter/leave and [`on_touch_transform`]. Note some touch gestures are composed with others in [`gesture`] to provide the
+//! final pointer gestures. You should prefer using [`gesture::on_click`] over [`on_touch_tap`], unless you really want to exclusively
 //! touch clicks.
 //!
 //! [`on_touch_tap`]: fn@on_touch_tap
@@ -44,7 +44,7 @@
 //! [`gesture`]: crate::gesture
 //! [`gesture::on_click`]: fn@crate::gesture::on_click
 //! [`on_mouse_click`]: fn@on_mouse_click
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_ext_input::touch`] and [`zero_ui_wgt_input::touch`] for the full touch API.
