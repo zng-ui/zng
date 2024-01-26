@@ -1,5 +1,4 @@
-* Figure out why Stack children jumps when transitioning directions.
-    - Only happens with the `spacing` property set.
+* When transitioning directions `children_align` center only aligns after the transition has ended.
 
 # Documentation
 

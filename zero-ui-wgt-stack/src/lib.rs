@@ -222,12 +222,12 @@ pub fn lazy_sample(
                 let child_size = child.measure(wm);
 
                 let direction = direction.get();
-                let dv = direction.vector(LayoutDirection::LTR);
-                let ds = if dv.x == 0 && dv.y != 0 {
+                let dv = direction.direction_factor(LayoutDirection::LTR);
+                let ds = if dv.x == 0.fct() && dv.y != 0.fct() {
                     // vertical stack
                     let spacing = spacing.layout_y();
                     PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
-                } else if dv.x != 0 && dv.y == 0 {
+                } else if dv.x != 0.fct() && dv.y == 0.fct() {
                     // horizontal stack
                     let spacing = spacing.layout_x();
                     PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
@@ -423,23 +423,11 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
 
 /// Spacing to add on each axis.
 fn layout_spacing(ctx: &LayoutMetrics, direction: &StackDirection, spacing: Length) -> PxVector {
-    let direction_vector = direction.vector(ctx.direction());
-    spacing_from_direction(direction_vector, spacing)
+    let factor = direction.direction_factor(ctx.direction());
+    spacing_from_direction(factor, spacing)
 }
-fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: Length) -> PxVector {
-    let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
-        (false, false) => PxVector::new(spacing.layout_x(), spacing.layout_y()),
-        (true, false) => PxVector::new(Px(0), spacing.layout_y()),
-        (false, true) => PxVector::new(spacing.layout_x(), Px(0)),
-        (true, true) => PxVector::zero(),
-    };
-    if direction_vector.x < 0 {
-        spacing.x = -spacing.x;
-    }
-    if direction_vector.y < 0 {
-        spacing.y = -spacing.y;
-    }
-    spacing
+fn spacing_from_direction(factor: Factor2d, spacing: Length) -> PxVector {
+    PxVector::new(spacing.layout_x(), spacing.layout_y()) * factor
 }
 
 /// Max size to layout each child with.

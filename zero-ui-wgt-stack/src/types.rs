@@ -180,36 +180,32 @@ impl StackDirection {
         prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
     }
 
-    /// Direction vector.
+    /// Factor that defines the proportional direction.
     ///
-    /// Values are `0`, `1` or `-1`.
-    pub fn vector(&self, direction: LayoutDirection) -> euclid::Vector2D<i8, ()> {
-        let size = PxSize::new(Px(10), Px(10));
-        let metrics = LayoutMetrics::new(1.fct(), size, Px(10)).with_direction(direction);
+    /// Values are in the range of `-1.0..1.0`.
+    pub fn direction_factor(&self, direction: LayoutDirection) -> Factor2d {
+        let size = PxSize::new(Px(1000), Px(1000));
+        let metrics = LayoutMetrics::new(1.fct(), size, Px(1000)).with_direction(direction);
         let p = LAYOUT.with_context(metrics, || self.layout(PxRect::from_size(size), size));
 
-        pub(crate) fn v(px: Px) -> i8 {
-            use std::cmp::Ordering::*;
-            match px.cmp(&Px(0)) {
-                Greater => 1,
-                Equal => 0,
-                Less => -1,
-            }
+        pub(crate) fn v(px: Px) -> Factor {
+            let spacing = px.0 as f32 / 1000.0;
+            if px < Px(0) { -spacing } else { spacing }.fct()
         }
-        euclid::vec2(v(p.x), v(p.y))
+        (v(p.x), v(p.y)).into()
     }
 
     /// Filter `align` to the align operations needed to complement the stack direction.
     ///
     /// Alignment only operates in dimensions that have no movement.
     pub fn filter_align(&self, mut align: Align) -> Align {
-        let d = self.vector(LayoutDirection::LTR);
+        let d = self.direction_factor(LayoutDirection::LTR);
 
-        if d.x != 0 {
+        if d.x != 0.fct() {
             align.x = 0.fct();
             align.x_rtl_aware = false;
         }
-        if d.y != 0 {
+        if d.y != 0.fct() {
             align.y = 0.fct();
         }
 
