@@ -1418,49 +1418,6 @@ pub fn selection_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl Ui
     with_context_var(child, SELECTION_COLOR_VAR, color)
 }
 
-/// Gets the caret char index, if the text is editable.
-#[property(EVENT, default(None), widget_impl(TextEditMix<P>))]
-pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
-    super::node::get_caret_index(child, index)
-}
-
-/// Gets the caret display status, if the text is editable.
-#[property(EVENT, default(CaretStatus::none()), widget_impl(TextEditMix<P>))]
-pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
-    super::node::get_caret_status(child, status)
-}
-
-/// Gets the number of lines in the text, including wrap lines.
-///
-/// This is very cheap, the text widget already has the length, but it does include wrapped lines. You
-/// can use [`get_lines_wrap_count`] to get text lines and a count of wrapped lines for each.
-///
-/// [`get_lines_wrap_count`]: fn@get_lines_wrap_count
-#[property(CHILD_LAYOUT+100, default(0), widget_impl(TextEditMix<P>))]
-pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
-    super::node::get_lines_len(child, len)
-}
-
-/// Gets the number of wrap lines per text lines.
-#[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextEditMix<P>))]
-pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
-    super::node::get_lines_wrap_count(child, lines)
-}
-
-/// Gets the number of character in the text.
-#[property(EVENT, default(0), widget_impl(TextEditMix<P>))]
-pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl UiNode {
-    let chars = chars.into_var();
-    match_node(child, move |_, op| {
-        if let UiNodeOp::Init = op {
-            let ctx = super::node::TEXT.resolved();
-            let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
-            let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
-            WIDGET.push_var_handle(handle);
-        }
-    })
-}
-
 /// If [`txt_parse`] tries to parse after any text change immediately.
 ///
 /// This is enabled by default, if disabled the [`PARSE_CMD`] can be used to update pending parse.
@@ -1738,7 +1695,7 @@ impl LinesWrapCount {
 
 /// Text paragraph properties.
 ///
-/// Note that the [`Text!`] widget does not include this mixin, as raw text does not encode
+/// Note that the [`Text!`] widget does not include this mix-in, as raw text does not encode
 /// paragraph breaks, other rich text widgets can include it to configure paragraphs.
 ///
 /// [`Text!`]: struct@crate::Text
@@ -1768,34 +1725,6 @@ impl ParagraphMix<()> {
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), widget_impl(ParagraphMix<P>))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
-}
-
-/// Highlight a text range.
-#[property(CHILD_LAYOUT+100)]
-pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
-    let range = range.into_var();
-    let color = color.into_var();
-    let color_key = FrameValueKey::new_unique();
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var_render(&range).sub_var_render_update(&color);
-        }
-        UiNodeOp::Render { frame } => {
-            let l_txt = super::node::TEXT.laidout();
-            let r_txt = super::node::TEXT.resolved();
-            let r_txt = r_txt.segmented_text.text();
-
-            for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {
-                frame.push_color(line_rect, color_key.bind_var(&color, |c| (*c).into()));
-            }
-        }
-        UiNodeOp::RenderUpdate { update } => {
-            if let Some(color_update) = color_key.update_var(&color, |c| (*c).into()) {
-                update.update_color(color_update)
-            }
-        }
-        _ => {}
-    })
 }
 
 /// Selection toolbar properties.
@@ -1851,4 +1780,134 @@ pub struct SelectionToolbarArgs {
 #[property(CONTEXT, default(SELECTION_TOOLBAR_ANCHOR_VAR), widget_impl(SelectionToolbarMix<P>))]
 pub fn selection_toolbar_anchor(child: impl UiNode, offset: impl IntoVar<AnchorOffset>) -> impl UiNode {
     with_context_var(child, SELECTION_TOOLBAR_ANCHOR_VAR, offset)
+}
+
+/// Properties that probes various state from the text widget.
+#[widget_mixin]
+pub struct TextInspectMix<P>(P);
+
+impl TextInspectMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        let _ = set;
+    }
+}
+
+/// Gets the caret char index, if the text is editable.
+#[property(EVENT, default(None), widget_impl(TextInspectMix<P>))]
+pub fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {
+    super::node::get_caret_index(child, index)
+}
+
+/// Gets the caret display status, if the text is editable.
+#[property(EVENT, default(CaretStatus::none()), widget_impl(TextInspectMix<P>))]
+pub fn get_caret_status(child: impl UiNode, status: impl IntoVar<CaretStatus>) -> impl UiNode {
+    super::node::get_caret_status(child, status)
+}
+
+/// Gets the number of lines in the text, including wrap lines.
+///
+/// This is very cheap, the text widget already has the length, but it does include wrapped lines. You
+/// can use [`get_lines_wrap_count`] to get text lines and a count of wrapped lines for each.
+///
+/// [`get_lines_wrap_count`]: fn@get_lines_wrap_count
+#[property(CHILD_LAYOUT+100, default(0), widget_impl(TextInspectMix<P>))]
+pub fn get_lines_len(child: impl UiNode, len: impl IntoVar<usize>) -> impl UiNode {
+    super::node::get_lines_len(child, len)
+}
+
+/// Gets the number of wrap lines per text lines.
+#[property(CHILD_LAYOUT+100, default(LinesWrapCount::NoWrap(0)), widget_impl(TextInspectMix<P>))]
+pub fn get_lines_wrap_count(child: impl UiNode, lines: impl IntoVar<LinesWrapCount>) -> impl UiNode {
+    super::node::get_lines_wrap_count(child, lines)
+}
+
+/// Gets the number of character in the text.
+#[property(EVENT, default(0), widget_impl(TextInspectMix<P>))]
+pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl UiNode {
+    let chars = chars.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let ctx = super::node::TEXT.resolved();
+            let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
+            let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
+            WIDGET.push_var_handle(handle);
+        }
+    })
+}
+
+/// Highlight a text range.
+///
+/// This property must be set in the text widget.
+#[property(CHILD_LAYOUT+100, widget_impl(TextInspectMix<P>))]
+pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<CaretIndex>>, color: impl IntoVar<Rgba>) -> impl UiNode {
+    let range = range.into_var();
+    let color = color.into_var();
+    let color_key = FrameValueKey::new_unique();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&range).sub_var_render_update(&color);
+        }
+        UiNodeOp::Render { frame } => {
+            let l_txt = super::node::TEXT.laidout();
+            let r_txt = super::node::TEXT.resolved();
+            let r_txt = r_txt.segmented_text.text();
+
+            for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {
+                frame.push_color(line_rect, color_key.bind_var(&color, |c| (*c).into()));
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            if let Some(color_update) = color_key.update_var(&color, |c| (*c).into()) {
+                update.update_color(color_update)
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Gets a vector of font names and ranges.
+///
+/// This property must be set in the text widget.
+#[property(CHILD_LAYOUT+100, widget_impl(TextInspectMix<P>))]
+pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(FontName, std::ops::Range<usize>)>>) -> impl UiNode {
+    let font_use = font_use.into_var();
+    let mut shaped_text_version = u32::MAX;
+    match_node(child, move |c, op| {
+        if let UiNodeOp::Layout { wl, final_size } = op {
+            *final_size = c.layout(wl);
+
+            let ctx = crate::node::TEXT.laidout();
+
+            if ctx.shaped_text_version != shaped_text_version && font_use.capabilities().can_modify() {
+                shaped_text_version = ctx.shaped_text_version;
+
+                let mut r = vec![];
+
+                for seg in ctx.shaped_text.lines().flat_map(|l| l.segs()) {
+                    let mut seg_glyph_i = 0;
+                    let seg_range = seg.text_range();
+
+                    for (font, glyphs) in seg.glyphs() {
+                        let font = font.face().family_name();
+                        if r.is_empty() {
+                            r.push((font.clone(), 0..seg_range.end));
+                        } else {
+                            let last_i = r.len() - 1;
+                            if &r[last_i].0 != font {
+                                let seg_char_i = seg.clusters()[seg_glyph_i] as usize;
+
+                                let char_i = seg_range.start + seg_char_i;
+                                r[last_i].1.end = char_i;
+                                r.push((font.clone(), char_i..seg_range.end));
+                            }
+                        }
+                        seg_glyph_i += glyphs.len();
+                    }
+                }
+
+                let _ = font_use.set(r);
+            }
+        }
+    })
 }

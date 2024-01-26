@@ -415,7 +415,7 @@ pub struct LaidoutText {
 
 impl LaidoutText {
     fn no_context() -> Self {
-        panic!("no `LaidoutText` in context, only available inside `layout_text` during layout and render")
+        panic!("no `LaidoutText` in context, only available inside `layout_text`")
     }
 }
 
