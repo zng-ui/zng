@@ -632,6 +632,15 @@ pub enum UndoOp {
     /// Redo the action.
     Redo,
 }
+impl UndoOp {
+    /// Gets the command that represents the OP.
+    pub fn cmd(self) -> Command {
+        match self {
+            UndoOp::Undo => UNDO_CMD,
+            UndoOp::Redo => REDO_CMD,
+        }
+    }
+}
 
 /// Represents a full closure implementation of undo/redo action.
 pub enum UndoFullOp<'r> {

@@ -10,7 +10,7 @@ use zero_ui::{
     color::{color_scheme_map, filter::opacity},
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     font::{FontName, FontNames},
-    gesture::{click_shortcut, is_hovered, ClickArgs},
+    gesture::{click_shortcut, is_hovered},
     icon::{self, Icon},
     label::{self, Label},
     layout::{align, margin, padding, Dip},
@@ -19,7 +19,7 @@ use zero_ui::{
     scroll::ScrollMode,
     text::{font_family, font_weight, UnderlinePosition, UnderlineSkip},
     text_input,
-    undo::{self, REDO_CMD, UNDO_CMD},
+    undo::UNDO_CMD,
     var::ArcVar,
     widget::{background_color, corner_radius, enabled, visibility, LineStyle, Visibility},
     window::{native_dialog, WindowRoot},
@@ -447,6 +447,42 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let gt_700 = menu_width.map(|&w| Visibility::from(w > Dip::new(700)));
     let gt_600 = menu_width.map(|&w| Visibility::from(w > Dip::new(600)));
     let gt_500 = menu_width.map(|&w| Visibility::from(w > Dip::new(500)));
+
+    let clipboard_btn = clmv!(gt_600, |cmd: zero_ui::event::Command| {
+        let cmd = cmd.focus_scoped();
+        Button! {
+            child = widget::node::presenter((), cmd.flat_map(|c| c.icon()));
+            child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
+            tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+            visibility = true;
+            cmd;
+        }
+    });
+
+    let undo_combo = clmv!(gt_700, |op: zero_ui::undo::UndoOp| {
+        let cmd = op.cmd().undo_scoped();
+
+        Toggle! {
+            style_fn = toggle::ComboStyle!();
+
+            widget::enabled = cmd.flat_map(|c| c.is_enabled());
+
+            child = Button! {
+                child = widget::node::presenter((), cmd.flat_map(|c| c.icon()));
+                child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
+                tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
+                on_click = hn!(|a: &gesture::ClickArgs| {
+                    a.propagation().stop();
+                    cmd.get().notify();
+                });
+            };
+
+            checked_popup = wgt_fn!(|_| popup::Popup! {
+                child = zero_ui::undo::history::UndoHistory!(op);
+            });
+        }
+    });
+
     Stack! {
         id = "menu";
         align = Align::FILL_TOP;
@@ -508,84 +544,12 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             rule_line::vr::Vr!(),
-            {
-                let cmd = CUT_CMD.focus_scoped();
-                Button! {
-                    child = Icon!(icon::material_sharp::CUT);
-                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
-                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    visibility = true;
-                    cmd;
-                }
-            },
-            {
-                let cmd = COPY_CMD.focus_scoped();
-                Button! {
-                    child = Icon!(icon::material_sharp::COPY);
-                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
-                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    visibility = true;
-                    cmd;
-                }
-            },
-            {
-                let cmd = PASTE_CMD.focus_scoped();
-                Button! {
-                    child = Icon!(icon::material_sharp::PASTE);
-                    child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600), 4;
-                    tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-                    visibility = true;
-                    cmd;
-                }
-            },
+            clipboard_btn(CUT_CMD),
+            clipboard_btn(COPY_CMD),
+            clipboard_btn(PASTE_CMD),
             rule_line::vr::Vr!(),
-            {
-                let cmd = UNDO_CMD.undo_scoped();
-                Toggle! {
-                    id = "undo-Toggle";
-                    style_fn = toggle::ComboStyle!();
-
-                    enabled = cmd.flat_map(|c| c.is_enabled());
-
-                    child = Button! {
-                        child = Icon!(icon::material_sharp::UNDO);
-                        child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
-                        tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-
-                        on_click = hn!(|a: &ClickArgs| {
-                            a.propagation().stop();
-                            cmd.get().notify();
-                        });
-                    };
-
-                    checked_popup = wgt_fn!(|_| popup::Popup! {
-                        child = undo::history::UndoHistory!();
-                    });
-                }
-            },
-            {
-                let cmd = REDO_CMD.undo_scoped();
-                Toggle! {
-                    style_fn = toggle::ComboStyle!();
-
-                    enabled = cmd.flat_map(|c| c.is_enabled());
-
-                    child = Button! {
-                        child = Icon!(icon::material_sharp::REDO);
-                        child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
-                        tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
-
-                        on_click = hn!(|a: &ClickArgs| {
-                            a.propagation().stop();
-                            cmd.get().notify();
-                        });
-                    };
-
-                    checked_popup = wgt_fn!(|_| popup::Popup! {
-                        child = undo::history::UndoHistory!(zero_ui::undo::UndoOp::Redo);
-                    });
-                }
-            },
+            undo_combo(zero_ui::undo::UndoOp::Undo),
+            undo_combo(zero_ui::undo::UndoOp::Redo),
         ]
     }
 }
