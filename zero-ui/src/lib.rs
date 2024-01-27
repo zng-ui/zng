@@ -506,6 +506,10 @@ impl std::ops::Deref for APP {
 ///
 /// See also [`prelude_wgt`] for declaring new widgets and properties.
 pub mod prelude {
+    #[doc(no_inline)]
+    pub use crate::__prelude::*;
+}
+mod __prelude {
     pub use crate::APP;
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
 
@@ -664,6 +668,10 @@ pub mod prelude {
 /// }
 /// ```
 pub mod prelude_wgt {
+    #[doc(no_inline)]
+    pub use crate::__prelude_wgt::*;
+}
+mod __prelude_wgt {
     pub use zero_ui_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam,

@@ -26,7 +26,7 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 /// the usual *text box* capabilities, keyboard controlled editing of short text in a single style, mouse
 /// selecting and caret positioning.
 ///
-/// You can also use the [`text::commands`] to edit the text.
+/// You can also use the `text::cmd` to edit the text.
 ///
 /// # Undo/Redo
 ///
