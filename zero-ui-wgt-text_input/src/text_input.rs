@@ -280,7 +280,7 @@ impl FieldStyle {
                 WidgetFn::nil()
             });
 
-            margin = (0, 0, 1.em(), 0);
+            margin = (0, 0, 1.2.em(), 0);
         }
     }
 }
