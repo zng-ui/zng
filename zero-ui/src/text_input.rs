@@ -1,8 +1,8 @@
 //! Text input widget and properties.
-//! 
+//!
 //! The [`TextInput!`](struct@TextInput) widget is an text or value editor that is styleable.
-//! 
-//! 
+//!
+//!
 //!
 //! # Full API
 //!

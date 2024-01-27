@@ -201,12 +201,23 @@
             let url = e.querySelector('a').href;
             let place = e.nextElementSibling;
             try {
-                page = await fetch(url);
+                page = await fetch(url, { redirect: 'follow' });
                 if (!page.ok) {
                     throw page.statusText;
                 }
                 var parser = new DOMParser();
                 page = parser.parseFromString(await page.text(), 'text/html');
+
+                let refresh = page.head.querySelector("meta[http-equiv='refresh']");
+                if (refresh != null && refresh.content.startsWith('0;URL=')) {
+                    let url = refresh.content.replace('0;URL=', '');
+                    page = await fetch(url, { redirect: 'follow' });
+                    if (!page.ok) {
+                        throw page.statusText;
+                    }
+                    var parser = new DOMParser();
+                    page = parser.parseFromString(await page.text(), 'text/html');
+                }
 
                 let baseEl = page.createElement('base');
                 baseEl.setAttribute('href', url);
