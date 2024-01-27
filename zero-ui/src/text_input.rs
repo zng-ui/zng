@@ -1,13 +1,13 @@
 //! Text input widget and properties.
 //!
 //! The [`TextInput!`](struct@TextInput) widget is an text or parsed value editor that is styleable.
-//! 
+//!
 //! The example below defines 3 text inputs with the [`FieldStyle!`](struct@FieldStyle).
 //!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! # let _ =
 //! Stack! {
 //!     zero_ui::text_input::style_fn = style_fn!(|_| zero_ui::text_input::FieldStyle!());
@@ -31,10 +31,10 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! The first input binds directly to a `Txt` read-write variable. The second field binds to an `u32` read-write variable using the
-//! [`txt_parse`](struct@TextInput#txt_parse) property. The third field obscures the text. The `FieldStyle!` adds data validation 
-//! adorners to the `TextInput!`, in the first field a char count is shown, in the second field the [`field_help`](fn@field_help) 
+//! [`txt_parse`](struct@TextInput#txt_parse) property. The third field obscures the text. The `FieldStyle!` adds data validation
+//! adorners to the `TextInput!`, in the first field a char count is shown, in the second field the [`field_help`](fn@field_help)
 //! or parse errors are shown.
 //!
 //! # Full API
