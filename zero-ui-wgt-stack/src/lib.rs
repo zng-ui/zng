@@ -330,7 +330,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
 fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirection, spacing: Length, children_align: Align) -> PxSize {
     let metrics = LAYOUT.metrics();
     let constraints = metrics.constraints();
-    let child_align = direction.filter_align(children_align);
+    let child_align = direction.filter_align(children_align); // direction.scale_align(children_align); // !!: TODO
 
     let spacing = layout_spacing(&metrics, &direction, spacing);
     let max_size = child_max_size(&mut wl.to_measure(None), children, child_align);
@@ -393,11 +393,11 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     );
 
     // final position, align child inside item_bounds and item_bounds in the panel area.
-    let child_align = child_align.xy(LAYOUT.direction());
     let items_size = item_bounds.size();
     let panel_size = constraints.fill_size_or(items_size);
     let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
     let align_baseline = children_align.is_baseline();
+    let child_align = child_align.xy(LAYOUT.direction());
 
     children.for_each(|_, c, o| {
         if let Some((size, baseline)) = c.with_context(WidgetUpdateMode::Ignore, || {

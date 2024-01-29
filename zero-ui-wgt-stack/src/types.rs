@@ -212,6 +212,10 @@ impl StackDirection {
         align
     }
 
+    pub fn scale_align(&self, align: Align) -> Align {
+        align * self.direction_factor(LayoutDirection::LTR).abs().yx()
+    }
+
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
     /// [`layout`]: Self::layout

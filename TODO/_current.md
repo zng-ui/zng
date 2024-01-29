@@ -1,4 +1,6 @@
-* When transitioning directions `children_align` center only aligns after the transition has ended.
+* Direction right-to-left and bottom-to-top applies counter spacing.
+    - direction_factor is never negative?
+* Review align transition (should only apply in a direction that is >45º to avoid bounce).
 
 # Documentation
 

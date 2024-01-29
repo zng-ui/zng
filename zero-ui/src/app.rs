@@ -285,7 +285,7 @@
 //! 4. Does a [view events loop](#view-events-loop).
 //! 4. Does an [updates loop](#updates-loop).
 //! 5. Does an [update events loop](#update-events-loop).
-//! 6. If the view-process is not busy does a [layout and render loop](#layout-and-render-loop).
+//! 6. If the view-process is not busy does a [layout loop and render](#layout-loop-and-render).
 //! 7. If exit was requested and not cancelled breaks the loop.
 //!     * Exit is requested automatically when the last open window closes, this is controlled by [`WINDOWS.exit_on_last_close`].
 //!     * Exit can also be requested using [`APP.exit`].
@@ -324,7 +324,7 @@
 //!         * Windows and widgets that requested update receive it here.
 //!         * All the pending updates are processed in one pass, all targeted widgets are visited once, in parallel by default.
 //!     6. Calls [`AppExtension::update`] if any update was requested.
-//!     7 . Calls [`UPDATES.on_update`] handlers if needed.
+//!     7. Calls [`UPDATES.on_update`] handlers if needed.
 //! 3. The loop repeats immediately if any info rebuild or update was requested by update callbacks.
 //!     * The loops breaks if it repeats over 1000 times.
 //!     * An error is logged with a trace the most frequent sources of update requests.
@@ -337,14 +337,14 @@
 //! 2. Var hooks are called.
 //!     * The mapping and binding mechanism is implemented using hooks.
 //! 3. The loop repeats until hooks have stopped modifying variables.
-//!     * The loop breaks if it repeats over 100 times.
+//!     * The loop breaks if it repeats over 1000 times.
 //!     * An error is logged if this happens.
 //!
-//! #### Updates Events Loop
+//! #### Update Events Loop
 //!
-//! The updates event loop notifies each event raised by the app code during previous updates.
+//! The update events loop notifies each event raised by the app code during previous updates.
 //!
-//! 1. For each event in by the request order (FIFO).
+//! 1. For each event in the request order (FIFO).
 //!     1. Calls [`AppExtension::event_preview`].
 //!     2. Calls [`Event::on_pre_event`] handlers.
 //!     3. Calls [`AppExtension::event_ui`].

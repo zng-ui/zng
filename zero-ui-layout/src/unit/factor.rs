@@ -81,6 +81,18 @@ impl Factor2d {
     pub fn is_uniform(self) -> bool {
         self.x == self.y
     }
+
+    /// Computes the absolute value of x and y.
+    pub fn abs(mut self) -> Self {
+        self.x = self.x.abs();
+        self.y = self.y.abs();
+        self
+    }
+
+    /// Swap x and y.
+    pub fn yx(self) -> Self {
+        Self::new(self.y, self.x)
+    }
 }
 impl fmt::Display for Factor2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
