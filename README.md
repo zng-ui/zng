@@ -42,7 +42,7 @@ fn main() {
 }
 ```
 
-See the [`API docs`] front page for more details.
+See the [`API docs`] for more details.
 
 ## Cargo Features
 

@@ -3,22 +3,23 @@
 //! # Runtime
 //!
 //! A typical app instance has two processes, the initial process called the *app-process*, and a second process called the
-//! *view-process*. The app-process implements the event loop and updates, the view-process is a platform agnostic GUI and
-//! renderer, the app-process controls the view-process, most of the time app implementers don't need to worry about, except
+//! *view-process*. The app-process implements the event loop and updates, the view-process implements the platform integration and
+//! renderer, the app-process controls the view-process, most of the time app implementers don't interact directly with it, except
 //! at the start where the view-process is spawned.
 //!
-//! This dual process architecture is done mostly for resilience, the unsafe interactions with the operating system and
+//! The reason for this dual process architecture is mostly for resilience, the unsafe interactions with the operating system and
 //! graphics driver are isolated in a different process, in case of crashes the view-process is respawned automatically and
-//! all windows are recreated.
+//! all windows are recreated. It is possible to run the app in a single process, in this case the view runs in the main thread
+//! and the app main loop in another.
 //!
-//! ## Spawn View
+//! ## View-Process
 //!
 //! To simplify distribution the view-process is an instance of the same app executable, the view-process crate provides
-//! and `init` function that either spawns the view-process or becomes the view-process never returning.
+//! and `init` function that does nothing the process is not the view-process or takes over execution if it is, never returning.
 //!
-//! On the first instance of the app executable the `init` function spawns another instance marked to
-//! become the view-process, on this second instance the init function never returns, for this reason the function
-//! must be called early in main.
+//! On the first instance of the app executable the `init` function does nothing, the app init spawns a second process marked as
+//! the view-process, on this second instance the init function never returns, for this reason the function
+//! must be called early in main, all code before the `init` call runs in both the app and view processes.
 //!
 //! ```toml
 //! [dependencies]
@@ -253,10 +254,138 @@
 //! requests from parallel tasks you can also process requests in the [`AppExtension::update`] instead, but there is probably
 //! little practical difference.
 //!
+//! # Init & Main Loop
+//!
+//! A headed app initializes in this sequence:
+//!
+//! 1. [`AppExtension::register`] is called.
+//! 2. [`AppExtension::enable_device_events`] is queried.
+//! 3. Spawn view-process.
+//! 4. [`AppExtension::init`] is called.
+//! 5. Schedule the app run future to run in the first preview update.
+//! 6. Does [updates loop](#updates-loop).
+//! 7. Does [update events loop](#update-events-loop).
+//! 6. Does [main loop](#main-loop).
+//!
+//! #### Main Loop
+//!
+//! The main loop coordinates view-process events, timers, app events and updates. There is no scheduler, update and event requests
+//! are captured and coalesced to various buffers that are drained in known sequential order. App extensions update one at a time
+//! in the order they are registered. Windows and widgets update in parallel by default, this is controlled by [`WINDOWS.parallel`] and [`parallel`].
+//!
+//! 1. Sleep if there are not pending events or updates.
+//!    * If the view-process is busy blocks until it sends a message, this is a mechanism to stop the app-process
+//!       from overwhelming the view-process.
+//!    * Block until a message is received, from the view-process or from other app threads.
+//!    * If there are [`TIMERS`] or [`VARS`] animations the message block has a deadline to the nearest timer or animation frame.
+//!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], it is 60 frames-per-second by default.
+//! 2. Calls elapsed timer handlers.
+//! 3. Calls elapsed animation handlers.
+//!     * These handlers mostly just request var updates are applied in the updates loop.
+//! 4. Does a [view events loop](#view-events-loop).
+//! 4. Does an [updates loop](#updates-loop).
+//! 5. Does an [update events loop](#update-events-loop).
+//! 6. If the view-process is not busy does a [layout and render loop](#layout-and-render-loop).
+//! 7. If exit was requested and not cancelled breaks the loop.
+//!     * Exit is requested automatically when the last open window closes, this is controlled by [`WINDOWS.exit_on_last_close`].
+//!     * Exit can also be requested using [`APP.exit`].
+//!
+//! #### View Events Loop
+//!
+//! All pending events send by the view-process are coalesced and notify sequentially.
+//!
+//! 1. For each event in the received order (FIFO) that converts to a RAW event.
+//!     1. Calls [`AppExtension::event_preview`].
+//!     2. Calls [`Event::on_pre_event`] handlers.
+//!     3. Calls [`AppExtension::event_ui`].
+//!         * Raw events don't target any widget, but widgets can subscribe, subscribers receive the event in parallel by default.
+//!     4. Calls [`AppExtension::event`].
+//!     5. Calls [`Event::on_event`] handlers.
+//!     6. Does an [updates loop](#updates-loop).
+//! 2. Frame rendered raw event.
+//!     * Same notification sequence as other view-events, just delayed.
+//!
+//! #### Updates Loop
+//!
+//! The updates loop rebuilds info trees if needed , applies pending variable updates and hooks and collects event updates
+//! requested by the app.
+//!
+//! 1. Takes info rebuild request flag.
+//!     * Calls [`AppExtension::info`] if needed.
+//!     * Windows and widgets that requested info (re)build are called.
+//!     * Info rebuild happens in parallel by default.
+//! 2. Takes events and updates requests.
+//!     1. Event hooks are called for new event requests.
+//!         * Full event notification is delayed to after the updates loop.
+//!     2. [var updates loop](#var-updates-loop)
+//!     3. Calls [`AppExtension::update_preview`] if any update was requested.
+//!     4. Calls [`UPDATES.on_pre_update`] handlers if needed.
+//!     5. Calls [`AppExtension::update_ui`] if any update was requested.
+//!         * Windows and widgets that requested update receive it here.
+//!         * All the pending updates are processed in one pass, all targeted widgets are visited once, in parallel by default.
+//!     6. Calls [`AppExtension::update`] if any update was requested.
+//!     7 . Calls [`UPDATES.on_update`] handlers if needed.
+//! 3. The loop repeats immediately if any info rebuild or update was requested by update callbacks.
+//!     * The loops breaks if it repeats over 1000 times.
+//!     * An error is logged with a trace the most frequent sources of update requests.
+//!
+//! #### Var Updates Loop
+//!
+//! The variable updates loop applies pending modifications, calls hooks to update variable and bindings.
+//!
+//! 1. Pending variable modifications are applied.
+//! 2. Var hooks are called.
+//!     * The mapping and binding mechanism is implemented using hooks.
+//! 3. The loop repeats until hooks have stopped modifying variables.
+//!     * The loop breaks if it repeats over 100 times.
+//!     * An error is logged if this happens.
+//!
+//! #### Updates Events Loop
+//!
+//! The updates event loop notifies each event raised by the app code during previous updates.
+//!
+//! 1. For each event in by the request order (FIFO).
+//!     1. Calls [`AppExtension::event_preview`].
+//!     2. Calls [`Event::on_pre_event`] handlers.
+//!     3. Calls [`AppExtension::event_ui`].
+//!         * Windows and widgets targeted by the event update receive it here.
+//!         * If the event targets multiple widgets they receive it in parallel by default.
+//!     4. Calls [`AppExtension::event`].
+//!     5. Calls [`Event::on_event`] handlers.
+//!     6. Does an [updates loop](#updates-loop).
+//!
+//! #### Layout Loop and Render
+//!
+//! Layout and render requests are coalesced, multiple layout requests for the same widget update it once, multiple
+//! render requests become one frame, and if both render and render_update are requested for a window it will fully render.
+//!
+//! 1. Take layout and render requests.
+//! 2. Layout loop.
+//!     1. Calls [`AppExtension::layout`].
+//!         * Windows and widgets that requested layout update in parallel by default.
+//!     2. Does an [updates loop](#updates-loop).
+//!     3. Take layout and render requests, the loop repeats immediately if layout was requested again.
+//!         * The loop breaks if it repeats over 1000 times.
+//!         * An error is logged with a trace the most frequent sources of update requests.
+//! 3. If render was requested, calls [`AppExtension::render`].
+//!     * Windows and widgets that requested render (or render_update) do know in parallel by default.
+//!     * The render pass updates widget transforms and hit-test, generates a display list and sends it to the view-process.
+//!
 //! [`APP.defaults()`]: crate::APP::defaults
 //! [`UPDATES.update`]: crate::update::UPDATES::update
 //! [`task`]: crate::task
 //! [`ResponseVar<R>`]: crate::var::ResponseVar
+//! [`TIMERS`]: crate::timer::TIMERS
+//! [`VARS`]: crate::var::VARS
+//! [`VARS.frame_duration`]: crate::var::VARS::frame_duration
+//! [`WINDOWS.parallel`]: crate::window::WINDOWS::parallel
+//! [`parallel`]: fn@crate::widget::parallel
+//! [`UPDATES.on_pre_update`]: crate::update::UPDATES::on_pre_update
+//! [`UPDATES.on_update`]: crate::update::UPDATES::on_update
+//! [`Event::on_pre_event`]: crate::event::Event::on_pre_event
+//! [`Event::on_event`]: crate::event::Event::on_event
+//! [`WINDOWS.exit_on_last_close`]: crate::window::WINDOWS::exit_on_last_close
+//! [`APP.exit`]: crate::APP#method.exit
 //!
 //! # Full API
 //!
