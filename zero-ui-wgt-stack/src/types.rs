@@ -188,9 +188,8 @@ impl StackDirection {
         let metrics = LayoutMetrics::new(1.fct(), size, Px(1000)).with_direction(direction);
         let p = LAYOUT.with_context(metrics, || self.layout(PxRect::from_size(size), size));
 
-        pub(crate) fn v(px: Px) -> Factor {
-            let spacing = px.0 as f32 / 1000.0;
-            if px < Px(0) { -spacing } else { spacing }.fct()
+        fn v(px: Px) -> Factor {
+            (px.0 as f32 / 1000.0).fct()
         }
         (v(p.x), v(p.y)).into()
     }
