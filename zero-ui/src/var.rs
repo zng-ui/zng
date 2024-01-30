@@ -168,8 +168,8 @@
 //! }
 //! # ;
 //! ```
-//! 
-//! Note that unlike a map the initial value of the output variable is not updated, only subsequent ones. You can use 
+//!
+//! Note that unlike a map the initial value of the output variable is not updated, only subsequent ones. You can use
 //! [`set_from`](Var::set_from) to update the initial value too.
 //!
 //! # Animating
@@ -177,9 +177,29 @@
 //! Animation is implemented using variables, at the lowest level [`VARS.animate`](VARS::animate) is used to register a closure to be
 //! called every frame, the closure can set any number of variables, at a higher level the [`Var::ease`] and [`Var::chase`] methods
 //! can be used to animate the value of a variable.
-//! 
-//! The example below uses [`Var::easing`] to animate !!: TODO
-//! 
+//!
+//! The example below uses [`Var::easing`] to animate the window background:
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! let color = var(colors::AZURE.darken(30.pct()));
+//! # let _ =
+//! Window! {
+//!     widget::background_color = color.easing(500.ms(), easing::linear);
+//!     child = Button! {
+//!         layout::align = layout::Align::TOP;
+//!         on_click = hn!(|_|{
+//!             let mut c = color.get().to_hsla();
+//!             c.hue += 60.0;
+//!             color.set(c);
+//!         });
+//!         child = Text!("Change background color");
+//!     }
+//! }
+//! # ;
+//! ```
+//!
 //! Variables can only be operated by a single animation, when a newer animation or modify affects a variable older animations can no longer
 //! affect it, see [`VARS.animate`](VARS::animate) for more details.
 //!

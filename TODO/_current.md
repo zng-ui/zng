@@ -1,5 +1,3 @@
-* After test try to reuse image sources again (in animation example).
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
