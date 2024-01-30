@@ -79,10 +79,14 @@
 //! # ;
 //! ```
 //!
-//! The example above demonstrates the delayed update of a variable. If multiple widgets set the same variable on the same update only
+//! The example above demonstrates the delayed update of a variable.
+//!
+//! If multiple widgets set the same variable on the same update only
 //! the last value set will be used, widgets update in parallel by default so it is difficult to predict who is the last. The [`modify`](Var::modify)
 //! method can be used register a closure that can modify the value, this closure will observe the partially updated value that may already be
 //! modified by other widgets.
+//!
+//! The example below demonstrates how the `modify` closure observes a value that was just set in the same update cycle.
 //!
 //! ```
 //! use zero_ui::prelude::*;
@@ -111,15 +115,73 @@
 //!
 //! # Mapping
 //!
-//! !!:
+//! Variables can be mapped to other types, when the source variable updates the mapping closure re-evaluates and the mapped variable
+//! updates, all in the same update cycle, that is both variable will be flagged new at the same time. Mapping can also be bidirectional.
+//!
+//! The example below demonstrates a button that updates an integer variable that is mapped to a text.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! let count = var(0u32);
+//! # let _ =
+//! Button! {
+//!     child = Text!(count.map(|i| match i {
+//!         0 => Txt::from("Click Me!"),
+//!         1 => Txt::from("Clicked 1 time!"),
+//!         n => formatx!("Clicked {n} times!"),
+//!     }));
+//!     on_click = hn!(|_| {
+//!         count.set(count.get() + 1);
+//!     });
+//! }
+//! # ;
+//! ```
+//!
+//! Variable mapping is specialized for each variable type, a `LocalVar<T>` will just map once and return another `LocalVar<T>`
+//! for example, the `ArcVar<T>` on the example creates a new variable and a mapping binding.
 //!
 //! # Binding
 //!
-//! !!:
+//! Two existing variables can be bound, such that one variable update sets the other. The example below rewrites the mapping
+//! demo to use a [`bind_map`](Var::bind_map) instead.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! let count = var(0u32);
+//! let label = var(Txt::from("Click Me!"));
+//! count
+//!     .bind_map(&label, |i| match i {
+//!         1 => Txt::from("Clicked 1 time!"),
+//!         n => formatx!("Clicked {n} times!"),
+//!     })
+//!     .perm();
+//! # let _ =
+//! Button! {
+//!     child = Text!(label);
+//!     on_click = hn!(|_| {
+//!         count.set(count.get() + 1);
+//!     });
+//! }
+//! # ;
+//! ```
+//! 
+//! Note that unlike a map the initial value of the output variable is not updated, only subsequent ones. You can use 
+//! [`set_from`](Var::set_from) to update the initial value too.
 //!
 //! # Animating
 //!
-//! !!:
+//! Animation is implemented using variables, at the lowest level [`VARS.animate`](VARS::animate) is used to register a closure to be
+//! called every frame, the closure can set any number of variables, at a higher level the [`Var::ease`] and [`Var::chase`] methods
+//! can be used to animate the value of a variable.
+//! 
+//! The example below uses [`Var::easing`] to animate !!: TODO
+//! 
+//! Variables can only be operated by a single animation, when a newer animation or modify affects a variable older animations can no longer
+//! affect it, see [`VARS.animate`](VARS::animate) for more details.
 //!
 //! # Response
 //!
