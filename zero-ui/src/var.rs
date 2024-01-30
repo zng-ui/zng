@@ -34,15 +34,15 @@
 //! # Share & Modify
 //!
 //! The [`ArcVar<T>`] variable represents a shared value that can be modified, the [`var`] function instantiates it.
-//! 
+//!
 //! The example below declares a button that grows taller every click. The variable is shared between the height property
 //! and the click handler. On click the height is increased, this schedules an update that applies the new value and notifies
 //! all subscribers.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! let height = var(2.em());
 //! # let _ =
 //! Button! {
@@ -55,14 +55,14 @@
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! Note that variable updates don't happen immediately, in the handler above the variable is still the previous value after the [`set`](Var::set) call,
 //! this is done so that all widgets in a single update react to the same value. The variable values is updated at the end of the current update.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! let number = var(0u8);
 //! # let _ =
 //! Button! {
@@ -71,47 +71,47 @@
 //!         assert_eq!(number.get(), 0);
 //!         number.set(1);
 //!         assert_eq!(number.get(), 0);
-//! 
+//!
 //!         task::yield_now().await;
 //!         assert_eq!(number.get(), 1);
 //!     });
 //! }
 //! # ;
 //! ```
-//! 
+//!
 //! The example above demonstrates the delayed update of a variable. If multiple widgets set the same variable on the same update only
 //! the last value set will be used, widgets update in parallel by default so it is difficult to predict who is the last. The [`modify`](Var::modify)
 //! method can be used register a closure that can modify the value, this closure will observe the partially updated value that may already be
 //! modified by other widgets.
-//! 
+//!
 //! ```
 //! !!: TODO
 //! ```
-//! 
+//!
 //! # Mapping
-//! 
+//!
 //! !!:
-//! 
+//!
 //! # Binding
-//! 
+//!
 //! !!:
-//! 
+//!
 //! # Animating
-//! 
+//!
 //! !!:
-//! 
+//!
 //! # Response
-//! 
+//!
 //! !!:
-//! 
+//!
 //! # Contextual
-//! 
+//!
 //! !!:
-//! 
+//!
 //! # Merge
 //!
 //! !!:
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_var`] for the full var API.

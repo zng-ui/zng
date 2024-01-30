@@ -182,7 +182,7 @@ impl StackDirection {
 
     /// Factor that defines the proportional direction.
     ///
-    /// Values are in the range of `-1.0..1.0`.
+    /// Values are in the range of `-1.0..=1.0`.
     pub fn direction_factor(&self, direction: LayoutDirection) -> Factor2d {
         let size = PxSize::new(Px(1000), Px(1000));
         let metrics = LayoutMetrics::new(1.fct(), size, Px(1000)).with_direction(direction);
@@ -194,25 +194,19 @@ impl StackDirection {
         (v(p.x), v(p.y)).into()
     }
 
-    /// Filter `align` to the align operations needed to complement the stack direction.
+    /// Scale proportional to how one dimensional the direction is.
     ///
-    /// Alignment only operates in dimensions that have no movement.
-    pub fn filter_align(&self, mut align: Align) -> Align {
-        let d = self.direction_factor(LayoutDirection::LTR);
-
-        if d.x != 0.fct() {
-            align.x = 0.fct();
-            align.x_rtl_aware = false;
+    /// Values are in the `0.0..=1.0` range where 0 is 20º or more from a single direction and 1 is 0º or 90º.
+    pub fn direction_scale(&self) -> Factor2d {
+        let scale = self.direction_factor(LayoutDirection::LTR).abs().yx();
+        let angle = scale.y.0.atan2(scale.x.0).to_degrees();
+        if angle <= 20.0 {
+            Factor2d::new(1.0 - angle / 20.0, 0.0)
+        } else if angle >= 70.0 {
+            Factor2d::new(0.0, (angle - 70.0) / 20.0)
+        } else {
+            Factor2d::new(0.0, 0.0)
         }
-        if d.y != 0.fct() {
-            align.y = 0.fct();
-        }
-
-        align
-    }
-
-    pub fn scale_align(&self, align: Align) -> Align {
-        align * self.direction_factor(LayoutDirection::LTR).abs().yx()
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].

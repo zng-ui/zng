@@ -1,4 +1,6 @@
-* Review align transition (should only apply in a direction that is >45º to avoid bounce).
+* try to implement transition between `Align::FILL` and others.
+    - Maybe define fill as any value over a large number.
+    - Then encode transition states in this space.
 
 # Documentation
 
