@@ -10,7 +10,7 @@ use zero_ui::{
     var::{
         animation::{
             self,
-            easing::{EasingStep, EasingTime},
+            easing::{EasingFn, EasingTime},
         },
         ArcVar, VARS,
     },
@@ -59,8 +59,7 @@ fn example() -> impl UiNode {
     // })
     // .perm();
 
-    use easing::EasingModifierFn::*;
-    let easing_mod = var(EaseOut);
+    let easing_mod = var(Txt::from("ease_out"));
 
     Stack! {
         direction = StackDirection::top_to_bottom();
@@ -92,17 +91,17 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
-                    let mode = |m: easing::EasingModifierFn| Toggle! {
-                        child = Text!(m.to_txt());
-                        value = m;
+                    let mode = |m: Txt| Toggle! {
+                        child = Text!(m.clone());
+                        value::<Txt> = m;
                     };
                     ui_vec![
-                        mode(EaseIn),
-                        mode(EaseOut),
-                        mode(EaseInOut),
-                        mode(EaseOutIn),
-                        mode(Reverse),
-                        mode(ReverseOut),
+                        mode(Txt::from("ease_in")),
+                        mode(Txt::from("ease_out")),
+                        mode(Txt::from("ease_in_out")),
+                        mode(Txt::from("ease_out_in")),
+                        mode(Txt::from("reverse")),
+                        mode(Txt::from("reverse_out")),
                     ]
                 }
             },
@@ -113,20 +112,20 @@ fn example() -> impl UiNode {
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                 button::style_fn = Style! { layout::padding = 3 };
                 cells = ui_vec![
-                    ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
-                    ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
-                    ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),
-                    ease_btn(&x, &color, "quart", easing::quart, &easing_mod),
-                    ease_btn(&x, &color, "quint", easing::quint, &easing_mod),
-                    ease_btn(&x, &color, "sine", easing::sine, &easing_mod),
-                    ease_btn(&x, &color, "expo", easing::expo, &easing_mod),
-                    ease_btn(&x, &color, "circ", easing::circ, &easing_mod),
-                    ease_btn(&x, &color, "back", easing::back, &easing_mod),
-                    ease_btn(&x, &color, "elastic", easing::elastic, &easing_mod),
-                    ease_btn(&x, &color, "bounce", easing::bounce, &easing_mod),
-                    ease_btn(&x, &color, "step_ceil(6)", |t| easing::step_ceil(6, t), &easing_mod),
-                    ease_btn(&x, &color, "step_floor(6)", |t| easing::step_floor(6, t), &easing_mod),
-                    ease_btn(&x, &color, "none", easing::none, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Linear, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Quad, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Cubic, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Quart, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Quint, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Sine, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Expo, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Circ, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Back, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Elastic, &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::Bounce, &easing_mod),
+                    ease_btn(&x, &color, "step_ceil(6)", EasingFn::custom(|t| easing::step_ceil(6, t)), &easing_mod),
+                    ease_btn(&x, &color, "step_floor(6)", EasingFn::custom(|t| easing::step_floor(6, t)), &easing_mod),
+                    ease_btn(&x, &color, "", EasingFn::None, &easing_mod),
                 ]
             },
             Button! {
@@ -146,22 +145,17 @@ fn example() -> impl UiNode {
     }
 }
 
-fn ease_btn(
-    l: &ArcVar<Length>,
-    color: &ArcVar<Rgba>,
-    name: impl Into<Txt>,
-    easing: impl Fn(EasingTime) -> EasingStep + Copy + Send + Sync + 'static,
-    easing_mod: &ArcVar<easing::EasingModifierFn>,
-) -> impl UiNode {
-    let in_plot = plot(easing);
-    let out_plot = plot(move |t| easing::ease_out(easing, t));
-    let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
-    let out_in_plot = plot(move |t| easing::ease_out_in(easing, t));
-    let reverse_plot = plot(move |t| easing::reverse(easing, t));
-    let reverse_out_plot = plot(move |t| easing::reverse_out(easing, t));
-
-    use easing::EasingModifierFn::*;
-
+fn ease_btn(l: &ArcVar<Length>, color: &ArcVar<Rgba>, name: &'static str, easing: EasingFn, easing_mod: &ArcVar<Txt>) -> impl UiNode {
+    let name = if name.is_empty() { formatx!("{easing:?}") } else { name.to_txt() };
+    let easing = easing_mod.map(clmv!(easing, |m| match m.as_str() {
+        "ease_in" => easing.clone(),
+        "ease_out" => easing.clone().ease_out(),
+        "ease_in_out" => easing.clone().ease_in_out(),
+        "ease_out_in" => easing.clone().ease_out_in(),
+        "reverse" => easing.clone().reverse(),
+        "reverse_out" => easing.clone().reverse_out(),
+        _ => unreachable!(),
+    }));
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         child = Stack! {
@@ -169,31 +163,25 @@ fn ease_btn(
             spacing = 2;
             children_align = Align::TOP;
             children = ui_vec![
-                Text!(name.into()),
+                Text!(name),
                 Image! {
                     img_scale_ppi = true;
                     img_loading_fn = wgt_fn!(|_| Wgt! {
                         size = (64, 64);
                         margin = 10;
                     });
-                    source = easing_mod.map(move |m| match m {
-                        EaseIn => in_plot.clone(),
-                        EaseOut => out_plot.clone(),
-                        EaseInOut => in_out_plot.clone(),
-                        EaseOutIn => out_in_plot.clone(),
-                        Reverse => reverse_plot.clone(),
-                        ReverseOut => reverse_out_plot.clone(),
-                    });
+                    source = easing.map(|f| plot(f.clone()));
+                    img_cache = false;
                 },
             ]
         };
-        on_click = hn!(l, color, easing_mod, |_| {
-            l.set_ease(0, 300, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
-            color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
+        on_click = hn!(l, color, |_| {
+            l.set_ease(0, 300, 1.secs(), easing.get().ease_fn()).perm();
+            color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), easing.get().ease_fn()).perm();
         });
     }
 }
-fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> ImageSource {
+fn plot(easing: EasingFn) -> ImageSource {
     let size = (64, 64);
     ImageSource::render_node(
         RenderMode::Software,

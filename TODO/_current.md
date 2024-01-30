@@ -1,3 +1,6 @@
+* Review image caching in animation example.
+    - Memory is growing after multiple changes between modifiers.
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

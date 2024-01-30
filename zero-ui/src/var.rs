@@ -85,7 +85,28 @@
 //! modified by other widgets.
 //!
 //! ```
-//! !!: TODO
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! # let _ =
+//! let foo = var(0u8);
+//! Wgt! {
+//!     widget::on_init = async_hn!(foo, |_| {
+//!         foo.set(1);
+//!         assert_eq!(0, foo.get());
+//!         foo.modify(|m| {
+//!             assert_eq!(1, **m);
+//!             *m.to_mut() = 2;
+//!         });
+//!         assert_eq!(0, foo.get());
+//!
+//!         foo.wait_update().await;
+//!         assert_eq!(2, foo.get());
+//!
+//!         println!("test ok");
+//!     });
+//! }
+//! # ;
 //! ```
 //!
 //! # Mapping
@@ -141,7 +162,7 @@ pub mod animation {
     pub mod easing {
         pub use zero_ui_var::animation::easing::{
             back, bounce, circ, cubic, cubic_bezier, ease_in, ease_in_out, ease_out, ease_out_in, elastic, expo, linear, none, quad, quart,
-            quint, reverse, reverse_out, sine, step_ceil, step_floor, Bezier, EasingFn, EasingModifierFn, EasingStep, EasingTime,
+            quint, reverse, reverse_out, sine, step_ceil, step_floor, Bezier, EasingFn, EasingStep, EasingTime,
         };
     }
 }

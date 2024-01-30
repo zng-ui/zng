@@ -50,3 +50,31 @@
 
 * Right now we use the `actual_width` to implement something *media query* and give it a margin of error
   for different localizations.
+
+# Easing Layout
+
+* Implement property that a animates between layout and transform changes.
+
+```
+/// Chase animate the widget inner bounds layout and transform.
+///
+/// The `duration` defines the maximum duration used for changes equal or greater then 50dip, smaller changes use
+/// a proportional smaller duration.
+///
+/// Inline widgets only animate the transform, not size.
+#[property(WIDGET_INNER, default(0.ms(), EasingFn::None))]
+pub fn easing_layout(child: impl UiNode, duration: impl IntoVar<Duration>, easing: impl IntoVar<EasingFn>) -> impl UiNode {
+    let duration = duration.into_var();
+    let easing = easing.into_var();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Layout { wl, final_size } => {
+            if wl.is_inline() {
+                return;
+            }
+            let (uses, _) = LAYOUT.capture_metrics_use(|| c.measure(&mut wl.to_measure(None)));
+        }
+        _ => {}
+    })
+}
+
+```

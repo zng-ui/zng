@@ -158,18 +158,18 @@ impl Eq for EasingFn {}
 impl fmt::Debug for EasingFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Linear => write!(f, "easing::linear"),
-            Self::Sine => write!(f, "easing::sine"),
-            Self::Quad => write!(f, "easing::quad"),
-            Self::Cubic => write!(f, "easing::cubic"),
-            Self::Quart => write!(f, "easing::quart"),
-            Self::Quint => write!(f, "easing::quint"),
-            Self::Expo => write!(f, "easing::expo"),
-            Self::Circ => write!(f, "easing::circ"),
-            Self::Back => write!(f, "easing::back"),
-            Self::Elastic => write!(f, "easing::elastic"),
-            Self::Bounce => write!(f, "easing::bounce"),
-            Self::None => write!(f, "easing::none"),
+            Self::Linear => write!(f, "linear"),
+            Self::Sine => write!(f, "sine"),
+            Self::Quad => write!(f, "quad"),
+            Self::Cubic => write!(f, "cubic"),
+            Self::Quart => write!(f, "quart"),
+            Self::Quint => write!(f, "quint"),
+            Self::Expo => write!(f, "expo"),
+            Self::Circ => write!(f, "circ"),
+            Self::Back => write!(f, "back"),
+            Self::Elastic => write!(f, "elastic"),
+            Self::Bounce => write!(f, "bounce"),
+            Self::None => write!(f, "none"),
             Self::Custom(_) => f.debug_tuple("Custom").finish(),
         }
     }
