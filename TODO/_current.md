@@ -1,7 +1,3 @@
-* try to implement transition between `Align::FILL` and others.
-    - Maybe define fill as any value over a large number.
-    - Then encode transition states in this space.
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
