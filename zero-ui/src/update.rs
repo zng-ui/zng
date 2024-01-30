@@ -8,7 +8,8 @@
 //!
 //! ```
 //! use zero_ui::prelude::*;
-//!
+//! # let _scope = APP.defaults();
+//! 
 //! zero_ui::update::UPDATES
 //!   .on_pre_update(app_hn!(|args: &zero_ui::update::UpdateArgs, _| {
 //!       println!("pre_update #{}", args.count);

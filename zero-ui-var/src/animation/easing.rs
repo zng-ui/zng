@@ -1,6 +1,4 @@
 //! Common easing functions.
-//!
-//! See also: [`EasingFn`] and [`EasingModifierFn`].
 
 use std::f32::consts::{FRAC_PI_2, TAU};
 

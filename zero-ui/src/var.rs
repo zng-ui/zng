@@ -88,8 +88,8 @@
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//! # let _ =
 //! let foo = var(0u8);
+//! # let _ =
 //! Wgt! {
 //!     widget::on_init = async_hn!(foo, |_| {
 //!         foo.set(1);

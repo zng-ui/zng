@@ -393,9 +393,13 @@ impl<S: Into<Factor2d>> ops::MulAssign<S> for Align {
 
         if self.x.0.is_finite() {
             self.x *= rhs.x;
+        } else if rhs.x == 0.fct() {
+            self.x = 0.fct();
         }
         if self.y.0.is_finite() {
             self.y *= rhs.y;
+        } else if rhs.y == 0.fct() {
+            self.y = 0.fct()
         }
     }
 }
