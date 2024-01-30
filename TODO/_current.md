@@ -1,5 +1,3 @@
-* Review image caching in animation example.
-    - Memory is growing after multiple changes between modifiers.
 * After test try to reuse image sources again (in animation example).
 
 # Documentation

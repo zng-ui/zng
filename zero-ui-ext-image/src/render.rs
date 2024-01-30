@@ -214,14 +214,9 @@ impl ImageManager {
 
             images.render.active.retain(|r| {
                 let mut retain = false;
-
                 if let Some(img) = r.image.upgrade() {
-                    if img.with(Img::is_loading) {
-                        retain = true;
-                    }
+                    retain = img.with(Img::is_loading) || r.retain.get();
                 }
-
-                retain |= r.retain.get();
 
                 if !retain {
                     windows.close_window(r.window_id);
