@@ -116,55 +116,8 @@ impl ops::SubAssign for EasingTime {
     }
 }
 
-/// Common easing modifier functions as an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EasingModifierFn {
-    /// [`easing::ease_in`].
-    EaseIn,
-    /// [`easing::ease_out`].
-    EaseOut,
-    /// [`easing::ease_in_out`].
-    EaseInOut,
-    /// [`easing::ease_out_in`].
-    EaseOutIn,
-    /// [`easing::reverse`].
-    Reverse,
-    /// [`easing::reverse_out`].
-    ReverseOut,
-}
-impl EasingModifierFn {
-    /// Calls the easing function with the modifier `self` represents.
-    pub fn modify(self, easing: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-        match self {
-            EasingModifierFn::EaseIn => easing::ease_in(easing, time),
-            EasingModifierFn::EaseOut => easing::ease_out(easing, time),
-            EasingModifierFn::EaseInOut => easing::ease_in_out(easing, time),
-            EasingModifierFn::EaseOutIn => easing::ease_out_in(easing, time),
-            EasingModifierFn::Reverse => easing::reverse(easing, time),
-            EasingModifierFn::ReverseOut => easing::reverse_out(easing, time),
-        }
-    }
-
-    /// Create a closure that applies the `easing` with the modifier `self` represents.
-    pub fn modify_fn(self, easing: impl Fn(EasingTime) -> EasingStep) -> impl Fn(EasingTime) -> EasingStep {
-        move |t| self.modify(&easing, t)
-    }
-}
-impl fmt::Display for EasingModifierFn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EasingModifierFn::EaseIn => write!(f, "ease_in"),
-            EasingModifierFn::EaseOut => write!(f, "ease_out"),
-            EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
-            EasingModifierFn::EaseOutIn => write!(f, "ease_out_in"),
-            EasingModifierFn::Reverse => write!(f, "reverse"),
-            EasingModifierFn::ReverseOut => write!(f, "reverse_out"),
-        }
-    }
-}
-
-/// Common easing functions as an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Easing functions as a value.
+#[derive(Clone)]
 pub enum EasingFn {
     /// [`easing::linear`].
     Linear,
@@ -190,56 +143,98 @@ pub enum EasingFn {
     Bounce,
     /// [`easing::none`].
     None,
+    ///Custom function.
+    Custom(Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>),
 }
-impl EasingFn {
-    /// Calls the easing function that `self` represents.
-    pub fn ease_in(self, time: EasingTime) -> EasingStep {
-        (self.ease_fn())(time)
-    }
-
-    /// Calls the easing function that `self` represents and inverts the value using [`easing::ease_out`].
-    pub fn ease_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_out(|t| self.ease_in(t), time)
-    }
-
-    /// Calls the easing function that `self` represents and transforms the value using [`easing::ease_in_out`].
-    pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_in_out(|t| self.ease_in(t), time)
-    }
-
-    /// Gets the easing function that `self` represents.
-    pub fn ease_fn(self) -> fn(EasingTime) -> EasingStep {
-        match self {
-            EasingFn::Linear => easing::linear,
-            EasingFn::Sine => easing::sine,
-            EasingFn::Quad => easing::quad,
-            EasingFn::Cubic => easing::cubic,
-            EasingFn::Quart => easing::quad,
-            EasingFn::Quint => easing::quint,
-            EasingFn::Expo => easing::expo,
-            EasingFn::Circ => easing::circ,
-            EasingFn::Back => easing::back,
-            EasingFn::Elastic => easing::elastic,
-            EasingFn::Bounce => easing::bounce,
-            EasingFn::None => easing::none,
+impl PartialEq for EasingFn {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Custom(l0), Self::Custom(r0)) => Arc::ptr_eq(l0, r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }
-impl fmt::Display for EasingFn {
+impl Eq for EasingFn {}
+impl fmt::Debug for EasingFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EasingFn::Linear => write!(f, "linear"),
-            EasingFn::Sine => write!(f, "sine"),
-            EasingFn::Quad => write!(f, "quad"),
-            EasingFn::Cubic => write!(f, "cubic"),
-            EasingFn::Quart => write!(f, "quart"),
-            EasingFn::Quint => write!(f, "quint"),
-            EasingFn::Expo => write!(f, "expo"),
-            EasingFn::Circ => write!(f, "circ"),
-            EasingFn::Back => write!(f, "back"),
-            EasingFn::Elastic => write!(f, "elastic"),
-            EasingFn::Bounce => write!(f, "bounce"),
-            EasingFn::None => write!(f, "none"),
+            Self::Linear => write!(f, "easing::linear"),
+            Self::Sine => write!(f, "easing::sine"),
+            Self::Quad => write!(f, "easing::quad"),
+            Self::Cubic => write!(f, "easing::cubic"),
+            Self::Quart => write!(f, "easing::quart"),
+            Self::Quint => write!(f, "easing::quint"),
+            Self::Expo => write!(f, "easing::expo"),
+            Self::Circ => write!(f, "easing::circ"),
+            Self::Back => write!(f, "easing::back"),
+            Self::Elastic => write!(f, "easing::elastic"),
+            Self::Bounce => write!(f, "easing::bounce"),
+            Self::None => write!(f, "easing::none"),
+            Self::Custom(_) => f.debug_tuple("Custom").finish(),
+        }
+    }
+}
+impl EasingFn {
+    /// Create a closure that calls the easing function.
+    #[allow(clippy::redundant_closure)] // false positive
+    pub fn ease_fn(&self) -> impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static {
+        let me = self.clone();
+        move |t| me(t)
+    }
+
+    /// New custom function.
+    pub fn custom(f: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Self {
+        Self::Custom(Arc::new(f))
+    }
+
+    /// Creates a custom function that is `self` modified by `modifier`
+    pub fn modified(self, modifier: impl Fn(&dyn Fn(EasingTime) -> EasingStep, EasingTime) -> EasingStep + Send + Sync + 'static) -> Self {
+        Self::custom(move |t| modifier(&*self, t))
+    }
+
+    /// Creates a custom function that is `self` modified by [`easing::ease_out`].
+    pub fn ease_out(self) -> Self {
+        self.modified(|f, t| easing::ease_out(f, t))
+    }
+
+    /// Creates a custom function that is `self` modified by [`easing::ease_in_out`].
+    pub fn ease_in_out(self) -> Self {
+        self.modified(|f, t| easing::ease_in_out(f, t))
+    }
+
+    /// Creates a custom function that is `self` modified by [`easing::ease_out_in`].
+    pub fn ease_out_in(self) -> Self {
+        self.modified(|f, t| easing::ease_out_in(f, t))
+    }
+
+    /// Creates a custom function that is `self` modified by [`easing::reverse`].
+    pub fn reverse(self) -> Self {
+        self.modified(|f, t| easing::reverse(f, t))
+    }
+
+    /// Creates a custom function that is `self` modified by [`easing::reverse_out`].
+    pub fn reverse_out(self) -> Self {
+        self.modified(|f, t| easing::reverse_out(f, t))
+    }
+}
+impl ops::Deref for EasingFn {
+    type Target = dyn Fn(EasingTime) -> EasingStep + Send + Sync;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            EasingFn::Linear => &easing::linear,
+            EasingFn::Sine => &easing::sine,
+            EasingFn::Quad => &easing::quad,
+            EasingFn::Cubic => &easing::cubic,
+            EasingFn::Quart => &easing::quad,
+            EasingFn::Quint => &easing::quint,
+            EasingFn::Expo => &easing::expo,
+            EasingFn::Circ => &easing::circ,
+            EasingFn::Back => &easing::back,
+            EasingFn::Elastic => &easing::elastic,
+            EasingFn::Bounce => &easing::bounce,
+            EasingFn::None => &easing::none,
+            EasingFn::Custom(c) => &**c,
         }
     }
 }
