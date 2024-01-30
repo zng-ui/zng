@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashMap;
+
 use zero_ui::{
     button,
     color::{ColorScheme, Rgba},
@@ -147,15 +149,19 @@ fn example() -> impl UiNode {
 
 fn ease_btn(l: &ArcVar<Length>, color: &ArcVar<Rgba>, name: &'static str, easing: EasingFn, easing_mod: &ArcVar<Txt>) -> impl UiNode {
     let name = if name.is_empty() { formatx!("{easing:?}") } else { name.to_txt() };
-    let easing = easing_mod.map(clmv!(easing, |m| match m.as_str() {
-        "ease_in" => easing.clone(),
-        "ease_out" => easing.clone().ease_out(),
-        "ease_in_out" => easing.clone().ease_in_out(),
-        "ease_out_in" => easing.clone().ease_out_in(),
-        "reverse" => easing.clone().reverse(),
-        "reverse_out" => easing.clone().reverse_out(),
-        _ => unreachable!(),
+    let easing = easing_mod.map(clmv!(easing, |m| {
+        let f = match m.as_str() {
+            "ease_in" => easing.clone(),
+            "ease_out" => easing.clone().ease_out(),
+            "ease_in_out" => easing.clone().ease_in_out(),
+            "ease_out_in" => easing.clone().ease_out_in(),
+            "reverse" => easing.clone().reverse(),
+            "reverse_out" => easing.clone().reverse_out(),
+            _ => unreachable!(),
+        };
+        (m.clone(), f)
     }));
+    let mut plot_cache = HashMap::new(); // to reuse rendered images
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         child = Stack! {
@@ -170,14 +176,14 @@ fn ease_btn(l: &ArcVar<Length>, color: &ArcVar<Rgba>, name: &'static str, easing
                         size = (64, 64);
                         margin = 10;
                     });
-                    source = easing.map(|f| plot(f.clone()));
-                    img_cache = false;
+                    source = easing.map(move |(name, f)| plot_cache.entry(name.clone()).or_insert_with(|| plot(f.clone())).clone());
                 },
             ]
         };
         on_click = hn!(l, color, |_| {
-            l.set_ease(0, 300, 1.secs(), easing.get().ease_fn()).perm();
-            color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), easing.get().ease_fn()).perm();
+            let f = easing.get().1;
+            l.set_ease(0, 300, 1.secs(), f.ease_fn()).perm();
+            color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), f.ease_fn()).perm();
         });
     }
 }
