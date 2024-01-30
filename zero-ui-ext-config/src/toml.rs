@@ -71,7 +71,7 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_toml::Value> {
 
     fn remove(map: &mut VarModify<Self>, key: &ConfigKey) {
         if map.contains_key(key) {
-            map.to_mut().remove(key);
+            map.to_mut().shift_remove(key);
         }
     }
 }
