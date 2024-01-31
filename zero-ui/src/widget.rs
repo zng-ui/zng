@@ -1,5 +1,38 @@
 //! Widget info, builder and base, UI node and list.
 //!
+//! The [`Wgt!`](struct@Wgt) widget is a blank widget that entirely shaped by properties.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//! # let _scope = APP.defaults();
+//!
+//! # let _ =
+//! Wgt! {
+//!     id = "sun";
+//!
+//!     widget::background_gradient = {
+//!         axis: 0.deg(),
+//!         stops: color::gradient::stops![hex!(#ff5226), hex!(#ffc926)],
+//!     };
+//!     layout::size = 100;
+//!     widget::corner_radius = 100;
+//!     layout::align = layout::Align::BOTTOM;
+//!
+//!     #[easing(2.secs())]
+//!     layout::y = 100;
+//!     when *#widget::is_inited {
+//!         layout::y = -30;
+//!     }
+//! }
+//! # ;
+//! ```
+//!
+//! To learn more about the widget macros syntax see [`widget_set!`].
+//!
+//! To learn more about how widgets are declared see [`widget`].
+//!
+//! To learn more about how properties are declared see [`property`].
+//!
 //! # Full API
 //!
 //! See [`zero_ui_app::widget`] for the full API.
@@ -32,6 +65,59 @@ pub use zero_ui_wgt_fill::{
 
 /// Widget and property builder types.
 ///
+/// # Examples
+///
+/// The example declares a new widget type, `ShowProperties!`, that inherits from `Text!` and display what properties
+/// are set on itself by accessing the [`WidgetBuilder`] at two points. First call is directly in the `widget_intrinsic` that
+/// is called after inherited intrinsics, but before the instance properties are set. Second call is in a build action that is called when
+/// the widget starts building, after the instance properties are set.
+///
+/// [`WidgetBuilder`]: builder::WidgetBuilder
+///
+/// ```
+/// mod widgets {
+///     use std::fmt::Write as _;
+///     use zero_ui::prelude_wgt::*;
+///
+///     #[widget($crate::widgets::ShowProperties)]
+///     pub struct ShowProperties(zero_ui::text::Text);
+///
+///     impl ShowProperties {
+///         fn widget_intrinsic(&mut self) {
+///             let txt = var(Txt::from(""));
+///             widget_set! {
+///                 self;
+///                 txt = txt.clone();
+///             }
+///
+///             let builder = self.widget_builder();
+///
+///             let mut t = Txt::from("Properties set by default:\n");
+///             for p in builder.properties() {
+///                 writeln!(&mut t, "• {}", p.args.property().name).unwrap();
+///             }
+///
+///             builder.push_build_action(move |builder| {
+///                 writeln!(&mut t, "\nAll properties set:").unwrap();
+///                 for p in builder.properties() {
+///                     writeln!(&mut t, "• {}", p.args.property().name).unwrap();
+///                 }
+///                 txt.set(t.clone());            
+///             });
+///         }
+///     }
+/// }
+///
+/// # fn main() {
+/// # let _scope = zero_ui::APP.defaults();
+/// # let _ =
+/// widgets::ShowProperties! {
+///     font_size = 20;
+/// }
+/// # ;
+/// # }
+/// ```
+///
 /// See [`zero_ui_app::widget::builder`] for the full API.
 pub mod builder {
     pub use zero_ui_app::widget::builder::{
@@ -44,6 +130,57 @@ pub mod builder {
 }
 
 /// Widget info tree and info builder.
+///
+/// # Examples
+///
+/// The example declares a new info state for widgets and a property that sets the new state. The new state is then used
+/// in a widget instance.
+///
+/// ```
+/// mod custom {
+///     use zero_ui::prelude_wgt::*;
+///
+///     static STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
+///
+///     #[property(CONTEXT)]
+///     pub fn flag_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+///         let state = state.into_var();
+///         match_node(child, move |_, op| match op {
+///             UiNodeOp::Init => {
+///                 WIDGET.sub_var_info(&state);
+///             }
+///             UiNodeOp::Info { info } => {
+///                 info.set_meta(&STATE_ID, state.get());
+///             }
+///             _ => {}
+///         })
+///     }
+///
+///     pub trait StateExt {
+///         fn state(&self) -> Option<bool>;
+///     }
+///     impl StateExt for WidgetInfo {
+///         fn state(&self) -> Option<bool> {
+///             self.meta().get_clone(&STATE_ID)
+///         }
+///     }
+/// }
+///
+/// # fn main() {
+/// # use zero_ui::prelude::*;
+/// # let _scope = APP.defaults();
+/// # let _ =
+/// Wgt! {
+///     custom::flag_state = true;
+///     widget::on_info_init = hn!(|_| {
+///         use custom::StateExt as _;
+///         let info = WIDGET.info();
+///         println!("state: {:?}", info.state());
+///     });
+/// }
+/// # ;
+/// # }
+/// ```
 pub mod info {
     pub use zero_ui_app::widget::info::{
         iter, HitInfo, HitTestInfo, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs, InteractivityFilterArgs,
@@ -89,18 +226,21 @@ pub mod node {
 
 /// Expands a struct to a widget struct and macro.
 ///
-/// Each widget is a struct and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
-/// *inherit* from one other widget, they can have intrinsic nodes and default properties and can build to a custom output type,
-/// the `#[property(.., widget_impl(Widget))]` macro can be used to declare intrinsic properties that are always available in a widget.
+/// Each widget is a struct and macro pair that constructs a [`WidgetBuilder`] and instantiates a custom widget type. Widgets
+/// *inherit* from one other widget and multiple mix-ins, they can have intrinsic nodes and default properties and can build
+/// to a custom output type.
+///
+/// Properties can be declared for the widget using the `#[property(.., widget_impl(Widget))]` directive, existing properties
+/// can be implemented for the widget using the [`widget_impl!`] macro.
 ///
 /// # Attribute
 ///
-/// The widget attribute must be placed in a `struct Name(Parent);` struct declaration, only struct following the exact pattern are allowed,
+/// The widget attribute must be placed in a `struct Name(Parent);` declaration, only struct following the exact pattern are allowed,
 /// different struct syntaxes will generate a compile error.
 ///
 /// The attribute requires one argument, it must be a macro style `$crate` path to the widget struct, this is used in the generated macro
 /// to find the struct during instantiation. The path must be to the *public* path to the struct, that is, the same path that will be used
-/// to import the widget. After the required widget path [custom rules] for the generated macro can be declared.
+/// to import the widget. After the required widget path [custom rules](#custom-rules) for the generated macro can be declared.
 ///
 /// ```
 /// # fn main() { }
@@ -113,14 +253,14 @@ pub mod node {
 ///
 /// # Inherit
 ///
-/// The widget struct one unnamed member must be a path to the parent widget type, all widgets must inherit from another or the
-/// [`WidgetBase`], the parent widget(s) intrinsic properties and nodes are all included in the new widget. The intrinsic
+/// The widget struct field must be a path to the parent widget type, all widgets must inherit from another or the
+/// [`WidgetBase`], the parent widgets intrinsic properties and nodes are all included in the new widget. The intrinsic
 /// properties are included by deref, the new widget will dereference to the parent widget, during widget build auto-deref will select
 /// the property methods first, this mechanism even allows for property overrides.
 ///
 /// # Intrinsic
 ///
-/// The widget struct can define a method `widget_intrinsic` that *includes* custom build actions in the [`WidgetBuilder`], this special
+/// The widget struct can define a method `widget_intrinsic` that includes custom build actions in the [`WidgetBuilder`], this special
 /// method will be called once for its own widget or derived widgets.
 ///
 /// ```
@@ -171,7 +311,7 @@ pub mod node {
 /// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type
 /// is an opaque `impl UiNode`, normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets,
 /// the widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
-/// The base widget implementation is in [`zero_ui_app::widget::base::node::widget`], you can use it directly, so even if you need 
+/// The base widget implementation is in [`zero_ui_app::widget::base::node::widget`], you can use it directly, so even if you need
 /// to run code on build or define a custom type you don't need to start from scratch.
 ///
 /// # Defaults
@@ -183,16 +323,16 @@ pub mod node {
 /// # Impl Properties
 ///
 /// The [`widget_impl!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
-/// and the [`property`] attribute has an `impl(WgtIdent)` that also strongly associates a property with the widget. These two mechanisms
-/// can be used to define properties for the widget, the impl properties are visually different in the widget macro as the have the
-/// *immutable method* style, while the other properties have the *mutable method* style.
+/// and the [`property`] attribute has an `impl(WgtIdent)` directive that also strongly associates a property with the widget.
+/// These two mechanisms can be used to define properties for the widget, the impl properties are visually different in the widget
+/// macro as the have the *immutable method* style, while the other properties have the *mutable method* style.
 ///
 /// # Generated Macro
 ///
 /// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end,
 /// ```
 /// use zero_ui::prelude_wgt::*;
-/// 
+///
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
 ///
@@ -201,7 +341,7 @@ pub mod node {
 ///     id = "foo";
 /// };
 ///
-/// // equivalent to:
+/// // is equivalent to:
 ///
 /// let wgt = {
 ///     let mut wgt = Foo::widget_new();
@@ -232,11 +372,11 @@ pub mod node {
 ///
 /// ### Examples
 ///
-/// Example of a text widget that declares a shorthand syntax to implicitly set a `txt` property:
+/// Example of a text widget that declares a shorthand syntax to implicitly set the `id` property:
 ///
 /// ```
 /// use zero_ui::prelude_wgt::*;
-/// 
+///
 /// #[widget($crate::Foo {
 ///     ($id:tt) => {
 ///         id = $id;
@@ -272,7 +412,7 @@ pub mod node {
 /// * `$(#[$attr:meta])* $property:ident = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
 /// * `$(#[$attr:meta])* when $($rest:tt)*`, blocks all custom `when $tt*` patterns.
 ///
-/// Note that the default single property shorthand syntax is not blocked, in the examples above `Text!(font_size)` will match
+/// Note that the default single property shorthand syntax is not blocked, for example `Text!(font_size)` will match
 /// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
 /// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
 ///
@@ -301,12 +441,12 @@ pub mod node {
 /// [`Importance::INSTANCE`]: widget_builder::Importance::INSTANCE
 pub use zero_ui_app::widget::widget;
 
-/// Expands a struct to a widget mixin.
+/// Expands a struct to a widget mix-in.
 ///
 /// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
 ///
-/// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
+/// By convention mix-ins have the suffix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
 /// in the declaration, the expansion will bound it to [`WidgetImpl`].
 ///
 /// # Examples
@@ -314,7 +454,7 @@ pub use zero_ui_app::widget::widget;
 /// ```
 /// # fn main() { }
 /// use zero_ui::prelude_wgt::*;
-/// 
+///
 /// /// Make a widget capable of receiving keyboard focus.
 /// #[widget_mixin]
 /// pub struct FocusableMix<P>(P);
@@ -337,10 +477,10 @@ pub use zero_ui_app::widget::widget;
 /// pub struct Foo(FocusableMix<WidgetBase>);
 /// ```
 ///
-/// The example above declares a mixin `FocusableMix<P>` and an widget `Foo`, the mixin is used as a parent of the widget, only
+/// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
 /// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
 ///
-/// All widget `impl` items can be declared in a mixin, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
+/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
 /// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
 pub use zero_ui_app::widget::widget_mixin;
 
@@ -404,9 +544,10 @@ pub use zero_ui_app::widget::widget_mixin;
 ///
 /// # Limitations
 ///
-/// The attribute only works in properties that only have variable inputs of types that are `Transitionable`, if the attribute
+/// The attribute only works in properties that only have variable inputs of types that are [`Transitionable`], if the attribute
 /// is set in a property that does not match this a cryptic type error occurs, with a mention of `easing_property_input_Transitionable`.
 ///
+/// [`Transitionable`]: crate::var::animation::Transitionable
 pub use zero_ui_app::widget::easing;
 
 /// Expands a function to a widget property.
@@ -633,7 +774,7 @@ pub use zero_ui_app::widget::property;
 /// ```
 /// # fn main() { }
 /// use zero_ui::prelude_wgt::*;
-/// 
+///
 /// struct MyNode<C> {
 ///     child: C
 /// }
@@ -661,7 +802,7 @@ pub use zero_ui_app::widget::property;
 /// ```
 /// # fn main() { }
 /// use zero_ui::prelude_wgt::*;
-/// 
+///
 /// struct MyNode<L> {
 ///     children: L
 /// }
@@ -777,8 +918,8 @@ pub use zero_ui_app::widget::property;
 /// node methods are delegated to `child` because of the name, and the `number` var is subscribed automatically because of
 /// the `#[var]` pseudo attribute.
 ///
-/// This syntax can save a lot of typing and improve readability for nodes that have multiple generic parameters, it is ideal
-/// for declaring *anonymous* nodes, like those returned by functions with return type `-> impl UiNode`.
+/// Note that you can also use [`node::match_node`] to declare *anonymous* nodes, most of the properties are implemented using
+/// this node instead of the `#[ui_node]` macro.
 ///
 /// ## Generics
 ///

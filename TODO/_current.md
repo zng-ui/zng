@@ -1,3 +1,9 @@
+* Add missing standalone event propertied for the window module?
+    - Widgets may want to setup `on_window_load`.
+    - Also implement `is_loaded`?
+        - `is_inited` starts too early, we miss some of the animation.
+        - This is caused by the Windows window animation?
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

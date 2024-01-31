@@ -53,7 +53,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// #  pub struct Wgt(WidgetBase);
 /// # fn main() {
 /// # let flag = true;
-///
+/// #
 /// let mut wgt = Wgt::widget_new();
 ///
 /// if flag {
