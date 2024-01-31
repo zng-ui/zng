@@ -26,7 +26,7 @@ mod widget_util;
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the `zero_ui_app::widget::ui_node` page.
+/// Read the documentation in the `zero_ui::widget::ui_node` page.
 #[proc_macro_attribute]
 pub fn ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     ui_node::gen_ui_node(args, input)
@@ -36,7 +36,7 @@ pub fn ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the `zero_ui_app::widget::property` page.
+/// Read the documentation in the `zero_ui::widget::property` page.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
@@ -58,7 +58,7 @@ pub fn property_impl(input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the `zero_ui_app::widget::widget` page.
+/// Read the documentation in the `zero_ui::widget::widget` page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget::expand(args, input, false)
@@ -68,7 +68,7 @@ pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the `zero_ui_app::widget::widget_mixin` page.
+/// Read the documentation in the `zero_ui::widget::widget_mixin` page.
 #[proc_macro_attribute]
 pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
     widget::expand(args, input, true)
@@ -78,7 +78,7 @@ pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the `zero_ui_app::widget::easing`.
+/// Read the documentation in the `zero_ui::widget::easing`.
 #[proc_macro_attribute]
 pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
     wgt_property_attrs::expand_easing(args, input)

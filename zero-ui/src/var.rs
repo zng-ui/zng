@@ -208,11 +208,11 @@
 //! The [`ResponseVar<T>`] is a specialized variable that represents the result of an async task. You can use `.await` directly
 //! in any async handler, but a response var lets you plug a query directly into a property. You can use [`task::respond`] to convert
 //! any future into a response var, and you can use [`wait_rsp`] to convert a response var to a future.
-//! 
+//!
 //! ```no_run
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! let rsp = task::respond(async {
 //!     match task::http::get_text("https://raw.githubusercontent.com/git/git-scm.com/main/MIT-LICENSE.txt").await {
 //!         Ok(t) => t,
@@ -229,27 +229,27 @@
 //! }))
 //! # ;
 //! ```
-//! 
+//!
 //! The example above creates a response var from a download future and maps the response to an widget.
-//! 
+//!
 //! A response var is paired with a [`ResponderVar<T>`], you can create a *response channel* using the [`response_var`] function.
-//! 
+//!
 //! [`task::respond`]: crate::task::respond
 //! [`wait_rsp`]: ResponseVar::wait_rsp
 //!
-//! # Merge 
+//! # Merge
 //!
 //! The [`merge_var!`] and [`expr_var!`] macros can be used to declare a variable that merges multiple other variable values.
-//! 
+//!
 //! The example below demonstrates the two macros.
-//! 
+//!
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _scope = APP.defaults();
-//! 
+//!
 //! let a = var(10u32);
 //! let b = var(1u32);
-//! 
+//!
 //! // let merge = expr_var!({
 //! //     let a = *#{a};
 //! //     let b = *#{b.clone()};
@@ -270,23 +270,23 @@
 //!
 //! The [`ContextVar<T>`] variable represents a context depend value, meaning they can produce a different value depending
 //! on where they are used. Context vars are declared using the [`context_var!`] macro.
-//! 
+//!
 //! The example below declares a context var and a property that sets it. The context var is then used in two texts with
 //! two different contexts, the first text will show "Text!", the second will show "Stack!".
-//! 
+//!
 //! ```
 //! # fn main() { }
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! context_var! {
 //!     static FOO_VAR: Txt = "";
 //! }
-//! 
+//!
 //! #[zero_ui::widget::property(CONTEXT, default(FOO_VAR))]
 //! pub fn foo(child: impl UiNode, foo: impl IntoVar<Txt>) -> impl UiNode {
 //!     zero_ui::widget::node::with_context_var(child, FOO_VAR, foo)
 //! }
-//! 
+//!
 //! fn demo() -> impl UiNode {
 //!     Stack! {
 //!         direction = StackDirection::top_to_bottom();
@@ -302,10 +302,10 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! Context variables have all the same capabilities of other variables if the example if `foo` is set to a [`var`]
 //! the context var will be editable, and if `FOO_VAR` is mapped the mapping variable is also contextual.
-//! 
+//!
 //! # Full API
 //!
 //! See [`zero_ui_var`] for the full var API.

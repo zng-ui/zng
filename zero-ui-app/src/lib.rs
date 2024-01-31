@@ -117,6 +117,8 @@ pub mod __proc_macro_util {
 
         #[doc(hidden)]
         pub use crate::widget::{easing_property, widget_new};
+
+        pub use crate::widget::WIDGET;
     }
 
     #[doc(hidden)]
