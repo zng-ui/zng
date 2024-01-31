@@ -5,7 +5,7 @@ use node::CONTEXT_IMAGE_VAR;
 use zero_ui_app::render::ImageRendering;
 use zero_ui_ext_image::{ImageDownscale, ImageLimits};
 use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt_window::node::BlockWindowLoad;
+use zero_ui_wgt_window::BlockWindowLoad;
 
 /// Image layout mode.
 ///

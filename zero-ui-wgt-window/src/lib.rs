@@ -18,7 +18,6 @@ use zero_ui_wgt_input::focus::{
 use zero_ui_wgt_text::{font_color, lang, FONT_SIZE_VAR};
 
 pub mod events;
-pub mod node;
 mod window_properties;
 
 #[allow(clippy::useless_attribute)] // not useless
