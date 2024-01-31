@@ -171,8 +171,8 @@ pub mod node {
 /// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type
 /// is an opaque `impl UiNode`, normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets,
 /// the widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
-/// The base widget implementation is in [`zero_ui_app::widget::node::widget`], you can use it directly, so even if you need to run code
-/// on build or define a custom type you don't need to start from scratch.
+/// The base widget implementation is in [`zero_ui_app::widget::base::node::widget`], you can use it directly, so even if you need 
+/// to run code on build or define a custom type you don't need to start from scratch.
 ///
 /// # Defaults
 ///
@@ -361,10 +361,11 @@ pub use zero_ui_app::widget::widget_mixin;
 ///
 /// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
 ///
-/// [`TimeUnits`]: zero_ui_unit::TimeUnits
-/// [`easing`]: mod@zero_ui_var::animation::easing
-/// [`easing::linear`]: zero_ui_var::animation::easing::linear
+/// [`TimeUnits`]: zero_ui::unit::TimeUnits
+/// [`easing`]: mod@zero_ui::var::animation::easing
+/// [`easing::linear`]: zero_ui::var::animation::easing::linear
 /// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
+/// [`Var::easing`]: crate::var::Var::easing
 ///
 /// ## When
 ///
