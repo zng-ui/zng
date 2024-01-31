@@ -4,7 +4,6 @@
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
-* Add better documentation, examples, for all modules in the main crate.
 * Review docs in the component crates.
     - They must link to the main crate on the start page.
     - Remove all examples using hidden macro_rules! hack.

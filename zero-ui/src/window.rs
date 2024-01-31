@@ -1,17 +1,17 @@
 //! Window service, widget, events, commands and types.
-//! 
+//!
 //! The [`Window!`](struct@Window) widget declares a window root.
-//! 
+//!
 //! The example below declares a window that can toggle if it can close.
-//! 
+//!
 //! ```
 //! # fn main() {}
 //! use zero_ui::prelude::*;
-//! 
+//!
 //! fn app() {
 //!     APP.defaults().run_window(async { window() });
 //! }
-//! 
+//!
 //! fn window() -> window::WindowRoot {
 //!     let allow_close = var(true);
 //!     Window! {
@@ -20,7 +20,7 @@
 //!                 args.propagation().stop();
 //!             }
 //!         });
-//! 
+//!
 //!         title = "Title";
 //!         child_align = layout::Align::CENTER;
 //!         child = Toggle! {
@@ -30,10 +30,62 @@
 //!     }
 //! }
 //! ```
-//! 
-//! The [`WINDOWS`] service can be used to open, manage and close windows.
-//! 
-//! !!: TODO
+//!
+//! The [`WINDOWS`] service can be used to open, manage and close windows. The example below uses the service
+//! to open a parent and child window.
+//!
+//! ```
+//! use zero_ui::prelude::*;
+//!
+//! fn app() {
+//!     APP.defaults().run(async {
+//!         let r = WINDOWS.open(async { main_window() });
+//!         println!("opened {}", r.wait_rsp().await);
+//!     });
+//! }
+//!
+//! fn main_window() -> window::WindowRoot {
+//!     Window! {
+//!         title = "Main Window";
+//!         child_align = layout::Align::CENTER;
+//!         child = {
+//!             let enabled = var(true);
+//!             Button! {
+//!                 child = Text!("Open/Close Child");
+//!                 on_click = async_hn!(enabled, |_| {
+//!                     enabled.set(false);
+//!
+//!                     if WINDOWS.is_open("child-id") {
+//!                         if let Ok(r) = WINDOWS.close("child-id") {
+//!                             r.wait_done().await;
+//!                         }
+//!                     } else {
+//!                         let parent = WINDOW.id();
+//!                         WINDOWS.open_id("child-id", async move { child_window(parent) }).wait_done().await;
+//!                     }
+//!
+//!                     enabled.set(true);
+//!                 });
+//!                 widget::enabled;
+//!             }
+//!         }
+//!     }
+//! }
+//!
+//! fn child_window(parent: WindowId) -> window::WindowRoot {
+//!     Window! {
+//!         parent;
+//!         title = "Child Window";
+//!         size = (200, 100);
+//!         child = Button! {
+//!             child = Text!("Close");
+//!             on_click = hn!(|_| {
+//!                 let _ = WINDOW.close();
+//!             });
+//!         };
+//!     }
+//! }
+//! ```
 //!
 //! # Full API
 //!
