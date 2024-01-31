@@ -9,22 +9,6 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 
 /// Boxed shared closure that generates an widget for a given data.
 ///
-/// # Examples
-///
-/// Define the content that is shown when an image fails to load:
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Image! {
-///     source = "not_found.png";
-///     img_error_fn = WidgetFn::new(|e: image::ImgErrorArgs| Text! {
-///         txt = e.error.clone();
-///         font_color = colors::RED;
-///     });
-/// }
-/// # }}
-/// ```
-///
 /// You can also use the [`wgt_fn!`] macro, it has the advantage of being clone move.
 ///
 /// See `presenter` for a way to quickly use the widget function in the UI.
@@ -142,23 +126,6 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// <span data-del-macro-root></span> Declares a widget function closure.
 ///
 /// The output type is a [`WidgetFn`], the closure is [`clmv!`].
-///
-/// # Examples
-///
-/// Define the content that is shown when an image fails to load, capturing another variable too.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Image! {
-///     source = "not_found.png";
-///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImgErrorArgs| Text! {
-///         txt = e.error.clone();
-///         font_color = colors::RED;
-///         visibility = img_error_vis.clone();
-///     });
-/// }
-/// # }}
-/// ```
 #[macro_export]
 macro_rules! wgt_fn {
     ($fn:path) => {

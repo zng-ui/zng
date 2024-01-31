@@ -116,7 +116,12 @@ pub trait AppRunWindowExt {
     /// # Examples
     ///
     /// ```no_run
-    /// # macro_rules! _demo { () => {
+    /// # use zero_ui_app::window::WINDOW;
+    /// # use zero_ui_app::APP;
+    /// # use zero_ui_ext_window::AppRunWindowExt as _;
+    /// # trait AppDefaults { fn defaults(&self) -> zero_ui_app::AppExtended<impl zero_ui_app::AppExtension> { APP.minimal() } }
+    /// # impl AppDefaults for APP { }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     Window! {
@@ -124,12 +129,18 @@ pub trait AppRunWindowExt {
     ///         child = Text!("Window 1");
     ///     }
     /// })
-    /// # }};
     /// ```
     ///
     /// Which is a shortcut for:
-    /// ```
-    /// # macro_rules! _demo { () => {
+    ///
+    /// ```no_run
+    /// # use zero_ui_app::window::WINDOW;
+    /// # use zero_ui_ext_window::WINDOWS;
+    /// # use zero_ui_app::APP;
+    /// # use zero_ui_ext_window::AppRunWindowExt as _;
+    /// # trait AppDefaults { fn defaults(&self) -> zero_ui_app::AppExtended<impl zero_ui_app::AppExtension> { APP.minimal() } }
+    /// # impl AppDefaults for APP { }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run(async {
     ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());
@@ -138,8 +149,7 @@ pub trait AppRunWindowExt {
     ///             child = Text!("Window 1");
     ///         }
     ///     });
-    /// })   
-    /// # }};
+    /// })
     /// ```
     ///
     /// [`WINDOW`]: zero_ui_app::window::WINDOW

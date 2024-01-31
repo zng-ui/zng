@@ -38,24 +38,6 @@ event_property! {
 /// Captures are released when all mouse buttons and touch contacts stop being pressed on the window.
 /// The capture is also released back to window if the `mode` changes to [`Window`].
 ///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// #[widget($crate::Button)]
-/// pub struct Button(Container);
-/// impl Button {
-///     fn widget_intrinsic(&mut self) {
-///         widget_set! {
-///             self;
-///             // Mouse does not interact with other widgets when pressed in the widget.
-///             capture_pointer = true; //true == CaptureMode::Widget;
-///         }
-///     }
-/// }
-/// # }}
-/// ```
-///
 /// [`Widget`]: CaptureMode::Widget
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window

@@ -10,36 +10,6 @@ use crate::prelude::*;
 /// layout properties of the widget to define the inner visual position and widget size.
 ///
 /// This property disables inline layout for the widget.
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Button! {
-///     margin = 10;
-///     child = Text!("Click Me!")
-/// }
-/// # }}
-/// ```
-///
-/// In the example the button has `10` layout pixels of space in all directions around it. You can
-/// also control each side in specific:
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = Button! {
-///         margin = (10, 5.pct());
-///         child = Text!("Click Me!")
-///     };
-///     margin = (1, 2, 3, 4);
-/// }
-/// # }}
-/// ```
-///
-/// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
-/// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
-///
 #[property(LAYOUT, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     let margin = margin.into_var();
@@ -74,21 +44,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 ///
 /// This property disables inline layout for the widget.
 ///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = Button! {
-///         align = Align::TOP;
-///         child = Text!("Click Me!")
-///     };
-/// }
-/// # }}
-/// ```
-///
-/// In the example the button is positioned at the top-center of the container. See [`Align`] for
-/// more details.
+/// See [`Align`] for more details.
 #[property(LAYOUT, default(Align::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
     let alignment = alignment.into_var();

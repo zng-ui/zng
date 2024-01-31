@@ -77,12 +77,17 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// A border of width `1.dip()`, solid color `BLUE` in all border sides and corner radius `4.dip()`.
 ///
 /// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::Wgt;
+/// # use zero_ui_wgt::{corner_radius, border};
+/// # use zero_ui_color::colors;
+/// # fn main() {
+/// # let _ =
+/// Wgt! {
 ///     border = 1, colors::BLUE;
 ///     corner_radius = 4;
 /// }
-/// # }}
+/// # ; }
 /// ```
 ///
 /// A border that sets each border line to a different width `top: 1, right: 2, bottom: 3, left: 4`, each corner
@@ -90,8 +95,14 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// line to a different style and color.
 ///
 /// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::Wgt;
+/// # use zero_ui_wgt::{corner_radius, border};
+/// # use zero_ui_app::widget::border::{BorderSide, BorderSides};
+/// # use zero_ui_color::colors;
+/// # fn main() {
+/// # let _ =
+/// Wgt! {
 ///     border = {
 ///         widths: (1, 2, 3, 4),
 ///         sides: BorderSides::new(
@@ -103,7 +114,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 ///     };
 ///     corner_radius = (1, 2, 3, 4);
 /// }
-/// # }}
+/// # ; }
 /// ```
 ///
 /// ## Multiple Borders
@@ -112,8 +123,8 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// new border property by copying the signature of this one:
 ///
 /// ```
-/// use zero_ui_wgt::prelude::*;
-///
+/// # use zero_ui_wgt::prelude::*;
+/// #
 /// /// Another border property.
 /// #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
@@ -126,13 +137,25 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// Now we can set two borders in the same widget:
 ///
 /// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::Wgt;
+/// # use zero_ui_wgt::{corner_radius, border};
+/// # use zero_ui_color::colors;
+/// # use zero_ui_wgt::prelude::*;
+/// #
+/// # #[property(BORDER, default(0, BorderStyle::Hidden))]
+/// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// #    zero_ui_wgt::border(child, widths, sides)
+/// # }
+/// #
+/// # fn main() {
+/// # let _ =
+/// Wgt! {
 ///     border = 4, colors::RED;
 ///     my_border = 4, colors::GREEN;
 ///     corner_radius = 8;
 /// }
-/// # }}
+/// # ; }
 /// ```
 ///
 /// This will render a `RED` border around a `GREEN` one, the inner border will fit perfectly inside the outer one,
@@ -141,13 +164,25 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// Note that because both borders have the same [`NestGroup::BORDER`] the position they are declared in the widget matters:
 ///
 /// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::Wgt;
+/// # use zero_ui_wgt::{corner_radius, border};
+/// # use zero_ui_color::colors;
+/// # use zero_ui_wgt::prelude::*;
+/// #
+/// # #[property(BORDER, default(0, BorderStyle::Hidden))]
+/// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// #    zero_ui_wgt::border(child, widths, sides)
+/// # }
+/// #
+/// # fn main() {
+/// # let _ =
+/// Wgt! {
 ///     my_border = 4, colors::GREEN;
 ///     border = 4, colors::RED;
 ///     corner_radius = 8;
 /// }
-/// # }}
+/// # ; }
 /// ```
 ///
 /// Now the `GREEN` border is around the `RED`.
@@ -155,8 +190,8 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// You can adjust the nest group to cause a border to always be outside or inside:
 ///
 /// ```
-/// use zero_ui_wgt::prelude::*;
-///
+/// # use zero_ui_wgt::prelude::*;
+/// #
 /// /// Border that is always around the other borders.
 /// #[property(BORDER-1, default(0, BorderStyle::Hidden))]
 /// pub fn outside_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {

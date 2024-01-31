@@ -77,8 +77,16 @@ impl ImageSource {
     /// # Examples
     ///
     /// ```
-    /// # macro_rules! _demo { () => {
-    /// ImageSource::render(
+    /// # use zero_ui_ext_image::*;
+    /// # use zero_ui_color::colors;
+    /// # use std::any::Any;
+    /// # struct WindowRoot;
+    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # macro_rules! Window { ($($property:ident = $value:expr;)+) => { {$(let _ = $value;)+ WindowRoot } } }
+    /// # macro_rules! Text { ($($tt:tt)*) => { () } }
+    /// # fn main() { }
+    /// # fn demo() {
+    /// # let _ = ImageSource::render(
     ///     |args| Window! {
     ///         size = (500, 400);
     ///         parent = args.parent;
@@ -86,7 +94,7 @@ impl ImageSource {
     ///         child = Text!("Rendered!");
     ///     }
     /// )
-    /// # }};
+    /// # ; }
     /// ```
     ///
     /// [`Images::render`]: crate::image::Images::render
@@ -119,7 +127,15 @@ impl ImageSource {
     /// # Examples
     ///
     /// ```
-    /// # macro_rules! _demo { () => {
+    /// # use zero_ui_ext_image::*;
+    /// # use zero_ui_view_api::window::RenderMode;
+    /// # use std::any::Any;
+    /// # struct WindowRoot;
+    /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_app::widget::node::FillUiNode } }
+    /// # fn main() { }
+    /// # fn demo() {
+    /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,
     ///     |_args| Container! {
@@ -128,7 +144,7 @@ impl ImageSource {
     ///         child = Text!("Rendered!");
     ///     }
     /// )
-    /// # }};
+    /// # ; }
     /// ```
     ///
     /// [`IMAGES.render`]: crate::IMAGES::render

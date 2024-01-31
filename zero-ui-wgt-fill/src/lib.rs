@@ -16,27 +16,6 @@ pub mod node;
 /// arranged with the widget size, and they are always clipped to the widget bounds.
 ///
 /// See also [`background_fn`] for use in styles.
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     background = Text! {
-///         txt = "CUSTOM BACKGROUND";
-///         font_size = 72;
-///         font_color = web_colors::LIGHT_GRAY;
-///         transform = Transform::new_rotate(45.deg());
-///         align = Align::CENTER;
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// The example renders a custom text background.
-///
-/// [`background_fn`]: fn@background_fn
 #[property(FILL)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     let background = interactive_node(background, false);
@@ -84,22 +63,6 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// Linear gradient background property.
 ///
 /// This property applies a [`node::linear_gradient`] as [`background`].
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     background_gradient = {
-///         axis: 90.deg(),
-///         stops: [colors::BLACK, colors::WHITE],
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// [`background`]: fn@background
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
     stops![c, c]
@@ -111,23 +74,6 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// Radial gradient background property.
 ///
 /// This property applies a [`node::radial_gradient`] as [`background`].
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     background_radial = {
-///         center: (50.pct(), 80.pct()),
-///         radius: 100.pct(),
-///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 100.pct(), {
     let c = colors::BLACK.transparent();
     stops![c, c]
@@ -144,23 +90,6 @@ pub fn background_radial(
 /// Conic gradient background property.
 ///
 /// This property applies a [`node::conic_gradient`] as [`background`].
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     background_conic = {
-///         center: (50.pct(), 80.pct()),
-///         angle: 0.deg(),
-///         stops: [colors::BLACK, web_colors::DARK_ORANGE],
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 0.deg(), {
     let c = colors::BLACK.transparent();
     stops![c, c]
@@ -179,26 +108,6 @@ pub fn background_conic(
 /// The foreground is rendered over the widget content and background and under the widget borders.
 ///
 /// Foregrounds are not interactive, not hit-testable and don't influence the widget layout.
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     foreground = Text! {
-///         txt = "TRIAL";
-///         font_size = 72;
-///         font_color = colors::BLACK;
-///         opacity = 10.pct();
-///         transform = Transform::new_rotate(45.deg());
-///         align = Align::CENTER;
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// The example renders a custom see-through text overlay.
 #[property(FILL, default(NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     let foreground = interactive_node(foreground, false);
@@ -234,23 +143,6 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// Foreground highlight border overlay.
 ///
 /// This property draws a border contour with extra `offsets` padding as an overlay.
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     foreground_highlight = {
-///         offsets: 3,
-///         widths: 1,
-///         sides: colors::BLUE,
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// The example renders a solid blue 1 pixel border overlay, the border lines are offset 3 pixels into the container.
 #[property(FILL, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
     child: impl UiNode,
@@ -324,22 +216,6 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// Linear gradient overlay property.
 ///
 /// This property applies a [`node::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
-///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     child = foo();
-///     foreground_gradient = {
-///         axis: (0, 0).to(0, 10),
-///         stops: [colors::BLACK, colors::BLACK.transparent()]
-///     }
-/// }
-/// # }}
-/// ```
-///
-/// The example adds a 10px strip shadow gradient in the top part of the container content.
 ///
 /// [`foreground`]: fn@foreground
 /// [`Clamp`]: zero_ui_wgt::prelude::gradient::ExtendMode::Clamp

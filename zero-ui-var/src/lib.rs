@@ -180,27 +180,6 @@ impl<T: VarValue> AnyVarValue for T {
 
 /// A property value that is not a variable but can be inspected.
 ///
-/// # Examples
-///
-/// The example property receives the input `a` and `b`, they cannot change.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl IntoValue<bool>) -> impl UiNode {
-///     let a = a.into();
-///     let b = b.into();
-///
-///     match_node(child, move |_, op| match op {
-///         UiNodeOp::Init => {
-///             println!("a: {a:?}, b: {b:?}");
-///         },
-///         _ => {}
-///     })
-/// }
-/// # }}
-/// ```
-///
 /// # Implementing
 ///
 /// The trait is only auto-implemented for `T: Into<T> + VarValue`, unfortunately actual type conversions
@@ -746,104 +725,6 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`LocalVar`]
 /// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
 /// value.
-///
-/// # Examples
-///
-/// A value type using [`IntoVar<T>`] twice to support a shorthand initialization syntax:
-///
-/// ```
-/// # use zero_ui_var::*;
-/// #[derive(Debug, Clone, PartialEq)]
-/// pub struct Size {
-///     width: f32,
-///     height: f32
-/// }
-/// impl IntoVar<Size> for (u32, u32) {
-///     type Var = LocalVar<Size>;
-///
-///     fn into_var(self) -> Self::Var {
-///         LocalVar(Size { width: self.0 as f32, height: self.1 as f32 })
-///     }
-/// }
-/// impl IntoVar<Size> for (f32, f32) {
-///     type Var = LocalVar<Size>;
-///
-///     fn into_var(self) -> Self::Var {
-///         LocalVar(Size { width: self.0, height: self.1 })
-///     }
-/// }
-/// # macro_rules! _demo { () => {
-/// #[property(SIZE)]
-/// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-///     // ...
-///     # child
-/// }
-///
-/// // shorthand #1:
-/// let w = Wgt! {
-///     size = (800, 600);
-/// };
-///
-/// // shorthand #2:
-/// let w = Wgt! {
-///     size = (800.1, 600.2);
-/// };
-///
-/// // full:
-/// let w = Wgt! {
-///     size = Size { width: 800.0, height: 600.0 };
-/// };
-/// # }}
-/// ```
-///
-/// A property implemented using [`IntoVar`]:
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// #[property(LAYOUT)]
-/// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
-///     let bar = bar.into_var();
-///     match_node(child, move |_, op| match op {
-///         UiNodeOp::Init => {
-///             WIDGET.sub_var(&bar);
-///             println!("init: {}", bar.get());
-///         }
-///         UiNodeOp::Update { .. } => {
-///             if let Some(new) = bar.get_new() {
-///                 println!("update: {new}");
-///             }
-///         }
-///         _ => {}
-///     })
-/// }
-///
-/// // literal assign:
-/// let wgt = Wgt! {
-///     foo = 42;
-/// };
-///
-/// // variable assign:
-/// let variable = var(42);
-/// let wgt = Wgt! {
-///     foo = variable;
-/// };
-///
-/// // widget when:
-/// let wgt = Wgt! {
-///     foo = 42;
-///
-///     when !*#is_enabled {
-///         foo = 32;
-///     }
-/// };
-/// # }}
-/// ```
-///
-/// The property implementation is minimal and yet it supports a variety of different inputs that
-/// alter how it is compiled, from a static literal value that never changes to an updating variable to a changing widget state.
-///
-/// In the case of an static value the update code will be optimized away, but if assigned a variable it will become dynamic
-/// reacting to state changes, the same applies to `when` that compiles to a single property assign with a generated variable.
 pub trait IntoVar<T: VarValue> {
     /// Variable type that will wrap the `T` value.
     ///

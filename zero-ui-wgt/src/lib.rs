@@ -20,6 +20,10 @@ extern crate self as zero_ui_wgt; // for doc-tests
 
 /// Prelude for declaring properties and widgets.
 pub mod prelude {
+    #[doc(no_inline)]
+    pub use crate::__prelude::*;
+}
+mod __prelude {
     pub use zero_ui_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,

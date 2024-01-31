@@ -532,22 +532,6 @@ pub mod column {
     /// Get the column index for custom `when` expressions.
     ///
     /// The column index is zero-based.
-    ///
-    /// # Examples
-    ///
-    /// This uses `get_index` to give every third column a different background.
-    ///
-    /// ```
-    /// # macro_rules! _demo { () => {
-    /// grid::Column! {
-    ///     background_color = colors::GRAY;    
-    ///
-    ///     when *#get_index % 3 == 0 {
-    ///         background_color = web_colors::DARK_GRAY;
-    ///     }
-    /// }
-    /// # }}
-    /// ```
     #[property(CONTEXT, widget_impl(Column))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(
@@ -720,22 +704,6 @@ pub mod row {
     /// Get the row index for custom `when` expressions.
     ///
     /// The row index is zero-based.
-    ///
-    /// # Examples
-    ///
-    /// This uses `get_index` to give every third row a different background.
-    ///
-    /// ```
-    /// # macro_rules! _demo { () => {
-    /// grid::Row! {
-    ///     background_color = colors::GRAY;    
-    ///
-    ///     when *#get_index % 3 == 0 {
-    ///         background_color = web_colors::DARK_GRAY;
-    ///     }
-    /// }
-    /// # }}
-    /// ```
     #[property(CONTEXT, widget_impl(Row))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(

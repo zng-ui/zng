@@ -184,11 +184,14 @@ pub trait CommandFocusExt {
     /// # Examples
     ///
     /// ```
-    /// # macro_rules! _demo { () => {
+    /// # zero_ui_app::command! { pub static PASTE_CMD; }
+    /// # use zero_ui_ext_input::focus::cmd::CommandFocusExt as _;
+    /// # use zero_ui_var::*;
+    /// # fn main() {
     /// let paste_in_focused_cmd = PASTE_CMD.focus_scoped();
     /// let is_enabled = paste_in_focused_cmd.flat_map(|c| c.is_enabled());
     /// paste_in_focused_cmd.get().notify();
-    /// # }};
+    /// # }
     /// ```
     fn focus_scoped(self) -> BoxedVar<Command>;
 

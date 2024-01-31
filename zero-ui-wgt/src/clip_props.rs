@@ -6,25 +6,6 @@ use crate::prelude::*;
 /// rectangular and can have rounded corners if [`corner_radius`] is set. If the widget is inlined during layout the first
 /// row advance and last row trail are also clipped.
 ///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Container! {
-///     background_color = rgb(255, 0, 0);
-///     size = (200, 300);
-///     corner_radius = 5;
-///     clip_to_bounds = true;
-///     child = Container! {
-///         background_color = rgb(0, 255, 0);
-///         // fixed size ignores the layout available size.
-///         size = (1000, 1000);
-///         child = Text!("1000x1000 green clipped to 200x300");
-///     };
-/// }
-/// # }}
-/// ```
-///
 /// [`corner_radius`]: fn@crate::corner_radius
 #[property(FILL, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {

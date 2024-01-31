@@ -29,20 +29,6 @@ pub use self::window_properties::*;
 /// The instance type is [`WindowRoot`], that can be given to the [`WINDOWS`](zero_ui_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// use zero_ui::prelude::*;
-///
-/// APP.defaults().run_window(async {
-///     Window! {
-///         title = "Window 1";
-///         child = Text!("Window 1");
-///     }
-/// })
-/// # }}
-/// ```
 /// See [`run_window`](zero_ui_ext_window::AppRunWindowExt::run_window) for more details.
 #[widget($crate::Window)]
 pub struct Window(zero_ui_wgt_container::Container);

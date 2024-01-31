@@ -4,10 +4,8 @@
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
-* Review docs in the component crates.
-    - They must link to the main crate on the start page.
-    - Remove all examples using hidden macro_rules! hack.
-        - Search for `///.*macro_rules! _`.
+* Review docs.
+    - Do a full read, look for typos or failed links.
 
 # Publish
 

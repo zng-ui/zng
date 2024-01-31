@@ -164,22 +164,6 @@ use rustc_hash::FxHashMap;
 /// immediately, with the expectation that the app will be started. If called in a view-process
 /// if will highjack the process **never returning**.
 ///
-/// # Examples
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// use zero_ui::prelude::*;
-///
-/// fn main() {
-///     zero_ui_view::init();
-///
-///     APP.defaults().run_window(|ctx| {
-///         unimplemented!()
-///     })
-/// }
-/// # }}
-/// ```
-///
 /// # Panics
 ///
 /// Panics if not called in the main thread, this is a requirement of some operating systems.
@@ -231,32 +215,6 @@ pub extern "C" fn extern_init() {
 ///
 /// In this mode the app only uses a single process, reducing the memory footprint, but it is also not
 /// resilient to video driver crashes, the view server **does not** respawn in this mode.
-///
-/// # Examples
-///
-/// The example demonstrates a setup that runs the view server in the same process in debug builds and
-/// runs
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// use zero_ui::prelude::*;
-///
-/// fn main() {
-///     if cfg!(debug_assertions) {
-///         zero_ui_view::run_same_process(app_main);
-///     } else {
-///         zero_ui_view::init();
-///         app_main();
-///     }
-/// }
-///
-/// fn app_main() {
-///     APP.defaults().run_window(|ctx| {
-///         unimplemented!()
-///     })
-/// }
-/// # }}
-/// ```
 ///
 /// # Panics
 ///

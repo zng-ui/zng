@@ -20,29 +20,6 @@ pub use types::*;
 /// By default the widgets are rendered in their logical order, the last widget renders in front of the others,
 /// you can change this by setting the [`z_index`] property in the item widget.
 ///
-/// # Examples
-///
-/// The example creates a stack that positions each child under the previous one, in a vertical column. A space of 10
-/// is reserved around the children and a space of 5 in between each child. The stack is centralized in the parent
-/// widget, but the children fill the width of the widest child.
-///
-/// ```
-/// # macro_rules! _demo {()=>{
-/// let text = Stack! {
-///     direction = StackDirection::top_to_bottom();
-///     padding = 10;
-///     spacing = 5;
-///     align = Align::CENTER;
-///     children_align = Align::FILL;
-///     children = ui_vec![
-///         Text!("one"),
-///         Text!("two"),
-///         Text!("three"),
-///     ];
-/// };
-/// # }}
-/// ```
-///
 /// # Shorthand
 ///
 /// The `Stack!` macro provides shorthand syntax:
@@ -589,25 +566,6 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::node::PanelListRange> =
 /// Get the child index for custom `when` expressions.
 ///
 /// The child index is zero-based.
-///
-/// # Examples
-///
-/// This uses `get_index` to give every third button a different background.
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// Stack! {
-///     direction = StackDirection::top_to_bottom();
-///     spacing = 2;
-///     children = (0..30).map(|i| Button! { child = Text!("Row {i}") }.boxed()).collect::<UiNodeVec>();
-///     button::style_fn = style_fn!(|_| Style! {
-///         when *#stack::get_index % 3 == 0 {
-///             background_color = web_colors::DARK_GRAY;
-///         }
-///     });
-/// }
-/// # } }
-/// ```
 #[property(CONTEXT)]
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();

@@ -62,17 +62,6 @@
 /// # assert(true);
 /// # assert("on");
 /// ```
-///
-/// The value then can be used in a property:
-///
-/// ```
-/// # macro_rules! _demo { () => {
-/// #[property(CONTEXT)]
-/// pub fn foo(child: impl UiNode, value: impl IntoVar<FooValue>) -> impl UiNode {
-///     // ..
-/// }
-/// # }}
-/// ```
 #[macro_export]
 macro_rules! impl_from_and_into_var {
     ($($tt:tt)+) => {

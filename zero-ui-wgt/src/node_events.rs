@@ -306,29 +306,6 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///
 /// The `state` is set to `true` on init and to `false` on deinit. This property is useful for
 /// declaring transition animations that play on init using `when` blocks.
-///
-/// # Examples
-///
-/// Animate a popup when it opens:
-///
-/// ```
-/// # macro_rules! _demo {() => {
-/// use zero_ui::prelude::*;
-///
-/// Popup! {
-///     opacity = 0.pct();
-///     y = -10;
-///     when *#is_inited {
-///         #[easing(100.ms())]
-///         opacity = 100.pct();
-///         #[easing(100.ms())]
-///         y = 0;
-///     }
-///     
-///     // ..
-/// }
-/// # }}
-/// ```
 #[property(CONTEXT)]
 pub fn is_inited(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();

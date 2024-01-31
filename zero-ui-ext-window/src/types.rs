@@ -302,8 +302,10 @@ impl WindowIcon {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # macro_rules! _demo { () => {
+    /// ```no_run
+    /// # use zero_ui_ext_window::WindowIcon;
+    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_app::widget::node::FillUiNode } }
+    /// # let _ =
     /// WindowIcon::render(
     ///     || Container! {
     ///         // image::render_retain = true;
@@ -315,7 +317,7 @@ impl WindowIcon {
     ///         child = Text!("A");
     ///     }
     /// )
-    /// # }};
+    /// # ;
     /// ```
     pub fn render<I, F>(new_icon: F) -> Self
     where
