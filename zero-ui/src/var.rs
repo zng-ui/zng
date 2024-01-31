@@ -268,7 +268,43 @@
 //!
 //! # Contextual
 //!
-//! !!:
+//! The [`ContextVar<T>`] variable represents a context depend value, meaning they can produce a different value depending
+//! on where they are used. Context vars are declared using the [`context_var!`] macro.
+//! 
+//! The example below declares a context var and a property that sets it. The context var is then used in two texts with
+//! two different contexts, the first text will show "Text!", the second will show "Stack!".
+//! 
+//! ```
+//! # fn main() { }
+//! use zero_ui::prelude::*;
+//! 
+//! context_var! {
+//!     static FOO_VAR: Txt = "";
+//! }
+//! 
+//! #[zero_ui::widget::property(CONTEXT, default(FOO_VAR))]
+//! pub fn foo(child: impl UiNode, foo: impl IntoVar<Txt>) -> impl UiNode {
+//!     zero_ui::widget::node::with_context_var(child, FOO_VAR, foo)
+//! }
+//! 
+//! fn demo() -> impl UiNode {
+//!     Stack! {
+//!         direction = StackDirection::top_to_bottom();
+//!         spacing = 5;
+//!         foo = "Stack!";
+//!         children = ui_vec![
+//!             Text! {
+//!                 txt = FOO_VAR;
+//!                 foo = "Text!";
+//!             },
+//!             Text!(FOO_VAR),
+//!         ]
+//!     }
+//! }
+//! ```
+//! 
+//! Context variables have all the same capabilities of other variables if the example if `foo` is set to a [`var`]
+//! the context var will be editable, and if `FOO_VAR` is mapped the mapping variable is also contextual.
 //! 
 //! # Full API
 //!
