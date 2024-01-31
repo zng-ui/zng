@@ -1,6 +1,3 @@
-* Window example headless screenshot does not use the color scheme?
-    - Test older commit.
-
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

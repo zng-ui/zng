@@ -205,10 +205,12 @@ fn screenshot() -> impl UiNode {
             enabled = enabled.clone();
             on_click = hn!(|_| {
                 enabled.set(false);
-
+                
                 tracing::info!("taking `screenshot.png` using a new headless window ..");
+                let parent = WINDOW.id();
                 WINDOWS.open_headless(async_clmv!(enabled, {
                     Window! {
+                        parent;
                         size = (500, 400);
                         background_color = web_colors::DARK_GREEN;
                         font_size = 72;
