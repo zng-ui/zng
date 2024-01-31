@@ -199,6 +199,9 @@ impl StackDirection {
     /// Values are in the `0.0..=1.0` range where 0 is 20º or more from a single direction and 1 is 0º or 90º.
     pub fn direction_scale(&self) -> Factor2d {
         let scale = self.direction_factor(LayoutDirection::LTR).abs().yx();
+        if scale.x == 0.fct() && scale.y == 0.fct() {
+            return Factor2d::new(1.0, 1.0);
+        }
         let angle = scale.y.0.atan2(scale.x.0).to_degrees();
         if angle <= 20.0 {
             Factor2d::new(1.0 - angle / 20.0, 0.0)

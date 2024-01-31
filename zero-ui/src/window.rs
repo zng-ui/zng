@@ -1,4 +1,39 @@
 //! Window service, widget, events, commands and types.
+//! 
+//! The [`Window!`](struct@Window) widget declares a window root.
+//! 
+//! The example below declares a window that can toggle if it can close.
+//! 
+//! ```
+//! # fn main() {}
+//! use zero_ui::prelude::*;
+//! 
+//! fn app() {
+//!     APP.defaults().run_window(async { window() });
+//! }
+//! 
+//! fn window() -> window::WindowRoot {
+//!     let allow_close = var(true);
+//!     Window! {
+//!         on_close_requested = hn!(allow_close, |args: &window::WindowCloseRequestedArgs| {
+//!             if !allow_close.get() {
+//!                 args.propagation().stop();
+//!             }
+//!         });
+//! 
+//!         title = "Title";
+//!         child_align = layout::Align::CENTER;
+//!         child = Toggle! {
+//!             child = Text!(allow_close.map(|a| formatx!("allow_close = {a:?}")));
+//!             checked = allow_close;
+//!         }
+//!     }
+//! }
+//! ```
+//! 
+//! The [`WINDOWS`] service can be used to open, manage and close windows.
+//! 
+//! !!: TODO
 //!
 //! # Full API
 //!
