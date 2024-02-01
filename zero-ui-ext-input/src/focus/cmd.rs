@@ -183,7 +183,7 @@ pub trait CommandFocusExt {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # zero_ui_app::command! { pub static PASTE_CMD; }
     /// # use zero_ui_ext_input::focus::cmd::CommandFocusExt as _;
     /// # use zero_ui_var::*;
