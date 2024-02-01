@@ -1,6 +1,9 @@
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.
+    - Windows:
+        - `do prebuild` requires clang
+            - needs `CC` and `CXX` environment variables set to `clang-cl`
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.

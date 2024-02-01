@@ -253,12 +253,12 @@ impl GlContextManager {
 
     #[allow(unreachable_code)]
     fn create_headed_swgl(&mut self, id: WindowId, window: &winit::window::Window) -> Result<GlContext, Box<dyn Error>> {
-        #[cfg(not(software))]
+        #[cfg(not(feature = "software"))]
         {
             return Err("zero-ui-view not build with \"software\" backend".into());
         }
 
-        #[cfg(software)]
+        #[cfg(feature = "software")]
         {
             if !blit::Impl::supported() {
                 return Err("zero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
@@ -394,12 +394,12 @@ impl GlContextManager {
 
     #[allow(unreachable_code)]
     fn create_headless_swgl(&mut self, id: WindowId) -> Result<GlContext, Box<dyn Error>> {
-        #[cfg(not(software))]
+        #[cfg(not(feature = "software"))]
         {
             return Err("zero-ui-view not build with \"software\" backend".into());
         }
 
-        #[cfg(software)]
+        #[cfg(feature = "software")]
         {
             let context = swgl::Context::create();
             let gl = Rc::new(context);
@@ -426,7 +426,7 @@ enum GlBackend {
         surface: Surface<WindowSurface>,
     },
 
-    #[cfg(software)]
+    #[cfg(feature = "software")]
     Swgl {
         context: swgl::Context,
         // is None for headless.
@@ -459,7 +459,7 @@ impl GlContext {
     /// If the context is backed by SWGL.
     #[allow(unreachable_code)]
     pub(crate) fn is_software(&self) -> bool {
-        #[cfg(software)]
+        #[cfg(feature = "software")]
         {
             return matches!(&self.backend, GlBackend::Swgl { .. });
         }
@@ -669,7 +669,7 @@ impl TryConfig {
     }
 }
 
-#[cfg(software)]
+#[cfg(feature = "software")]
 mod blit {
     /// Bottom-top BGRA8.
     pub type Bgra8 = [u8];

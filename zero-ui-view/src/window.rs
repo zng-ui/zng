@@ -221,7 +221,7 @@ impl Window {
             .with_visible(cfg.kiosk || matches!(s.state, WindowState::Exclusive));
 
         let mut render_mode = cfg.render_mode;
-        if !cfg!(software) && render_mode == RenderMode::Software {
+        if !cfg!(feature = "software") && render_mode == RenderMode::Software {
             tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
             render_mode = RenderMode::Integrated;
         }
