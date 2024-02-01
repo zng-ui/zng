@@ -597,9 +597,9 @@ pub(crate) fn warmup() {}
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
     let version = gl.get_string(gl::VERSION);
 
-    // pattern is "\d+(\.\d+)?."
+    // versions can be "3.1" or "3.1.0" or "3.3 some text"
     // we take the major and optionally minor versions.
-    let ver: Vec<_> = version.split('.').take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
+    let ver: Vec<_> = version.split(['.', ' ']).take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
 
     let supported = if ver[0] == 3 {
         ver.get(1).copied().unwrap_or(0) >= 1
