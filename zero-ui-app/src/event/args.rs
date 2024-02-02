@@ -5,7 +5,6 @@ use std::{
         atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
-    time::Instant,
 };
 
 /// [`Event<A>`] arguments.
@@ -38,7 +37,7 @@ pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
     fn as_any(&self) -> &dyn Any;
 
     /// Gets the instant this event happened.
-    fn timestamp(&self) -> Instant;
+    fn timestamp(&self) -> crate::DInstant;
 
     /// Insert all targets of this event on the [`UpdateDeliveryList`].
     fn delivery_list(&self, list: &mut UpdateDeliveryList);
@@ -208,7 +207,7 @@ macro_rules! __event_args {
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn new(
-                timestamp: impl Into<std::time::Instant>,
+                timestamp: impl Into<$crate::DInstant>,
                 propagation_handle: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
@@ -226,7 +225,7 @@ macro_rules! __event_args {
             /// Returns an error if the constructed arguments are invalid.
             #[allow(clippy::too_many_arguments)]
             pub fn try_new(
-                timestamp: impl Into<std::time::Instant>,
+                timestamp: impl Into<$crate::DInstant>,
                 propagation_handle: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Result<Self, $ValidationError> {
@@ -239,7 +238,7 @@ macro_rules! __event_args {
                 Ok(args)
             }
 
-            /// Arguments for event that happened now (`Instant::now`).
+            /// Arguments for event that happened now (`INSTANT.now`).
             ///
             /// # Panics
             ///
@@ -247,15 +246,15 @@ macro_rules! __event_args {
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
+                Self::new($crate::INSTANT.now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
 
-            /// Arguments for event that happened now (`Instant::now`).
+            /// Arguments for event that happened now (`INSTANT.now`).
             ///
             /// Returns an error if the constructed arguments are invalid.
             #[allow(clippy::too_many_arguments)]
             pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
-                Self::try_new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
+                Self::try_new($crate::INSTANT.now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
 
             $(#[$validate_outer])*
@@ -298,7 +297,7 @@ macro_rules! __event_args {
             /// New args from values that convert [into](Into) the argument types.
             #[allow(clippy::too_many_arguments)]
             pub fn new(
-                timestamp: impl Into<std::time::Instant>,
+                timestamp: impl Into<$crate::DInstant>,
                 propagation_handle: $crate::event::EventPropagationHandle,
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
@@ -309,10 +308,10 @@ macro_rules! __event_args {
                 }
             }
 
-            /// Arguments for event that happened now (`Instant::now`).
+            /// Arguments for event that happened now (`INSTANT.now`).
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
+                Self::new($crate::INSTANT.now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
         }
     };
@@ -332,7 +331,7 @@ macro_rules! __event_args {
         #[derive(Debug, Clone)]
         $vis struct $Args {
             /// When the event happened.
-            pub timestamp: std::time::Instant,
+            pub timestamp: $crate::DInstant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
             propagation_handle: $crate::event::EventPropagationHandle,
@@ -348,7 +347,7 @@ macro_rules! __event_args {
                 self
             }
 
-            fn timestamp(&self) -> std::time::Instant {
+            fn timestamp(&self) -> $crate::DInstant {
                 self.timestamp
             }
 

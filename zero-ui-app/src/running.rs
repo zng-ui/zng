@@ -6,8 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::Deadline;
 use zero_ui_app_context::{app_local, AppScope};
-use zero_ui_layout::unit::Deadline;
 use zero_ui_var::{response_var, ResponderVar, ResponseVar, VARS, VARS_APP};
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     view_process::{raw_device_events::DeviceId, *},
     widget::WidgetId,
     window::WindowId,
-    AppEventObserver, AppExtension, AppExtensionsInfo, ControlFlow, APP,
+    AppEventObserver, AppExtension, AppExtensionsInfo, ControlFlow, DInstant, APP, INSTANT,
 };
 
 /// Represents a running app controlled by an external event loop.
@@ -872,13 +872,13 @@ impl<E: AppExtension> Drop for RunningApp<E> {
 /// App main loop timer.
 #[derive(Debug)]
 pub(crate) struct LoopTimer {
-    now: Instant,
+    now: DInstant,
     deadline: Option<Deadline>,
 }
 impl Default for LoopTimer {
     fn default() -> Self {
         Self {
-            now: Instant::now(),
+            now: INSTANT.now(),
             deadline: None,
         }
     }
@@ -913,7 +913,7 @@ impl LoopTimer {
 
     /// Maybe awake timer.
     pub(crate) fn awake(&mut self) -> bool {
-        self.now = Instant::now();
+        self.now = INSTANT.now();
         if let Some(d) = self.deadline {
             if d.0 <= self.now {
                 self.deadline = None;
@@ -924,7 +924,7 @@ impl LoopTimer {
     }
 
     /// Awake timestamp.
-    pub fn now(&self) -> Instant {
+    pub fn now(&self) -> DInstant {
         self.now
     }
 }
@@ -937,7 +937,7 @@ impl zero_ui_var::animation::AnimationTimer for LoopTimer {
         self.register(deadline)
     }
 
-    fn now(&self) -> Instant {
+    fn now(&self) -> DInstant {
         self.now()
     }
 }
@@ -1428,10 +1428,10 @@ const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } el
 
 impl<T> ReceiverExt<T> for flume::Receiver<T> {
     fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError> {
-        if let Some(d) = deadline.0.checked_duration_since(Instant::now()) {
+        if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
             if d > WORST_SLEEP_ERR {
                 // probably sleeps here.
-                match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap()) {
+                match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
                     Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
                     interrupt => interrupt,
                 }

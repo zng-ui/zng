@@ -5,7 +5,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use zero_ui_ext_undo::*;
 use zero_ui_wgt::prelude::*;
@@ -67,7 +67,7 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                             UNDO.undo_select(n);
                         } else if let Some(&i) = args.param::<Duration>() {
                             UNDO.undo_select(i);
-                        } else if let Some(&t) = args.param::<Instant>() {
+                        } else if let Some(&t) = args.param::<DInstant>() {
                             UNDO.undo_select(t);
                         } else {
                             UNDO.undo();
@@ -80,7 +80,7 @@ pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNo
                             UNDO.redo_select(n);
                         } else if let Some(&i) = args.param::<Duration>() {
                             UNDO.redo_select(i);
-                        } else if let Some(&t) = args.param::<Instant>() {
+                        } else if let Some(&t) = args.param::<DInstant>() {
                             UNDO.redo_select(t);
                         } else {
                             UNDO.redo();

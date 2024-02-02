@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc, time::Instant};
+use std::{mem, sync::Arc};
 
 use atomic::Atomic;
 use parking_lot::RwLock;
@@ -8,6 +8,7 @@ use zero_ui_app::{
         node::{match_node, UiNode, UiNodeOp},
         WIDGET,
     },
+    DInstant,
 };
 use zero_ui_ext_font::{font_features::FontVariations, CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs};
 use zero_ui_ext_input::{
@@ -882,7 +883,7 @@ struct LayoutTextEdit {
 }
 struct SelectionMouseDown {
     position: DipPoint,
-    timestamp: Instant,
+    timestamp: DInstant,
     count: u8,
 }
 impl LayoutTextEdit {

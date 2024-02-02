@@ -76,6 +76,7 @@ zero-ui-unique_id = { path = "../zero-ui-unique_id" }
 zero-ui-handle = { path = "../zero-ui-handle" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-time = { path = "../zero-ui-time" }
 zero-ui-var = { path = "../zero-ui-var" }
 zero-ui-txt = { path = "../zero-ui-txt" }
 zero-ui-task = { path = "../zero-ui-task" }

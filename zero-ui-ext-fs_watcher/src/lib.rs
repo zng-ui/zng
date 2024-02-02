@@ -18,7 +18,7 @@ use std::{
         Arc,
     },
     thread,
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, SystemTime},
 };
 
 use atomic::{Atomic, Ordering};
@@ -33,7 +33,7 @@ use zero_ui_app::{
     timer::{DeadlineHandle, TIMERS},
     update::EventUpdate,
     view_process::raw_events::LOW_MEMORY_EVENT,
-    AppExtension,
+    AppExtension, DInstant, INSTANT,
 };
 use zero_ui_app_context::{app_local, LocalContext};
 use zero_ui_clone_move::clmv;
@@ -950,7 +950,7 @@ struct WatcherService {
 
     watcher: Watchers,
 
-    debounce_oldest: Instant,
+    debounce_oldest: DInstant,
     debounce_buffer: Vec<FsChange>,
     debounce_timer: Option<DeadlineHandle>,
 
@@ -966,7 +966,7 @@ impl WatcherService {
             sync_debounce: var(100.ms()),
             poll_interval: var(1.secs()),
             watcher: Watchers::new(),
-            debounce_oldest: Instant::now(),
+            debounce_oldest: INSTANT.now(),
             debounce_buffer: vec![],
             debounce_timer: None,
             read_to_var: vec![],
@@ -1274,7 +1274,7 @@ impl WatcherService {
 
     fn notify(&mut self) {
         let changes = mem::take(&mut self.debounce_buffer);
-        let now = Instant::now();
+        let now = INSTANT.now();
         self.debounce_oldest = now;
         self.debounce_timer = None;
 

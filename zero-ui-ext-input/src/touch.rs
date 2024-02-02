@@ -2,13 +2,7 @@
 //!
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
-use std::{
-    collections::HashMap,
-    mem,
-    num::NonZeroU32,
-    ops,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
 use zero_ui_app::{
     event::{event, event_args, AnyEventArgs, EventPropagationHandle},
     shortcut::ModifiersState,
@@ -24,7 +18,7 @@ use zero_ui_app::{
         WidgetId, WIDGET,
     },
     window::WindowId,
-    AppExtension,
+    AppExtension, DInstant,
 };
 
 use zero_ui_app_context::app_local;
@@ -75,10 +69,10 @@ struct PressedInfo {
     position: DipPoint,
     force: Option<TouchForce>,
     hits: HitTestInfo,
-    velocity_samples: Vec<(Instant, DipPoint)>,
+    velocity_samples: Vec<(DInstant, DipPoint)>,
 }
 impl PressedInfo {
-    fn push_velocity_sample(&mut self, timestamp: Instant, position: DipPoint) {
+    fn push_velocity_sample(&mut self, timestamp: DInstant, position: DipPoint) {
         if let Some(last) = self.velocity_samples.last_mut() {
             if timestamp.duration_since(last.0) < 1.ms() {
                 last.1 = position;
@@ -190,9 +184,9 @@ pub struct TouchPosition {
     pub position: DipPoint,
 
     /// Touch start timestamp.
-    pub start_time: Instant,
+    pub start_time: DInstant,
     /// Latest move timestamp.
-    pub update_time: Instant,
+    pub update_time: DInstant,
 }
 
 app_local! {
@@ -492,7 +486,7 @@ event_args! {
             pub modifiers: ModifiersState,
 
             /// Timestamp of when the touch started.
-            pub start_time: Instant,
+            pub start_time: DInstant,
 
             ..
 
@@ -1575,7 +1569,7 @@ struct PendingDoubleTap {
     device_id: DeviceId,
     target: WidgetId,
     count: NonZeroU32,
-    timestamp: Instant,
+    timestamp: DInstant,
 }
 struct PendingTap {
     window_id: WindowId,
@@ -1616,7 +1610,7 @@ struct PendingLongPress {
     touch: TouchId,
     target: WidgetId,
     position: DipPoint,
-    start_time: Instant,
+    start_time: DInstant,
     modifiers: ModifiersState,
 
     propagation: EventPropagationHandle,

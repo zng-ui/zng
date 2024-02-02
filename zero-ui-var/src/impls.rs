@@ -1,14 +1,10 @@
 //! zero-ui-var depends on zero-ui-[units, txt] so we need to implement these traits here.
 
-use std::{
-    any::Any,
-    borrow::Cow,
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{any::Any, borrow::Cow, path::PathBuf, time::Duration};
 
+use zero_ui_time::{DInstant, Deadline};
 use zero_ui_txt::Txt;
-use zero_ui_unit::{euclid, ByteLength, CornerRadius2D, Deadline, Dip, Factor, FactorPercent, FactorUnits, Px};
+use zero_ui_unit::{euclid, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits, Px};
 
 use crate::{
     animation::{easing::EasingStep, Transitionable},
@@ -207,7 +203,7 @@ impl_from_and_into_var! {
     fn from(f: FactorPercent) -> Factor;
     fn from(f: Factor) -> FactorPercent;
 
-    fn from(d: Instant) -> Deadline;
+    fn from(d: DInstant) -> Deadline;
     fn from(d: Duration) -> Deadline;
 
     fn from(b: usize) -> ByteLength;

@@ -416,7 +416,7 @@ impl Command {
     /// Schedule a command update linked with an external event `propagation`.
     pub fn notify_linked(&self, propagation: EventPropagationHandle, param: Option<CommandParam>) {
         self.event.notify(CommandArgs::new(
-            Instant::now(),
+            crate::INSTANT.now(),
             propagation,
             param,
             self.scope,
@@ -650,7 +650,7 @@ impl AnyEventArgs for AppCommandArgs {
         self
     }
 
-    fn timestamp(&self) -> Instant {
+    fn timestamp(&self) -> crate::DInstant {
         self.args.timestamp()
     }
 

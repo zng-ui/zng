@@ -3,7 +3,7 @@
 use std::any::Any;
 use std::future::Future;
 use std::marker::PhantomData;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{mem, thread};
 
 #[doc(hidden)]
@@ -11,6 +11,8 @@ pub use zero_ui_clone_move::*;
 
 use zero_ui_handle::{Handle, WeakHandle};
 use zero_ui_task::{self as task, ui::UiTask};
+
+use crate::INSTANT;
 
 /// Represents a handler in a widget context.
 ///
@@ -1257,14 +1259,14 @@ impl HeadlessApp {
         let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);
 
         if !pending.is_empty() {
-            let start_time = Instant::now();
+            let start_time = INSTANT.now();
             while {
                 pending.retain(|h| h());
                 !pending.is_empty()
             } {
                 UPDATES.update(None);
                 let flow = self.update(false);
-                if Instant::now().duration_since(start_time) >= timeout {
+                if INSTANT.now().duration_since(start_time) >= timeout {
                     return Err(format!(
                         "block_on reached timeout of {timeout:?} before the handler task could finish",
                     ));

@@ -6,7 +6,7 @@ use std::{
     convert::TryFrom,
     num::NonZeroU32,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use zero_ui_app::{
     access::{AccessClickArgs, ACCESS_CLICK_EVENT},
@@ -22,7 +22,7 @@ use zero_ui_app::{
         WidgetId,
     },
     window::WindowId,
-    AppExtension, HeadlessApp,
+    AppExtension, DInstant, HeadlessApp,
 };
 use zero_ui_app_context::app_local;
 use zero_ui_ext_window::WINDOWS;
@@ -968,7 +968,7 @@ impl ShortcutActions {
     }
 
     /// Send all events and focus request.
-    fn run(&self, timestamp: Instant, propagation: &EventPropagationHandle, device_id: Option<DeviceId>, repeat_count: u32) {
+    fn run(&self, timestamp: DInstant, propagation: &EventPropagationHandle, device_id: Option<DeviceId>, repeat_count: u32) {
         if let Some(target) = self.focus() {
             FOCUS.focus(FocusRequest::new(target, true));
         }

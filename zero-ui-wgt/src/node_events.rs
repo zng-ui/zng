@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use zero_ui_app::widget::node::UiNodeOpMethod;
 
 use crate::prelude::*;
@@ -17,16 +15,16 @@ pub struct OnNodeOpArgs {
     /// The number is `1` for the first call and is not reset if the widget is re-inited.
     pub count: usize,
     /// Instant the handler was called.
-    pub timestamp: Instant,
+    pub timestamp: DInstant,
 }
 impl OnNodeOpArgs {
     /// New args.
-    pub fn new(op: UiNodeOpMethod, count: usize, timestamp: Instant) -> Self {
+    pub fn new(op: UiNodeOpMethod, count: usize, timestamp: DInstant) -> Self {
         Self { op, count, timestamp }
     }
     /// New args with timestamp now.
     pub fn now(op: UiNodeOpMethod, count: usize) -> Self {
-        Self::new(op, count, Instant::now())
+        Self::new(op, count, INSTANT.now())
     }
 }
 

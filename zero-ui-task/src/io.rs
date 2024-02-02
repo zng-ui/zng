@@ -5,7 +5,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{self, Poll},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crate::McWaker;
@@ -13,6 +13,7 @@ use crate::McWaker;
 #[doc(no_inline)]
 pub use futures_lite::io::*;
 use parking_lot::Mutex;
+use zero_ui_time::{DInstant, INSTANT};
 use zero_ui_unit::{ByteLength, ByteUnits};
 
 /// Measure read/write of an async task.
@@ -22,9 +23,9 @@ use zero_ui_unit::{ByteLength, ByteUnits};
 pub struct Measure<T> {
     task: T,
     metrics: Metrics,
-    start_time: Instant,
-    last_write: Instant,
-    last_read: Instant,
+    start_time: DInstant,
+    last_write: DInstant,
+    last_read: DInstant,
 }
 impl<T> Measure<T> {
     /// Start measuring a new read/write task.
@@ -38,7 +39,7 @@ impl<T> Measure<T> {
         read_progress: (impl Into<ByteLength>, impl Into<ByteLength>),
         write_progress: (impl Into<ByteLength>, impl Into<ByteLength>),
     ) -> Self {
-        let now = Instant::now();
+        let now = INSTANT.now();
         Measure {
             task,
             metrics: Metrics {
@@ -82,7 +83,7 @@ impl<T: AsyncRead + Unpin> AsyncRead for Measure<T> {
                     let bytes = bytes.bytes();
                     self_.metrics.read_progress.0 += bytes;
 
-                    let now = Instant::now();
+                    let now = INSTANT.now();
                     let elapsed = now - self_.last_read;
 
                     self_.last_read = now;
@@ -105,7 +106,7 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
                     let bytes = bytes.bytes();
                     self_.metrics.write_progress.0 += bytes;
 
-                    let now = Instant::now();
+                    let now = INSTANT.now();
                     let elapsed = now - self_.last_write;
 
                     self_.last_write = now;

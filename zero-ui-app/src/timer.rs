@@ -4,15 +4,16 @@
 //! create UI bound timers that run using only the main thread and can awake the app event loop
 //! to notify updates.
 
+use crate::Deadline;
 use parking_lot::Mutex;
 use std::{
     fmt, mem,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-    time::{Duration, Instant},
+    time::Duration,
 };
 use zero_ui_app_context::app_local;
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_layout::unit::Deadline;
+use zero_ui_time::{DInstant, INSTANT};
 use zero_ui_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
 
 use crate::{
@@ -89,7 +90,7 @@ impl TimersService {
             handler: Mutex::new(Box::new(move |handle| {
                 handler.event(
                     &DeadlineArgs {
-                        timestamp: Instant::now(),
+                        timestamp: INSTANT.now(),
                         deadline,
                     },
                     &AppHandlerArgs { handle, is_preview: true },
@@ -162,7 +163,7 @@ impl TimersService {
 
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
     pub(crate) fn apply_updates(&mut self, timer: &mut LoopTimer) {
-        let now = Instant::now();
+        let now = INSTANT.now();
 
         // update `deadline` vars
         self.deadlines.retain(|wk| {
@@ -272,7 +273,7 @@ impl TimersService {
         handlers.retain_mut(|h| {
             if let Some(deadline) = h.pending.take() {
                 let args = TimerArgs {
-                    timestamp: Instant::now(),
+                    timestamp: INSTANT.now(),
                     deadline,
                     wk_handle: h.handle.weak_handle(),
                 };
@@ -464,7 +465,7 @@ impl DeadlineHandle {
     /// Note that `Option<DeadlineHandle>` takes up the same space as `DeadlineHandle` and avoids an allocation.
     pub fn dummy() -> DeadlineHandle {
         DeadlineHandle(Handle::dummy(DeadlineState {
-            deadline: Deadline(Instant::now()),
+            deadline: Deadline(DInstant::EPOCH),
             executed: AtomicBool::new(false),
         }))
     }
@@ -558,7 +559,7 @@ impl WeakDeadlineHandle {
 #[derive(Clone, Debug)]
 pub struct DeadlineArgs {
     /// When the handler was called.
-    pub timestamp: Instant,
+    pub timestamp: DInstant,
     /// Timer deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
     pub deadline: Deadline,
 }
@@ -578,7 +579,7 @@ struct TimerState {
 }
 struct TimerDeadline {
     interval: Duration,
-    last: Instant,
+    last: DInstant,
 }
 impl TimerDeadline {
     fn current_deadline(&self) -> Deadline {
@@ -591,7 +592,7 @@ impl TimerHandle {
             paused: AtomicBool::new(paused),
             deadline: Mutex::new(TimerDeadline {
                 interval,
-                last: Instant::now(),
+                last: INSTANT.now(),
             }),
             count: AtomicUsize::new(0),
         });
@@ -606,7 +607,7 @@ impl TimerHandle {
             paused: AtomicBool::new(true),
             deadline: Mutex::new(TimerDeadline {
                 interval: Duration::MAX,
-                last: Instant::now(),
+                last: DInstant::EPOCH,
             }),
             count: AtomicUsize::new(0),
         }))
@@ -653,7 +654,7 @@ impl TimerHandle {
     }
 
     /// Last elapsed time, or the start time if the timer has not elapsed yet.
-    pub fn timestamp(&self) -> Instant {
+    pub fn timestamp(&self) -> DInstant {
         self.0.data().deadline.lock().last
     }
 
@@ -692,7 +693,7 @@ impl TimerHandle {
     pub fn play(&self, reset: bool) {
         self.0.data().paused.store(false, Ordering::Relaxed);
         if reset {
-            self.0.data().deadline.lock().last = Instant::now();
+            self.0.data().deadline.lock().last = INSTANT.now();
         }
     }
 
@@ -824,7 +825,7 @@ impl Timer {
     }
 
     /// Last update time, or the start time if the timer has not updated yet.
-    pub fn timestamp(&self) -> Instant {
+    pub fn timestamp(&self) -> DInstant {
         self.0.timestamp()
     }
 
@@ -885,7 +886,7 @@ impl Timer {
 #[derive(Clone)]
 pub struct TimerArgs {
     /// When the handler was called.
-    pub timestamp: Instant,
+    pub timestamp: DInstant,
 
     /// Expected deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
     pub deadline: Deadline,
@@ -957,7 +958,7 @@ impl TimerArgs {
 
     /// The timestamp of the last update. This can be different from [`timestamp`](Self::timestamp)
     /// after the first `.await` in async handlers of if called from a different thread.
-    pub fn last_timestamp(&self) -> Instant {
+    pub fn last_timestamp(&self) -> DInstant {
         self.handle().map(|h| h.timestamp()).unwrap_or(self.timestamp)
     }
 

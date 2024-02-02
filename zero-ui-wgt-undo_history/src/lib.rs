@@ -23,7 +23,6 @@ use zero_ui_wgt_text::Text;
 
 use std::fmt;
 use std::sync::Arc;
-use std::time::Instant;
 
 /// Undo/redo stack view.
 ///
@@ -262,7 +261,7 @@ pub struct UndoEntryArgs {
     /// Is at least one item, can be more if [`GROUP_BY_UNDO_INTERVAL_VAR`] is enabled.
     ///
     /// The latest undo action is the last entry in the list.
-    pub info: Vec<(Instant, Arc<dyn UndoInfo>)>,
+    pub info: Vec<(DInstant, Arc<dyn UndoInfo>)>,
 
     /// What stack this entry is at.
     pub op: UndoOp,
@@ -276,7 +275,7 @@ impl UndoEntryArgs {
     /// This does not change after redo and undo, it is always the register time.
     ///
     /// This is the first timestamp in `info`.
-    pub fn timestamp(&self) -> Instant {
+    pub fn timestamp(&self) -> DInstant {
         self.info[0].0
     }
 }
@@ -375,7 +374,7 @@ impl UndoRedoButtonStyle {
 context_var! {
     /// Variable set by the parent undo/redo stack widget, can be used to highlight items
     /// that will be included in the undo/redo operation.
-    static HOVERED_TIMESTAMP_VAR: Option<Instant> = None;
+    static HOVERED_TIMESTAMP_VAR: Option<DInstant> = None;
 
     /// Variable set in each undo/redo entry widget.
     pub static UNDO_ENTRY_VAR: Option<UndoEntryArgs> = None;

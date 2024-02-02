@@ -63,7 +63,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// Linear gradient background property.
 ///
 /// This property applies a [`node::linear_gradient`] as [`background`].
-/// 
+///
 /// [`background`]: fn@background
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
@@ -76,7 +76,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// Radial gradient background property.
 ///
 /// This property applies a [`node::radial_gradient`] as [`background`].
-/// 
+///
 /// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 100.pct(), {
     let c = colors::BLACK.transparent();
@@ -94,7 +94,7 @@ pub fn background_radial(
 /// Conic gradient background property.
 ///
 /// This property applies a [`node::conic_gradient`] as [`background`].
-/// 
+///
 /// [`background`]: fn@background
 #[property(FILL, default((50.pct(), 50.pct()), 0.deg(), {
     let c = colors::BLACK.transparent();

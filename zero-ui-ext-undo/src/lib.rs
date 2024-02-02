@@ -15,7 +15,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use atomic::Atomic;
@@ -29,7 +29,7 @@ use zero_ui_app::{
         info::{WidgetInfo, WidgetInfoBuilder},
         WidgetId, WIDGET,
     },
-    AppExtension,
+    AppExtension, DInstant, INSTANT,
 };
 use zero_ui_app_context::{app_local, context_local, RunOnDrop};
 use zero_ui_clone_move::clmv;
@@ -62,7 +62,7 @@ impl AppExtension for UndoManager {
                 UNDO.undo_select(*c);
             } else if let Some(i) = args.param::<Duration>() {
                 UNDO.undo_select(*i);
-            } else if let Some(t) = args.param::<Instant>() {
+            } else if let Some(t) = args.param::<DInstant>() {
                 UNDO.undo_select(*t);
             } else {
                 UNDO.undo();
@@ -73,7 +73,7 @@ impl AppExtension for UndoManager {
                 UNDO.redo_select(*c);
             } else if let Some(i) = args.param::<Duration>() {
                 UNDO.redo_select(*i);
-            } else if let Some(t) = args.param::<Instant>() {
+            } else if let Some(t) = args.param::<DInstant>() {
                 UNDO.redo_select(*t);
             } else {
                 UNDO.redo();
@@ -422,7 +422,7 @@ pub struct UndoStackInfo {
     /// In an redo list the latest undone action is the last entry (first to redo). Note that the
     /// timestamp marks the moment the original undo registered the action, so the
     /// newest timestamp is in the first entry for redo lists.
-    pub stack: Vec<(Instant, Arc<dyn UndoInfo>)>,
+    pub stack: Vec<(DInstant, Arc<dyn UndoInfo>)>,
 
     /// Grouping interval.
     pub undo_interval: Duration,
@@ -442,14 +442,14 @@ impl UndoStackInfo {
     }
 
     /// Iterate over the `stack`, grouped by `undo_interval`.
-    pub fn iter_groups(&self) -> impl DoubleEndedIterator<Item = &[(Instant, Arc<dyn UndoInfo>)]> {
+    pub fn iter_groups(&self) -> impl DoubleEndedIterator<Item = &[(DInstant, Arc<dyn UndoInfo>)]> {
         struct Iter<'a> {
-            stack: &'a [(Instant, Arc<dyn UndoInfo>)],
+            stack: &'a [(DInstant, Arc<dyn UndoInfo>)],
             interval: Duration,
             ts_inverted: bool,
         }
         impl<'a> Iterator for Iter<'a> {
-            type Item = &'a [(Instant, Arc<dyn UndoInfo>)];
+            type Item = &'a [(DInstant, Arc<dyn UndoInfo>)];
 
             fn next(&mut self) -> Option<Self::Item> {
                 if self.stack.is_empty() {
@@ -600,7 +600,7 @@ pub struct UndoActionMergeArgs {
     pub next: Box<dyn UndoAction>,
 
     /// Timestamp of the previous action registered.
-    pub prev_timestamp: Instant,
+    pub prev_timestamp: DInstant,
 
     /// If the `prev_timestamp` is within the [`UNDO.undo_interval`]. Undo actions
     /// can choose to ignore this and merge anyway.
@@ -674,7 +674,7 @@ pub enum UndoFullOp<'r> {
         next_data: &'r mut dyn Any,
 
         /// Timestamp of the previous action registered.
-        prev_timestamp: Instant,
+        prev_timestamp: DInstant,
 
         /// If the `prev_timestamp` is within the [`UNDO.undo_interval`]. Undo actions
         /// can choose to ignore this and merge anyway.
@@ -714,7 +714,7 @@ impl UndoTransaction {
     /// Push all undo actions captured by the transaction into the current undo scope.
     pub fn commit(mut self) {
         let mut undo = mem::take(&mut self.undo);
-        let now = Instant::now();
+        let now = INSTANT.now();
         for u in &mut undo {
             u.timestamp = now;
         }
@@ -758,7 +758,7 @@ command! {
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32`, `Duration` or `Instant` calls [`undo_select`], otherwise calls
+    /// If the command parameter is a `u32`, `Duration` or `DInstant` calls [`undo_select`], otherwise calls
     /// [`undo`].
     ///
     /// [`undo_select`]: UNDO::undo_select
@@ -777,7 +777,7 @@ command! {
     ///
     /// # Param
     ///
-    /// If the command parameter is a `u32`, `Duration` or `Instant` calls [`redo_select`], otherwise calls
+    /// If the command parameter is a `u32`, `Duration` or `DInstant` calls [`redo_select`], otherwise calls
     /// [`redo`].
     ///
     /// [`redo_select`]: UNDO::redo_select
@@ -912,7 +912,7 @@ impl UndoScope {
 
     fn register(&self, action: Box<dyn UndoAction>) {
         self.with_enabled_undo_redo(|undo, redo| {
-            let now = Instant::now();
+            let now = INSTANT.now();
             if let Some(prev) = undo.pop() {
                 match prev.action.merge(UndoActionMergeArgs {
                     next: action,
@@ -990,12 +990,12 @@ impl UndoScope {
 }
 
 struct UndoEntry {
-    timestamp: Instant,
+    timestamp: DInstant,
     action: Box<dyn UndoAction>,
 }
 
 struct RedoEntry {
-    pub timestamp: Instant,
+    pub timestamp: DInstant,
     pub action: Box<dyn RedoAction>,
 }
 
@@ -1269,7 +1269,7 @@ pub trait UndoSelect {
     ///
     /// The `timestamp` is the moment the item was pushed in the undo stack, if this
     /// function is called for [`UndoOp::Redo`] it will not be more recent than the next action.
-    fn include(&mut self, timestamp: Instant) -> bool;
+    fn include(&mut self, timestamp: DInstant) -> bool;
 }
 impl crate::private::Sealed for u32 {}
 impl UndoSelector for u32 {
@@ -1281,7 +1281,7 @@ impl UndoSelector for u32 {
     }
 }
 impl UndoSelect for u32 {
-    fn include(&mut self, _: Instant) -> bool {
+    fn include(&mut self, _: DInstant) -> bool {
         let i = *self > 0;
         if i {
             *self -= 1;
@@ -1303,12 +1303,12 @@ impl UndoSelector for Duration {
 }
 #[doc(hidden)]
 pub struct UndoSelectInterval {
-    prev: Option<Instant>,
+    prev: Option<DInstant>,
     interval: Duration,
     op: UndoOp,
 }
 impl UndoSelect for UndoSelectInterval {
-    fn include(&mut self, timestamp: Instant) -> bool {
+    fn include(&mut self, timestamp: DInstant) -> bool {
         if let Some(prev) = &mut self.prev {
             let (older, newer) = match self.op {
                 UndoOp::Undo => (timestamp, *prev),
@@ -1326,8 +1326,8 @@ impl UndoSelect for UndoSelectInterval {
         }
     }
 }
-impl crate::private::Sealed for Instant {}
-impl UndoSelector for Instant {
+impl crate::private::Sealed for DInstant {}
+impl UndoSelector for DInstant {
     type Select = UndoSelectLtEq;
 
     fn select(self, op: UndoOp) -> Self::Select {
@@ -1336,11 +1336,11 @@ impl UndoSelector for Instant {
 }
 #[doc(hidden)]
 pub struct UndoSelectLtEq {
-    instant: Instant,
+    instant: DInstant,
     op: UndoOp,
 }
 impl UndoSelect for UndoSelectLtEq {
-    fn include(&mut self, timestamp: Instant) -> bool {
+    fn include(&mut self, timestamp: DInstant) -> bool {
         match self.op {
             UndoOp::Undo => timestamp >= self.instant,
             UndoOp::Redo => timestamp <= self.instant,

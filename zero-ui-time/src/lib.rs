@@ -1,0 +1,289 @@
+//! Configurable instant type and service.
+
+use std::{
+    fmt, ops,
+    time::{Duration, Instant},
+};
+
+use parking_lot::RwLock;
+use zero_ui_app_context::app_local;
+
+/// Instant service.
+pub struct INSTANT;
+impl INSTANT {
+    /// Returns an instant corresponding to "now" or an instant configured by the app.
+    ///
+    /// This method can be called in non-app threads.
+    pub fn now(&self) -> DInstant {
+        if zero_ui_app_context::LocalContext::current_app().is_some() {
+            if let Some(now) = INSTANT_SV.read().now {
+                return now;
+            }
+        }
+        DInstant(self.epoch().elapsed())
+    }
+
+    /// Instant of first usage of the [`INSTANT`] service in the process.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called in a non-app thread.
+    pub fn epoch(&self) -> Instant {
+        if let Some(t) = *EPOCH.read() {
+            return t;
+        }
+        *EPOCH.write().get_or_insert_with(Instant::now)
+    }
+
+    /// Defines how the the `now` value updates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called in a non-app thread.
+    pub fn mode(&self) -> InstantMode {
+        INSTANT_SV.read().mode
+    }
+}
+
+/// App control of the [`INSTANT`] service in an app context.
+#[allow(non_camel_case_types)]
+pub struct INSTANT_APP;
+impl INSTANT_APP {
+    /// Set how the app controls the time.
+    ///
+    /// If mode is set to [`InstantMode::Now`] the custom now is unset.
+    pub fn set_mode(&self, mode: InstantMode) {
+        let mut sv = INSTANT_SV.write();
+        sv.mode = mode;
+        if let InstantMode::Now = mode {
+            sv.now = None;
+        }
+    }
+
+    /// Set the [`INSTANT.now`] for the app threads.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mode is [`InstantMode::Now`].
+    ///
+    /// [`INSTANT.now`]: INSTANT::now
+    pub fn set_now(&self, now: DInstant) {
+        let mut sv = INSTANT_SV.write();
+        if let InstantMode::Now = sv.mode {
+            panic!("cannot set now with `TimeMode::Now`");
+        }
+        sv.now = Some(now);
+    }
+
+    /// Unset the custom now value.
+    pub fn unset_now(&self) {
+        INSTANT_SV.write().now = None;
+    }
+
+    /// Gets the custom now value.
+    ///
+    /// This value is returned by [`INSTANT.now`] if set.
+    ///
+    /// [`INSTANT.now`]: INSTANT::now
+    pub fn custom_now(&self) -> Option<DInstant> {
+        INSTANT_SV.read().now
+    }
+}
+
+/// Duration elapsed since an epoch.
+///
+/// By default this is the duration elapsed since the first usage of [`INSTANT`] in the process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DInstant(Duration);
+impl DInstant {
+    /// Returns the amount of time elapsed since this instant.
+    pub fn elapsed(self) -> Duration {
+        INSTANT.now().0 - self.0
+    }
+
+    /// Returns the amount of time elapsed from another instant to this one,
+    /// or zero duration if that instant is later than this one.
+    pub fn duration_since(self, earlier: DInstant) -> Duration {
+        self.0 - earlier.0
+    }
+
+    /// Returns `Some(t)` where t is the time `self + duration` if t can be represented.
+    pub fn checked_add(&self, duration: Duration) -> Option<DInstant> {
+        self.0.checked_add(duration).map(Self)
+    }
+
+    /// Returns `Some(t)`` where t is the time `self - duration` if `duration` greater then the elapsed time
+    /// since the process start.
+    pub fn checked_sub(self, duration: Duration) -> Option<DInstant> {
+        self.0.checked_sub(duration).map(Self)
+    }
+
+    /// Returns the amount of time elapsed from another instant to this one, or None if that instant is later than this one.
+    pub fn checked_duration_since(&self, earlier: DInstant) -> Option<Duration> {
+        self.0.checked_sub(earlier.0)
+    }
+
+    /// Returns the amount of time elapsed from another instant to this one, or zero duration if that instant is later than this one.
+    pub fn saturating_duration_since(&self, earlier: DInstant) -> Duration {
+        self.0.saturating_sub(earlier.0)
+    }
+
+    /// Earliest instant.
+    pub const EPOCH: DInstant = DInstant(Duration::ZERO);
+}
+impl ops::Add<Duration> for DInstant {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+impl ops::AddAssign<Duration> for DInstant {
+    fn add_assign(&mut self, rhs: Duration) {
+        self.0 += rhs;
+    }
+}
+impl ops::Sub<Duration> for DInstant {
+    type Output = Self;
+
+    fn sub(self, rhs: Duration) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+impl ops::SubAssign<Duration> for DInstant {
+    fn sub_assign(&mut self, rhs: Duration) {
+        self.0 -= rhs;
+    }
+}
+impl ops::Sub for DInstant {
+    type Output = Duration;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.0.saturating_sub(rhs.0)
+    }
+}
+impl From<DInstant> for Instant {
+    fn from(t: DInstant) -> Self {
+        INSTANT.epoch() + t.0
+    }
+}
+
+/// Defines how the [`INSTANT.now`] value updates in the app.
+///
+/// [`INSTANT.now`]: INSTANT::now
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InstantMode {
+    /// Calls during an widget update (or layout, render) pass read the same time.
+    /// Other calls to `now` resamples the time.
+    UpdateLocked,
+    /// Every call to `now` resamples the time.
+    Now,
+    /// Time is controlled by the app.
+    Manual,
+}
+
+static EPOCH: RwLock<Option<Instant>> = RwLock::new(None);
+
+app_local! {
+    static INSTANT_SV: InstantService = const {
+        InstantService {
+            mode: InstantMode::UpdateLocked,
+            now: None,
+        }
+    };
+}
+
+struct InstantService {
+    mode: InstantMode,
+    now: Option<DInstant>,
+}
+
+/// Represents a timeout instant.
+///
+/// Timers and timeouts can be specified as an [`Instant`] in the future or as a [`Duration`] from now, both
+/// of these types can be converted to this `struct`, timer related function can receive an `impl Into<Deadline>`
+/// to support both methods in the same signature.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_time::*;
+/// fn timer(deadline: impl Into<Deadline>) { }
+///
+/// timer(5.secs());
+/// ```
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Deadline(pub DInstant);
+impl Deadline {
+    /// New deadline from now + `dur`.
+    pub fn timeout(dur: Duration) -> Self {
+        Deadline(INSTANT.now() + dur)
+    }
+
+    /// Returns `true` if the deadline was reached.
+    pub fn has_elapsed(self) -> bool {
+        self.0 <= INSTANT.now()
+    }
+
+    /// Returns the time left until the deadline is reached.
+    pub fn time_left(self) -> Option<Duration> {
+        self.0.checked_duration_since(INSTANT.now())
+    }
+
+    /// Returns the deadline further into the past or closest to now.
+    pub fn min(self, other: Deadline) -> Deadline {
+        Deadline(self.0.min(other.0))
+    }
+
+    /// Returns the deadline further into the future.
+    pub fn max(self, other: Deadline) -> Deadline {
+        Deadline(self.0.max(other.0))
+    }
+}
+impl fmt::Display for Deadline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dur = self.0 - INSTANT.now();
+        write!(f, "{dur:?} left")
+    }
+}
+impl fmt::Debug for Deadline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Deadline({self})")
+    }
+}
+impl From<DInstant> for Deadline {
+    fn from(value: DInstant) -> Self {
+        Deadline(value)
+    }
+}
+impl From<Duration> for Deadline {
+    fn from(value: Duration) -> Self {
+        Deadline::timeout(value)
+    }
+}
+impl ops::Add<Duration> for Deadline {
+    type Output = Self;
+
+    fn add(mut self, rhs: Duration) -> Self {
+        self.0 += rhs;
+        self
+    }
+}
+impl ops::AddAssign<Duration> for Deadline {
+    fn add_assign(&mut self, rhs: Duration) {
+        self.0 += rhs;
+    }
+}
+impl ops::Sub<Duration> for Deadline {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Duration) -> Self {
+        self.0 -= rhs;
+        self
+    }
+}
+impl ops::SubAssign<Duration> for Deadline {
+    fn sub_assign(&mut self, rhs: Duration) {
+        self.0 -= rhs;
+    }
+}

@@ -1,15 +1,13 @@
 //! Var animation types and functions.
 
-use std::{
-    mem,
-    time::{Duration, Instant},
-};
+use std::{mem, time::Duration};
 
 use zero_ui_app_context::context_local;
 use zero_ui_clone_move::clmv;
 
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_unit::{Deadline, TimeUnits};
+use zero_ui_time::{DInstant, Deadline, INSTANT};
+use zero_ui_unit::TimeUnits as _;
 
 pub use zero_ui_var_proc_macros::Transitionable;
 
@@ -118,12 +116,12 @@ impl WeakAnimationHandle {
 }
 
 struct AnimationData {
-    start_time: Instant,
+    start_time: DInstant,
     restart_count: usize,
     stop: bool,
     sleep: Option<Deadline>,
     animations_enabled: bool,
-    now: Instant,
+    now: DInstant,
     time_scale: Factor,
 }
 
@@ -133,7 +131,7 @@ struct AnimationData {
 #[derive(Clone)]
 pub struct Animation(Arc<Mutex<AnimationData>>);
 impl Animation {
-    pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
+    pub(super) fn new(animations_enabled: bool, now: DInstant, time_scale: Factor) -> Self {
         Animation(Arc::new(Mutex::new(AnimationData {
             start_time: now,
             restart_count: 0,
@@ -146,15 +144,15 @@ impl Animation {
     }
 
     /// Instant this animation (re)started.
-    pub fn start_time(&self) -> Instant {
+    pub fn start_time(&self) -> DInstant {
         self.0.lock().start_time
     }
 
     /// Instant the current animation update started.
     ///
-    /// Use this value instead of [`Instant::now`], animations update sequentially, but should behave as if
+    /// Use this value instead of [`INSTANT::now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
-    pub fn now(&self) -> Instant {
+    pub fn now(&self) -> DInstant {
         self.0.lock().now
     }
 
@@ -163,7 +161,7 @@ impl Animation {
         self.0.lock().time_scale
     }
 
-    pub(crate) fn reset_state(&self, enabled: bool, now: Instant, time_scale: Factor) {
+    pub(crate) fn reset_state(&self, enabled: bool, now: DInstant, time_scale: Factor) {
         let mut m = self.0.lock();
         m.animations_enabled = enabled;
         m.now = now;
@@ -283,7 +281,7 @@ impl Animation {
     /// Change the start time to an arbitrary value.
     ///
     /// Note that this does not affect the restart count.
-    pub fn set_start_time(&self, instant: Instant) {
+    pub fn set_start_time(&self, instant: DInstant) {
         self.0.lock().start_time = instant;
     }
 
@@ -392,7 +390,7 @@ pub(super) struct Animations {
     animations: Mutex<Vec<AnimationFn>>,
     animation_imp: usize,
     pub(super) current_modify: ModifyInfo,
-    pub(super) animation_start_time: Option<Instant>,
+    pub(super) animation_start_time: Option<DInstant>,
     next_frame: Option<Deadline>,
     pub(super) animations_enabled: ArcVar<bool>,
     pub(super) frame_duration: ArcVar<Duration>,
@@ -502,7 +500,7 @@ impl Animations {
         let start_time = if let Some(t) = vars.ans.animation_start_time {
             t
         } else {
-            let t = Instant::now();
+            let t = INSTANT.now();
             vars.ans.animation_start_time = Some(t);
             t
         };
@@ -592,7 +590,7 @@ impl Animations {
             }
         }));
 
-        vars.ans.next_frame = Some(Deadline(Instant::now()));
+        vars.ans.next_frame = Some(Deadline(DInstant::EPOCH));
 
         vars.wake_app();
 
@@ -605,7 +603,7 @@ type AnimationFn = Box<dyn FnMut(AnimationUpdateInfo) -> Option<Deadline> + Send
 #[derive(Clone, Copy)]
 struct AnimationUpdateInfo {
     animations_enabled: bool,
-    now: Instant,
+    now: DInstant,
     time_scale: Factor,
     next_frame: Deadline,
 }
@@ -960,5 +958,5 @@ pub trait AnimationTimer {
     fn register(&mut self, deadline: Deadline);
 
     /// Frame timestamp.
-    fn now(&self) -> Instant;
+    fn now(&self) -> DInstant;
 }

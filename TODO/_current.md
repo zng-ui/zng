@@ -1,3 +1,18 @@
+# TIME
+
+* Implement time override for app.
+    - Headless app may want to control exactly to generate perfect frame rate rendering.
+    - Updates need to have the same `now` by default.
+        - A var in `APP` configures the `InstantMode`.
+        - Need a better enum?
+        - Need two things:
+            - `APP` bool var that enables time lock during updates.
+                - What name?
+            - Full access and frame locked option in `HeadlessApp`.
+
+* Document it (front page?)
+* Review Instant and Duration, what APIs can we add to our own types?
+
 # Documentation
 
 * Add build dependencies for each operating system on the main `README.md`.

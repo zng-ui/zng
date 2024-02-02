@@ -15,7 +15,7 @@ use zero_ui_app::{
         WidgetId,
     },
     window::WindowId,
-    AppExtension,
+    AppExtension, DInstant, INSTANT,
 };
 
 pub mod cmd;
@@ -27,10 +27,7 @@ use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var};
 use zero_ui_view_api::window::FrameId;
 
-use std::{
-    mem,
-    time::{Duration, Instant},
-};
+use std::{mem, time::Duration};
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
@@ -648,7 +645,7 @@ impl FOCUS {
     /// All other focus request methods call this method.
     pub fn focus(&self, mut request: FocusRequest) {
         let mut f = FOCUS_SV.write();
-        if !request.highlight && f.auto_highlight(Instant::now()) {
+        if !request.highlight && f.auto_highlight(INSTANT.now()) {
             request.highlight = true;
         }
         f.pending_window_focus = None;
@@ -828,7 +825,7 @@ impl FOCUS {
 
 enum PendingFocusRequest {
     None,
-    InfoRetry(FocusRequest, Instant),
+    InfoRetry(FocusRequest, DInstant),
     Update(FocusRequest),
     RetryUpdate(FocusRequest),
 }
@@ -869,7 +866,7 @@ struct PendingWindowFocus {
 
 struct FocusService {
     auto_highlight: ArcVar<Option<Duration>>,
-    last_keyboard_event: Instant,
+    last_keyboard_event: DInstant,
 
     focus_disabled_widgets: ArcVar<bool>,
     focus_hidden_widgets: ArcVar<bool>,
@@ -900,7 +897,7 @@ impl FocusService {
     fn new() -> Self {
         Self {
             auto_highlight: var(Some(300.ms())),
-            last_keyboard_event: Instant::now().checked_sub(Duration::from_secs(10)).unwrap(),
+            last_keyboard_event: DInstant::EPOCH,
 
             focus_disabled_widgets: var(true),
             focus_hidden_widgets: var(true),
@@ -928,7 +925,7 @@ impl FocusService {
         }
     }
 
-    fn auto_highlight(&self, timestamp: Instant) -> bool {
+    fn auto_highlight(&self, timestamp: DInstant) -> bool {
         if let Some(dur) = self.auto_highlight.get() {
             if timestamp.duration_since(self.last_keyboard_event) <= dur {
                 return true;
@@ -1074,7 +1071,7 @@ impl FocusService {
                         // to some `r`. So we setup an info retry, the focus will move to `r` momentarily,
                         // exiting the alt-scope, and if it removes the modal filter the focus will return.
                         self.request =
-                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, false, highlight), Instant::now());
+                            PendingFocusRequest::InfoRetry(FocusRequest::direct_or_related(return_id, false, highlight), INSTANT.now());
                     }
                 }
             }

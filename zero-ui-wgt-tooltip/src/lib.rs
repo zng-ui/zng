@@ -7,7 +7,7 @@
 
 zero_ui_wgt::enable_widget_macros!();
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use zero_ui_app::{access::ACCESS_TOOLTIP_EVENT, widget::OnVarArgs};
 use zero_ui_ext_input::{
@@ -266,7 +266,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         let mut global = OPEN_TOOLTIP.write();
                         if *global == Some(WIDGET.id()) {
                             *global = None;
-                            TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+                            TOOLTIP_LAST_CLOSED.set(Some(INSTANT.now()));
                         }
                     });
                     c.deinit();
@@ -312,7 +312,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 auto_close = None;
             }
 
-            let monitor_start = Instant::now();
+            let monitor_start = INSTANT.now();
 
             // close tooltip when the user starts doing something else (after 200ms)
             for event in [
@@ -454,7 +454,7 @@ app_local! {
     /// to integrate with the [`tooltip`] implementation.
     ///
     /// [`tooltip`]: fn@tooltip
-    pub static TOOLTIP_LAST_CLOSED: Option<Instant> = None;
+    pub static TOOLTIP_LAST_CLOSED: Option<DInstant> = None;
 
     /// Id of the current open tooltip.
     ///

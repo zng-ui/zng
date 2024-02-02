@@ -1,7 +1,6 @@
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
 
 use zero_ui_wgt::{prelude::*, *};
 
@@ -297,7 +296,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     }
     let status = var(Status::Pending);
 
-    let open_time = Instant::now();
+    let open_time = INSTANT.now();
 
     let popup = Container! {
         id = popup_id;

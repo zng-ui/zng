@@ -153,7 +153,6 @@ fn background_color_example(color: impl Var<Rgba>) -> impl UiNode {
 
 fn screenshot() -> impl UiNode {
     fn of_window() -> impl UiNode {
-        use std::time::Instant;
         let enabled = var(true);
         Button! {
             child = Text!(enabled.map(|&enabled| {
@@ -169,12 +168,12 @@ fn screenshot() -> impl UiNode {
 
                 tracing::info!("taking `screenshot.png`..");
 
-                let t = Instant::now();
+                let t = INSTANT.now();
                 let img = WINDOW.frame_image(None).get();
                 img.wait_done().await;
                 tracing::info!("taken in {:?}, saving..", t.elapsed());
 
-                let t = Instant::now();
+                let t = INSTANT.now();
 
                 match img.save("screenshot.png").await {
                     Ok(_) => {

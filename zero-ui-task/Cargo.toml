@@ -35,6 +35,7 @@ zero-ui-task-proc-macros = { path = "../zero-ui-task-proc-macros" }
 zero-ui-clone_move = { path = "../zero-ui-clone_move" }
 zero-ui-unit = { path = "../zero-ui-unit" }
 zero-ui-app_context = { path = "../zero-ui-app_context" }
+zero-ui-time = { path = "../zero-ui-time" }
 zero-ui-var = { path = "../zero-ui-var" }
 
 zero-ui-txt = { path = "../zero-ui-txt", optional = true }

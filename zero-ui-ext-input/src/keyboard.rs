@@ -1,9 +1,6 @@
 //! Keyboard manager.
 
-use std::{
-    collections::HashSet,
-    time::{Duration, Instant},
-};
+use std::{collections::HashSet, time::Duration};
 
 use zero_ui_app::{
     event::{event, event_args},
@@ -19,7 +16,7 @@ use zero_ui_app::{
     },
     widget::{info::InteractionPath, WidgetId},
     window::WindowId,
-    AppExtension, HeadlessApp,
+    AppExtension, DInstant, HeadlessApp,
 };
 use zero_ui_app_context::app_local;
 use zero_ui_clone_move::clmv;
@@ -331,7 +328,7 @@ struct KeyboardService {
     repeat_config: ArcVar<KeyRepeatConfig>,
     caret_animation_config: ArcVar<(Duration, Duration)>,
 
-    last_key_down: Option<(DeviceId, KeyCode, Instant, u32)>,
+    last_key_down: Option<(DeviceId, KeyCode, DInstant, u32)>,
 }
 impl KeyboardService {
     fn key_input(&mut self, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {

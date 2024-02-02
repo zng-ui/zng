@@ -27,7 +27,7 @@ mod crate_util;
 
 use crate::crate_util::PanicResult;
 use zero_ui_app_context::LocalContext;
-use zero_ui_unit::Deadline;
+use zero_ui_time::Deadline;
 use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
 
 #[doc(no_inline)]

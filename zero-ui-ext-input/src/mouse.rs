@@ -22,7 +22,7 @@ use zero_ui_app::{
         WidgetId, WIDGET,
     },
     window::WindowId,
-    AppExtension,
+    AppExtension, DInstant, INSTANT,
 };
 use zero_ui_app_context::app_local;
 use zero_ui_ext_window::WINDOWS;
@@ -660,7 +660,7 @@ struct ClickingInfo {
 
     pressed: bool,
     last_pos: DipPoint,
-    last_click: Instant,
+    last_click: DInstant,
     click_count: u32,
 
     repeat_timer: Option<DeadlineVar>,
@@ -765,7 +765,7 @@ impl MouseManager {
         let entry = self.clicking.entry(button).or_insert_with(|| ClickingInfo {
             path: wgt_path.clone(),
             press_stop_handle: stop_handle.clone(),
-            last_click: Instant::now(),
+            last_click: DInstant::EPOCH,
             last_pos: position,
             pressed: false,
             click_count: 0,
@@ -832,7 +832,7 @@ impl MouseManager {
 
         let capture_info = POINTER_CAPTURE.current_capture_value();
 
-        let now = Instant::now();
+        let now = INSTANT.now();
         let args = MouseInputArgs::new(
             now,
             stop_handle.clone(),
@@ -899,7 +899,7 @@ impl MouseManager {
             MOUSE_SV.read().position.set(self.pos_window.map(|id| MousePosition {
                 window_id: id,
                 position,
-                timestamp: Instant::now(),
+                timestamp: INSTANT.now(),
             }));
 
             // mouse_move data
@@ -1458,7 +1458,7 @@ pub struct MousePosition {
     /// Mouse position in the window.
     pub position: DipPoint,
     /// Timestamp of the mouse move.
-    pub timestamp: Instant,
+    pub timestamp: DInstant,
 }
 
 app_local! {

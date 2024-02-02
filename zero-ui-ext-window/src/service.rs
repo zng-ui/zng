@@ -20,12 +20,12 @@ use zero_ui_app::{
         UiTaskWidget, WidgetId,
     },
     window::{WindowCtx, WindowId, WindowMode, WINDOW},
-    AppEventSender, APP, EXIT_REQUESTED_EVENT,
+    AppEventSender, Deadline, APP, EXIT_REQUESTED_EVENT,
 };
 use zero_ui_app_context::app_local;
 
 use zero_ui_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
-use zero_ui_layout::unit::{Deadline, Factor, FactorUnits, LengthUnits, PxRect, TimeUnits};
+use zero_ui_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect, TimeUnits};
 use zero_ui_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ui::UiTask,

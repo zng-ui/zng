@@ -18,6 +18,7 @@ members = [
     "zero-ui-task",
     "zero-ui-color-proc-macros",
     "zero-ui-color",
+    "zero-ui-time",
 
     # view:
     "zero-ui-view-api",
@@ -85,7 +86,7 @@ members = [
 
     # tests:
     "tests",
-    "tests/build",
+    "tests/build", "zero-ui-time",
 ]
 
 exclude = ["dependencies/webrender"]

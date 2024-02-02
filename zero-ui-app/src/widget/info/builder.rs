@@ -11,6 +11,7 @@ use crate::{
     update::{InfoUpdates, LayoutUpdates, UpdateFlags},
     widget::{border::BORDER, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
     window::{WindowId, WINDOW},
+    DInstant, INSTANT,
 };
 
 use super::{hit::ParallelSegmentOffsets, *};
@@ -38,7 +39,7 @@ pub struct WidgetInfoBuilder {
 
     build_meta: Arc<Mutex<OwnedStateMap<WidgetInfoMeta>>>,
 
-    build_start: Instant,
+    build_start: DInstant,
     pushed_widgets: u32,
 }
 impl WidgetInfoBuilder {
@@ -78,7 +79,7 @@ impl WidgetInfoBuilder {
             widget_id: root_id,
             scale_factor,
             build_meta: Arc::default(),
-            build_start: Instant::now(),
+            build_start: INSTANT.now(),
             pushed_widgets: 1, // root is always new.
         };
 

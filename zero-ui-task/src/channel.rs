@@ -33,7 +33,7 @@ use std::{convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
-use zero_ui_unit::Deadline;
+use zero_ui_time::Deadline;
 
 /// The transmitting end of an unbounded channel.
 ///
@@ -358,19 +358,20 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// use zero_ui_task::{self as task, channel};
 /// # use zero_ui_unit::*;
 /// # use std::time::*;
+/// # use zero_ui_time::*;
 ///
 /// let (sender, receiver) = channel::rendezvous();
 ///
 /// task::spawn(async move {
 ///     loop {
-///         let t = Instant::now();
+///         let t = INSTANT.now();
 ///
 ///         if let Err(e) = sender.send("the stuff").await {
 ///             eprintln!(r#"failed to send "{}", no receiver connected"#, e.0);
 ///             break;
 ///         }
 ///
-///         assert!(Instant::now().duration_since(t) >= 2.secs());
+///         assert!(t.elapsed() >= 2.secs());
 ///     }
 /// });
 /// task::spawn(async move {

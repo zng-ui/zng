@@ -1,11 +1,6 @@
 //! Widget info tree.
 
-use std::{
-    borrow::Cow,
-    fmt, mem, ops,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Duration};
 
 pub mod access;
 
@@ -38,7 +33,7 @@ use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::impl_from_and_into_var;
 use zero_ui_view_api::{display_list::FrameValueUpdate, window::FrameId};
 
-use crate::{render::TransformStyle, window::WindowId};
+use crate::{render::TransformStyle, window::WindowId, DInstant};
 
 pub use self::hit::RelativeHitZ;
 use self::{access::AccessEnabled, hit::ParallelSegmentId, iter::TreeIterator};
@@ -76,7 +71,7 @@ pub struct WidgetInfoTreeStats {
     pub vis_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
-    fn new(build_start: Instant, reused_widgets: u32, generation: u32) -> Self {
+    fn new(build_start: DInstant, reused_widgets: u32, generation: u32) -> Self {
         Self {
             generation,
             build_time: build_start.elapsed(),
