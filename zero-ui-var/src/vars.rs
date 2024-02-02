@@ -1,6 +1,7 @@
 use std::{mem, thread::ThreadId, time::Duration};
 
 use zero_ui_app_context::{app_local, context_local};
+use zero_ui_time::INSTANT_APP;
 
 use crate::animation::AnimationTimer;
 
@@ -318,6 +319,7 @@ impl VARS_APP {
     /// This must be called by app framework implementers only.
     pub fn apply_updates(&self) {
         let _s = tracing::trace_span!("VARS").entered();
+        let _t = INSTANT_APP.pause_for_update();
         Self::apply_updates_and_after(0)
     }
     fn apply_updates_and_after(depth: u8) {

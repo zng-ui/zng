@@ -1,4 +1,5 @@
 use zero_ui_app_context::app_local;
+use zero_ui_time::INSTANT_APP;
 
 use crate::update::{UpdatesTrace, UPDATES};
 
@@ -87,9 +88,14 @@ impl EVENTS {
 
         let mut updates: Vec<_> = ev.updates.get_mut().drain(..).collect();
         drop(ev);
-        for u in &mut updates {
-            let ev = u.event;
-            ev.on_update(u);
+
+        if !updates.is_empty() {
+            let _t = INSTANT_APP.pause_for_update();
+
+            for u in &mut updates {
+                let ev = u.event;
+                ev.on_update(u);
+            }
         }
         updates
     }

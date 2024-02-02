@@ -13,7 +13,7 @@ use std::{
 };
 use zero_ui_app_context::app_local;
 use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_time::{DInstant, INSTANT};
+use zero_ui_time::{DInstant, INSTANT, INSTANT_APP};
 use zero_ui_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
 
 use crate::{
@@ -242,6 +242,8 @@ impl TimersService {
     /// does on_* notifications.
     pub(crate) fn notify() {
         let _s = tracing::trace_span!("TIMERS").entered();
+
+        let _t = INSTANT_APP.pause_for_update();
 
         // we need to detach the handlers, so we can pass the context for then
         // so we `mem::take` for the duration of the call. But new timers can be registered inside

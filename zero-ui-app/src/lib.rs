@@ -1206,6 +1206,7 @@ impl APP {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
+        let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
         AppExtended {
             extensions: vec![],

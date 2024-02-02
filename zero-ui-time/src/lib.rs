@@ -13,7 +13,10 @@ pub struct INSTANT;
 impl INSTANT {
     /// Returns an instant corresponding to "now" or an instant configured by the app.
     ///
-    /// This method can be called in non-app threads.
+    /// This method can be called in non-app threads. Apps can override this time in app threads,
+    /// by default the time is *paused* for each widget OP pass so that all widgets observe the same
+    /// time on the same pass, you can use [`mode`](Self::mode) to check how `now` updates and you
+    /// can use the `APP.pause_time_for_update` variable to disable pausing.
     pub fn now(&self) -> DInstant {
         if zero_ui_app_context::LocalContext::current_app().is_some() {
             if let Some(now) = INSTANT_SV.read().now {
@@ -87,6 +90,36 @@ impl INSTANT_APP {
     /// [`INSTANT.now`]: INSTANT::now
     pub fn custom_now(&self) -> Option<DInstant> {
         INSTANT_SV.read().now
+    }
+
+    /// If mode is [`InstantMode::UpdatePaused`] sets the app custom_now to the current time and returns
+    /// an object that unsets the custom now on drop.
+    pub fn pause_for_update(&self) -> Option<InstantUpdatePause> {
+        let mut sv = INSTANT_SV.write();
+        match sv.mode {
+            InstantMode::UpdatePaused => {
+                let now = DInstant(INSTANT.epoch().elapsed());
+                sv.now = Some(now);
+                Some(InstantUpdatePause { now })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Unset now on drop.
+///
+/// The time is only unset if it is still set to the same pause time.
+#[must_use = "unset_now on drop"]
+pub struct InstantUpdatePause {
+    now: DInstant,
+}
+impl Drop for InstantUpdatePause {
+    fn drop(&mut self) {
+        let mut sv = INSTANT_SV.write();
+        if sv.now == Some(self.now) {
+            sv.now = None;
+        }
     }
 }
 
@@ -175,7 +208,7 @@ impl From<DInstant> for Instant {
 pub enum InstantMode {
     /// Calls during an widget update (or layout, render) pass read the same time.
     /// Other calls to `now` resamples the time.
-    UpdateLocked,
+    UpdatePaused,
     /// Every call to `now` resamples the time.
     Now,
     /// Time is controlled by the app.
@@ -187,7 +220,7 @@ static EPOCH: RwLock<Option<Instant>> = RwLock::new(None);
 app_local! {
     static INSTANT_SV: InstantService = const {
         InstantService {
-            mode: InstantMode::UpdateLocked,
+            mode: InstantMode::UpdatePaused,
             now: None,
         }
     };
@@ -208,6 +241,8 @@ struct InstantService {
 ///
 /// ```
 /// # use zero_ui_time::*;
+/// # trait TimeUnits { fn secs(self) -> std::time::Duration where Self: Sized { std::time::Duration::ZERO } }
+/// # impl TimeUnits for i32 { }
 /// fn timer(deadline: impl Into<Deadline>) { }
 ///
 /// timer(5.secs());

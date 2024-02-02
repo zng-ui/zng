@@ -8,7 +8,8 @@ use std::{
 
 use crate::Deadline;
 use zero_ui_app_context::{app_local, AppScope};
-use zero_ui_var::{response_var, ResponderVar, ResponseVar, VARS, VARS_APP};
+use zero_ui_time::INSTANT_APP;
+use zero_ui_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
 use crate::{
     event::{
@@ -66,7 +67,10 @@ impl<E: AppExtension> RunningApp<E> {
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
 
         let mut info = AppExtensionsInfo::start();
-        extensions.register(&mut info);
+        {
+            let _t = INSTANT_APP.pause_for_update();
+            extensions.register(&mut info);
+        }
         APP_PROCESS_SV.write().set_extensions(info);
 
         let device_events = extensions.enable_device_events();
@@ -113,6 +117,8 @@ impl<E: AppExtension> RunningApp<E> {
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
+
+        let _t = INSTANT_APP.pause_for_update();
 
         update.event().on_update(&mut update);
 
@@ -712,6 +718,9 @@ impl<E: AppExtension> RunningApp<E> {
                     let _s = tracing::debug_span!("info").entered();
 
                     let mut info_widgets = mem::take(&mut self.pending.info_widgets);
+
+                    let _t = INSTANT_APP.pause_for_update();
+
                     {
                         let _s = tracing::debug_span!("ext.info").entered();
                         self.extensions.info(&mut info_widgets);
@@ -729,6 +738,8 @@ impl<E: AppExtension> RunningApp<E> {
                     let _s = tracing::debug_span!("update").entered();
 
                     let mut update_widgets = mem::take(&mut self.pending.update_widgets);
+
+                    let _t = INSTANT_APP.pause_for_update();
 
                     {
                         let _s = tracing::debug_span!("ext.update_preview").entered();
@@ -778,6 +789,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let _s = tracing::debug_span!("update_event", ?update).entered();
 
                 self.loop_monitor.maybe_trace(|| {
+                    let _t = INSTANT_APP.pause_for_update();
+
                     {
                         let _s = tracing::debug_span!("ext.event_preview").entered();
                         self.extensions.event_preview(&mut update);
@@ -828,6 +841,8 @@ impl<E: AppExtension> RunningApp<E> {
             let mut layout_widgets = mem::take(&mut self.pending.layout_widgets);
 
             self.loop_monitor.maybe_trace(|| {
+                let _t = INSTANT_APP.pause_for_update();
+
                 {
                     let _s = tracing::debug_span!("ext.layout").entered();
                     self.extensions.layout(&mut layout_widgets);
@@ -847,6 +862,8 @@ impl<E: AppExtension> RunningApp<E> {
 
             let mut render_widgets = mem::take(&mut self.pending.render_widgets);
             let mut render_update_widgets = mem::take(&mut self.pending.render_update_widgets);
+
+            let _t = INSTANT_APP.pause_for_update();
 
             {
                 let _s = tracing::debug_span!("ext.render").entered();
@@ -1005,6 +1022,18 @@ impl APP {
     pub fn exit(&self) -> ResponseVar<ExitCancelled> {
         APP_PROCESS_SV.write().exit()
     }
+
+    /// Gets a variable that sets if [`INSTANT.now`] is the same exact value during each update pass.
+    ///
+    /// Time is paused for each update pass, event notification, layout and render so that all widgets observe
+    /// the same time in the same update.
+    ///
+    /// This is enabled by default.
+    ///
+    /// [`INSTANT.now`]: crate::INSTANT::now
+    pub fn pause_time_for_update(&self) -> ArcVar<bool> {
+        APP_PROCESS_SV.read().pause_time_for_updates.clone()
+    }
 }
 
 command! {
@@ -1041,6 +1070,21 @@ struct PendingExit {
 impl AppIntrinsic {
     /// Pre-init intrinsic services and commands, must be called before extensions init.
     pub(super) fn pre_init(is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>, device_events: bool) -> Self {
+        APP_PROCESS_SV
+            .read()
+            .pause_time_for_updates
+            .hook(|a| {
+                if !matches!(INSTANT.mode(), zero_ui_time::InstantMode::Manual) {
+                    if *a.value() {
+                        INSTANT_APP.set_mode(zero_ui_time::InstantMode::UpdatePaused);
+                    } else {
+                        INSTANT_APP.set_mode(zero_ui_time::InstantMode::Now);
+                    }
+                }
+                true
+            })
+            .perm();
+
         if is_headed {
             debug_assert!(with_renderer);
 
@@ -1154,17 +1198,17 @@ pub(crate) fn check_deadlock() {
 pub(crate) fn check_deadlock() {}
 
 app_local! {
-    pub(super) static APP_PROCESS_SV: AppProcessService = const {
-        AppProcessService {
-            exit_requests: None,
-            extensions: None,
-        }
+    pub(super) static APP_PROCESS_SV: AppProcessService =AppProcessService {
+        exit_requests: None,
+        extensions: None,
+        pause_time_for_updates: zero_ui_var::var(true),
     };
 }
 
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
     extensions: Option<Arc<AppExtensionsInfo>>,
+    pause_time_for_updates: ArcVar<bool>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
