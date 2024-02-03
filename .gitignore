@@ -7,6 +7,7 @@ profile*.json.gz
 dump.*
 dump*.*
 screenshot.*
+screencast.*
 wip
 cargo-timing*
 large-image.*
