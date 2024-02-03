@@ -57,9 +57,7 @@ fn headless_example() {
                 img.save("screenshot.png").await.unwrap();
 
                 println!("done");
-
-                // and close the window, causing the app to exit.
-                WINDOW.close();
+                APP.exit();
             });
         }
     });
@@ -214,19 +212,18 @@ fn headless_example_video() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);
     // saving frame can be slow, so we will manually control the app time to not miss any frame.
-    app.start_manual_time();
+    // APP.start_manual_time();
 
     const FPS: f32 = 60.0;
     zero_ui::var::VARS.frame_duration().set((FPS / 1.0).ms());
 
     // will save frames as "{temp}/{frame}.png"
     let temp = PathBuf::from("target/tmp/headless_example_video");
+    let _ = std::fs::remove_dir_all(&temp);
+    std::fs::create_dir_all(&temp).unwrap();
 
     app.run_window(async_clmv!(temp, {
-        let _ = std::fs::remove_dir_all(&temp);
-        std::fs::create_dir(&temp).unwrap();
         let frame = var(0u32);
-
         let finished = var(false);
         print_status("recording", &finished);
 
@@ -246,20 +243,21 @@ fn headless_example_video() {
             on_frame_image_ready = async_hn!(temp, frame, |args: FrameImageReadyArgs| {
                 let img = args.frame_image.unwrap();
 
-                img.save(temp.join(format!("{}.png", frame.get()))).await.unwrap();
-                frame.set(frame.get() + 1);
+                let frame_i = frame.get();
+                frame.set(frame_i + 1);
+
+                img.save(temp.join(format!("{frame_i:05}.png"))).await.unwrap();
+                // APP.advance_manual_time((FPS / 1.0).ms());
             });
 
             on_load = async_hn!(finished, |_| {
                 finished.wait_value(|&f| f).await;
-                WINDOW.close();
+                APP.exit();
             });
         }
     }));
 
-    while !matches!(app.update(false), zero_ui::app::ControlFlow::Exit) {
-        app.advance_manual_time((FPS / 1.0).ms());
-    }
+    while !matches!(app.update(true), zero_ui::app::ControlFlow::Exit) {}
 
     print_status("encoding", &var(false));
 
@@ -267,18 +265,19 @@ fn headless_example_video() {
     let ffmpeg = std::process::Command::new("ffmpeg")
         .arg("-framerate")
         .arg(FPS.to_string())
-        .arg("-pattern_type")
-        .arg("glob")
+        .arg("-y")
         .arg("-i")
-        .arg(temp.join("*.png"))
+        .arg(temp.join("%05d.png"))
         .arg("-c:v")
         .arg("libx264")
         .arg("-pix_fmt")
         .arg("yuv420p")
         .arg("screencast.mp4")
-        .output()
-        .unwrap()
-        .status;
+        .arg("-hide_banner")
+        .arg("-loglevel")
+        .arg("error")
+        .status()
+        .unwrap();
 
     assert!(ffmpeg.success());
     println!("\nfinished.");

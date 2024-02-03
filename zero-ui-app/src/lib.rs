@@ -19,7 +19,6 @@ use std::{
     ops,
     path::PathBuf,
     sync::Arc,
-    time::Duration,
 };
 
 pub mod access;
@@ -35,12 +34,10 @@ pub mod window;
 
 mod tests;
 
-use var::Var as _;
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
 pub use zero_ui_layout as layout;
-use zero_ui_time::INSTANT_APP;
 #[doc(hidden)]
 pub use zero_ui_var as var;
 
@@ -747,6 +744,10 @@ impl HeadlessApp {
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
     /// if it is `false` only responds to app events already in the buffer.
     pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
+        if self.app.has_exited() {
+            return ControlFlow::Exit;
+        }
+
         loop {
             match self.app.poll(wait_app_event, observer) {
                 ControlFlow::Poll => {
@@ -815,47 +816,12 @@ impl HeadlessApp {
             req.wait_rsp().await;
         });
     }
-}
-impl HeadlessApp {
-    /// Pause the [`INSTANT.now`] value, after this call it must be updated manually using
-    /// [`advance_manual_time`] or [`set_manual_time`]. To resume normal time use [`end_manual_time`].
-    ///
-    /// [`INSTANT.now`]: crate::INSTANT::now
-    /// [`advance_manual_time`]: Self:advance_manual_time
-    /// [`set_manual_time`]: Self:set_manual_time
-    /// [`end_manual_time`]: Self:end_manual_time
-    pub fn start_manual_time(&mut self) {
-        INSTANT_APP.set_mode(InstantMode::Manual);
-        INSTANT_APP.set_now(INSTANT.now());
-    }
 
-    /// Add the `advance` to the current manual time.
+    /// If the app has exited.
     ///
-    /// # Panics
-    ///
-    /// Panics if called before [`start_manual_time`].
-    pub fn advance_manual_time(&mut self, advance: Duration) {
-        INSTANT_APP.advance_now(advance);
-    }
-
-    /// Set the current [`INSTANT.now`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if called before [`start_manual_time`].
-    ///
-    /// [`INSTANT.now`]: crate::INSTANT::now
-    /// [`start_manual_time`]: Self:start_manual_time
-    pub fn set_manual_time(&mut self, now: DInstant) {
-        INSTANT_APP.set_now(now);
-    }
-
-    /// Resume normal time.
-    pub fn end_manual_time(&mut self) {
-        INSTANT_APP.set_mode(match APP.pause_time_for_update().get() {
-            true => InstantMode::UpdatePaused,
-            false => InstantMode::Now,
-        })
+    /// Exited apps cannot update anymore. The app should be dropped to unload the app scope.
+    pub fn has_exited(&self) -> bool {
+        self.app.has_exited()
     }
 }
 

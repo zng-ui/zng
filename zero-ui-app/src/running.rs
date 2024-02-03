@@ -8,7 +8,7 @@ use std::{
 
 use crate::Deadline;
 use zero_ui_app_context::{app_local, AppScope};
-use zero_ui_time::INSTANT_APP;
+use zero_ui_time::{InstantMode, INSTANT_APP};
 use zero_ui_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
 use crate::{
@@ -42,6 +42,8 @@ pub(crate) struct RunningApp<E: AppExtension> {
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::window::EventFrameRendered>,
     pending: ContextUpdates,
+
+    exited: bool,
 
     // cleans on drop
     _scope: AppScope,
@@ -104,9 +106,14 @@ impl<E: AppExtension> RunningApp<E> {
                 render_widgets: RenderUpdates::default(),
                 render_update_widgets: RenderUpdates::default(),
             },
+            exited: false,
 
             _scope: scope,
         }
+    }
+
+    pub fn has_exited(&self) -> bool {
+        self.exited
     }
 
     /// If device events are enabled in this app.
@@ -598,6 +605,10 @@ impl<E: AppExtension> RunningApp<E> {
     fn poll_impl<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
         let mut disconnected = false;
 
+        if self.exited {
+            return ControlFlow::Exit;
+        }
+
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
 
@@ -694,6 +705,7 @@ impl<E: AppExtension> RunningApp<E> {
 
         if self.extensions.0.exit() {
             UPDATES.on_app_sleep();
+            self.exited = true;
             ControlFlow::Exit
         } else if self.has_pending_updates() || UPDATES.has_pending_layout_or_render() {
             ControlFlow::Poll
@@ -1036,6 +1048,54 @@ impl APP {
     }
 }
 
+/// Manual time control.
+///
+/// These methods are only recommended for headless apps.
+impl APP {
+    /// Pause the [`INSTANT.now`] value, after this call it must be updated manually using
+    /// [`advance_manual_time`] or [`set_manual_time`]. To resume normal time use [`end_manual_time`].
+    ///
+    /// [`INSTANT.now`]: crate::INSTANT::now
+    /// [`advance_manual_time`]: Self:advance_manual_time
+    /// [`set_manual_time`]: Self:set_manual_time
+    /// [`end_manual_time`]: Self:end_manual_time
+    pub fn start_manual_time(&self) {
+        INSTANT_APP.set_mode(InstantMode::Manual);
+        INSTANT_APP.set_now(INSTANT.now());
+    }
+
+    /// Add the `advance` to the current manual time.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called before [`start_manual_time`].
+    ///
+    /// [`start_manual_time`]: Self:start_manual_time
+    pub fn advance_manual_time(&self, advance: Duration) {
+        INSTANT_APP.advance_now(advance);
+    }
+
+    /// Set the current [`INSTANT.now`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if called before [`start_manual_time`].
+    ///
+    /// [`INSTANT.now`]: crate::INSTANT::now
+    /// [`start_manual_time`]: Self:start_manual_time
+    pub fn set_manual_time(&self, now: DInstant) {
+        INSTANT_APP.set_now(now);
+    }
+
+    /// Resume normal time.
+    pub fn end_manual_time(&self) {
+        INSTANT_APP.set_mode(match APP.pause_time_for_update().get() {
+            true => InstantMode::UpdatePaused,
+            false => InstantMode::Now,
+        })
+    }
+}
+
 command! {
     /// Represents the app process [`exit`] request.
     ///
@@ -1076,9 +1136,9 @@ impl AppIntrinsic {
             .hook(|a| {
                 if !matches!(INSTANT.mode(), zero_ui_time::InstantMode::Manual) {
                     if *a.value() {
-                        INSTANT_APP.set_mode(zero_ui_time::InstantMode::UpdatePaused);
+                        INSTANT_APP.set_mode(InstantMode::UpdatePaused);
                     } else {
-                        INSTANT_APP.set_mode(zero_ui_time::InstantMode::Now);
+                        INSTANT_APP.set_mode(InstantMode::Now);
                     }
                 }
                 true
@@ -1472,34 +1532,43 @@ const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } el
 
 impl<T> ReceiverExt<T> for flume::Receiver<T> {
     fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError> {
-        if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
-            if d > WORST_SLEEP_ERR {
-                // probably sleeps here.
-                match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
-                    Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
-                    interrupt => interrupt,
-                }
-            } else if d > WORST_SPIN_ERR {
-                let spin_deadline = Deadline(deadline.0.checked_sub(WORST_SPIN_ERR).unwrap());
-
-                // try_recv spin
-                while !spin_deadline.has_elapsed() {
-                    match self.try_recv() {
-                        Err(flume::TryRecvError::Empty) => std::thread::yield_now(),
-                        Err(flume::TryRecvError::Disconnected) => return Err(flume::RecvTimeoutError::Disconnected),
-                        Ok(msg) => return Ok(msg),
+        loop {
+            if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
+                if matches!(INSTANT.mode(), zero_ui_time::InstantMode::Manual) {
+                    // manual time is probably desynched from `Instant`, so we use `recv_timeout` that
+                    // is slightly less precise, but an app in manual mode probably does not care.
+                    match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt,
                     }
+                } else if d > WORST_SLEEP_ERR {
+                    // probably sleeps here.
+                    match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt,
+                    }
+                } else if d > WORST_SPIN_ERR {
+                    let spin_deadline = Deadline(deadline.0.checked_sub(WORST_SPIN_ERR).unwrap());
+
+                    // try_recv spin
+                    while !spin_deadline.has_elapsed() {
+                        match self.try_recv() {
+                            Err(flume::TryRecvError::Empty) => std::thread::yield_now(),
+                            Err(flume::TryRecvError::Disconnected) => return Err(flume::RecvTimeoutError::Disconnected),
+                            Ok(msg) => return Ok(msg),
+                        }
+                    }
+                    continue; // continue to timeout spin
+                } else {
+                    // last millis spin for better timeout precision
+                    while !deadline.has_elapsed() {
+                        std::thread::yield_now();
+                    }
+                    return Err(flume::RecvTimeoutError::Timeout);
                 }
-                self.recv_deadline_sp(deadline)
             } else {
-                // last millis spin
-                while !deadline.has_elapsed() {
-                    std::thread::yield_now();
-                }
-                Err(flume::RecvTimeoutError::Timeout)
+                return Err(flume::RecvTimeoutError::Timeout);
             }
-        } else {
-            Err(flume::RecvTimeoutError::Timeout)
         }
     }
 }
