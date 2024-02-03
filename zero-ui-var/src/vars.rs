@@ -28,6 +28,11 @@ impl VarUpdateId {
         }
     }
 }
+impl Default for VarUpdateId {
+    fn default() -> Self {
+        Self::never()
+    }
+}
 
 pub(super) type VarUpdateFn = Box<dyn FnOnce() + Send>;
 

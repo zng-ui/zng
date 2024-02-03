@@ -573,31 +573,34 @@ where
     E: Var<ExtendMode>,
 {
     fn init(&mut self) {
-        WIDGET
-            .sub_var_layout(&self.axis)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode);
+        WIDGET.sub_var_layout(&self.axis).sub_var(&self.stops).sub_var(&self.extend_mode);
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
         LAYOUT.constraints().fill_size()
     }
 
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
+    }
+
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
-        if self.data.size != size {
+        let axis = self.axis.layout();
+        if self.data.size != size || self.data.line != axis {
             self.data.size = size;
-            self.data.line = self.axis.layout();
-
-            let length = self.data.line.length();
-
-            LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_x(length), || {
-                self.stops
-                    .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
-            });
-
+            self.data.line = axis;
             WIDGET.render();
         }
+
+        let length = self.data.line.length();
+        LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_x(length), || {
+            self.stops
+                .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
+        });
+
         size
     }
 
@@ -633,11 +636,17 @@ where
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.axis)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode)
+            .sub_var(&self.stops)
+            .sub_var(&self.extend_mode)
             .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
@@ -647,27 +656,40 @@ where
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let constraints = LAYOUT.constraints();
         let size = constraints.fill_size();
-        if self.data.size != size {
+        let axis = self.axis.layout();
+        let tile_size = self.tile_size.layout_dft(size);
+
+        let mut request_render = false;
+
+        if self.data.size != size || self.data.line != axis || self.tile_data.size != tile_size {
             self.data.size = size;
+            self.data.line = self.axis.layout();
+            self.tile_data.size = tile_size;
+            request_render = true;
+        }
 
-            self.tile_data.size = self.tile_size.layout_dft(self.data.size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.tile_data.size), || {
-                let leftover = tile_leftover(self.tile_data.size, size);
-                LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
-                    self.tile_data.spacing = self.tile_spacing.layout();
-                });
-                self.data.line = self.axis.layout();
-                self.tile_data.origin = self.tile_origin.layout();
+        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.tile_data.size), || {
+            let leftover = tile_leftover(self.tile_data.size, size);
+            LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
+                let spacing = self.tile_spacing.layout();
+                request_render |= self.tile_data.spacing != spacing;
+                self.tile_data.spacing = spacing;
             });
+            let origin = self.tile_origin.layout();
+            request_render |= self.tile_data.origin != origin;
+            self.tile_data.origin = origin;
+        });
 
-            let length = self.data.line.length();
-            LAYOUT.with_constraints(constraints.with_new_exact_x(length), || {
-                self.stops
-                    .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
-            });
+        let length = self.data.line.length();
+        LAYOUT.with_constraints(constraints.with_new_exact_x(length), || {
+            self.stops
+                .with(|s| s.layout_linear(LayoutAxis::X, self.extend_mode.get(), &mut self.data.line, &mut self.data.stops))
+        });
 
+        if request_render {
             WIDGET.render();
         }
+
         size
     }
 
@@ -704,8 +726,14 @@ where
         WIDGET
             .sub_var_layout(&self.center)
             .sub_var_layout(&self.radius)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode);
+            .sub_var(&self.stops)
+            .sub_var(&self.extend_mode);
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
@@ -714,25 +742,28 @@ where
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
-        if size != self.data.size {
-            self.data.size = size;
-            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
-                self.data.center = self.center.layout_dft(size.to_vector().to_point() * 0.5.fct());
-                self.data.radius = self.radius.get().layout(self.data.center);
-            });
 
-            LAYOUT.with_constraints(
-                LAYOUT
-                    .constraints()
-                    .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
-                || {
-                    self.stops
-                        .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
-                },
-            );
+        let mut request_render = size != self.data.size;
 
-            WIDGET.render();
-        }
+        self.data.size = size;
+        LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
+            let center = self.center.layout_dft(size.to_vector().to_point() * 0.5.fct());
+            let radius = self.radius.get().layout(center);
+            request_render |= center != self.data.center || radius != self.data.radius;
+            self.data.center = center;
+            self.data.radius = radius;
+        });
+
+        LAYOUT.with_constraints(
+            LAYOUT
+                .constraints()
+                .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
+            || {
+                self.stops
+                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
+            },
+        );
+
         size
     }
 
@@ -765,11 +796,17 @@ where
         WIDGET
             .sub_var_layout(&self.center)
             .sub_var_layout(&self.radius)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode)
+            .sub_var(&self.stops)
+            .sub_var(&self.extend_mode)
             .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
@@ -778,32 +815,46 @@ where
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
-        if size != self.data.size {
-            self.data.size = size;
+        let tile_size = self.tile_size.layout_dft(size);
 
-            self.tile_data.size = self.tile_size.layout_dft(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.tile_data.size), || {
-                let leftover = tile_leftover(self.tile_data.size, size);
-                LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
-                    self.tile_data.spacing = self.tile_spacing.layout();
-                });
-                self.data.center = self.center.layout_dft(self.tile_data.size.to_vector().to_point() * 0.5.fct());
-                self.data.radius = self.radius.get().layout(self.data.center);
-                self.tile_data.origin = self.tile_origin.layout();
+        let mut request_render = size != self.data.size || self.tile_data.size != tile_size;
+
+        self.data.size = size;
+        self.tile_data.size = tile_size;
+
+        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.tile_data.size), || {
+            let leftover = tile_leftover(self.tile_data.size, size);
+            LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
+                let spacing = self.tile_spacing.layout();
+                request_render |= self.tile_data.spacing != spacing;
+                self.tile_data.spacing = spacing;
             });
 
-            LAYOUT.with_constraints(
-                LAYOUT
-                    .constraints()
-                    .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
-                || {
-                    self.stops
-                        .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
-                },
-            );
+            let center = self.center.layout_dft(tile_size.to_vector().to_point() * 0.5.fct());
+            let radius = self.radius.get().layout(center);
+            let origin = self.tile_origin.layout();
 
+            request_render |= self.data.center != center || self.data.radius != radius || self.tile_data.origin != origin;
+
+            self.data.center = center;
+            self.data.radius = radius;
+            self.tile_data.origin = origin;
+        });
+
+        LAYOUT.with_constraints(
+            LAYOUT
+                .constraints()
+                .with_exact_x(self.data.radius.width.max(self.data.radius.height)),
+            || {
+                self.stops
+                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
+            },
+        );
+
+        if request_render {
             WIDGET.render();
         }
+
         size
     }
 
@@ -840,8 +891,14 @@ where
         WIDGET
             .sub_var_layout(&self.center)
             .sub_var_layout(&self.angle)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode);
+            .sub_var(&self.stops)
+            .sub_var(&self.extend_mode);
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
@@ -850,24 +907,30 @@ where
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
-        if size != self.data.size {
-            self.data.size = size;
-            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
-                self.data.center = self.center.layout_dft(size.to_vector().to_point() * 0.5.fct());
-            });
 
-            let perimeter = Px({
-                let a = size.width.0 as f32;
-                let b = size.height.0 as f32;
-                std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
-            } as _);
-            LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
-                self.stops
-                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
-            });
+        let mut request_render = size != self.data.size;
 
+        self.data.size = size;
+        LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
+            let center = self.center.layout_dft(size.to_vector().to_point() * 0.5.fct());
+            request_render |= self.data.center != center;
+            self.data.center = center;
+        });
+
+        let perimeter = Px({
+            let a = size.width.0 as f32;
+            let b = size.height.0 as f32;
+            std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
+        } as _);
+        LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
+            self.stops
+                .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
+        });
+
+        if request_render {
             WIDGET.render();
         }
+
         size
     }
 
@@ -900,11 +963,17 @@ where
         WIDGET
             .sub_var_layout(&self.center)
             .sub_var_layout(&self.angle)
-            .sub_var_layout(&self.stops)
-            .sub_var_layout(&self.extend_mode)
+            .sub_var(&self.stops)
+            .sub_var(&self.extend_mode)
             .sub_var_layout(&self.tile_origin)
             .sub_var_layout(&self.tile_size)
             .sub_var_layout(&self.tile_spacing);
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        if self.stops.is_new() || self.extend_mode.is_new() {
+            WIDGET.layout().render();
+        }
     }
 
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
@@ -913,31 +982,41 @@ where
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
-        if size != self.data.size {
-            self.data.size = size;
+        let tile_size = self.tile_size.layout_dft(size);
 
-            self.tile_data.size = self.tile_size.layout_dft(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.tile_data.size), || {
-                let leftover = tile_leftover(self.tile_data.size, size);
-                LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
-                    self.tile_data.spacing = self.tile_spacing.layout();
-                });
-                self.data.center = self.center.get().layout_dft(self.tile_data.size.to_vector().to_point() * 0.5.fct());
-                self.tile_data.origin = self.tile_origin.layout();
+        let mut request_render = size != self.data.size || tile_size != self.tile_data.size;
+
+        self.data.size = size;
+        self.tile_data.size = tile_size;
+
+        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(tile_size), || {
+            let leftover = tile_leftover(tile_size, size);
+            LAYOUT.with_leftover(Some(leftover.width), Some(leftover.height), || {
+                let spacing = self.tile_spacing.layout();
+                request_render |= self.tile_data.spacing != spacing;
+                self.tile_data.spacing = spacing;
             });
+            let center = self.center.get().layout_dft(tile_size.to_vector().to_point() * 0.5.fct());
+            let origin = self.tile_origin.layout();
+            request_render |= self.data.center != center || self.tile_data.origin != origin;
+            self.data.center = center;
+            self.tile_data.origin = origin;
+        });
 
-            let perimeter = Px({
-                let a = self.tile_data.size.width.0 as f32;
-                let b = self.tile_data.size.height.0 as f32;
-                std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
-            } as _);
-            LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
-                self.stops
-                    .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
-            });
+        let perimeter = Px({
+            let a = self.tile_data.size.width.0 as f32;
+            let b = self.tile_data.size.height.0 as f32;
+            std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
+        } as _);
+        LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
+            self.stops
+                .with(|s| s.layout_radial(LayoutAxis::X, self.extend_mode.get(), &mut self.data.stops))
+        });
 
+        if request_render {
             WIDGET.render();
         }
+
         size
     }
 
