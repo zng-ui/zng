@@ -78,6 +78,22 @@ impl INSTANT_APP {
         sv.now = Some(now);
     }
 
+    /// Set the [`INSTANT.now`] for the app threads to the current time plus `advance`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mode is not [`InstantMode::Manual`].
+    ///
+    /// [`INSTANT.now`]: INSTANT::now
+    pub fn advance_now(&self, advance: Duration) {
+        let mut sv = INSTANT_SV.write();
+        if let InstantMode::Manual = sv.mode {
+            *sv.now.get_or_insert_with(|| DInstant(INSTANT.epoch().elapsed())) += advance;
+        } else {
+            panic!("cannot advance now, not `InstantMode::Manual`");
+        }
+    }
+
     /// Unset the custom now value.
     pub fn unset_now(&self) {
         INSTANT_SV.write().now = None;
