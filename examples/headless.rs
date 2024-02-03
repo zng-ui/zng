@@ -8,6 +8,7 @@ use zero_ui::{
     image::Img,
     prelude::*,
     stack::stack_nodes,
+    timer::TIMERS,
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
@@ -19,9 +20,9 @@ fn main() {
 
     // view_process::run_same_process(headless_example);
 
-    // images_render();
+    images_render();
     // headless_example();
-    headless_example_video();
+    // headless_example_video();
 }
 
 #[allow(unused)]
@@ -147,18 +148,18 @@ fn video(finished: zero_ui::var::ArcVar<bool>) -> impl UiNode {
         layout::size = (800, 600);
 
         widget::on_init = async_hn!(txt_fade, txt_size, bkg_rotate, fade_out, finished, |_| {
-            task::deadline(1.secs()).await;
+            TIMERS.deadline(300.ms()).wait_update().await;
             txt_fade.ease(1.fct(), 800.ms(), easing::linear).perm();
             txt_size.ease(72, 800.ms(), easing::linear).perm();
 
-            task::deadline(100.ms()).await;
+            TIMERS.deadline(100.ms()).wait_update().await;
             bkg_rotate.ease(5.turn(), 10.secs(), easing::circ).perm();
 
-            task::deadline(8.secs()).await;
+            TIMERS.deadline(8.secs()).wait_update().await;
             txt_size.ease(120, 2.secs(), easing::linear).perm();
             txt_fade.ease(0.fct(), 2.secs(), easing::linear).perm();
 
-            task::deadline(1.secs()).await;
+            TIMERS.deadline(1.secs()).wait_update().await;
             fade_out.ease(1.fct(), 1.secs(), easing::linear).perm();
 
             bkg_rotate.wait_animation().await;
@@ -212,7 +213,7 @@ fn headless_example_video() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = APP.defaults().run_headless(true);
     // saving frame can be slow, so we will manually control the app time to not miss any frame.
-    // APP.start_manual_time();
+    APP.start_manual_time();
 
     const FPS: f32 = 60.0;
     zero_ui::var::VARS.frame_duration().set((1.0 / FPS).secs());
@@ -247,7 +248,14 @@ fn headless_example_video() {
                 frame.set(frame_i + 1);
 
                 img.save(temp.join(format!("{frame_i:05}.png"))).await.unwrap();
-                // APP.advance_manual_time((1.0 / FPS).secs());
+
+                // advance time at a perfect framerate.
+                APP.advance_manual_time((1.0 / FPS).secs());
+                // ensure a frame image is actually generated (for video).
+                //
+                // also, retained rendering only renders when needed, so without this
+                // line the app never even updates, and the initial delay timer waits forever.
+                WIDGET.render_update();
             });
 
             on_load = async_hn!(recorded, temp, |_| {

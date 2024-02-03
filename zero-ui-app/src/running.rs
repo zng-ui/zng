@@ -1056,23 +1056,28 @@ impl APP {
     /// [`advance_manual_time`] or [`set_manual_time`]. To resume normal time use [`end_manual_time`].
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now
-    /// [`advance_manual_time`]: Self:advance_manual_time
-    /// [`set_manual_time`]: Self:set_manual_time
-    /// [`end_manual_time`]: Self:end_manual_time
+    /// [`advance_manual_time`]: Self::advance_manual_time
+    /// [`set_manual_time`]: Self::set_manual_time
+    /// [`end_manual_time`]: Self::end_manual_time
     pub fn start_manual_time(&self) {
         INSTANT_APP.set_mode(InstantMode::Manual);
         INSTANT_APP.set_now(INSTANT.now());
+        UPDATES.update(None);
     }
 
     /// Add the `advance` to the current manual time.
+    ///
+    /// Note that you must ensure an update reaches the code that controls manual time, otherwise
+    /// the app loop may end-up stuck on idle or awaiting a timer that never elapses.
     ///
     /// # Panics
     ///
     /// Panics if called before [`start_manual_time`].
     ///
-    /// [`start_manual_time`]: Self:start_manual_time
+    /// [`start_manual_time`]: Self::start_manual_time
     pub fn advance_manual_time(&self, advance: Duration) {
         INSTANT_APP.advance_now(advance);
+        UPDATES.update(None);
     }
 
     /// Set the current [`INSTANT.now`].
@@ -1082,9 +1087,10 @@ impl APP {
     /// Panics if called before [`start_manual_time`].
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now
-    /// [`start_manual_time`]: Self:start_manual_time
+    /// [`start_manual_time`]: Self::start_manual_time
     pub fn set_manual_time(&self, now: DInstant) {
         INSTANT_APP.set_now(now);
+        UPDATES.update(None);
     }
 
     /// Resume normal time.
@@ -1092,7 +1098,8 @@ impl APP {
         INSTANT_APP.set_mode(match APP.pause_time_for_update().get() {
             true => InstantMode::UpdatePaused,
             false => InstantMode::Now,
-        })
+        });
+        UPDATES.update(None);
     }
 }
 

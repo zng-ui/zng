@@ -1,7 +1,8 @@
 # TIME
 
-* Test `start_manual_time`, record frames for a video in the headless example?
 * Document it (front page?)
+* `task::deadline` is not integrated with manual INSTANT.
+    - It elapses regardless.
 
 # Documentation
 
