@@ -215,21 +215,21 @@ fn headless_example_video() {
     // APP.start_manual_time();
 
     const FPS: f32 = 60.0;
-    zero_ui::var::VARS.frame_duration().set((FPS / 1.0).ms());
+    zero_ui::var::VARS.frame_duration().set((1.0 / FPS).secs());
 
-    // will save frames as "{temp}/{frame}.png"
-    let temp = PathBuf::from("target/tmp/headless_example_video");
-    let _ = std::fs::remove_dir_all(&temp);
-    std::fs::create_dir_all(&temp).unwrap();
+    app.run_window(async {
+        // will save frames as "{temp}/{frame}.png"
+        let temp = PathBuf::from("target/tmp/headless_example_video");
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(&temp).unwrap();
 
-    app.run_window(async_clmv!(temp, {
         let frame = var(0u32);
-        let finished = var(false);
-        print_status("recording", &finished);
+        let recorded = var(false);
+        print_status("recording", &recorded);
 
         Window! {
             // the window content is the "video".
-            child = video(finished.clone());
+            child = video(recorded.clone());
             auto_size = true;
 
             // use the CPU only backend if available, by default the
@@ -247,42 +247,45 @@ fn headless_example_video() {
                 frame.set(frame_i + 1);
 
                 img.save(temp.join(format!("{frame_i:05}.png"))).await.unwrap();
-                // APP.advance_manual_time((FPS / 1.0).ms());
+                // APP.advance_manual_time((1.0 / FPS).secs());
             });
 
-            on_load = async_hn!(finished, |_| {
-                finished.wait_value(|&f| f).await;
+            on_load = async_hn!(recorded, temp, |_| {
+                recorded.wait_value(|&f| f).await;
+
+                let encoded = var(false);
+                print_status("encoding", &encoded);
+
+                task::spawn_wait(clmv!(encoded, || {
+                    // https://www.ffmpeg.org/download.html
+                    let ffmpeg = std::process::Command::new("ffmpeg")
+                    .arg("-framerate")
+                    .arg(FPS.to_string())
+                    .arg("-y")
+                    .arg("-i")
+                    .arg(temp.join("%05d.png"))
+                    .arg("-c:v")
+                    .arg("libx264")
+                    .arg("-pix_fmt")
+                    .arg("yuv420p")
+                    .arg("screencast.mp4")
+                    .arg("-hide_banner")
+                    .arg("-loglevel")
+                    .arg("error")
+                    .status();
+                    let _ = std::fs::remove_dir_all(temp);
+                    encoded.set(true);
+
+                    assert!(ffmpeg.unwrap().success());
+                }));
+                encoded.wait_value(|&f| f).await;
+                println!("\rfinished.");
+
                 APP.exit();
             });
         }
-    }));
-
+    });
     while !matches!(app.update(true), zero_ui::app::ControlFlow::Exit) {}
-
-    print_status("encoding", &var(false));
-
-    // https://www.ffmpeg.org/download.html
-    let ffmpeg = std::process::Command::new("ffmpeg")
-        .arg("-framerate")
-        .arg(FPS.to_string())
-        .arg("-y")
-        .arg("-i")
-        .arg(temp.join("%05d.png"))
-        .arg("-c:v")
-        .arg("libx264")
-        .arg("-pix_fmt")
-        .arg("yuv420p")
-        .arg("screencast.mp4")
-        .arg("-hide_banner")
-        .arg("-loglevel")
-        .arg("error")
-        .status()
-        .unwrap();
-
-    assert!(ffmpeg.success());
-    println!("\nfinished.");
-
-    let _ = std::fs::remove_dir_all(temp);
 }
 
 fn print_status(task: &'static str, done: &zero_ui::var::ArcVar<bool>) {
