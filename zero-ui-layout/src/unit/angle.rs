@@ -185,6 +185,13 @@ impl AngleGradian {
         Self(slerp(self.0, to.0, 400.0, factor))
     }
 }
+impl ops::Add for AngleGradian {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
 impl ops::AddAssign for AngleGradian {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
@@ -284,6 +291,13 @@ impl AngleDegree {
         Self(slerp(self.0, to.0, 360.0, factor))
     }
 }
+impl ops::Add for AngleDegree {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
 impl ops::AddAssign for AngleDegree {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
@@ -381,6 +395,13 @@ impl AngleTurn {
     /// [`lerp`]: Self::lerp
     pub fn slerp(self, to: Self, factor: Factor) -> Self {
         Self(slerp(self.0, to.0, 1.0, factor))
+    }
+}
+impl ops::Add for AngleTurn {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 impl ops::AddAssign for AngleTurn {
