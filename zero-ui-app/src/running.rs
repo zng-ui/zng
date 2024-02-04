@@ -8,6 +8,7 @@ use std::{
 
 use crate::Deadline;
 use zero_ui_app_context::{app_local, AppScope};
+use zero_ui_task::DEADLINE_APP;
 use zero_ui_time::{InstantMode, INSTANT_APP};
 use zero_ui_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
@@ -67,6 +68,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
         VARS_APP.init_app_waker(app_waker);
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
+        DEADLINE_APP.init_deadline_service(crate::timer::deadline_service);
 
         let mut info = AppExtensionsInfo::start();
         {

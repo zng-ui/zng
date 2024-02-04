@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 mod crate_util;
 
 use crate::crate_util::PanicResult;
-use zero_ui_app_context::LocalContext;
+use zero_ui_app_context::{app_local, LocalContext};
 use zero_ui_time::Deadline;
 use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
 
@@ -65,10 +65,6 @@ pub use rayon_ctx::*;
 /// block the thread from being used by other tasks reducing overall performance. You can use [`wait`] for IO
 /// or blocking operations and for networking you can use any of the async crates, as long as they start their own *event reactor*.
 ///
-/// Of course, if you know that your app is only running one task at a time you can just use the blocking `std` functions
-/// directly, that will still execute in parallel. The UI runs in the main thread and the renderers
-/// have their own `rayon` thread-pool, so blocking one of the task threads does not matter in a small app.
-///
 /// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
 ///
 /// # Examples
@@ -98,6 +94,7 @@ pub use rayon_ctx::*;
 /// ```
 ///
 /// The example uses the `rayon` parallel iterator to compute a result and uses a [`response_var`] to send the result to the UI.
+/// The task captures the caller [`LocalContext`] so the response variable will set correctly.
 ///
 /// Note that this function is the most basic way to spawn a parallel task where you must setup channels to the rest of the app yourself,
 /// you can use [`respond`] to avoid having to manually set a response, or [`run`] to `.await` the result.
@@ -208,7 +205,7 @@ impl std::task::Wake for RayonTask {
     }
 }
 
-/// Rayon join with thread context.
+/// Rayon join with local context.
 ///
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
@@ -224,7 +221,7 @@ where
     self::join_context(move |_| oper_a(), move |_| oper_b())
 }
 
-/// Rayon join with thread context.
+/// Rayon join context with local context.
 ///
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
@@ -257,7 +254,7 @@ where
     )
 }
 
-/// Rayon scope with thread context.
+/// Rayon scope with local context.
 ///
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
@@ -331,10 +328,6 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// block the thread from being used by other tasks reducing overall performance. You can use [`wait`] for IO
 /// or blocking operations and for networking you can use any of the async crates, as long as they start their own *event reactor*.
 ///
-/// Of course, if you know that your app is only running one task at a time you can just use the blocking `std` functions
-/// directly, that will still execute in parallel. The UI runs in the main thread and the renderers
-/// have their own `rayon` thread-pool, so blocking one of the task threads does not matter in a small app.
-///
 /// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
 ///
 /// # Examples
@@ -353,7 +346,8 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// ```
 ///
 /// The example `.await` for some numbers and then uses a parallel iterator to compute a result, this all runs in parallel
-/// because it is inside a `run` task. The task result is then `.await` inside one of the UI async tasks.
+/// because it is inside a `run` task. The task result is then `.await` inside one of the UI async tasks. Note that the
+/// task captures the caller [`LocalContext`] so you can interact with variables and UI services directly inside the task too.
 ///
 /// # Cancellation
 ///
@@ -733,36 +727,6 @@ where
     }
 }
 
-/// A future that is [`Pending`] once.
-///
-/// After the first `.await` the future is always [`Ready`].
-///
-/// # Warning
-///
-/// This does not schedule an [`wake`], if the executor does not poll this future again it will wait forever.
-/// You can use [`yield_now`] to request an wake or update.
-///
-/// [`Pending`]: std::task::Poll::Pending
-/// [`Ready`]: std::task::Poll::Ready
-/// [`wake`]: std::task::Waker::wake
-pub async fn yield_one() {
-    struct YieldOneFut(bool);
-    impl Future for YieldOneFut {
-        type Output = ();
-
-        fn poll(mut self: Pin<&mut Self>, _: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-            if self.0 {
-                Poll::Ready(())
-            } else {
-                self.0 = true;
-                Poll::Pending
-            }
-        }
-    }
-
-    YieldOneFut(false).await
-}
-
 /// A future that is [`Pending`] once and wakes the current task.
 ///
 /// After the first `.await` the future is always [`Ready`] and on the first `.await` it calls [`wake`].
@@ -806,20 +770,53 @@ pub async fn yield_now() {
 /// });
 /// ```
 ///
-/// The timer does not block the worker thread, parallel timers use their own executor thread managed by
-/// the [`futures_timer`] crate. This is not a high-resolution timer, it can elapse slightly after the time has passed.
+/// The future runs on an app provider timer executor, or on the [`futures_timer`] by default.
 ///
-/// # UI Async
-///
-/// This timer works in UI async tasks too, but in a full app prefer `TIMERS` instead, as it is implemented using only
-/// the app loop it avoids spawning the [`futures_timer`] executor.
+/// Note that deadlines from [`Duration`](std::time::Duration) starts *counting* at the moment this function is called,
+/// not at the moment of the first `.await` call.
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
-pub async fn deadline(deadline: impl Into<Deadline>) {
-    let deadline = deadline.into();
+pub fn deadline(deadline: impl Into<Deadline>) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    DEADLINE_SV.read().0(deadline.into())
+}
+
+app_local! {
+    static DEADLINE_SV: (DeadlineService, bool) = const {
+        (default_deadline, false)
+    };
+}
+
+type DeadlineService = fn(Deadline) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
+
+fn default_deadline(deadline: Deadline) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     if let Some(timeout) = deadline.time_left() {
-        futures_timer::Delay::new(timeout).await
+        Box::pin(futures_timer::Delay::new(timeout))
+    } else {
+        Box::pin(std::future::ready(()))
+    }
+}
+
+/// Deadline APP integration.
+#[allow(non_camel_case_types)]
+pub struct DEADLINE_APP;
+
+impl DEADLINE_APP {
+    /// Called by the app implementer to setup the [`deadline`] executor.
+    ///
+    /// If no app calls this the [`futures_timer`] executor is used.
+    ///
+    /// [`futures_timer`]: https://docs.rs/futures-timer
+    ///
+    /// # Panics
+    ///
+    /// Panics if called more than once for the same app.
+    pub fn init_deadline_service(&self, service: DeadlineService) {
+        let (prev, already_set) = mem::replace(&mut *DEADLINE_SV.write(), (service, true));
+        if already_set {
+            *DEADLINE_SV.write() = (prev, true);
+            panic!("deadline service already inited for this app");
+        }
     }
 }
 

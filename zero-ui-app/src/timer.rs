@@ -61,8 +61,8 @@ impl TimersService {
         }
     }
 
-    fn deadline(&mut self, deadline: impl Into<Deadline>) -> DeadlineVar {
-        let timer = var(deadline.into());
+    fn deadline(&mut self, deadline: Deadline) -> DeadlineVar {
+        let timer = var(deadline);
         self.deadlines.push(timer.downgrade());
         UPDATES.send_awake();
         timer.read_only()
@@ -79,11 +79,10 @@ impl TimersService {
         timer.read_only()
     }
 
-    fn on_deadline<H>(&mut self, deadline: impl Into<Deadline>, mut handler: H) -> DeadlineHandle
+    fn on_deadline<H>(&mut self, deadline: Deadline, mut handler: H) -> DeadlineHandle
     where
         H: AppHandler<DeadlineArgs>,
     {
-        let deadline = deadline.into();
         let (handle_owner, handle) = DeadlineHandle::new(deadline);
         self.deadline_handlers.push(DeadlineHandlerEntry {
             handle: handle_owner,
@@ -299,6 +298,9 @@ impl TimersService {
 /// handlers to be called directly when the time elapses. Timers can be *one-time*, updating only once when
 /// a [`deadline`] is reached; or they can update every time on a set [`interval`].
 ///
+/// Note that you can also use the [`task::deadline`](zero_ui_task::deadline) function to `.await` deadlines, in app
+/// threads this function uses the `TIMERS` service too.
+///
 /// # Precision
 ///
 /// Timers elapse at the specified time or a little later, depending on how busy the app main loop is. High frequency
@@ -336,7 +338,7 @@ impl TIMERS {
     /// [`has_elapsed`]: Deadline::has_elapsed
     #[must_use]
     pub fn deadline(&self, deadline: impl Into<Deadline>) -> DeadlineVar {
-        TIMERS_SV.write().deadline(deadline)
+        TIMERS_SV.write().deadline(deadline.into())
     }
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
@@ -405,7 +407,7 @@ impl TIMERS {
     where
         H: AppHandler<DeadlineArgs>,
     {
-        TIMERS_SV.write().on_deadline(deadline, handler)
+        TIMERS_SV.write().on_deadline(deadline.into(), handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
@@ -416,6 +418,18 @@ impl TIMERS {
         H: AppHandler<TimerArgs>,
     {
         TIMERS_SV.write().on_interval(interval, paused, handler)
+    }
+}
+
+impl TIMERS {
+    /// Implementation of the [`task::deadline`] function when called from app threads.
+    ///
+    /// [`task::deadline`]: zero_ui_task::deadline
+    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
+        let deadline = TIMERS_SV.write().deadline(deadline.into());
+        Box::pin(async move {
+            deadline.wait_update().await;
+        })
     }
 }
 
@@ -976,4 +990,8 @@ impl TimerArgs {
     pub fn is_stopped(&self) -> bool {
         self.handle().is_none()
     }
+}
+
+pub(crate) fn deadline_service(deadline: Deadline) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
+    TIMERS.wait_deadline(deadline)
 }

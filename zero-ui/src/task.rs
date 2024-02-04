@@ -3,7 +3,7 @@
 //! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
 //! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
 //!
-//! All functions of this crate propagate the [`LocalContext`].
+//! All functions of this module propagate the [`LocalContext`].
 //!
 //! This crate also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
 //! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`LocalContext`]. You can

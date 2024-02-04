@@ -8,7 +8,6 @@ use zero_ui::{
     image::Img,
     prelude::*,
     stack::stack_nodes,
-    timer::TIMERS,
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
@@ -148,18 +147,18 @@ fn video(finished: zero_ui::var::ArcVar<bool>) -> impl UiNode {
         layout::size = (800, 600);
 
         widget::on_init = async_hn!(txt_fade, txt_size, bkg_rotate, fade_out, finished, |_| {
-            TIMERS.deadline(300.ms()).wait_update().await;
+            task::deadline(300.ms()).await;
             txt_fade.ease(1.fct(), 800.ms(), easing::linear).perm();
             txt_size.ease(72, 800.ms(), easing::linear).perm();
 
-            TIMERS.deadline(100.ms()).wait_update().await;
+            task::deadline(100.ms()).await;
             bkg_rotate.ease(5.turn(), 10.secs(), easing::circ).perm();
 
-            TIMERS.deadline(8.secs()).wait_update().await;
+            task::deadline(8.secs()).await;
             txt_size.ease(120, 2.secs(), easing::linear).perm();
             txt_fade.ease(0.fct(), 2.secs(), easing::linear).perm();
 
-            TIMERS.deadline(1.secs()).wait_update().await;
+            task::deadline(1.secs()).await;
             fade_out.ease(1.fct(), 1.secs(), easing::linear).perm();
 
             bkg_rotate.wait_animation().await;

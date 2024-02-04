@@ -1,9 +1,6 @@
 //! App timers service and types.
 //!
-//! The [`TIMERS`] service provides timers that operate directly off the app main loop. UI bound timers
-//! should prefer using this service instead of [`task::deadline`] as the service does not need spawn a
-//! timer executor and naturally awakes the main loop when elapsed. The downside is that timer precision is
-//! tied to the app, timers can only elapse once per frame so they are only as precise as the frame rate.
+//! The [`TIMERS`] service provides timers that operate directly off the app main loop.
 //!
 //! The example below creates a timer that elapses every 1 second using [`TIMERS.interval`]. The timer is a variable
 //! so it can be mapped to a value, in the example this is used to create a countdown variable that counts from
@@ -21,6 +18,9 @@
 //!     count
 //! });
 //! ```
+//!
+//! Note that you can also use the [`task::deadline`] function to `.await` a deadline, in app threads this function
+//! uses the [`TIMERS`] service too.
 //!
 //! [`task::deadline`]: crate::task::deadline
 //! [`TIMERS.interval`]: TIMERS::interval
