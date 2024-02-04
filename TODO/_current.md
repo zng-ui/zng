@@ -1,8 +1,4 @@
-# TIME
-
-* Document it (front page?)
-* `task::deadline` is not integrated with manual INSTANT.
-    - It elapses regardless.
+* Document `INSTANT` on the front page.
 
 # Documentation
 

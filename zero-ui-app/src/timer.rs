@@ -7,8 +7,15 @@
 use crate::Deadline;
 use parking_lot::Mutex;
 use std::{
-    fmt, mem,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    fmt,
+    future::Future,
+    mem,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    },
+    task::Waker,
     time::Duration,
 };
 use zero_ui_app_context::app_local;
@@ -34,6 +41,25 @@ struct TimerHandlerEntry {
     pending: Option<Deadline>,                                             // the last expected deadline
 }
 
+struct WaitDeadline {
+    deadline: Deadline,
+    wakers: Mutex<Vec<Waker>>,
+}
+struct WaidDeadlineFut(Arc<WaitDeadline>);
+impl Future for WaidDeadlineFut {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        if self.0.deadline.has_elapsed() {
+            std::task::Poll::Ready(())
+        } else {
+            let waker = cx.waker().clone();
+            self.0.wakers.lock().push(waker);
+            std::task::Poll::Pending
+        }
+    }
+}
+
 struct TimerVarEntry {
     handle: HandleOwner<TimerState>,
     weak_var: WeakArcVar<Timer>,
@@ -45,6 +71,7 @@ app_local! {
 
 pub(crate) struct TimersService {
     deadlines: Vec<WeakArcVar<Deadline>>,
+    wait_deadlines: Vec<std::sync::Weak<WaitDeadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,
@@ -54,6 +81,7 @@ impl TimersService {
     const fn new() -> Self {
         Self {
             deadlines: vec![],
+            wait_deadlines: vec![],
             timers: vec![],
             deadline_handlers: vec![],
             timer_handlers: vec![],
@@ -66,6 +94,16 @@ impl TimersService {
         self.deadlines.push(timer.downgrade());
         UPDATES.send_awake();
         timer.read_only()
+    }
+
+    fn wait_deadline(&mut self, deadline: Deadline) -> impl std::future::Future<Output = ()> + Send + Sync {
+        let deadline = Arc::new(WaitDeadline {
+            deadline,
+            wakers: Mutex::new(vec![]),
+        });
+        self.wait_deadlines.push(Arc::downgrade(&deadline));
+        UPDATES.send_awake();
+        WaidDeadlineFut(deadline)
     }
 
     fn interval(&mut self, interval: Duration, paused: bool) -> TimerVar {
@@ -125,6 +163,12 @@ impl TimersService {
             }
         }
 
+        for wk in &self.wait_deadlines {
+            if let Some(e) = wk.upgrade() {
+                timer.register(e.deadline);
+            }
+        }
+
         for t in &self.timers {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() && !t.handle.data().paused.load(Ordering::Relaxed) {
@@ -172,6 +216,19 @@ impl TimersService {
                 }
 
                 var.update();
+            }
+            false // don't retain
+        });
+
+        // update `wait_deadline` vars
+        self.wait_deadlines.retain(|wk| {
+            if let Some(e) = wk.upgrade() {
+                if !e.deadline.has_elapsed() {
+                    return true; // retain
+                }
+                for w in mem::take(&mut *e.wakers.lock()) {
+                    w.wake();
+                }
             }
             false // don't retain
         });
@@ -425,11 +482,8 @@ impl TIMERS {
     /// Implementation of the [`task::deadline`] function when called from app threads.
     ///
     /// [`task::deadline`]: zero_ui_task::deadline
-    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
-        let deadline = TIMERS_SV.write().deadline(deadline.into());
-        Box::pin(async move {
-            deadline.wait_update().await;
-        })
+    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl std::future::Future<Output = ()> + Send + Sync {
+        TIMERS_SV.write().wait_deadline(deadline.into())
     }
 }
 
@@ -992,6 +1046,6 @@ impl TimerArgs {
     }
 }
 
-pub(crate) fn deadline_service(deadline: Deadline) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
-    TIMERS.wait_deadline(deadline)
+pub(crate) fn deadline_service(deadline: Deadline) -> Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
+    Box::pin(TIMERS.wait_deadline(deadline))
 }

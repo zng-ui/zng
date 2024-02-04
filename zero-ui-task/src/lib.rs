@@ -778,7 +778,12 @@ pub async fn yield_now() {
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
 pub fn deadline(deadline: impl Into<Deadline>) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    DEADLINE_SV.read().0(deadline.into())
+    let deadline = deadline.into();
+    if zero_ui_app_context::LocalContext::current_app().is_some() {
+        DEADLINE_SV.read().0(deadline)
+    } else {
+        default_deadline(deadline)
+    }
 }
 
 app_local! {
