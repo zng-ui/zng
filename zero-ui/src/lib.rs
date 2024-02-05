@@ -53,6 +53,8 @@
 //! You can also use a [prebuild view](app#prebuild) and run in the [same process](app#same-process), see [`app`] for more details.
 //!
 //! # Widgets & Properties
+//! 
+//! The high-level building blocks of UI.
 //!
 //! ```
 //! use zero_ui::prelude::*;
@@ -130,6 +132,8 @@
 //!
 //! # Variables
 //!
+//! Observable values that glue most of the UI together.
+//! 
 //! ```
 //! use zero_ui::prelude::*;
 //!
@@ -209,6 +213,8 @@
 //!
 //! # Context
 //!
+//! Context or *ambient* values set on parent widgets affecting descendant widgets.
+//! 
 //! ```
 //! use zero_ui::prelude::*;
 //!
@@ -259,6 +265,8 @@
 //!  
 //! # Services
 //!
+//! App or contextual value and function providers.
+//! 
 //! ```
 //! use zero_ui::prelude::*;
 //! use zero_ui::clipboard::CLIPBOARD;
@@ -325,6 +333,8 @@
 //!
 //! # Events & Commands
 //!
+//! Targeted messages send from the system to widgets or from one widget to another.
+//! 
 //! ```no_run
 //! use zero_ui::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
 //!
@@ -392,6 +402,8 @@
 //!
 //! # Layout
 //!
+//! Contextual properties and constraints that affect how an widget is sized and placed on the screen.
+//! 
 //! ```
 //! use zero_ui::prelude::*;
 //! # let _app = APP.minimal();
