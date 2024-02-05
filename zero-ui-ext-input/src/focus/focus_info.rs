@@ -203,7 +203,7 @@ pub enum DirectionalNav {
     Continue,
     /// Arrows move the focus inside the scope only, stops at the edges.
     Contained,
-    /// Arrows move the focus inside the scope only, cycles back to oppose edges.
+    /// Arrows move the focus inside the scope only, cycles back to opposite edges.
     Cycle,
 }
 impl fmt::Debug for DirectionalNav {

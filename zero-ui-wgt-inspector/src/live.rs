@@ -770,7 +770,6 @@ mod inspector_window {
         captured: bool,
         user_assigned: bool,
     ) -> impl UiNode {
-        // TODO, indicators for user or widget set properties.
         let mut children = ui_vec![
             Text! {
                 txt = info.name;

@@ -5,6 +5,8 @@
 * Implement expander.
     - Maybe collapse some inner widgets by default?
 
+* Visually differentiate between user or widget set properties.
+
 * Implement property search.
 
 * Run as separate process?
