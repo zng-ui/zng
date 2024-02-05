@@ -1,21 +1,9 @@
-* Document `INSTANT` on the front page.
+* Test build without `CC` in Windows (and without prebuild).
+    - Need to build a temp crate.
 
 # Documentation
 
-* Add build dependencies for each operating system on the main `README.md`.
-    - Windows:
-        - `do prebuild` requires clang
-            - needs `CC` and `CXX` environment variables set to `clang-cl`
-    - Ubuntu:
-```
-cargo do install --accept [ok]
-cargo do prebuild [ok]
-cargo do run icon [error]
-sudo apt-get install pkg-config
-sudo apt-get install libssl-dev
-sudo apt-get install libfontconfig1-dev
-cargo do run icon [ok]
-```
+* Document `INSTANT` on the front page.
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.

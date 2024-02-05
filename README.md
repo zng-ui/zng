@@ -78,6 +78,25 @@ These features are enabled by default:
 - **`ipc`** — Enables pre-build views and connecting to views running in another process.
 - **`view_software`** — Enables software renderer fallback in the default view-process (`"view"`).
 
+## Requirements
+
+On Windows:
+
+* To build with `"view"` and `"view_software"` feature:
+    - Env vars `CC` and `CXX` must be set to "clang-cl".
+    - You can install clang using the [Visual Studio installer] or by installing LLVM directly.
+
+[Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
+
+on Linux:
+
+* Packages need to build:
+    - `pkg-config`
+    - `libfontconfig1-dev`
+
+* Packages need to build with `"http"` feature:
+    - `libssl-dev`
+
 ## `cargo do`
 
 There is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
