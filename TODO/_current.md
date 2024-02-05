@@ -1,5 +1,6 @@
 * Test build without `CC` in Windows (and without prebuild).
     - Need to build a temp crate.
+* `WINDOWS.open` in a `on_close` handle does not close the window and does not open the new one.
 
 # Documentation
 
