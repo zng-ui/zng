@@ -3,8 +3,6 @@
 
 # Documentation
 
-* Document `INSTANT` on the front page.
-
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
