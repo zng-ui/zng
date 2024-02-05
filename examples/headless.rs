@@ -236,7 +236,7 @@ fn headless_example_video() {
             // same GPU used for headed windows is used.
             render_mode = window::RenderMode::Software;
 
-            // capture the all frame.
+            // capture all frames.
             frame_capture_mode = FrameCaptureMode::All;
 
             // this event will fire every time a frame is rendered.

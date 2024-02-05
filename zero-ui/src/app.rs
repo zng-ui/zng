@@ -174,9 +174,9 @@
 //! All widgets using the service during the same update see the same state. State change requests are scheduled
 //! for the next update, just like variable updates or event notifications. Services also request
 //! an [`UPDATES.update`] after scheduling to wake-up the app in case the service request was made from a [`task`] thread.
-//! 
+//!
 //! This is even true for the [`INSTANT`] service, although this can be configured for this service using [`APP.pause_time_for_update`].
-//! 
+//!
 //! [`APP.pause_time_for_update`]: zero_ui_app::APP::pause_time_for_update
 //!
 //! ### Examples

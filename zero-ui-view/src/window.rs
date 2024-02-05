@@ -1330,7 +1330,7 @@ impl Window {
         };
 
         self.pending_frames
-            .push_back((frame.id, FrameCapture::None, Some(frame_scope.entered())));
+            .push_back((frame.id, frame.capture, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id, txn);
     }
