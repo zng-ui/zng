@@ -1001,18 +1001,6 @@ impl App {
                     });
                 }
             }
-            WindowEvent::TouchpadMagnify { .. } => {
-                linux_modal_dialog_bail!();
-                // TODO
-            }
-            WindowEvent::TouchpadRotate { .. } => {
-                linux_modal_dialog_bail!();
-                // TODO
-            }
-            WindowEvent::SmartMagnify { .. } => {
-                linux_modal_dialog_bail!();
-                // TODO
-            }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let monitor;
                 let mut is_monitor_change = false;
@@ -1073,6 +1061,9 @@ impl App {
             }
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}
+            WindowEvent::TouchpadMagnify { .. } => {}
+            WindowEvent::TouchpadRotate { .. } => {}
+            WindowEvent::SmartMagnify { .. } => {}
         }
     }
 
