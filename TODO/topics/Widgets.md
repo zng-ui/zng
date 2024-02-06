@@ -2,7 +2,7 @@
 
 Widget that need to be implemented.
 
-* Implement visibility change event.
+* Implement `VISIBILITY_CHANGED_EVENT` based event property.
   - on_show, on_hide, on_collapse?
   - on_show, should also fire once after first render?
 * Progress indicator.
@@ -11,10 +11,6 @@ Widget that need to be implemented.
 * Slider.
 * Resize parent.
 * Charts.
-* Media (audio & video).
-* Image effects.
-* Massive images (deep zoom).
-* SVG images.
 * HTML (CSS, no Js).
 * Full Markdown (HTML+CSS).
 * Diagram editor.
@@ -23,7 +19,6 @@ Widget that need to be implemented.
 * Parallax.
 * Morphing.
 * PropertyGrid.
-* Review widgets available in other frameworks?
 
 ## Basic Layout
 
@@ -56,12 +51,6 @@ Widgets that derive from Window and define type of app interaction.
 * Ribbon.
 * Docking editor.
 
-## Themes
-
-* Is a style collection.
-* High contrast.
-* OS imitation?
-
 ## OS Integration
 
 * MainMenu.
@@ -69,5 +58,5 @@ Widgets that derive from Window and define type of app interaction.
 
 ## Dialogs
 
-* Message dialogs (styleable?).
+* Message dialogs (styleable).
 * File dialogs (not styleable?).

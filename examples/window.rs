@@ -43,6 +43,11 @@ fn app_main() {
 async fn main_window() -> window::WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
+    zero_ui::image::IMAGES.limits().modify(|l| {
+        let l = l.to_mut();
+        l.allow_path = zero_ui::image::PathFilter::allow_dir("examples/res");
+    });
+
     let window_vars = WINDOW.vars();
     let title = merge_var!(
         window_vars.actual_position(),

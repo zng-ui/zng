@@ -17,8 +17,11 @@
 * Rename crates (replace zero-ui with something that has no hyphen). 
     - Z meaning depth opens some possibilities, unfortunately "zui" is already taken.
     - `znest`: Z-dimension (depth) + nest, Z-Nest, US pronunciation "zee nest"? 
-    - `zerui`.
-    - `nestui`.
+    - `nst`: Short for nest (how is pronunciation?)
+    - `nstui`: Nest + UI.
+    - `znst`: Z + Nest.
+    - `zng`: Z + Nest + Graphics (pronunciation: zing).
+    - `zngui`: Z + Nest + GUI (pronunciation: zing UI).
 
 * Review prebuild distribution.
 * Pick license and code of conduct.

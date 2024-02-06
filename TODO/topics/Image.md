@@ -9,6 +9,7 @@
 * Vector images (see Canvas.md).
 
 ## View-image TODO
+
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.

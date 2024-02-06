@@ -1,8 +1,7 @@
 # View-Process TODO
 
-* Implement monitor changed event.
-  - when monitor changes: See WindowVars::monitor()
-  - actual_monitor: Computed by intersection between window and monitors? (the monitor area that contains more than half of the window?)
+* Implement direct-composition to support effects like semi-transparent blur the pixels "behind" the window.
+        See: https://github.com/servo/webrender/blob/master/example-compositor/compositor/src/main.rs
 
 ## API
 
@@ -12,7 +11,7 @@
 
 ## Extensions
 
-* Implement custom OpenGL texture example.
+* Implement better custom OpenGL texture example.
 * Implement window extension.
     - Similar to `RendererExtension`, access to raw handle and window builder config.
       - Modify RendererExtension to include window stuff?

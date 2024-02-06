@@ -40,16 +40,10 @@
         - And padding? Need to capture padding if the case.
 * Add contextual grid info, like the text `TextLayout`, to allow custom properties to extent it (like an special border property).
 
-## Single Child Panels
-
-* Can maybe avoid some measure passes in panels with a single child.
-  - Is it worth-it? Its a single extra measure and a special behavior that can mess-up tests.
-  - See what other frameworks do.
-
 # Responsive Layout
 
-* Right now we use the `actual_width` to implement something *media query* and give it a margin of error
-  for different localizations.
+* Right now we use the `actual_width` to implement something like *media query* and give it a margin of error
+  for different localizations. Review what else is typical for media queries.
 
 # Easing Layout
 
