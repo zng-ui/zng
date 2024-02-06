@@ -19,7 +19,7 @@ use zero_ui::{
     text::Strong,
     var::ArcVar,
     widget::{background_color, corner_radius, enabled, visibility, LineStyle},
-    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowChrome, WindowState},
+    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 
 use zero_ui::view_process::default as view_process;
@@ -58,17 +58,19 @@ async fn main_window() -> window::WindowRoot {
 
     let background = var(colors::BLACK);
 
+    let custom_chrome = Text! {
+        visibility = expr_var!((#{window_vars.state()}.is_fullscreen() || !*#{window_vars.chrome()}).into());
+        txt = title.clone();
+        align = Align::TOP;
+        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+        padding = 4;
+        corner_radius = (0, 0, 5, 5);
+    };
+    LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome);
+
     Window! {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
-        widget::foreground = Text! {
-            txt = title.clone();
-            visibility = window_vars.state().map(|s| s.is_fullscreen().into());
-            align = Align::TOP;
-            background_color = color_scheme_map(colors::BLACK, colors::WHITE);
-            padding = 4;
-            corner_radius = (0, 0, 5, 5);
-        };
         title;
         on_state_changed = hn!(|args: &WindowChangedArgs| {
             tracing::info!("state: {:?}", args.new_state().unwrap());
@@ -93,7 +95,6 @@ async fn main_window() -> window::WindowRoot {
                     children = ui_vec![
                         state(),
                         visibility_example(),
-                        chrome(),
                     ];
                 },
                 Stack! {
@@ -285,24 +286,6 @@ fn icon_example() -> impl UiNode {
     )
 }
 
-fn chrome() -> impl UiNode {
-    let chrome_btn = |c: WindowChrome| {
-        Toggle! {
-            child = Text!("{c:?}");
-            value = c;
-        }
-    };
-    select(
-        "Chrome",
-        WINDOW.vars().chrome(),
-        ui_vec![
-            chrome_btn(WindowChrome::Default),
-            chrome_btn(WindowChrome::None),
-            Text!("TODO custom"),
-        ],
-    )
-}
-
 fn state_commands() -> impl UiNode {
     use zero_ui::window::cmd::*;
 
@@ -450,8 +433,12 @@ fn visibility_example() -> impl UiNode {
             tracing::info!("visible=true");
         });
     };
+    let chrome = Toggle! {
+        child = Text!("Chrome");
+        checked = WINDOW.vars().chrome();
+    };
 
-    section("Visibility", ui_vec![btn])
+    section("Visibility", ui_vec![btn, chrome])
 }
 
 fn misc() -> impl UiNode {

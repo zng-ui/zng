@@ -190,59 +190,6 @@ impl fmt::Debug for StartPosition {
     }
 }
 
-/// Window chrome, the non-client area of the window.
-#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum WindowChrome {
-    /// System chrome.
-    Default,
-    /// Chromeless.
-    None,
-    /// An [`UiNode`] that provides the window chrome.
-    Custom,
-}
-impl fmt::Debug for WindowChrome {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "WindowChrome::")?;
-        }
-        match self {
-            WindowChrome::Default => write!(f, "Default"),
-            WindowChrome::None => write!(f, "None"),
-            WindowChrome::Custom => write!(f, "Custom"),
-        }
-    }
-}
-impl WindowChrome {
-    /// Is system chrome.
-    pub fn is_default(&self) -> bool {
-        matches!(self, WindowChrome::Default)
-    }
-
-    /// Is chromeless.
-    pub fn is_none(&self) -> bool {
-        matches!(self, WindowChrome::None)
-    }
-}
-impl Default for WindowChrome {
-    /// [`WindowChrome::Default`]
-    fn default() -> Self {
-        Self::Default
-    }
-}
-impl_from_and_into_var! {
-    /// | Input  | Output                  |
-    /// |--------|-------------------------|
-    /// |`true`  | `WindowChrome::Default` |
-    /// |`false` | `WindowChrome::None`    |
-    fn from(default_: bool) -> WindowChrome {
-        if default_ {
-            WindowChrome::Default
-        } else {
-            WindowChrome::None
-        }
-    }
-}
-
 bitflags! {
     /// Mask of allowed [`WindowState`] states of a window.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

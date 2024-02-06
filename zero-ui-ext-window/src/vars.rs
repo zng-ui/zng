@@ -17,10 +17,10 @@ use zero_ui_view_api::{
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
 };
 
-use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, RendererDebug, WindowChrome, WindowIcon};
+use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, RendererDebug, WindowIcon};
 
 pub(super) struct WindowVarsData {
-    chrome: ArcVar<WindowChrome>,
+    chrome: ArcVar<bool>,
     icon: ArcVar<WindowIcon>,
     pub(super) actual_icon: ArcVar<Option<Img>>,
     cursor: ArcVar<Option<CursorIcon>>,
@@ -92,7 +92,7 @@ pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_color_scheme: ColorScheme) -> Self {
         let vars = Arc::new(WindowVarsData {
-            chrome: var(WindowChrome::Default),
+            chrome: var(true),
             icon: var(WindowIcon::Default),
             actual_icon: var(None),
             cursor: var(Some(CursorIcon::Default)),
@@ -166,12 +166,12 @@ impl WindowVars {
         WINDOW.req_state(&WINDOW_VARS_ID)
     }
 
-    /// Window chrome, the non-client area of the window.
+    /// If the window chrome is visible.
     ///
-    /// See [`WindowChrome`] for details.
+    /// The window chrome is the non-client area of the window, usually a border with resize handles and a title bar.
     ///
-    /// The default value is [`WindowChrome::Default`].
-    pub fn chrome(&self) -> ArcVar<WindowChrome> {
+    /// The default value is `true`.
+    pub fn chrome(&self) -> ArcVar<bool> {
         self.0.chrome.clone()
     }
 

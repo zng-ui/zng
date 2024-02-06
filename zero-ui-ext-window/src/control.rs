@@ -46,8 +46,8 @@ use zero_ui_view_api::{
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     AutoSize, CursorImg, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
-    WindowChangedArgs, WindowChrome, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT,
-    WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
+    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
+    WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -188,12 +188,12 @@ impl HeadedCtrl {
             }
 
             if let Some(mut chrome) = self.vars.chrome().get_new() {
-                if !chrome.is_none() {
+                if self.kiosk.is_some() && !chrome {
                     tracing::error!("window in `kiosk` mode can not show chrome");
-                    chrome = WindowChrome::None;
+                    chrome = false;
                 }
 
-                new_state.chrome_visible = chrome.is_default();
+                new_state.chrome_visible = chrome;
             }
 
             if let Some(mut req_state) = self.vars.state().get_new() {
@@ -1041,7 +1041,7 @@ impl HeadedCtrl {
             restore_state: WindowState::Normal,
             min_size: min_size.to_dip(scale_factor),
             max_size: max_size.to_dip(scale_factor),
-            chrome_visible: self.vars.chrome().get().is_default(),
+            chrome_visible: self.vars.chrome().get(),
         };
 
         let request = WindowRequest {

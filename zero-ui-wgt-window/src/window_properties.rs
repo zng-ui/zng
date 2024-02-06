@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use zero_ui_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
 use zero_ui_ext_window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, RendererDebug, WINDOW_Ext as _, WindowChrome, WindowIcon, WindowLoadingHandle, WindowState,
-    WindowVars, MONITORS, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, RendererDebug, WINDOW_Ext as _, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
+    MONITORS, WINDOW_LOAD_EVENT,
 };
 use zero_ui_wgt::prelude::*;
 
@@ -71,7 +71,7 @@ set_properties! {
 
     font_size: Length,
 
-    chrome: WindowChrome,
+    chrome: bool,
     icon: WindowIcon,
     title: Txt,
 

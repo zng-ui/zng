@@ -44,10 +44,9 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowChrome,
-    WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
-    FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT,
-    WINDOW_VARS_ID,
+    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowCloseArgs,
+    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT,
+    MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
 };
 
 app_local! {
@@ -1264,7 +1263,7 @@ impl AppWindowTask {
         let vars = ctx.with_state(|s| s.borrow().get_clone(&WINDOW_VARS_ID)).unwrap();
 
         if window.kiosk {
-            vars.chrome().set(WindowChrome::None);
+            vars.chrome().set(false);
             vars.visible().set(true);
             if !vars.state().get().is_fullscreen() {
                 vars.state().set(WindowState::Exclusive);
