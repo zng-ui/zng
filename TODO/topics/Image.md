@@ -4,29 +4,14 @@
 
 * All web formats.
     - AVIF still a pain.
-* DPI size correcting.
 * Color profile correcting.
     Use `qcms` or `lcms2`
 * Vector images (see Canvas.md).
-
-## Nice to Have
-
-* Progressive decoding.
 
 ## View-image TODO
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
-
-## IMAGES
-* Cache cleanup after memory limit.
-* Download/file blocking.
-* Per-request limits.
-* Improve limits error message.
-* Optional hold window open (first layout) until an image is loaded.
-
-## Image Support
-
 * How to support metadata reading (dpi + CC) without parsing multiple times?
 * How to support progressive decoding?
 
@@ -47,6 +32,9 @@ so we can wait for now and focus in other features.
 * Allow keeping image only at a size, to save memory for images that don't resize.
 * Image widget need to allow defining min/max scale and offset.
     Different widget?
+* Large image rendering.
+    - Test webrender limits.
+    - Need to render in tiles?
 
 ## Masks
 

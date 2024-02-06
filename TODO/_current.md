@@ -1,5 +1,6 @@
 * Test build without `CC` in Windows (and without prebuild).
     - Need to build a temp crate.
+* Test headless example with large image (11608, 8708).
 
 # Documentation
 

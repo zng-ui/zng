@@ -153,7 +153,7 @@ pub struct HeadlessMonitor {
     /// This is used to calculate relative lengths in the window size definition and is defined in
     /// layout pixels instead of device like in a real monitor info.
     ///
-    /// `(1920, 1080)` by default.
+    /// `(11608, 8708)` by default.
     pub size: DipSize,
 
     /// Pixel-per-inches used for the headless layout and rendering.
@@ -200,9 +200,9 @@ impl HeadlessMonitor {
     }
 }
 impl Default for HeadlessMonitor {
-    /// New `1920x1080` at `None` scale.
+    /// New `11608x8708` at `None` scale.
     fn default() -> Self {
-        (1920, 1080).into()
+        (11608, 8708).into()
     }
 }
 impl_from_and_into_var! {
