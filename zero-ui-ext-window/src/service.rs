@@ -877,6 +877,11 @@ impl WINDOWS {
                 (mode, _) => mode,
             };
 
+            let color_scheme = match window_mode {
+                WindowMode::Headed => color_scheme,
+                WindowMode::Headless | WindowMode::HeadlessWithRenderer => ColorScheme::default(),
+            };
+
             let task = AppWindowTask::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.responder);
             open_tasks.push(task);
         }
@@ -1204,10 +1209,13 @@ struct AppWindowTask {
 }
 impl AppWindowTask {
     fn new(id: WindowId, mode: WindowMode, color_scheme: ColorScheme, new: UiTask<WindowRoot>, responder: ResponderVar<WindowId>) -> Self {
-        let primary_scale_factor = MONITORS
-            .primary_monitor()
-            .map(|m| m.scale_factor().get())
-            .unwrap_or_else(|| 1.fct());
+        let primary_scale_factor = match mode {
+            WindowMode::Headed => MONITORS
+                .primary_monitor()
+                .map(|m| m.scale_factor().get())
+                .unwrap_or_else(|| 1.fct()),
+            WindowMode::Headless | WindowMode::HeadlessWithRenderer => 1.fct(),
+        };
 
         let mut ctx = WindowCtx::new(id, mode);
 
