@@ -21,7 +21,7 @@ use crate::INSTANT;
 pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the handler's event happens in the widget context.
     ///
-    /// Returns `true` when the event handler is async and it has not finished handing the event.
+    /// Returns `true` when the event handler is async and it has not finished handling the event.
     ///
     /// [`update`]: WidgetHandler::update
     /// [`info`]: crate::widget::node::UiNode::info
@@ -449,15 +449,20 @@ where
     H: FnOnce(A) -> F + Send + 'static,
 {
     fn event(&mut self, args: &A) -> bool {
-        if let AsyncFnOnceWhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
-            let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
-            let is_pending = task.update().is_none();
-            if is_pending {
-                self.state = AsyncFnOnceWhState::Pending(task);
+        match mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
+            AsyncFnOnceWhState::NotCalled(handler) => {
+                let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
+                let is_pending = task.update().is_none();
+                if is_pending {
+                    self.state = AsyncFnOnceWhState::Pending(task);
+                }
+                is_pending
             }
-            is_pending
-        } else {
-            false
+            AsyncFnOnceWhState::Pending(t) => {
+                self.state = AsyncFnOnceWhState::Pending(t);
+                false
+            }
+            AsyncFnOnceWhState::Done => false,
         }
     }
 
