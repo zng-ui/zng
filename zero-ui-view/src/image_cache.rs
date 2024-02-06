@@ -943,7 +943,7 @@ impl Image {
     /// Generate a cursor from the image.
     pub fn cursor(&self, hotspot: PxPoint) -> Option<()> {
         let _hotspot = hotspot;
-        None // TODO after https://github.com/rust-windowing/winit/pull/3039
+        None // TODO after https://github.com/rust-windowing/winit/issues/3306
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
