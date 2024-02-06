@@ -784,12 +784,12 @@ impl WINDOWS {
             // causing the ViewWindow to drop and close.
 
             for w in args.windows.iter() {
-                let mut wns = WINDOWS_SV.write();
-                if let Some(w) = wns.windows.remove(w) {
+                let w = WINDOWS_SV.write().windows.remove(w);
+                if let Some(w) = w {
                     let id = w.ctx.id();
                     w.close();
 
-                    let info = wns.windows_info.remove(&id).unwrap();
+                    let info = WINDOWS_SV.write().windows_info.remove(&id).unwrap();
 
                     info.vars.0.is_open.set(false);
 
@@ -1329,9 +1329,7 @@ impl AppWindow {
     }
 
     pub fn close(mut self) {
-        WINDOW.with_context(&mut self.ctx, || {
-            self.ctrl.get_mut().close();
-        });
+        self.ctrl_in_ctx(|ctrl| ctrl.close());
     }
 
     fn view_task(&mut self, task: Box<dyn FnOnce(Option<&view_process::ViewWindow>) + Send>) {
