@@ -236,7 +236,7 @@ pub fn col_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
     with_access_state(child, span, |b, v| b.set_col_span(*v))
 }
 
-/// Sets the total number of rows in a [`Table`], [`Grid`], or [`TreeGrid`] when not all rows are present in tree.
+/// Sets the total number of rows in a [`Table`], [`Grid`], or [`TreeGrid`] when not all rows are present in the tree.
 ///
 /// The value `0` indicates that not all rows are in the widget and the application cannot determinate the exact number.
 ///
@@ -322,7 +322,7 @@ pub fn labelled_by(child: impl UiNode, labels: impl IntoVar<Vec<WidgetId>>) -> i
     })
 }
 
-/// Append widgets that are a *child* of this widget, but is not already a child in the info tree.
+/// Append `owned` widgets that are *children* of this widget, but are not already children in the info tree.
 #[property(CONTEXT)]
 pub fn owns(child: impl UiNode, owned: impl IntoVar<Vec<WidgetId>>) -> impl UiNode {
     with_access_state(child, owned, |b, v| {
@@ -354,26 +354,26 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
     with_access_state(child, lang, |b, v| b.set_lang(v.0.clone()))
 }
 
-/// Sets the amount scrolled on the horizontal if the content can be scrolled horizontally.
+/// Sets the amount scrolled horizontally if allowed.
 ///
 /// The `normal_x` value can be a read-only variable, the variable can be updated without needing to rebuild
 /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
 /// together with the widget bounds updates.
 ///
-/// The value must be normalized in the 0..1 range, 0 is showing the content leftmost edge, 1 is showing
+/// The value must be normalized in the 0..=1 range, 0 is showing the content leftmost edge, 1 is showing
 /// the content the rightmost edge.
 #[property(CONTEXT)]
 pub fn scroll_horizontal(child: impl UiNode, normal_x: impl IntoVar<Factor>) -> impl UiNode {
     with_access_state_var(child, normal_x, |b, v| b.set_scroll_horizontal(v.clone()))
 }
 
-/// Sets the amount scrolled on the vertical if the content can be scrolled vertically.
+/// Sets the amount scrolled vertically if allowed.
 ///
 /// The `normal_y` value can be a read-only variable, the variable can be updated without needing to rebuild
 /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
 /// together with the widget bounds updates.
 ///
-/// The value must be normalized in the 0..1 range, 0 is showing the content topmost edge, 1 is showing
+/// The value must be normalized in the 0..=1 range, 0 is showing the content topmost edge, 1 is showing
 /// the content the bottommost edge.
 #[property(CONTEXT)]
 pub fn scroll_vertical(child: impl UiNode, normal_y: impl IntoVar<Factor>) -> impl UiNode {

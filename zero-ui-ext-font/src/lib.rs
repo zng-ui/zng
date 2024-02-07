@@ -2601,7 +2601,7 @@ impl From<font_kit::properties::Stretch> for FontStretch {
     }
 }
 
-/// The degree of blackness or stroke thickness of a font. This value ranges from 100.0 to 900.0,
+/// The degree of stroke thickness of a font. This value ranges from 100.0 to 900.0,
 /// with 400.0 as normal.
 #[derive(Clone, Copy, Transitionable)]
 pub struct FontWeight(pub f32);

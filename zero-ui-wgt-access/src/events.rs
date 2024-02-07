@@ -12,21 +12,21 @@ event_property! {
         with: access_click,
     }
 
-    /// Access requested expand or collapse the widget content.
+    /// Access requested to expand or collapse the widget content.
     pub fn access_expander {
         event: ACCESS_EXPANDER_EVENT,
         args: AccessExpanderArgs,
         with: access_expander,
     }
 
-    /// Access requested increment or decrement the widget value by steps.
+    /// Access requested to increment or decrement the widget value by steps.
     pub fn access_increment {
         event: ACCESS_INCREMENT_EVENT,
         args: AccessIncrementArgs,
         with: access_increment,
     }
 
-    /// Access requested show or hide the widget's tooltip.
+    /// Access requested to show or hide the widget's tooltip.
     ///
     /// Note that the tooltip property already handles this event.
     pub fn access_tooltip {

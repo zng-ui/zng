@@ -45,12 +45,12 @@ impl WidgetBase {
         Self::inherit(Self::widget_type())
     }
 
-    /// Direct reference the widget builder.
+    /// Returns a mutable reference to the widget builder.
     pub fn widget_builder(&mut self) -> &mut WidgetBuilder {
         self.builder.get_mut().as_mut().expect("already built")
     }
 
-    /// Direct reference the current `when` block.
+    /// Returns a mutable reference to the `when` block if called inside a when block.
     pub fn widget_when(&mut self) -> Option<&mut WhenInfo> {
         self.when.get_mut().as_mut()
     }
@@ -77,14 +77,14 @@ impl WidgetBase {
         node::build(wgt)
     }
 
-    /// Gets or sets the importance of the next property assigns, unsets or when blocks.
+    /// Returns a mutable reference to the importance of the next property assigns, unsets or when blocks.
     ///
     /// Note that during the `widget_intrinsic` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
     pub fn widget_importance(&mut self) -> &mut Importance {
         &mut self.importance
     }
 
-    /// Start building a `when` block, all properties set after this call go on the when block.
+    /// Start building a `when` block, all properties set after this call go in the when block.
     pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
         assert!(self.builder.get_mut().is_some(), "cannot start `when` after build");
         assert!(self.when.get_mut().is_none(), "cannot nest `when` blocks");
@@ -99,7 +99,7 @@ impl WidgetBase {
         });
     }
 
-    /// End the current `when` block, all properties set after this call go on the widget.
+    /// End the current `when` block, all properties set after this call go in the widget.
     pub fn end_when_block(&mut self) {
         let when = self.when.get_mut().take().expect("no current `when` block to end");
         self.builder.get_mut().as_mut().unwrap().push_when(self.importance, when);

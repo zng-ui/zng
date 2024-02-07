@@ -18,7 +18,7 @@ use zero_ui_wgt_text::*;
 #[doc(hidden)]
 pub use zero_ui_wgt_text::__formatx;
 
-/// Render text styled using ANSI scale sequences.
+/// Render text styled using ANSI escape sequences.
 ///
 /// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
 #[widget($crate::AnsiText {
@@ -82,7 +82,7 @@ mod ansi_parse {
     pub struct AnsiStyle {
         /// Background color.
         pub background_color: AnsiColor,
-        /// Foreground color.
+        /// Font color.
         pub color: AnsiColor,
         /// Font weight.
         pub weight: AnsiWeight,

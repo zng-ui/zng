@@ -120,7 +120,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
     with_context_var(child, FONT_SIZE_VAR, size)
 }
 
-/// Defines how condensed or expanded the preferred font should be.
+/// Defines the thickness or boldness the preferred font should have.
 ///
 /// This value influences font resolution, the variant within the font family that is closest to this config will be selected.
 ///
@@ -820,7 +820,7 @@ impl TextSpacingMix<()> {
 /// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
 /// the default line height.
 ///
-/// The text is vertically centralized inside the height.
+/// The text is vertically centered inside the height.
 ///
 /// [`Default`]: Length::Default
 ///
@@ -863,7 +863,7 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
     with_context_var(child, LINE_SPACING_VAR, extra)
 }
 
-/// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `letter_spacing` from the parent widget.
+/// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `word_spacing` from the parent widget.
 ///
 /// Word spacing is done using the space character "advance" as defined in the font,
 /// this unit represents extra spacing added to that default spacing.
@@ -871,7 +871,7 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
 /// A "word" is the sequence of characters in-between space characters. This extra
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
-/// see [`WhiteSpace`].
+/// see [`WhiteSpace`], resulting in only one extra spacing.
 ///
 /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
 /// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,

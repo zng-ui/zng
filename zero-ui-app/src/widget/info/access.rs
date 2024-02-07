@@ -245,26 +245,26 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
         self.with_access(|a| a.set_state(AccessState::Lang(lang)))
     }
 
-    /// Sets the amount scrolled on the horizontal if the content can be scrolled horizontally.
+    /// Sets the amount scrolled horizontally if allowed.
     ///
     /// The `normal_x` value can be a read-only variable, the variable can be updated without needing to rebuild
     /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
     /// together with the widget bounds updates.
     ///
-    /// The value must be normalized in the 0..1 range, 0 is showing the content leftmost edge, 1 is showing
+    /// The value must be normalized in the 0..=1 range, 0 is showing the content leftmost edge, 1 is showing
     /// the content the rightmost edge.
     pub fn set_scroll_horizontal(&mut self, normal_x: impl IntoVar<Factor>) {
         let normal_x = normal_x.into_var().boxed();
         self.with_access(|a| a.set_state_source(AccessStateSource::ScrollHorizontal(normal_x)))
     }
 
-    /// Sets the amount scrolled on the vertical if the content can be scrolled vertically.
+    /// Sets the amount scrolled vertically if allowed.
     ///
     /// The `normal_y` value can be a read-only variable, the variable can be updated without needing to rebuild
     /// info for every pixel scrolled, if the view-process requires access info the value is updated every render
     /// together with the widget bounds updates.
     ///
-    /// The value must be normalized in the 0..1 range, 0 is showing the content topmost edge, 1 is showing
+    /// The value must be normalized in the 0..=1 range, 0 is showing the content topmost edge, 1 is showing
     /// the content the bottommost edge.
     pub fn set_scroll_vertical(&mut self, normal_y: impl IntoVar<Factor>) {
         let normal_y = normal_y.into_var().boxed();
