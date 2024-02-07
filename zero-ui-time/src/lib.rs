@@ -179,6 +179,9 @@ impl DInstant {
 
     /// Earliest instant.
     pub const EPOCH: DInstant = DInstant(Duration::ZERO);
+
+    /// The maximum representable instant.
+    pub const MAX: DInstant = DInstant(Duration::MAX);
 }
 impl ops::Add<Duration> for DInstant {
     type Output = Self;
@@ -290,6 +293,12 @@ impl Deadline {
     pub fn max(self, other: Deadline) -> Deadline {
         Deadline(self.0.max(other.0))
     }
+
+    /// Deadline that is always elapsed.
+    pub const ELAPSED: Deadline = Deadline(DInstant::EPOCH);
+
+    /// Deadline that is practically never reached.
+    pub const MAX: Deadline = Deadline(DInstant::MAX);
 }
 impl fmt::Display for Deadline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -1,6 +1,5 @@
 * Test build without `CC` in Windows (and without prebuild).
     - Need to build a temp crate.
-* `WindowLoading::try_load` sends render requests, why?
 
 # Documentation
 

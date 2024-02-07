@@ -25,7 +25,7 @@ use zero_ui_app::{
 use zero_ui_app_context::app_local;
 
 use zero_ui_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
-use zero_ui_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect, TimeUnits};
+use zero_ui_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
 use zero_ui_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ui::UiTask,
@@ -1358,7 +1358,7 @@ impl WindowLoading {
 
     /// Returns `true` if the window can load.
     pub fn try_load(&mut self, window_id: WindowId) -> bool {
-        let mut deadline = Deadline::timeout(1.hours());
+        let mut deadline = Deadline::MAX;
         self.handles.retain(|h| match h.upgrade() {
             Some(h) => {
                 if h.deadline.has_elapsed() {
@@ -1372,6 +1372,7 @@ impl WindowLoading {
         });
 
         if self.handles.is_empty() {
+            self.timer = None;
             true
         } else {
             if let Some(t) = &self.timer {
