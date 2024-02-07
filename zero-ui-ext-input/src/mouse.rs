@@ -174,11 +174,11 @@ event_args! {
         /// to a larger parent widget and then let go (mouse up), the click target
         /// is the parent widget.
         ///
-        /// Multi-clicks (`[click_count]` > 1) only happen to the same target.
+        /// Multi-clicks ([`click_count`] > 1) only happen to the same target.
         ///
         /// [mouse down]: MouseInputArgs::is_mouse_down
         /// [mouse up]: MouseInputArgs::is_mouse_up
-        /// [click_count]: (MouseClickArgs::click_count
+        /// [`click_count`]: MouseClickArgs::click_count
         pub target: InteractionPath,
 
         ..
