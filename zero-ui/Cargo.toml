@@ -12,7 +12,7 @@ default = ["ipc", "debug_default", "view_software"]
 # Enables pre-build views and connecting to views running in another process.
 # 
 # Enabled by default.
-ipc = ["zero-ui-app/ipc", "zero-ui-view-api/ipc", "zero-ui-view/ipc"]
+ipc = ["zero-ui-app/ipc", "zero-ui-view-api/ipc", "zero-ui-view?/ipc"]
 
 # Enables http tasks.
 http = ["zero-ui-task/http", "zero-ui-wgt/http", "zero-ui-ext-image/http"]
@@ -149,7 +149,7 @@ view = ["zero-ui-view"]
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 #
 # Feature enabled by default.
-view_software = ["zero-ui-view/software"]
+view_software = ["zero-ui-view?/software"]
 
 # Include the default view-process implementation as an embedded precompiled binary.
 view_prebuilt = ["zero-ui-view-prebuilt", "ipc"]
