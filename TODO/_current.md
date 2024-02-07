@@ -1,6 +1,3 @@
-* Test build without `CC` in Windows (and without prebuild).
-    - Need to build a temp crate.
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.

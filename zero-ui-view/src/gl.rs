@@ -255,6 +255,7 @@ impl GlContextManager {
     fn create_headed_swgl(&mut self, id: WindowId, window: &winit::window::Window) -> Result<GlContext, Box<dyn Error>> {
         #[cfg(not(feature = "software"))]
         {
+            let _ = (id, window);
             return Err("zero-ui-view not build with \"software\" backend".into());
         }
 
@@ -396,6 +397,7 @@ impl GlContextManager {
     fn create_headless_swgl(&mut self, id: WindowId) -> Result<GlContext, Box<dyn Error>> {
         #[cfg(not(feature = "software"))]
         {
+            let _ = id;
             return Err("zero-ui-view not build with \"software\" backend".into());
         }
 
@@ -495,6 +497,7 @@ impl GlContext {
                     surface.resize(context, width, height);
                 }
             }
+            #[cfg(feature = "software")]
             GlBackend::Swgl { context, .. } => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
                 context.init_default_framebuffer(0, 0, size.width.max(1) as i32, size.height.max(1) as i32, 0, std::ptr::null_mut());
@@ -510,6 +513,7 @@ impl GlContext {
 
             match &self.backend {
                 GlBackend::Glutin { context, surface, .. } => context.make_current(surface).unwrap(),
+                #[cfg(feature = "software")]
                 GlBackend::Swgl { context, .. } => context.make_current(),
                 GlBackend::Dropped => unreachable!(),
             }
@@ -529,6 +533,7 @@ impl GlContext {
                     surface.swap_buffers(context).unwrap()
                 }
             }
+            #[cfg(feature = "software")]
             GlBackend::Swgl { context, blit } => {
                 if let Some(headed) = blit {
                     gl::Gl::finish(context);
@@ -561,6 +566,7 @@ impl Drop for GlContext {
                     h.destroy(&self.gl);
                 }
             }
+            #[cfg(feature = "software")]
             GlBackend::Swgl { context, .. } => context.destroy(),
             GlBackend::Dropped => unreachable!(),
         }
