@@ -84,7 +84,7 @@ impl WidgetBase {
         &mut self.importance
     }
 
-    /// Start building a `when` block, all properties set after this call go in the when block.
+    /// Start building a `when` block, all properties set after this call are pushed in the when block.
     pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
         assert!(self.builder.get_mut().is_some(), "cannot start `when` after build");
         assert!(self.when.get_mut().is_none(), "cannot nest `when` blocks");
@@ -99,7 +99,7 @@ impl WidgetBase {
         });
     }
 
-    /// End the current `when` block, all properties set after this call go in the widget.
+    /// End the current `when` block, all properties set after this call are pushed in the widget.
     pub fn end_when_block(&mut self) {
         let when = self.when.get_mut().take().expect("no current `when` block to end");
         self.builder.get_mut().as_mut().unwrap().push_when(self.importance, when);
