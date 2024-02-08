@@ -901,11 +901,6 @@ impl<U: 'static> ops::BitOrAssign for ImageSourceFilter<U> {
 impl<U> PartialEq for ImageSourceFilter<U> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            // can only fail by returning `false` in some cases where the value pointer is actually equal.
-            // see: https://github.com/rust-lang/rust/issues/103763
-            //
-            // we are fine with this, worst case is just an extra var update
-            #[allow(clippy::vtable_address_comparisons)]
             (Self::Custom(l0), Self::Custom(r0)) => Arc::ptr_eq(l0, r0),
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }

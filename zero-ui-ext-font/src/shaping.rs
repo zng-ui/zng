@@ -2718,7 +2718,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Iterate over word and space segments in this line.
-    pub fn segs(&self) -> impl Iterator<Item = ShapedSegment<'a>> + DoubleEndedIterator + ExactSizeIterator {
+    pub fn segs(&self) -> impl DoubleEndedIterator<Item = ShapedSegment<'a>> + ExactSizeIterator {
         let text = self.text;
         let line_index = self.index;
         self.seg_range.iter().map(move |i| ShapedSegment {

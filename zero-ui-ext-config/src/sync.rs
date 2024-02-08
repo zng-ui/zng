@@ -31,15 +31,18 @@ impl<M: ConfigMap> SyncConfig<M> {
                     Err(vec![Arc::new(e)])
                 }
             },
-            |map, w| match (|| {
-                let mut w = w?;
-                map.write(&mut w)?;
-                w.commit()
-            })() {
-                Ok(()) => Ok(()),
-                Err(e) => {
-                    tracing::error!("sync config write error, {e:?}");
-                    Err(vec![Arc::new(e)])
+            |map, w| {
+                let r = (|| {
+                    let mut w = w?;
+                    map.write(&mut w)?;
+                    w.commit()
+                })();
+                match r {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        tracing::error!("sync config write error, {e:?}");
+                        Err(vec![Arc::new(e)])
+                    }
                 }
             },
         );

@@ -7,6 +7,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
+//! # let _scope = APP.defaults();
 //! let direction = var(StackDirection::top_to_bottom());
 //! # let _ =
 //! Stack! {

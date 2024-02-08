@@ -66,7 +66,7 @@ context_var! {
 /// Set both checkerboard colors.
 ///
 /// The values are the interchanging colors for a given color scheme, for example in the dark
-/// color scheme the `(colors.0.dark, colors.1.dark)` colors are used.
+/// color scheme the `(colors[0].dark, colors[1].dark)` colors are used.
 ///
 /// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
 #[property(CONTEXT, default(COLORS_VAR), widget_impl(Checkerboard))]

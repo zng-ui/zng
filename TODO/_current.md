@@ -8,7 +8,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::button`.
+        - Last reviewed `zero_ui::clipboard`.
 
 # Publish
 

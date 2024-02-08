@@ -47,7 +47,7 @@ command! {
 }
 
 command_property! {
-    /// New command handler.
+    /// On new command.
     ///
     /// Receives [`NEW_CMD`] command events scoped on the widget. The command parameter can be
     /// the new item type identifier.
@@ -55,7 +55,7 @@ command_property! {
         cmd: NEW_CMD.scoped(WIDGET.id()),
     }
 
-    /// Open command handler.
+    /// On open command.
     ///
     /// Receives [`OPEN_CMD`] command events scoped on the widget. The command parameter can be
     /// a path to open, otherwise the path must be derived from context or the user prompted.
@@ -67,7 +67,7 @@ command_property! {
         cmd: OPEN_CMD.scoped(WIDGET.id()),
     }
 
-    /// Save command handler.
+    /// On save command.
     ///
     /// Receives [`SAVE_CMD`] command events scoped on the widget. Usually saves to the last
     /// open or save path, otherwise prompt the user like [`on_save_as`].
@@ -80,7 +80,7 @@ command_property! {
         cmd: SAVE_CMD.scoped(WIDGET.id()),
     }
 
-    /// Save-As command handler.
+    /// On save-as command.
     ///
     /// Receives [`SAVE_AS_CMD`] command events scoped on the widget. Usually prompts the user for
     /// a new save path.
@@ -92,25 +92,25 @@ command_property! {
         cmd: SAVE_AS_CMD.scoped(WIDGET.id()),
     }
 
-    /// Cut command handler.
+    /// On cut command.
     ///
-    /// Receives [`CUT_CMD`] command events scoped on the widget. You can use the [`CLIPBOARD`] service
+    /// Receives [`CUT_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to send data to the clipboard.
     pub fn cut {
         cmd: CUT_CMD.scoped(WIDGET.id()),
     }
 
-    /// Paste command handler.
+    /// On copy command.
     ///
-    /// Receives [`COPY_CMD`] command events scoped on the widget. You can use the [`CLIPBOARD`] service
+    /// Receives [`COPY_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to send data to the clipboard.
     pub fn copy {
         cmd: COPY_CMD.scoped(WIDGET.id()),
     }
 
-    /// Paste command handler.
+    /// On paste command.
     ///
-    /// Receives [`PASTE_CMD`] command events scoped on the widget. You can use the [`CLIPBOARD`] service
+    /// Receives [`PASTE_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to receive data from the clipboard.
     pub fn paste {
         cmd: PASTE_CMD.scoped(WIDGET.id()),

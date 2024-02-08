@@ -279,9 +279,6 @@ impl UndoEntryArgs {
         self.info[0].0
     }
 }
-// this is just in case the args gets placed in a var
-// false positives (ne when is eq) does not matter.
-#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for UndoEntryArgs {
     fn eq(&self, other: &Self) -> bool {
         self.op == other.op
@@ -313,9 +310,6 @@ pub struct UndoStackArgs {
     pub cmd: Command,
 }
 
-// this is just in case the args gets placed in a var
-// false positives (ne when is eq) does not matter.
-#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for UndoStackArgs {
     fn eq(&self, other: &Self) -> bool {
         self.op == other.op

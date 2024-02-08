@@ -326,11 +326,6 @@ impl Default for StyleFn {
     }
 }
 impl PartialEq for StyleFn {
-    // can only fail by returning `false` in some cases where the value pointer is actually equal.
-    // see: https://github.com/rust-lang/rust/issues/103763
-    //
-    // we are fine with this, worst case is just an extra var update
-    #[allow(clippy::vtable_address_comparisons)]
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (None, None) => true,

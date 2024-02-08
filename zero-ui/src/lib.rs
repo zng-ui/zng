@@ -59,6 +59,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
+//! # let _scope = APP.defaults();
 //! # let _ =
 //! Button! {
 //!     child = Text!("Green?");

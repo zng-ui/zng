@@ -471,7 +471,7 @@ macro_rules! __event_property {
             /// # Preview
             ///
             #[doc = "You can preview this event using [`on_pre_"$event "`](fn.on_pre_"$event ".html)."]
-            /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+            /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
             ///
             /// # Async
             ///
@@ -665,7 +665,7 @@ macro_rules! __command_property {
         /// # Preview
         ///
         #[doc = "You can preview this command event using [`on_pre_"$command "`](fn.on_pre_"$command ".html)."]
-        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+        /// Otherwise the handler is only called after the widget content has a chance to stop propagation.
         ///
         /// # Async
         ///
@@ -678,7 +678,7 @@ macro_rules! __command_property {
             $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
 
-        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) event."]
+        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) command."]
         ///
         /// # Preview
         ///

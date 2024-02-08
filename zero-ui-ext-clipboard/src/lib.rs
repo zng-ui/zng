@@ -188,12 +188,12 @@ impl fmt::Display for ClipboardError {
 
 /// Clipboard service.
 ///
-/// This service needs a running view-process to actually interact with the system clipboard, in a headless app
-/// without renderer (no view-process) the service will always return [`ClipboardError::ViewProcessOffline`].
-///
 /// This service synchronizes with the UI update cycle, the getter methods provide the same data for all requests in the
 /// same update pass, even if the system clipboard happens to change mid update, the setter methods only set the system clipboard
 /// at the end of the update pass.
+///
+/// This service needs a running view-process to actually interact with the system clipboard, in a headless app
+/// without renderer (no view-process) the service will always return [`ClipboardError::ViewProcessOffline`].
 pub struct CLIPBOARD;
 impl CLIPBOARD {
     fn view(&self) -> Result<&ViewClipboard, ClipboardError> {
