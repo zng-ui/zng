@@ -33,7 +33,11 @@ macro_rules! unique_id_32 {
                 ///
                 /// # Memory
                 ///
-                /// The internal number is a [`NonZeroU32`], so it always uses 32-bits of memory, be it a direct value or in an `Option`.
+                /// The internal number is a [`NonZeroU32`], that means that
+                #[doc=concat!("`Option<", stringify!($Type), ">`")]
+                /// and
+                #[doc=concat!("`", stringify!($Type), "`")]
+                /// are the same size as `u32`.
                 ///
                 /// # As Hash
                 ///
@@ -83,7 +87,11 @@ macro_rules! unique_id_64 {
                 ///
                 /// # Memory
                 ///
-                /// The internal number is a [`NonZeroU64`], so it always uses 64-bits of memory, be it a direct value or in an `Option`.
+                /// The internal number is a [`NonZeroU64`], that means that
+                #[doc=concat!("`Option<", stringify!($Type), ">`")]
+                /// and
+                #[doc=concat!("`", stringify!($Type), "`")]
+                /// are the same size as `u64`.
                 ///
                 /// # As Hash
                 ///

@@ -292,7 +292,7 @@ fn headless_example_video() {
             });
         }
     });
-    while !matches!(app.update(true), zero_ui::app::ControlFlow::Exit) {}
+    while !matches!(app.update(true), zero_ui::app::AppControlFlow::Exit) {}
 }
 
 fn print_status(task: &'static str, done: &zero_ui::var::ArcVar<bool>) {

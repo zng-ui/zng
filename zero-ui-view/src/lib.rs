@@ -349,6 +349,8 @@ impl App {
             } else {
                 t.listen_device_events(winit::event_loop::DeviceEvents::Never);
             }
+        } else {
+            self.device_events = false;
         }
     }
 

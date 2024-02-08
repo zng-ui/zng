@@ -225,7 +225,7 @@ impl From<DInstant> for Instant {
 /// [`INSTANT.now`]: INSTANT::now
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InstantMode {
-    /// Calls during an widget update (or layout, render) pass read the same time.
+    /// Calls during an update pass (or layout, render, etc.) read the same time.
     /// Other calls to `now` resamples the time.
     UpdatePaused,
     /// Every call to `now` resamples the time.
@@ -252,17 +252,21 @@ struct InstantService {
 
 /// Represents a timeout instant.
 ///
-/// Timers and timeouts can be specified as an [`Instant`] in the future or as a [`Duration`] from now, both
-/// of these types can be converted to this `struct`, timer related function can receive an `impl Into<Deadline>`
-/// to support both methods in the same signature.
+/// Deadlines and timeouts can be specified as a [`DInstant`] in the future or as a [`Duration`] from now, both
+/// of these types can be converted to this `struct`.
 ///
 /// # Examples
+///
+/// In the example below the timer function accepts `Deadline`, `DInstant` and `Duration` inputs.
 ///
 /// ```
 /// # use zero_ui_time::*;
 /// # trait TimeUnits { fn secs(self) -> std::time::Duration where Self: Sized { std::time::Duration::ZERO } }
 /// # impl TimeUnits for i32 { }
-/// fn timer(deadline: impl Into<Deadline>) { }
+/// fn timer(deadline: impl Into<Deadline>) {
+///     let deadline = deadline.into();
+///     // ..
+/// }
 ///
 /// timer(5.secs());
 /// ```

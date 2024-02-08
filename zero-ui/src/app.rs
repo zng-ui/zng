@@ -397,8 +397,8 @@
 //! may be available at the [`zero_ui_app`] and [`zero_ui_app_context`] base crates.
 
 pub use zero_ui_app::{
-    AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, ControlFlow, DInstant, Deadline, ExitRequestedArgs,
-    HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
+    AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant, Deadline,
+    ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
 };
 pub use zero_ui_app_context::{
     app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,

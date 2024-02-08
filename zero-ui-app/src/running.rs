@@ -27,14 +27,13 @@ use crate::{
     view_process::{raw_device_events::DeviceId, *},
     widget::WidgetId,
     window::WindowId,
-    AppEventObserver, AppExtension, AppExtensionsInfo, ControlFlow, DInstant, APP, INSTANT,
+    AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, APP, INSTANT,
 };
 
 /// Represents a running app controlled by an external event loop.
 pub(crate) struct RunningApp<E: AppExtension> {
     extensions: (AppIntrinsic, E),
 
-    device_events: bool,
     receiver: flume::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
@@ -75,9 +74,13 @@ impl<E: AppExtension> RunningApp<E> {
             let _t = INSTANT_APP.pause_for_update();
             extensions.register(&mut info);
         }
-        APP_PROCESS_SV.write().set_extensions(info);
-
         let device_events = extensions.enable_device_events();
+
+        {
+            let mut sv = APP_PROCESS_SV.write();
+            sv.set_extensions(info, device_events);
+        }
+
         let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, device_events);
 
         {
@@ -88,7 +91,6 @@ impl<E: AppExtension> RunningApp<E> {
         RunningApp {
             extensions: (process, extensions),
 
-            device_events,
             receiver,
 
             loop_timer: LoopTimer::default(),
@@ -116,11 +118,6 @@ impl<E: AppExtension> RunningApp<E> {
 
     pub fn has_exited(&self) -> bool {
         self.exited
-    }
-
-    /// If device events are enabled in this app.
-    pub fn device_events(&self) -> bool {
-        self.device_events
     }
 
     /// Notify an event directly to the app extensions.
@@ -495,9 +492,9 @@ impl<E: AppExtension> RunningApp<E> {
         let mut wait = false;
         loop {
             wait = match self.poll_impl(wait, &mut observer) {
-                ControlFlow::Poll => false,
-                ControlFlow::Wait => true,
-                ControlFlow::Exit => break,
+                AppControlFlow::Poll => false,
+                AppControlFlow::Wait => true,
+                AppControlFlow::Exit => break,
             };
         }
     }
@@ -597,18 +594,18 @@ impl<E: AppExtension> RunningApp<E> {
         !self.pending_view_events.is_empty() || self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
     }
 
-    pub(crate) fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
+    pub(crate) fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> AppControlFlow {
         #[cfg(dyn_app_extension)]
         let mut observer = observer.as_dyn();
         #[cfg(dyn_app_extension)]
         let observer = &mut observer;
         self.poll_impl(wait_app_event, observer)
     }
-    fn poll_impl<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
+    fn poll_impl<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> AppControlFlow {
         let mut disconnected = false;
 
         if self.exited {
-            return ControlFlow::Exit;
+            return AppControlFlow::Exit;
         }
 
         if wait_app_event {
@@ -665,7 +662,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         if self.view_is_busy() {
-            return ControlFlow::Wait;
+            return AppControlFlow::Wait;
         }
 
         UPDATES.on_app_awake();
@@ -698,7 +695,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         if self.view_is_busy() {
-            return ControlFlow::Wait;
+            return AppControlFlow::Wait;
         }
 
         self.finish_frame(observer);
@@ -708,12 +705,12 @@ impl<E: AppExtension> RunningApp<E> {
         if self.extensions.0.exit() {
             UPDATES.on_app_sleep();
             self.exited = true;
-            ControlFlow::Exit
+            AppControlFlow::Exit
         } else if self.has_pending_updates() || UPDATES.has_pending_layout_or_render() {
-            ControlFlow::Poll
+            AppControlFlow::Poll
         } else {
             UPDATES.on_app_sleep();
-            ControlFlow::Wait
+            AppControlFlow::Wait
         }
     }
 
@@ -1027,33 +1024,31 @@ impl LoopMonitor {
 impl APP {
     /// Register a request for process exit with code `0` in the next update.
     ///
-    /// The [`EXIT_REQUESTED_EVENT`] will be raised, and if not cancelled the app process will exit.
+    /// The [`EXIT_REQUESTED_EVENT`] will notify, and if propagation is not cancelled the app process will exit.
     ///
     /// Returns a response variable that is updated once with the unit value [`ExitCancelled`]
     /// if the exit operation is cancelled.
     ///
-    /// See also the [`EXIT_CMD`] that also causes an exit request.
+    /// See also the [`EXIT_CMD`].
     pub fn exit(&self) -> ResponseVar<ExitCancelled> {
         APP_PROCESS_SV.write().exit()
     }
+}
 
-    /// Gets a variable that sets if [`INSTANT.now`] is the same exact value during each update pass.
+/// App time control.
+///
+/// The manual time methods are only recommended for headless apps.
+impl APP {
+    /// Gets a variable that configures if [`INSTANT.now`] is the same exact value during each update, info, layout or render pass.
     ///
-    /// Time is paused for each update pass, event notification, layout and render so that all widgets observe
-    /// the same time in the same update.
-    ///
-    /// This is enabled by default.
+    /// Time is paused for each single pass by default, setting this to `false` will cause `INSTANT.now` to read
+    /// the system time for every call.
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now
     pub fn pause_time_for_update(&self) -> ArcVar<bool> {
         APP_PROCESS_SV.read().pause_time_for_updates.clone()
     }
-}
 
-/// Manual time control.
-///
-/// These methods are only recommended for headless apps.
-impl APP {
     /// Pause the [`INSTANT.now`] value, after this call it must be updated manually using
     /// [`advance_manual_time`] or [`set_manual_time`]. To resume normal time use [`end_manual_time`].
     ///
@@ -1270,6 +1265,7 @@ app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService =AppProcessService {
         exit_requests: None,
         extensions: None,
+        device_events: false,
         pause_time_for_updates: zero_ui_var::var(true),
     };
 }
@@ -1277,6 +1273,7 @@ app_local! {
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
     extensions: Option<Arc<AppExtensionsInfo>>,
+    pub(super) device_events: bool,
     pause_time_for_updates: ArcVar<bool>,
 }
 impl AppProcessService {
@@ -1301,8 +1298,9 @@ impl AppProcessService {
             .unwrap_or_else(|| Arc::new(AppExtensionsInfo { infos: vec![] }))
     }
 
-    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo) {
+    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo, device_events: bool) {
         self.extensions = Some(Arc::new(info));
+        self.device_events = device_events;
     }
 }
 

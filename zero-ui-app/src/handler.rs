@@ -188,7 +188,7 @@ macro_rules! hn {
 }
 #[doc(inline)]
 pub use crate::hn;
-use crate::{ControlFlow, HeadlessApp};
+use crate::{AppControlFlow, HeadlessApp};
 
 #[doc(hidden)]
 pub struct FnOnceWidgetHandler<H> {
@@ -1230,9 +1230,9 @@ where
 }
 
 impl HeadlessApp {
-    /// Calls a [`AppHandler<A>`] once and blocks until the update tasks started during the call complete.
+    /// Calls an [`AppHandler<A>`] once and blocks until the update tasks started during the call complete.
     ///
-    /// This function *spins* until all [update tasks] are completed. Timers or send events can
+    /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
     pub fn block_on<A>(&mut self, handler: &mut dyn AppHandler<A>, args: &A, timeout: Duration) -> Result<(), String>
@@ -1244,7 +1244,7 @@ impl HeadlessApp {
 
     /// Calls multiple [`AppHandler<A>`] once each and blocks until all update tasks are complete.
     ///
-    /// This function *spins* until all [update tasks] are completed. Timers or send events can
+    /// This function *spins* until all update tasks are completed. Timers or send events can
     /// be received during execution but the loop does not sleep, it just spins requesting an update
     /// for each pass.
     pub fn block_on_multi<A>(&mut self, handlers: Vec<&mut dyn AppHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
@@ -1278,12 +1278,12 @@ impl HeadlessApp {
                 }
 
                 match flow {
-                    ControlFlow::Poll => continue,
-                    ControlFlow::Wait => {
+                    AppControlFlow::Poll => continue,
+                    AppControlFlow::Wait => {
                         thread::yield_now();
                         continue;
                     }
-                    ControlFlow::Exit => return Ok(()),
+                    AppControlFlow::Exit => return Ok(()),
                 }
             }
         }
@@ -1319,12 +1319,12 @@ impl HeadlessApp {
             }
 
             match flow {
-                ControlFlow::Poll => continue,
-                ControlFlow::Wait => {
+                AppControlFlow::Poll => continue,
+                AppControlFlow::Wait => {
                     thread::yield_now();
                     continue;
                 }
-                ControlFlow::Exit => return Err("app exited".to_owned()),
+                AppControlFlow::Exit => return Err("app exited".to_owned()),
             }
         }
     }

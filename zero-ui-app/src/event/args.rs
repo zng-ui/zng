@@ -330,7 +330,7 @@ macro_rules! __event_args {
         $(#[$outer])*
         #[derive(Debug, Clone)]
         $vis struct $Args {
-            /// When the event happened.
+            /// Instant the event happened.
             pub timestamp: $crate::DInstant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 

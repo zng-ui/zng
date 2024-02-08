@@ -292,11 +292,11 @@ event_property! {
 /// If the widget has keyboard focus.
 ///
 /// This is only `true` if the widget itself is focused.
-/// You can use [`is_focus_within`] to include focused widgets inside this one.
+/// Use [`is_focus_within`] to include focused widgets inside this one.
 ///
 /// # Highlighting
 ///
-/// This property is always `true` when the widget has focus, ignoring what device was used to move the focus,
+/// This property is always `true` when the widget has focus, independent of what device moved the focus,
 /// usually when the keyboard is used a special visual indicator is rendered, a dotted line border is common,
 /// this state is called *highlighting* and is tracked by the focus manager. To implement such a visual you can use the
 /// [`is_focused_hgl`] property.
@@ -304,7 +304,7 @@ event_property! {
 /// # Return Focus
 ///
 /// Usually widgets that have a visual state for this property also have one for [`is_return_focus`], a common example is the
-/// *text-input* or *text-box* widget that shows an emphasized border and blinking cursor when focused and still shows the
+/// *text-input* widget that shows an emphasized border and blinking cursor when focused and still shows the
 /// emphasized border without cursor when a menu is open and it is only the return focus.
 ///
 /// [`is_focus_within`]: fn@is_focus_within
@@ -400,12 +400,12 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 
 /// If the widget will be focused when a parent scope is focused.
 ///
-/// Focus scopes can be configured to remember the last focused widget inside then, the focus than *returns* to
+/// Focus scopes can remember the last focused widget inside, the focus *returns* to
 /// this widget when the scope receives focus. Alt scopes also remember the widget from which the *alt* focus happened
 /// and can also return focus back to that widget.
 ///
 /// Usually input widgets that have a visual state for [`is_focused`] also have a visual for this, a common example is the
-/// *text-input* or *text-box* widget that shows an emphasized border and blinking cursor when focused and still shows the
+/// *text-input* widget that shows an emphasized border and blinking cursor when focused and still shows the
 /// emphasized border without cursor when a menu is open and it is only the return focus.
 ///
 /// Note that a widget can be [`is_focused`] and `is_return_focus`, this property is `true` if any focus scope considers the
@@ -450,6 +450,8 @@ pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> 
 /// If the widget is focused on info init.
 ///
 /// When the widget is inited and present in the info tree a [`FOCUS.focus_widget_or_related`] request is made for the widget.
+///
+/// [`FOCUS.focus_widget_or_related`]: FOCUS::focus_widget_or_related
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();

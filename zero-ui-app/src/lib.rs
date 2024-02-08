@@ -175,72 +175,11 @@ pub mod __proc_macro_util {
 
 /// An app extension.
 ///
-/// # App Loop
+/// App extensions setup and update core features such as services and events. App instances
+/// are fully composed of app extensions.
 ///
-/// Methods in app extension are called in this synchronous order:
-///
-/// ## 1 - Init
-///
-/// The [`init`] method is called once at the start of the app. Extensions are initialized in the order then where *inserted* in the app.
-///
-/// ## 2 - Events
-///
-/// The [`event_preview`], [`event_ui`] and [`event`] methods are called in this order for each event message received. Events
-/// received from other threads are buffered until the app is free and then are processed using these methods.
-///
-/// ## 3 - Updates
-///
-/// The [`update_preview`], [`update_ui`] and [`update`] methods are called in this order every time an [update is requested],
-/// a sequence of events have processed, variables where assigned or timers elapsed. The app loops between [events] and [updates] until
-/// no more updates or events are pending, if [layout] or [render] are requested they are deferred until a event-update cycle is complete.
-///
-/// # 4 - Layout
-///
-/// The [`layout`] method is called if during [init], [events] or [updates] a layout was requested, extensions should also remember which
-/// unit requested layout, to avoid unnecessary work, for example the `WindowManager` remembers witch window requested layout.
-///
-/// If the [`layout`] call requests updates the app goes back to [updates], requests for render are again deferred.
-///
-/// # 5 - Render
-///
-/// The [`render`] method is called if during [init], [events], [updates] or [layout] a render was requested and no other
-/// event, update or layout is pending. Extensions should identify which unit is pending a render or render update and generate
-/// and send a display list or frame update.
-///
-/// This method does not block until the frame pixels are rendered, it covers only the creation of a frame request sent to the view-process.
-/// A [`RAW_FRAME_RENDERED_EVENT`] is send when a frame finished rendering in the view-process.
-///
-/// ## 6 - Deinit
-///
-/// The [`deinit`] method is called once after an exit was requested and not cancelled. Exit is
-/// requested using the [`APP`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
-/// is not cancelled the extensions are deinited and then dropped.
-///
-/// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
-/// if the app thread is unwinding from a panic, the extensions will just be dropped in this case.
-///
-/// # Resize Loop
-///
-/// The app enters a special loop when a window is resizing,
-///
-/// [`init`]: AppExtension::init
-/// [`event_preview`]: AppExtension::event_preview
-/// [`event_ui`]: AppExtension::event_ui
-/// [`event`]: AppExtension::event
-/// [`update_preview`]: AppExtension::update_preview
-/// [`update_ui`]: AppExtension::update_ui
-/// [`update`]: AppExtension::update
-/// [`layout`]: AppExtension::layout
-/// [`render`]: AppExtension::event
-/// [`deinit`]: AppExtension::deinit
-/// [drop]: Drop
-/// [update is requested]: UPDATES::update
-/// [init]: #1-init
-/// [events]: #2-events
-/// [updates]: #3-updates
-/// [layout]: #3-layout
-/// [render]: #5-render
-/// [`RAW_FRAME_RENDERED_EVENT`]: crate::view_process::raw_events::RAW_FRAME_RENDERED_EVENT
+/// See the `zero_ui::app` module level documentation for more details, including the call order of methods
+/// of this trait.
 pub trait AppExtension: 'static {
     /// Register info abound this extension on the info list.
     fn register(&self, info: &mut AppExtensionsInfo)
@@ -266,32 +205,34 @@ pub trait AppExtension: 'static {
         false
     }
 
-    /// Called just before [`event_ui`](Self::event_ui).
+    /// Called just before [`event_ui`](Self::event_ui) when an event notifies.
     ///
-    /// Extensions can handle this method to to intersect event updates before the UI.
+    /// Extensions can handle this method to to intercept event updates before the UI.
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
-    /// happen in `on_event_ui`.
+    /// happen in `event_ui`.
     fn event_preview(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
 
     /// Called just before [`event`](Self::event).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget::node::UiNode::event)
+    /// Only extensions that generate windows should handle this method. The [`UiNode::event`](crate::widget::node::UiNode::event)
     /// method is called here.
     fn event_ui(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
 
-    /// Called after every [`event_ui`](Self::event_ui).
+    /// Called after [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
     fn event(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
 
-    /// Called before and after an update cycle. The [`UiNode::info`] method is called here.
+    /// Called when info rebuild is requested for windows and widgets.
+    ///
+    /// The [`UiNode::info`] method is called here.
     ///
     /// [`UiNode::info`]: crate::widget::node::UiNode::info
     fn info(&mut self, info_widgets: &mut InfoUpdates) {
@@ -300,7 +241,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`update_ui`](Self::update_ui).
     ///
-    /// Extensions can handle this method to interact with updates before the UI.
+    /// Extensions can handle this method to react to updates before the UI.
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `update_ui`.
@@ -308,8 +249,9 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`update`](Self::update).
     ///
-    /// Only extensions that manage windows must handle this method. The [`UiNode::update`]
-    /// method is called here.
+    /// Only extensions that manage windows should handle this method.
+    ///
+    /// The [`UiNode::update`] method is called here.
     ///
     /// [`UiNode::update`]: crate::widget::node::UiNode::update
     fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
@@ -319,21 +261,21 @@ pub trait AppExtension: 'static {
     /// Called after every [`update_ui`](Self::update_ui) and [`info`](Self::info).
     ///
     /// This is the general extensions update, it gives the chance for
-    /// the UI to signal stop propagation.
+    /// the UI to make service requests.
     fn update(&mut self) {}
 
-    /// Called after every sequence of updates if layout was requested.
+    /// Called when layout is requested for windows and widgets.
     ///
-    /// The [`UiNode::layout`] method is called here by extensions that manage windows.
+    /// The [`UiNode::layout`] method is called here.
     ///
     /// [`UiNode::layout`]: crate::widget::node::UiNode::layout
     fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
 
-    /// Called after every sequence of updates and layout if render was requested.
+    /// Called when render is requested for windows and widgets.
     ///
-    /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here by extensions that manage windows.
+    /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here.
     ///
     /// [`UiNode::render`]: crate::widget::node::UiNode::render
     /// [`UiNode::render_update`]: crate::widget::node::UiNode::render_update
@@ -347,7 +289,9 @@ pub trait AppExtension: 'static {
     /// the extensions will be dropped after every extension received this call.
     fn deinit(&mut self) {}
 
-    /// The extension in a box.
+    /// Gets the extension boxed.
+    ///
+    /// Boxed app extensions also implement `AppExtension`, this method does not double box.
     fn boxed(self) -> Box<dyn AppExtensionBoxed>
     where
         Self: Sized,
@@ -640,8 +584,8 @@ impl ops::Deref for AppExtensionsInfo {
 
 /// Desired next step of app main loop.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[must_use = "methods that return `ControlFlow` expect to be inside a controlled loop"]
-pub enum ControlFlow {
+#[must_use = "methods that return `AppControlFlow` expect to be inside a controlled loop"]
+pub enum AppControlFlow {
     /// Immediately try to receive more app events.
     Poll,
     /// Sleep until an app event is received.
@@ -651,17 +595,17 @@ pub enum ControlFlow {
     /// Exit the loop and drop the app.
     Exit,
 }
-impl ControlFlow {
-    /// Assert that the value is [`ControlFlow::Wait`].
+impl AppControlFlow {
+    /// Assert that the value is [`AppControlFlow::Wait`].
     #[track_caller]
     pub fn assert_wait(self) {
-        assert_eq!(ControlFlow::Wait, self)
+        assert_eq!(AppControlFlow::Wait, self)
     }
 
-    /// Assert that the value is [`ControlFlow::Exit`].
+    /// Assert that the value is [`AppControlFlow::Exit`].
     #[track_caller]
     pub fn assert_exit(self) {
-        assert_eq!(ControlFlow::Exit, self)
+        assert_eq!(AppControlFlow::Exit, self)
     }
 }
 
@@ -669,6 +613,8 @@ impl ControlFlow {
 ///
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
 /// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
+///
+/// You can start a headless app using [`AppExtended::run_headless`].
 pub struct HeadlessApp {
     app: RunningApp<Box<dyn AppExtensionBoxed>>,
 }
@@ -676,23 +622,15 @@ impl HeadlessApp {
     /// If headless rendering is enabled.
     ///
     /// When enabled windows are still not visible but frames will be rendered and the frame
-    /// image can be requested. Renderer is disabled by default in a headless app.
-    ///
-    /// Apps with render enabled can only be initialized in the main thread due to limitations of some operating systems,
-    /// this means you cannot run a headless renderer in units tests.
+    /// image can be requested.
     ///
     /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
     /// query the latest frame from `WINDOWS.widget_tree`. The only thing that
-    /// is disabled is WebRender and the generation of frame textures.
+    /// is disabled is the actual renderer that converts display lists to pixels.
     ///
     /// [`UiNode::render`]: crate::widget::node::UiNode::render
     pub fn renderer_enabled(&mut self) -> bool {
         VIEW_PROCESS.is_available()
-    }
-
-    /// If device events are enabled in this app.
-    pub fn device_events(&self) -> bool {
-        self.app.device_events()
     }
 
     /// Does updates unobserved.
@@ -700,7 +638,7 @@ impl HeadlessApp {
     /// See [`update_observed`] for more details.
     ///
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
+    pub fn update(&mut self, wait_app_event: bool) -> AppControlFlow {
         self.update_observed(&mut (), wait_app_event)
     }
 
@@ -710,7 +648,7 @@ impl HeadlessApp {
     ///
     /// [`update`]: AppEventObserver::update
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe(&mut self, on_update: impl FnMut(), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe(&mut self, on_update: impl FnMut(), wait_app_event: bool) -> AppControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut()> AppEventObserver for Observer<F> {
             fn update(&mut self) {
@@ -728,7 +666,7 @@ impl HeadlessApp {
     ///
     /// [`event`]: AppEventObserver::event
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut EventUpdate), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut EventUpdate), wait_app_event: bool) -> AppControlFlow {
         struct Observer<F>(F);
         impl<F: FnMut(&mut EventUpdate)> AppEventObserver for Observer<F> {
             fn event(&mut self, update: &mut EventUpdate) {
@@ -743,14 +681,14 @@ impl HeadlessApp {
     ///
     /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
     /// if it is `false` only responds to app events already in the buffer.
-    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
+    pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> AppControlFlow {
         if self.app.has_exited() {
-            return ControlFlow::Exit;
+            return AppControlFlow::Exit;
         }
 
         loop {
             match self.app.poll(wait_app_event, observer) {
-                ControlFlow::Poll => {
+                AppControlFlow::Poll => {
                     wait_app_event = false;
                     continue;
                 }
@@ -783,7 +721,7 @@ impl HeadlessApp {
         }
 
         let mut n = 0;
-        while flow != ControlFlow::Exit {
+        while flow != AppControlFlow::Exit {
             flow = self.update_observe(
                 || {
                     task.update();
@@ -1139,11 +1077,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 }
 
 /// Start and manage an app process.
-///
-/// # View Process
-///
-/// A view-process must be initialized before starting an app. Panics on `run` if there is
-/// no view-process, also panics if the current process is already executing as a view-process.
 pub struct APP;
 impl APP {
     /// If the crate was build with `feature="multi_app"`.
@@ -1208,6 +1141,11 @@ impl APP {
     pub fn extensions(&self) -> Arc<AppExtensionsInfo> {
         APP_PROCESS_SV.read().extensions()
     }
+
+    /// If device events are enabled for the current app.
+    pub fn device_events(&self) -> bool {
+        APP_PROCESS_SV.read().device_events
+    }
 }
 
 impl APP {
@@ -1241,9 +1179,9 @@ impl APP {
     }
 }
 
-/// Application with extensions.
+/// Application builder.
 ///
-/// See [`APP`].
+/// You can use `APP` to start building the app.
 pub struct AppExtended<E: AppExtension> {
     extensions: E,
     view_process_exe: Option<PathBuf>,

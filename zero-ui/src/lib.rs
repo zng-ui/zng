@@ -502,11 +502,6 @@ pub mod window;
 pub mod wrap;
 
 /// Start and manage an app process.
-///
-/// # View Process
-///
-/// A view-process must be initialized before starting an app. Panics on `run` if there is
-/// no view-process, also panics if the current process is already executing as a view-process.
 pub struct APP;
 impl std::ops::Deref for APP {
     type Target = zero_ui_app::APP;

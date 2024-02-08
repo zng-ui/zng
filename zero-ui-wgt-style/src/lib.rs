@@ -142,20 +142,8 @@ macro_rules! impl_style_fn {
 
         /// Extends or replaces the widget style.
         ///
-        /// Properties and `when` conditions in the generated style are applied to the widget as
-        /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
-        /// prefer property binding and `when` conditions to cause visual changes that happen often.
-        ///
-        /// The style property it-self can be affected by `when` conditions set on the widget, this works to a limited
-        /// extent as only the style and when condition properties is loaded to evaluate, so a when condition that depends
-        /// on the full widget context will not work.
-        ///
-        /// # Extend/Replace
-        ///
-        /// Style instances extend the contextual style by default, meaning all properties set on the style are inserted over
-        /// the parent style, so properties set on the contextual style that are not reset in the new style are retained. You
-        /// can set `replace` on a style to `true` to fully remove all contextual properties and only use the
-        /// new style properties.
+        /// Properties and `when` conditions in the style are applied to the widget. Style instances extend the contextual style
+        /// by default, you can set `replace` on a style to `true` to fully replace.
         #[$crate::__impl_style_context_util::property(WIDGET, default($crate::StyleFn::nil()), widget_impl($Widget))]
         pub fn style_fn(
             child: impl $crate::__impl_style_context_util::UiNode,

@@ -32,7 +32,7 @@ use zero_ui_app::{
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     view_process::raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
     window::WindowId,
-    AppExtended, AppExtension, ControlFlow, HeadlessApp,
+    AppControlFlow, AppExtended, AppExtension, HeadlessApp,
 };
 use zero_ui_ext_image::{ImageVar, IMAGES_WINDOW};
 use zero_ui_view_api::image::ImageMaskMode;
@@ -291,7 +291,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     {
         let window_id = self.open_window(new_window);
         while WINDOWS.is_open(window_id) {
-            if let ControlFlow::Exit = self.update(true) {
+            if let AppControlFlow::Exit = self.update(true) {
                 return;
             }
         }
@@ -314,7 +314,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let window_id = self.open_window(new_window);
 
         while WINDOWS.is_open(window_id) {
-            if let ControlFlow::Exit = self.update(true) {
+            if let AppControlFlow::Exit = self.update(true) {
                 return;
             }
             if timer.get().has_elapsed() {

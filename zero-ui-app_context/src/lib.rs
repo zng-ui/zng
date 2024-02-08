@@ -71,6 +71,8 @@ type LocalValue = (Arc<dyn Any + Send + Sync>, LocalValueKind);
 type LocalData = IdMap<TypeId, LocalValue>;
 
 /// Represents an app lifetime, ends the app on drop.
+///
+/// You can use [`LocalContext::start_app`] to manually create an app scope without actually running an app.
 #[must_use = "ends the app scope on drop"]
 pub struct AppScope {
     id: AppId,
@@ -612,7 +614,8 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
 ///
 /// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 ///
-/// Note that an app local can only be used if an app is running in the thread, if no app is running read and write **will panic**.
+/// Note that in `"multi_app"` builds the app local can only be used if an app is running in the thread,
+/// if no app is running read and write **will panic**.
 pub struct AppLocal<T: Send + Sync + 'static> {
     inner: &'static dyn AppLocalImpl<T>,
 }
@@ -624,11 +627,11 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Read lock the value associated with the current app.
     ///
-    /// Initializes the default value for the app if this is the first read.
+    /// Initializes the default value for the app if this is the first value access.
     ///
     /// # Panics
     ///
-    /// Panics if no app is running.
+    /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         self.inner.read()
@@ -636,11 +639,13 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Try read lock the value associated with the current app.
     ///
-    /// Initializes the default value for the app if this is the first read.
+    /// Initializes the default value for the app if this is the first value access.
+    ///
+    /// Returns `None` if can’t acquire a read lock.
     ///
     /// # Panics
     ///
-    /// Panics if no app is running.
+    /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
         self.inner.try_read()
@@ -648,11 +653,11 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Write lock the value associated with the current app.
     ///
-    /// Initializes the default value for the app if this is the first read.
+    /// Initializes the default value for the app if this is the first value access.
     ///
     /// # Panics
     ///
-    /// Panics if no app is running.
+    /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         self.inner.write()
@@ -660,11 +665,13 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Try to write lock the value associated with the current app.
     ///
-    /// Initializes the default value for the app if this is the first read.
+    /// Initializes the default value for the app if this is the first value access.
+    ///
+    /// Returns `None` if can’t acquire a write lock.
     ///
     /// # Panics
     ///
-    /// Panics if no app is running.
+    /// Panics if no app is running in `"multi_app"` builds.
     pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
         self.inner.try_write()
     }
@@ -768,6 +775,8 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 ///
 /// # Examples
 ///
+/// The example below declares two app locals, note that `BAR` init value automatically converts into the app local type.
+///
 /// ```
 /// # use zero_ui_app_context::*;
 /// app_local! {
@@ -783,8 +792,8 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// assert_eq!(10, FOO.get());
 /// ```
 ///
-/// Note that app locals can only be used when an app exists in the thread, as soon as an app starts building a new app scope is created,
-/// the app scope is the last thing that is "dropped" after the app exits or the app builder is dropped.
+/// Also note that an app context is started before the first use, in `multi_app` builds trying to use an app local in
+/// a thread not owned by an app panics.
 #[macro_export]
 macro_rules! app_local {
     ($(
@@ -919,7 +928,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
     /// Calls `f` with the `value` loaded in context.
     ///
-    /// The `value` is moved in context, `f` is called, then restores the `value`.
+    /// The `value` is moved into context, `f` is called, then the value is moved back to `value`.
     ///
     /// # Panics
     ///
@@ -936,6 +945,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 
     /// Same as [`with_context`], but `value` represents a variable.
+    ///
+    /// Values loaded with this method are captured by [`CaptureFilter::ContextVars`].
     ///
     /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
@@ -1329,7 +1340,7 @@ impl<T> ReadOnlyRwLock<T> {
 ///
 /// # Usage
 ///
-/// After you declare the contextual value you can use it by loading a context, calling a closure and inside it *visiting* the value.
+/// After you declare the context local you can use it by loading a contextual value for the duration of a closure call.
 ///
 /// ```
 /// # use zero_ui_app_context::*;
@@ -1471,6 +1482,8 @@ impl<T: Send + Sync + 'static> ContextLocalKeyProvider for ContextLocal<T> {
 }
 
 /// Represents the [`tracing::dispatcher::get_default`] dispatcher in a context value set.
+///
+/// [`tracing::dispatcher::get_default`]: https://docs.rs/tracing/latest/tracing/dispatcher/fn.set_global_default.html
 pub struct TracingDispatcherContext;
 
 impl ContextLocalKeyProvider for TracingDispatcherContext {
