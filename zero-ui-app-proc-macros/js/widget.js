@@ -383,8 +383,11 @@
 
         insertedDocs.forEach(function (e) {
             e.el.querySelectorAll('a').forEach(function (a) {
-                let url = new URL(a.getAttribute('href'), e.url);
-                a.setAttribute('href', url.href);
+                let href_str = a.getAttribute('href');
+                if (!href_str.startsWith('#') || this.document.getElementById(href_str.slice(1)) === null) {
+                    let url = new URL(href_str, e.url);
+                    a.setAttribute('href', url.href);
+                }
             });
         });
     }
