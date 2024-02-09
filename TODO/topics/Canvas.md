@@ -21,4 +21,4 @@
 
 - Async, can we use normal `async_hn`?
 - When does `webrender` update, use monitor frame rate?
-- JavaScript needs to call `requestAnimationFrame` in long running render operations, can do the same with `yield_one`.
+- JavaScript needs to call `requestAnimationFrame` in long running render operations, can do the same with `yield_now`.

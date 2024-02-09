@@ -139,7 +139,7 @@ where
     }
 
     /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
-    pub async fn into_recv_async(self) -> impl Future<Output = Result<A, AppDisconnected<()>>> + 'static {
+    pub fn into_recv_async(self) -> impl Future<Output = Result<A, AppDisconnected<()>>> + Send + Sync + 'static {
         RecvFut::from(self.receiver.into_recv_async())
     }
 

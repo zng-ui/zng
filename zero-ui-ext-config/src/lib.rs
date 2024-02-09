@@ -96,11 +96,7 @@ impl CONFIG {
     /// [`status`]: Self::status
     pub async fn wait_idle(&self) {
         task::yield_now().await; // in case a `load` request was just made
-
-        let status = self.status();
-        while !status.get().is_idle() {
-            status.wait_update().await;
-        }
+        self.status().wait_value(|s| s.is_idle()).await;
     }
 
     /// Gets a variable that is bound to the config `key`.

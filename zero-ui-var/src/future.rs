@@ -1,6 +1,6 @@
 use super::*;
 
-use std::{future::*, pin::Pin, task::Poll};
+use std::{pin::Pin, task::Poll};
 
 /// See [`Var::wait_update`].
 pub(crate) struct WaitUpdateFut<'a, V: AnyVar> {

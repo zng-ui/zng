@@ -6,6 +6,7 @@
 #![allow(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
+#![deny(clippy::future_not_send)]
 
 use animation::{
     easing::{EasingStep, EasingTime},
@@ -17,6 +18,7 @@ use std::{
     any::{Any, TypeId},
     borrow::Cow,
     fmt,
+    future::Future,
     marker::PhantomData,
     ops,
     sync::{
@@ -1073,7 +1075,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`wait_value`]: Var::wait_value
     /// [`last_update`]: AnyVar::last_update
     /// [`is_new`]: AnyVar::is_new
-    fn wait_update(&self) -> impl std::future::Future<Output = VarUpdateId> {
+    fn wait_update(&self) -> impl Future<Output = VarUpdateId> + Send + Sync {
         crate::future::WaitUpdateFut::new(self)
     }
 
@@ -1085,19 +1087,20 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// If the variable does have the [`VarCapabilities::NEW`] the future is always ready.
     ///
     /// [`is_animating`]: AnyVar::is_animating
-    fn wait_animation(&self) -> impl std::future::Future<Output = ()> {
+    fn wait_animation(&self) -> impl Future<Output = ()> + Send + Sync {
         crate::future::WaitIsNotAnimatingFut::new(self)
     }
 
     ///Awaits for a value that passes the `predicate`.
-    #[allow(async_fn_in_trait)]
-    async fn wait_value(&self, mut predicate: impl FnMut(&T) -> bool) {
-        while !self.with(&mut predicate) {
-            let future = self.wait_update();
-            if self.with(&mut predicate) {
-                break;
+    fn wait_value(&self, predicate: impl Fn(&T) -> bool + Send + Sync) -> impl Future<Output = ()> + Send + Sync {
+        async move {
+            while !self.with(&predicate) {
+                let future = self.wait_update();
+                if self.with(&predicate) {
+                    break;
+                }
+                future.await;
             }
-            future.await;
         }
     }
 
@@ -1195,7 +1198,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// ```
     /// # use zero_ui_var::*;
-    /// # mod task { pub async fn yield_one() { } }
+    /// # mod task { pub async fn yield_now() { } }
     /// # async {
     /// let a = var(0);
     /// let b = var(0);
@@ -1204,7 +1207,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// b.set(a.get());
     /// a.bind(&b).perm();
     ///
-    /// task::yield_one().await;
+    /// task::yield_now().await;
     /// // scheduled updates apply in this order:
     /// //  - a.set(1);
     /// //    - b.set(1); // caused by the binding.
@@ -1219,7 +1222,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// ```
     /// # use zero_ui_var::*;
-    /// # mod task { pub async fn yield_one() { } }
+    /// # mod task { pub async fn yield_now() { } }
     /// # async {
     /// let a = var(0);
     /// let b = var(0);
@@ -1228,7 +1231,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// b.set_from(&a);
     /// a.bind(&b).perm();
     ///
-    /// task::yield_one().await;
+    /// task::yield_now().await;
     /// // scheduled updates apply in this order:
     /// //  - a.set(1);
     /// //    - b.set(1); // caused by the binding.
