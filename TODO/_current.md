@@ -1,5 +1,9 @@
 # Documentation
 
+* Check if anchor href in `insertedDocs` is just an anchor for an ID that exists in the current document.
+    - If not, patch to go to the page + #anchor (already implemented).
+    - If ID is found, do not patch.
+
 * Relative links in "Properties from" imported section are not patched.
     - See `zero_ui/button/struct.Button.html` the `child_insert` link.
 

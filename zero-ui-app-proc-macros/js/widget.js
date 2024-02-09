@@ -218,10 +218,6 @@
                     var parser = new DOMParser();
                     page = parser.parseFromString(await page.text(), 'text/html');
                 }
-
-                let baseEl = page.createElement('base');
-                baseEl.setAttribute('href', url);
-                page.head.append(baseEl);
             } catch (error) {
                 console.error("error fetching '" + url + "', " + error);
                 place.innerText = error;
@@ -231,7 +227,7 @@
 
             let link = e.querySelector('a').outerHTML;
             inherits.push({
-                link, page
+                link, page, url
             });
 
             await refactorDocument(page, propertiesSet, inherits, fetchUrls);
@@ -244,6 +240,7 @@
     function mergeInherits(inherits) {
         let insertPoint = this.document.getElementById("properties-insert-pt");
         let sideInsertPoint = this.document.getElementById("properties-side-insert-pt");
+        let insertedDocs = [];
         inherits.forEach(function (e) {
             // merge properties
             let side = e.page.querySelector('.sidebar-elems');
@@ -257,6 +254,12 @@
                 let name = title.querySelector('a').innerText;
                 title.id = 'properties-' + name;
                 title.innerHTML = "Properties from " + e.link + '<a href="#properties-' + name + '" class="anchor">§</a></h2>';
+
+                parentProps.nextElementSibling.id = title.id + "-list";
+                insertedDocs.push({
+                    url: e.url,
+                    el: parentProps.nextElementSibling,
+                });
 
                 insertPoint.parentElement.insertBefore(title, insertPoint);
                 insertPoint.parentElement.insertBefore(parentProps.nextElementSibling, insertPoint);
@@ -341,6 +344,11 @@
                     methodsInsertPoint.parentElement.insertBefore(title, methodsInsertPoint);
                     methodsInsertPoint.parentElement.insertBefore(mtdList, methodsInsertPoint);
 
+                    insertedDocs.push({
+                        url: e.url,
+                        el: mtdList,
+                    });
+
                     let sideList = side.querySelector('a[href="#implementations"]').parentElement.nextElementSibling;
                     sideList.querySelectorAll('a').forEach(function (a) {
                         if (!mtdNames.has(a.innerText)) {
@@ -370,6 +378,13 @@
                     methodsSideInsertPoint.parentElement.insertBefore(e, methodsSideInsertPoint);
                     methodsSideInsertPoint.parentElement.insertBefore(sideList, methodsSideInsertPoint);
                 }
+            });
+        });
+
+        insertedDocs.forEach(function (e) {
+            e.el.querySelectorAll('a').forEach(function (a) {
+                let url = new URL(a.getAttribute('href'), e.url);
+                a.setAttribute('href', url.href);
             });
         });
     }
