@@ -8,9 +8,12 @@ use zero_ui_view_api::unit::*;
 use crate::*;
 
 /// Specifies how to draw the gradient outside the first and last stop.
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ExtendMode {
-    /// Default value. The color values at the ends of the gradient vector fill the remaining space.
+    /// The color values at the ends of the gradient vector fill the remaining space.
+    ///
+    /// This is the default mode.
+    #[default]
     Clamp,
     /// The gradient is repeated until the space is filled.
     Repeat,
@@ -441,7 +444,7 @@ impl ColorStop {
     ///
     /// A [`Length::Default`] offset indicates that the color stop is positional.
     ///
-    /// # Resolution
+    /// # Layout
     ///
     /// When a [`GradientStops`] calculates layout, positional stops are resolved like this:
     ///

@@ -1313,7 +1313,7 @@ impl ColorPair {
     }
 }
 
-/// Defines the color space for color interpolation in a context.
+/// Defines the color space for color interpolation.
 ///
 /// See [`with_lerp_space`] for more details.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -1331,6 +1331,9 @@ pub enum LerpSpace {
 }
 
 /// Gets the lerp space used for color interpolation.
+///
+/// Must be called only inside the [`with_lerp_space`] closure or in the lerp implementation of a variable animating
+/// with [`rgba_sampler`] or [`hsla_linear_sampler`].
 pub fn lerp_space() -> LerpSpace {
     LERP_SPACE.get_clone()
 }

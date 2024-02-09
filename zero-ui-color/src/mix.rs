@@ -52,7 +52,7 @@ macro_rules! impl_mix {
 
             $(
                 paste! {
-                    #[doc = "Mix `background` over `self` using the [`MixBlendMode::`" $Mode "`]."]
+                    #[doc = "Mix `background` over `self` using the [`MixBlendMode::" $Mode "`]."]
                     ///
                     $(#[$meta])*
                     pub fn [<mix_ $Mode:lower>](self, background: PreMulRgba) -> PreMulRgba {
@@ -104,7 +104,7 @@ macro_rules! impl_mix {
                     ///
                     $(#[$meta])*
                     ///
-                    /// This method converts both [`PreMulRgba`] and the result back to `Rgba`.
+                    /// This method converts both inputs to [`PreMulRgba`] and the result back to `Rgba`.
                     pub fn [<mix_ $Mode:lower>](self, background: Rgba) -> Rgba {
                         self.pre_mul().[<mix_ $Mode:lower>](background.pre_mul()).to_rgba()
                     }
@@ -116,7 +116,7 @@ macro_rules! impl_mix {
                     ///
                     $(#[$ns_meta])*
                     ///
-                    /// This method converts both [`Hsla`] and the result back to `Rgba`.
+                    /// This method converts both inputs to [`Hsla`] and the result back to `Rgba`.
                     pub fn [<mix_ $NsMode:lower>](self, background: Rgba) -> Rgba {
                         self.to_hsla().[<mix_ $NsMode:lower>](background.to_hsla()).to_rgba()
                     }

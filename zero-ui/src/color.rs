@@ -114,7 +114,7 @@ pub use zero_ui_wgt::color_scheme;
 
 pub use zero_ui_wgt_fill::node::flood;
 
-/// Color filters.
+/// Color filter types and properties.
 pub mod filter {
     pub use zero_ui_color::filter::{ColorMatrix, Filter, RenderFilter};
 
@@ -126,7 +126,7 @@ pub mod filter {
     };
 }
 
-/// Color gradient.
+/// Color gradient types and nodes.
 pub mod gradient {
     pub use zero_ui_color::gradient::{
         stops, ColorStop, ExtendMode, GradientRadius, GradientRadiusBase, GradientStop, GradientStops, LinearGradientAxis,

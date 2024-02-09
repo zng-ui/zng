@@ -17,9 +17,6 @@ use crate::{RenderColor, Rgba};
 
 /// A color filter or combination of filters.
 ///
-/// You can start a filter from one of the standalone filter functions, and then combine more filters using
-/// the builder call style.
-///
 /// # Examples
 ///
 /// ```
@@ -35,65 +32,8 @@ pub struct Filter {
     filters: Vec<FilterData>,
     needs_layout: bool,
 }
+
 impl Filter {
-    fn op(mut self, op: FilterOp) -> Self {
-        self.filters.push(FilterData::Op(op));
-        self
-    }
-
-    /// Compute a [`RenderFilter`] in the current [`LAYOUT`] context.
-    ///
-    /// Most filters convert one-to-one, effects that have a [`Length`] value use the
-    /// layout context to calculate relative values.
-    ///
-    /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
-    ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
-    pub fn layout(&self) -> RenderFilter {
-        self.filters
-            .iter()
-            .map(|f| match f {
-                FilterData::Op(op) => *op,
-                FilterData::Blur(l) => {
-                    let l = l.layout_f32_x();
-                    FilterOp::Blur(l, l)
-                }
-                FilterData::DropShadow {
-                    offset,
-                    blur_radius,
-                    color,
-                } => FilterOp::DropShadow(Shadow {
-                    offset: offset.layout().to_wr().to_vector(),
-                    color: RenderColor::from(*color),
-                    blur_radius: blur_radius.layout_f32_x(),
-                }),
-            })
-            .collect()
-    }
-
-    /// Compute a [`RenderFilter`] if the filter is not affected by layout.
-    pub fn try_render(&self) -> Option<RenderFilter> {
-        if self.needs_layout {
-            return None;
-        }
-
-        let mut r = Vec::with_capacity(self.filters.len());
-
-        for f in &self.filters {
-            match f {
-                FilterData::Op(op) => r.push(*op),
-                FilterData::Blur(_) | FilterData::DropShadow { .. } => unreachable!(),
-            }
-        }
-
-        Some(r)
-    }
-
-    /// Returns `true` if this filter is affected by the layout context where it is evaluated.
-    pub fn needs_layout(&self) -> bool {
-        self.needs_layout
-    }
-
     /// Add an opacity adjustment to the filter, zero is fully transparent, one is the input transparency.
     pub fn opacity<A: Into<Factor>>(self, alpha: A) -> Self {
         let alpha_value = alpha.into().0;
@@ -171,6 +111,14 @@ impl Filter {
 }
 
 impl Filter {
+    /// New default empty.
+    pub const fn new() -> Filter {
+        Self {
+            filters: vec![],
+            needs_layout: false,
+        }
+    }
+
     /// New [`Filter::opacity`].
     pub fn new_opacity<A: Into<Factor>>(alpha: A) -> Filter {
         Filter::default().opacity(alpha)
@@ -218,6 +166,66 @@ impl Filter {
     /// New [`Filter::color_matrix`].
     pub fn new_color_matrix<M: Into<ColorMatrix>>(matrix: M) -> Filter {
         Filter::default().color_matrix(matrix)
+    }
+}
+
+impl Filter {
+    fn op(mut self, op: FilterOp) -> Self {
+        self.filters.push(FilterData::Op(op));
+        self
+    }
+
+    /// Compute a [`RenderFilter`] in the current [`LAYOUT`] context.
+    ///
+    /// Most filters convert one-to-one, effects that have a [`Length`] value use the
+    /// layout context to calculate relative values.
+    ///
+    /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
+    ///
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    pub fn layout(&self) -> RenderFilter {
+        self.filters
+            .iter()
+            .map(|f| match f {
+                FilterData::Op(op) => *op,
+                FilterData::Blur(l) => {
+                    let l = l.layout_f32_x();
+                    FilterOp::Blur(l, l)
+                }
+                FilterData::DropShadow {
+                    offset,
+                    blur_radius,
+                    color,
+                } => FilterOp::DropShadow(Shadow {
+                    offset: offset.layout().to_wr().to_vector(),
+                    color: RenderColor::from(*color),
+                    blur_radius: blur_radius.layout_f32_x(),
+                }),
+            })
+            .collect()
+    }
+
+    /// Compute a [`RenderFilter`] if the filter is not affected by layout.
+    pub fn try_render(&self) -> Option<RenderFilter> {
+        if self.needs_layout {
+            return None;
+        }
+
+        let mut r = Vec::with_capacity(self.filters.len());
+
+        for f in &self.filters {
+            match f {
+                FilterData::Op(op) => r.push(*op),
+                FilterData::Blur(_) | FilterData::DropShadow { .. } => unreachable!(),
+            }
+        }
+
+        Some(r)
+    }
+
+    /// Returns `true` if this filter is affected by the layout context where it is evaluated.
+    pub fn needs_layout(&self) -> bool {
+        self.needs_layout
     }
 }
 

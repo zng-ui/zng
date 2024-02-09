@@ -154,10 +154,10 @@ impl fmt::Debug for FontAntiAliasing {
 /// Color scheme preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColorScheme {
-    /// Dark foreground, light background.
+    /// Dark text, light background.
     Light,
 
-    /// Light foreground, dark background.
+    /// Light text, dark background.
     Dark,
 }
 impl Default for ColorScheme {

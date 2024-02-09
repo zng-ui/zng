@@ -114,9 +114,9 @@ where
 /// Linear gradient.
 ///
 /// Can be used as a node that fills the available space with the gradient, or can continue building a linear
-/// gradient.
+/// or tiled linear gradient.
 ///
-/// Use [`gradient`] or [`linear_gradient`] to build.
+/// Use [`gradient`] or [`linear_gradient`] to start building.
 ///
 /// [`gradient`]: fn@gradient
 pub struct LinearGradient<S, A, E> {
@@ -187,12 +187,9 @@ where
 /// Tiled linear gradient.
 ///
 /// Can be used as a node that fills the available space with the gradient tiles, or can continue building a
-/// repeating linear gradient.
+/// tiled linear gradient.
 ///
-///
-/// Use [`gradient`], [`linear_gradient`] to build.
-///
-/// [`gradient`]: fn@gradient
+/// Use [`LinearGradient::tile`] to build.
 pub struct TiledLinearGradient<S, A, E, O, T, TS> {
     stops: S,
     axis: A,
@@ -260,10 +257,10 @@ where
 
 /// Radial gradient.
 ///
-/// Can be used as a node that fills the available space with the gradient, or can continue building a linear
-/// gradient.
+/// Can be used as a node that fills the available space with the gradient, or can continue building a radial
+/// or tiled radial gradient.
 ///
-/// Use [`gradient`] or [`radial_gradient`] to build.
+/// Use [`gradient`] or [`radial_gradient`] to start building.
 ///  
 /// [`gradient`]: fn@gradient
 pub struct RadialGradient<S, C, R, E> {
@@ -336,8 +333,7 @@ where
 ///
 /// Can be used as a node that fills the available space with the gradient tiles, or can continue building the gradient.
 ///
-///
-/// Use [`gradient`], [`radial_gradient`] to build.
+/// Use [`RadialGradient::tile`] to build.
 ///  
 /// [`gradient`]: fn@gradient
 pub struct TiledRadialGradient<S, C, R, E, O, T, TS> {
@@ -411,10 +407,10 @@ where
 
 /// Conic gradient.
 ///
-/// Can be used as a node that fills the available space with the gradient, or can continue building a linear
-/// gradient.
+/// Can be used as a node that fills the available space with the gradient, or can continue building the conic
+/// or a tiled conic gradient.
 ///
-/// Use [`gradient`] or [`conic_gradient`] to build.
+/// Use [`gradient`] or [`conic_gradient`] to start building.
 ///  
 /// [`gradient`]: fn@gradient
 pub struct ConicGradient<S, C, A, E> {
@@ -487,7 +483,7 @@ where
 ///
 /// Can be used as a node that fills the available space with the gradient tiles, or can continue building the gradient.
 ///
-/// Use [`gradient`], [`conic_gradient`] to build.
+/// Use [`ConicGradient::tile`] to build.
 ///  
 /// [`gradient`]: fn@gradient
 pub struct TiledConicGradient<S, C, A, E, O, T, TS> {
