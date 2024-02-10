@@ -1,14 +1,11 @@
 # Documentation
 
-* Relative links in "Properties from" imported section are not patched.
-    - See `zero_ui/button/struct.Button.html` the `child_insert` link.
-
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::color`.
+        - Last reviewed `zero_ui::config`.
 
 # Publish
 

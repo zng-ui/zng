@@ -83,6 +83,15 @@
 //! See [`zero_ui_ext_config`] for the full config API.
 
 pub use zero_ui_ext_config::{
-    AnyConfig, Config, ConfigKey, ConfigMap, ConfigStatus, ConfigValue, ConfigVars, FallbackConfig, FallbackConfigReset, JsonConfig,
-    MemoryConfig, RawConfigValue, ReadOnlyConfig, RonConfig, SwapConfig, SwitchConfig, SyncConfig, TomlConfig, YamlConfig, CONFIG,
+    AnyConfig, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, JsonConfig, MemoryConfig, RawConfigValue,
+    ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
 };
+
+#[cfg(feature = "ron")]
+pub use zero_ui_ext_config::RonConfig;
+
+#[cfg(feature = "toml")]
+pub use zero_ui_ext_config::TomlConfig;
+
+#[cfg(feature = "yaml")]
+pub use zero_ui_ext_config::YamlConfig;

@@ -4,7 +4,7 @@ use crate::task::parking_lot::Mutex;
 use zero_ui_clone_move::clmv;
 use zero_ui_var::VarHandle;
 
-/// Represents a config source that swap its backend without disconnecting any bound keys.
+/// Represents a config source that can swap its backing config source without disconnecting any bound keys.
 ///
 /// Note that the [`CONFIG`] service already uses this type internally.
 pub struct SwapConfig {

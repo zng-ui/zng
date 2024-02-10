@@ -11,9 +11,6 @@ use super::*;
 pub trait FallbackConfigReset: AnyConfig + Sync {
     /// Removes the `key` from the config and updates all active config variables back to
     /// the fallback value. Note that if you assign the config variable the key will be re-inserted on the config.
-    ///
-    /// The `FallbackConfig` type is an `Arc` internally, so you can keep a clone of it and call
-    /// reset on this clone to reset the config moved inside [`CONFIG`] or another combinator.
     fn reset(&self, key: &ConfigKey);
 
     /// Returns a read-only var that is `true` when the `key` has an entry in the read-write config.
@@ -28,10 +25,13 @@ impl Clone for Box<dyn FallbackConfigReset> {
     }
 }
 
-/// Represents a copy-on-write config source that wraps two other sources, the read-write config and a read-only fallback config.
+/// Represents a copy-on-write config source that wraps two other sources, a read-write config and a read-only fallback config.
 ///
 /// The config variables are connected to both sources, if the read-write config is not set the var will update with the
 /// fallback config, if it is set it will sync with the read-write config.
+///
+/// The `FallbackConfig` type is an `Arc` internally, so you can keep a cloned reference to it after moving it into
+/// [`CONFIG`] or another combinator config.
 pub struct FallbackConfig<S: Config, F: Config>(Arc<Mutex<FallbackConfigData<S, F>>>);
 impl<S: Config, F: Config> FallbackConfig<S, F> {
     /// New from the read-write config and read-only fallback.
@@ -45,9 +45,6 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
 
     /// Removes the `key` from the config and updates all active config variables back to
     /// the fallback value. Note that if you assign the config variable the key will be re-inserted on the config.
-    ///
-    /// The `FallbackConfig` type is an `Arc` internally, so you can keep a clone of it and call
-    /// reset on this clone to reset the config moved inside [`CONFIG`] or another combinator.
     pub fn reset(&self, key: &ConfigKey) {
         FallbackConfigData::reset(&self.0, key);
     }

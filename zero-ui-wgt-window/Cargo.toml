@@ -18,7 +18,7 @@ zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-ext-window = { path = "../zero-ui-ext-window" }
-zero-ui-ext-config = { path = "../zero-ui-ext-config" }
+zero-ui-ext-config = { path = "../zero-ui-ext-config", default-features = false }
 zero-ui-ext-input = { path = "../zero-ui-ext-input" }
 zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
 zero-ui-var = { path = "../zero-ui-var" }

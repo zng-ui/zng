@@ -173,7 +173,7 @@ zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt", default-features = 
 # app
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-ext-fs_watcher = { path = "../zero-ui-ext-fs_watcher" }
-zero-ui-ext-config = { path = "../zero-ui-ext-config" }
+zero-ui-ext-config = { path = "../zero-ui-ext-config", default-features = false }
 zero-ui-ext-font = { path = "../zero-ui-ext-font" }
 zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
 zero-ui-ext-image = { path = "../zero-ui-ext-image" }

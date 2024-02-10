@@ -9,8 +9,8 @@ use super::*;
 /// is called, if the closure returns a key the config case is used.
 ///
 /// Note that the returned config variables are linked directly with the matched configs,
-/// and if none matches returns from [`MemoryConfig`]. If a config is pushed after no match
-/// that already returned variable will not update to link with the new config.
+/// and if none matches returns from a fallback [`MemoryConfig`]. If a config is pushed after no match
+/// the already returned variable will not update to link with the new config.
 #[derive(Default)]
 pub struct SwitchConfig {
     cfgs: Vec<SwitchCfg>,

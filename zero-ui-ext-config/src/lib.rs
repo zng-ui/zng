@@ -270,7 +270,7 @@ pub trait AnyConfig: Send + Any {
     /// Returns `false` if the key was not found or the config is read-only.
     fn remove(&mut self, key: &ConfigKey) -> bool;
 
-    /// System warning low memory, flush RAM caches.
+    /// Cleanup and flush RAM caches.
     fn low_memory(&mut self);
 }
 
@@ -287,7 +287,7 @@ pub trait Config: AnyConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T>;
 }
 
-/// Config wrapper that only updates variables from config source changes.
+/// Config wrapper that only provides read-only variables from the inner config.
 pub struct ReadOnlyConfig<C: Config> {
     cfg: C,
 }
@@ -326,7 +326,7 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
 
 /// Memory only config.
 ///
-/// Values are retained in memory even if all variables to the key are dropped, but they are not saved anywhere.
+/// Values are retained in memory even if all variables to the key are dropped, but they are lost when the process ends.
 #[derive(Default)]
 pub struct MemoryConfig {
     values: HashMap<ConfigKey, ArcVar<RawConfigValue>>,
@@ -422,7 +422,7 @@ struct ConfigContainsVar {
 
 /// Map of configs already bound to a variable.
 ///
-/// The map does only holds a weak reference to the variables.
+/// The map only holds a weak reference to the variables.
 #[derive(Default)]
 pub struct ConfigVars {
     values: HashMap<ConfigKey, Box<dyn AnyConfigVar>>,

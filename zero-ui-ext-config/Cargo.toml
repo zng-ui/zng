@@ -7,8 +7,6 @@ license = "Apache-2.0"
 readme = "../zero-ui-app/README.md"
 
 [features]
-default = ["toml", "ron", "yaml"]
-
 yaml = ["dep:serde_yaml", "zero-ui-ext-fs_watcher/yaml"]
 toml = ["dep:toml", "zero-ui-ext-fs_watcher/toml"]
 ron = ["dep:ron", "zero-ui-ext-fs_watcher/ron"]
@@ -27,7 +25,7 @@ zero-ui-ext-fs_watcher = { path = "../zero-ui-ext-fs_watcher", features = [
 
 tracing = "0.1"
 bytemuck = "1"
-indexmap = "2"
+indexmap = { version = "2", features = ["serde"] }
 atomic = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
