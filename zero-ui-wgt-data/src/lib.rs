@@ -15,9 +15,10 @@ use task::parking_lot::RwLock;
 
 /// Data context.
 ///
-/// Sets the [`DATA`] context for this widget and descendants, replacing the parent's data. Note that only
-/// one data context can be set at a time, the `data` will override the parent's data even if the type `T`
-/// does not match.
+/// Sets the [`DATA`] context for this widget and descendants, replacing the parent's data. 
+/// 
+/// Note that only one data context can be set at a time, the `data` will override the parent's 
+/// data even if the type `T` does not match.
 #[property(CONTEXT - 1)]
 pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNode {
     with_context_local(child, &DATA_CTX, data.into_var().boxed_any())
@@ -223,7 +224,7 @@ context_var! {
 
 /// Sets the data note level colors, the parent colors are fully replaced.
 ///
-/// The colors will be used directly as text color or other bright *foreground* icon.
+/// The colors will be used directly as text color.
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(DATA_NOTE_COLORS_VAR))]
@@ -233,7 +234,7 @@ pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap
 
 /// Extend the data note level colors, the `colors` extend the parent colors, only entries of the same level are replaced.
 ///
-/// The colors will be used directly as text color or other bright *foreground* icon.
+/// The colors will be used directly as text color.
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(HashMap::new()))]
@@ -264,7 +265,7 @@ pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: imp
 
 /// Set the data note `INFO` color.
 ///
-/// The color will be used directly as text color or other bright *foreground* icon.
+/// The color will be used directly as text color.
 #[property(CONTEXT)]
 pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::INFO, color)
@@ -272,7 +273,7 @@ pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> im
 
 /// Set the data note `WARN` color.
 ///
-/// The color will be used directly as text color or other bright *foreground* icon.
+/// The color will be used directly as text color.
 #[property(CONTEXT)]
 pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::WARN, color)
@@ -280,7 +281,7 @@ pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> im
 
 /// Set the data note `ERROR` color.
 ///
-/// The color will be used directly as text color or other bright *foreground* icon.
+/// The color will be used directly as text color.
 #[property(CONTEXT)]
 pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::ERROR, color)
@@ -288,12 +289,10 @@ pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> i
 
 /// Data context and validation.
 ///
-/// This service enables data flow from a context to descendants, a little like an anonymous context var, and
-/// from descendants up-to contexts.
+/// This service enables data flow from a context to descendants, and from descendants up-to contexts, like an anonymous context var.
 ///
-/// Arbitrary data can be set on a context using the [`data`] property and retrieved using [`DATA.get`] or [`DATA.req`],
-/// behaving a little like an anonymous context var. Only one data entry and type can exist in a context, nested
-/// [`data`] properties override the parent data and type in their context.
+/// Arbitrary data can be set on a context using the [`data`] property and retrieved using [`DATA.get`] or [`DATA.req`]. 
+/// Only one data entry and type can exist in a context, nested [`data`] properties override the parent data and type in their context.
 ///
 /// Annotation on the data can be set back using [`DATA.annotate`] and can be retrieved using the [`get_data_notes`] property,
 /// annotations are classified by [`DataNoteLevel`], including `INFO`, `WARN` and `ERROR`. For each level there are specialized
@@ -335,7 +334,7 @@ impl DATA {
 
     /// Gets the current context data.
     ///
-    /// Note that this is does not return a contextualizing var like [`get`], it gets the data var in the calling context.
+    /// Note that this does not return a contextualizing var like [`get`], it gets the data var in the calling context.
     ///
     /// [`get`]: Self::get
     pub fn get_any(&self) -> BoxedAnyVar {
