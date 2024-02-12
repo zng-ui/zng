@@ -787,7 +787,7 @@ impl<'a, S: FontFeatureExclusiveSetsState + fmt::Debug> fmt::Debug for FontFeatu
     }
 }
 
-/// An `enum` like type that represents a exclusive set of features + `Auto`.
+/// Represents `enum` like types that represents a exclusive set of features + `Auto`.
 pub trait FontFeatureExclusiveSetState: Copy + PartialEq + 'static {
     /// All the names of features, must have more then one name.
     fn names() -> &'static [FontFeatureName];
@@ -801,7 +801,7 @@ pub trait FontFeatureExclusiveSetState: Copy + PartialEq + 'static {
     fn auto() -> Self;
 }
 
-/// An `enum` like type that represents a exclusive set of features + `Auto`.
+/// Represents `enum` like types that represents a exclusive set of features + `Auto`.
 /// Some variants can have multiple features.
 pub trait FontFeatureExclusiveSetsState: Copy + PartialEq + 'static {
     /// All the names of features, must have more then one sub-set.

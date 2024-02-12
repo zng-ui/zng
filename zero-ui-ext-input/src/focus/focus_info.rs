@@ -1967,10 +1967,11 @@ impl FocusInfoData {
 }
 
 /// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
-///
-/// Use the [`new`] method to start a builder.
-///
-/// # Rules
+/// 
+/// There are multiple focusable metadata that can be set on a widget. These rules define how the focusable
+/// state of an widget is derived from the focusable metadata.
+/// 
+/// ### Rules
 ///
 /// The widget is not focusable nor a focus scope if it set [`focusable`](Self::focusable) to `false`.
 ///
@@ -1981,26 +1982,26 @@ impl FocusInfoData {
 ///
 /// The widget is not focusable if it did not set any of the members mentioned.
 ///
-/// ## Tab Index
+/// ##### Tab Index
 ///
 /// If the [`tab_index`](Self::tab_index) was not set but the widget is focusable or a focus scope, the [`TabIndex::AUTO`]
 /// is used for the widget.
 ///
-/// ## Skip Directional
+/// ##### Skip Directional
 ///
 /// If the [`skip_directional`](Self::skip_directional) was not set but the widget is focusable or a focus scope, it is
 /// set to `false` for the widget.
 ///
-/// ## Focus Scope
+/// ##### Focus Scope
 ///
 /// If the widget is a focus scope, it is configured using [`alt_scope`](Self::alt_scope) and [`on_focus`](Self::on_focus).
 /// If the widget is not a scope these members are ignored.
 ///
-/// ### Tab Navigation
+/// ##### Tab Navigation
 ///
 /// If [`tab_nav`](Self::tab_nav) is not set but the widget is a focus scope, [`TabNav::Continue`] is used.
 ///
-/// ### Directional Navigation
+/// ##### Directional Navigation
 ///
 /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
 ///

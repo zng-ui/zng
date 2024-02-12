@@ -9,7 +9,7 @@ use zero_ui_ext_input::gesture::{CLICK_EVENT, GESTURES};
 use zero_ui_ext_input::mouse::MOUSE_INPUT_EVENT;
 use zero_ui_wgt::prelude::*;
 
-/// Enables a widget to receive focus.
+/// Makes the widget focusable when set to `true`.
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     let focusable = focusable.into_var();
@@ -39,7 +39,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
     })
 }
 
-/// Widget is a focus scope.
+/// Makes the widget into a focus scope when set to `true`.
 #[property(CONTEXT, default(false))]
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     focus_scope_impl(child, is_scope, false)
@@ -111,7 +111,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
     })
 }
 
-/// Arrows navigation within this focus scope.
+/// Keyboard arrows navigation within this focus scope.
 #[property(CONTEXT, default(DirectionalNav::Continue))]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     let directional_nav = directional_nav.into_var();
