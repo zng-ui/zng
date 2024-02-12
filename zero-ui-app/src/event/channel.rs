@@ -75,9 +75,10 @@ where
     }
 }
 
-/// An event update receiver that can be used from any thread and without access to [`EVENTS`].
+/// An event channel receiver.
 ///
 /// Use [`Event::receiver`] to create a receiver, drop to stop listening.
+#[must_use = "stops receiving on drop"]
 pub struct EventReceiver<A>
 where
     A: EventArgs + Send,
@@ -108,7 +109,9 @@ impl<A> EventReceiver<A>
 where
     A: EventArgs + Send,
 {
-    /// Receives the oldest send update, blocks until the event updates.
+    /// Receives the oldest update, blocks until the event updates.
+    ///
+    /// Note that *oldest* here refers to send order (FIFO), not the args creation timestamp.
     pub fn recv(&self) -> Result<A, AppDisconnected<()>> {
         self.receiver.recv().map_err(|_| AppDisconnected(()))
     }

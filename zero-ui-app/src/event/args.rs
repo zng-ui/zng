@@ -9,6 +9,8 @@ use std::{
 
 /// [`Event<A>`] arguments.
 ///
+/// See [`AnyEventArgs`] for the object safe part of event arguments.
+///
 /// [`Event<A>`]: crate::event::Event
 pub trait EventArgs: AnyEventArgs + Clone {
     /// Calls `handler` and stops propagation if propagation is still allowed.
@@ -28,7 +30,7 @@ pub trait EventArgs: AnyEventArgs + Clone {
     }
 }
 
-/// Methods of [`EventArgs`] that don't depend on the value type.
+/// Methods of [`EventArgs`] that are object safe.
 pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
     /// Clone the variable into a type erased box.
     fn clone_any(&self) -> Box<dyn AnyEventArgs>;
@@ -51,7 +53,8 @@ pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
 
 /// Event propagation handle associated with one or multiple [`EventArgs`].
 ///
-/// Event handlers can use this handle to signal subsequent handlers that they should skip handling the event.
+/// Event handlers can use this to signal subsequent handlers that the event is already handled and they should
+/// operate as if the event was not received.
 ///
 /// You can get the propagation handle of any event argument by using the [`AnyEventArgs::propagation`] method.
 #[derive(Debug, Clone)]
@@ -100,6 +103,16 @@ impl std::hash::Hash for EventPropagationHandle {
 }
 
 ///<span data-del-macro-root></span> Declares new [`EventArgs`] types.
+///
+/// The macro syntax is similar to `struct` declaration, but after the args struct members you must add `..` and then
+/// the `fn delivery_list(&self, list: &mut UpdateDeliveryList) {}` method that inserts the widget targets.
+///
+/// After the `delivery_list` method you can also optionally add a `fn validate(&self) -> Result<(), Txt> { }` method
+/// that validates the arguments.
+///
+/// The macro expansion implements the [`EventArgs`] and [`AnyEventArgs`] traits for the new structs, it generates a public `timestamp`
+/// member and the `new` associated function that can instantiate args with custom timestamp and propagation handle and the `now`
+/// associated function that provides the timestamp and propagation handle and is the primary way to instantiate args.
 ///
 /// # Examples
 ///

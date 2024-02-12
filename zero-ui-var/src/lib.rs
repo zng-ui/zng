@@ -449,7 +449,7 @@ impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
     }
 }
 
-/// Methods of [`Var<T>`] that don't depend on the value type.
+/// Methods of [`Var<T>`] that are object safe.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
 ///
@@ -960,6 +960,8 @@ impl<'a, T: VarValue> TraceValueArgs<'a, T> {
 /// All variable types can be read, some can update, variables update only in between app updates so
 /// all widgets observing a variable can see the full sequence of values. Variables can also be a [`ContextVar<T>`] that
 /// is a reference to another variable provided by the calling context, so the variable value depends on where it is read.
+///
+/// See [`AnyVar`] for the object safe part of variables.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
 ///

@@ -182,7 +182,7 @@ pub fn with_context_var_init<T: VarValue>(
 
 ///<span data-del-macro-root></span> Declare one or more event properties.
 ///
-/// Each declaration expands to two properties `on_$event`, `on_pre_$event`.
+/// Each declaration expands to two properties `on_$event` and `on_pre_$event`.
 /// The preview properties call [`on_pre_event`], the main event properties call [`on_event`].
 ///
 /// # Examples
@@ -213,16 +213,16 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// # Filter
 ///
-/// App events are delivered to all `UiNode` inside all widgets in the [`UpdateDeliveryList`] and event subscribers list,
+/// App events are delivered to all widgets that are both in the [`UpdateDeliveryList`] and event subscribers list,
 /// event properties can specialize further by defining a filter predicate.
 ///
-/// The `filter` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
+/// The `filter:` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
 /// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
 /// See [`on_event`] and [`on_pre_event`] for more information.
 ///
 /// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
 /// are allowed by default.  Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
-/// targets, event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
+/// widgets, event properties should probably distinguish if they fire on normal interactions versus on *disabled* interactions.
 ///
 /// # Async
 ///
@@ -235,7 +235,7 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// # Implement For
 ///
-/// You can implement the new properties for a widget or mix-in using `widget_impl`:
+/// You can implement the new properties for a widget or mix-in using the `widget_impl:` directive:
 ///
 /// ```
 /// # fn main() { }
@@ -259,7 +259,7 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// # With Extra Nodes
 ///
-/// You can wrap the event handler node with extra nodes by setting the optional `with` closure:
+/// You can wrap the event handler node with extra nodes by setting the optional `with:` closure:
 ///
 /// ```
 /// # fn main() { }
@@ -716,7 +716,7 @@ macro_rules! __command_property {
 
 ///<span data-del-macro-root></span> Declare one or more command event properties.
 ///
-/// Each declaration expands to two properties `on_$command`, `on_pre_$command`.
+/// Each declaration expands to two properties `on_$command` and `on_pre_$command`.
 /// The preview properties call [`on_pre_command`], the main event properties call [`on_command`].
 ///
 /// # Examples
@@ -740,16 +740,16 @@ macro_rules! __command_property {
 ///
 /// # Command
 ///
-/// The `cmd` closure is called on init to generate the command, it is a closure to allow
-/// creation of widget scoped commands. The event handler will receive events for the command
-/// and scope that target the widget where it is set.
+/// The `cmd:` expression evaluates on init to generate the command, this allows for the
+/// creation of widget scoped commands. The new command property event handler will receive events
+/// for the command and scope that target the widget where the property is set.
 ///
-/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
-/// is taken for the window scope too.
+/// If the command is scoped on the root widget and the command property is set on the same root widget a second handle
+/// is taken for the window scope too, so callers can target the *window* using the window ID or the root widget ID.
 ///
 /// # Enabled
 ///
-/// The `enabled` closure is called on init to generate a boolean variable that defines
+/// The `enabled:` expression evaluates on init to generate a boolean variable that defines
 /// if the command handle is enabled. Command event handlers track both their existence and
 /// the enabled flag, see [`Command::subscribe`] for details.
 ///
@@ -784,16 +784,16 @@ macro_rules! command_property {
 ///
 /// # Command
 ///
-/// The `cmd` closure is called on init to generate the command, it is a closure to allow
-/// creation of widget scoped commands. The event handler will receive events for the command
+/// The `command_builder` closure is called on init to generate the command, it is a closure to allow
+/// creation of widget scoped commands. The event `handler` will receive events for the command
 /// and scope that target the widget where it is set.
 ///
 /// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
-/// is taken for the window scope too.
+/// is taken for the window scope too, so callers can target the *window* using the window ID or the root widget ID.
 ///
 /// # Enabled
 ///
-/// The `enabled` closure is called on init to generate a boolean variable that defines
+/// The `enabled_builder` closure is called on init to generate a boolean variable that defines
 /// if the command handle is enabled. Command event handlers track both their existence and
 /// the enabled flag, see [`Command::subscribe`] for details.
 ///
@@ -902,37 +902,12 @@ zero_ui_app::event::command! {
 
 /// Helper for declaring command preview handlers.
 ///
-/// # Command
-///
-/// The `cmd` closure is called on init to generate the command, it is a closure to allow
-/// creation of widget scoped commands. The event handler will receive events for the command
-/// and scope that target the widget where it is set.
-///
-/// If the command is scoped on the root widget and `on_command` is set on the same root widget a second handle
-/// is taken for the window scope too.
-///
-/// # Enabled
-///
-/// The `enabled` closure is called on init to generate a boolean variable that defines
-/// if the command handle is enabled. Command event handlers track both their existence and
-/// the enabled flag, see [`Command::subscribe`] for details.
-///
-/// Note that the command handler can be enabled even when the widget is disabled, the widget
-/// will receive the event while disabled in this case, you can use this to show feedback explaining
-/// why the command cannot run.
+/// Other then the route this helper behaves exactly like [`on_command`].
 ///
 /// # Route
 ///
 /// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
 /// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
-///
-/// # Async
-///
-/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
-/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the propagation handle.
-///  
-/// [`propagation`]: zero_ui_app::event::AnyEventArgs::propagation
 pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,

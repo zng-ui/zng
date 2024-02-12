@@ -8,10 +8,13 @@ use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::Wi
 
 use super::*;
 
-/// <span data-del-macro-root></span> Declares new [`Command`] keys.
+/// <span data-del-macro-root></span> Declares new [`Command`] static items.
 ///
-/// The macro generates an [`event!`] of args type [`CommandArgs`] and added capability to track the presence of listeners enabled
-/// and disabled and any other custom attached metadata.
+/// Command static items represent widget or service actions. Command items are also events, that is they dereference
+/// to [`Event<A>`] and *override* some event methods to enable communication from the command subscribers to the command
+/// notifier. Command static items also host metadata about the command.
+///
+/// [`Event<A>`]: crate::event::Event
 ///
 /// # Conventions
 ///
@@ -22,6 +25,11 @@ use super::*;
 ///
 /// You can give commands one or more shortcuts using the [`CommandShortcutExt`], the `GestureManager` notifies commands
 /// that match a pressed shortcut automatically.
+///
+/// # Properties
+///
+/// If the command implementation is not specific you can use `command_property!` to declare properties that setup command handlers
+/// for the command.
 ///
 /// # Examples
 ///
@@ -78,7 +86,7 @@ use super::*;
 /// [`CommandInfoExt`]: crate::event::CommandInfoExt
 /// [`Event`]: crate::event::Event
 /// [command extensions]: crate::event::Command#extensions
-/// /// [`CommandShortcutExt`]: crate::shortcut::CommandShortcutExt
+/// [`CommandShortcutExt`]: crate::shortcut::CommandShortcutExt
 #[macro_export]
 macro_rules! command {
     ($(
@@ -165,7 +173,7 @@ macro_rules! __command {
 
 /// Identifies a command event.
 ///
-/// Use the [`command!`] to declare commands, it declares command keys with optional
+/// Use the [`command!`] to declare commands, it declares command static items with optional
 /// [metadata](#metadata) initialization.
 ///
 /// ```
@@ -183,29 +191,25 @@ macro_rules! __command {
 ///
 /// # Metadata
 ///
-/// Commands can have metadata associated with then, this metadata is extendable and can be used to enable
+/// Commands can have metadata associated with them, this metadata is extendable and can be used to enable
 /// command features such as command shortcuts. The metadata can be accessed using [`with_meta`], metadata
-/// extensions are implemented using extension traits. See [`CommandMeta`] for more details.
+/// extensions traits can use this metadata to store state. See [`CommandMeta`] for more details.
 ///
 /// # Handles
 ///
 /// Unlike other events, commands only notify if it has at least one handler, handlers
 /// must call [`subscribe`] to indicate that the command is relevant to the current app state and
-/// [set its enabled] flag to indicate that the handler can fulfill command requests.
-///
-/// Properties that setup a handler for a command event should do this automatically and are usually
-/// paired with a *can_foo* context property that sets the enabled flag. You can use `on_command`
-/// to declare command handler properties.
+/// set the subscription handle [enabled] flag to indicate that the handler can fulfill command requests.
 ///
 /// # Scopes
 ///
 /// Commands are *global* by default, meaning an enabled handle anywhere in the app enables it everywhere.
-/// You can call [`scoped`] to declare *sub-commands* that are the same command event, but filtered to a scope, metadata
-/// of scoped commands inherit from the app scope metadata, but setting it overrides only for the scope.
+/// You can use [`scoped`] to declare *sub-commands* that are the same command event, but filtered to a scope, metadata
+/// of scoped commands inherit from the app scope metadata, but can be overridden just for the scope.
 ///
 /// [`command!`]: macro@crate::event::command
 /// [`subscribe`]: Command::subscribe
-/// [set its enabled]: CommandHandle::set_enabled
+/// [enabled]: CommandHandle::set_enabled
 /// [`with_meta`]: Command::with_meta
 /// [`scoped`]: Command::scoped
 #[derive(Clone, Copy)]
@@ -243,10 +247,10 @@ impl Command {
 
     /// Create a new handle to this command.
     ///
-    /// A handle indicates that there is an active *handler* for the event, the handle can also
-    /// be used to set the [`is_enabled`](Self::is_enabled) state.
+    /// A handle indicates that command handlers are present in the current app, the `enabled` flag
+    /// indicates the handler is ready to fulfill command requests.
     ///
-    /// If the handle is scoped on a window or widget it it is added to the command event subscribers.
+    /// If the command is scoped on a window or widget it it is added to the command event subscribers.
     pub fn subscribe(&self, enabled: bool) -> CommandHandle {
         let mut evs = EVENTS_SV.write();
         self.local.write().subscribe(&mut evs, *self, enabled, None)
@@ -255,7 +259,8 @@ impl Command {
     /// Create a new handle for this command for a handler in the `target` widget.
     ///
     /// The handle behaves like [`subscribe`], but include the `target` on the delivery list for app scoped commands.
-    /// Note that for window and widget scoped commands only the scope can receive the event, so the `target` is ignored.
+    /// Note this only works for global commands (app scope), window and widget scoped commands only notify the scope
+    /// so the `target` is ignored for scoped commands.
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt(&self, enabled: bool, target: WidgetId) -> CommandHandle {
@@ -263,12 +268,12 @@ impl Command {
         self.local.write().subscribe(&mut evs, *self, enabled, Some(target))
     }
 
-    /// Raw command event.
+    /// Underlying event that represents this command in any scope.
     pub fn event(&self) -> Event<CommandArgs> {
         self.event
     }
 
-    /// Command operating scope.
+    /// Command scope.
     pub fn scope(&self) -> CommandScope {
         self.scope
     }
@@ -282,8 +287,8 @@ impl Command {
     /// Visit the command custom metadata of the current scope.
     ///
     /// Metadata for [`CommandScope::App`] is retained for the duration of the app, metadata scoped
-    /// on window or widgets is dropped if after an update cycle the scope is no handler and there
-    /// are no strong references to [`has_handlers`] and [`is_enabled`].
+    /// on window or widgets is dropped after an update cycle with no handler and no strong references
+    /// to [`has_handlers`] and [`is_enabled`].
     ///
     /// [`has_handlers`]: Self::has_handlers
     /// [`is_enabled`]: Self::is_enabled
@@ -336,7 +341,8 @@ impl Command {
             .filter(|a| a.scope == self.scope && !a.propagation().is_stopped())
     }
 
-    /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
+    /// Calls `handler` if the update is for this event and propagation is not stopped,
+    /// after the handler is called propagation is stopped.
     pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
         if let Some(args) = self.on(update) {
             args.handle(handler)
@@ -345,7 +351,7 @@ impl Command {
         }
     }
 
-    /// Gets a variable that tracks if this command has any live handlers.
+    /// Gets a variable that tracks if this command has any handlers.
     pub fn has_handlers(&self) -> ReadOnlyArcVar<bool> {
         let mut write = self.local.write();
         match self.scope {
@@ -354,7 +360,7 @@ impl Command {
         }
     }
 
-    /// Gets a variable that tracks if this command has any enabled live handlers.
+    /// Gets a variable that tracks if this command has any enabled handlers.
     pub fn is_enabled(&self) -> ReadOnlyArcVar<bool> {
         let mut write = self.local.write();
         match self.scope {
@@ -382,6 +388,8 @@ impl Command {
     }
 
     /// Calls `visitor` for each scope of this command.
+    ///
+    /// Note that scoped commands are removed if unused, see [`with_meta`](Self::with_meta) for more details.
     pub fn visit_scopes(&self, mut visitor: impl FnMut(Command)) {
         let read = self.local.read();
         for &scope in read.scopes.keys() {
@@ -427,7 +435,7 @@ impl Command {
     /// Creates a preview event handler for the command.
     ///
     /// This is similar to [`Event::on_pre_event`], but `handler` is only called if the command
-    /// scope matches and a command subscription exists for the lifetime of the handler.
+    /// scope matches.
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
@@ -444,7 +452,7 @@ impl Command {
     /// Creates an event handler for the command.
     ///
     /// This is similar to [`Event::on_event`], but `handler` is only called if the command
-    /// scope matches and a command subscription exists for the lifetime of the handler.
+    /// scope matches.
     ///
     /// The `enabled` parameter defines the initial state of the command subscription, the subscription
     /// handle is available in the handler args.
@@ -532,8 +540,7 @@ pub enum CommandScope {
     /// Scope of a window.
     ///
     /// Note that the window scope is different from the window root widget scope, the metadata store and command
-    /// handles are different, but events targeting a window also target that window's root, so subscribers that
-    /// may be set on a window's root should probably subscribe to both scopes.
+    /// handles are different, but subscribers set on the window root should probably also subscribe to the window scope.
     Window(WindowId),
     /// Scope of a widget.
     Widget(WidgetId),
@@ -583,9 +590,10 @@ impl CommandArgs {
         self.param.as_ref().and_then(|p| p.downcast_ref::<T>())
     }
 
-    /// Returns [`param`] if is enabled interaction.
+    /// Returns [`param`] if is [`enabled`].
     ///
     /// [`param`]: Self::param()
+    /// [`enabled`]: Self::enabled
     pub fn enabled_param<T: Any>(&self) -> Option<&T> {
         if self.enabled {
             self.param::<T>()
@@ -594,9 +602,10 @@ impl CommandArgs {
         }
     }
 
-    /// Returns [`param`] if is disabled interaction.
+    /// Returns [`param`] if is not [`enabled`].
     ///
     /// [`param`]: Self::param()
+    /// [`enabled`]: Self::enabled
     pub fn disabled_param<T: Any>(&self) -> Option<&T> {
         if !self.enabled {
             self.param::<T>()
@@ -605,7 +614,8 @@ impl CommandArgs {
         }
     }
 
-    /// Stops propagation and call `handler` if the command and local handler are enabled and was not handled.
+    /// Call `handler` if propagation is not stopped and the command and local handler are enabled. Stops propagation
+    /// after `handler` is called.
     ///
     /// This is the default behavior of commands, when a command has a handler it is *relevant* in the context, and overwrites
     /// lower priority handlers, but if the handler is disabled the command primary action is not run.
@@ -616,13 +626,13 @@ impl CommandArgs {
     where
         F: FnOnce(&Self) -> R,
     {
-        let mut result = None;
-        self.handle(|args| {
-            if args.enabled && local_handle.is_enabled() {
-                result = Some(handler(args));
-            }
-        });
-        result
+        if self.propagation().is_stopped() || self.enabled || local_handle.is_enabled() {
+            None
+        } else {
+            let r = handler(self);
+            self.propagation().stop();
+            Some(r)
+        }
     }
 }
 
@@ -664,7 +674,7 @@ impl AnyEventArgs for AppCommandArgs {
 }
 impl EventArgs for AppCommandArgs {}
 
-/// A handle to a [`Command`].
+/// A handle to a [`Command`] subscription.
 ///
 /// Holding the command handle indicates that the command is relevant in the current app state.
 /// The handle needs to be enabled to indicate that the command primary action can be executed.
@@ -778,7 +788,7 @@ impl Default for CommandHandle {
     }
 }
 
-/// Represents a reference counted `dyn Any` object.
+/// Represents a reference counted `dyn Any` object parameter for a command request.
 #[derive(Clone)]
 pub struct CommandParam(pub Arc<dyn Any + Send + Sync>);
 impl PartialEq for CommandParam {
@@ -869,8 +879,8 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///
 /// # Examples
 ///
-/// /// The [`command!`] initialization transforms `foo: true,` to `command.init_foo(true);`, to support that, the command extension trait
-/// must has `foo` and `init_foo` methods.
+/// The [`command!`] initialization transforms `foo: true,` to `command.init_foo(true);`, to support that, the command extension trait
+/// must have a `foo` and `init_foo` methods.
 ///
 /// ```
 /// use zero_ui_app::{event::*, var::*};
@@ -988,7 +998,7 @@ impl<'a> CommandMeta<'a> {
         }
     }
 
-    /// Set the metadata value only if it was not set.
+    /// Set the metadata value only if it is not set.
     ///
     /// This does not set the scoped override, only the command type metadata.
     pub fn init<T>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>)
@@ -1000,8 +1010,7 @@ impl<'a> CommandMeta<'a> {
 
     /// Clone a meta variable identified by a [`CommandMetaVarId`].
     ///
-    /// The variable is read-write and is clone-on-write if the command is scoped,
-    /// call [`read_only`] to make it read-only.
+    /// The variable is read-write and is clone-on-write if the command is scoped.
     ///
     /// [`read_only`]: Var::read_only
     pub fn get_var_or_insert<T, F>(&mut self, id: impl Into<CommandMetaVarId<T>>, init: F) -> CommandMetaVar<T>
@@ -1025,7 +1034,7 @@ impl<'a> CommandMeta<'a> {
         }
     }
 
-    /// Clone a meta variable identified by a [`CommandMetaVarId`] it is was set.
+    /// Clone a meta variable identified by a [`CommandMetaVarId`], if it is set.
     pub fn get_var<T>(&self, id: impl Into<CommandMetaVarId<T>>) -> Option<CommandMetaVar<T>>
     where
         T: StateValue + VarValue,
@@ -1065,11 +1074,10 @@ impl<'a> CommandMeta<'a> {
 
 /// Read-write command metadata variable.
 ///
-/// If you get this variable from a not scoped command, setting it sets
-/// the value for all scopes. If you get this variable using a scoped command,
-/// setting it overrides only the value for the scope.
-///
 /// The boxed var is an [`ArcVar<T>`] for *app* scope, or [`ArcCowVar<T, ArcVar<T>>`] for scoped commands.
+/// If you get this variable from an app scoped command it sets
+/// the value for all scopes. If you get this variable using a scoped command,
+/// it is a clone-on-write variable that overrides only the value for the scope.
 pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.
@@ -1079,7 +1087,7 @@ pub type CommandMetaVar<T> = BoxedVar<T>;
 /// [`read_only`]: Var::read_only
 pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>;
 
-/// Adds the [`name`](CommandNameExt) metadata.
+/// Adds the [`name`](CommandNameExt) command metadata.
 pub trait CommandNameExt {
     /// Gets a read-write variable that is the display name for the command.
     fn name(self) -> CommandMetaVar<Txt>;
@@ -1142,7 +1150,7 @@ impl CommandNameExt for Command {
     }
 }
 
-/// Adds the [`info`](CommandInfoExt) metadata.
+/// Adds the [`info`](CommandInfoExt) command metadata.
 pub trait CommandInfoExt {
     /// Gets a read-write variable that is a short informational string about the command.
     fn info(self) -> CommandMetaVar<Txt>;

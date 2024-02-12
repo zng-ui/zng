@@ -15,9 +15,9 @@ use task::parking_lot::RwLock;
 
 /// Data context.
 ///
-/// Sets the [`DATA`] context for this widget and descendants, replacing the parent's data. 
-/// 
-/// Note that only one data context can be set at a time, the `data` will override the parent's 
+/// Sets the [`DATA`] context for this widget and descendants, replacing the parent's data.
+///
+/// Note that only one data context can be set at a time, the `data` will override the parent's
 /// data even if the type `T` does not match.
 #[property(CONTEXT - 1)]
 pub fn data<T: VarValue>(child: impl UiNode, data: impl IntoVar<T>) -> impl UiNode {
@@ -291,7 +291,7 @@ pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> i
 ///
 /// This service enables data flow from a context to descendants, and from descendants up-to contexts, like an anonymous context var.
 ///
-/// Arbitrary data can be set on a context using the [`data`] property and retrieved using [`DATA.get`] or [`DATA.req`]. 
+/// Arbitrary data can be set on a context using the [`data`] property and retrieved using [`DATA.get`] or [`DATA.req`].
 /// Only one data entry and type can exist in a context, nested [`data`] properties override the parent data and type in their context.
 ///
 /// Annotation on the data can be set back using [`DATA.annotate`] and can be retrieved using the [`get_data_notes`] property,

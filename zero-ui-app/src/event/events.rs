@@ -49,13 +49,6 @@ impl EventsService {
 /// App events and commands service.
 pub struct EVENTS;
 impl EVENTS {
-    /// Schedules the raw event update.
-    pub fn notify(&self, update: EventUpdate) {
-        UpdatesTrace::log_event(update.event);
-        EVENTS_SV.write().updates.get_mut().push(update);
-        UPDATES.send_awake();
-    }
-
     /// Commands that had handles generated in this app.
     ///
     /// When [`Command::subscribe`] is called for the first time in an app, the command gets added
@@ -64,6 +57,13 @@ impl EVENTS {
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> Vec<Command> {
         EVENTS_SV.read().commands.clone()
+    }
+
+    /// Schedules the raw event update.
+    pub fn notify(&self, update: EventUpdate) {
+        UpdatesTrace::log_event(update.event);
+        EVENTS_SV.write().updates.get_mut().push(update);
+        UPDATES.send_awake();
     }
 
     #[must_use]

@@ -1213,7 +1213,7 @@ pub fn focus_continued_after_widget_id_move() {
                     id = "some_other_place";
                     child = Button! { id; child = Text!("Button 1") };
                 });
-            } else if a.is_nil() {
+            } else if a.view_is_nil() {
                 a.set_view(Wgt! { focusable = true; id; });
             }
         }),

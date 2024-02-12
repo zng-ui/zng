@@ -29,14 +29,9 @@ impl<D: VarValue> DataViewArgs<D> {
         &self.data
     }
 
-    /// If the current child is [`NilUiNode`];
-    pub fn is_nil(&self) -> bool {
-        self.is_nil
-    }
-
-    /// Get the current data value if [`is_nil`] or [`data`] is new.
+    /// Get the current data value if [`view_is_nil`] or [`data`] is new.
     ///
-    /// [`is_nil`]: Self::is_nil
+    /// [`view_is_nil`]: Self::view_is_nil
     /// [`data`]: Self::data
     pub fn get_new(&self) -> Option<D> {
         if self.is_nil {
@@ -44,6 +39,11 @@ impl<D: VarValue> DataViewArgs<D> {
         } else {
             self.data.get_new()
         }
+    }
+
+    /// If the current child is [`NilUiNode`];
+    pub fn view_is_nil(&self) -> bool {
+        self.is_nil
     }
 
     /// Replace the child node.
@@ -61,10 +61,35 @@ impl<D: VarValue> DataViewArgs<D> {
 
 /// Dynamically presents a data variable.
 ///
-/// The `update` widget handler is used to generate the view UI from the `data`, it is called on init and
-/// every time `data` or `update` are new. The view is set by calling [`DataViewArgs::set_view`] in the widget function
-/// args, note that the data variable is available in [`DataViewArgs::data`], a good view will bind to the variable
-/// to support some changes, only replacing the UI for major changes.
+/// # Shorthand
+///
+/// The `DataView!` macro provides a shorthand init that sets `view` property directly.
+///
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt_data_view::*;
+/// # use zero_ui_wgt::prelude::*;
+/// # fn main() { }
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
+/// DataView!(::<T>, data, update)
+/// # }
+/// ```
+///
+/// Note that the first argument is a *turbo-fish* that defines the data type and is required.
+///
+/// The shorthand is above expands to:
+///
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt_data_view::*;
+/// # use zero_ui_wgt::prelude::*;
+/// # fn main() { }
+/// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
+/// DataView! {
+///     view::<T> = { data: data, update: update };
+/// }
+/// # }
+/// ```
 #[widget($crate::DataView {
     (::<$T:ty>, $data:expr, $update:expr $(,)?) => {
         view::<$T> = {
@@ -89,7 +114,10 @@ impl DataView {
 
 /// The view generator.
 ///
-/// See [`DataView!`] for more details.
+/// The `update` widget handler is used to generate the view from the `data`, it is called on init and
+/// every time `data` or `update` are new. The view is set by calling [`DataViewArgs::set_view`] in the widget function
+/// args, note that the data variable is available in [`DataViewArgs::data`], a good view will bind to the variable
+/// to support some changes, only replacing the view for major changes.
 ///
 /// [`DataView!`]: struct@DataView
 #[property(CHILD, widget_impl(DataView))]
