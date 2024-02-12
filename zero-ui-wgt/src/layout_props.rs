@@ -101,7 +101,7 @@ pub enum InlineMode {
     Allow,
     /// Widget always does inline.
     ///
-    /// If the parent layout does not setup an inline layout environment the widget it-self will. This
+    /// If the parent layout does not setup an inline layout environment the widget itself will. This
     /// can be used to force the inline visual, such as background clipping or any other special visual
     /// that is only enabled when the widget is inlined.
     ///

@@ -1967,10 +1967,10 @@ impl FocusInfoData {
 }
 
 /// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
-/// 
+///
 /// There are multiple focusable metadata that can be set on a widget. These rules define how the focusable
 /// state of an widget is derived from the focusable metadata.
-/// 
+///
 /// ### Rules
 ///
 /// The widget is not focusable nor a focus scope if it set [`focusable`](Self::focusable) to `false`.

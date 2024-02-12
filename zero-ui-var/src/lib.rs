@@ -716,7 +716,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 
 /// A value-to-var conversion that consumes the value.
 ///
-/// Every [`Var<T>`] implements this to convert to it-self, every [`VarValue`] implements this to
+/// Every [`Var<T>`] implements this to convert to itself, every [`VarValue`] implements this to
 /// convert to an [`LocalVar<T>`].
 ///
 /// This trait is used by most properties, it allows then to accept literal values, variables and context variables

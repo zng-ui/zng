@@ -48,7 +48,7 @@ impl Scrollbar {
 /// Thumb widget.
 ///
 /// Recommended widget is [`Thumb!`], but can be any widget that implements
-/// thumb behavior and tags it-self in the frame.
+/// thumb behavior and tags itself in the frame.
 ///
 /// [`Thumb!`]: struct@super::Thumb
 #[property(CHILD, capture, default(super::Thumb!()), widget_impl(Scrollbar))]

@@ -5,7 +5,8 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::focus`.
+        - Last reviewing `zero_ui::font`.
+            - Last reviewed `FontChangedArgs`
 
 # Publish
 

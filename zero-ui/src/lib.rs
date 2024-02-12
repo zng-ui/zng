@@ -425,7 +425,7 @@
 //! ```
 //!
 //! In the example above the container widget sets an exact size using `layout::size` with exact units, the
-//! button widget sets a relative size using percentage units and positions it-self in the container using `layout::align`.
+//! button widget sets a relative size using percentage units and positions itself in the container using `layout::align`.
 //! All the layout properties are stand-alone, in the example only the text widget implements layout directly. Layout
 //! properties modify the layout context by setting constraints and defining units, this context is available for all
 //! properties that need it during layout, see the [`layout`] module documentation for more details.

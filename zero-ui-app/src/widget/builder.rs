@@ -1875,7 +1875,7 @@ impl WidgetBuilder {
     /// affect the properties are cloned or moved into the new builder.
     ///
     /// Note that properties can depend on others in the widget contextually, this is not preserved on split-off.
-    /// The canonical usage of split-off is the `style` property, that dynamically (re)builds widgets and is it-self a variable
+    /// The canonical usage of split-off is the `style` property, that dynamically (re)builds widgets and is itself a variable
     /// that can be affected by `when` blocks to a limited extent.
     pub fn split_off(&mut self, properties: impl IntoIterator<Item = PropertyId>, out: &mut WidgetBuilder) {
         self.split_off_impl(properties.into_iter().collect(), out)

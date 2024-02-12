@@ -229,7 +229,7 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 /// Sets a [`Point`] that is an offset applied to all inner images within each image widget area.
 ///
 /// Relative values are calculated from the widget final size. Note that this is different the applying the
-/// `offset` property on the widget it-self, the widget is not moved just the image within the widget area.
+/// `offset` property on the widget itself, the widget is not moved just the image within the widget area.
 ///
 /// This property sets the [`IMAGE_OFFSET_VAR`]. By default no offset is applied.
 ///

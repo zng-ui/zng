@@ -40,7 +40,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
 
     /// Box the handler.
     ///
-    /// The type `Box<dyn WidgetHandler<A>>` implements `WidgetHandler<A>` and just returns it-self
+    /// The type `Box<dyn WidgetHandler<A>>` implements `WidgetHandler<A>` and just returns itself
     /// in this method, avoiding double boxing.
     fn boxed(self) -> Box<dyn WidgetHandler<A>>
     where
@@ -615,7 +615,7 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
 
     /// Boxes the handler.
     ///
-    /// The type `Box<dyn AppHandler<A>>` implements `AppHandler<A>` and just returns it-self
+    /// The type `Box<dyn AppHandler<A>>` implements `AppHandler<A>` and just returns itself
     /// in this method, avoiding double boxing.
     fn boxed(self) -> Box<dyn AppHandler<A>>
     where

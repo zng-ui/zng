@@ -71,8 +71,8 @@ impl ColorPalettes {
     }
 
     /// Load the table, if present in the font.
-    pub fn load(ft: &font_kit::font::Font) -> std::io::Result<Self> {
-        let table = match ft.load_font_table(CPAL) {
+    pub fn load(font_kit_font: &font_kit::font::Font) -> std::io::Result<Self> {
+        let table = match font_kit_font.load_font_table(CPAL) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
@@ -166,7 +166,7 @@ impl ColorPalettes {
         self.num_palettes == 0
     }
 
-    /// Gets the requested palette or the first it it is not found.
+    /// Gets the requested palette or the first if it is not found.
     pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette> {
         let i = self.palette_i(p.into());
         self.palette_get(i.unwrap_or(0))
@@ -264,8 +264,8 @@ impl ColorGlyphs {
     }
 
     /// Load the table, if present in the font.
-    pub fn load(ft: &font_kit::font::Font) -> std::io::Result<Self> {
-        let table = match ft.load_font_table(COLR) {
+    pub fn load(font_kit_font: &font_kit::font::Font) -> std::io::Result<Self> {
+        let table = match font_kit_font.load_font_table(COLR) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
@@ -343,7 +343,7 @@ impl ColorGlyphs {
     /// to the front (last item). Paired with each glyph is an index in the font's [`ColorPalette::colors`] or
     /// `None` if the base text color must be used.
     ///
-    /// Yields the `base_glyph` with `None` color if it the font does not provide colored replacements for it.
+    /// Yields the `base_glyph` with no palette color if the font does not provide colored replacements for it.
     pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph> {
         match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
             Ok(i) => {

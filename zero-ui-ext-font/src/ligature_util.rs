@@ -29,8 +29,8 @@ impl LigatureCaretList {
         }
     }
 
-    pub fn load(ft: &font_kit::font::Font) -> std::io::Result<Self> {
-        let table = match ft.load_font_table(GDEF) {
+    pub fn load(font_kit_font: &font_kit::font::Font) -> std::io::Result<Self> {
+        let table = match font_kit_font.load_font_table(GDEF) {
             Some(d) => d,
             None => return Ok(Self::empty()),
         };

@@ -62,7 +62,7 @@ impl Popup {
 impl_style_fn!(Popup);
 
 context_var! {
-    /// If popup will close when it it is no longer contains the focused widget.
+    /// If popup will close when it no longer contains the focused widget.
     ///
     /// Is `true` by default.
     pub static CLOSE_ON_FOCUS_LEAVE_VAR: bool = true;

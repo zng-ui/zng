@@ -250,7 +250,7 @@ impl Command {
     /// A handle indicates that command handlers are present in the current app, the `enabled` flag
     /// indicates the handler is ready to fulfill command requests.
     ///
-    /// If the command is scoped on a window or widget it it is added to the command event subscribers.
+    /// If the command is scoped on a window or widget if it is added to the command event subscribers.
     pub fn subscribe(&self, enabled: bool) -> CommandHandle {
         let mut evs = EVENTS_SV.write();
         self.local.write().subscribe(&mut evs, *self, enabled, None)

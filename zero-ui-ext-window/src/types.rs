@@ -242,7 +242,7 @@ impl WindowIcon {
     /// the closure runs in a headless window context, it must return a node to be rendered as an icon.
     ///
     /// The icon node is deinited and dropped after the first render, you can enable [`image::render_retain`] on it
-    /// to cause the icon to re-render when the node it-self updates. Note that just because you can update the icon
+    /// to cause the icon to re-render when the node itself updates. Note that just because you can update the icon
     /// does not mean that animating it is a good idea.
     ///
     /// [`image::render_retain`]: fn@zero_ui_ext_image::render_retain

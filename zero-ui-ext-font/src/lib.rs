@@ -780,12 +780,12 @@ impl FONTS {
         self.find(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
-    /// Find a single font face with italic italic style and normal weight and stretch.
+    /// Find a single font face with italic style, normal weight and stretch.
     pub fn italic(&self, family: &FontName, lang: &Lang) -> ResponseVar<Option<FontFace>> {
         self.find(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
-    /// Find a single font face with bold weight and normal style and stretch.
+    /// Find a single font face with bold weight, normal style and stretch.
     pub fn bold(&self, family: &FontName, lang: &Lang) -> ResponseVar<Option<FontFace>> {
         self.find(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
     }
@@ -2390,8 +2390,6 @@ enum FontSource {
 }
 
 /// Custom font builder.
-///
-/// A custom font has a name and a source,
 #[derive(Debug, Clone)]
 pub struct CustomFont {
     name: FontName,
@@ -2406,6 +2404,8 @@ impl CustomFont {
     /// If the file is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
     /// The font is loaded in [`FONTS.register`].
+    ///
+    /// [`FONTS.register`]: FONTS::register
     pub fn from_file<N: Into<FontName>, P: Into<PathBuf>>(name: N, path: P, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -2421,6 +2421,8 @@ impl CustomFont {
     /// If the font data is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
     /// The font is loaded in [`FONTS.register`].
+    ///
+    /// [`FONTS.register`]: FONTS::register
     pub fn from_bytes<N: Into<FontName>>(name: N, data: FontDataRef, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -2434,6 +2436,8 @@ impl CustomFont {
     /// A custom font that maps to another font.
     ///
     /// The font is loaded in [`FONTS.register`].
+    ///
+    /// [`FONTS.register`]: FONTS::register
     pub fn from_other<N: Into<FontName>, O: Into<FontName>>(name: N, other_font: O) -> Self {
         CustomFont {
             name: name.into(),
@@ -3120,7 +3124,7 @@ impl fmt::Debug for WhiteSpace {
 }
 
 /// Defines an insert offset in a shaped text.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CaretIndex {
     /// Char byte offset in the full text.
     ///
@@ -3128,10 +3132,11 @@ pub struct CaretIndex {
     pub index: usize,
     /// Line index in the shaped text.
     ///
-    /// Note that this counts wrap lines, this value is used to disambiguate
-    /// between the *end* of a wrap and the *start* of the next, the text
-    /// it-self does not have any line break but visually the user interacts
-    /// with two lines.
+    /// This value is only used to disambiguate between the *end* of a wrap and
+    /// the *start* of the next, the text itself does not have any line
+    /// break but visually the user interacts with two lines. Note that this
+    /// counts wrap lines, and that this value is not required to define a valid
+    /// CaretIndex.
     ///
     /// This index can be computed using the [`ShapedText::snap_caret_line`].
     pub line: usize,
