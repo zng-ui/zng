@@ -3950,16 +3950,6 @@ pub enum OutlineHintingOptions {
     /// do.
     Full(f32),
 }
-impl OutlineHintingOptions {
-    /// Returns the point size that will be used for grid fitting, if any.
-    #[inline]
-    pub fn grid_fitting_size(&self) -> Option<f32> {
-        match *self {
-            Self::None => None,
-            Self::Vertical(size) | Self::VerticalSubpixel(size) | Self::Full(size) => Some(size),
-        }
-    }
-}
 impl From<OutlineHintingOptions> for font_kit::hinting::HintingOptions {
     fn from(value: OutlineHintingOptions) -> Self {
         use font_kit::hinting::HintingOptions::*;

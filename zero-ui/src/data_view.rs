@@ -12,7 +12,7 @@
 //! fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
 //!     DataView!(::<usize>, n, hn!(|a: &DataViewArgs<usize>| {
 //!         // we generate a new view on the first call or when the data has changed to zero.
-//!         if a.is_nil() || a.data().get_new() == Some(0) {
+//!         if a.view_is_nil() || a.data().get_new() == Some(0) {
 //!             a.set_view(if a.data().get() > 0 {
 //!                 // countdown view
 //!                 Text! {
