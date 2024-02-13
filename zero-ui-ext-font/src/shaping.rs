@@ -15,8 +15,8 @@ use zero_ui_txt::Txt;
 use zero_ui_view_api::webrender_api::{self, units::LayoutVector2D, GlyphIndex, GlyphInstance};
 
 use crate::{
-    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, HYPHENATION, Hyphens, LineBreak, SegmentedText, TextSegment,
-    WordBreak,
+    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
+    HYPHENATION,
 };
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
@@ -69,16 +69,16 @@ pub struct TextShapingArgs {
 
     /// World break config.
     ///
-    /// This value is only considered if it is impossible to fit the a word to a line.
+    /// This value is only considered if it is impossible to fit the word to a line.
     pub word_break: WordBreak,
 
     /// Hyphen breaks config.
     pub hyphens: Hyphens,
 
-    /// Character rendered when text is auto-hyphenated.
+    /// Character rendered when text is hyphenated by break.
     pub hyphen_char: Txt,
 
-    /// Replacement char if the text must be obscured.
+    /// Obscure the text with the replacement char.
     pub obscuring_char: Option<char>,
 }
 impl Default for TextShapingArgs {
@@ -1735,7 +1735,7 @@ pub struct TextOverflowInfo {
     /// All segments in this line and next lines are fully overflown. The previous line line may
     /// be partially overflown, the lines before that are fully visible.
     ///
-    /// Is the [`ShapedText::lines_len`] if the last line is partially not overflown.
+    /// Is the [`ShapedText::lines_len`] if the last line is fully visible.
     pub line: usize,
 
     /// First overflow character in the text.
@@ -3811,10 +3811,11 @@ impl Font {
 
         let scale = self.metrics().size_scale;
 
-        self.face()
-            .font_kit()
-            .ok_or(GlyphLoadingError::NoSuchGlyph)?
-            .outline(glyph_id, hinting_options, &mut AdapterSink { sink, scale })
+        self.face().font_kit().ok_or(GlyphLoadingError::NoSuchGlyph)?.outline(
+            glyph_id,
+            hinting_options.into(),
+            &mut AdapterSink { sink, scale },
+        )
     }
 
     /// Returns the boundaries of a glyph in pixel units.
@@ -3922,8 +3923,54 @@ impl Font {
     }
 }
 
-/// Hinting options for [`Font::outline`].
-pub type OutlineHintingOptions = font_kit::hinting::HintingOptions;
+/// Specifies how hinting (grid fitting) is to be performed (or not performed) for [`Font::outline`].
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum OutlineHintingOptions {
+    /// No hinting is performed unless absolutely necessary to assemble the glyph.
+    ///
+    /// This corresponds to what macOS and FreeType in its "no hinting" mode do.
+    None,
+
+    /// Hinting is performed only in the vertical direction. The specified point size is used for
+    /// grid fitting.
+    ///
+    /// This corresponds to what DirectWrite and FreeType in its light hinting mode do.
+    Vertical(f32),
+
+    /// Hinting is performed only in the vertical direction, and further tweaks are applied to make
+    /// subpixel antialiasing look better. The specified point size is used for grid fitting.
+    ///
+    /// This matches DirectWrite, GDI in its ClearType mode, and FreeType in its LCD hinting mode.
+    VerticalSubpixel(f32),
+
+    /// Hinting is performed in both horizontal and vertical directions. The specified point size
+    /// is used for grid fitting.
+    ///
+    /// This corresponds to what GDI in non-ClearType modes and FreeType in its normal hinting mode
+    /// do.
+    Full(f32),
+}
+impl OutlineHintingOptions {
+    /// Returns the point size that will be used for grid fitting, if any.
+    #[inline]
+    pub fn grid_fitting_size(&self) -> Option<f32> {
+        match *self {
+            Self::None => None,
+            Self::Vertical(size) | Self::VerticalSubpixel(size) | Self::Full(size) => Some(size),
+        }
+    }
+}
+impl From<OutlineHintingOptions> for font_kit::hinting::HintingOptions {
+    fn from(value: OutlineHintingOptions) -> Self {
+        use font_kit::hinting::HintingOptions::*;
+        match value {
+            OutlineHintingOptions::None => None,
+            OutlineHintingOptions::Vertical(s) => Vertical(s),
+            OutlineHintingOptions::VerticalSubpixel(s) => VerticalSubpixel(s),
+            OutlineHintingOptions::Full(s) => Full(s),
+        }
+    }
+}
 
 /// Receives Bézier path rendering commands from [`Font::outline`].
 ///

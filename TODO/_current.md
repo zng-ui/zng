@@ -6,7 +6,6 @@
 * Review docs.
     - Do a full read, look for typos or failed links.
         - Last reviewing `zero_ui::font`.
-            - Last reviewed `HYPHENATION`
 
 # Publish
 

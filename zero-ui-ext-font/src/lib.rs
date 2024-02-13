@@ -67,8 +67,6 @@ use zero_ui_var::{
 use zero_ui_view_api::webrender_api as wr;
 use zero_ui_view_api::{config::FontAntiAliasing, ViewProcessOffline};
 
-pub use font_kit::properties::Style as FontStyle;
-
 /// Font family name.
 ///
 /// A possible value for the `font_family` property.
@@ -588,9 +586,14 @@ pub enum FontChange {
     SystemFonts,
 
     /// Custom fonts change caused by call to [`FONTS.register`] or [`FONTS.unregister`].
+    ///
+    /// [`FONTS.register`]: FONTS::register
+    /// [`FONTS.unregister`]: FONTS::unregister
     CustomFonts,
 
     /// Custom request caused by call to [`FONTS.refresh`].
+    ///
+    /// [`FONTS.refresh`]: FONTS::refresh
     Refesh,
 
     /// One of the [`GenericFonts`] was set for the language.
@@ -603,7 +606,7 @@ pub enum FontChange {
 }
 
 /// Application extension that manages text fonts.
-/// 
+///
 /// Services this extension provides:
 ///
 /// * [`FONTS`] - Service that finds and loads fonts.
@@ -911,7 +914,7 @@ impl FontFace {
             postscript_name: None,
             is_monospace: true,
             properties: font_kit::properties::Properties {
-                style: FontStyle::Normal,
+                style: FontStyle::Normal.into(),
                 weight: FontWeight::NORMAL.into(),
                 stretch: FontStretch::NORMAL.into(),
             },
@@ -1026,7 +1029,7 @@ impl FontFace {
             family_name: custom_font.name,
             postscript_name: None,
             properties: font_kit::properties::Properties {
-                style: custom_font.style,
+                style: custom_font.style.into(),
                 weight: custom_font.weight.into(),
                 stretch: custom_font.stretch.into(),
             },
@@ -1220,7 +1223,7 @@ impl FontFace {
 
     /// Font style.
     pub fn style(&self) -> FontStyle {
-        self.0.properties.style
+        self.0.properties.style.into()
     }
 
     /// Font weight.
@@ -2035,7 +2038,7 @@ impl FontFaceLoader {
         match font_kit::source::SystemSource::new().select_best_match(
             &[family_name],
             &font_kit::properties::Properties {
-                style,
+                style: style.into(),
                 weight: weight.into(),
                 stretch: stretch.into(),
             },
@@ -2605,9 +2608,53 @@ impl From<font_kit::properties::Stretch> for FontStretch {
     }
 }
 
+/// The italic or oblique form of a font.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub enum FontStyle {
+    /// The regular form.
+    #[default]
+    Normal,
+    /// A form that is generally cursive in nature.
+    Italic,
+    /// A skewed version of the regular form.
+    Oblique,
+}
+impl fmt::Debug for FontStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "FontStyle::")?;
+        }
+        match self {
+            Self::Normal => write!(f, "Normal"),
+            Self::Italic => write!(f, "Italic"),
+            Self::Oblique => write!(f, "Oblique"),
+        }
+    }
+}
+impl From<FontStyle> for font_kit::properties::Style {
+    fn from(value: FontStyle) -> Self {
+        use font_kit::properties::Style::*;
+        match value {
+            FontStyle::Normal => Normal,
+            FontStyle::Italic => Italic,
+            FontStyle::Oblique => Oblique,
+        }
+    }
+}
+impl From<font_kit::properties::Style> for FontStyle {
+    fn from(value: font_kit::properties::Style) -> Self {
+        use font_kit::properties::Style::*;
+        match value {
+            Normal => FontStyle::Normal,
+            Italic => FontStyle::Italic,
+            Oblique => FontStyle::Oblique,
+        }
+    }
+}
+
 /// The degree of stroke thickness of a font. This value ranges from 100.0 to 900.0,
 /// with 400.0 as normal.
-#[derive(Clone, Copy, Transitionable)]
+#[derive(Clone, Copy, Transitionable, serde::Serialize, serde::Deserialize)]
 pub struct FontWeight(pub f32);
 impl Default for FontWeight {
     fn default() -> FontWeight {

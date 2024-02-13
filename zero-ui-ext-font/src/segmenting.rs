@@ -35,7 +35,7 @@ impl TextSegment {
 
 /// A string segmented in sequences of words, spaces, tabs and separated line breaks.
 ///
-/// Each segment is tagged with a [`TextSegmentKind`] and is represented as
+/// Each segment is tagged with a [`TextSegmentKind`] and is defines as
 /// an offset from the last segment.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SegmentedText {
