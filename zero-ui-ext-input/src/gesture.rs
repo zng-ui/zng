@@ -1071,7 +1071,7 @@ impl WeakShortcutsHandle {
 
 /// Extension trait that adds gesture simulation methods to [`HeadlessApp`].
 pub trait HeadlessAppGestureExt {
-    /// Does key presses to mimic the shortcut and updates.
+    /// Generates key press events to mimic the shortcut and updates.
     fn press_shortcut(&mut self, window_id: WindowId, shortcut: impl Into<Shortcut>);
 }
 impl HeadlessAppGestureExt for HeadlessApp {

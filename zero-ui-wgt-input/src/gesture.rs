@@ -42,7 +42,7 @@ event_property! {
         with: access_click,
     }
 
-    /// On widget click from any source but exclusive double-clicks and the widget is enabled.
+    /// On widget double click from any source and the widget is enabled.
     ///
     /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is two. Use
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
@@ -52,7 +52,7 @@ event_property! {
         filter: |args| args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
-    /// On widget click from any source but exclusive triple-clicks and the widget is enabled.
+    /// On widget triple click from any source and the widget is enabled.
     ///
     /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is three. Use
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
@@ -85,7 +85,7 @@ event_property! {
         with: access_click,
     }
 
-    /// On widget click with the primary button and exclusive double-clicks and the widget is enabled.
+    /// On widget double click with the primary button and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is two. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
@@ -95,7 +95,7 @@ event_property! {
         filter: |args| args.is_primary() && args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
-    /// On widget click with the primary button and exclusive triple-clicks and the widget is enabled.
+    /// On widget triple click with the primary button and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is three. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.

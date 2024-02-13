@@ -952,7 +952,7 @@ where
 /// # }
 /// ```
 ///
-/// The closure input is `A, Box<dyn AppWeakHandle>` for all handlers and `ClickArgs` for this property. Note that
+/// The closure input is `A, Box<dyn AppWeakHandle>` for all handlers and `A` is `ClickArgs` for this example. Note that
 /// if you want to use the event args you must annotate the input type, the context and handle types are inferred.
 ///
 /// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
