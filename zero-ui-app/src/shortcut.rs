@@ -16,7 +16,7 @@ use crate::event::{Command, CommandMetaVar, StaticCommandMetaVarId};
 
 /// A keyboard key used in a gesture.
 ///
-/// Gesture keys are case-insensitive, [`Key::Char`] and  is matched as case-insensitive.
+/// Gesture keys are case-insensitive, [`Key::Char`] is matched as case-insensitive.
 ///
 /// Note that not all keys work well as gesture keys, you can use `try_into` to filter [`Key`] or [`KeyCode`] values
 /// that do not work.
