@@ -44,6 +44,8 @@ pub use transform::*;
 mod vector;
 pub use vector::*;
 
+use crate::context::LayoutMask;
+
 /// Implement From<{tuple of Into<Length>}> and IntoVar for Length compound types.
 macro_rules! impl_length_comp_conversions {
     ($(

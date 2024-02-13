@@ -150,8 +150,7 @@ impl TOUCH {
     ///
     /// In headless apps the default is [`TouchConfig::default`] and does not change.
     ///
-    /// Internally the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
-    /// this event to set this variable, if you really must.
+    /// Internally the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`] is listened to update this variable.
     pub fn touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
         TOUCH_SV.read().touch_config.read_only()
     }

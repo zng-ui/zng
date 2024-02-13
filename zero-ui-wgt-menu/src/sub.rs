@@ -360,6 +360,7 @@ pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
 /// multiple times to generate duplicates of the start cell.
 ///
 /// [`start_column`]: fn@start_column
+/// [`WidgetFn<()>`]: WidgetFn
 #[property(FILL)]
 pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     start_column(child, presenter((), cell_fn))
@@ -371,6 +372,7 @@ pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) 
 /// multiple times to generate duplicates of the start cell.
 ///
 /// [`end_column`]: fn@end_column
+/// [`WidgetFn<()>`]: WidgetFn
 #[property(FILL)]
 pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     end_column(child, presenter((), cell_fn))
@@ -474,6 +476,8 @@ impl DefaultStyle {
 }
 
 /// Style applied to all [`SubMenu!`] widgets inside other sub-menus.
+/// 
+/// [`SubMenu!`]: struct@SubMenu
 #[widget($crate::sub::SubMenuStyle)]
 pub struct SubMenuStyle(ButtonStyle);
 impl SubMenuStyle {

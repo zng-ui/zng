@@ -1041,7 +1041,7 @@ impl APP {
 impl APP {
     /// Gets a variable that configures if [`INSTANT.now`] is the same exact value during each update, info, layout or render pass.
     ///
-    /// Time is paused for each single pass by default, setting this to `false` will cause `INSTANT.now` to read
+    /// Time is paused for each single pass by default, setting this to `false` will cause [`INSTANT.now`] to read
     /// the system time for every call.
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now

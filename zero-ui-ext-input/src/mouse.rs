@@ -1419,8 +1419,7 @@ impl MOUSE {
     ///
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
     ///
-    /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
-    /// this event to set this variable, if you really must.
+    /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable.
     pub fn multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
         MOUSE_SV.read().multi_click_config.read_only()
     }

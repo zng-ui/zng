@@ -3,13 +3,12 @@ use super::{
 };
 use std::{fmt, mem, ops};
 
-use bitflags::bitflags;
 use zero_ui_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };
 
-use crate::context::LAYOUT;
+use crate::context::{LayoutMask, LAYOUT};
 
 /// 1D length units.
 ///
@@ -662,39 +661,6 @@ impl super::Layout1d for Length {
             PxF32(_) => LayoutMask::empty(),
             Expr(e) => e.affect_mask(),
         }
-    }
-}
-
-bitflags! {
-    /// Mask of values that can affect the [`Length::layout`] operation.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, bytemuck::NoUninit)]
-    #[repr(transparent)]
-    pub struct LayoutMask: u32 {
-        /// The `default_value`.
-        const DEFAULT_VALUE = 1 << 31;
-        /// The [`LayoutMetrics::constraints`], [`LayoutMetrics::z_constraints`] and [`LayoutMetrics::inline_constraints`].
-        const CONSTRAINTS = 1 << 30;
-
-        /// The [`LayoutMetrics::font_size`].
-        const FONT_SIZE = 1;
-        /// The [`LayoutMetrics::root_font_size`].
-        const ROOT_FONT_SIZE = 1 << 1;
-        /// The [`LayoutMetrics::scale_factor`].
-        const SCALE_FACTOR = 1 << 2;
-        /// The [`LayoutMetrics::viewport`].
-        const VIEWPORT = 1 << 3;
-        /// The [`LayoutMetrics::screen_ppi`].
-        const SCREEN_PPI = 1 << 4;
-        /// The [`LayoutMetrics::direction`].
-        const DIRECTION = 1 << 5;
-        /// The [`LayoutMetrics::leftover`] and [`LayoutMetrics::leftover_count`].
-        const LEFTOVER = 1 << 6;
-    }
-}
-impl Default for LayoutMask {
-    /// Empty.
-    fn default() -> Self {
-        LayoutMask::empty()
     }
 }
 

@@ -141,7 +141,7 @@ type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 /// Localized message variable builder.
 ///
 /// See [`L10N.message`] for more details.
-/// 
+///
 /// [`L10N.message`]: L10N::message
 pub struct L10nMessageBuilder {
     pub(super) file: Txt,

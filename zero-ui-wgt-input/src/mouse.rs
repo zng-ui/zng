@@ -49,70 +49,70 @@ event_property! {
         filter: |args| args.is_mouse_up() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse clicked on the widget with any button and including double+ clicks and the widget is enabled.
+    /// Mouse clicked on the widget with any button and including repeat clicks and it is enabled.
     pub fn mouse_any_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse clicked on the widget with any button and including double+ clicks and the widget is disabled.
+    /// Mouse clicked on the disabled widget with any button, including repeat clicks.
     pub fn disabled_mouse_any_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_disabled(WIDGET.id()),
     }
 
-    /// Mouse clicked on the widget with any button but excluding double+ clicks and the widget is enabled.
+    /// Mouse clicked on the widget with any button but excluding repeat clicks and it is enabled.
     pub fn mouse_any_single_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse double clicked on the widget with any button and the widget is enabled.
+    /// Mouse double clicked on the widget with any button and it is enabled.
     pub fn mouse_any_double_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse triple clicked on the widget with any button and the widget is enabled.
+    /// Mouse triple clicked on the widget with any button and it is enabled.
     pub fn mouse_any_triple_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse clicked on the widget with the primary button including double+ clicks and the widget is enabled.
+    /// Mouse clicked on the widget with the primary button including repeat clicks and it is enabled.
     pub fn mouse_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_primary() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse clicked on the widget with the primary button including double+ clicks and the widget is disabled.
+    /// Mouse clicked on the disabled widget with the primary button, including repeat clicks.
     pub fn disabled_mouse_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_primary() && args.is_disabled(WIDGET.id()),
     }
 
-    /// Mouse clicked on the widget with the primary button excluding double+ clicks and the widget is enabled.
+    /// Mouse clicked on the widget with the primary button excluding repeat clicks and it is enabled.
     pub fn mouse_single_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_primary() && args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse double clicked on the widget with the primary button and the widget is enabled.
+    /// Mouse double clicked on the widget with the primary button and it is enabled.
     pub fn mouse_double_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
         filter: |args| args.is_primary() && args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse triple clicked on the widget with the primary button and the widget is enabled.
+    /// Mouse triple clicked on the widget with the primary button and it is enabled.
     pub fn mouse_triple_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
@@ -152,14 +152,14 @@ event_property! {
         filter: |args| args.is_disabled(WIDGET.id()) && args.capture_allows(),
     }
 
-    /// Mouse wheel scrolled while pointer is hovering widget and the widget is enabled.
+    /// Mouse wheel scrolled while pointer is hovering widget and it is enabled.
     pub fn mouse_wheel {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
     }
 
-    /// Mouse wheel scrolled while pointer is hovering widget and the widget is disabled.
+    /// Mouse wheel scrolled while pointer is hovering widget and it is disabled.
     pub fn disabled_mouse_wheel {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,

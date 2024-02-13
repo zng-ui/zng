@@ -2,6 +2,7 @@
 
 use std::{fmt, sync::Arc};
 
+use bitflags::bitflags;
 use unicode_bidi::BidiDataSource as _;
 use zero_ui_app_context::context_local;
 use zero_ui_unit::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
@@ -9,7 +10,7 @@ use zero_ui_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
 
-use crate::unit::{LayoutAxis, LayoutMask, Ppi, PxConstraints, PxConstraints2d};
+use crate::unit::{LayoutAxis, Ppi, PxConstraints, PxConstraints2d};
 
 /// Current layout context.
 ///
@@ -216,7 +217,6 @@ impl LAYOUT {
 
     /// Context leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
     ///
-    /// [`leftover_count`]: Self::leftover_count
     /// [`Length::Leftover`]: crate::unit::Length::Leftover
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         LAYOUT_CTX.get().metrics.leftover()
@@ -921,5 +921,38 @@ impl From<TextSegmentKind> for unicode_bidi::BidiClass {
                 }
             },
         }
+    }
+}
+
+bitflags! {
+    /// Mask of values that can affect the layout operation of a value.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, bytemuck::NoUninit)]
+    #[repr(transparent)]
+    pub struct LayoutMask: u32 {
+        /// The `default_value`.
+        const DEFAULT_VALUE = 1 << 31;
+        /// The [`LayoutMetrics::constraints`], [`LayoutMetrics::z_constraints`] and [`LayoutMetrics::inline_constraints`].
+        const CONSTRAINTS = 1 << 30;
+
+        /// The [`LayoutMetrics::font_size`].
+        const FONT_SIZE = 1;
+        /// The [`LayoutMetrics::root_font_size`].
+        const ROOT_FONT_SIZE = 1 << 1;
+        /// The [`LayoutMetrics::scale_factor`].
+        const SCALE_FACTOR = 1 << 2;
+        /// The [`LayoutMetrics::viewport`].
+        const VIEWPORT = 1 << 3;
+        /// The [`LayoutMetrics::screen_ppi`].
+        const SCREEN_PPI = 1 << 4;
+        /// The [`LayoutMetrics::direction`].
+        const DIRECTION = 1 << 5;
+        /// The [`LayoutMetrics::leftover`].
+        const LEFTOVER = 1 << 6;
+    }
+}
+impl Default for LayoutMask {
+    /// Empty.
+    fn default() -> Self {
+        LayoutMask::empty()
     }
 }
