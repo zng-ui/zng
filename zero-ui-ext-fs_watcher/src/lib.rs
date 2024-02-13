@@ -88,7 +88,7 @@ impl AppExtension for FsWatcherManager {
 
 /// File system watcher service.
 ///
-/// This is mostly a wrapper around the [`notify`] crate, integrating it with events and variables.
+/// This is mostly a wrapper around the [`notify`](https://docs.rs/notify) crate, integrating it with events and variables.
 pub struct WATCHER;
 impl WATCHER {
     /// Gets a read-write variable that defines interval awaited between each [`FS_CHANGES_EVENT`]. If
@@ -138,7 +138,7 @@ impl WATCHER {
     ///
     /// Returns a handle that will stop the dir watch when dropped, if there is no other active handler for the same directory.
     ///
-    /// The directory will be watched using an OS specific efficient watcher provided by the [`notify`] crate. If there is
+    /// The directory will be watched using an OS specific efficient watcher provided by the [`notify`](https://docs.rs/notify) crate. If there is
     /// any error creating the watcher, such as if the directory does not exist yet a slower polling watcher will retry periodically    
     /// until the efficient watcher can be created or the handle is dropped.
     pub fn watch_dir(&self, dir: impl Into<PathBuf>, recursive: bool) -> WatcherHandle {
@@ -180,6 +180,8 @@ impl WATCHER {
 
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
     /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
+    ///
+    /// The `read` closure parameter is a directory walker from the [`walkdir`](https://docs.rs/walkdir) crate.
     ///
     /// The directory walker is pre-configured to skip the `dir` itself and to have a max-depth of 1 if not `recursive`, these configs can.
     ///
@@ -248,7 +250,7 @@ impl WATCHER {
     ///
     /// If the cleanup after commit fails the error is logged and ignored.
     ///
-    /// If write fails to even create the file and/or acquire q write lock on it this error is the input for
+    /// If write fails to even create the file and/or acquire a write lock on it this error is the input for
     /// the `write` closure.
     ///
     /// ## Error Handling
@@ -333,7 +335,7 @@ impl WATCHER {
     /// This can be used to tag all events that happened over a period of time, something you can't do just
     /// by receiving the events due to async delays caused by debounce.
     ///
-    /// Note that the underlying system events the [`notify`] crate uses are not guaranteed to be synchronous.
+    /// Note that the underlying system events the [`notify`](https://docs.rs/notify) crate uses are not guaranteed to be synchronous.
     pub fn annotate(&self, note: Arc<dyn FsChangeNote>) -> FsChangeNoteHandle {
         WATCHER_SV.write().annotate(note)
     }
@@ -362,6 +364,8 @@ pub trait WatcherReadStatus<ER = io::Error>: VarValue + PartialEq {
 /// Represents an open read-only file provided by [`WATCHER.read`].
 ///
 /// This type is a thin wrapper around the [`std::fs::File`] with some convenience parsing methods.
+///
+/// [`WATCHER.read`]: WATCHER::read
 #[derive(Debug)]
 pub struct WatchFile(fs::File);
 impl WatchFile {
@@ -804,6 +808,18 @@ impl ops::Deref for WatcherSyncWriteNote {
     }
 }
 
+/// File system change event types.
+///
+/// The event for each change is available in [`FsChange::event`].
+///
+/// This module re-exports types from the [`notify`](https://docs.rs/notify) crate.
+pub mod fs_event {
+    pub use notify::event::{
+        AccessKind, AccessMode, CreateKind, DataChange, Event, EventKind, MetadataKind, ModifyKind, RemoveKind, RenameMode,
+    };
+    pub use notify::{Error, ErrorKind};
+}
+
 /// Represents a single file system change, annotated.
 #[derive(Debug)]
 pub struct FsChange {
@@ -813,7 +829,7 @@ pub struct FsChange {
     pub notes: Vec<Arc<dyn FsChangeNote>>,
 
     /// The actual notify event or error.
-    pub event: notify::Result<notify::Event>,
+    pub event: Result<fs_event::Event, fs_event::Error>,
 }
 impl FsChange {
     /// If the change affects the `path`.
@@ -854,7 +870,7 @@ event_args! {
 }
 impl FsChangesArgs {
     /// Iterate over all change events.
-    pub fn events(&self) -> impl Iterator<Item = &notify::Event> + '_ {
+    pub fn events(&self) -> impl Iterator<Item = &fs_event::Event> + '_ {
         self.changes.iter().filter_map(|r| r.event.as_ref().ok())
     }
 
@@ -887,13 +903,13 @@ impl FsChangesArgs {
     }
 
     /// Iterate over all change events that affects that are equal to `path` or inside it.
-    pub fn events_for(&self, glob: &str) -> Result<impl Iterator<Item = &notify::Event> + '_, glob::PatternError> {
+    pub fn events_for(&self, glob: &str) -> Result<impl Iterator<Item = &fs_event::Event> + '_, glob::PatternError> {
         let glob = glob::Pattern::new(glob)?;
         Ok(self.events().filter(move |ev| ev.paths.iter().any(|p| glob.matches_path(p))))
     }
 
     /// Iterate over all change events that affects paths that are equal to `path` or inside it.
-    pub fn events_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &notify::Event> + 'a {
+    pub fn events_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &fs_event::Event> + 'a {
         self.events().filter(move |ev| ev.paths.iter().any(|p| p.starts_with(path)))
     }
 }
@@ -1227,7 +1243,7 @@ impl WatcherService {
         (var, status.read_only())
     }
 
-    fn on_watcher(&mut self, r: notify::Result<notify::Event>) {
+    fn on_watcher(&mut self, r: Result<fs_event::Event, fs_event::Error>) {
         if let Ok(r) = &r {
             if !self.watcher.allow(r) {
                 // file parent watcher, file not affected.
@@ -1809,7 +1825,7 @@ impl Watchers {
         }
     }
 
-    fn allow(&mut self, r: &notify::Event) -> bool {
+    fn allow(&mut self, r: &fs_event::Event) -> bool {
         if let notify::EventKind::Access(_) = r.kind {
             if !r.need_rescan() {
                 return false;
@@ -2051,7 +2067,7 @@ impl PollInfo {
                         if info.modified != modified {
                             info.modified = modified;
 
-                            handler.handle_event(Ok(notify::Event {
+                            handler.handle_event(Ok(fs_event::Event {
                                 kind: notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
                                     notify::event::MetadataKind::WriteTime,
                                 )),
@@ -2061,7 +2077,7 @@ impl PollInfo {
                         }
                     }
                     hash_map::Entry::Vacant(e) => {
-                        handler.handle_event(Ok(notify::Event {
+                        handler.handle_event(Ok(fs_event::Event {
                             kind: notify::EventKind::Create(if is_dir {
                                 notify::event::CreateKind::Folder
                             } else {
@@ -2083,7 +2099,7 @@ impl PollInfo {
         self.paths.retain(|k, e| {
             let retain = e.update_flag == self.update_flag;
             if !retain {
-                handler.handle_event(Ok(notify::Event {
+                handler.handle_event(Ok(fs_event::Event {
                     kind: notify::EventKind::Remove(notify::event::RemoveKind::Any),
                     paths: vec![k.clone()],
                     attrs: Default::default(),

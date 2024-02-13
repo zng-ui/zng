@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewing `zero_ui::font`.
+        - Last reviewing `zero_ui::gesture::shortcut`.
 
 # Publish
 

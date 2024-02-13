@@ -891,7 +891,7 @@ macro_rules! __shortcut {
 /// }
 /// ```
 #[macro_export]
-macro_rules! shortcut {
+macro_rules! shortcut_macro {
     (Super) => {
         $crate::shortcut::Shortcut::Modifier($crate::shortcut::ModifierGesture::Super)
     };
@@ -941,4 +941,4 @@ macro_rules! shortcut {
     };
 }
 #[doc(inline)]
-pub use crate::shortcut;
+pub use crate::shortcut_macro as shortcut;
