@@ -9,7 +9,7 @@ use std::fmt;
 /// Render icons defined as glyphs in an icon font.
 ///
 /// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
-/// or use an icon set crate. See the [`zero-ui-material-icons`] crate, it provides documented constants for
+/// or use an icon set crate. See the `zero_ui::icon::material_*` modules, they provides documented constants for
 /// each icon in the fonts.
 #[widget($crate::icon::Icon {
     ($ico:expr) => {
@@ -155,11 +155,12 @@ pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
 
-/// Adds the [`icon`](CommandIconExt) metadata.
+/// Adds the [`icon`](CommandIconExt::icon) metadata.
 ///
-/// The value is an [`WidgetFn<()>`] that can generate any icon widget, recommended widget is [`Icon!`].
+/// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`Icon!`] widget is recommended.
 ///
 /// [`Icon!`]: struct@Icon
+/// [`WidgetFn<()>`]: zero_ui_wgt::WidgetFn
 pub trait CommandIconExt {
     /// Gets a read-write variable that is the icon for the command.
     fn icon(self) -> CommandMetaVar<WidgetFn<()>>;
