@@ -20,13 +20,15 @@ event_property! {
     ///
     /// # Keys
     ///
-    /// Any key press/release generates a key input event, including keys that don't map
-    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead.
+    /// Any key press/release generates a key input event, including keys codes that don't map
+    /// to any virtual key, see [`KeyInputArgs`] for more details.
     /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// [`on_shortcut`]: fn@on_shortcut
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
     pub fn key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -46,12 +48,14 @@ event_property! {
     /// # Keys
     ///
     /// Any key press/release generates a key input event, including keys that don't map
-    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead.
+    /// to any virtual key, see [`KeyInputArgs`] for more details.
     /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// [`on_shortcut`]: fn@on_shortcut
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
     pub fn disabled_key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -71,12 +75,14 @@ event_property! {
     /// # Keys
     ///
     /// Any key press generates a key down event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
-    /// for more details. To take text input use [`on_char_input`] instead.
+    /// for more details.
     /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// [`on_shortcut`]: fn@on_shortcut
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
     pub fn key_down {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -96,12 +102,14 @@ event_property! {
     /// # Keys
     ///
     /// Any key release generates a key up event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
-    /// for more details. To take text input use [`on_char_input`] instead.
+    /// for more details.
     /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// [`on_shortcut`]: fn@on_shortcut
     ///
     /// # Underlying Event
     ///
-    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
     pub fn key_up {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,

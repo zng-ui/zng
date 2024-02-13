@@ -858,7 +858,7 @@ impl IMAGES {
     /// Get or load an image.
     ///
     /// If `limits` is `None` the [`IMAGES.limits`] is used.
-    /// 
+    ///
     /// [`IMAGES.limits`]: IMAGES::limits
     pub fn image(
         &self,

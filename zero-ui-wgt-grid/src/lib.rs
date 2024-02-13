@@ -790,7 +790,7 @@ pub mod cell {
     /// This widget defines properties that position and size widgets in a [`Grid!`].
     ///
     /// See the [`Grid::cells`] property for more details.
-    /// 
+    ///
     /// [`Grid!`]: struct@Grid
     #[widget($crate::Cell)]
     pub struct Cell(zero_ui_wgt_container::Container);

@@ -704,7 +704,7 @@ impl GESTURES {
 /// Represents the resolved targets for a shortcut at a time.
 ///
 /// You can use the [`GESTURES.shortcut_actions`] method to get a value of this.
-/// 
+///
 /// [`GESTURES.shortcut_actions`]: GESTURES::shortcut_actions
 #[derive(Debug, Clone)]
 pub struct ShortcutActions {
@@ -999,7 +999,7 @@ impl ShortcutActions {
 }
 
 /// Represents shortcuts claim in [`click_shortcut`] or [`focus_shortcut`].
-/// 
+///
 /// [`click_shortcut`]: GESTURES::click_shortcut
 /// [`focus_shortcut`]: GESTURES::focus_shortcut
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

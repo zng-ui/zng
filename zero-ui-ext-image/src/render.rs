@@ -324,13 +324,13 @@ impl ImageRenderCtx {
 static IMAGE_RENDER_ID: StaticStateId<ImageRenderCtx> = StaticStateId::new_unique();
 
 /// Controls properties of the render window used by [`IMAGES.render`].
-/// 
+///
 /// [`IMAGES.render`]: IMAGES::render
 #[allow(non_camel_case_types)]
 pub struct IMAGE_RENDER;
 impl IMAGE_RENDER {
     /// If the current context is an [`IMAGES.render`] closure, window or widget.
-    /// 
+    ///
     /// [`IMAGES.render`]: IMAGES::render
     pub fn is_in_render(&self) -> bool {
         WINDOW.contains_state(&IMAGE_RENDER_ID)

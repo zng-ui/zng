@@ -987,7 +987,7 @@ pub struct ImageLimits {
     /// Maximum encoded file size allowed.
     ///
     /// An error is returned if the file size surpasses this value. If the size can read before
-    /// read/download the validation happens before download starts, otherwise the error happens when this limit 
+    /// read/download the validation happens before download starts, otherwise the error happens when this limit
     /// is reached and all already downloaded bytes are dropped.
     ///
     /// The default is `100mb`.
