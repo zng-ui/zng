@@ -15,7 +15,7 @@ use zero_ui_txt::Txt;
 use zero_ui_view_api::webrender_api::{self, units::LayoutVector2D, GlyphIndex, GlyphInstance};
 
 use crate::{
-    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphenation, Hyphens, LineBreak, SegmentedText, TextSegment,
+    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, HYPHENATION, Hyphens, LineBreak, SegmentedText, TextSegment,
     WordBreak,
 };
 
@@ -2241,7 +2241,7 @@ impl ShapedTextBuilder {
             return false;
         }
 
-        let split_points = Hyphenation::hyphenate(&word_ctx_key.lang(), seg);
+        let split_points = HYPHENATION.hyphenate(&word_ctx_key.lang(), seg);
         self.push_hyphenate_pt(&split_points, font, shaped_seg, seg, info, text)
     }
 

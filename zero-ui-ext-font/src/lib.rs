@@ -153,29 +153,29 @@ impl FontName {
         }
     }
 
-    /// New "serif" font.
+    /// New "serif" font name.
     ///
     /// Serif fonts represent the formal text style for a script.
     pub fn serif() -> Self {
         Self::new("serif")
     }
 
-    /// New "sans-serif" font.
+    /// New "sans-serif" font name.
     ///
-    /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
+    /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have close to the same thickness)
     /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
     pub fn sans_serif() -> Self {
         Self::new("sans-serif")
     }
 
-    /// New "monospace" font.
+    /// New "monospace" font name.
     ///
     /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
     pub fn monospace() -> Self {
         Self::new("monospace")
     }
 
-    /// New "cursive" font.
+    /// New "cursive" font name.
     ///
     /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
     /// like handwritten pen or brush writing than printed letter-work.
@@ -183,14 +183,14 @@ impl FontName {
         Self::new("cursive")
     }
 
-    /// New "fantasy" font.
+    /// New "fantasy" font name.
     ///
     /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
     pub fn fantasy() -> Self {
         Self::new("fantasy")
     }
 
-    /// Reference the font name.
+    /// Reference the font name string.
     pub fn name(&self) -> &str {
         &self.text
     }
@@ -285,7 +285,7 @@ impl FontNames {
         FontNames(vec![])
     }
 
-    /// Returns the default UI fonts for Windows.
+    /// Returns the default UI font names for Windows.
     pub fn windows_ui(lang: &Lang) -> Self {
         // source: VSCode
         // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
@@ -303,7 +303,7 @@ impl FontNames {
         }
     }
 
-    /// Returns the default UI fonts for MacOS/iOS.
+    /// Returns the default UI font names for MacOS/iOS.
     pub fn mac_ui(lang: &Lang) -> Self {
         // source: VSCode
 
@@ -335,7 +335,7 @@ impl FontNames {
         }
     }
 
-    /// Returns the default UI fonts for Linux.
+    /// Returns the default UI font names for Linux.
     pub fn linux_ui(lang: &Lang) -> Self {
         // source: VSCode
 
@@ -392,7 +392,7 @@ impl FontNames {
         }
     }
 
-    /// Returns the default UI fonts for the current operating system.
+    /// Returns the default UI font names for the current operating system.
     pub fn system_ui(lang: &Lang) -> Self {
         if cfg!(windows) {
             Self::windows_ui(lang)
@@ -603,15 +603,15 @@ pub enum FontChange {
 }
 
 /// Application extension that manages text fonts.
-/// # Services
-///
+/// 
 /// Services this extension provides:
 ///
 /// * [`FONTS`] - Service that finds and loads fonts.
+/// * [`HYPHENATION`] - Service that loads and applies hyphenation dictionaries.
 ///
 /// Events this extension provides:
 ///
-/// * [FONT_CHANGED_EVENT] - Font config or system fonts changed.
+/// * [`FONT_CHANGED_EVENT``] - Font config or system fonts changed.
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {
@@ -1164,14 +1164,14 @@ impl FontFace {
         key
     }
 
-    /// Reference the `harfbuzz` face.
+    /// Reference the [`harfbuzz`](https://docs.rs/harfbuzz_rs) face.
     pub fn harfbuzz_face(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>> {
         &self.0.face
     }
 
-    /// Get the `font_kit` loaded in the current thread, or loads it.
+    /// Get the [`font_kit`](https://docs.rs/font-kit) loaded in the current thread, or loads it.
     ///
-    /// Loads from the cached [`bytes`], unfortunately the font itself is `!Send`,
+    /// Loads from the cached [`bytes`]. Unfortunately the font itself is `!Send`,
     /// so a different instance is generated each call.
     ///
     /// Returns `None` if [`is_empty`].
@@ -1443,7 +1443,7 @@ impl Font {
         &self.0.face
     }
 
-    /// Reference the `harfbuzz` font.
+    /// Reference the [`harfbuzz`](https://docs.rs/harfbuzz_rs) font.
     pub fn harfbuzz_font(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>> {
         &self.0.font
     }
@@ -2858,7 +2858,7 @@ pub struct FontFaceMetrics {
 
     /// The maximum amount the font descends below the baseline, in font units.
     ///
-    /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
+    /// This is typically a negative value to match the definition of `sTypoDescender` in the
     /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
     /// beware, as the sign is reversed from what those APIs return.
     pub descent: f32,
@@ -2923,7 +2923,7 @@ pub struct FontMetrics {
 
     /// The maximum amount the font descends below the baseline, in pixels.
     ///
-    /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
+    /// This is typically a negative value to match the definition of `sTypoDescender` in the
     /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
     /// beware, as the sign is reversed from what those APIs return.
     pub descent: Px,
@@ -2941,8 +2941,7 @@ pub struct FontMetrics {
     /// The approximate amount that uppercase letters rise above the baseline, in pixels.
     pub cap_height: Px,
 
-    /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
-    /// font units.
+    /// The approximate amount that non-ascending lowercase letters rise above the baseline, in pixels.
     pub x_height: Px,
 
     /// A rectangle that surrounds all bounding boxes of all glyphs, in pixels.

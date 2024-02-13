@@ -6,7 +6,7 @@ use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::Lang;
 
 app_local! {
-    static HYPHENATION: Hyphenation = Hyphenation {
+    static HYPHENATION_SV: Hyphenation = Hyphenation {
         #[cfg(feature = "hyphenation_embed_all")]
         source: Mutex::new(Some(Box::new(HyphenationDataEmbedded))),
         #[cfg(not(feature = "hyphenation_embed_all"))]
@@ -16,6 +16,11 @@ app_local! {
     };
 }
 
+struct Hyphenation {
+    source: Mutex<Option<Box<dyn HyphenationDataSource>>>,
+    dictionaries: Vec<hyphenation::Standard>,
+}
+
 /// Hyphenation service.
 ///
 /// Note that dictionary data is required to support a language, if the feature `"hyphenation_embed_all"` is enabled
@@ -23,16 +28,13 @@ app_local! {
 ///
 /// You can use the [`HyphenationDataDir`] to use external files, see the [hyphenation](https://github.com/tapeinosyne/hyphenation)
 /// for more details about the data files.
-pub struct Hyphenation {
-    source: Mutex<Option<Box<dyn HyphenationDataSource>>>,
-    dictionaries: Vec<hyphenation::Standard>,
-}
-impl Hyphenation {
-    /// Set the hyphenation dictionaries source.
+pub struct HYPHENATION;
+impl HYPHENATION {
+    /// Set the hyphenation dictionaries source and clear cache.
     ///
-    /// Clears all cached dictionaries.
-    pub fn set_data_source(source: impl HyphenationDataSource) {
-        let mut h = HYPHENATION.write();
+    /// Note that this applies immediately and does not notify, it should only be called once during app init.
+    pub fn init_data_source(&self, source: impl HyphenationDataSource) {
+        let mut h = HYPHENATION_SV.write();
         *h.source.get_mut() = Some(Box::new(source));
         h.dictionaries.clear();
     }
@@ -40,20 +42,21 @@ impl Hyphenation {
     /// Try to hyphenate the `word` using the `lang` dictionary and rules.
     ///
     /// Returns a vector of indexes that allow a line break.
-    pub fn hyphenate(lang: &Lang, word: &str) -> Vec<usize> {
-        Self::hyphenate_opt(lang, word).unwrap_or_default()
+    pub fn hyphenate(&self, lang: &Lang, word: &str) -> Vec<usize> {
+        self.hyphenate_opt(lang, word).unwrap_or_default()
     }
 
     /// Try to hyphenate the `word` using the `lang` dictionary and rules.
     ///
-    /// Returns a vector of indexes that allow a line break. Returns `None` if the `lang` is not supported or the `word` contains non-word characters.
-    pub fn hyphenate_opt(lang: &Lang, word: &str) -> Option<Vec<usize>> {
-        let lang = Self::lang_to_hyphenation_language(lang)?;
-        Self::hyphenate_opt_language(word, lang)
+    /// Returns a vector of indexes that allow a line break. Returns `None` if the `lang` is not supported or the
+    /// `word` contains non-word characters.
+    pub fn hyphenate_opt(&self, lang: &Lang, word: &str) -> Option<Vec<usize>> {
+        let lang = self.lang_to_hyphenation_language(lang)?;
+        self.hyphenate_opt_language(word, lang)
     }
 
     /// Get the best [`hyphenation::Language`] for the `lang`.
-    pub fn lang_to_hyphenation_language(lang: &Lang) -> Option<hyphenation::Language> {
+    pub fn lang_to_hyphenation_language(&self, lang: &Lang) -> Option<hyphenation::Language> {
         for (l, r) in &*util::LANG_TO_LANGUAGE_MAP.read() {
             if lang.matches(l, false, true) {
                 return Some(*r);
@@ -64,13 +67,14 @@ impl Hyphenation {
     }
 
     /// Hyphenate with language already resolved.
-    pub fn hyphenate_opt_language(word: &str, lang: hyphenation::Language) -> Option<Vec<usize>> {
+    pub fn hyphenate_opt_language(&self, word: &str, lang: hyphenation::Language) -> Option<Vec<usize>> {
         if !util::WORD_REGEX.read().is_match(word) {
             return None;
         }
 
         {
-            let h = HYPHENATION.read();
+            let h = HYPHENATION_SV.read();
+
             for d in &h.dictionaries {
                 if d.language() == lang {
                     return Some(d.hyphenate(word).breaks);
@@ -78,8 +82,12 @@ impl Hyphenation {
             }
         }
 
-        let mut h = HYPHENATION.write();
-        // incase
+        let mut h = HYPHENATION_SV.write();
+
+        if h.source.get_mut().is_none() {
+            return None;
+        }
+
         for d in &h.dictionaries {
             if d.language() == lang {
                 return Some(d.hyphenate(word).breaks);
@@ -100,11 +108,11 @@ impl Hyphenation {
 
 /// Represents a hyphenation dictionary source.
 ///
-/// The data source must be registered in [`Hyphenation::set_data_source`].
+/// The data source must be registered in [`HYPHENATION.init_data_source`].
 ///
-///
+/// [`HYPHENATION.init_data_source`]: HYPHENATION::init_data_source
 pub trait HyphenationDataSource: Send + 'static {
-    /// Get the path to a dictionary file for the language.
+    /// Load the dictionary for the `lang`.
     fn load(&mut self, lang: hyphenation::Language) -> Option<hyphenation::Standard>;
 }
 

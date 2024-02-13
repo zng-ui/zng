@@ -494,11 +494,11 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 
 /// Configure hyphenation.
 ///
-/// Note that for automatic hyphenation to work the [`lang`] must also be set and the [`Hyphenation`] service must support it.
+/// Note that for automatic hyphenation to work the [`lang`] must also be set and the [`HYPHENATION`] service must support it.
 ///
 /// The auto hyphenation char can be defined using [`hyphen_char`].
 ///
-/// [`Hyphenation`]: zero_ui_ext_font::Hyphenation
+/// [`HYPHENATION`]: zero_ui_ext_font::HYPHENATION
 /// [`lang`]: fn@lang
 /// [`hyphen_char`]: fn@hyphen_char
 #[property(CONTEXT, default(HYPHENS_VAR), widget_impl(TextWrapMix<P>))]
