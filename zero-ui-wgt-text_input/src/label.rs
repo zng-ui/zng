@@ -12,7 +12,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 /// Styleable and focusable read-only text widget.
 ///
-/// Optionally can be the label of a [`target`] widget, in this case the label is not focusable, it transfers focus
+/// Optionally can be the label of a [`target`](#method.target) widget, in this case the label is not focusable, it transfers focus
 /// to the target.
 ///
 /// # Shorthand

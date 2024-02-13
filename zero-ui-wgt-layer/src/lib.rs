@@ -1511,6 +1511,7 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
 /// The full context is captured for adorner widget so you can use context variables inside without issue.
 ///
 /// [layered]: LAYERS
+/// [`WidgetFn<()>`]: WidgetFn
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let adorner_fn = adorner_fn.into_var();

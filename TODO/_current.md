@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewing `zero_ui::l10n`.
+        - Last reviewing `zero_ui::layer`.
 
 # Publish
 
