@@ -87,7 +87,7 @@ pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zero_ui_wgt_pan
 /// Default [`Menu!`] style.
 ///
 /// Gives the button a *menu-item* look.
-/// 
+///
 /// [`Menu!`]: struct@Menu
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -109,7 +109,7 @@ impl DefaultStyle {
 /// Style applied to all [`Button!`] widgets inside [`Menu!`].
 ///
 /// Gives the button a *menu-item* look.
-/// 
+///
 /// [`Button!`]: struct@zero_ui_wgt_button::Button
 /// [`Menu!`]: struct@Menu
 #[widget($crate::ButtonStyle)]
@@ -185,7 +185,7 @@ impl TouchButtonStyle {
 /// Style applied to all [`Button!`] widgets inside [`Menu!`].
 ///
 /// Gives the toggle a *menu-item* look, the checkmark is placed in the icon position.
-/// 
+///
 /// [`Button!`]: struct@zero_ui_wgt_button::Button
 /// [`Menu!`]: struct@Menu
 #[widget($crate::ToggleStyle)]

@@ -476,7 +476,7 @@ impl DefaultStyle {
 }
 
 /// Style applied to all [`SubMenu!`] widgets inside other sub-menus.
-/// 
+///
 /// [`SubMenu!`]: struct@SubMenu
 #[widget($crate::sub::SubMenuStyle)]
 pub struct SubMenuStyle(ButtonStyle);

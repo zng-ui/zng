@@ -78,7 +78,7 @@ context_var! {
 
 /// Popup behavior when it loses focus.
 ///
-/// If `true` the popup will remove it self from [`LAYERS`], is `true` by default.
+/// If `true` the popup will close itself, is `true` by default.
 ///
 /// This property must be set on the widget that opens the popup or a parent, not the popup widget itself.
 ///
@@ -448,7 +448,7 @@ fn setup_popup_close_service() {
     }
 }
 
-/// Awaits `delay` before requesting a direct close for the popup widget after close is requested.
+/// Delay awaited before actually closing when popup close is requested.
 ///
 /// You can use this delay to await a closing animation for example. This property sets [`is_close_delaying`]
 /// while awaiting the `delay`.

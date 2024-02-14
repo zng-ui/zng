@@ -111,7 +111,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`h_line_unit`]: fn@super::properties::h_line_unit
+    /// [`h_page_unit`]: fn@super::properties::h_page_unit
     pub static PAGE_LEFT_CMD = {
         name: "Page Left",
         info: "Scroll Left by one page unit.",

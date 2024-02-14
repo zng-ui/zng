@@ -3086,7 +3086,7 @@ bitflags::bitflags! {
         /// No synthetic font generated, if font resolution does not find a variant the matches the requested style and weight
         /// the request is ignored and the normal font is returned.
         const DISABLED = 0;
-        /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference added using extra stroke.
+        /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference is added using extra stroke.
         const BOLD = 1;
         /// Enable synthetic oblique. If the font resolution does not find an oblique or italic variant a skew transform is applied.
         const OBLIQUE = 2;
