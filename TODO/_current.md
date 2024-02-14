@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewing `zero_ui::selectable`.
+        - Last reviewing `zero_ui::stack`.
 
 # Publish
 

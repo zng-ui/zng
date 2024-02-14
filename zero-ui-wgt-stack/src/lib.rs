@@ -12,7 +12,7 @@ pub use types::*;
 /// Stack layout.
 ///
 /// Without [`direction`] this is a Z layering stack, with direction the traditional vertical and horizontal *stack panels*
-/// can be recreated, other custom layouts are also supported, diagonal stacks, partially layered stacks and more. See
+/// can be created, other custom layouts are also supported, diagonal stacks, partially layered stacks and more. See
 /// [`StackDirection`] for more details.
 ///
 /// # Z-Index
@@ -89,10 +89,11 @@ pub fn direction(direction: impl IntoVar<StackDirection>) {}
 
 /// Space in-between items.
 ///
-/// The spacing is added along non-zero axis for each item offset after the first, so the spacing may
-/// not always be in-between items if a non-standard [`direction`] is used.
+/// The spacing is added along non-zero axis for each item offset after the first, the spacing is
+/// scaled by the [direction factor].
 ///
 /// [`direction`]: fn@direction
+/// [direction factor]: StackDirection::direction_factor
 #[property(LAYOUT, capture, widget_impl(Stack))]
 pub fn spacing(spacing: impl IntoVar<Length>) {}
 
@@ -462,8 +463,7 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
 /// the parent constraints are used for the layout of each item.
 ///
 /// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
-/// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
-/// for a complete stack panel widget see [`Stack!`].
+/// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render.
 ///
 /// [`Stack!`]: struct@Stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {

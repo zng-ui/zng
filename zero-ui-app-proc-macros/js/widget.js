@@ -63,7 +63,6 @@
         let derefFrom = '';
         let derefIdPrefix = '';
         if (isDeref) {
-            let originalSectionId = sectionId;
             let mixCut = sectionId.indexOf('%3C');
             if (mixCut !== -1) {
                 sectionId = sectionId.substring(0, mixCut);
@@ -371,7 +370,6 @@
                 }
             });
 
-
             side.querySelectorAll('h3').forEach(function (e) {
                 if (e.querySelector('a').href.indexOf('#deref-methods-') !== -1) {
                     let sideList = e.nextElementSibling;
@@ -390,5 +388,11 @@
                 }
             });
         });
+
+        let properties = document.getElementById('properties-list');
+        if (properties !== null && properties.querySelector('a') === null) {
+            properties.previousSibling.remove();
+            properties.remove();
+        }
     }
 })();
