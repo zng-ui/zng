@@ -279,43 +279,6 @@ impl<U> OwnedStateMap<U> {
     }
 }
 
-/// Borrow a read-only reference to a state-map of kind `U`.
-pub trait BorrowStateMap<U> {
-    /// Borrow a read-only reference to a state-map.
-    fn borrow(&self) -> StateMapRef<U>;
-}
-impl<'a, U> BorrowStateMap<U> for StateMapRef<'a, U> {
-    fn borrow(&self) -> StateMapRef<U> {
-        *self
-    }
-}
-impl<'a, U> BorrowStateMap<U> for StateMapMut<'a, U> {
-    fn borrow(&self) -> StateMapRef<U> {
-        self.as_ref()
-    }
-}
-impl<U> BorrowStateMap<U> for OwnedStateMap<U> {
-    fn borrow(&self) -> StateMapRef<U> {
-        self.borrow()
-    }
-}
-
-/// Borrow a mutable reference to a state-map of kind `U`.
-pub trait BorrowMutStateMap<U> {
-    /// Borrow a mutable reference to a state-map.
-    fn borrow_mut(&mut self) -> StateMapMut<U>;
-}
-impl<'a, U> BorrowMutStateMap<U> for StateMapMut<'a, U> {
-    fn borrow_mut(&mut self) -> StateMapMut<U> {
-        self.reborrow()
-    }
-}
-impl<U> BorrowMutStateMap<U> for OwnedStateMap<U> {
-    fn borrow_mut(&mut self) -> StateMapMut<U> {
-        self.borrow_mut()
-    }
-}
-
 /// State map helper types.
 pub mod state_map {
     use std::any::Any;
@@ -411,7 +374,7 @@ pub mod state_map {
 
         /// Gets a mutable reference to the value in the entry.
         ///
-        /// If you need a reference to the OccupiedEntry which may outlive the destruction of the Entry value, see [`into_mut`].
+        /// See also [`into_mut`] to get a reference tied to the lifetime of the map directly.
         ///
         /// [`into_mut`]: Self::into_mut
         pub fn get_mut(&mut self) -> &mut T {
@@ -419,10 +382,6 @@ pub mod state_map {
         }
 
         /// Converts the entry into a mutable reference to the value in the entry with a lifetime bound to the map itself.
-        ///
-        /// If you need multiple references to the OccupiedEntry, see [`get_mut`].
-        ///
-        /// [`get_mut`]: Self::get_mut
         pub fn into_mut(self) -> &'a mut T {
             self.entry.into_mut().downcast_mut().unwrap()
         }

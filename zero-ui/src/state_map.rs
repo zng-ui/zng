@@ -46,5 +46,5 @@
 
 pub use zero_ui_state_map::{
     state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
-    BorrowMutStateMap, BorrowStateMap, OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
+    OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
 };

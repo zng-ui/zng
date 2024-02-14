@@ -18,7 +18,7 @@ use std::{fmt, ops};
 
 /// Represents a set of properties that can be applied to any styleable widget.
 ///
-/// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`StyleBuilder`]
+/// Style can be instantiated using the same syntax as any widget, but it produces a [`StyleBuilder`]
 /// instance instead of an widget. Widgets that have [`StyleMix<P>`] can be modified using properties
 /// defined in a style, the properties are dynamically spliced into each widget instance.
 ///
@@ -51,16 +51,18 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 
 /// Styleable widget mixin.
 ///
-/// Widgets that inherit from this one have a `style_fn` property that can be set to a [`style_fn!`]
+/// Widgets that inherit this mix-in have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
 /// The style mixin drastically affects the widget build process, only the `style_base_fn`, `style_fn` and `when` condition
 /// properties that affects these are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
-/// Widgets that inherit from this one must call [`style_intrinsic`] in their own `widget_intrinsic`, the call is missing
+/// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, the call is missing
 /// the widget will log an error on instantiation and only the `style_base_fn` will be used. You can use the [`impl_style_fn!`]
 /// macro to generate the style var and property.
+/// 
+/// [`style_intrinsic`]: StyleMix::style_intrinsic
 #[widget_mixin]
 pub struct StyleMix<P>(P);
 impl<P: WidgetImpl> StyleMix<P> {
@@ -129,7 +131,10 @@ pub mod __impl_style_context_util {
     pub use zero_ui_wgt::prelude::{context_var, property, IntoVar, UiNode};
 }
 
-/// Implement the contextual `STYLE_FN_VAR` and `style_fn`.
+/// Implements the contextual `STYLE_FN_VAR` and `style_fn`.
+/// 
+/// This is a helper for [`StyleMix<P>`](struct@StyleMix) implementers, see the `zero_ui::style` module level 
+/// documentation for more details.
 #[macro_export]
 macro_rules! impl_style_fn {
     ($Widget:ty) => {
@@ -311,8 +316,9 @@ impl_from_and_into_var! {
 
 /// Arguments for [`StyleFn`] closure.
 ///
-/// Empty in this version.
-#[derive(Debug)]
+/// Empty struct, there are no style args in the current release, this struct is declared so that if
+/// args may be introduced in the future with minimal breaking changes.
+#[derive(Debug, Default)]
 pub struct StyleArgs {}
 
 /// Boxed shared closure that generates a style instance for a given widget context.
@@ -430,7 +436,35 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 
 /// <span data-del-macro-root></span> Declares a style function closure.
 ///
-/// The output type is a [`StyleFn`], the closure is [`clmv!`].
+/// The output type is a [`StyleFn`], the input can be a function name path or a closure,
+/// with input type `&StyleArgs`. The closure syntax is clone-move ([`clmv!`]).
+///
+/// # Examples
+///
+/// The example below declares a closure that prints every time it is used, the closure captures `cloned` by clone-move
+/// and `moved` by move. The closure ignores the [`StyleArgs`] because it is empty.
+///
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::prelude::*;
+/// # use zero_ui_wgt_style::*;
+/// # fn main() {
+/// let cloned = var(10u32);
+/// let moved = var(20u32);
+/// let style_fn = style_fn!(cloned, |_| {
+///     println!(
+///         "style instantiated in {:?}, with captured values, {} and {}", 
+///         WIDGET.try_id(), 
+///         cloned.get(), 
+///         moved.get()
+///     );
+///
+///     Style! {
+///         // ..
+///     }
+/// });
+/// # }
+/// ```
 #[macro_export]
 macro_rules! style_fn {
     ($fn:path) => {
