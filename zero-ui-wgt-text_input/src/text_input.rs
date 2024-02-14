@@ -23,20 +23,31 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 /// Simple text editor widget.
 ///
 /// If `txt` is set to a variable that can be modified the widget becomes interactive, it implements
-/// the usual *text box* capabilities, keyboard controlled editing of short text in a single style, mouse
-/// selecting and caret positioning.
+/// the usual *text box* capabilities: keyboard editing of text in a single style, pointer
+/// caret positioning and text selection.
 ///
-/// You can also use the `text::cmd` to edit the text.
+/// You can also use [`text::cmd`] to edit the text.
+/// 
+/// [`text::cmd`]: zero_ui_wgt_text::cmd
 ///
 /// # Undo/Redo
 ///
 /// Undo/redo is enabled by default, the widget is an undo scope and handles undo commands. Note that external
-/// changes to the `txt` variable will clear the undo stack, only changes done by the widget can be undone.
+/// changes to the `txt` variable clears the undo stack, only changes done by the widget can be undone.
 ///
 /// # Shorthand
 ///
-/// The `TextInput!` macro provides shorthand syntax sets the text variable, `TextInput!(var(Txt::from("")))` creates
-/// an editable text input.
+/// The `TextInput!` macro provides shorthand syntax that sets the `txt` property. 
+/// 
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::prelude::*;
+/// # use zero_ui_wgt_text_input::*;
+/// #
+/// # fn main() {
+/// let editable_text = TextInput!(var_from(""));
+/// # }
+/// ```
 #[widget($crate::TextInput {
     ($txt:expr) => {
         txt = $txt;
@@ -198,8 +209,8 @@ impl DefaultStyle {
 
 /// Text input style that shows data notes, info, warn and error.
 ///
-/// You can also set the [`field_help`] in text inputs with this style to set a text that
-/// show in the same place as the data notes when there is no note.
+/// You can also set the [`field_help`] property in text inputs with this style to set a text that
+/// shows in place of the data notes when there are none.
 ///
 /// [`field_help`]: fn@field_help
 #[widget($crate::FieldStyle)]

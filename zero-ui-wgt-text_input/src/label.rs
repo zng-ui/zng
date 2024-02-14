@@ -17,7 +17,17 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 ///
 /// # Shorthand
 ///
-/// The widget macro supports the shorthand `Label!("txt-expr", "target-expr")`.
+/// The widget macro supports the shorthand  that sets the `txt` and `target` properties. 
+/// 
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::prelude::*;
+/// # use zero_ui_wgt_text_input::label::*;
+/// #
+/// # fn main() {
+/// let label = Label!("txt", "target");
+/// # }
+/// ```
 #[widget($crate::label::Label {
     ($txt:expr, $target:expr $(,)?) => {
         txt = $txt;
@@ -51,7 +61,7 @@ impl DefaultStyle {
 /// Defines the widget the label is for.
 ///
 /// When the label is pressed the widget or the first focusable child of the widget is focused.
-/// Access metadata is also set so the target widget is marked as *labelled-by* this widget in the view-process.
+/// Accessibility metadata is also set so the target widget is marked as *labelled-by* this widget in the view-process.
 ///
 /// If this is set focusable is disabled on the label widget.
 #[property(CONTEXT, widget_impl(Label))]

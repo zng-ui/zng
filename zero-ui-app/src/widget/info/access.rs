@@ -533,7 +533,7 @@ impl WidgetInfoTree {
 impl WidgetInfo {
     /// Accessibility info, if the widget is accessible.
     ///
-    /// The widget is accessible only if [`access_enabled`] and some access metadata was set on the widget.
+    /// The widget is accessible only if [`access_enabled`] and some accessibility metadata was set on the widget.
     ///
     /// [`access_enabled`]: crate::widget::info::WidgetInfoTree::access_enabled
     pub fn access(&self) -> Option<WidgetAccessInfo> {

@@ -550,6 +550,7 @@ impl DeadlineHandle {
     }
 
     /// If [`perm`](Self::perm) was called in another handle.
+    /// 
     /// If `true` the closure will be dropped when it executes, when the app exits or if [`cancel`](Self::cancel) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
@@ -685,6 +686,7 @@ impl TimerHandle {
     }
 
     /// If [`perm`](Self::perm) was called in another handle.
+    /// 
     /// If `true` the closure will keep being called until the app exits or the timer is stopped from the inside or using
     /// another handle.
     pub fn is_permanent(&self) -> bool {

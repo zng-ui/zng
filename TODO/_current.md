@@ -1,3 +1,9 @@
+* Its possible to set `id` in `Style!`.
+    - The id is applied on the target widgets.
+    - We can have `Style!` remove the `id`.
+        - Ideally the `id` property is removed from style.
+        - Not have `id` in `WidgetBase`?
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
@@ -5,7 +11,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewing `zero_ui::task`.
+        - Last reviewing `zero_ui::timer::DeadlineHandle`.
 
 # Publish
 
