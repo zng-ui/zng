@@ -25,6 +25,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 /// # use zero_ui_wgt_text_input::label::*;
 /// #
 /// # fn main() {
+/// # let _scope = zero_ui_app::APP.minimal();
 /// let label = Label!("txt", "target");
 /// # }
 /// ```
