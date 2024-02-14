@@ -28,8 +28,7 @@ use zero_ui_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageV
 use zero_ui_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
 use zero_ui_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
-    ui::UiTask,
-    ParallelIteratorExt,
+    ParallelIteratorExt, UiTask,
 };
 use zero_ui_txt::{formatx, Txt};
 use zero_ui_unique_id::{IdMap, IdSet};

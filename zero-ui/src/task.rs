@@ -1,7 +1,7 @@
 //! Parallel async tasks and async task runners.
 //!
 //! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
-//! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
+//! IO operations and use [`http`] for async HTTP.
 //!
 //! All functions of this module propagate the [`LocalContext`].
 //!
@@ -40,7 +40,7 @@
 //! }
 //! ```
 //!
-//! The example demonstrates three different ***tasks***, the first is a [`ui::UiTask`] in the `async_hn` handler,
+//! The example demonstrates three different ***tasks***, the first is a [`UiTask`] in the `async_hn` handler,
 //! this task is *async* but not *parallel*, meaning that it will execute in more then one app update, but it will only execute in the
 //! `on_click` context and thread. This is good for coordinating UI state, like setting variables, but is not good if you want to do CPU intensive work.
 //!

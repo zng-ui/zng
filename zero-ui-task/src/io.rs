@@ -1,4 +1,8 @@
 //! IO tasks.
+//!
+//! Most of the types in this module are re-exported from [`futures_lite::io`].
+//!
+//! [`futures_lite::io`]: https://docs.rs/futures-lite/latest/futures_lite/io/index.html
 
 use std::{
     fmt,

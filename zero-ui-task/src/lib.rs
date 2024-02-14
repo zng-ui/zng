@@ -33,19 +33,24 @@ use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
 #[doc(no_inline)]
 pub use rayon;
 
-#[doc(no_inline)]
-pub use async_fs as fs;
-
-pub use zero_ui_clone_move::async_clmv;
+/// Async filesystem primitives.
+///
+/// This module is the [async-fs](https://docs.rs/async-fs) crate re-exported for convenience.
+pub mod fs {
+    #[doc(inline)]
+    pub use async_fs::*;
+}
 
 pub mod channel;
 pub mod io;
-pub mod ui;
+mod ui;
 
 pub mod http;
 mod rayon_ctx;
 
 pub use rayon_ctx::*;
+
+pub use ui::*;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///
@@ -524,7 +529,7 @@ where
     }
 
     let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
-    poll_spawn(async_clmv!(q, {
+    poll_spawn(zero_ui_clone_move::async_clmv!(q, {
         let rsp = task.await;
 
         match &mut *q.lock() {
@@ -1422,7 +1427,7 @@ macro_rules! __any_some {
 }
 
 /// <span data-del-macro-root></span> A future that is ready when all futures are ready with an `Ok(T)` result or
-/// any is ready with an `Err(E)` result.
+/// any future is ready with an `Err(E)` result.
 ///
 /// The output type is `Result<(T0, T1, ..), E>`, the `Ok` type is a tuple with all the `Ok` values, the error
 /// type is the first error encountered, the input futures must have the same `Err` type but can have different
@@ -1584,7 +1589,7 @@ macro_rules! __all_ok {
 }
 
 /// <span data-del-macro-root></span> A future that is ready when all futures are ready with `Some(T)` or when any
-/// is ready with `None`
+/// is future ready with `None`.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the `Option<T>` output type, but each can have a different `T`. The macro output is a future that when ".awaited"
@@ -1747,6 +1752,7 @@ macro_rules! __all_some {
 ///
 /// ```
 /// use zero_ui_task::{self as task, *};
+/// use zero_ui_clone_move::async_clmv;
 ///
 /// let signal = SignalOnce::default();
 ///

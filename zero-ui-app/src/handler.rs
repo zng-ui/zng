@@ -10,7 +10,7 @@ use std::{mem, thread};
 pub use zero_ui_clone_move::*;
 
 use zero_ui_handle::{Handle, WeakHandle};
-use zero_ui_task::{self as task, ui::UiTask};
+use zero_ui_task::{self as task, UiTask};
 
 use crate::INSTANT;
 

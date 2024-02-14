@@ -61,7 +61,7 @@ pub fn replace(replace: impl IntoValue<bool>) {}
 /// Widgets that inherit this mix-in must call [`style_intrinsic`] in their own `widget_intrinsic`, the call is missing
 /// the widget will log an error on instantiation and only the `style_base_fn` will be used. You can use the [`impl_style_fn!`]
 /// macro to generate the style var and property.
-/// 
+///
 /// [`style_intrinsic`]: StyleMix::style_intrinsic
 #[widget_mixin]
 pub struct StyleMix<P>(P);
@@ -132,8 +132,8 @@ pub mod __impl_style_context_util {
 }
 
 /// Implements the contextual `STYLE_FN_VAR` and `style_fn`.
-/// 
-/// This is a helper for [`StyleMix<P>`](struct@StyleMix) implementers, see the `zero_ui::style` module level 
+///
+/// This is a helper for [`StyleMix<P>`](struct@StyleMix) implementers, see the `zero_ui::style` module level
 /// documentation for more details.
 #[macro_export]
 macro_rules! impl_style_fn {
@@ -453,9 +453,9 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 /// let moved = var(20u32);
 /// let style_fn = style_fn!(cloned, |_| {
 ///     println!(
-///         "style instantiated in {:?}, with captured values, {} and {}", 
-///         WIDGET.try_id(), 
-///         cloned.get(), 
+///         "style instantiated in {:?}, with captured values, {} and {}",
+///         WIDGET.try_id(),
+///         cloned.get(),
 ///         moved.get()
 ///     );
 ///

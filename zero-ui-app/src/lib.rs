@@ -49,7 +49,7 @@ pub use zero_ui_time::{DInstant, Deadline, InstantMode, INSTANT};
 use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates, UPDATES};
 use window::WindowMode;
 use zero_ui_app_context::{AppId, AppScope, LocalContext};
-use zero_ui_task::ui::UiTask;
+use zero_ui_task::UiTask;
 
 /// Enable widget instantiation in crates that can't depend on the `zero-ui` crate.
 ///

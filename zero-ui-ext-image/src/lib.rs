@@ -37,7 +37,7 @@ pub use types::*;
 mod render;
 pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
 use zero_ui_layout::unit::{ByteLength, ByteUnits};
-use zero_ui_task::ui::UiTask;
+use zero_ui_task::UiTask;
 use zero_ui_txt::{formatx, ToTxt, Txt};
 use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
