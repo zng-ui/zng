@@ -9,7 +9,7 @@ use std::{any::Any, fmt, marker::PhantomData};
 
 use zero_ui_unique_id::unique_id_64;
 
-/// A type that can be a [`StateId`] value.
+/// Represents a type that can be a [`StateId`] value.
 ///
 /// # Trait Alias
 ///

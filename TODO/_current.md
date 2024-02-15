@@ -7,7 +7,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::var::animation::AnimationController`.
+        - Last reviewed `zero_ui::var::animation`.
 
 # Publish
 

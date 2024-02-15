@@ -299,7 +299,7 @@ impl Animation {
     }
 }
 
-/// A type that can be animated between two values.
+/// Represents a type that can be animated between two values.
 ///
 /// This trait is auto-implemented for all [`Copy`] types that can add, subtract and multiply by [`Factor`], [`Clone`]
 /// only types must implement this trait manually.

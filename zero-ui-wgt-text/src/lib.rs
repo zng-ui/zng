@@ -164,7 +164,7 @@ where
     node::parse_text(child, value)
 }
 
-/// A type that can be a var value, parse and display.
+/// Represents a type that can be a var value, parse and display.
 ///
 /// This trait is used by [`txt_parse`]. It is implemented for all types that are
 /// `VarValue + FromStr + Display where FromStr::Err: Display`.

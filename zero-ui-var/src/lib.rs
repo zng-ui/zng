@@ -123,7 +123,7 @@ mod private {
     pub trait Sealed {}
 }
 
-/// A type that can be a [`Var<T>`] value.
+/// Represents a type that can be a [`Var<T>`] value.
 ///
 /// # Trait Alias
 ///

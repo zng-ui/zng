@@ -328,8 +328,8 @@ pub use zero_ui_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
 /// Var animation types and functions.
 pub mod animation {
     pub use zero_ui_var::animation::{
-        Animation, AnimationController, AnimationHandle, AnimationTimer, ChaseAnimation, ModifyInfo, NilAnimationObserver, Transition,
-        TransitionKeyed, Transitionable, WeakAnimationHandle,
+        Animation, AnimationController, AnimationHandle, ChaseAnimation, ModifyInfo, NilAnimationObserver, Transition, TransitionKeyed,
+        Transitionable, WeakAnimationHandle,
     };
 
     /// Common easing functions.
