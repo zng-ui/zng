@@ -1,4 +1,7 @@
 * `WINDOW` service docs page shows the `Window` widget docs.
+    - Same for `SCROLL` and `Scroll`.
+    - https://github.com/rust-lang/rust/issues/25879
+    - Make `do` run `fsutil file SetCaseSensitiveInfo "C:\folder\path" enable`
 
 # Documentation
 
