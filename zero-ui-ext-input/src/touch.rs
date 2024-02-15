@@ -1036,7 +1036,7 @@ event! {
     /// touched path or app level hooks.
     pub static TOUCH_TAP_EVENT: TouchTapArgs;
 
-    /// Double touch transform.
+    /// Two point touch transform.
     ///
     /// This is a touch gesture event, it only notifies if it has listeners, either widget subscribers in the
     /// touched path or app level hooks.
@@ -2017,29 +2017,29 @@ impl ops::Sub<PxVector> for TouchTransformInfo {
 }
 
 bitflags! {
-    /// Defines the different transforms that a [`TouchTransform`] can do to keep
+    /// Defines the different transforms that a touch transform can do to keep
     /// two touch points in a widget aligned with the touch contacts.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
     pub struct TouchTransformMode: u8 {
-        /// Translate in the X dimension.
+        /// Can translate in the X dimension.
         const TRANSLATE_X = 0b0000_0001;
-        /// Translate in the y dimension.
+        /// Can translate in the y dimension.
         const TRANSLATE_Y = 0b0000_0010;
-        /// Translate in both dimensions.
+        /// Can translate in both dimensions.
         const TRANSLATE = Self::TRANSLATE_X.bits() | Self::TRANSLATE_Y.bits();
 
-        /// Scale in the X dimension.
+        /// Can scale in the X dimension.
         const SCALE_X = 0b0000_0100;
-        /// Scale in the Y dimension.
+        /// Can scale in the Y dimension.
         const SCALE_Y = 0b0000_1000;
-        /// Scale in both dimensions the same amount.
+        /// Can scale in both dimensions the same amount.
         const SCALE = 0b0001_1100;
 
-        /// Rotate.
+        /// Can rotate.
         const ROTATE = 0b0010_0000;
 
-        /// Translate, scale-square and rotate.
+        /// Can translate, scale-square and rotate.
         const ALL = Self::TRANSLATE.bits()| Self::SCALE.bits() | Self::ROTATE.bits();
     }
 }

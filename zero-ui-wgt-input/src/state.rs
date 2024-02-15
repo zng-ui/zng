@@ -10,9 +10,7 @@ use zero_ui_ext_input::{
 use zero_ui_view_api::{mouse::ButtonState, touch::TouchPhase};
 use zero_ui_wgt::prelude::*;
 
-/// If the mouse pointer is over the widget or a descendant and the widget is [`DISABLED`].
-///
-/// [`DISABLED`]: Interactivity::DISABLED
+/// If the mouse pointer is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
 pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
@@ -26,7 +24,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> imp
     })
 }
 
-/// If the mouse pointer is over the widget or a descendant and the widget is [`ENABLED`].
+/// If the mouse pointer is over the widget or a descendant and the widget is enabled.
 ///
 /// This state property does not consider pointer capture, if the pointer is captured by the widget
 /// but is not actually over the widget this is `false`, use [`is_cap_hovered`] to include the captured state.
@@ -49,7 +47,7 @@ pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
     })
 }
 
-/// If the mouse pointer is over the widget, or is over a widget descendant, or is captured by the widget.
+/// If the mouse pointer is over the widget, or a descendant, or is captured by the it.
 ///
 /// The value is always `false` when the widget is not [`ENABLED`].
 ///
@@ -252,7 +250,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
     })
 }
 
-/// If a touch contact point is over the widget or a descendant and the widget is [`ENABLED`].
+/// If a touch contact point is over the widget or a descendant and the it is enabled.
 ///
 /// This state property does not consider pointer capture, if the pointer is captured by the widget
 /// but is not actually over the widget this is `false`, use [`is_cap_touched`] to include the captured state.
@@ -278,7 +276,7 @@ pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
     })
 }
 
-/// If a touch contact that started over the widget is over the widget and the widget is [`ENABLED`].
+/// If a touch contact that started over the widget is over it and it is enabled.
 ///
 /// This state property does not consider pointer capture, if the pointer is captured by the widget
 /// but is not actually over the widget this is `false`, use [`is_cap_touched_from_start`] to include the captured state.
@@ -312,7 +310,7 @@ pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> i
     })
 }
 
-/// If a touch contact point is over the widget, or is over a widget descendant, or is captured by the widget.
+/// If a touch contact point is over the widget, or is over a descendant, or is captured by it.
 ///
 /// The value is always `false` when the widget is not [`ENABLED`].
 ///
@@ -349,7 +347,7 @@ pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
     )
 }
 
-/// If a touch contact point is over the widget, or is over a widget descendant, or is captured by the widget.
+/// If a touch contact point is over the widget, or is over a descendant, or is captured by it.
 ///
 /// The value is always `false` when the widget is not [`ENABLED`].
 ///
