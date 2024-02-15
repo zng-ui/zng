@@ -57,7 +57,7 @@
 pub use zero_ui_ext_undo::{
     CommandUndoExt, RedoAction, UndoAction, UndoActionMergeArgs, UndoFullOp, UndoInfo, UndoOp, UndoSelect, UndoSelectInterval,
     UndoSelectLtEq, UndoSelector, UndoStackInfo, UndoTransaction, UndoVarModifyTag, WidgetInfoUndoExt, WidgetUndoScope, CLEAR_HISTORY_CMD,
-    REDO_CMD, UNDO, UNDO_CMD, UNDO_INTERVAL_VAR, UNDO_LIMIT_VAR,
+    REDO_CMD, UNDO, UNDO_CMD,
 };
 
 pub use zero_ui_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, UndoMix};

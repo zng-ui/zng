@@ -1,3 +1,5 @@
+* `WINDOW` service docs page shows the `Window` widget docs.
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
@@ -5,7 +7,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewing `zero_ui::touch`.
+        - Last reviewing `zero_ui::update`.
 
 # Publish
 

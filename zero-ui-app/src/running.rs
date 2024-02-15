@@ -1314,7 +1314,7 @@ pub(crate) enum AppEvent {
     Event(crate::event::EventUpdateMsg),
     /// Do an update cycle.
     Update(UpdateOp, Option<WidgetId>),
-    /// Resume a panic in the app thread.
+    /// Resume a panic in the app main thread.
     ResumeUnwind(PanicPayload),
     /// Check for pending updates.
     CheckUpdate,
@@ -1358,7 +1358,7 @@ impl AppEventSender {
         })
     }
 
-    /// Resume a panic in the app thread.
+    /// Resume a panic in the app main loop thread.
     pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
         self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 {
             AppEvent::ResumeUnwind(p) => AppDisconnected(p),
@@ -1389,7 +1389,7 @@ impl AppEventSender {
         )
     }
 
-    /// Create aa bounded channel that causes an extension update for each message received.
+    /// Create a bounded channel that causes an extension update for each message received.
     pub fn ext_channel_bounded<T>(&self, cap: usize) -> (AppExtSender<T>, AppExtReceiver<T>) {
         let (sender, receiver) = flume::bounded(cap);
 

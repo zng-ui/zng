@@ -26,7 +26,7 @@ use crate::{
     AppEventSender, AppExtension, LoopTimer,
 };
 
-/// Represents all the widgets and windows on route to an update target.
+/// Represents all the widgets and windows marked to receive an update.
 pub struct UpdateDeliveryList {
     subscribers: Box<dyn UpdateSubscribers>,
 
@@ -96,7 +96,7 @@ impl UpdateDeliveryList {
         self.widgets.insert(root_id);
     }
 
-    /// Insert the ancestors of `wgt` and `wgt` up-to the inner most that is included in the subscribers.
+    /// Insert the `wgt` and ancestors up-to the inner most that is included in the subscribers.
     pub fn insert_wgt(&mut self, wgt: &impl WidgetPathProvider) {
         let mut any = false;
         for w in wgt.widget_and_ancestors() {
@@ -285,7 +285,9 @@ impl EventUpdate {
         &self.delivery_list
     }
 
-    /// The update delivery list.
+    /// Mutable reference to the update delivery list.
+    /// 
+    /// Note that this is only available app-extensions, nodes don't get mutable access to the event update.
     pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
         &mut self.delivery_list
     }
@@ -295,7 +297,7 @@ impl EventUpdate {
         &*self.args
     }
 
-    /// Calls `handle` if the event targets the window.
+    /// Calls `handle` if the event targets the [`WINDOW`].
     pub fn with_window<H, R>(&self, handle: H) -> Option<R>
     where
         H: FnOnce() -> R,
@@ -307,7 +309,7 @@ impl EventUpdate {
         }
     }
 
-    /// Calls `handle` if the event targets the widget and propagation is not stopped.
+    /// Calls `handle` if the event targets the [`WIDGET`] and propagation is not stopped.
     pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
     where
         H: FnOnce() -> R,
@@ -527,8 +529,7 @@ impl RenderUpdates {
 
 /// Extension methods for infinite loop diagnostics.
 ///
-/// You can also use [`updates_trace_span`] to define a custom scope inside a node, and [`updates_trace_event`]
-/// to log a custom entry.
+/// You can also use [`updates_trace_span`] and [`updates_trace_event`] to define custom scopes and entries.
 pub trait UpdatesTraceUiNodeExt: UiNode {
     /// Defines a custom span.
     fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode
@@ -976,7 +977,7 @@ fn visit_u64(record: impl FnOnce(&mut dyn tracing::field::Visit), name: &str) ->
     visitor.result
 }
 
-/// Update pump and schedule service.
+/// Update schedule service.
 pub struct UPDATES;
 impl UPDATES {
     pub(crate) fn init(&self, event_sender: AppEventSender) {
@@ -1558,6 +1559,8 @@ impl UpdatesService {
 }
 
 /// Updates that must be reacted by an app owner.
+/// 
+/// This type is public only for testing, it is the return type for test methods of [`WINDOW`].
 #[derive(Debug, Default)]
 pub struct ContextUpdates {
     /// Events to notify.
@@ -1723,45 +1726,52 @@ impl WeakOnUpdateHandle {
     }
 }
 
-/// Specify what app extension and widget operation must be run to satisfy an update request targeting an widget.
+/// Identify node and app-extension operations that can be requested.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UpdateOp {
-    /// The [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`] are called in order,
-    /// this is a normal update cycle.
+    /// Updates the target.
+    /// 
+    /// Causes [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`].
     ///
-    /// The [`UiNode::update`] is called for the target widget, parent widgets and any other widget that requested update
-    /// in the same cycle. This call happens inside [`AppExtension::update_ui`].
+    /// Causes [`UiNode::update`] or [`UiNodeOp::Update`] for the target widget and all ancestors.
     ///
-    /// [`AppExtension::update_preview`]: crate::AppExtension::update_preview
-    /// [`AppExtension::update_ui`]: crate::AppExtension::update_ui
-    /// [`AppExtension::update`]: crate::AppExtension::update
+    /// [`UiNodeOp::Update`]: crate::widget::node::UiNodeOp::Update
     Update,
-    /// The normal [`Update`] cycle runs, and after the info tree of windows that inited or deinited widgets are rebuild
-    /// by calling [`UiNode::info`].  The target widget is also flagged for rebuild.
+    /// Rebuilds info for the target.
+    /// 
+    /// Causes [`AppExtension::info`].
+    /// 
+    /// Causes [`UiNode::info`] or [`UiNodeOp::Info`] for the target widget and all ancestors.
     ///
     /// [`Update`]: UpdateOp::Render
+    /// [`UiNodeOp::Info`]: crate::widget::node::UiNodeOp::Info
     Info,
-    /// The [`AppExtension::layout`] is called the an update cycle happens without generating anymore update requests.
+    /// Layouts the target.
+    /// 
+    /// Causes [`AppExtension::layout`].
     ///
-    /// The [`UiNode::layout`] is called for the widget target, parent widgets and any other widget that depends on
-    /// layout metrics that have changed or that also requested layout update.
+    /// Causes an [`UiNode::layout`] or [`UiNodeOp::Layout`] for the target widget and all ancestors.
     ///
-    /// [`AppExtension::layout`]: crate::AppExtension::layout
+    /// [`UiNodeOp::Layout`]: crate::widget::node::UiNodeOp::Layout
     Layout,
-    /// The [`AppExtension::render`] is called after an update and layout cycle happens generating anymore requests for update or layout.
+    /// Render the target.
+    /// 
+    /// Causes [`AppExtension::render`].
     ///
-    /// The [`UiNode::render`] is called for the target widget, parent widgets and all other widgets that also requested render
-    /// or that requested [`RenderUpdate`] in the same window.
+    /// Causes [`UiNode::render`] or [`UiNodeOp::Render`] for the target widget and all ancestors.
     ///
-    /// [`RenderUpdate`]: UpdateOp::RenderUpdate
-    /// [`AppExtension::render`]: crate::AppExtension::render
+    /// [`UiNodeOp::Render`]: crate::widget::node::UiNodeOp::Render
     Render,
-    /// Same behavior as [`Render`], except that windows where all widgets only requested render update are rendered
-    /// using [`UiNode::render_update`] instead of the full render.
+    /// Update frame bindings of the target.
+    /// 
+    /// Causes [`AppExtension::render`].
+    /// 
+    /// Causes [`UiNode::render_update`] or [`UiNodeOp::RenderUpdate`] for the target widget and all ancestors.
     ///
     /// This OP is upgraded to [`Render`] if any other widget requests a full render in the same window.
     ///
     /// [`Render`]: UpdateOp::Render
+    /// [`UiNodeOp::RenderUpdate`]: crate::widget::node::UiNodeOp::RenderUpdate
     RenderUpdate,
 }
 

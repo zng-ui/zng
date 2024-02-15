@@ -145,7 +145,7 @@ impl UNDO {
     ///
     /// * `u32` - Count of actions to undo.
     /// * `Duration` - Interval between each action.
-    /// * `Instant` - Inclusive timestamp to undo back to.
+    /// * `DInstant` - Inclusive timestamp to undo back to.
     pub fn undo_select(&self, selector: impl UndoSelector) {
         UNDO_SCOPE_CTX.get().undo_select(selector);
     }
@@ -509,7 +509,7 @@ impl UndoStackInfo {
     }
 }
 
-/// Identifies that a var modify requested by undo/redo action.
+/// Identifies var modify requests by undo/redo action.
 ///
 /// See [`UNDO.watch_var`] for more details.
 ///
@@ -620,7 +620,7 @@ pub trait RedoAction: Send + Any {
 
 /// Represents an undo/redo action.
 ///
-/// This can be used to implement undo & redo in a single closure. See [`UNDO.register_op`] and
+/// This can be used to implement undo and redo in a single closure. See [`UNDO.register_op`] and
 /// [`UNDO.run_op`] for more details.
 ///
 /// [`UNDO.register_op`]: UNDO::register_op
@@ -642,7 +642,13 @@ impl UndoOp {
     }
 }
 
-/// Represents a full closure implementation of undo/redo action.
+/// Represents a full undo/redo action.
+/// 
+/// This can be used to implement undo and redo in a single closure. See [`UNDO.register_full_op`] and
+/// [`UNDO.run_full_op`] for more details.
+///
+/// [`UNDO.register_full_op`]: UNDO::register_full_op
+/// [`UNDO.run_full_op`]: UNDO::run_full_op
 pub enum UndoFullOp<'r> {
     /// Initialize data in the execution context.
     ///
