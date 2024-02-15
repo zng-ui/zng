@@ -389,10 +389,11 @@
             });
         });
 
-        let properties = document.getElementById('properties-list');
-        if (properties !== null && properties.querySelector('a') === null) {
-            properties.previousSibling.remove();
-            properties.remove();
-        }
+        document.querySelectorAll("div[id^='properties-']").forEach(function (e) {
+            if (e.id.startsWith("properties-") && e.id.endsWith("-list") && e.querySelector('a') === null) {
+                e.previousSibling.remove();
+                e.remove();
+            }
+        });
     }
 })();

@@ -225,7 +225,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 
 /// If the toggle is checked from any of the three primary properties.
 ///
-/// Note to read the tristate use [`IS_CHECKED_VAR`] directly.
+/// Note to read the tristate directly use [`IS_CHECKED_VAR`] directly.
 #[property(EVENT, widget_impl(Toggle))]
 pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)

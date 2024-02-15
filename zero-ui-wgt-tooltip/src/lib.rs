@@ -31,11 +31,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style};
 /// Any other widget can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style. Note
 /// that if the `tip` node is not a widget even after initializing it will not be shown.
 ///
-/// # Context
-///
 /// This property can be configured by [`tooltip_anchor`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
-///
-/// # Disabled
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
 ///
@@ -55,11 +51,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 /// The `tip` widget function is used to instantiate a new tip widget when one needs to be shown, any widget
 /// can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style.
 ///
-/// # Context
-///
 /// This property can be configured by [`tooltip_anchor`], [`tooltip_delay`], [`tooltip_interval`] and [`tooltip_duration`].
-///
-/// # Disabled
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
@@ -337,7 +329,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 /// Set the position of the tip widgets opened for the widget or its descendants.
 ///
 /// Tips are inserted as [`POPUP`] when shown, this property defines how the tip layer
-/// is aligned with the *anchor* widget, or the cursor.
+/// is aligned with the anchor widget, or the cursor.
 ///
 /// By default tips are aligned below the cursor position at the time they are opened.
 ///
