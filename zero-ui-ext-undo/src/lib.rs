@@ -643,7 +643,7 @@ impl UndoOp {
 }
 
 /// Represents a full undo/redo action.
-/// 
+///
 /// This can be used to implement undo and redo in a single closure. See [`UNDO.register_full_op`] and
 /// [`UNDO.run_full_op`] for more details.
 ///

@@ -26,7 +26,7 @@ impl Drop for AnimationHandleData {
         }
     }
 }
-/// Represents a running animation created by [`Animations.animate`].
+/// Represents a running animation.
 ///
 /// Drop all clones of this handle to stop the animation, or call [`perm`] to drop the handle
 /// but keep the animation alive until it is stopped from the inside.
@@ -55,7 +55,7 @@ impl AnimationHandle {
         AnimationHandle(Handle::dummy(AnimationHandleData::default()))
     }
 
-    /// Drop the handle but does **not** stop.
+    /// Drops the handle but does **not** stop.
     ///
     /// The animation stays in memory for the duration of the app or until another handle calls [`stop`](Self::stop).
     pub fn perm(self) {
@@ -63,6 +63,7 @@ impl AnimationHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
+    ///
     /// If `true` the animation will stay active until the app exits, unless [`stop`](Self::stop) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
@@ -128,6 +129,8 @@ struct AnimationData {
 /// Represents an animation in its closure.
 ///
 /// See the [`VARS.animate`] method for more details.
+///
+/// [`VARS.animate`]: VARS::animate
 #[derive(Clone)]
 pub struct Animation(Arc<Mutex<AnimationData>>);
 impl Animation {
@@ -143,12 +146,12 @@ impl Animation {
         })))
     }
 
-    /// Instant this animation (re)started.
+    /// The instant this animation (re)started.
     pub fn start_time(&self) -> DInstant {
         self.0.lock().start_time
     }
 
-    /// Instant the current animation update started.
+    /// The instant the current animation update started.
     ///
     /// Use this value instead of [`INSTANT::now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
@@ -175,9 +178,10 @@ impl Animation {
 
     /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
     ///
-    /// The animation awakes in the next [`VARS.frame_duration`] after the `duration` elapses, if the sleep duration is not
-    /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
+    /// The animation awakes in the next [`VARS.frame_duration`] after the `duration` elapses. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
+    ///
+    /// [`VARS.frame_duration`]: VARS::frame_duration
     pub fn sleep(&self, duration: Duration) {
         let mut me = self.0.lock();
         me.sleep = Some(Deadline(me.now + duration));
@@ -877,7 +881,7 @@ impl ModifyInfo {
     /// is for that animation, even if the modify request is from the current frame.
     ///
     /// You can clone this info to track this animation, when it stops or is dropped this returns `false`. Note
-    /// that *paused* animations still count as animating.
+    /// that sleeping animations still count as animating.
     ///
     /// [`importance`]: Self::importance
     pub fn is_animating(&self) -> bool {
@@ -913,6 +917,8 @@ impl fmt::Debug for ModifyInfo {
 /// Animations controller.
 ///
 /// See [`VARS.with_animation_controller`] for more details.
+///
+/// [`VARS.with_animation_controller`]: VARS::with_animation_controller
 pub trait AnimationController: Send + Sync + Any {
     /// Animation started.
     fn on_start(&self, animation: &Animation) {

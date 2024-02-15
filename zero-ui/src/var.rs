@@ -214,7 +214,8 @@
 //! # let _scope = APP.defaults();
 //!
 //! let rsp = task::respond(async {
-//!     match task::http::get_text("https://raw.githubusercontent.com/git/git-scm.com/main/MIT-LICENSE.txt").await {
+//!     let url = "https://raw.githubusercontent.com/git/git-scm.com/main/MIT-LICENSE.txt";
+//!     match task::http::get_text(url).await {
 //!         Ok(t) => t,
 //!         Err(e) => formatx!("{e}"),
 //!     }

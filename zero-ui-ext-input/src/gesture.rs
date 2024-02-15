@@ -1019,7 +1019,7 @@ impl ShortcutsHandle {
         ShortcutsHandle(Handle::dummy(()))
     }
 
-    /// Drop the handle but does **not** release.
+    /// Drops the handle but does **not** release.
     ///
     /// The claim stays registered for the duration of the app or until another handle calls [`release`](Self::release).
     /// Note that shortcut claims only work if the target widget is found and is not [`BLOCKED`].

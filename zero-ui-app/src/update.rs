@@ -286,7 +286,7 @@ impl EventUpdate {
     }
 
     /// Mutable reference to the update delivery list.
-    /// 
+    ///
     /// Note that this is only available app-extensions, nodes don't get mutable access to the event update.
     pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
         &mut self.delivery_list
@@ -1559,7 +1559,7 @@ impl UpdatesService {
 }
 
 /// Updates that must be reacted by an app owner.
-/// 
+///
 /// This type is public only for testing, it is the return type for test methods of [`WINDOW`].
 #[derive(Debug, Default)]
 pub struct ContextUpdates {
@@ -1680,7 +1680,7 @@ impl OnUpdateHandle {
         OnUpdateHandle(Handle::dummy(()))
     }
 
-    /// Drop the handle but does **not** unsubscribe.
+    /// Drops the handle but does **not** unsubscribe.
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
     pub fn perm(self) {
@@ -1688,6 +1688,7 @@ impl OnUpdateHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
+    ///
     /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
@@ -1730,7 +1731,7 @@ impl WeakOnUpdateHandle {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UpdateOp {
     /// Updates the target.
-    /// 
+    ///
     /// Causes [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`].
     ///
     /// Causes [`UiNode::update`] or [`UiNodeOp::Update`] for the target widget and all ancestors.
@@ -1738,16 +1739,16 @@ pub enum UpdateOp {
     /// [`UiNodeOp::Update`]: crate::widget::node::UiNodeOp::Update
     Update,
     /// Rebuilds info for the target.
-    /// 
+    ///
     /// Causes [`AppExtension::info`].
-    /// 
+    ///
     /// Causes [`UiNode::info`] or [`UiNodeOp::Info`] for the target widget and all ancestors.
     ///
     /// [`Update`]: UpdateOp::Render
     /// [`UiNodeOp::Info`]: crate::widget::node::UiNodeOp::Info
     Info,
     /// Layouts the target.
-    /// 
+    ///
     /// Causes [`AppExtension::layout`].
     ///
     /// Causes an [`UiNode::layout`] or [`UiNodeOp::Layout`] for the target widget and all ancestors.
@@ -1755,7 +1756,7 @@ pub enum UpdateOp {
     /// [`UiNodeOp::Layout`]: crate::widget::node::UiNodeOp::Layout
     Layout,
     /// Render the target.
-    /// 
+    ///
     /// Causes [`AppExtension::render`].
     ///
     /// Causes [`UiNode::render`] or [`UiNodeOp::Render`] for the target widget and all ancestors.
@@ -1763,9 +1764,9 @@ pub enum UpdateOp {
     /// [`UiNodeOp::Render`]: crate::widget::node::UiNodeOp::Render
     Render,
     /// Update frame bindings of the target.
-    /// 
+    ///
     /// Causes [`AppExtension::render`].
-    /// 
+    ///
     /// Causes [`UiNode::render_update`] or [`UiNodeOp::RenderUpdate`] for the target widget and all ancestors.
     ///
     /// This OP is upgraded to [`Render`] if any other widget requests a full render in the same window.
