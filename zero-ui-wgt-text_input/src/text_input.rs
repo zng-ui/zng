@@ -27,7 +27,7 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 /// caret positioning and text selection.
 ///
 /// You can also use [`text::cmd`] to edit the text.
-/// 
+///
 /// [`text::cmd`]: zero_ui_wgt_text::cmd
 ///
 /// # Undo/Redo
@@ -37,8 +37,8 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 ///
 /// # Shorthand
 ///
-/// The `TextInput!` macro provides shorthand syntax that sets the `txt` property. 
-/// 
+/// The `TextInput!` macro provides shorthand syntax that sets the `txt` property.
+///
 /// ```
 /// # zero_ui_wgt::enable_widget_macros!();
 /// # use zero_ui_wgt::prelude::*;

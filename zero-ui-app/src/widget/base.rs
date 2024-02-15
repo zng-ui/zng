@@ -22,7 +22,10 @@ use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 
 /// Base widget that implements the necessary core API.
 ///
-/// The base widget does [`node::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
+/// The base widget implements the [`id`] property, and uses [`node::include_intrinsics`] and [`node::widget`] to
+/// implement the minimum required for the widget to be a part of the UI tree.
+///
+/// See also [`NonWidgetBase`] to declare types that are build like an widget but are never used in the UI tree.
 ///
 /// [`id`]: WidgetBase::id
 pub struct WidgetBase {
@@ -282,6 +285,152 @@ macro_rules! WidgetBaseMacro__ {
 }
 #[doc(hidden)]
 pub use WidgetBaseMacro__ as WidgetBase;
+
+/// Base *widget* for types that build to a custom type that is not used as a part of the UI tree.
+///
+/// This type can be used as base instead of [`WidgetBase`](struct@WidgetBase) for types that provide
+/// a custom build that outputs an instance that is not used as an widget in the UI tree.
+pub struct NonWidgetBase {
+    base: WidgetBase,
+}
+impl NonWidgetBase {
+    /// Gets the type of [`NonWidgetBase`](struct@NonWidgetBase).
+    pub fn widget_type() -> WidgetType {
+        WidgetType {
+            type_id: TypeId::of::<Self>(),
+            path: "$crate::widget::base::NonWidgetBase",
+            location: source_location!(),
+        }
+    }
+
+    /// Starts building a new [`WidgetBase`](struct@WidgetBase) instance.
+    pub fn widget_new() -> Self {
+        Self::inherit(Self::widget_type())
+    }
+
+    /// Returns a mutable reference to the widget builder.
+    pub fn widget_builder(&mut self) -> &mut WidgetBuilder {
+        self.base.widget_builder()
+    }
+
+    /// Returns a mutable reference to the `when` block if called inside a when block.
+    pub fn widget_when(&mut self) -> Option<&mut WhenInfo> {
+        self.base.widget_when()
+    }
+
+    /// Takes the widget builder, finishing the widget macro build.
+    ///
+    /// After this call trying to set a property using `self` will panic,
+    /// the returned builder can still be manipulated directly.
+    pub fn widget_take(&mut self) -> WidgetBuilder {
+        self.base.widget_take()
+    }
+
+    /// Returns the builder.
+    ///
+    /// Inheritors should override this method.
+    pub fn widget_build(&mut self) -> WidgetBuilder {
+        self.widget_take()
+    }
+
+    /// Returns a mutable reference to the importance of the next property assigns, unsets or when blocks.
+    ///
+    /// Note that during the `widget_intrinsic` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
+    pub fn widget_importance(&mut self) -> &mut Importance {
+        self.base.widget_importance()
+    }
+
+    /// Start building a `when` block, all properties set after this call are pushed in the when block.
+    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
+        self.base.start_when_block(inputs, state, expr, location)
+    }
+
+    /// End the current `when` block, all properties set after this call are pushed in the widget.
+    pub fn end_when_block(&mut self) {
+        self.base.end_when_block()
+    }
+
+    fn widget_intrinsic(&mut self) {}
+
+    /// Push method property.
+    #[doc(hidden)]
+    pub fn mtd_property__(&self, args: Box<dyn PropertyArgs>) {
+        self.base.mtd_property__(args)
+    }
+
+    /// Push method unset property.
+    #[doc(hidden)]
+    pub fn mtd_property_unset__(&self, id: PropertyId) {
+        self.base.mtd_property_unset__(id)
+    }
+
+    #[doc(hidden)]
+    pub fn reexport__(&self, f: impl FnOnce(&mut WidgetBase)) {
+        self.base.reexport__(f)
+    }
+
+    #[doc(hidden)]
+    pub fn push_unset_property_build_action__(&mut self, property_id: PropertyId, action_name: &'static str) {
+        self.base.push_unset_property_build_action__(property_id, action_name)
+    }
+
+    #[doc(hidden)]
+    pub fn push_property_build_action__(
+        &mut self,
+        property_id: PropertyId,
+        action_name: &'static str,
+        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+    ) {
+        self.base.push_property_build_action__(property_id, action_name, input_actions)
+    }
+
+    #[doc(hidden)]
+    pub fn push_when_build_action_data__(&mut self, property_id: PropertyId, action_name: &'static str, data: WhenBuildAction) {
+        self.base.push_when_build_action_data__(property_id, action_name, data)
+    }
+}
+impl WidgetImpl for NonWidgetBase {
+    fn inherit(widget: WidgetType) -> Self {
+        let builder = WidgetBuilder::new(widget);
+        let mut w = Self {
+            base: WidgetBase {
+                builder: RefCell::new(Some(builder)),
+                importance: Importance::WIDGET,
+                when: RefCell::new(None),
+            },
+        };
+        w.widget_intrinsic();
+        w.base.importance = Importance::INSTANCE;
+        w
+    }
+
+    fn base(&mut self) -> &mut WidgetBase {
+        &mut self.base
+    }
+
+    fn base_ref(&self) -> &WidgetBase {
+        &self.base
+    }
+
+    fn info_instance__() -> Self {
+        Self {
+            base: WidgetBase {
+                builder: RefCell::new(None),
+                importance: Importance::INSTANCE,
+                when: RefCell::new(None),
+            },
+        }
+    }
+}
+impl WidgetExt for NonWidgetBase {
+    fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
+        self.base.ext_property__(args)
+    }
+
+    fn ext_property_unset__(&mut self, id: PropertyId) {
+        self.base.ext_property_unset__(id)
+    }
+}
 
 /// Basic nodes for widgets, some used in [`WidgetBase`].
 ///

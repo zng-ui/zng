@@ -35,7 +35,7 @@ use std::{fmt, ops};
 /// as they build to [`StyleBuilder`]. This is different from the *extend/replace* mechanism as it operates on the style
 /// type, not the instances.
 #[widget($crate::Style)]
-pub struct Style(WidgetBase);
+pub struct Style(zero_ui_app::widget::base::NonWidgetBase);
 impl Style {
     /// Build the style.
     pub fn widget_build(&mut self) -> StyleBuilder {

@@ -723,6 +723,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
             #cfg
             #[doc(hidden)]
+            impl self::#ident for #core::widget::base::NonWidgetBase {
+                type MetaType = ();
+            }
+            #cfg
+            #[doc(hidden)]
             impl self::#ident for #core::widget::builder::WgtInfo {
                 type MetaType = #ident_meta;
             }

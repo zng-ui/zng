@@ -102,7 +102,7 @@ pub mod __proc_macro_util {
 
         #[doc(hidden)]
         pub mod base {
-            pub use crate::widget::base::{WidgetBase, WidgetExt, WidgetImpl};
+            pub use crate::widget::base::{NonWidgetBase, WidgetBase, WidgetExt, WidgetImpl};
         }
 
         #[doc(hidden)]

@@ -37,7 +37,7 @@
 //!
 //! See [`zero_ui_app::widget`] for the full API.
 
-pub use zero_ui_app::widget::base::{HitTestMode, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
+pub use zero_ui_app::widget::base::{HitTestMode, NonWidgetBase, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
 
 pub use zero_ui_app::widget::{widget_impl, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET};
 
