@@ -81,3 +81,8 @@ pub use zero_ui_wgt_text::{
     CaretStatus, ChangeStopArgs, ChangeStopCause, Em, InteractiveCaretMode, LangMix, LinesWrapCount, ParagraphMix, SelectionToolbarArgs,
     Strong, Text, TextOverflow, TxtParseValue, UnderlinePosition, UnderlineSkip, FONT_COLOR_VAR,
 };
+
+/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
+///
+#[cfg(all(windows, doc))]
+pub use zero_ui_wgt_text::node::TEXT as TEXT_;
