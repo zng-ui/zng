@@ -416,7 +416,7 @@ impl IntoIterator for VarHandles {
 
 /// Arc value that implements equality by pointer comparison.
 ///
-/// This type allows types external types that are only `Debug + Send + Sync` to become
+/// This type allows external types that are only `Debug + Send + Sync` to become
 /// a full [`VarValue`] to be allowed as a variable value.
 pub struct ArcEq<T: fmt::Debug + Send + Sync>(pub Arc<T>);
 impl<T: fmt::Debug + Send + Sync> ops::Deref for ArcEq<T> {

@@ -2,7 +2,7 @@ use zero_ui_app_context::{context_local, ContextLocal, ContextLocalKeyProvider};
 
 use super::*;
 
-///<span data-del-macro-root></span> Declares new [`ContextVar`] keys.
+///<span data-del-macro-root></span> Declares new [`ContextVar`] static items.
 ///
 /// # Examples
 ///
@@ -28,10 +28,8 @@ use super::*;
 ///
 /// All context variable have a default fallback value that is used when the variable is not setted in the context.
 ///
-/// The default value is instantiated once per app thread and is the value of the variable when it is not set in the context,
-/// any value [`IntoVar<T>`] is allowed, meaning other variables are supported, you can use this to *inherit* from another
-/// context variable, when the context fallback to default the other context var is used, it can have a value or fallback to
-/// it's default too.
+/// The default value is instantiated once per app and is the value of the variable when it is not set in the context,
+/// any value [`IntoVar<T>`] is allowed, including other variables.
 ///
 /// The default value can also be a [`Var::map`] to another context var, but note that mapping vars are contextualized,
 /// meaning that they evaluate the mapping in each different context read, so a context var with mapping value
@@ -42,9 +40,9 @@ use super::*;
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
 ///
-/// # Context Only
+/// # Context Local
 ///
-/// Note that if you are only interested in sharing a contextual value you can use the [`context_local!`] macro instead.
+/// If you are only interested in sharing a contextual value you can use the [`context_local!`] macro instead.
 ///
 /// [`context_local!`]: crate::context::context_local
 #[macro_export]

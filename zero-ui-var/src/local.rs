@@ -5,6 +5,8 @@ use super::arc::WeakArcVar;
 use super::*;
 
 /// Represents a single value as [`Var<T>`].
+/// 
+/// This is the var target for most [`IntoVar<T>`] implementations.
 #[derive(Clone)]
 pub struct LocalVar<T: VarValue>(pub T);
 

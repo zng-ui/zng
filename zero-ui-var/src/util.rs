@@ -1,17 +1,9 @@
 ///Implements `T: IntoVar<U>`, `T: IntoValue<U>` and optionally `U: From<T>` without boilerplate.
 ///
-/// Unfortunately we cannot provide a trait impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
-/// that would block all manual implementations of the trait, so you need to implement it manually to
-/// enable the easy-to-use parameters.
-///
-/// You can use this macro to implement `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` at the same time.
 /// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`LocalVar<U>`]
-/// type is selected for variables.
-///
-/// Optionally you can declare generics using the pattern `fn from<const N: usize>(t: &'static [T; N]) -> U`
-/// with multiple generic types and constraints, but not `where` constraints. You can also destruct the input
-/// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
-/// the input is supported.
+/// type is selected for variables. The syntax also supports generic types and constraints, but not `where` constraints. 
+/// You can also destructure the input if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern 
+/// matching in the input is supported.
 ///
 /// The `U: From<T>` implement is optional, you can use the syntax `fn from(t: T) -> U;` to only generate
 /// the `T: IntoVar<U>` and `T: IntoValue<U>` implementations using an already implemented `U: From<T>`.
@@ -189,7 +181,7 @@ macro_rules! __impl_from_and_into_var {
     (
         =input=>
         [$($config:tt)*]
-        (( $($destruct:tt)+ ) : $Input:ty) $($rest:tt)+
+        (( $($destructure:tt)+ ) : $Input:ty) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>
@@ -204,7 +196,7 @@ macro_rules! __impl_from_and_into_var {
     (
         =input=>
         [$($config:tt)*]
-        ([ $($destruct:tt)+ ] : $Input:ty) $($rest:tt)+
+        ([ $($destructure:tt)+ ] : $Input:ty) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>

@@ -1,4 +1,4 @@
-///<span data-del-macro-root></span> New variable from an expression with interpolated *vars*.
+///<span data-del-macro-root></span> New variable from an expression with interpolated vars.
 ///
 /// # Interpolation
 ///
@@ -20,8 +20,8 @@
 /// };
 /// ```
 ///
-/// In the example a `var_eq` of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
-/// the value of `var_eq` is updated on the next read. Normal variables like `name` are moved in, like a closure capture.
+/// In the example a `var_eq` var of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
+/// the value of `var_eq` is updated. Normal variables like `name` are moved in, like a closure capture.
 ///
 /// # Capture Mode
 ///
@@ -35,22 +35,20 @@
 /// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
 /// will still be available after the `expr_var` call. Equal `<var-expr>` only evaluate once.
 ///
-/// The interpolation result value is the [`Var::get`] return value.
-///
 /// # Expansion
 ///
 /// The expression is transformed into different types of vars depending on the number of interpolated variables.
 ///
-/// ## No Variables
+/// ##### No Variables
 ///
 /// An expression with no interpolation is simply evaluated into a var using [`IntoVar`].
 ///
-/// # Single Variable
+/// ##### Single Variable
 ///
 /// An expression with a single variable is transformed in a [`map`] operation, unless the expression
 /// is only the variable without any extra operation.
 ///
-/// # Multiple Variables
+/// ##### Multiple Variables
 ///
 /// An expression with multiple variables is transformed into a [`merge_var!`] call.
 ///
