@@ -428,7 +428,7 @@ impl From<AngleDegree> for AngleTurn {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
+/// # use zero_ui_unit::*;
 /// let radians = 6.28318.rad();
 /// let gradians = 400.grad();
 /// let degrees = 360.deg();
