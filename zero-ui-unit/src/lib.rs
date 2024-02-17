@@ -5,6 +5,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+mod angle;
 mod byte;
 mod corner_radius;
 mod distance_key;
@@ -18,6 +19,7 @@ mod transform;
 
 pub use euclid;
 
+pub use angle::*;
 pub use byte::*;
 pub use corner_radius::*;
 pub use distance_key::*;

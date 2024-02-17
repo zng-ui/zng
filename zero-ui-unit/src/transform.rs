@@ -4,9 +4,6 @@ use std::marker::PhantomData;
 
 use crate::{Px, PxBox, PxPoint, PxVector};
 
-/// Radian angle type used by webrender.
-pub type RenderAngle = euclid::Angle<f32>;
-
 /// A transform in device pixels.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PxTransform {
@@ -49,18 +46,18 @@ impl PxTransform {
     }
 
     /// New 2D rotation.
-    pub fn rotation(x: f32, y: f32, theta: RenderAngle) -> Self {
+    pub fn rotation(x: f32, y: f32, theta: euclid::Angle<f32>) -> Self {
         Self::rotation_3d(x, y, 1.0, theta)
     }
 
     /// New 3D rotation.
-    pub fn rotation_3d(x: f32, y: f32, z: f32, theta: RenderAngle) -> Self {
+    pub fn rotation_3d(x: f32, y: f32, z: f32, theta: euclid::Angle<f32>) -> Self {
         let [x, y, z] = euclid::vec3::<_, ()>(x, y, z).normalize().to_array();
         PxTransform::Transform(euclid::Transform3D::rotation(x, y, z, theta))
     }
 
     /// New 2D skew.
-    pub fn skew(alpha: RenderAngle, beta: RenderAngle) -> Self {
+    pub fn skew(alpha: euclid::Angle<f32>, beta: euclid::Angle<f32>) -> Self {
         PxTransform::Transform(euclid::Transform3D::skew(alpha, beta))
     }
 

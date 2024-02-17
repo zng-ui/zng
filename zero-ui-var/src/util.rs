@@ -1,8 +1,8 @@
 ///Implements `T: IntoVar<U>`, `T: IntoValue<U>` and optionally `U: From<T>` without boilerplate.
 ///
 /// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`LocalVar<U>`]
-/// type is selected for variables. The syntax also supports generic types and constraints, but not `where` constraints. 
-/// You can also destructure the input if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern 
+/// type is selected for variables. The syntax also supports generic types and constraints, but not `where` constraints.
+/// You can also destructure the input if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern
 /// matching in the input is supported.
 ///
 /// The `U: From<T>` implement is optional, you can use the syntax `fn from(t: T) -> U;` to only generate

@@ -5,9 +5,6 @@ pub use zero_ui_unit::*;
 mod alignment;
 pub use alignment::*;
 
-mod angle;
-pub use angle::*;
-
 mod constraints;
 pub use constraints::*;
 

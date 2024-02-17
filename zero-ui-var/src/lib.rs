@@ -75,6 +75,8 @@ pub mod types {
     #[doc(hidden)]
     pub use zero_ui_app_context::context_local;
 
+    pub use impls::*;
+
     pub use super::arc::WeakArcVar;
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
     pub use super::context::{context_var_init, WeakContextInitHandle};

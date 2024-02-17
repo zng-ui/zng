@@ -146,7 +146,7 @@ fn test_view_api_units() {
 
     test_config!("PxTransform::identity" => PxTransform::identity());
     test_config!("PxTransform::translation" => PxTransform::translation(10.0, 20.0));
-    test_config!("PxTransform::rotation" => PxTransform::rotation(1.0, 2.0, 40.deg().into()));
+    test_config!("PxTransform::rotation" => PxTransform::rotation(1.0, 2.0, layout::AngleRadian::from(40.deg()).into()));
 }
 
 fn test_view_api_types() {

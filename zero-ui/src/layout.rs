@@ -347,13 +347,15 @@
 //! See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
 
 pub use zero_ui_layout::unit::{
-    slerp_enabled, slerp_sampler, Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength,
-    ByteUnits, CornerRadius2D, Dip, DipBox, DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey,
-    Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, Length, LengthExpr,
-    LengthUnits, Line, LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints, PxConstraints2d, PxCornerRadius,
-    PxGridSpacing, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect, RectFromTuplesBuilder,
-    RenderAngle, ResolutionUnits, SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
+    Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D, Dip, DipBox,
+    DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey, Factor, Factor2d, FactorPercent,
+    FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, Length, LengthExpr, LengthUnits, Line,
+    LineFromTuplesBuilder, Orientation2D, Point, Ppi, Ppm, Px, PxBox, PxConstraints, PxConstraints2d, PxCornerRadius, PxGridSpacing,
+    PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip, PxTransform, PxVector, Rect, RectFromTuplesBuilder, ResolutionUnits,
+    SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
 };
+
+pub use zero_ui_var::types::{slerp_enabled, slerp_sampler};
 
 pub use zero_ui_layout::context::{
     InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LayoutDirection, LayoutMask,

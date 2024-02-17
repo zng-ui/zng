@@ -1,13 +1,17 @@
 //! zero-ui-var depends on zero-ui-[units, txt] so we need to implement these traits here.
 
-use std::{any::Any, borrow::Cow, path::PathBuf, time::Duration};
+use std::{any::Any, borrow::Cow, path::PathBuf, sync::Arc, time::Duration};
 
+use zero_ui_app_context::context_local;
 use zero_ui_time::{DInstant, Deadline};
 use zero_ui_txt::Txt;
-use zero_ui_unit::{euclid, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits, Px};
+use zero_ui_unit::{
+    euclid, AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits,
+    Orientation2D, Px,
+};
 
 use crate::{
-    animation::{easing::EasingStep, Transitionable},
+    animation::{easing::EasingStep, Transition, Transitionable},
     impl_from_and_into_var,
 };
 
@@ -207,6 +211,22 @@ impl_from_and_into_var! {
     fn from(d: Duration) -> Deadline;
 
     fn from(b: usize) -> ByteLength;
+
+    fn from(rad: AngleRadian) -> AngleTurn;
+    fn from(grad: AngleGradian) -> AngleTurn;
+    fn from(deg: AngleDegree) -> AngleTurn;
+
+    fn from(grad: AngleGradian) -> AngleRadian;
+    fn from(deg: AngleDegree) -> AngleRadian;
+    fn from(turn: AngleTurn) -> AngleRadian;
+
+    fn from(rad: AngleRadian) -> AngleGradian;
+    fn from(deg: AngleDegree) -> AngleGradian;
+    fn from(turn: AngleTurn) -> AngleGradian;
+
+    fn from(rad: AngleRadian) -> AngleDegree;
+    fn from(grad: AngleGradian) -> AngleDegree;
+    fn from(turn: AngleTurn) -> AngleDegree;
 }
 
 macro_rules! impl_into_var_option {
@@ -223,5 +243,70 @@ impl_into_var_option! {
     u8, u16, u32, u64, u128, usize,
     f32, f64,
     char, bool,
-    zero_ui_unit::Orientation2D,
+    Orientation2D,
+}
+
+/// Spherical linear interpolation sampler.
+///
+/// Animates rotations over the shortest change between angles by modulo wrapping.
+/// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
+///
+/// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
+/// mode, types that don't support this use the normal linear interpolation. All angle and transform units
+/// implement this.
+///
+/// Samplers can be set in animations using the `Var::easing_with` method.
+pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
+    slerp_enabled(true, || t.sample(step))
+}
+
+/// Gets if slerp mode is enabled in the context.
+///
+/// See [`slerp_sampler`] for more details.
+pub fn is_slerp_enabled() -> bool {
+    SLERP_ENABLED.get_clone()
+}
+
+/// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
+///
+/// See [`slerp_sampler`] for a way to enable in animations.
+pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
+    SLERP_ENABLED.with_context(&mut Some(Arc::new(enabled)), f)
+}
+
+context_local! {
+    static SLERP_ENABLED: bool = false;
+}
+
+impl Transitionable for AngleRadian {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
+        }
+    }
+}
+impl Transitionable for AngleGradian {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
+        }
+    }
+}
+impl Transitionable for AngleDegree {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
+        }
+    }
+}
+impl Transitionable for AngleTurn {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        match is_slerp_enabled() {
+            false => self.lerp(*to, step),
+            true => self.slerp(*to, step),
+        }
+    }
 }

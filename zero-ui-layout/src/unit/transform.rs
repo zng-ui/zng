@@ -3,9 +3,10 @@ use super::{euclid, Px};
 use zero_ui_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
+    types::{is_slerp_enabled, slerp_enabled},
 };
 
-use super::{is_slerp_enabled, slerp_enabled, AngleRadian, AngleUnits, Factor, FactorUnits, Layout1d, Length, PxTransform};
+use super::{AngleRadian, AngleUnits, Factor, FactorUnits, Layout1d, Length, PxTransform};
 
 /// A transform builder type.
 ///

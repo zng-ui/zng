@@ -1,49 +1,9 @@
 use super::{about_eq, Factor, EQ_EPSILON, EQ_EPSILON_100};
 
-use zero_ui_app_context::context_local;
-use zero_ui_unit::RenderAngle;
-use zero_ui_var::{
-    animation::{easing::EasingStep, Transition, Transitionable},
-    impl_from_and_into_var,
-};
-
 use std::{
     f32::consts::{PI, TAU},
     fmt, ops,
-    sync::Arc,
 };
-
-/// Spherical linear interpolation sampler.
-///
-/// Animates rotations over the shortest change between angles by modulo wrapping.
-/// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
-///
-/// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
-/// mode, types that don't support this use the normal linear interpolation. All angle and transform units
-/// implement this.
-///
-/// Samplers can be set in animations using the `Var::easing_with` method.
-pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
-    slerp_enabled(true, || t.sample(step))
-}
-
-/// Gets if slerp mode is enabled in the context.
-///
-/// See [`slerp_sampler`] for more details.
-pub fn is_slerp_enabled() -> bool {
-    SLERP_ENABLED.get_clone()
-}
-
-/// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
-///
-/// See [`slerp_sampler`] for a way to enable in animations.
-pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
-    SLERP_ENABLED.with_context(&mut Some(Arc::new(enabled)), f)
-}
-
-context_local! {
-    static SLERP_ENABLED: bool = false;
-}
 
 /// Angle in radians.
 ///
@@ -94,7 +54,7 @@ impl AngleRadian {
 
     /// Linear interpolation.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
-        Self(self.0.lerp(&to.0, factor))
+        Self(lerp(self.0, to.0, factor))
     }
 
     /// Spherical linear interpolation.
@@ -110,32 +70,34 @@ impl AngleRadian {
         Self(slerp(self.0, to.0, TAU, factor))
     }
 }
-impl Transitionable for AngleRadian {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match is_slerp_enabled() {
-            false => self.lerp(*to, step),
-            true => self.slerp(*to, step),
-        }
-    }
-}
+
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EQ_EPSILON)
     }
 }
-impl_from_and_into_var! {
-    fn from(grad: AngleGradian) -> AngleRadian {
+
+impl From<AngleGradian> for AngleRadian {
+    fn from(grad: AngleGradian) -> Self {
         AngleRadian(grad.0 * PI / 200.0)
     }
-
-    fn from(deg: AngleDegree) -> AngleRadian {
+}
+impl From<AngleDegree> for AngleRadian {
+    fn from(deg: AngleDegree) -> Self {
         AngleRadian(deg.0.to_radians())
     }
-
-    fn from(turn: AngleTurn) -> AngleRadian {
+}
+impl From<AngleTurn> for AngleRadian {
+    fn from(turn: AngleTurn) -> Self {
         AngleRadian(turn.0 * TAU)
     }
 }
+impl From<AngleRadian> for euclid::Angle<f32> {
+    fn from(rad: AngleRadian) -> Self {
+        euclid::Angle::radians(rad.0)
+    }
+}
+
 impl fmt::Debug for AngleRadian {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -169,7 +131,7 @@ impl AngleGradian {
 
     /// Linear interpolation.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
-        Self(self.0.lerp(&to.0, factor))
+        Self(lerp(self.0, to.0, factor))
     }
 
     /// Spherical linear interpolation.
@@ -216,29 +178,24 @@ impl ops::Neg for AngleGradian {
         Self(-self.0)
     }
 }
-impl Transitionable for AngleGradian {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match is_slerp_enabled() {
-            false => self.lerp(*to, step),
-            true => self.slerp(*to, step),
-        }
-    }
-}
+
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EQ_EPSILON_100)
     }
 }
-impl_from_and_into_var! {
-    fn from(rad: AngleRadian) -> AngleGradian {
+impl From<AngleRadian> for AngleGradian {
+    fn from(rad: AngleRadian) -> Self {
         AngleGradian(rad.0 * 200.0 / PI)
     }
-
-    fn from(deg: AngleDegree) -> AngleGradian {
+}
+impl From<AngleDegree> for AngleGradian {
+    fn from(deg: AngleDegree) -> Self {
         AngleGradian(deg.0 * 10.0 / 9.0)
     }
-
-    fn from(turn: AngleTurn) -> AngleGradian {
+}
+impl From<AngleTurn> for AngleGradian {
+    fn from(turn: AngleTurn) -> Self {
         AngleGradian(turn.0 * 400.0)
     }
 }
@@ -275,7 +232,7 @@ impl AngleDegree {
 
     /// Linear interpolation.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
-        Self(self.0.lerp(&to.0, factor))
+        Self(lerp(self.0, to.0, factor))
     }
 
     /// Spherical linear interpolation.
@@ -322,29 +279,24 @@ impl ops::Neg for AngleDegree {
         Self(-self.0)
     }
 }
-impl Transitionable for AngleDegree {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match is_slerp_enabled() {
-            false => self.lerp(*to, step),
-            true => self.slerp(*to, step),
-        }
-    }
-}
+
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EQ_EPSILON_100)
     }
 }
-impl_from_and_into_var! {
-    fn from(rad: AngleRadian) -> AngleDegree {
+impl From<AngleRadian> for AngleDegree {
+    fn from(rad: AngleRadian) -> Self {
         AngleDegree(rad.0.to_degrees())
     }
-
-    fn from(grad: AngleGradian) -> AngleDegree {
+}
+impl From<AngleGradian> for AngleDegree {
+    fn from(grad: AngleGradian) -> Self {
         AngleDegree(grad.0 * 9.0 / 10.0)
     }
-
-    fn from(turn: AngleTurn) -> AngleDegree {
+}
+impl From<AngleTurn> for AngleDegree {
+    fn from(turn: AngleTurn) -> Self {
         AngleDegree(turn.0 * 360.0)
     }
 }
@@ -381,7 +333,7 @@ impl AngleTurn {
 
     /// Linear interpolation.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
-        Self(self.0.lerp(&to.0, factor))
+        Self(lerp(self.0, to.0, factor))
     }
 
     /// Spherical linear interpolation.
@@ -428,14 +380,7 @@ impl ops::Neg for AngleTurn {
         Self(-self.0)
     }
 }
-impl Transitionable for AngleTurn {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        match is_slerp_enabled() {
-            false => self.lerp(*to, step),
-            true => self.slerp(*to, step),
-        }
-    }
-}
+
 impl fmt::Debug for AngleTurn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -459,28 +404,20 @@ impl PartialEq for AngleTurn {
         about_eq(self.0, other.0, EQ_EPSILON)
     }
 }
-impl_from_and_into_var! {
-    fn from(rad: AngleRadian) -> AngleTurn {
+
+impl From<AngleRadian> for AngleTurn {
+    fn from(rad: AngleRadian) -> Self {
         AngleTurn(rad.0 / TAU)
     }
-
-    fn from(grad: AngleGradian) -> AngleTurn {
+}
+impl From<AngleGradian> for AngleTurn {
+    fn from(grad: AngleGradian) -> Self {
         AngleTurn(grad.0 / 400.0)
     }
-
-    fn from(deg: AngleDegree) -> AngleTurn {
-        AngleTurn(deg.0 / 360.0)
-    }
 }
-
-impl From<AngleRadian> for RenderAngle {
-    fn from(rad: AngleRadian) -> Self {
-        RenderAngle::radians(rad.0)
-    }
-}
-impl From<AngleDegree> for RenderAngle {
+impl From<AngleDegree> for AngleTurn {
     fn from(deg: AngleDegree) -> Self {
-        RenderAngle::degrees(deg.0)
+        AngleTurn(deg.0 / 360.0)
     }
 }
 
@@ -540,6 +477,10 @@ impl AngleUnits for i32 {
     fn turn(self) -> AngleTurn {
         AngleTurn(self as f32)
     }
+}
+
+fn lerp(from: f32, to: f32, factor: Factor) -> f32 {
+    from + (to - from) * factor.0
 }
 
 fn slerp(from: f32, to: f32, turn: f32, factor: Factor) -> f32 {

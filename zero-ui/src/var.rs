@@ -317,9 +317,10 @@ pub use zero_ui_var::types::{
 };
 pub use zero_ui_var::{
     context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_default,
-    var_from, when_var, AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextVar,
-    IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar,
-    TraceValueArgs, Var, VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar, VARS,
+    var_from, when_var, AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar,
+    ContextInitHandle, ContextVar, IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar,
+    ResponderVar, ResponseVar, TraceValueArgs, Var, VarCapabilities, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId,
+    VarValue, WeakVar, VARS,
 };
 
 pub use zero_ui_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
