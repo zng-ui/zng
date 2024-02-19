@@ -4,10 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{
-        ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, IdNamespace, ImageKey,
-        PipelineId,
-    },
+    api::{ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, IdNamespace, PipelineId},
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect};
@@ -15,7 +12,7 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::DisplayListCache,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode},
+    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     unit::*,
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
     ViewProcessGen,
@@ -199,16 +196,16 @@ impl Surface {
         }
     }
 
-    pub fn use_image(&mut self, image: &Image) -> ImageKey {
+    pub fn use_image(&mut self, image: &Image) -> ImageTextureId {
         self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
-    pub fn update_image(&mut self, key: ImageKey, image: &Image) {
-        self.image_use.update_use(key, image, self.document_id, &mut self.api);
+    pub fn update_image(&mut self, texture_id: ImageTextureId, image: &Image) {
+        self.image_use.update_use(texture_id, image, self.document_id, &mut self.api);
     }
 
-    pub fn delete_image(&mut self, key: ImageKey) {
-        self.image_use.delete(key, self.document_id, &mut self.api);
+    pub fn delete_image(&mut self, texture_id: ImageTextureId) {
+        self.image_use.delete(texture_id, self.document_id, &mut self.api);
     }
 
     pub fn add_font_face(&mut self, font: Vec<u8>, index: u32) -> FontFaceId {

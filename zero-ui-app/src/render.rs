@@ -58,11 +58,11 @@ pub trait Font {
 ///
 /// The ideal image format is BGRA with pre-multiplied alpha.
 pub trait Img {
-    /// Gets the image key in the `renderer` namespace.
+    /// Gets the image ID in the `renderer` namespace.
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
     /// be loaded yet when the key is returned.
-    fn image_key(&self, renderer: &ViewRenderer) -> webrender_api::ImageKey;
+    fn renderer_id(&self, renderer: &ViewRenderer) -> zero_ui_view_api::image::ImageTextureId;
 
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
@@ -1235,7 +1235,7 @@ impl FrameBuilder {
         let mut pop = false;
         if self.visible {
             if let Some(r) = &self.renderer {
-                self.display_list.push_mask(image.image_key(r), rect);
+                self.display_list.push_mask(image.renderer_id(r), rect);
                 pop = true;
             }
         }
@@ -1402,11 +1402,11 @@ impl FrameBuilder {
         warn_empty!(self.push_border_image(bounds));
 
         if let (true, Some(r)) = (self.visible, &self.renderer) {
-            let key = image.image_key(r);
+            let image_id = image.renderer_id(r);
             self.display_list.push_nine_patch_border(
                 bounds,
                 NinePatchSource::Image {
-                    key,
+                    image_id,
                     rendering: rendering.into(),
                 },
                 widths,
@@ -1605,7 +1605,7 @@ impl FrameBuilder {
 
         if let Some(r) = &self.renderer {
             if self.visible {
-                let image_key = image.image_key(r);
+                let image_key = image.renderer_id(r);
                 self.display_list.push_image(
                     clip_rect,
                     image_key,

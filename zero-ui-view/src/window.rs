@@ -14,7 +14,7 @@ use tracing::span::EnteredSpan;
 use webrender::{
     api::{
         ColorF, DocumentId, DynamicProperties, FontInstanceFlags, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation,
-        IdNamespace, ImageKey, PipelineId,
+        IdNamespace, PipelineId,
     },
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
 };
@@ -31,7 +31,7 @@ use zero_ui_view_api::{
     config::ColorScheme,
     display_list::DisplayListCache,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode},
+    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     unit::*,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
@@ -1180,16 +1180,16 @@ impl Window {
         }
     }
 
-    pub fn use_image(&mut self, image: &Image) -> ImageKey {
+    pub fn use_image(&mut self, image: &Image) -> ImageTextureId {
         self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
-    pub fn update_image(&mut self, key: ImageKey, image: &Image) {
-        self.image_use.update_use(key, image, self.document_id, &mut self.api);
+    pub fn update_image(&mut self, texture_id: ImageTextureId, image: &Image) {
+        self.image_use.update_use(texture_id, image, self.document_id, &mut self.api);
     }
 
-    pub fn delete_image(&mut self, key: ImageKey) {
-        self.image_use.delete(key, self.document_id, &mut self.api);
+    pub fn delete_image(&mut self, texture_id: ImageTextureId) {
+        self.image_use.delete(texture_id, self.document_id, &mut self.api);
     }
 
     pub fn add_font_face(&mut self, font: Vec<u8>, index: u32) -> FontFaceId {

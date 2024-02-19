@@ -1076,6 +1076,7 @@ mod external {
         },
         RenderApi,
     };
+    use zero_ui_view_api::image::ImageTextureId;
 
     use super::{Image, ImageData};
 
@@ -1145,49 +1146,55 @@ mod external {
     /// The renderer must use [`WrImageCache`] as the external image source.
     #[derive(Default)]
     pub(crate) struct ImageUseMap {
-        id_key: FxHashMap<ExternalImageId, (ImageKey, Image)>,
-        key_id: FxHashMap<ImageKey, ExternalImageId>,
+        id_tex: FxHashMap<ExternalImageId, (ImageTextureId, Image)>,
+        tex_id: FxHashMap<ImageTextureId, ExternalImageId>,
     }
     impl ImageUseMap {
-        pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageKey {
+        pub fn new_use(&mut self, image: &Image, document_id: DocumentId, api: &mut RenderApi) -> ImageTextureId {
             let id = image.external_id();
-            match self.id_key.entry(id) {
+            match self.id_tex.entry(id) {
                 Entry::Occupied(e) => e.get().0,
                 Entry::Vacant(e) => {
                     let key = api.generate_image_key();
-                    e.insert((key, image.clone())); // keep the image Arc alive, we expect this in `WrImageCache`.
-                    self.key_id.insert(key, id);
+                    let tex_id = ImageTextureId::from_raw(key.1);
+                    e.insert((tex_id, image.clone())); // keep the image Arc alive, we expect this in `WrImageCache`.
+                    self.tex_id.insert(tex_id, id);
 
                     let mut txn = webrender::Transaction::new();
                     txn.add_image(key, image.descriptor(), image.data(), None);
                     api.send_transaction(document_id, txn);
 
-                    key
+                    tex_id
                 }
             }
         }
 
         /// Returns if needs to update.
-        pub fn update_use(&mut self, key: ImageKey, image: &Image, document_id: DocumentId, api: &mut RenderApi) {
-            if let Entry::Occupied(mut e) = self.key_id.entry(key) {
+        pub fn update_use(&mut self, texture_id: ImageTextureId, image: &Image, document_id: DocumentId, api: &mut RenderApi) {
+            if let Entry::Occupied(mut e) = self.tex_id.entry(texture_id) {
                 let id = image.external_id();
                 if *e.get() != id {
                     let prev_id = e.insert(id);
-                    self.id_key.remove(&prev_id).unwrap();
-                    self.id_key.insert(id, (key, image.clone()));
+                    self.id_tex.remove(&prev_id).unwrap();
+                    self.id_tex.insert(id, (texture_id, image.clone()));
 
                     let mut txn = webrender::Transaction::new();
-                    txn.update_image(key, image.descriptor(), image.data(), &ImageDirtyRect::All);
+                    txn.update_image(
+                        ImageKey(api.get_namespace_id(), texture_id.get()),
+                        image.descriptor(),
+                        image.data(),
+                        &ImageDirtyRect::All,
+                    );
                     api.send_transaction(document_id, txn);
                 }
             }
         }
 
-        pub fn delete(&mut self, key: ImageKey, document_id: DocumentId, api: &mut RenderApi) {
-            if let Some(id) = self.key_id.remove(&key) {
-                let _img = self.id_key.remove(&id); // remove but keep alive until the transaction is done.
+        pub fn delete(&mut self, texture_id: ImageTextureId, document_id: DocumentId, api: &mut RenderApi) {
+            if let Some(id) = self.tex_id.remove(&texture_id) {
+                let _img = self.id_tex.remove(&id); // remove but keep alive until the transaction is done.
                 let mut txn = webrender::Transaction::new();
-                txn.delete_image(key);
+                txn.delete_image(ImageKey(api.get_namespace_id(), texture_id.get()));
                 api.send_transaction(document_id, txn);
             }
         }

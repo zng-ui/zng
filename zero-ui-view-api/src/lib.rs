@@ -40,8 +40,6 @@ pub mod touch;
 pub mod unit;
 pub mod window;
 
-use font::{FontFaceId, FontId, FontOptions, FontVariationName};
-
 mod types;
 pub use types::*;
 
@@ -53,12 +51,12 @@ pub use view_process::*;
 use zero_ui_txt::Txt;
 
 use std::fmt;
-use webrender_api::ImageKey;
 
 use api_extension::{ApiExtensionId, ApiExtensionPayload};
 use clipboard::{ClipboardData, ClipboardError};
 use dialog::DialogId;
-use image::{ImageId, ImageMaskMode, ImageRequest};
+use font::{FontFaceId, FontId, FontOptions, FontVariationName};
+use image::{ImageId, ImageMaskMode, ImageRequest, ImageTextureId};
 use ipc::{IpcBytes, IpcBytesReceiver};
 use window::WindowId;
 use zero_ui_unit::{DipRect, DipSize, Factor, Px, PxRect};
@@ -377,10 +375,10 @@ declare_api! {
 
     /// Add an image resource to the window renderer.
     ///
-    /// Returns the new image key. If the `image_id` is not loaded returns the [`DUMMY`] image key.
+    /// Returns the new image texture ID. If the `image_id` is not loaded returns the [`INVALID`] image ID.
     ///
-    /// [`DUMMY`]: ImageKey::DUMMY
-    pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey;
+    /// [`DUMMY`]: ImageTextureId::INVALID
+    pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId;
 
     /// Replace the image resource in the window renderer.
     ///
@@ -388,12 +386,12 @@ declare_api! {
     pub fn update_image_use(
         &mut self,
         id: WindowId,
-        key: ImageKey,
+        texture_id: ImageTextureId,
         image_id: ImageId,
     );
 
     /// Delete the image resource in the window renderer.
-    pub fn delete_image_use(&mut self, id: WindowId, key: ImageKey);
+    pub fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId);
 
     /// Returns a list of image decoders supported by this implementation.
     ///

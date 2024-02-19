@@ -27,7 +27,7 @@ use zero_ui_view_api::{
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     font::FontOptions,
-    image::{ImageMaskMode, ImagePpi, ImageRequest},
+    image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
@@ -41,7 +41,7 @@ use zero_ui_view_api::{
     config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
-    webrender_api::{IdNamespace, ImageKey, PipelineId},
+    webrender_api::{IdNamespace, PipelineId},
 };
 pub(crate) use zero_ui_view_api::{
     window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
@@ -910,8 +910,8 @@ impl ViewRenderer {
 
     /// Use an image resource in the window renderer.
     ///
-    /// Returns the image key.
-    pub fn use_image(&self, image: &ViewImage) -> Result<ImageKey> {
+    /// Returns the image texture ID.
+    pub fn use_image(&self, image: &ViewImage) -> Result<ImageTextureId> {
         self.call(|id, p| {
             let image = image.0.read();
             if p.generation() == image.generation {
@@ -923,11 +923,11 @@ impl ViewRenderer {
     }
 
     /// Replace the image resource in the window renderer.
-    pub fn update_image_use(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
+    pub fn update_image_use(&mut self, tex_id: ImageTextureId, image: &ViewImage) -> Result<()> {
         self.call(|id, p| {
             let image = image.0.read();
             if p.generation() == image.generation {
-                p.update_image_use(id, key, image.id.unwrap_or(ImageId::INVALID))
+                p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID))
             } else {
                 Err(ViewProcessOffline)
             }
@@ -935,8 +935,8 @@ impl ViewRenderer {
     }
 
     /// Delete the image resource in the window renderer.
-    pub fn delete_image_use(&mut self, key: ImageKey) -> Result<()> {
-        self.call(|id, p| p.delete_image_use(id, key))
+    pub fn delete_image_use(&mut self, tex_id: ImageTextureId) -> Result<()> {
+        self.call(|id, p| p.delete_image_use(id, tex_id))
     }
 
     /// Add a raw font resource to the window renderer.

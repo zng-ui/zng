@@ -144,7 +144,7 @@ use zero_ui_view_api::{
     config::ColorScheme,
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
-    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
+    image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
@@ -1669,22 +1669,22 @@ impl Api for App {
         self.image_cache.encode(id, format)
     }
 
-    fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageKey {
+    fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId {
         if let Some(img) = self.image_cache.get(image_id) {
-            with_window_or_surface!(self, id, |w| w.use_image(img), || ImageKey::DUMMY)
+            with_window_or_surface!(self, id, |w| w.use_image(img), || ImageTextureId::INVALID)
         } else {
-            ImageKey::DUMMY
+            ImageTextureId::INVALID
         }
     }
 
-    fn update_image_use(&mut self, id: WindowId, key: ImageKey, image_id: ImageId) {
+    fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId) {
         if let Some(img) = self.image_cache.get(image_id) {
-            with_window_or_surface!(self, id, |w| w.update_image(key, img), || ())
+            with_window_or_surface!(self, id, |w| w.update_image(texture_id, img), || ())
         }
     }
 
-    fn delete_image_use(&mut self, id: WindowId, key: ImageKey) {
-        with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
+    fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId) {
+        with_window_or_surface!(self, id, |w| w.delete_image(texture_id), || ())
     }
 
     fn add_font_face(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontFaceId {

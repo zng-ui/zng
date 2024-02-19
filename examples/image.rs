@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use zero_ui::view_process::prebuilt as view_process;
+use zero_ui::view_process::default as view_process;
 use zero_ui::{
     app, button,
     checkerboard::Checkerboard,

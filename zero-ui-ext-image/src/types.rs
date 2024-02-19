@@ -18,7 +18,7 @@ use zero_ui_layout::{
 use zero_ui_task::{self as task, SignalOnce};
 use zero_ui_txt::Txt;
 use zero_ui_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
-use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
+use zero_ui_view_api::{image::ImageTextureId, ViewProcessOffline};
 
 use crate::render::ImageRenderWindowRoot;
 
@@ -92,7 +92,7 @@ pub type ImageVar = ReadOnlyArcVar<Img>;
 #[derive(Debug, Clone)]
 pub struct Img {
     pub(super) view: OnceCell<ViewImage>,
-    render_keys: Arc<Mutex<Vec<RenderImage>>>,
+    render_ids: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
 }
@@ -105,7 +105,7 @@ impl Img {
     pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
         Img {
             view: OnceCell::new(),
-            render_keys: Arc::default(),
+            render_ids: Arc::default(),
             done_signal: SignalOnce::new(),
             cache_key,
         }
@@ -118,7 +118,7 @@ impl Img {
         let _ = v.set(view);
         Img {
             view: v,
-            render_keys: Arc::default(),
+            render_ids: Arc::default(),
             done_signal: sig,
             cache_key: None,
         }
@@ -308,60 +308,51 @@ impl Img {
     }
 }
 impl zero_ui_app::render::Img for Img {
-    fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
+    fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
         if self.is_loaded() {
-            use zero_ui_view_api::webrender_api::*;
-
-            let namespace = match renderer.namespace_id() {
-                Ok(n) => n,
-                Err(ViewProcessOffline) => {
-                    tracing::debug!("respawned calling `namespace_id`, will return DUMMY");
-                    return ImageKey::DUMMY;
-                }
-            };
-            let mut rms = self.render_keys.lock();
-            if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
-                return rm.key;
+            let mut rms = self.render_ids.lock();
+            if let Some(rm) = rms.iter().find(|k| &k.renderer == renderer) {
+                return rm.image_id;
             }
 
             let key = match renderer.use_image(self.view.get().unwrap()) {
                 Ok(k) => {
-                    if k == ImageKey::DUMMY {
-                        tracing::error!("received DUMMY from `use_image`");
+                    if k == ImageTextureId::INVALID {
+                        tracing::error!("received INVALID from `use_image`");
                         return k;
                     }
                     k
                 }
                 Err(ViewProcessOffline) => {
-                    tracing::debug!("respawned `add_image`, will return DUMMY");
-                    return ImageKey::DUMMY;
+                    tracing::debug!("respawned `add_image`, will return INVALID");
+                    return ImageTextureId::INVALID;
                 }
             };
 
             rms.push(RenderImage {
-                key,
+                image_id: key,
                 renderer: renderer.clone(),
             });
             key
         } else {
-            ImageKey::DUMMY
+            ImageTextureId::INVALID
         }
     }
 }
 
 struct RenderImage {
-    key: ImageKey,
+    image_id: ImageTextureId,
     renderer: ViewRenderer,
 }
 impl Drop for RenderImage {
     fn drop(&mut self) {
         // error here means the entire renderer was dropped.
-        let _ = self.renderer.delete_image_use(self.key);
+        let _ = self.renderer.delete_image_use(self.image_id);
     }
 }
 impl fmt::Debug for RenderImage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.key, f)
+        fmt::Debug::fmt(&self.image_id, f)
     }
 }
 

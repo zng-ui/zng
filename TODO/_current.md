@@ -1,5 +1,4 @@
 * Remove `IdNamespace` from view API.
-    - `ImageKey` to `ImageTextureId`.
 * Continue removing webrender from view API.
 
 # Documentation

@@ -13,6 +13,7 @@ use webrender_api::{self as wr, PipelineId};
 use crate::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::FontId,
+    image::ImageTextureId,
     unit::PxToWr,
     window::FrameId,
 };
@@ -240,9 +241,9 @@ impl DisplayListBuilder {
     /// Push an image mask that will affect all pushed items until a paired call to [`pop_mask`].
     ///
     /// [`pop_mask`]: Self::pop_mask
-    pub fn push_mask(&mut self, image_key: wr::ImageKey, rect: PxRect) {
+    pub fn push_mask(&mut self, image_id: ImageTextureId, rect: PxRect) {
         self.mask_len += 1;
-        self.list.push(DisplayItem::PushMask { image_key, rect })
+        self.list.push(DisplayItem::PushMask { image_id, rect })
     }
 
     /// Pop an image mask previously pushed by a call to [`push_mask`]. Items pushed after this call are not
@@ -319,7 +320,7 @@ impl DisplayListBuilder {
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
-        image_key: wr::ImageKey,
+        image_id: ImageTextureId,
         image_size: PxSize,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -328,7 +329,7 @@ impl DisplayListBuilder {
     ) {
         self.list.push(DisplayItem::Image {
             clip_rect,
-            image_key,
+            image_id,
             image_size,
             rendering,
             alpha_type,
@@ -1108,7 +1109,7 @@ enum DisplayItem {
     },
     PopClip,
     PushMask {
-        image_key: wr::ImageKey,
+        image_id: ImageTextureId,
         rect: PxRect,
     },
     PopMask,
@@ -1138,7 +1139,7 @@ enum DisplayItem {
 
     Image {
         clip_rect: PxRect,
-        image_key: wr::ImageKey,
+        image_id: ImageTextureId,
         image_size: PxSize,
         rendering: wr::ImageRendering,
         alpha_type: wr::AlphaType,
@@ -1297,11 +1298,11 @@ impl DisplayItem {
             }
             DisplayItem::PopClip => sc.pop_clip(),
 
-            DisplayItem::PushMask { image_key, rect } => {
+            DisplayItem::PushMask { image_id, rect } => {
                 let clip_id = wr_list.define_clip_image_mask(
                     sc.spatial_id(),
                     wr::ImageMask {
-                        image: *image_key,
+                        image: wr::ImageKey(cache.id_namespace(), image_id.get()),
                         rect: rect.to_wr(),
                     },
                     &[],
@@ -1430,7 +1431,9 @@ impl DisplayItem {
                 let clip = sc.clip_chain_id(wr_list);
 
                 let source = match source {
-                    NinePatchSource::Image { key, rendering } => wr::NinePatchBorderSource::Image(*key, *rendering),
+                    NinePatchSource::Image { image_id, rendering } => {
+                        wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), *rendering)
+                    }
                     NinePatchSource::LinearGradient { gradient, stops } => {
                         wr_list.push_stops(stops);
                         wr::NinePatchBorderSource::Gradient(*gradient)
@@ -1468,7 +1471,7 @@ impl DisplayItem {
 
             DisplayItem::Image {
                 clip_rect,
-                image_key,
+                image_id,
                 image_size,
                 rendering,
                 alpha_type,
@@ -1490,7 +1493,7 @@ impl DisplayItem {
                         PxRect::from_size(*image_size).to_wr(),
                         *rendering,
                         *alpha_type,
-                        *image_key,
+                        wr::ImageKey(cache.id_namespace(), image_id.get()),
                         wr::ColorF::WHITE,
                     );
                 } else {
@@ -1501,7 +1504,7 @@ impl DisplayItem {
                         tile_spacing.to_wr(),
                         *rendering,
                         *alpha_type,
-                        *image_key,
+                        wr::ImageKey(cache.id_namespace(), image_id.get()),
                         wr::ColorF::WHITE,
                     );
                 }
@@ -1726,7 +1729,7 @@ impl DisplayItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NinePatchSource {
     Image {
-        key: wr::ImageKey,
+        image_id: ImageTextureId,
         rendering: wr::ImageRendering,
     },
     LinearGradient {

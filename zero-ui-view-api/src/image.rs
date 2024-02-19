@@ -13,6 +13,11 @@ crate::declare_id! {
     ///
     /// The View Process defines the ID.
     pub struct ImageId(_);
+
+    /// Id of an image loaded in a renderer.
+    ///
+    /// The View Process defines the ID.
+    pub struct ImageTextureId(_);
 }
 
 /// Defines how the A8 image mask pixels are to be derived from a source mask image.
