@@ -760,6 +760,10 @@ where
             },
         );
 
+        if request_render {
+            WIDGET.render();
+        }
+
         size
     }
 
