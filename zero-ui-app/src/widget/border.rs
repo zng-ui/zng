@@ -260,9 +260,9 @@ impl BorderSide {
         Self::new(colors::BLACK.transparent(), BorderStyle::Hidden)
     }
 }
-impl From<BorderSide> for w_api::BorderSide {
+impl From<BorderSide> for zero_ui_view_api::BorderSide {
     fn from(s: BorderSide) -> Self {
-        w_api::BorderSide {
+        zero_ui_view_api::BorderSide {
             color: s.color.into(),
             style: s.style.into(),
         }

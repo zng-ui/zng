@@ -1,4 +1,6 @@
 * Continue removing webrender from view API.
+    - Rename RgbaF to Rgba, move Rgba to unit crate, use it directly.
+    - Finish text API, GlyphInstance, GlyphOptions.
 
 # Documentation
 

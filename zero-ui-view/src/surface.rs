@@ -4,7 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
+    api::{DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect};
@@ -15,7 +15,7 @@ use zero_ui_view_api::{
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     unit::*,
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
-    ViewProcessGen,
+    RgbaF, ViewProcessGen,
 };
 
 use crate::{
@@ -45,7 +45,7 @@ pub(crate) struct Surface {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
-    clear_color: Option<ColorF>,
+    clear_color: Option<RgbaF>,
 
     pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
@@ -85,7 +85,7 @@ impl Surface {
             renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
-            clear_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
+            clear_color: webrender::api::ColorF::new(0.0, 0.0, 0.0, 0.0),
 
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),
@@ -277,7 +277,7 @@ impl Surface {
 
         let render_reasons = frame.render_reasons();
 
-        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
 
         let mut txn = Transaction::new();
         txn.reset_dynamic_properties();
@@ -299,7 +299,7 @@ impl Surface {
             &mut self.display_list_cache,
         );
 
-        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
         self.clear_color = Some(frame.clear_color);
 
         txn.set_display_list(frame.id.epoch(), (self.pipeline_id, display_list));
@@ -324,7 +324,7 @@ impl Surface {
 
         if let Some(color) = frame.clear_color {
             self.clear_color = Some(color);
-            self.renderer.as_mut().unwrap().set_clear_color(color);
+            self.renderer.as_mut().unwrap().set_clear_color(color.to_wr());
         }
 
         let resized = self.resized;

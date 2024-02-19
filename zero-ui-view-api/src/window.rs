@@ -3,7 +3,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use webrender_api::{ColorF, Epoch, RenderReasons};
+use webrender_api::{Epoch, RenderReasons};
 use zero_ui_txt::Txt;
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
+    RgbaF,
 };
 use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
 
@@ -252,7 +253,7 @@ pub struct FrameRequest {
     pub id: FrameId,
 
     /// Frame clear color.
-    pub clear_color: ColorF,
+    pub clear_color: RgbaF,
 
     /// Display list.
     pub display_list: DisplayList,
@@ -291,13 +292,13 @@ pub struct FrameUpdateRequest {
     /// Bound floats.
     pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors.
-    pub colors: Vec<FrameValueUpdate<ColorF>>,
+    pub colors: Vec<FrameValueUpdate<RgbaF>>,
 
     /// Render update extension key and payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
-    pub clear_color: Option<ColorF>,
+    pub clear_color: Option<RgbaF>,
 
     /// Create an image or mask from this rendered frame.
     ///

@@ -26,7 +26,7 @@ fn app_main() {
         Window! {
             title = "Calculator";
             data = var(Calculator::default());
-            // zero_ui::properties::inspector::show_bounds = true;
+            zero_ui::window::inspector::show_center_points = true;
             resizable = false;
             auto_size = true;
             padding = 5;

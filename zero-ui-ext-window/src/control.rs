@@ -1841,8 +1841,6 @@ enum InitState {
     Inited,
 }
 
-type RenderColor = zero_ui_view_api::webrender_api::ColorF;
-
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
@@ -1854,7 +1852,7 @@ struct ContentCtrl {
 
     init_state: InitState,
     frame_id: FrameId,
-    clear_color: RenderColor,
+    clear_color: zero_ui_view_api::RgbaF,
 }
 impl ContentCtrl {
     pub fn new(vars: WindowVars, commands: WindowCommands, window: WindowRoot) -> Self {
@@ -1869,7 +1867,7 @@ impl ContentCtrl {
 
             init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
-            clear_color: RenderColor::BLACK,
+            clear_color: zero_ui_view_api::RgbaF::new(0.0, 0.0, 0.0, 1.0),
         }
     }
 

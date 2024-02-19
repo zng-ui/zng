@@ -519,7 +519,7 @@ impl Transitionable for ColorStop {
 /// Computed [`GradientStop`].
 ///
 /// The color offset is in the 0..=1 range.
-pub type RenderGradientStop = zero_ui_view_api::webrender_api::GradientStop;
+pub type RenderGradientStop = zero_ui_view_api::GradientStop;
 
 /// A stop in a gradient.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -933,7 +933,7 @@ impl GradientStops {
                     render_stops.push(RenderGradientStop {
                         // offset and color will be calculated later.
                         offset: 0.0,
-                        color: RenderColor::BLACK,
+                        color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
                     })
                 }
             }
@@ -1031,12 +1031,12 @@ impl GradientStops {
                 ExtendMode::Repeat | ExtendMode::Reflect => {
                     // fill with the average of all colors.
                     let len = render_stops.len() as f32;
-                    let color = RenderColor {
-                        r: render_stops.iter().map(|s| s.color.r).sum::<f32>() / len,
-                        g: render_stops.iter().map(|s| s.color.g).sum::<f32>() / len,
-                        b: render_stops.iter().map(|s| s.color.b).sum::<f32>() / len,
-                        a: render_stops.iter().map(|s| s.color.a).sum::<f32>() / len,
-                    };
+                    let color = RgbaF::new(
+                        render_stops.iter().map(|s| s.color[0]).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color[1]).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color[2]).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color[3]).sum::<f32>() / len,
+                    );
                     render_stops.clear();
                     render_stops.push(RenderGradientStop { offset: 0.0, color });
                     render_stops.push(RenderGradientStop { offset: 1.0, color });
@@ -1288,14 +1288,14 @@ mod tests {
         assert_eq!(
             stops[0],
             RenderGradientStop {
-                color: RenderColor::BLACK,
+                color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
                 offset: 0.0
             }
         );
         assert_eq!(
             stops[1],
             RenderGradientStop {
-                color: RenderColor::WHITE,
+                color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
                 offset: 1.0
             }
         );
@@ -1355,26 +1355,21 @@ mod tests {
         assert_eq!(
             stops[0],
             RenderGradientStop {
-                color: RenderColor::BLACK,
+                color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
                 offset: 0.0
             }
         );
         assert_eq!(
             stops[1],
             RenderGradientStop {
-                color: RenderColor {
-                    r: 0.5,
-                    g: 0.5,
-                    b: 0.5,
-                    a: 1.0
-                },
+                color: RgbaF::new(0.5, 0.5, 0.5, 1.0),
                 offset: 30.0 / 100.0
             }
         );
         assert_eq!(
             stops[2],
             RenderGradientStop {
-                color: RenderColor::WHITE,
+                color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
                 offset: 1.0
             }
         );

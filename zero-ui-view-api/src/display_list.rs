@@ -16,6 +16,7 @@ use crate::{
     image::ImageTextureId,
     unit::PxToWr,
     window::FrameId,
+    BorderSide, GradientStop, RgbaF,
 };
 use zero_ui_unit::*;
 
@@ -250,10 +251,10 @@ impl DisplayListBuilder {
         &mut self,
         bounds: PxRect,
         widths: PxSideOffsets,
-        top: wr::BorderSide,
-        right: wr::BorderSide,
-        bottom: wr::BorderSide,
-        left: wr::BorderSide,
+        top: BorderSide,
+        right: BorderSide,
+        bottom: BorderSide,
+        left: BorderSide,
         radius: PxCornerRadius,
     ) {
         self.list.push(DisplayItem::Border {
@@ -291,7 +292,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         font_id: FontId,
         glyphs: &[wr::GlyphInstance],
-        color: FrameValue<wr::ColorF>,
+        color: FrameValue<RgbaF>,
         options: wr::GlyphOptions,
     ) {
         self.list.push(DisplayItem::Text {
@@ -327,7 +328,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a color rectangle.
-    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<wr::ColorF>) {
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RgbaF>) {
         self.list.push(DisplayItem::Color { clip_rect, color })
     }
 
@@ -352,7 +353,7 @@ impl DisplayListBuilder {
         &mut self,
         clip_rect: PxRect,
         gradient: wr::Gradient,
-        stops: &[wr::GradientStop],
+        stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -372,7 +373,7 @@ impl DisplayListBuilder {
         &mut self,
         clip_rect: PxRect,
         gradient: wr::RadialGradient,
-        stops: &[wr::GradientStop],
+        stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -392,7 +393,7 @@ impl DisplayListBuilder {
         &mut self,
         clip_rect: PxRect,
         gradient: wr::ConicGradient,
-        stops: &[wr::GradientStop],
+        stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -411,7 +412,7 @@ impl DisplayListBuilder {
     pub fn push_line(
         &mut self,
         clip_rect: PxRect,
-        color: wr::ColorF,
+        color: RgbaF,
         style: wr::LineStyle,
         wavy_line_thickness: f32,
         orientation: wr::LineOrientation,
@@ -782,7 +783,7 @@ impl PxToWr for f32 {
     }
 }
 // to work with into_wr
-impl PxToWr for wr::ColorF {
+impl PxToWr for RgbaF {
     type AsDevice = wr::ColorF;
 
     type AsLayout = wr::ColorF;
@@ -790,15 +791,15 @@ impl PxToWr for wr::ColorF {
     type AsWorld = wr::ColorF;
 
     fn to_wr_device(self) -> Self::AsDevice {
-        self
+        self.to_wr()
     }
 
     fn to_wr_world(self) -> Self::AsWorld {
-        self
+        self.to_wr()
     }
 
     fn to_wr(self) -> Self::AsLayout {
-        self
+        wr::ColorF::new(self[0], self[1], self[2], self[3])
     }
 }
 
@@ -933,7 +934,7 @@ impl DisplayListCache {
         ext: &mut dyn DisplayListExtension,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
-        colors: Vec<FrameValueUpdate<wr::ColorF>>,
+        colors: Vec<FrameValueUpdate<RgbaF>>,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
         resized: bool,
     ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
@@ -1013,13 +1014,20 @@ pub enum FilterOp {
     /// Sepia, in [0..=1] range.
     Sepia(f32),
     /// Pixel perfect shadow.
-    DropShadow(wr::Shadow),
+    DropShadow {
+        /// Shadow offset.
+        offset: euclid::Vector2D<f32, Px>,
+        /// Shadow color.
+        color: RgbaF,
+        /// Shadow blur.
+        blur_radius: f32,
+    },
     /// Custom filter.
     ///
     /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
     ColorMatrix([f32; 20]),
     /// Fill with color.
-    Flood(wr::ColorF),
+    Flood(RgbaF),
 }
 impl FilterOp {
     /// To webrender filter-op.
@@ -1034,12 +1042,20 @@ impl FilterOp {
             FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.into_wr(), *o.value()),
             FilterOp::Saturate(s) => wr::FilterOp::Saturate(s),
             FilterOp::Sepia(s) => wr::FilterOp::Sepia(s),
-            FilterOp::DropShadow(d) => wr::FilterOp::DropShadow(d),
+            FilterOp::DropShadow {
+                offset,
+                color,
+                blur_radius,
+            } => wr::FilterOp::DropShadow(wr::Shadow {
+                offset: offset.cast_unit(),
+                color: color.to_wr(),
+                blur_radius,
+            }),
             FilterOp::ColorMatrix(m) => wr::FilterOp::ColorMatrix([
                 m[0], m[5], m[10], m[15], m[1], m[6], m[11], m[16], m[2], m[7], m[12], m[17], m[3], m[8], m[13], m[18], m[4], m[9], m[14],
                 m[19],
             ]),
-            FilterOp::Flood(c) => wr::FilterOp::Flood(c),
+            FilterOp::Flood(c) => wr::FilterOp::Flood(c.to_wr()),
         }
     }
 }
@@ -1088,7 +1104,7 @@ enum DisplayItem {
     Border {
         bounds: PxRect,
         widths: PxSideOffsets,
-        sides: [wr::BorderSide; 4],
+        sides: [BorderSide; 4],
         radius: PxCornerRadius,
     },
     NinePatchBorder {
@@ -1104,7 +1120,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         font_id: FontId,
         glyphs: Box<[wr::GlyphInstance]>,
-        color: FrameValue<wr::ColorF>,
+        color: FrameValue<RgbaF>,
         options: wr::GlyphOptions,
     },
 
@@ -1120,7 +1136,7 @@ enum DisplayItem {
 
     Color {
         clip_rect: PxRect,
-        color: FrameValue<wr::ColorF>,
+        color: FrameValue<RgbaF>,
     },
     BackdropFilter {
         clip_rect: PxRect,
@@ -1132,7 +1148,7 @@ enum DisplayItem {
     LinearGradient {
         clip_rect: PxRect,
         gradient: wr::Gradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -1140,7 +1156,7 @@ enum DisplayItem {
     RadialGradient {
         clip_rect: PxRect,
         gradient: wr::RadialGradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -1148,7 +1164,7 @@ enum DisplayItem {
     ConicGradient {
         clip_rect: PxRect,
         gradient: wr::ConicGradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
         tile_spacing: PxSize,
@@ -1156,7 +1172,7 @@ enum DisplayItem {
 
     Line {
         clip_rect: PxRect,
-        color: wr::ColorF,
+        color: RgbaF,
         style: wr::LineStyle,
         wavy_line_thickness: f32,
         orientation: wr::LineOrientation,
@@ -1323,7 +1339,7 @@ impl DisplayItem {
                     bounds,
                     glyphs,
                     wr::FontInstanceKey(cache.id_namespace(), font_id.get()),
-                    color.into_value(),
+                    color.into_value().to_wr(),
                     Some(*options),
                 );
             }
@@ -1381,10 +1397,10 @@ impl DisplayItem {
                     bounds,
                     widths.to_wr(),
                     wr::BorderDetails::Normal(wr::NormalBorder {
-                        left: *left,
-                        right: *right,
-                        top: *top,
-                        bottom: *bottom,
+                        left: left.to_wr(),
+                        right: right.to_wr(),
+                        top: top.to_wr(),
+                        bottom: bottom.to_wr(),
                         radius: radius.to_wr(),
                         do_aa: true,
                     }),
@@ -1406,15 +1422,36 @@ impl DisplayItem {
                         wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), *rendering)
                     }
                     NinePatchSource::LinearGradient { gradient, stops } => {
-                        wr_list.push_stops(stops);
+                        let stops: Vec<_> = stops
+                            .iter()
+                            .map(|s| wr::GradientStop {
+                                offset: s.offset,
+                                color: s.color.to_wr(),
+                            })
+                            .collect();
+                        wr_list.push_stops(&stops);
                         wr::NinePatchBorderSource::Gradient(*gradient)
                     }
                     NinePatchSource::RadialGradient { gradient, stops } => {
-                        wr_list.push_stops(stops);
+                        let stops: Vec<_> = stops
+                            .iter()
+                            .map(|s| wr::GradientStop {
+                                offset: s.offset,
+                                color: s.color.to_wr(),
+                            })
+                            .collect();
+                        wr_list.push_stops(&stops);
                         wr::NinePatchBorderSource::RadialGradient(*gradient)
                     }
                     NinePatchSource::ConicGradient { gradient, stops } => {
-                        wr_list.push_stops(stops);
+                        let stops: Vec<_> = stops
+                            .iter()
+                            .map(|s| wr::GradientStop {
+                                offset: s.offset,
+                                color: s.color.to_wr(),
+                            })
+                            .collect();
+                        wr_list.push_stops(&stops);
                         wr::NinePatchBorderSource::ConicGradient(*gradient)
                     }
                 };
@@ -1494,9 +1531,16 @@ impl DisplayItem {
                 let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
-                // stops needs to immediately followed by the gradient, if the clip-chain item
+                // stops needs to be immediately followed by the gradient, if the clip-chain item
                 // is inserted in the between the stops are lost.
-                wr_list.push_stops(stops);
+                let stops: Vec<_> = stops
+                    .iter()
+                    .map(|s| wr::GradientStop {
+                        offset: s.offset,
+                        color: s.color.to_wr(),
+                    })
+                    .collect();
+                wr_list.push_stops(&stops);
                 wr_list.push_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1523,7 +1567,14 @@ impl DisplayItem {
                 let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
-                wr_list.push_stops(stops);
+                let stops: Vec<_> = stops
+                    .iter()
+                    .map(|s| wr::GradientStop {
+                        offset: s.offset,
+                        color: s.color.to_wr(),
+                    })
+                    .collect();
+                wr_list.push_stops(&stops);
                 wr_list.push_radial_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1550,7 +1601,14 @@ impl DisplayItem {
                 let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
-                wr_list.push_stops(stops);
+                let stops: Vec<_> = stops
+                    .iter()
+                    .map(|s| wr::GradientStop {
+                        offset: s.offset,
+                        color: s.color.to_wr(),
+                    })
+                    .collect();
+                wr_list.push_stops(&stops);
                 wr_list.push_conic_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1583,7 +1641,7 @@ impl DisplayItem {
                     &bounds,
                     *wavy_line_thickness,
                     *orientation,
-                    color,
+                    &color.to_wr(),
                     *style,
                 );
             }
@@ -1671,7 +1729,7 @@ impl DisplayItem {
             _ => false,
         }
     }
-    fn update_color(&mut self, t: &FrameValueUpdate<wr::ColorF>) -> bool {
+    fn update_color(&mut self, t: &FrameValueUpdate<RgbaF>) -> bool {
         match self {
             DisplayItem::Color {
                 color:
@@ -1705,15 +1763,15 @@ pub enum NinePatchSource {
     },
     LinearGradient {
         gradient: wr::Gradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
     },
     RadialGradient {
         gradient: wr::RadialGradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
     },
     ConicGradient {
         gradient: wr::ConicGradient,
-        stops: Box<[wr::GradientStop]>,
+        stops: Box<[GradientStop]>,
     },
 }
 

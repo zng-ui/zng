@@ -226,7 +226,6 @@ impl WINDOW {
 /// Test only methods.
 #[cfg(any(test, doc, feature = "test_util"))]
 mod _impl {
-    use zero_ui_color::RenderColor;
     use zero_ui_layout::{
         context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutMetrics, LAYOUT},
         unit::{FactorUnits, Length, Px, PxConstraints2d, PxSize, PxTransform},
@@ -467,7 +466,7 @@ mod _impl {
                     wgt.id,
                     wgt.bounds.lock().clone(),
                     None,
-                    RenderColor::BLACK,
+                    zero_ui_view_api::RgbaF::new(0.0, 0.0, 0.0, 1.0),
                 );
                 f
             };

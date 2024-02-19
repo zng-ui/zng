@@ -10,10 +10,11 @@ use crate::{
     keyboard::{Key, KeyCode, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
+    unit::PxToWr,
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
+use std::{fmt, ops, path::PathBuf};
 use zero_ui_txt::Txt;
 use zero_ui_unit::{DipPoint, PxRect, PxSize};
 
@@ -772,6 +773,68 @@ impl std::error::Error for ViewProcessOffline {}
 
 /// View Process IPC result.
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
+
+/// RGBA color with normalized components (`0.0..=1.0`).
+#[derive(Default, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub struct RgbaF(pub [f32; 4]);
+impl RgbaF {
+    /// New RGBA.
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self([r, g, b, a])
+    }
+}
+impl ops::Deref for RgbaF {
+    type Target = [f32; 4];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for RgbaF {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// Offset and color in a gradient.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct GradientStop {
+    /// Offset in pixels.
+    pub offset: f32,
+    /// Color at the offset.
+    pub color: RgbaF,
+}
+
+/// Border side line style and color.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct BorderSide {
+    /// Line color.
+    pub color: RgbaF,
+    /// Line Style.
+    pub style: webrender_api::BorderStyle,
+}
+impl PxToWr for BorderSide {
+    type AsDevice = webrender_api::BorderSide;
+
+    type AsLayout = webrender_api::BorderSide;
+
+    type AsWorld = webrender_api::BorderSide;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        self.to_wr()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        self.to_wr()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        webrender_api::BorderSide {
+            color: self.color.to_wr(),
+            style: self.style,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

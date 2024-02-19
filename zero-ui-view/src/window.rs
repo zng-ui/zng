@@ -12,9 +12,7 @@ use std::{
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{
-        ColorF, DocumentId, DynamicProperties, FontInstanceFlags, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId,
-    },
+    api::{DocumentId, DynamicProperties, FontInstanceFlags, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
 };
 
@@ -36,7 +34,7 @@ use zero_ui_view_api::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
         WindowRequest, WindowState, WindowStateAll,
     },
-    DeviceId, Event, ViewProcessGen,
+    DeviceId, Event, RgbaF, ViewProcessGen,
 };
 
 use zero_ui_view_api::dialog as dlg_api;
@@ -65,7 +63,7 @@ pub(crate) struct Window {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
-    clear_color: Option<ColorF>,
+    clear_color: Option<RgbaF>,
 
     context: GlContext, // context must be dropped before window.
     window: GWindow,
@@ -287,7 +285,7 @@ impl Window {
             renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
-            clear_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
+            clear_color: webrender::api::ColorF::new(0.0, 0.0, 0.0, 0.0),
 
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),
@@ -1257,7 +1255,7 @@ impl Window {
     pub fn render(&mut self, frame: FrameRequest) {
         let _scope = tracing::trace_span!("render", ?frame.id).entered();
 
-        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
 
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
@@ -1283,7 +1281,7 @@ impl Window {
             colors: vec![],
         });
 
-        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
+        self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
         self.clear_color = Some(frame.clear_color);
 
         txn.set_display_list(frame.id.epoch(), (self.pipeline_id, display_list));
@@ -1304,7 +1302,7 @@ impl Window {
 
         if let Some(color) = frame.clear_color {
             self.clear_color = Some(color);
-            self.renderer.as_mut().unwrap().set_clear_color(color);
+            self.renderer.as_mut().unwrap().set_clear_color(color.to_wr());
         }
 
         let resized = self.resized;

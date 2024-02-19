@@ -15,6 +15,8 @@ use zero_ui_var::{
 };
 use zero_ui_view_api::webrender_api;
 
+pub use zero_ui_view_api::RgbaF;
+
 pub use zero_ui_view_api::config::ColorScheme;
 
 #[doc(hidden)]
@@ -65,9 +67,6 @@ macro_rules! hex {
 const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
 const EPSILON_100: f32 = 0.001;
-
-/// Webrender RGBA.
-pub type RenderColor = webrender_api::ColorF;
 
 /// RGB + alpha.
 ///
@@ -895,12 +894,12 @@ impl_from_and_into_var! {
         }
     }
 
-    fn from(color: RenderColor) -> Rgba {
+    fn from(color: RgbaF) -> Rgba {
         Rgba {
-            red: color.r,
-            green: color.g,
-            blue: color.b,
-            alpha: color.a,
+            red: color[0],
+            green: color[1],
+            blue: color[2],
+            alpha: color[3],
         }
     }
 }
@@ -986,7 +985,7 @@ impl_from_and_into_var! {
 }
 
 /// Values are clamped to the `[0.0..=1.0]` range and `NaN` becomes `0.0`.
-impl From<Rgba> for RenderColor {
+impl From<Rgba> for RgbaF {
     fn from(rgba: Rgba) -> Self {
         fn c(f: f32) -> f32 {
             if f.is_nan() || f <= 0.0 {
@@ -997,12 +996,7 @@ impl From<Rgba> for RenderColor {
                 f
             }
         }
-        RenderColor {
-            r: c(rgba.red),
-            g: c(rgba.green),
-            b: c(rgba.blue),
-            a: c(rgba.alpha),
-        }
+        RgbaF::new(c(rgba.red), c(rgba.green), c(rgba.blue), c(rgba.alpha))
     }
 }
 
@@ -1207,7 +1201,7 @@ impl From<Factor> for RgbaComponent {
 }
 
 /// Linear interpolate between `a` and `b` by the normalized `amount`.
-pub fn lerp_render_color(a: RenderColor, b: RenderColor, amount: f32) -> RenderColor {
+pub fn lerp_render_color(a: RgbaF, b: RgbaF, amount: f32) -> RgbaF {
     let a = Rgba::from(a);
     let b = Rgba::from(b);
     a.lerp(b, amount.fct()).into()

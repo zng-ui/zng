@@ -10,13 +10,9 @@ use zero_ui_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };
-use zero_ui_view_api::{
-    display_list::{FilterOp, FrameValue},
-    unit::PxToWr,
-    webrender_api::Shadow,
-};
+use zero_ui_view_api::display_list::{FilterOp, FrameValue};
 
-use crate::{RenderColor, Rgba};
+use crate::{Rgba, RgbaF};
 
 /// A color filter or combination of filters.
 ///
@@ -199,11 +195,11 @@ impl Filter {
                     offset,
                     blur_radius,
                     color,
-                } => FilterOp::DropShadow(Shadow {
-                    offset: offset.layout().to_wr().to_vector(),
-                    color: RenderColor::from(*color),
+                } => FilterOp::DropShadow {
+                    offset: offset.layout().to_vector().cast(),
+                    color: RgbaF::from(*color),
                     blur_radius: blur_radius.layout_f32_x(),
-                }),
+                },
             })
             .collect()
     }
@@ -318,13 +314,17 @@ impl fmt::Debug for FilterData {
                     FilterOp::Opacity(o) => write!(f, "opacity({}.pct())", *o.value() * 100.0),
                     FilterOp::Saturate(s) => write!(f, "saturate({}.pct())", s * 100.0),
                     FilterOp::Sepia(s) => bool_or_pct("sepia", *s, f),
-                    FilterOp::DropShadow(s) => write!(
+                    FilterOp::DropShadow {
+                        offset,
+                        color,
+                        blur_radius,
+                    } => write!(
                         f,
                         "drop_shadow(({}, {}), {}, {})",
-                        s.offset.x,
-                        s.offset.y,
-                        s.blur_radius,
-                        Rgba::from(s.color)
+                        offset.x,
+                        offset.y,
+                        blur_radius,
+                        Rgba::from(*color)
                     ),
                     FilterOp::ColorMatrix(m) => write!(f, "color_matrix({:?})", ColorMatrix(*m)),
                     FilterOp::Flood(c) => write!(f, "flood({})", Rgba::from(*c)),
@@ -342,15 +342,8 @@ impl fmt::Debug for FilterData {
     }
 }
 
-fn lerp_wr_color(s: RenderColor, to: &RenderColor, step: EasingStep) -> RenderColor {
+fn lerp_rgbaf(s: RgbaF, to: &RgbaF, step: EasingStep) -> RgbaF {
     Rgba::from(s).lerp(Rgba::from(*to), step).into()
-}
-
-fn lerp_wr_shadow(mut s: Shadow, to: &Shadow, step: EasingStep) -> Shadow {
-    s.offset = Transitionable::lerp(s.offset, &to.offset, step);
-    s.color = lerp_wr_color(s.color, &to.color, step);
-    s.blur_radius = s.blur_radius.lerp(&to.blur_radius, step);
-    s
 }
 
 fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, step: EasingStep) -> FrameValue<T> {
@@ -413,8 +406,21 @@ fn lerp_filter_op(mut s: FilterOp, to: &FilterOp, step: EasingStep) -> FilterOp 
         (FilterOp::Sepia(a), FilterOp::Sepia(b)) => {
             *a = a.lerp(b, step);
         }
-        (FilterOp::DropShadow(a), FilterOp::DropShadow(b)) => {
-            *a = lerp_wr_shadow(*a, b, step);
+        (
+            FilterOp::DropShadow {
+                offset,
+                color,
+                blur_radius,
+            },
+            FilterOp::DropShadow {
+                offset: to_offset,
+                color: to_color,
+                blur_radius: to_blur,
+            },
+        ) => {
+            *offset = Transitionable::lerp(*offset, to_offset, step);
+            *color = lerp_rgbaf(*color, to_color, step);
+            *blur_radius = blur_radius.lerp(to_blur, step);
         }
         (FilterOp::ColorMatrix(a), FilterOp::ColorMatrix(b)) => {
             for (a, b) in a.iter_mut().zip(b) {
@@ -422,7 +428,7 @@ fn lerp_filter_op(mut s: FilterOp, to: &FilterOp, step: EasingStep) -> FilterOp 
             }
         }
         (FilterOp::Flood(a), FilterOp::Flood(b)) => {
-            *a = lerp_wr_color(*a, b, step);
+            *a = lerp_rgbaf(*a, b, step);
         }
         (a, b) => {
             if step >= 1.fct() {
