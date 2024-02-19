@@ -26,6 +26,7 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
+    font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
     window::{
@@ -38,10 +39,9 @@ use zero_ui_view_api::{
 use zero_ui_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     config::KeyRepeatConfig,
+    font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
-    webrender_api::{
-        FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
-    },
+    webrender_api::{IdNamespace, ImageKey, PipelineId},
 };
 pub(crate) use zero_ui_view_api::{
     window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
@@ -941,33 +941,32 @@ impl ViewRenderer {
 
     /// Add a raw font resource to the window renderer.
     ///
-    /// Returns the new font key.
-    pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
-        self.call(|id, p| p.add_font(id, IpcBytes::from_vec(bytes), index))
+    /// Returns the new font face ID, unique for this renderer.
+    pub fn add_font_face(&self, bytes: Vec<u8>, index: u32) -> Result<FontFaceId> {
+        self.call(|id, p| p.add_font_face(id, IpcBytes::from_vec(bytes), index))
     }
 
     /// Delete the font resource in the window renderer.
-    pub fn delete_font(&self, key: FontKey) -> Result<()> {
-        self.call(|id, p| p.delete_font(id, key))
+    pub fn delete_font_face(&self, font_face_id: FontFaceId) -> Result<()> {
+        self.call(|id, p| p.delete_font_face(id, font_face_id))
     }
 
-    /// Add a font instance to the window renderer.
+    /// Add a sized font to the window renderer.
     ///
-    /// Returns the new instance key.
-    pub fn add_font_instance(
+    /// Returns the new font ID, unique for this renderer.
+    pub fn add_font(
         &self,
-        font_key: FontKey,
+        font_face_id: FontFaceId,
         glyph_size: Px,
-        options: Option<FontInstanceOptions>,
-        plataform_options: Option<FontInstancePlatformOptions>,
-        variations: Vec<FontVariation>,
-    ) -> Result<FontInstanceKey> {
-        self.call(|id, p| p.add_font_instance(id, font_key, glyph_size, options, plataform_options, variations))
+        options: FontOptions,
+        variations: Vec<(FontVariationName, f32)>,
+    ) -> Result<FontId> {
+        self.call(|id, p| p.add_font(id, font_face_id, glyph_size, options, variations))
     }
 
-    /// Delete the font instance.
-    pub fn delete_font_instance(&self, key: FontInstanceKey) -> Result<()> {
-        self.call(|id, p| p.delete_font_instance(id, key))
+    /// Delete the sized font.
+    pub fn delete_font(&self, font_id: FontId) -> Result<()> {
+        self.call(|id, p| p.delete_font(id, font_id))
     }
 
     /// Create a new image resource from the current rendered frame.

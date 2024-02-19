@@ -12,6 +12,7 @@ use webrender_api::{self as wr, PipelineId};
 
 use crate::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
+    font::FontId,
     unit::PxToWr,
     window::FrameId,
 };
@@ -299,14 +300,14 @@ impl DisplayListBuilder {
     pub fn push_text(
         &mut self,
         clip_rect: PxRect,
-        font_key: wr::FontInstanceKey,
+        font_id: FontId,
         glyphs: &[wr::GlyphInstance],
         color: FrameValue<wr::ColorF>,
         options: wr::GlyphOptions,
     ) {
         self.list.push(DisplayItem::Text {
             clip_rect,
-            font_key,
+            font_id,
             glyphs: glyphs.to_vec().into_boxed_slice(),
             color,
             options,
@@ -838,6 +839,7 @@ struct CachedDisplayList {
 /// View process side cache of [`DisplayList`] frames for a pipeline.
 pub struct DisplayListCache {
     pipeline_id: PipelineId,
+    id_namespace: wr::IdNamespace,
     lists: FxHashMap<FrameId, CachedDisplayList>,
     space_and_clip: Option<SpaceAndClip>,
 
@@ -848,9 +850,10 @@ pub struct DisplayListCache {
 }
 impl DisplayListCache {
     /// New empty.
-    pub fn new(pipeline_id: PipelineId) -> Self {
+    pub fn new(pipeline_id: PipelineId, id_namespace: wr::IdNamespace) -> Self {
         DisplayListCache {
             pipeline_id,
+            id_namespace,
             lists: FxHashMap::default(),
             latest_frame: FrameId::INVALID,
             space_and_clip: Some(SpaceAndClip::new(pipeline_id)),
@@ -862,6 +865,11 @@ impl DisplayListCache {
     /// Pipeline where the items can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Keys namespace.
+    pub fn id_namespace(&self) -> wr::IdNamespace {
+        self.id_namespace
     }
 
     fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
@@ -1122,7 +1130,7 @@ enum DisplayItem {
 
     Text {
         clip_rect: PxRect,
-        font_key: wr::FontInstanceKey,
+        font_id: FontId,
         glyphs: Box<[wr::GlyphInstance]>,
         color: FrameValue<wr::ColorF>,
         options: wr::GlyphOptions,
@@ -1326,7 +1334,7 @@ impl DisplayItem {
 
             DisplayItem::Text {
                 clip_rect,
-                font_key,
+                font_id,
                 glyphs,
                 color,
                 options,
@@ -1342,7 +1350,7 @@ impl DisplayItem {
                     },
                     bounds,
                     glyphs,
-                    *font_key,
+                    wr::FontInstanceKey(cache.id_namespace(), font_id.get()),
                     color.into_value(),
                     Some(*options),
                 );

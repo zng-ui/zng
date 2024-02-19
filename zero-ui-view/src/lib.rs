@@ -143,6 +143,7 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
+    font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
     keyboard::{Key, KeyCode, KeyState},
@@ -1686,33 +1687,29 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.delete_image(key), || ())
     }
 
-    fn add_font(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontKey {
-        with_window_or_surface!(self, id, |w| w.add_font(bytes.to_vec(), index), || FontKey(IdNamespace(0), 0))
+    fn add_font_face(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontFaceId {
+        with_window_or_surface!(self, id, |w| w.add_font_face(bytes.to_vec(), index), || FontFaceId::INVALID)
     }
 
-    fn delete_font(&mut self, id: WindowId, key: FontKey) {
-        with_window_or_surface!(self, id, |w| w.delete_font(key), || ())
+    fn delete_font_face(&mut self, id: WindowId, font_face_id: FontFaceId) {
+        with_window_or_surface!(self, id, |w| w.delete_font_face(font_face_id), || ())
     }
 
-    fn add_font_instance(
+    fn add_font(
         &mut self,
         id: WindowId,
-        font_key: FontKey,
+        font_face_id: FontFaceId,
         glyph_size: Px,
-        options: Option<FontInstanceOptions>,
-        plataform_options: Option<FontInstancePlatformOptions>,
-        variations: Vec<FontVariation>,
-    ) -> FontInstanceKey {
-        with_window_or_surface!(
-            self,
-            id,
-            |w| w.add_font_instance(font_key, glyph_size, options, plataform_options, variations),
-            || FontInstanceKey(IdNamespace(0), 0)
-        )
+        options: FontOptions,
+        variations: Vec<(FontVariationName, f32)>,
+    ) -> FontId {
+        with_window_or_surface!(self, id, |w| w.add_font(font_face_id, glyph_size, options, variations), || {
+            FontId::INVALID
+        })
     }
 
-    fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey) {
-        with_window_or_surface!(self, id, |w| w.delete_font_instance(instance_key), || ())
+    fn delete_font(&mut self, id: WindowId, font_id: FontId) {
+        with_window_or_surface!(self, id, |w| w.delete_font(font_id), || ())
     }
 
     fn set_capture_mode(&mut self, id: WindowId, enabled: bool) {

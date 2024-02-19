@@ -121,9 +121,10 @@ pub struct LocaleConfig {
 }
 
 /// Text anti-aliasing.
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FontAntiAliasing {
     /// Uses the operating system configuration.
+    #[default]
     Default,
     /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
     Subpixel,
@@ -131,11 +132,6 @@ pub enum FontAntiAliasing {
     Alpha,
     /// Disable anti-aliasing.
     Mono,
-}
-impl Default for FontAntiAliasing {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 impl fmt::Debug for FontAntiAliasing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

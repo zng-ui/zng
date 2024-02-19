@@ -49,11 +49,7 @@ pub trait Font {
     /// Gets the instance key in the `renderer` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
-    fn instance_key(
-        &self,
-        renderer: &ViewRenderer,
-        synthesis: FontSynthesis,
-    ) -> (webrender_api::FontInstanceKey, webrender_api::FontInstanceFlags);
+    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId;
 }
 
 /// A loaded or loading image.
@@ -1567,7 +1563,7 @@ impl FrameBuilder {
 
         if let Some(r) = &self.renderer {
             if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
-                let (instance_key, flags) = font.instance_key(r, synthesis);
+                let font_id = font.renderer_id(r, synthesis);
 
                 let opts = GlyphOptions {
                     render_mode: match aa {
@@ -1576,9 +1572,16 @@ impl FrameBuilder {
                         FontAntiAliasing::Alpha => FontRenderMode::Alpha,
                         FontAntiAliasing::Mono => FontRenderMode::Mono,
                     },
-                    flags,
+                    flags: {
+                        let mut flags = webrender_api::FontInstanceFlags::empty();
+                        flags.set(
+                            webrender_api::FontInstanceFlags::SYNTHETIC_BOLD,
+                            synthesis.contains(FontSynthesis::BOLD),
+                        );
+                        flags
+                    },
                 };
-                self.display_list.push_text(clip_rect, instance_key, glyphs, color, opts);
+                self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
             }
         }
 

@@ -31,6 +31,7 @@ pub mod clipboard;
 pub mod config;
 pub mod dialog;
 pub mod display_list;
+pub mod font;
 pub mod image;
 pub mod ipc;
 pub mod keyboard;
@@ -38,6 +39,8 @@ pub mod mouse;
 pub mod touch;
 pub mod unit;
 pub mod window;
+
+use font::{FontFaceId, FontId, FontOptions, FontVariationName};
 
 mod types;
 pub use types::*;
@@ -50,7 +53,7 @@ pub use view_process::*;
 use zero_ui_txt::Txt;
 
 use std::fmt;
-use webrender_api::{FontInstanceKey, FontKey, ImageKey};
+use webrender_api::ImageKey;
 
 use api_extension::{ApiExtensionId, ApiExtensionPayload};
 use clipboard::{ClipboardData, ClipboardError};
@@ -415,26 +418,25 @@ declare_api! {
     /// Add a raw font resource to the window renderer.
     ///
     /// Returns the new font key.
-    pub fn add_font(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontKey;
+    pub fn add_font_face(&mut self, id: WindowId, bytes: IpcBytes, index: u32) -> FontFaceId;
 
     /// Delete the font resource in the window renderer.
-    pub fn delete_font(&mut self, id: WindowId, key: FontKey);
+    pub fn delete_font_face(&mut self, id: WindowId, font_face_id: FontFaceId);
 
-    /// Add a font instance to the window renderer.
+    /// Add a sized font to the window renderer.
     ///
-    /// Returns the new instance key.
-    pub fn add_font_instance(
+    /// Returns the new fond ID.
+    pub fn add_font(
         &mut self,
         id: WindowId,
-        font_key: FontKey,
+        font_face_id: FontFaceId,
         glyph_size: Px,
-        options: Option<webrender_api::FontInstanceOptions>,
-        plataform_options: Option<webrender_api::FontInstancePlatformOptions>,
-        variations: Vec<webrender_api::FontVariation>,
-    ) -> FontInstanceKey;
+        options: FontOptions,
+        variations: Vec<(FontVariationName, f32)>,
+    ) -> FontId;
 
     /// Delete a font instance.
-    pub fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey);
+    pub fn delete_font(&mut self, id: WindowId, font_id: FontId);
 
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
     /// a screenshot are kept in memory to be reused in the next screenshot capture.

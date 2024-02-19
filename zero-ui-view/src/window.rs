@@ -13,7 +13,7 @@ use std::{
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
+        ColorF, DocumentId, DynamicProperties, FontInstanceFlags, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation,
         IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
@@ -30,6 +30,7 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     display_list::DisplayListCache,
+    font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
     unit::*,
     window::{
@@ -376,11 +377,11 @@ impl Window {
             renderer_exts,
             external_images,
             video_mode: cfg.video_mode,
+            display_list_cache: DisplayListCache::new(pipeline_id, api.get_namespace_id()),
             api,
             document_id,
             pipeline_id,
             resized: true,
-            display_list_cache: DisplayListCache::new(pipeline_id),
             waiting_first_frame: true,
             steal_init_focus: cfg.focus,
             init_focus_request: cfg.focus_indicator,
@@ -1191,38 +1192,67 @@ impl Window {
         self.image_use.delete(key, self.document_id, &mut self.api);
     }
 
-    pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {
+    pub fn add_font_face(&mut self, font: Vec<u8>, index: u32) -> FontFaceId {
         let key = self.api.generate_font_key();
         let mut txn = webrender::Transaction::new();
         txn.add_raw_font(key, font, index);
         self.api.send_transaction(self.document_id, txn);
-        key
+        FontFaceId::from_raw(key.1)
     }
 
-    pub fn delete_font(&mut self, key: FontKey) {
+    pub fn delete_font_face(&mut self, font_face_id: FontFaceId) {
         let mut txn = webrender::Transaction::new();
-        txn.delete_font(key);
+        txn.delete_font(FontKey(self.id_namespace(), font_face_id.get()));
         self.api.send_transaction(self.document_id, txn);
     }
 
-    pub fn add_font_instance(
+    pub fn add_font(
         &mut self,
-        font_key: FontKey,
+        font_face_id: FontFaceId,
         glyph_size: Px,
-        options: Option<FontInstanceOptions>,
-        plataform_options: Option<FontInstancePlatformOptions>,
-        variations: Vec<FontVariation>,
-    ) -> FontInstanceKey {
+        options: FontOptions,
+        variations: Vec<(FontVariationName, f32)>,
+    ) -> FontId {
         let key = self.api.generate_font_instance_key();
         let mut txn = webrender::Transaction::new();
-        txn.add_font_instance(key, font_key, glyph_size.to_wr().get(), options, plataform_options, variations);
+        txn.add_font_instance(
+            key,
+            FontKey(self.id_namespace(), font_face_id.get()),
+            glyph_size.to_wr().get(),
+            if options == FontOptions::default() {
+                None
+            } else {
+                Some(FontInstanceOptions {
+                    render_mode: match options.aa {
+                        zero_ui_view_api::config::FontAntiAliasing::Default => webrender::api::FontRenderMode::Subpixel,
+                        zero_ui_view_api::config::FontAntiAliasing::Subpixel => webrender::api::FontRenderMode::Subpixel,
+                        zero_ui_view_api::config::FontAntiAliasing::Alpha => webrender::api::FontRenderMode::Alpha,
+                        zero_ui_view_api::config::FontAntiAliasing::Mono => webrender::api::FontRenderMode::Mono,
+                    },
+                    flags: if options.synthetic_bold {
+                        FontInstanceFlags::SYNTHETIC_BOLD
+                    } else {
+                        FontInstanceFlags::empty()
+                    },
+                    synthetic_italics: webrender::api::SyntheticItalics::from_degrees(options.synthetic_italics.0),
+                })
+            },
+            None,
+            variations
+                .into_iter()
+                .map(|(n, v)| FontVariation {
+                    tag: u32::from_be_bytes(n),
+                    value: v,
+                })
+                .collect(),
+        );
         self.api.send_transaction(self.document_id, txn);
-        key
+        FontId::from_raw(key.1)
     }
 
-    pub fn delete_font_instance(&mut self, instance_key: FontInstanceKey) {
+    pub fn delete_font(&mut self, font_id: FontId) {
         let mut txn = webrender::Transaction::new();
-        txn.delete_font_instance(instance_key);
+        txn.delete_font_instance(FontInstanceKey(self.id_namespace(), font_id.get()));
         self.api.send_transaction(self.document_id, txn);
     }
 

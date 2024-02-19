@@ -55,8 +55,8 @@ use zero_ui_app::{
 use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::{lang, Lang, LangMap};
 use zero_ui_layout::unit::{
-    about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, EQ_EPSILON,
-    EQ_EPSILON_100,
+    about_eq, about_eq_hash, about_eq_ord, euclid, AngleUnits as _, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _,
+    EQ_EPSILON, EQ_EPSILON_100,
 };
 use zero_ui_task as task;
 use zero_ui_txt::Txt;
@@ -874,7 +874,7 @@ struct LoadedFontFace {
 struct FontFaceMut {
     font_kit: FontKitCache,
     instances: HashMap<FontInstanceKey, Font>,
-    render_keys: Vec<RenderFontFace>,
+    render_ids: Vec<RenderFontFace>,
     unregistered: bool,
 }
 
@@ -891,7 +891,7 @@ impl fmt::Debug for FontFace {
             .field("color_palettes.len()", &self.0.color_palettes.len())
             .field("color_glyphs.len()", &self.0.color_glyphs.len())
             .field("instances.len()", &m.instances.len())
-            .field("render_keys.len()", &m.render_keys.len())
+            .field("render_keys.len()", &m.render_ids.len())
             .field("unregistered", &m.unregistered)
             .finish_non_exhaustive()
     }
@@ -938,7 +938,7 @@ impl FontFace {
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
                 instances: HashMap::default(),
-                render_keys: vec![],
+                render_ids: vec![],
                 unregistered: false,
             }),
         }))
@@ -981,7 +981,7 @@ impl FontFace {
                         m: Mutex::new(FontFaceMut {
                             font_kit: other_font.0.m.lock().font_kit.clone(),
                             instances: Default::default(),
-                            render_keys: Default::default(),
+                            render_ids: Default::default(),
                             unregistered: Default::default(),
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
@@ -1046,7 +1046,7 @@ impl FontFace {
                     font_kit
                 },
                 instances: Default::default(),
-                render_keys: Default::default(),
+                render_ids: Default::default(),
                 unregistered: Default::default(),
             }),
         })))
@@ -1124,7 +1124,7 @@ impl FontFace {
                     font_kit
                 },
                 instances: Default::default(),
-                render_keys: Default::default(),
+                render_ids: Default::default(),
                 unregistered: Default::default(),
             }),
         })))
@@ -1136,33 +1136,23 @@ impl FontFace {
         m.unregistered = true;
     }
 
-    const DUMMY_FONT_KEY: wr::FontKey = wr::FontKey(wr::IdNamespace(0), 0);
-
-    fn render_face(&self, renderer: &ViewRenderer) -> wr::FontKey {
-        let namespace = match renderer.namespace_id() {
-            Ok(n) => n,
-            Err(ViewProcessOffline) => {
-                tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
-                return Self::DUMMY_FONT_KEY;
-            }
-        };
-
+    fn render_face(&self, renderer: &ViewRenderer) -> zero_ui_view_api::font::FontFaceId {
         let mut m = self.0.m.lock();
-        for r in m.render_keys.iter() {
-            if r.key.0 == namespace {
-                return r.key;
+        for r in m.render_ids.iter() {
+            if &r.renderer == renderer {
+                return r.face_id;
             }
         }
 
-        let key = match renderer.add_font((*self.0.data.0).clone(), self.0.face_index) {
+        let key = match renderer.add_font_face((*self.0.data.0).clone(), self.0.face_index) {
             Ok(k) => k,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
-                return Self::DUMMY_FONT_KEY;
+                return zero_ui_view_api::font::FontFaceId::INVALID;
             }
         };
 
-        m.render_keys.push(RenderFontFace::new(renderer, key));
+        m.render_ids.push(RenderFontFace::new(renderer, key));
 
         key
     }
@@ -1387,58 +1377,36 @@ impl Font {
         }))
     }
 
-    const DUMMY_FONT_KEY: wr::FontInstanceKey = wr::FontInstanceKey(wr::IdNamespace(0), 0);
-
-    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
+    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId {
         let _span = tracing::trace_span!("Font::render_font").entered();
 
-        let namespace = match renderer.namespace_id() {
-            Ok(n) => n,
-            Err(ViewProcessOffline) => {
-                tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
-                return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
-            }
-        };
         let mut render_keys = self.0.render_keys.lock();
         for r in render_keys.iter() {
-            if r.key.0 == namespace && r.synthesis == synthesis {
-                return (r.key, r.flags);
+            if &r.renderer == renderer && r.synthesis == synthesis {
+                return r.font_id;
             }
         }
 
         let font_key = self.0.face.render_face(renderer);
 
-        let mut flags = wr::FontInstanceFlags::empty();
-
-        let mut opt = wr::FontInstanceOptions::default();
+        let mut opt = zero_ui_view_api::font::FontOptions::default();
         if synthesis.contains(FontSynthesis::OBLIQUE) {
-            opt.synthetic_italics = wr::SyntheticItalics::enabled();
+            opt.synthetic_italics = 14.deg();
         }
-        if synthesis.contains(FontSynthesis::BOLD) {
-            opt.flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
-            flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
-        }
-        let variations = self
-            .0
-            .variations
-            .iter()
-            .map(|v| wr::FontVariation {
-                tag: v.tag().0,
-                value: v.value(),
-            })
-            .collect();
+        opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
+        let variations = self.0.variations.iter().map(|v| (v.tag().to_bytes(), v.value())).collect();
 
-        let key = match renderer.add_font_instance(font_key, self.0.size, Some(opt), None, variations) {
+        let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
-                return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
+                return zero_ui_view_api::font::FontId::INVALID;
             }
         };
 
-        render_keys.push(RenderFont::new(renderer, synthesis, key, flags));
+        render_keys.push(RenderFont::new(renderer, synthesis, key));
 
-        (key, flags)
+        key
     }
 
     /// Reference the font face source of this font.
@@ -1493,7 +1461,7 @@ impl zero_ui_app::render::Font for Font {
         self.face().is_empty()
     }
 
-    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
+    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId {
         self.render_font(renderer, synthesis)
     }
 }
@@ -1747,7 +1715,7 @@ impl FontFaceLoader {
         let sys_fonts = self.system_fonts_cache.values().flatten().filter_map(|f| f.result.rsp().flatten());
         for face in self.custom_fonts.values().flatten().cloned().chain(sys_fonts) {
             let mut m = face.0.m.lock();
-            m.render_keys.clear();
+            m.render_ids.clear();
             for inst in m.instances.values() {
                 inst.0.render_keys.lock().clear();
             }
@@ -2173,43 +2141,41 @@ impl FontFaceLoader {
 
 struct RenderFontFace {
     renderer: ViewRenderer,
-    key: wr::FontKey,
+    face_id: zero_ui_view_api::font::FontFaceId,
 }
 impl RenderFontFace {
-    fn new(renderer: &ViewRenderer, key: wr::FontKey) -> Self {
+    fn new(renderer: &ViewRenderer, face_id: zero_ui_view_api::font::FontFaceId) -> Self {
         RenderFontFace {
             renderer: renderer.clone(),
-            key,
+            face_id,
         }
     }
 }
 impl Drop for RenderFontFace {
     fn drop(&mut self) {
         // error here means the entire renderer was already dropped.
-        let _ = self.renderer.delete_font(self.key);
+        let _ = self.renderer.delete_font_face(self.face_id);
     }
 }
 
 struct RenderFont {
     renderer: ViewRenderer,
     synthesis: FontSynthesis,
-    key: wr::FontInstanceKey,
-    flags: wr::FontInstanceFlags,
+    font_id: zero_ui_view_api::font::FontId,
 }
 impl RenderFont {
-    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: wr::FontInstanceKey, flags: wr::FontInstanceFlags) -> RenderFont {
+    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, font_id: zero_ui_view_api::font::FontId) -> RenderFont {
         RenderFont {
             renderer: renderer.clone(),
             synthesis,
-            key,
-            flags,
+            font_id,
         }
     }
 }
 impl Drop for RenderFont {
     fn drop(&mut self) {
         // error here means the entire renderer was already dropped.
-        let _ = self.renderer.delete_font_instance(self.key);
+        let _ = self.renderer.delete_font(self.font_id);
     }
 }
 
