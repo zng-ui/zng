@@ -194,8 +194,6 @@ impl fmt::Display for VideoMode {
 /// Information about a successfully opened window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowOpenData {
-    /// Window renderer ID namespace.
-    pub id_namespace: webrender_api::IdNamespace,
     /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
 
@@ -225,8 +223,6 @@ pub struct WindowOpenData {
 /// Information about a successfully opened headless surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessOpenData {
-    /// Window renderer ID namespace.
-    pub id_namespace: webrender_api::IdNamespace,
     /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
 
@@ -237,7 +233,6 @@ impl HeadlessOpenData {
     /// Create an *invalid* result, for when the surface can not be opened.
     pub fn invalid() -> Self {
         HeadlessOpenData {
-            id_namespace: webrender_api::IdNamespace(0),
             pipeline_id: webrender_api::PipelineId::dummy(),
             render_mode: RenderMode::Software,
         }
@@ -246,7 +241,7 @@ impl HeadlessOpenData {
     /// If any of the data is invalid.
     pub fn is_invalid(&self) -> bool {
         let invalid = Self::invalid();
-        self.pipeline_id == invalid.pipeline_id || self.id_namespace == invalid.id_namespace
+        self.pipeline_id == invalid.pipeline_id
     }
 }
 

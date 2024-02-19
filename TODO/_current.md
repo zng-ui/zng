@@ -1,4 +1,4 @@
-* Remove `IdNamespace` from view API.
+* Remove `PipelineId` from view API.
 * Continue removing webrender from view API.
 
 # Documentation

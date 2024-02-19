@@ -41,7 +41,7 @@ use zero_ui_view_api::{
     config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
-    webrender_api::{IdNamespace, PipelineId},
+    webrender_api::PipelineId,
 };
 pub(crate) use zero_ui_view_api::{
     window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
@@ -312,7 +312,6 @@ impl VIEW_PROCESS {
         let win = ViewWindow(Arc::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(window_id.get()),
-            id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
         }));
@@ -352,7 +351,6 @@ impl VIEW_PROCESS {
         let surf = ViewHeadless(Arc::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(id.get()),
-            id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
         }));
@@ -803,7 +801,6 @@ impl ViewWindow {
 struct ViewWindowData {
     app_id: AppId,
     id: ApiWindowId,
-    id_namespace: IdNamespace,
     pipeline_id: PipelineId,
     generation: ViewProcessGen,
 }
@@ -891,18 +888,6 @@ impl ViewRenderer {
         if let Some(c) = self.0.upgrade() {
             if VIEW_PROCESS.is_online() {
                 return Ok(c.pipeline_id);
-            }
-        }
-        Err(ViewProcessOffline)
-    }
-
-    /// Resource namespace.
-    ///
-    /// This value is cached locally (not an IPC call).
-    pub fn namespace_id(&self) -> Result<IdNamespace> {
-        if let Some(c) = self.0.upgrade() {
-            if VIEW_PROCESS.is_online() {
-                return Ok(c.id_namespace);
             }
         }
         Err(ViewProcessOffline)

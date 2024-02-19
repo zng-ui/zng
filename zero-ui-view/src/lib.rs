@@ -1397,17 +1397,12 @@ impl App {
             self.exts.new_renderer(),
             self.app_sender.clone(),
         );
-        let id_namespace = surf.id_namespace();
         let pipeline_id = surf.pipeline_id();
         let render_mode = surf.render_mode();
 
         self.surfaces.push(surf);
 
-        HeadlessOpenData {
-            id_namespace,
-            pipeline_id,
-            render_mode,
-        }
+        HeadlessOpenData { pipeline_id, render_mode }
     }
 
     #[cfg(not(windows))]
@@ -1475,7 +1470,6 @@ impl Api for App {
                 extensions: config.extensions,
             });
             let msg = WindowOpenData {
-                id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
                 render_mode: data.render_mode,
                 monitor: None,
@@ -1511,7 +1505,6 @@ impl Api for App {
             );
 
             let msg = WindowOpenData {
-                id_namespace: win.id_namespace(),
                 pipeline_id: win.pipeline_id(),
                 monitor: win.monitor().map(|h| self.monitor_id(&h)),
                 position: win.inner_position(),

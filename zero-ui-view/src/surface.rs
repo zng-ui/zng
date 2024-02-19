@@ -4,7 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, IdNamespace, PipelineId},
+    api::{ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect};
@@ -173,10 +173,6 @@ impl Surface {
         self.id
     }
 
-    pub fn id_namespace(&self) -> IdNamespace {
-        self.api.get_namespace_id()
-    }
-
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
     }
@@ -218,7 +214,7 @@ impl Surface {
 
     pub fn delete_font_face(&mut self, font_face_id: FontFaceId) {
         let mut txn = webrender::Transaction::new();
-        txn.delete_font(FontKey(self.id_namespace(), font_face_id.get()));
+        txn.delete_font(FontKey(self.api.get_namespace_id(), font_face_id.get()));
         self.api.send_transaction(self.document_id, txn);
     }
 
@@ -233,7 +229,7 @@ impl Surface {
         let mut txn = webrender::Transaction::new();
         txn.add_font_instance(
             key,
-            FontKey(self.id_namespace(), font_face_id.get()),
+            FontKey(self.api.get_namespace_id(), font_face_id.get()),
             glyph_size.to_wr().get(),
             if options == FontOptions::default() {
                 None
@@ -268,7 +264,7 @@ impl Surface {
 
     pub fn delete_font(&mut self, font_id: FontId) {
         let mut txn = webrender::Transaction::new();
-        txn.delete_font_instance(FontInstanceKey(self.id_namespace(), font_id.get()));
+        txn.delete_font_instance(FontInstanceKey(self.api.get_namespace_id(), font_id.get()));
         self.api.send_transaction(self.document_id, txn);
     }
 
