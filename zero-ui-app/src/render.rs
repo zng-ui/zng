@@ -22,7 +22,7 @@ use zero_ui_view_api::{
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
     unit::PxToWr,
-    webrender_api::{self, FontRenderMode, GlyphInstance, GlyphOptions, PipelineId, SpatialTreeItemKey},
+    webrender_api::{self, FontRenderMode, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
     window::FrameId,
 };
 
@@ -217,7 +217,6 @@ pub struct FrameBuilder {
     render_update_widgets: Arc<RenderUpdates>,
 
     frame_id: FrameId,
-    pipeline_id: PipelineId,
     widget_id: WidgetId,
     transform: PxTransform,
     transform_style: TransformStyle,
@@ -277,12 +276,7 @@ impl FrameBuilder {
         scale_factor: Factor,
         default_font_aa: FontAntiAliasing,
     ) -> Self {
-        let pipeline_id = renderer
-            .as_ref()
-            .and_then(|r| r.pipeline_id().ok())
-            .unwrap_or_else(PipelineId::dummy);
-
-        let display_list = DisplayListBuilder::new(pipeline_id, frame_id);
+        let display_list = DisplayListBuilder::new(frame_id);
 
         let root_size = root_bounds.outer_size();
         let auto_hide_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
@@ -292,7 +286,6 @@ impl FrameBuilder {
             render_widgets,
             render_update_widgets,
             frame_id,
-            pipeline_id,
             widget_id: root_id,
             transform: PxTransform::identity(),
             transform_style: TransformStyle::Flat,
@@ -398,13 +391,6 @@ impl FrameBuilder {
     /// Id of the current widget context.
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
-    }
-
-    /// Renderer pipeline ID or [`dummy`].
-    ///
-    /// [`dummy`]: PipelineId::dummy
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
     }
 
     /// Current transform.
@@ -790,12 +776,10 @@ impl FrameBuilder {
     pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
         if self.can_reuse {
             if let Some(g) = &group {
-                if g.pipeline_id() == self.pipeline_id {
-                    if self.visible {
-                        self.display_list.push_reuse_range(g);
-                    }
-                    return;
+                if self.visible {
+                    self.display_list.push_reuse_range(g);
                 }
+                return;
             }
         }
         *group = None;
@@ -1946,7 +1930,6 @@ impl FrameBuilder {
             render_widgets: self.render_widgets.clone(),
             render_update_widgets: self.render_update_widgets.clone(),
             frame_id: self.frame_id,
-            pipeline_id: self.pipeline_id,
             widget_id: self.widget_id,
             transform: self.transform,
             transform_style: self.transform_style,
@@ -2261,7 +2244,6 @@ impl border::LineStyle {
 /// Any [`FrameValueKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     render_update_widgets: Arc<RenderUpdates>,
-    pipeline_id: PipelineId,
 
     transforms: Vec<FrameValueUpdate<PxTransform>>,
     floats: Vec<FrameValueUpdate<f32>>,
@@ -2302,14 +2284,9 @@ impl FrameUpdate {
         renderer: Option<&ViewRenderer>,
         clear_color: RenderColor,
     ) -> Self {
-        let pipeline_id = renderer
-            .as_ref()
-            .and_then(|r| r.pipeline_id().ok())
-            .unwrap_or_else(PipelineId::dummy);
-
+        let _ = renderer;
         FrameUpdate {
             render_update_widgets,
-            pipeline_id,
             widget_id: root_id,
             widget_bounds: root_bounds,
             transforms: vec![],
@@ -2723,7 +2700,6 @@ impl FrameUpdate {
 
         ParallelBuilder(Some(Self {
             render_update_widgets: self.render_update_widgets.clone(),
-            pipeline_id: self.pipeline_id,
             current_clear_color: self.current_clear_color,
             frame_id: self.frame_id,
 
@@ -2751,7 +2727,6 @@ impl FrameUpdate {
     pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
         let mut split = split.take();
 
-        debug_assert_eq!(self.pipeline_id, split.pipeline_id);
         debug_assert_eq!(self.frame_id, split.frame_id);
         debug_assert_eq!(self.widget_id, split.widget_id);
 

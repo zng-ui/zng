@@ -3,7 +3,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use webrender_api::{ColorF, Epoch, PipelineId, RenderReasons};
+use webrender_api::{ColorF, Epoch, RenderReasons};
 use zero_ui_txt::Txt;
 
 use crate::{
@@ -194,9 +194,6 @@ impl fmt::Display for VideoMode {
 /// Information about a successfully opened window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowOpenData {
-    /// Window renderer pipeline.
-    pub pipeline_id: webrender_api::PipelineId,
-
     /// Window complete state.
     pub state: WindowStateAll,
 
@@ -223,26 +220,8 @@ pub struct WindowOpenData {
 /// Information about a successfully opened headless surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessOpenData {
-    /// Window renderer pipeline.
-    pub pipeline_id: webrender_api::PipelineId,
-
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
-}
-impl HeadlessOpenData {
-    /// Create an *invalid* result, for when the surface can not be opened.
-    pub fn invalid() -> Self {
-        HeadlessOpenData {
-            pipeline_id: webrender_api::PipelineId::dummy(),
-            render_mode: RenderMode::Software,
-        }
-    }
-
-    /// If any of the data is invalid.
-    pub fn is_invalid(&self) -> bool {
-        let invalid = Self::invalid();
-        self.pipeline_id == invalid.pipeline_id
-    }
 }
 
 /// Represents a focus request indicator.
@@ -271,8 +250,6 @@ pub enum FrameCapture {
 pub struct FrameRequest {
     /// ID of the new frame.
     pub id: FrameId,
-    /// Pipeline Tag.
-    pub pipeline_id: PipelineId,
 
     /// Frame clear color.
     pub clear_color: ColorF,

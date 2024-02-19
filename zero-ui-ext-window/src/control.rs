@@ -2087,7 +2087,6 @@ impl ContentCtrl {
             if let Some(renderer) = renderer {
                 let _: Ignore = renderer.render(FrameRequest {
                     id: self.frame_id,
-                    pipeline_id: frame.display_list.pipeline_id(),
                     clear_color: self.clear_color,
                     display_list: frame.display_list,
                     capture,

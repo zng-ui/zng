@@ -173,10 +173,6 @@ impl Surface {
         self.id
     }
 
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
     pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
     }
@@ -306,7 +302,7 @@ impl Surface {
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
         self.clear_color = Some(frame.clear_color);
 
-        txn.set_display_list(frame.id.epoch(), (frame.pipeline_id, display_list));
+        txn.set_display_list(frame.id.epoch(), (self.pipeline_id, display_list));
 
         txn.set_root_pipeline(self.pipeline_id);
 

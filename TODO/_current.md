@@ -1,4 +1,3 @@
-* Remove `PipelineId` from view API.
 * Continue removing webrender from view API.
 
 # Documentation

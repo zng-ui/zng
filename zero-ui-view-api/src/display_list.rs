@@ -22,7 +22,6 @@ use zero_ui_unit::*;
 /// Represents a builder for display items that will be rendered in the view process.
 #[derive(Debug)]
 pub struct DisplayListBuilder {
-    pipeline_id: PipelineId,
     frame_id: FrameId,
     list: Vec<DisplayItem>,
 
@@ -38,14 +37,13 @@ pub struct DisplayListBuilder {
 }
 impl DisplayListBuilder {
     /// New default.
-    pub fn new(pipeline_id: PipelineId, frame_id: FrameId) -> Self {
-        Self::with_capacity(pipeline_id, frame_id, 100)
+    pub fn new(frame_id: FrameId) -> Self {
+        Self::with_capacity(frame_id, 100)
     }
 
     /// New with pre-allocation.
-    pub fn with_capacity(pipeline_id: PipelineId, frame_id: FrameId, capacity: usize) -> Self {
+    pub fn with_capacity(frame_id: FrameId, capacity: usize) -> Self {
         Self {
-            pipeline_id,
             frame_id,
             list: Vec::with_capacity(capacity),
 
@@ -60,11 +58,6 @@ impl DisplayListBuilder {
         }
     }
 
-    /// Pipeline that will render the display items.
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
     /// Frame that will be rendered by this display list.
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
@@ -77,7 +70,6 @@ impl DisplayListBuilder {
     /// [`finish_reuse_range`]: Self::finish_reuse_range
     pub fn start_reuse_range(&mut self) -> ReuseStart {
         ReuseStart {
-            pipeline_id: self.pipeline_id,
             frame_id: self.frame_id,
             seg_id: self.seg_id,
             start: self.list.len(),
@@ -95,7 +87,6 @@ impl DisplayListBuilder {
     ///
     /// [`start_reuse_range`]: Self::start_reuse_range
     pub fn finish_reuse_range(&mut self, start: ReuseStart) -> ReuseRange {
-        assert_eq!(self.pipeline_id, start.pipeline_id, "reuse range not started by the same builder");
         assert_eq!(self.frame_id, start.frame_id, "reuse range not started by the same builder");
         assert_eq!(self.seg_id, start.seg_id, "reuse range not started by the same builder");
         assert_eq!(
@@ -119,7 +110,6 @@ impl DisplayListBuilder {
         self.has_reuse_ranges = true;
 
         ReuseRange {
-            pipeline_id: self.pipeline_id,
             frame_id: self.frame_id,
             seg_id: self.seg_id,
             start: start.start,
@@ -131,8 +121,6 @@ impl DisplayListBuilder {
     ///
     /// Panics if `range` does not have a compatible pipeline id.
     pub fn push_reuse_range(&mut self, range: &ReuseRange) {
-        assert_eq!(self.pipeline_id, range.pipeline_id);
-
         if !range.is_empty() {
             self.list.push(DisplayItem::Reuse {
                 frame_id: range.frame_id,
@@ -482,7 +470,6 @@ impl DisplayListBuilder {
     /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> Self {
         Self {
-            pipeline_id: self.pipeline_id,
             frame_id: self.frame_id,
             list: vec![],
             clip_len: 1,
@@ -541,7 +528,6 @@ impl DisplayListBuilder {
     /// Returns the display list.
     pub fn finalize(self) -> DisplayList {
         DisplayList {
-            pipeline_id: self.pipeline_id,
             frame_id: self.frame_id,
             list: self.list,
             segments: self.segments,
@@ -556,7 +542,6 @@ type SegmentId = usize;
 ///
 /// See [`DisplayListBuilder::start_reuse_range`] for more details.
 pub struct ReuseStart {
-    pipeline_id: PipelineId,
     frame_id: FrameId,
     seg_id: SegmentId,
     start: usize,
@@ -572,18 +557,12 @@ pub struct ReuseStart {
 /// See [`DisplayListBuilder::push_reuse_range`] for more details.
 #[derive(Debug, Clone)]
 pub struct ReuseRange {
-    pipeline_id: PipelineId,
     frame_id: FrameId,
     seg_id: SegmentId,
     start: usize,
     end: usize,
 }
 impl ReuseRange {
-    /// Pipeline where the items can be reused.
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
     /// Frame that owns the reused items selected by this range.
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
@@ -600,17 +579,11 @@ impl ReuseRange {
 /// See [`DisplayListBuilder::finalize`] for more details.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayList {
-    pipeline_id: PipelineId,
     frame_id: FrameId,
     list: Vec<DisplayItem>,
     segments: Vec<(SegmentId, usize)>,
 }
 impl DisplayList {
-    /// Pipeline that will render the display items.
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
     /// Frame that will be rendered by this display list.
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
@@ -618,8 +591,6 @@ impl DisplayList {
 
     /// Convert the display list to a webrender display list, including the reuse items.
     pub fn to_webrender(self, ext: &mut dyn DisplayListExtension, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
-        assert_eq!(self.pipeline_id, cache.pipeline_id);
-
         let r = Self::build(&self.list, cache, ext, false);
         cache.insert(self);
 

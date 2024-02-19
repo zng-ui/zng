@@ -41,7 +41,6 @@ use zero_ui_view_api::{
     config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
-    webrender_api::PipelineId,
 };
 pub(crate) use zero_ui_view_api::{
     window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
@@ -312,7 +311,6 @@ impl VIEW_PROCESS {
         let win = ViewWindow(Arc::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(window_id.get()),
-            pipeline_id: data.pipeline_id,
             generation: app.data_generation,
         }));
         drop(app);
@@ -351,7 +349,6 @@ impl VIEW_PROCESS {
         let surf = ViewHeadless(Arc::new(ViewWindowData {
             app_id: APP.id().unwrap(),
             id: ApiWindowId::from_raw(id.get()),
-            pipeline_id: data.pipeline_id,
             generation: app.data_generation,
         }));
 
@@ -801,7 +798,6 @@ impl ViewWindow {
 struct ViewWindowData {
     app_id: AppId,
     id: ApiWindowId,
-    pipeline_id: PipelineId,
     generation: ViewProcessGen,
 }
 impl ViewWindowData {
@@ -879,18 +875,6 @@ impl ViewRenderer {
     /// Returns the view-process generation on which the renderer was created.
     pub fn generation(&self) -> Result<ViewProcessGen> {
         self.0.upgrade().map(|c| c.generation).ok_or(ViewProcessOffline)
-    }
-
-    /// Pipeline ID.
-    ///
-    /// This value is cached locally (not an IPC call).
-    pub fn pipeline_id(&self) -> Result<PipelineId> {
-        if let Some(c) = self.0.upgrade() {
-            if VIEW_PROCESS.is_online() {
-                return Ok(c.pipeline_id);
-            }
-        }
-        Err(ViewProcessOffline)
     }
 
     /// Use an image resource in the window renderer.
