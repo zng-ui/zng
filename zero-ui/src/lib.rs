@@ -564,7 +564,7 @@ mod __prelude {
 
     pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use zero_ui_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors};
+    pub use zero_ui_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors, MixAdjust as _};
 
     pub use zero_ui_ext_clipboard::CLIPBOARD;
 
@@ -750,7 +750,7 @@ mod __prelude_wgt {
 
     pub use zero_ui_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
-        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
+        ColorPair, ColorScheme, Hsla, Hsva, MixAdjust as _, MixBlendMode, Rgba,
     };
 
     pub use zero_ui_wgt::node::{

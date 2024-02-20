@@ -1,4 +1,5 @@
-use super::{Hsla, PreMulRgba, Rgba};
+use super::{clamp_normal, Hsla, Hsva, PreMulRgba, Rgba};
+use zero_ui_layout::unit::Factor;
 
 use paste::*;
 
@@ -40,22 +41,84 @@ macro_rules! impl_mix {
             }
         }
 
-
-        impl PreMulRgba {
-            /// Mix `background` over `self` using the `mode`.
-            pub fn mix(self, mode: MixBlendMode, background: PreMulRgba) -> PreMulRgba {
+        /// Color mix and adjustment methods.
+        pub trait MixAdjust {
+            /// MixAdjust `background` over `self` using the `mode`.
+            fn mix(self, mode: MixBlendMode, background: Self) -> Self where Self:Sized {
                 match mode {
                     $(MixBlendMode::$Mode => paste!(self.[<mix_ $Mode:lower>](background)),)+
-                    $(MixBlendMode::$NsMode => paste!(self.to_rgba().[<mix_ $NsMode:lower>](background.to_rgba()).pre_mul()),)+
+                    $(MixBlendMode::$NsMode => paste!(self.[<mix_ $NsMode:lower>](background)),)+
                 }
             }
 
             $(
                 paste! {
-                    #[doc = "Mix `background` over `self` using the [`MixBlendMode::" $Mode "`]."]
+                    #[doc = "MixAdjust `background` over `self` using the [`MixBlendMode::" $Mode "`]."]
                     ///
                     $(#[$meta])*
-                    pub fn [<mix_ $Mode:lower>](self, background: PreMulRgba) -> PreMulRgba {
+                    fn [<mix_ $Mode:lower>](self, background: Self) -> Self;
+                }
+            )+
+
+            $(
+                paste! {
+                    #[doc = "MixAdjust `self` over `background` using the [`MixBlendMode::`" $NsMode "`]."]
+                    ///
+                    $(#[$ns_meta])*
+                    ///
+                    /// This method converts both inputs to [`Hsla`] and the result back to `Rgba`.
+                    fn [<mix_ $NsMode:lower>](self, background: Self) -> Self;
+                }
+            )+
+
+            /// Adds the `amount` to the color *lightness*.
+            ///
+            /// # Examples
+            ///
+            /// Add `10%` of the current lightness to the `DARK_RED` color:
+            ///
+            /// ```
+            /// # use zero_ui_color::*;
+            /// # use zero_ui_layout::unit::*;
+            /// web_colors::DARK_RED.lighten(10.pct())
+            /// # ;
+            /// ```
+            fn lighten<A: Into<Factor>>(self, amount: A) -> Self;
+
+            /// Subtracts the `amount` from the color *lightness*.
+            ///
+            /// # Examples
+            ///
+            /// Removes `10%` of the current lightness from the `DARK_RED` color:
+            ///
+            /// ```
+            /// # use zero_ui_color::*;
+            /// # use zero_ui_layout::unit::*;
+            /// web_colors::DARK_RED.darken(10.pct())
+            /// # ;
+            fn darken<A: Into<Factor>>(self, amount: A) -> Self;
+
+            /// Subtracts the `amount` from the color *saturation*.
+            ///
+            /// # Examples
+            ///
+            /// Removes `10%` of the current saturation from the `RED` color:
+            ///
+            /// ```
+            /// # use zero_ui_color::*;
+            /// # use zero_ui_layout::unit::*;
+            /// colors::RED.desaturate(10.pct())
+            /// # ;
+            fn desaturate<A: Into<Factor>>(self, amount: A) -> Self;
+
+            /// Returns a copy of this color with a new `lightness`.
+            fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self;
+        }
+
+        impl PreMulRgba {
+            $(
+                paste! {
+                    fn [<mix_ $Mode:lower _impl>](self, background: PreMulRgba) -> PreMulRgba {
                         PreMulRgba {
                             red: {
                                 let $fg = self.red;
@@ -89,48 +152,10 @@ macro_rules! impl_mix {
             )+
         }
 
-        impl Rgba {
-            /// Mix `self` over `background` using the `mode`.
-            pub fn mix(self, mode: MixBlendMode, background: Rgba) -> Rgba {
-                match mode {
-                    $(MixBlendMode::$Mode => paste!(self.[<mix_ $Mode:lower>](background)),)+
-                    $(MixBlendMode::$NsMode => paste!(self.[<mix_ $NsMode:lower>](background)),)+
-                }
-            }
-
-            $(
-                paste! {
-                    #[doc = "Mix `self` over `background` using the [`MixBlendMode::`" $Mode "`]."]
-                    ///
-                    $(#[$meta])*
-                    ///
-                    /// This method converts both inputs to [`PreMulRgba`] and the result back to `Rgba`.
-                    pub fn [<mix_ $Mode:lower>](self, background: Rgba) -> Rgba {
-                        self.pre_mul().[<mix_ $Mode:lower>](background.pre_mul()).to_rgba()
-                    }
-                }
-            )+
-            $(
-                paste! {
-                    #[doc = "Mix `self` over `background` using the [`MixBlendMode::`" $NsMode "`]."]
-                    ///
-                    $(#[$ns_meta])*
-                    ///
-                    /// This method converts both inputs to [`Hsla`] and the result back to `Rgba`.
-                    pub fn [<mix_ $NsMode:lower>](self, background: Rgba) -> Rgba {
-                        self.to_hsla().[<mix_ $NsMode:lower>](background.to_hsla()).to_rgba()
-                    }
-                }
-            )+
-        }
-
         impl Hsla {
             $(
                 paste! {
-                    #[doc = "Mix `self` over `background` using the [`MixBlendMode::`" $NsMode "`]."]
-                    ///
-                    $(#[$ns_meta])*
-                    pub fn [<mix_ $NsMode:lower>](self, background: Hsla) -> Hsla {
+                    fn [<mix_ $NsMode:lower _impl>](self, background: Hsla) -> Hsla {
                         let $fgh = self.hue;
                         let $fgs = self.saturation;
                         let $fgl = self.lightness;
@@ -154,6 +179,146 @@ macro_rules! impl_mix {
                     }
                 }
             )+
+        }
+
+        impl MixAdjust for PreMulRgba {
+            $(
+                paste! {
+                    fn [<mix_ $Mode:lower>](self, background: Self) -> Self {
+                       self.[<mix_ $Mode:lower _impl>](background)
+                    }
+                }
+            )+
+            $(
+                paste! {
+                    fn [<mix_ $NsMode:lower>](self, background: Self) -> Self {
+                        Hsla::from(self).[<mix_ $NsMode:lower>](Hsla::from(background)).into()
+                    }
+                }
+            )+
+
+            fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).lighten(amount.into()).into()
+            }
+
+            fn darken<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).darken(amount.into()).into()
+            }
+
+            fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).desaturate(amount).into()
+            }
+
+            fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
+                Hsla::from(self).with_lightness(lightness).into()
+            }
+        }
+
+        impl MixAdjust for Hsla {
+            $(
+                paste! {
+                    fn [<mix_ $Mode:lower>](self, background: Self) -> Self {
+                        PreMulRgba::from(self).[<mix_ $Mode:lower>](PreMulRgba::from(background)).into()
+                    }
+                }
+            )+
+
+            $(
+                paste! {
+                    fn [<mix_ $NsMode:lower>](self, background: Self) -> Self {
+                       self.[<mix_ $NsMode:lower _impl>](background)
+                    }
+                }
+            )+
+
+            fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
+                let mut lighter = self;
+                lighter.lightness = clamp_normal(lighter.lightness + (lighter.lightness * amount.into().0));
+                lighter
+            }
+
+            fn darken<A: Into<Factor>>(self, amount: A) -> Self {
+                let mut darker = self;
+                darker.lightness = clamp_normal(darker.lightness - (darker.lightness * amount.into().0));
+                darker
+            }
+
+            fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+                let mut desat = self;
+                desat.saturation = clamp_normal(desat.saturation - (desat.saturation * amount.into().0));
+                desat
+            }
+
+            fn with_lightness<L: Into<Factor>>(mut self, lightness: L) -> Self {
+                self.set_lightness(lightness);
+                self
+            }
+        }
+
+        impl MixAdjust for Rgba {
+            $(
+                paste! {
+                    fn [<mix_ $Mode:lower>](self, background: Self) -> Self {
+                        PreMulRgba::from(self).[<mix_ $Mode:lower>](PreMulRgba::from(background)).into()
+                    }
+                }
+            )+
+            $(
+                paste! {
+                    fn [<mix_ $NsMode:lower>](self, background: Self) -> Self {
+                        Hsla::from(self).[<mix_ $NsMode:lower>](Hsla::from(background)).into()
+                    }
+                }
+            )+
+
+            fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).lighten(amount.into()).into()
+            }
+
+            fn darken<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).darken(amount.into()).into()
+            }
+
+            fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).desaturate(amount).into()
+            }
+
+            fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
+                Hsla::from(self).with_lightness(lightness).into()
+            }
+        }
+
+        impl MixAdjust for Hsva {
+            $(
+                paste! {
+                    fn [<mix_ $Mode:lower>](self, background: Self) -> Self {
+                        PreMulRgba::from(self).[<mix_ $Mode:lower>](PreMulRgba::from(background)).into()
+                    }
+                }
+            )+
+            $(
+                paste! {
+                    fn [<mix_ $NsMode:lower>](self, background: Self) -> Self {
+                        Hsla::from(self).[<mix_ $NsMode:lower>](Hsla::from(background)).into()
+                    }
+                }
+            )+
+
+            fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).lighten(amount.into()).into()
+            }
+
+            fn darken<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).darken(amount.into()).into()
+            }
+
+            fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+                Hsla::from(self).desaturate(amount).into()
+            }
+
+            fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
+                Hsla::from(self).with_lightness(lightness).into()
+            }
         }
     };
 }

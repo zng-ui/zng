@@ -23,7 +23,7 @@ fn app_main() {
 
         let bkg = count.map(|&n| {
             let angle = (n + 3) as f32 / 10.0 * 360.0;
-            hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
+            hsl(angle.deg(), 80.pct(), 30.pct()).into()
         });
 
         Window! {

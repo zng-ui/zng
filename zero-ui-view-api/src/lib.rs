@@ -377,12 +377,12 @@ declare_api! {
     ///
     /// Returns the new image texture ID. If the `image_id` is not loaded returns the [`INVALID`] image ID.
     ///
-    /// [`DUMMY`]: ImageTextureId::INVALID
+    /// [`INVALID`]: ImageTextureId::INVALID
     pub fn use_image(&mut self, id: WindowId, image_id: ImageId) -> ImageTextureId;
 
     /// Replace the image resource in the window renderer.
     ///
-    /// The [`ImageKey`] will be associated with the new [`ImageId`].
+    /// The [`ImageTextureId`] will be associated with the new [`ImageId`].
     pub fn update_image_use(
         &mut self,
         id: WindowId,

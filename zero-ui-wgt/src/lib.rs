@@ -88,7 +88,7 @@ mod __prelude {
 
     pub use zero_ui_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
-        ColorPair, ColorScheme, Hsla, Hsva, MixBlendMode, Rgba,
+        ColorPair, ColorScheme, Hsla, Hsva, MixAdjust as _, MixBlendMode, Rgba,
     };
 
     pub use crate::node::{

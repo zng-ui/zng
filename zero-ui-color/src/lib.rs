@@ -155,85 +155,6 @@ impl Rgba {
         self.with_alpha(0.0)
     }
 
-    /// Convert a copy of the color to [`Hsla`].
-    pub fn to_hsla(self) -> Hsla {
-        self.into()
-    }
-
-    /// Convert a copy of the color to [`Hsva`].
-    pub fn to_hsva(self) -> Hsva {
-        self.into()
-    }
-
-    /// Multiply channels by alpha.
-    pub fn pre_mul(self) -> PreMulRgba {
-        PreMulRgba {
-            red: self.red * self.alpha,
-            green: self.green * self.alpha,
-            blue: self.blue * self.alpha,
-            alpha: self.alpha,
-        }
-    }
-
-    /// Adds the `amount` to the color *lightness*.
-    ///
-    /// This method converts to [`Hsla`] to lighten and then converts back to `Rgba`.
-    ///
-    /// # Examples
-    ///
-    /// Add `10%` of the current lightness to the `DARK_RED` color:
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// web_colors::DARK_RED.lighten(10.pct())
-    /// # ;
-    /// ```
-    pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
-        self.to_hsla().lighten(amount).to_rgba()
-    }
-
-    /// Subtracts the `amount` from the color *lightness*.
-    ///
-    /// This method converts to [`Hsla`] to darken and then converts back to `Rgba`.
-    ///
-    /// # Examples
-    ///
-    /// Removes `10%` of the current lightness from the `DARK_RED` color:
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// web_colors::DARK_RED.darken(10.pct())
-    /// # ;
-    pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
-        self.to_hsla().darken(amount).to_rgba()
-    }
-
-    /// Subtracts the `amount` from the color *saturation*.
-    ///
-    /// This method converts to [`Hsla`] to desaturate and then converts back to `Rgba`.
-    ///
-    /// # Examples
-    ///
-    /// Removes `10%` of the current saturation from the `RED` color:
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// colors::RED.desaturate(10.pct())
-    /// # ;
-    pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
-        self.to_hsla().desaturate(amount).to_rgba()
-    }
-
-    /// Returns a copy of this color with a new `lightness`.
-    ///
-    /// This method converts to [`Hsla`] to change the lightness and then converts back to `Rgba`.
-    pub fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
-        self.to_hsla().with_lightness(lightness).to_rgba()
-    }
-
     /// Convert a copy to [R, G, B, A] bytes.
     pub fn to_bytes(self) -> [u8; 4] {
         [
@@ -256,10 +177,10 @@ impl Rgba {
     /// Linear interpolate in the contextual [`lerp_space`] mode.
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
-            LerpSpace::HslaChromatic => self.to_hsla().slerp_chromatic(to.to_hsla(), factor).to_rgba(),
+            LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic(to.into(), factor).into(),
             LerpSpace::Rgba => self.lerp_rgba(to, factor),
-            LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), factor).to_rgba(),
-            LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), factor).to_rgba(),
+            LerpSpace::Hsla => Hsla::from(self).slerp(to.into(), factor).into(),
+            LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla(to.into(), factor).into(),
         }
     }
 }
@@ -347,7 +268,7 @@ impl Transitionable for Rgba {
 
 /// Pre-multiplied RGB + alpha.
 ///
-/// Use [`Rgba::pre_mul`] to create.
+/// Use from/into conversion to create.
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PreMulRgba {
     /// [`Rgba::red`] multiplied by `alpha`.
@@ -375,25 +296,40 @@ impl std::hash::Hash for PreMulRgba {
         about_eq_hash(self.alpha, EPSILON, state);
     }
 }
-impl PreMulRgba {
-    /// Divide channels by alpha.
-    pub fn to_rgba(self) -> Rgba {
-        Rgba {
-            red: self.red / self.alpha,
-            green: self.green / self.alpha,
-            blue: self.blue / self.alpha,
-            alpha: self.alpha,
+
+impl_from_and_into_var! {
+    fn from(c: Rgba) -> PreMulRgba {
+        PreMulRgba {
+            red: c.red * c.alpha,
+            green: c.green * c.alpha,
+            blue: c.blue * c.alpha,
+            alpha: c.alpha,
         }
     }
-}
-impl From<Rgba> for PreMulRgba {
-    fn from(c: Rgba) -> Self {
-        c.pre_mul()
+
+    fn from(c: PreMulRgba) -> Rgba {
+        Rgba {
+            red: c.red / c.alpha,
+            green: c.green / c.alpha,
+            blue: c.blue / c.alpha,
+            alpha: c.alpha,
+        }
     }
-}
-impl From<PreMulRgba> for Rgba {
-    fn from(c: PreMulRgba) -> Self {
-        c.to_rgba()
+
+    fn from(c: Hsla) -> PreMulRgba {
+        Rgba::from(c).into()
+    }
+
+    fn from(c: PreMulRgba) -> Hsla {
+        Rgba::from(c).into()
+    }
+
+    fn from(c: Hsva) -> PreMulRgba {
+        Rgba::from(c).into()
+    }
+
+    fn from(c: PreMulRgba) -> Hsva {
+        Rgba::from(c).into()
     }
 }
 
@@ -431,65 +367,6 @@ impl std::hash::Hash for Hsla {
     }
 }
 impl Hsla {
-    /// Adds the `amount` to the [`lightness`](Self::lightness).
-    ///
-    /// The `lightness` is clamped to the `[0.0..=1.0]` range.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// web_colors::DARK_RED.to_hsla().lighten(10.pct())
-    /// # ;
-    /// ```
-    ///
-    /// Adds `10%` of the current lightness to the `DARK_RED` color.
-    pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
-        let mut lighter = self;
-        lighter.lightness = clamp_normal(lighter.lightness + (lighter.lightness * amount.into().0));
-        lighter
-    }
-
-    /// Subtracts the `amount` from the [`lightness`](Self::lightness).
-    ///
-    /// The `lightness` is clamped to the `[0.0..=1.0]` range.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// colors::RED.to_hsla().darken(10.pct())
-    /// # ;
-    /// ```
-    ///
-    /// Removes `10%` of the current lightness of the `RED` color.
-    pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
-        let mut darker = self;
-        darker.lightness = clamp_normal(darker.lightness - (darker.lightness * amount.into().0));
-        darker
-    }
-
-    /// Subtracts the `amount` from the color *saturation*.
-    ///
-    /// This method converts to [`Hsla`] to desaturate and then converts back to `Rgba`.
-    ///
-    /// # Examples
-    ///
-    /// Removes `10%` of the current saturation from the `RED` color:
-    ///
-    /// ```
-    /// # use zero_ui_color::*;
-    /// # use zero_ui_layout::unit::*;
-    /// colors::RED.to_hsla().desaturate(10.pct())
-    /// # ;
-    pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
-        let mut desat = self;
-        desat.saturation = clamp_normal(desat.saturation - (desat.saturation * amount.into().0));
-        desat
-    }
-
     /// Sets the [`hue`](Self::hue) color angle.
     ///
     /// The value is normalized to be in the `[0.0..=360.0]` range, that is `362.deg()` becomes `2.0`.
@@ -534,16 +411,6 @@ impl Hsla {
     pub fn with_alpha<A: Into<Factor>>(mut self, alpha: A) -> Self {
         self.set_alpha(alpha);
         self
-    }
-
-    /// Converts a copy of this color to [`Rgba`].
-    pub fn to_rgba(self) -> Rgba {
-        self.into()
-    }
-
-    /// Converts a copy of this color to [`Hsva`].
-    pub fn to_hsva(self) -> Hsva {
-        self.into()
     }
 
     fn lerp_sla(mut self, to: Hsla, factor: Factor) -> Self {
@@ -591,7 +458,7 @@ impl Hsla {
     pub fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
             LerpSpace::HslaChromatic => self.slerp_chromatic(to, factor),
-            LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), factor).to_hsla(),
+            LerpSpace::Rgba => Rgba::from(self).lerp_rgba(to.into(), factor).into(),
             LerpSpace::Hsla => self.slerp(to, factor),
             LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
         }
@@ -724,16 +591,6 @@ impl Hsva {
     pub fn with_alpha<A: Into<Factor>>(mut self, alpha: A) -> Self {
         self.set_alpha(alpha);
         self
-    }
-
-    /// Converts a copy of this color to [`Rgba`].
-    pub fn to_rgba(self) -> Rgba {
-        self.into()
-    }
-
-    /// Converts a copy of this color to [`Hsla`].
-    pub fn to_hsla(self) -> Hsla {
-        self.into()
     }
 }
 impl fmt::Debug for Hsva {
@@ -906,10 +763,10 @@ impl_from_and_into_var! {
 impl Transitionable for Hsva {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         match lerp_space() {
-            LerpSpace::HslaChromatic => self.to_hsla().slerp_chromatic(to.to_hsla(), step).to_hsva(),
-            LerpSpace::Rgba => self.to_rgba().lerp_rgba(to.to_rgba(), step).to_hsva(),
-            LerpSpace::Hsla => self.to_hsla().slerp(to.to_hsla(), step).to_hsva(),
-            LerpSpace::HslaLinear => self.to_hsla().lerp_hsla(to.to_hsla(), step).to_hsva(),
+            LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic((*to).into(), step).into(),
+            LerpSpace::Rgba => Rgba::from(self).lerp_rgba((*to).into(), step).into(),
+            LerpSpace::Hsla => Hsla::from(self).slerp((*to).into(), step).into(),
+            LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla((*to).into(), step).into(),
         }
     }
 }
@@ -1375,19 +1232,19 @@ mod tests {
 
     #[test]
     fn hsl_red() {
-        assert_eq!(hsl(0.0.deg(), 100.pct(), 50.pct()).to_rgba(), rgb(1.0, 0.0, 0.0))
+        assert_eq!(Rgba::from(hsl(0.0.deg(), 100.pct(), 50.pct())), rgb(1.0, 0.0, 0.0))
     }
 
     #[test]
     fn hsl_color() {
-        assert_eq!(hsl(91.0.deg(), 1.0, 0.5).to_rgba(), rgb(123, 255, 0))
+        assert_eq!(Rgba::from(hsl(91.0.deg(), 1.0, 0.5)), rgb(123, 255, 0))
     }
 
     #[test]
     fn rgb_to_hsl() {
         let color = rgba(0, 100, 200, 0.2);
         let a = format!("{color:?}");
-        let b = format!("{:?}", color.to_hsla().to_rgba());
+        let b = format!("{:?}", Rgba::from(Hsla::from(color)));
         assert_eq!(a, b)
     }
 
@@ -1395,7 +1252,7 @@ mod tests {
     fn rgb_to_hsv() {
         let color = rgba(0, 100, 200, 0.2);
         let a = format!("{color:?}");
-        let b = format!("{:?}", color.to_hsva().to_rgba());
+        let b = format!("{:?}", Rgba::from(Hsva::from(color)));
         assert_eq!(a, b)
     }
 

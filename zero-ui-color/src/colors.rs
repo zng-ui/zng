@@ -2,8 +2,8 @@
 //!
 //! You can use [`darken`] and [`lighten`] to derive more shades from these colors.
 //!
-//! [`darken`]: Rgba::darken
-//! [`lighten`]: Rgba::lighten
+//! [`darken`]: crate::MixAdjust::darken
+//! [`lighten`]: crate::MixAdjust::lighten
 
 use super::Rgba;
 
