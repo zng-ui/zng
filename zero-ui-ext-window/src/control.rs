@@ -25,6 +25,7 @@ use zero_ui_app::{
     Deadline,
 };
 use zero_ui_clone_move::clmv;
+use zero_ui_color::{colors, Rgba};
 use zero_ui_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zero_ui_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
@@ -1852,7 +1853,7 @@ struct ContentCtrl {
 
     init_state: InitState,
     frame_id: FrameId,
-    clear_color: zero_ui_view_api::RgbaF,
+    clear_color: Rgba,
 }
 impl ContentCtrl {
     pub fn new(vars: WindowVars, commands: WindowCommands, window: WindowRoot) -> Self {
@@ -1867,7 +1868,7 @@ impl ContentCtrl {
 
             init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
-            clear_color: zero_ui_view_api::RgbaF::new(0.0, 0.0, 0.0, 1.0),
+            clear_color: colors::BLACK,
         }
     }
 

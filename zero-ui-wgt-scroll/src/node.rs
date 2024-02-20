@@ -2,7 +2,7 @@
 //!
 
 use zero_ui_app::access::ACCESS_SCROLL_EVENT;
-use zero_ui_color::RgbaF;
+use zero_ui_color::Rgba;
 use zero_ui_ext_input::focus::FOCUS;
 use zero_ui_ext_input::focus::FOCUS_CHANGED_EVENT;
 use zero_ui_ext_input::mouse::MouseScrollDelta;
@@ -1216,7 +1216,7 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                         offset: 1.0,
                         color: {
                             let mut c = color;
-                            c[3] = 0.0;
+                            c.alpha = 0.0;
                             c
                         },
                     },
@@ -1225,8 +1225,8 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
 
             frame.with_auto_hit_test(false, |frame| {
                 if !v_rect.size.is_empty() {
-                    let mut color: RgbaF = OVERSCROLL_COLOR_VAR.get().into();
-                    color[3] *= (OVERSCROLL_VERTICAL_OFFSET_VAR.get().abs().0).min(1.0);
+                    let mut color: Rgba = OVERSCROLL_COLOR_VAR.get();
+                    color.alpha *= (OVERSCROLL_VERTICAL_OFFSET_VAR.get().abs().0).min(1.0);
                     let stops = stops(color);
 
                     let mut radius = v_rect.size;
@@ -1243,8 +1243,8 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
                     );
                 }
                 if !h_rect.size.is_empty() {
-                    let mut color: RgbaF = OVERSCROLL_COLOR_VAR.get().into();
-                    color[3] *= (OVERSCROLL_HORIZONTAL_OFFSET_VAR.get().abs().0).min(1.0);
+                    let mut color: Rgba = OVERSCROLL_COLOR_VAR.get();
+                    color.alpha *= (OVERSCROLL_HORIZONTAL_OFFSET_VAR.get().abs().0).min(1.0);
                     let stops = stops(color);
 
                     let mut radius = h_rect.size;

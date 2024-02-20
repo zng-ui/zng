@@ -14,9 +14,9 @@ use crate::{
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, ops, path::PathBuf};
+use std::{fmt, path::PathBuf};
 use zero_ui_txt::Txt;
-use zero_ui_unit::{DipPoint, PxRect, PxSize};
+use zero_ui_unit::{DipPoint, PxRect, PxSize, Rgba};
 
 macro_rules! declare_id {
     ($(
@@ -774,42 +774,20 @@ impl std::error::Error for ViewProcessOffline {}
 /// View Process IPC result.
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
-/// RGBA color with normalized components (`0.0..=1.0`).
-#[derive(Default, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub struct RgbaF(pub [f32; 4]);
-impl RgbaF {
-    /// New RGBA.
-    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self([r, g, b, a])
-    }
-}
-impl ops::Deref for RgbaF {
-    type Target = [f32; 4];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for RgbaF {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 /// Offset and color in a gradient.
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct GradientStop {
     /// Offset in pixels.
     pub offset: f32,
     /// Color at the offset.
-    pub color: RgbaF,
+    pub color: Rgba,
 }
 
 /// Border side line style and color.
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BorderSide {
     /// Line color.
-    pub color: RgbaF,
+    pub color: Rgba,
     /// Line Style.
     pub style: webrender_api::BorderStyle,
 }

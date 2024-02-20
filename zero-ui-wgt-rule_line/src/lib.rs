@@ -125,7 +125,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
             let orientation = orientation.get();
             let color = color.get();
             let style = style.get();
-            frame.push_line(bounds, orientation, color.into(), style);
+            frame.push_line(bounds, orientation, color, style);
         }
         _ => {}
     }));

@@ -44,7 +44,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
             if !t.underlines.is_empty() {
                 let style = UNDERLINE_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
-                    let color = UNDERLINE_COLOR_VAR.get().into();
+                    let color = UNDERLINE_COLOR_VAR.get();
                     for &(origin, width) in &t.underlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
@@ -79,7 +79,7 @@ pub fn render_ime_preview_underlines(child: impl UiNode) -> impl UiNode {
             if !t.ime_underlines.is_empty() {
                 let style = IME_UNDERLINE_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
-                    let color = FONT_COLOR_VAR.get().into();
+                    let color = FONT_COLOR_VAR.get();
                     for &(origin, width) in &t.ime_underlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.ime_underline_thickness)),
@@ -114,7 +114,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
             if !t.strikethroughs.is_empty() {
                 let style = STRIKETHROUGH_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
-                    let color = STRIKETHROUGH_COLOR_VAR.get().into();
+                    let color = STRIKETHROUGH_COLOR_VAR.get();
                     for &(origin, width) in &t.strikethroughs {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.strikethrough_thickness)),
@@ -147,7 +147,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
             if !t.overlines.is_empty() {
                 let style = OVERLINE_STYLE_VAR.get();
                 if style != LineStyle::Hidden {
-                    let color = OVERLINE_COLOR_VAR.get().into();
+                    let color = OVERLINE_COLOR_VAR.get();
                     for &(origin, width) in &t.overlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.overline_thickness)),

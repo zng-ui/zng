@@ -22,7 +22,7 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_txt::{ToTxt, Txt};
-use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector};
+use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
@@ -34,7 +34,7 @@ use zero_ui_view_api::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
         WindowRequest, WindowState, WindowStateAll,
     },
-    DeviceId, Event, RgbaF, ViewProcessGen,
+    DeviceId, Event, ViewProcessGen,
 };
 
 use zero_ui_view_api::dialog as dlg_api;
@@ -63,7 +63,7 @@ pub(crate) struct Window {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
-    clear_color: Option<RgbaF>,
+    clear_color: Option<Rgba>,
 
     context: GlContext, // context must be dropped before window.
     window: GWindow,

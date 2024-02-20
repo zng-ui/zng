@@ -12,7 +12,7 @@ use zero_ui_var::{
 };
 use zero_ui_view_api::display_list::{FilterOp, FrameValue};
 
-use crate::{Rgba, RgbaF};
+use crate::{lerp_rgba, Rgba};
 
 /// A color filter or combination of filters.
 ///
@@ -98,7 +98,7 @@ impl Filter {
 
     /// Add a filter that fills the pixel space with `color`.
     pub fn flood<C: Into<Rgba>>(self, color: C) -> Self {
-        self.op(FilterOp::Flood(color.into().into()))
+        self.op(FilterOp::Flood(color.into()))
     }
 
     /// Custom filter.
@@ -197,7 +197,7 @@ impl Filter {
                     color,
                 } => FilterOp::DropShadow {
                     offset: offset.layout().to_vector().cast(),
-                    color: RgbaF::from(*color),
+                    color: *color,
                     blur_radius: blur_radius.layout_f32_x(),
                 },
             })
@@ -318,16 +318,9 @@ impl fmt::Debug for FilterData {
                         offset,
                         color,
                         blur_radius,
-                    } => write!(
-                        f,
-                        "drop_shadow(({}, {}), {}, {})",
-                        offset.x,
-                        offset.y,
-                        blur_radius,
-                        Rgba::from(*color)
-                    ),
+                    } => write!(f, "drop_shadow(({}, {}), {}, {})", offset.x, offset.y, blur_radius, *color),
                     FilterOp::ColorMatrix(m) => write!(f, "color_matrix({:?})", ColorMatrix(*m)),
-                    FilterOp::Flood(c) => write!(f, "flood({})", Rgba::from(*c)),
+                    FilterOp::Flood(c) => write!(f, "flood({})", *c),
                 },
                 FilterData::Blur(l) => write!(f, "blur({l:?})"),
                 FilterData::DropShadow {
@@ -340,10 +333,6 @@ impl fmt::Debug for FilterData {
             }
         }
     }
-}
-
-fn lerp_rgbaf(s: RgbaF, to: &RgbaF, step: EasingStep) -> RgbaF {
-    Rgba::from(s).lerp(&Rgba::from(*to), step).into()
 }
 
 fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, step: EasingStep) -> FrameValue<T> {
@@ -419,7 +408,7 @@ fn lerp_filter_op(mut s: FilterOp, to: &FilterOp, step: EasingStep) -> FilterOp 
             },
         ) => {
             *offset = Transitionable::lerp(*offset, to_offset, step);
-            *color = lerp_rgbaf(*color, to_color, step);
+            *color = lerp_rgba(*color, *to_color, step);
             *blur_radius = blur_radius.lerp(to_blur, step);
         }
         (FilterOp::ColorMatrix(a), FilterOp::ColorMatrix(b)) => {
@@ -428,7 +417,7 @@ fn lerp_filter_op(mut s: FilterOp, to: &FilterOp, step: EasingStep) -> FilterOp 
             }
         }
         (FilterOp::Flood(a), FilterOp::Flood(b)) => {
-            *a = lerp_rgbaf(*a, b, step);
+            *a = lerp_rgba(*a, *b, step);
         }
         (a, b) => {
             if step >= 1.fct() {

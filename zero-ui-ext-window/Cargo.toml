@@ -21,6 +21,7 @@ zero-ui-state_map = { path = "../zero-ui-state_map" }
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 zero-ui-task = { path = "../zero-ui-task" }
 zero-ui-ext-image = { path = "../zero-ui-ext-image" }
+zero-ui-color = { path = "../zero-ui-color" }
 
 serde = { version = "1", features = ["derive"] }
 bitflags = "2"

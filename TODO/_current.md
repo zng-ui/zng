@@ -1,9 +1,12 @@
+* Can't implement Transitionable for color types in var crate because color crate depends on var.
+    - Remove var dependency.
+        - Now var depends on the full color crate..
+    - Move transitionable and easing types to units too?
+        - This does not help, would have to move entire color impl to units, including the app_context stuff.
+
 * Exit command not working.
 
-* Move `Rgba` to unit crate.
-
 * Continue removing webrender from view API.
-    - Rename RgbaF to Rgba, move Rgba to unit crate, use it directly.
     - Finish text API, GlyphInstance, GlyphOptions.
 
 # Documentation

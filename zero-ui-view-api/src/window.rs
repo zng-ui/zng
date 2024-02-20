@@ -12,9 +12,8 @@ use crate::{
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
-    RgbaF,
 };
-use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform};
+use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
 
 crate::declare_id! {
     /// Window ID in channel.
@@ -253,7 +252,7 @@ pub struct FrameRequest {
     pub id: FrameId,
 
     /// Frame clear color.
-    pub clear_color: RgbaF,
+    pub clear_color: Rgba,
 
     /// Display list.
     pub display_list: DisplayList,
@@ -292,13 +291,13 @@ pub struct FrameUpdateRequest {
     /// Bound floats.
     pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors.
-    pub colors: Vec<FrameValueUpdate<RgbaF>>,
+    pub colors: Vec<FrameValueUpdate<Rgba>>,
 
     /// Render update extension key and payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
-    pub clear_color: Option<RgbaF>,
+    pub clear_color: Option<Rgba>,
 
     /// Create an image or mask from this rendered frame.
     ///

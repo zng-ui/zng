@@ -7,7 +7,7 @@ use webrender::{
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
-use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect};
+use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::DisplayListCache,
@@ -15,7 +15,7 @@ use zero_ui_view_api::{
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     unit::*,
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
-    RgbaF, ViewProcessGen,
+    ViewProcessGen,
 };
 
 use crate::{
@@ -45,7 +45,7 @@ pub(crate) struct Surface {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
-    clear_color: Option<RgbaF>,
+    clear_color: Option<Rgba>,
 
     pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,

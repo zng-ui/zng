@@ -1854,11 +1854,11 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
             let r_txt = r_txt.segmented_text.text();
 
             for line_rect in l_txt.shaped_text.highlight_rects(range.get(), r_txt) {
-                frame.push_color(line_rect, color_key.bind_var(&color, |c| (*c).into()));
+                frame.push_color(line_rect, color_key.bind_var(&color, |c| *c));
             }
         }
         UiNodeOp::RenderUpdate { update } => {
-            if let Some(color_update) = color_key.update_var(&color, |c| (*c).into()) {
+            if let Some(color_update) = color_key.update_var(&color, |c| *c) {
                 update.update_color(color_update)
             }
         }

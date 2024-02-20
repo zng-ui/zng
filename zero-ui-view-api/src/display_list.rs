@@ -16,7 +16,7 @@ use crate::{
     image::ImageTextureId,
     unit::PxToWr,
     window::FrameId,
-    BorderSide, GradientStop, RgbaF,
+    BorderSide, GradientStop,
 };
 use zero_ui_unit::*;
 
@@ -292,7 +292,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         font_id: FontId,
         glyphs: &[wr::GlyphInstance],
-        color: FrameValue<RgbaF>,
+        color: FrameValue<Rgba>,
         options: wr::GlyphOptions,
     ) {
         self.list.push(DisplayItem::Text {
@@ -328,7 +328,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a color rectangle.
-    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RgbaF>) {
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<Rgba>) {
         self.list.push(DisplayItem::Color { clip_rect, color })
     }
 
@@ -412,7 +412,7 @@ impl DisplayListBuilder {
     pub fn push_line(
         &mut self,
         clip_rect: PxRect,
-        color: RgbaF,
+        color: Rgba,
         style: wr::LineStyle,
         wavy_line_thickness: f32,
         orientation: wr::LineOrientation,
@@ -783,7 +783,7 @@ impl PxToWr for f32 {
     }
 }
 // to work with into_wr
-impl PxToWr for RgbaF {
+impl PxToWr for Rgba {
     type AsDevice = wr::ColorF;
 
     type AsLayout = wr::ColorF;
@@ -799,7 +799,7 @@ impl PxToWr for RgbaF {
     }
 
     fn to_wr(self) -> Self::AsLayout {
-        wr::ColorF::new(self[0], self[1], self[2], self[3])
+        wr::ColorF::new(self.red, self.green, self.blue, self.alpha)
     }
 }
 
@@ -934,7 +934,7 @@ impl DisplayListCache {
         ext: &mut dyn DisplayListExtension,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
-        colors: Vec<FrameValueUpdate<RgbaF>>,
+        colors: Vec<FrameValueUpdate<Rgba>>,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
         resized: bool,
     ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
@@ -1018,7 +1018,7 @@ pub enum FilterOp {
         /// Shadow offset.
         offset: euclid::Vector2D<f32, Px>,
         /// Shadow color.
-        color: RgbaF,
+        color: Rgba,
         /// Shadow blur.
         blur_radius: f32,
     },
@@ -1027,7 +1027,7 @@ pub enum FilterOp {
     /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
     ColorMatrix([f32; 20]),
     /// Fill with color.
-    Flood(RgbaF),
+    Flood(Rgba),
 }
 impl FilterOp {
     /// To webrender filter-op.
@@ -1120,7 +1120,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         font_id: FontId,
         glyphs: Box<[wr::GlyphInstance]>,
-        color: FrameValue<RgbaF>,
+        color: FrameValue<Rgba>,
         options: wr::GlyphOptions,
     },
 
@@ -1136,7 +1136,7 @@ enum DisplayItem {
 
     Color {
         clip_rect: PxRect,
-        color: FrameValue<RgbaF>,
+        color: FrameValue<Rgba>,
     },
     BackdropFilter {
         clip_rect: PxRect,
@@ -1172,7 +1172,7 @@ enum DisplayItem {
 
     Line {
         clip_rect: PxRect,
-        color: RgbaF,
+        color: Rgba,
         style: wr::LineStyle,
         wavy_line_thickness: f32,
         orientation: wr::LineOrientation,
@@ -1741,7 +1741,7 @@ impl DisplayItem {
             _ => false,
         }
     }
-    fn update_color(&mut self, t: &FrameValueUpdate<RgbaF>) -> bool {
+    fn update_color(&mut self, t: &FrameValueUpdate<Rgba>) -> bool {
         match self {
             DisplayItem::Color {
                 color:

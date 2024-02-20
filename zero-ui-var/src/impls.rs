@@ -2,12 +2,12 @@
 
 use std::{any::Any, borrow::Cow, path::PathBuf, sync::Arc, time::Duration};
 
-use zero_ui_app_context::context_local;
+use zero_ui_app_context::{app_local, context_local};
 use zero_ui_time::{DInstant, Deadline};
 use zero_ui_txt::Txt;
 use zero_ui_unit::{
     euclid, AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits,
-    Orientation2D, Px,
+    Orientation2D, Px, Rgba,
 };
 
 use crate::{
@@ -309,4 +309,27 @@ impl Transitionable for AngleTurn {
             true => self.slerp(*to, step),
         }
     }
+}
+/// Implementation of lerp for Rgba.
+///
+/// The implementation can be overridden using [`RGBA_LERP`], by default is a simple linear interpolation,
+/// the `zero-ui-color` crate implements a more complex `lerp_rgba` that is set as the default lerp on 
+/// app init.
+impl Transitionable for Rgba {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        let lerp = *RGBA_LERP.read();
+        lerp(self, *to, step)
+    }
+}
+
+app_local! {
+    /// Implementation of `<Rgba as Transitionable>::lerp`.
+    pub static RGBA_LERP: fn(Rgba, Rgba, EasingStep) -> Rgba = const { lerp_rgba_linear };
+}
+fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
+    from.red = from.red.lerp(&to.red, factor);
+    from.green = from.green.lerp(&to.green, factor);
+    from.blue = from.blue.lerp(&to.blue, factor);
+    from.alpha = from.alpha.lerp(&to.alpha, factor);
+    from
 }

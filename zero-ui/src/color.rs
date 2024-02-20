@@ -107,7 +107,7 @@
 pub use zero_ui_color::{
     color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva,
     lerp_space, rgb, rgba, rgba_sampler, web_colors, with_lerp_space, ColorPair, ColorScheme, Hsla, Hsva, LerpSpace, MixAdjust,
-    MixBlendMode, PreMulRgba, RenderMixBlendMode, Rgba, RgbaF, COLOR_SCHEME_VAR,
+    MixBlendMode, PreMulRgba, RenderMixBlendMode, Rgba, Rgba, COLOR_SCHEME_VAR,
 };
 
 pub use zero_ui_wgt::color_scheme;

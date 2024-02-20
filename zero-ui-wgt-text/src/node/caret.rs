@@ -70,7 +70,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
                     origin.x -= caret_thickness / 2;
 
                     let clip_rect = PxRect::new(origin, PxSize::new(caret_thickness, t.shaped_text.line_height()));
-                    frame.push_color(clip_rect, color_key.bind(c.into(), true));
+                    frame.push_color(clip_rect, color_key.bind(c, true));
                 }
             }
         }
@@ -84,7 +84,7 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = TEXT.resolved().caret.opacity.get().0;
 
-                    update.update_color(color_key.update(c.into(), true))
+                    update.update_color(color_key.update(c, true))
                 }
             }
         }
@@ -558,7 +558,7 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
 
             let rect = PxRect::new(PxPoint::new(Px(0), line_height), size);
             frame.push_clip_rounded_rect(rect, corners, false, false, |frame| {
-                frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+                frame.push_color(rect, FrameValue::Value(colors::AZURE));
             });
 
             let caret_thickness = Dip::new(1).to_px(frame.scale_factor());
@@ -570,7 +570,7 @@ pub fn default_interactive_caret_visual(shape: CaretShape) -> impl UiNode {
             };
             let rect = PxRect::new(line_pos, PxSize::new(caret_thickness, line_height));
             frame.with_hit_tests_disabled(|frame| {
-                frame.push_color(rect, FrameValue::Value(colors::AZURE.into()));
+                frame.push_color(rect, FrameValue::Value(colors::AZURE));
             });
         }
         _ => {}

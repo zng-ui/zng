@@ -7,9 +7,10 @@ use crate::{
     window::WINDOW,
 };
 use zero_ui_color::{
+    colors,
     filter::RenderFilter,
     gradient::{RenderExtendMode, RenderGradientStop},
-    rgba, RenderMixBlendMode,
+    RenderMixBlendMode, Rgba,
 };
 use zero_ui_layout::unit::{
     euclid, AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector,
@@ -24,7 +25,6 @@ use zero_ui_view_api::{
     unit::PxToWr,
     webrender_api::{self, FontRenderMode, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
     window::FrameId,
-    RgbaF,
 };
 
 use crate::{
@@ -246,12 +246,12 @@ pub struct FrameBuilder {
     can_reuse: bool,
     open_reuse: Option<ReuseStart>,
 
-    clear_color: Option<RgbaF>,
+    clear_color: Option<Rgba>,
 
     widget_count: usize,
     widget_count_offsets: ParallelSegmentOffsets,
 
-    debug_dot_overlays: Vec<(PxPoint, RgbaF)>,
+    debug_dot_overlays: Vec<(PxPoint, Rgba)>,
 }
 impl FrameBuilder {
     /// New builder.
@@ -321,7 +321,7 @@ impl FrameBuilder {
             widget_count: 0,
             widget_count_offsets: ParallelSegmentOffsets::default(),
 
-            clear_color: Some(rgba(0, 0, 0, 0).into()),
+            clear_color: Some(colors::BLACK.transparent()),
 
             debug_dot_overlays: vec![],
         }
@@ -373,7 +373,7 @@ impl FrameBuilder {
     ///
     /// Note that the clear color is always *rendered* first before all other layers, if more then
     /// one layer sets the clear color only the value set on the top-most layer is used.
-    pub fn set_clear_color(&mut self, color: RgbaF) {
+    pub fn set_clear_color(&mut self, color: Rgba) {
         self.clear_color = Some(color);
     }
 
@@ -1539,7 +1539,7 @@ impl FrameBuilder {
         clip_rect: PxRect,
         glyphs: &[GlyphInstance],
         font: &impl Font,
-        color: FrameValue<RgbaF>,
+        color: FrameValue<Rgba>,
         synthesis: FontSynthesis,
         aa: FontAntiAliasing,
     ) {
@@ -1616,7 +1616,7 @@ impl FrameBuilder {
     /// part of the screen is affected, as the entire region is redraw every full frame even if the color did not actually change.
     ///
     /// [`RenderMode::Software`]: zero_ui_view_api::window::RenderMode::Software
-    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RgbaF>) {
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<Rgba>) {
         expect_inner!(self.push_color);
         warn_empty!(self.push_color(clip_rect));
 
@@ -1783,7 +1783,7 @@ impl FrameBuilder {
     }
 
     /// Push a styled vertical or horizontal line.
-    pub fn push_line(&mut self, clip_rect: PxRect, orientation: border::LineOrientation, color: RgbaF, style: border::LineStyle) {
+    pub fn push_line(&mut self, clip_rect: PxRect, orientation: border::LineOrientation, color: Rgba, style: border::LineStyle) {
         expect_inner!(self.push_line);
         warn_empty!(self.push_line(clip_rect));
 
@@ -1804,11 +1804,11 @@ impl FrameBuilder {
                         widths,
                         zero_ui_view_api::BorderSide { color, style },
                         zero_ui_view_api::BorderSide {
-                            color: RgbaF::new(0.0, 0.0, 0.0, 0.0),
+                            color: colors::BLACK.transparent(),
                             style: webrender_api::BorderStyle::Hidden,
                         },
                         zero_ui_view_api::BorderSide {
-                            color: RgbaF::new(0.0, 0.0, 0.0, 0.0),
+                            color: colors::BLACK.transparent(),
                             style: webrender_api::BorderStyle::Hidden,
                         },
                         zero_ui_view_api::BorderSide { color, style },
@@ -1826,7 +1826,7 @@ impl FrameBuilder {
     /// Record the `offset` in the current context and [`push_debug_dot`] after render.
     ///
     /// [`push_debug_dot`]: Self::push_debug_dot
-    pub fn push_debug_dot_overlay(&mut self, offset: PxPoint, color: impl Into<RgbaF>) {
+    pub fn push_debug_dot_overlay(&mut self, offset: PxPoint, color: impl Into<Rgba>) {
         if let Some(offset) = self.transform.transform_point(offset) {
             self.debug_dot_overlays.push((offset, color.into()));
         }
@@ -1835,7 +1835,7 @@ impl FrameBuilder {
     /// Push a `color` dot to mark the `offset`.
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
-    pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RgbaF>) {
+    pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<Rgba>) {
         if !self.visible {
             return;
         }
@@ -1863,19 +1863,19 @@ impl FrameBuilder {
                 RenderGradientStop { offset: 0.5, color },
                 RenderGradientStop {
                     offset: 0.6,
-                    color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
+                    color: colors::WHITE,
                 },
                 RenderGradientStop {
                     offset: 0.7,
-                    color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
+                    color: colors::WHITE,
                 },
                 RenderGradientStop {
                     offset: 0.8,
-                    color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
+                    color: colors::BLACK,
                 },
                 RenderGradientStop {
                     offset: 1.0,
-                    color: RgbaF::new(0.0, 0.0, 0.0, 0.0),
+                    color: colors::BLACK.transparent(),
                 },
             ],
             PxPoint::zero(),
@@ -2215,7 +2215,7 @@ pub struct BuiltFrame {
     /// Built display list.
     pub display_list: DisplayList,
     /// Clear color selected for the frame.
-    pub clear_color: RgbaF,
+    pub clear_color: Rgba,
 }
 
 enum RenderLineCommand {
@@ -2250,12 +2250,12 @@ pub struct FrameUpdate {
 
     transforms: Vec<FrameValueUpdate<PxTransform>>,
     floats: Vec<FrameValueUpdate<f32>>,
-    colors: Vec<FrameValueUpdate<RgbaF>>,
+    colors: Vec<FrameValueUpdate<Rgba>>,
 
     extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
-    current_clear_color: RgbaF,
-    clear_color: Option<RgbaF>,
+    current_clear_color: Rgba,
+    clear_color: Option<Rgba>,
     frame_id: FrameId,
 
     widget_id: WidgetId,
@@ -2285,7 +2285,7 @@ impl FrameUpdate {
         root_id: WidgetId,
         root_bounds: WidgetBoundsInfo,
         renderer: Option<&ViewRenderer>,
-        clear_color: RgbaF,
+        clear_color: Rgba,
     ) -> Self {
         let _ = renderer;
         FrameUpdate {
@@ -2334,7 +2334,7 @@ impl FrameUpdate {
     }
 
     /// Change the color used to clear the pixel buffer when redrawing the frame.
-    pub fn set_clear_color(&mut self, color: RgbaF) {
+    pub fn set_clear_color(&mut self, color: Rgba) {
         if self.visible {
             self.clear_color = Some(color);
         }
@@ -2665,14 +2665,14 @@ impl FrameUpdate {
     /// Update a color value.
     ///
     /// See [`FrameBuilder::push_color`] for details.
-    pub fn update_color(&mut self, new_value: FrameValueUpdate<RgbaF>) {
+    pub fn update_color(&mut self, new_value: FrameValueUpdate<Rgba>) {
         if self.visible {
             self.colors.push(new_value)
         }
     }
 
     /// Update a color value, if there is one.
-    pub fn update_color_opt(&mut self, new_value: Option<FrameValueUpdate<RgbaF>>) {
+    pub fn update_color_opt(&mut self, new_value: Option<FrameValueUpdate<Rgba>>) {
         if let Some(value) = new_value {
             self.update_color(value)
         }
@@ -2778,9 +2778,9 @@ pub struct BuiltFrameUpdate {
     /// Bound floats update.
     pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors update.
-    pub colors: Vec<FrameValueUpdate<RgbaF>>,
+    pub colors: Vec<FrameValueUpdate<Rgba>>,
     /// New clear color.
-    pub clear_color: Option<RgbaF>,
+    pub clear_color: Option<Rgba>,
     /// Renderer extension updates.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }

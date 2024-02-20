@@ -263,7 +263,7 @@ impl BorderSide {
 impl From<BorderSide> for zero_ui_view_api::BorderSide {
     fn from(s: BorderSide) -> Self {
         zero_ui_view_api::BorderSide {
-            color: s.color.into(),
+            color: s.color,
             style: s.style.into(),
         }
     }

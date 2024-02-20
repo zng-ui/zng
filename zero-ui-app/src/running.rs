@@ -68,6 +68,7 @@ impl<E: AppExtension> RunningApp<E> {
         VARS_APP.init_app_waker(app_waker);
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
         DEADLINE_APP.init_deadline_service(crate::timer::deadline_service);
+        *zero_ui_var::types::RGBA_LERP.write() = zero_ui_color::lerp_rgba;
 
         let mut info = AppExtensionsInfo::start();
         {

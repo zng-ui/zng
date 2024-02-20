@@ -1057,10 +1057,10 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
             }
         }
         UiNodeOp::Render { frame } => {
-            frame.push_color(PxRect::from_size(render_size), frame_key.bind_var(&color, |&c| c.into()));
+            frame.push_color(PxRect::from_size(render_size), frame_key.bind_var(&color, |&c| c));
         }
         UiNodeOp::RenderUpdate { update } => {
-            update.update_color_opt(frame_key.update_var(&color, |&c| c.into()));
+            update.update_color_opt(frame_key.update_var(&color, |&c| c));
         }
         _ => {}
     })

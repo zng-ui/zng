@@ -486,7 +486,7 @@ impl ColorStop {
             } else {
                 self.offset.layout_f32(axis)
             },
-            color: self.color.into(),
+            color: self.color,
         }
     }
 }
@@ -933,7 +933,7 @@ impl GradientStops {
                     render_stops.push(RenderGradientStop {
                         // offset and color will be calculated later.
                         offset: 0.0,
-                        color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
+                        color: colors::BLACK,
                     })
                 }
             }
@@ -973,7 +973,7 @@ impl GradientStops {
                     }
                     offset += prev.offset;
 
-                    let color = lerp_render_color(prev.color, after.color, 100.0 / length / 2.0);
+                    let color = prev.color.lerp(&after.color, (100.0 / length / 2.0).fct());
 
                     let stop = &mut render_stops[i];
                     stop.color = color;
@@ -1031,11 +1031,11 @@ impl GradientStops {
                 ExtendMode::Repeat | ExtendMode::Reflect => {
                     // fill with the average of all colors.
                     let len = render_stops.len() as f32;
-                    let color = RgbaF::new(
-                        render_stops.iter().map(|s| s.color[0]).sum::<f32>() / len,
-                        render_stops.iter().map(|s| s.color[1]).sum::<f32>() / len,
-                        render_stops.iter().map(|s| s.color[2]).sum::<f32>() / len,
-                        render_stops.iter().map(|s| s.color[3]).sum::<f32>() / len,
+                    let color = Rgba::new(
+                        render_stops.iter().map(|s| s.color.red).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color.green).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color.blue).sum::<f32>() / len,
+                        render_stops.iter().map(|s| s.color.alpha).sum::<f32>() / len,
                     );
                     render_stops.clear();
                     render_stops.push(RenderGradientStop { offset: 0.0, color });
@@ -1082,32 +1082,84 @@ impl GradientStops {
 }
 impl_from_and_into_var! {
     /// [`GradientStops::from_colors`]
-    fn from<C: Into<Rgba> + Copy>(colors: &[C]) -> GradientStops {
+    fn from(colors: &[Rgba]) -> GradientStops {
+        GradientStops::from_colors(colors)
+    }
+
+    /// [`GradientStops::from_colors`]
+    fn from(colors: &[Hsva]) -> GradientStops {
+        GradientStops::from_colors(colors)
+    }
+
+    /// [`GradientStops::from_colors`]
+    fn from(colors: &[Hsla]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy>(stops: &[(C, L)]) -> GradientStops {
+    fn from<L: Into<Length> + Copy>(stops: &[(Rgba, L)]) -> GradientStops {
+        GradientStops::from_stops(stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy>(stops: &[(Hsla, L)]) -> GradientStops {
+        GradientStops::from_stops(stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy>(stops: &[(Hsva, L)]) -> GradientStops {
         GradientStops::from_stops(stops)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from<C: Into<Rgba> + Copy, const N: usize>(colors: &[C; N]) -> GradientStops {
+    fn from< const N: usize>(colors: &[Rgba; N]) -> GradientStops {
+        GradientStops::from_colors(colors)
+    }
+
+    /// [`GradientStops::from_colors`]
+    fn from< const N: usize>(colors: &[Hsla; N]) -> GradientStops {
+        GradientStops::from_colors(colors)
+    }
+
+    /// [`GradientStops::from_colors`]
+    fn from< const N: usize>(colors: &[Hsva; N]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy, const N: usize>(stops: &[(C, L); N]) -> GradientStops {
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: &[(Rgba, L); N]) -> GradientStops {
+        GradientStops::from_stops(stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: &[(Hsva, L); N]) -> GradientStops {
+        GradientStops::from_stops(stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: &[(Hsla, L); N]) -> GradientStops {
         GradientStops::from_stops(stops)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from<C: Into<Rgba> + Copy, const N: usize>(colors: [C; N]) -> GradientStops {
+    fn from<const N: usize>(colors: [Rgba; N]) -> GradientStops {
+        GradientStops::from_colors(&colors)
+    }
+    /// [`GradientStops::from_colors`]
+    fn from<const N: usize>(colors: [Hsva; N]) -> GradientStops {
+        GradientStops::from_colors(&colors)
+    }
+    /// [`GradientStops::from_colors`]
+    fn from<const N: usize>(colors: [Hsla; N]) -> GradientStops {
         GradientStops::from_colors(&colors)
     }
 
     /// [`GradientStops::from_stops`]
-    fn from<C: Into<Rgba> + Copy, L: Into<Length> + Copy, const N: usize>(stops: [(C, L); N]) -> GradientStops {
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: [(Rgba, L); N]) -> GradientStops {
+        GradientStops::from_stops(&stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: [(Hsva, L); N]) -> GradientStops {
+        GradientStops::from_stops(&stops)
+    }
+    /// [`GradientStops::from_stops`]
+    fn from<L: Into<Length> + Copy, const N: usize>(stops: [(Hsla, L); N]) -> GradientStops {
         GradientStops::from_stops(&stops)
     }
 }
@@ -1288,14 +1340,14 @@ mod tests {
         assert_eq!(
             stops[0],
             RenderGradientStop {
-                color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
+                color: colors::BLACK,
                 offset: 0.0
             }
         );
         assert_eq!(
             stops[1],
             RenderGradientStop {
-                color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
+                color: colors::WHITE,
                 offset: 1.0
             }
         );
@@ -1355,21 +1407,21 @@ mod tests {
         assert_eq!(
             stops[0],
             RenderGradientStop {
-                color: RgbaF::new(0.0, 0.0, 0.0, 1.0),
+                color: colors::BLACK,
                 offset: 0.0
             }
         );
         assert_eq!(
             stops[1],
             RenderGradientStop {
-                color: RgbaF::new(0.5, 0.5, 0.5, 1.0),
+                color: Rgba::new(0.5, 0.5, 0.5, 1.0),
                 offset: 30.0 / 100.0
             }
         );
         assert_eq!(
             stops[2],
             RenderGradientStop {
-                color: RgbaF::new(1.0, 1.0, 1.0, 1.0),
+                color: colors::WHITE,
                 offset: 1.0
             }
         );

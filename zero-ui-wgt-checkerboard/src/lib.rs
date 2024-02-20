@@ -134,7 +134,7 @@ pub fn node() -> impl UiNode {
         UiNodeOp::Render { frame } => {
             let [c0, c1] = COLORS_VAR.get().0;
             let sch = COLOR_SCHEME_VAR.get();
-            let colors = [c0.color(sch).into(), c1.color(sch).into()];
+            let colors = [c0.color(sch), c1.color(sch)];
 
             frame.push_conic_gradient(
                 PxRect::from_size(render_size),

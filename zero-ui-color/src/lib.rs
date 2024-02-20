@@ -4,23 +4,24 @@
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
+#![recursion_limit = "256"]
 
-use std::{fmt, ops, sync::Arc};
+use std::{fmt, sync::Arc};
 use zero_ui_app_context::context_local;
 
-use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorPercent, FactorUnits};
+use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor};
 use zero_ui_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
 };
 use zero_ui_view_api::webrender_api;
 
-pub use zero_ui_view_api::RgbaF;
-
 pub use zero_ui_view_api::config::ColorScheme;
 
 #[doc(hidden)]
 pub use zero_ui_color_proc_macros::hex_color;
+
+pub use zero_ui_layout::unit::{Rgba, RgbaComponent};
 
 pub mod colors;
 pub mod filter;
@@ -68,196 +69,26 @@ const EPSILON: f32 = 0.00001;
 /// Minimal difference between values in around the 1.0..=100.0 scale.
 const EPSILON_100: f32 = 0.001;
 
-/// RGB + alpha.
-///
-/// # Equality
-///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Rgba {
-    /// Red channel value, in the `[0.0..=1.0]` range.
-    pub red: f32,
-    /// Green channel value, in the `[0.0..=1.0]` range.
-    pub green: f32,
-    /// Blue channel value, in the `[0.0..=1.0]` range.
-    pub blue: f32,
-    /// Alpha channel value, in the `[0.0..=1.0]` range.
-    pub alpha: f32,
-}
-impl PartialEq for Rgba {
-    fn eq(&self, other: &Self) -> bool {
-        about_eq(self.red, other.red, EPSILON)
-            && about_eq(self.green, other.green, EPSILON)
-            && about_eq(self.blue, other.blue, EPSILON)
-            && about_eq(self.alpha, other.alpha, EPSILON)
-    }
-}
-impl std::hash::Hash for Rgba {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.red, EPSILON, state);
-        about_eq_hash(self.green, EPSILON, state);
-        about_eq_hash(self.blue, EPSILON, state);
-        about_eq_hash(self.alpha, EPSILON, state);
-    }
-}
-impl Rgba {
-    /// See [`rgba`] for a better constructor.
-    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
-        Self { red, green, blue, alpha }
-    }
-
-    /// Set the [`red`](Rgba::red) component from any type that converts to [`RgbaComponent`].
-    pub fn set_red<R: Into<RgbaComponent>>(&mut self, red: R) {
-        self.red = red.into().0
-    }
-
-    /// Set the [`green`](Rgba::green) component from any type that converts to [`RgbaComponent`].
-    pub fn set_green<G: Into<RgbaComponent>>(&mut self, green: G) {
-        self.green = green.into().0
-    }
-
-    /// Set the [`blue`](Rgba::blue) component from any type that converts to [`RgbaComponent`].
-    pub fn set_blue<B: Into<RgbaComponent>>(&mut self, blue: B) {
-        self.blue = blue.into().0
-    }
-
-    /// Set the [`alpha`](Rgba::alpha) component from any type that converts to [`RgbaComponent`].
-    pub fn set_alpha<A: Into<RgbaComponent>>(&mut self, alpha: A) {
-        self.alpha = alpha.into().0
-    }
-
-    /// Returns a copy of the color with a new `red` value.
-    pub fn with_red<R: Into<RgbaComponent>>(mut self, red: R) -> Self {
-        self.set_red(red);
-        self
-    }
-
-    /// Returns a copy of the color with a new `green` value.
-    pub fn with_green<R: Into<RgbaComponent>>(mut self, green: R) -> Self {
-        self.set_green(green);
-        self
-    }
-
-    /// Returns a copy of the color with a new `blue` value.
-    pub fn with_blue<B: Into<RgbaComponent>>(mut self, blue: B) -> Self {
-        self.set_blue(blue);
-        self
-    }
-
-    /// Returns a copy of the color with a new `alpha` value.
-    pub fn with_alpha<A: Into<RgbaComponent>>(mut self, alpha: A) -> Self {
-        self.set_alpha(alpha);
-        self
-    }
-
-    /// Returns a copy of the color with the alpha set to `0`.
-    pub fn transparent(self) -> Self {
-        self.with_alpha(0.0)
-    }
-
-    /// Convert a copy to [R, G, B, A] bytes.
-    pub fn to_bytes(self) -> [u8; 4] {
-        [
-            (self.red * 255.0) as u8,
-            (self.green * 255.0) as u8,
-            (self.blue * 255.0) as u8,
-            (self.alpha * 255.0) as u8,
-        ]
-    }
-}
-impl fmt::Debug for Rgba {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_struct("Rgba")
-                .field("red", &self.red)
-                .field("green", &self.green)
-                .field("blue", &self.blue)
-                .field("alpha", &self.alpha)
-                .finish()
-        } else {
-            fn i(n: f32) -> u8 {
-                (clamp_normal(n) * 255.0).round() as u8
-            }
-            let a = i(self.alpha);
-            if a == 255 {
-                write!(f, "rgb({}, {}, {})", i(self.red), i(self.green), i(self.blue))
-            } else {
-                write!(f, "rgba({}, {}, {}, {})", i(self.red), i(self.green), i(self.blue), a)
-            }
-        }
-    }
-}
-impl fmt::Display for Rgba {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn i(n: f32) -> u32 {
-            (clamp_normal(n) * 255.0).round() as u32
-        }
-
-        let mut rgb: u32 = 0;
-        rgb |= i(self.red) << 16;
-        rgb |= i(self.green) << 8;
-        rgb |= i(self.blue);
-
-        let a = i(self.alpha);
-        if a == 255 {
-            write!(f, "#{rgb:0>6X}")
-        } else {
-            let rgba = rgb << 8 | a;
-            write!(f, "#{rgba:0>8X}")
-        }
-    }
-}
-impl ops::Add<Self> for Rgba {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Rgba {
-            red: self.red + rhs.red,
-            green: self.green + rhs.green,
-            blue: self.blue + rhs.blue,
-            alpha: self.alpha + rhs.alpha,
-        }
-    }
-}
-impl ops::AddAssign<Self> for Rgba {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-impl ops::Sub<Self> for Rgba {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Rgba {
-            red: self.red - rhs.red,
-            green: self.green - rhs.green,
-            blue: self.blue - rhs.blue,
-            alpha: self.alpha - rhs.alpha,
-        }
-    }
-}
-impl ops::SubAssign<Self> for Rgba {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
-    }
-}
-impl Transitionable for Rgba {
-    fn lerp(self, to: &Self, factor: EasingStep) -> Self {
-        let to = *to;
-        match lerp_space() {
-            LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic(to.into(), factor).into(),
-            LerpSpace::Rgba => lerp_rgba(self, to, factor),
-            LerpSpace::Hsla => Hsla::from(self).slerp(to.into(), factor).into(),
-            LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla(to.into(), factor).into(),
-        }
-    }
-}
-fn lerp_rgba(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
+fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
     from.red = from.red.lerp(&to.red, factor);
     from.green = from.green.lerp(&to.green, factor);
     from.blue = from.blue.lerp(&to.blue, factor);
     from.alpha = from.alpha.lerp(&to.alpha, factor);
     from
+}
+
+/// Default implementation of lerp for [`Rgba`] in apps.
+///
+/// Implements [`lerp_space`] dependent transition.
+///
+/// Apps set this as the default implementation on init.
+pub fn lerp_rgba(from: Rgba, to: Rgba, factor: Factor) -> Rgba {
+    match lerp_space() {
+        LerpSpace::HslaChromatic => Hsla::from(from).slerp_chromatic(to.into(), factor).into(),
+        LerpSpace::Rgba => lerp_rgba_linear(from, to, factor),
+        LerpSpace::Hsla => Hsla::from(from).slerp(to.into(), factor).into(),
+        LerpSpace::HslaLinear => Hsla::from(from).lerp_hsla(to.into(), factor).into(),
+    }
 }
 
 /// Pre-multiplied RGB + alpha.
@@ -450,7 +281,7 @@ impl Hsla {
     fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
             LerpSpace::HslaChromatic => self.slerp_chromatic(to, factor),
-            LerpSpace::Rgba => lerp_rgba(self.into(), to.into(), factor).into(),
+            LerpSpace::Rgba => lerp_rgba_linear(self.into(), to.into(), factor).into(),
             LerpSpace::Hsla => self.slerp(to, factor),
             LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
         }
@@ -742,21 +573,12 @@ impl_from_and_into_var! {
             alpha: hsla.alpha,
         }
     }
-
-    fn from(color: RgbaF) -> Rgba {
-        Rgba {
-            red: color[0],
-            green: color[1],
-            blue: color[2],
-            alpha: color[3],
-        }
-    }
 }
 impl Transitionable for Hsva {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         match lerp_space() {
             LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic((*to).into(), step).into(),
-            LerpSpace::Rgba => lerp_rgba(self.into(), (*to).into(), step).into(),
+            LerpSpace::Rgba => lerp_rgba_linear(self.into(), (*to).into(), step).into(),
             LerpSpace::Hsla => Hsla::from(self).slerp((*to).into(), step).into(),
             LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla((*to).into(), step).into(),
         }
@@ -830,22 +652,6 @@ impl_from_and_into_var! {
             saturation,
             alpha: rgba.alpha,
         }
-    }
-}
-
-/// Values are clamped to the `[0.0..=1.0]` range and `NaN` becomes `0.0`.
-impl From<Rgba> for RgbaF {
-    fn from(rgba: Rgba) -> Self {
-        fn c(f: f32) -> f32 {
-            if f.is_nan() || f <= 0.0 {
-                0.0
-            } else if f >= 1.0 {
-                1.0
-            } else {
-                f
-            }
-        }
-        RgbaF::new(c(rgba.red), c(rgba.green), c(rgba.blue), c(rgba.alpha))
     }
 }
 
@@ -1006,54 +812,6 @@ pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
         value: value.into().0,
         alpha: alpha.into().0,
     }
-}
-
-/// Color functions argument conversion helper.
-///
-/// Don't use this value directly, if a function takes `Into<RgbaComponent>` you can use one of the
-/// types this converts from:
-///
-/// * [`f32`], [`f64`] and [`Factor`] for a value in the `0.0` to `1.0` range.
-/// * [`u8`] for a value in the `0` to `255` range.
-/// * [`FactorPercent`] for a percentage value.
-#[derive(Clone, Copy)]
-pub struct RgbaComponent(f32);
-/// Color channel value is in the [0..=1] range.
-impl From<f32> for RgbaComponent {
-    fn from(f: f32) -> Self {
-        RgbaComponent(f)
-    }
-}
-/// Color channel value is in the [0..=1] range.
-impl From<f64> for RgbaComponent {
-    fn from(f: f64) -> Self {
-        RgbaComponent(f as f32)
-    }
-}
-/// Color channel value is in the [0..=255] range.
-impl From<u8> for RgbaComponent {
-    fn from(u: u8) -> Self {
-        RgbaComponent(f32::from(u) / 255.)
-    }
-}
-/// Color channel value is in the [0..=100] range.
-impl From<FactorPercent> for RgbaComponent {
-    fn from(p: FactorPercent) -> Self {
-        RgbaComponent(p.0 / 100.)
-    }
-}
-/// Color channel value is in the [0..=1] range.
-impl From<Factor> for RgbaComponent {
-    fn from(f: Factor) -> Self {
-        RgbaComponent(f.0)
-    }
-}
-
-/// Linear interpolate between `a` and `b` by the normalized `amount`.
-pub fn lerp_render_color(a: RgbaF, b: RgbaF, amount: f32) -> RgbaF {
-    let a = Rgba::from(a);
-    let b = Rgba::from(b);
-    a.lerp(&b, amount.fct()).into()
 }
 
 context_var! {
@@ -1220,7 +978,7 @@ context_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zero_ui_layout::unit::AngleUnits;
+    use zero_ui_layout::unit::{AngleUnits as _, FactorUnits as _};
 
     #[test]
     fn hsl_red() {
