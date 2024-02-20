@@ -35,7 +35,7 @@ impl std::hash::Hash for Rgba {
     }
 }
 impl Rgba {
-    /// See [`rgba`] for a better constructor.
+    ///
     pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self { red, green, blue, alpha }
     }

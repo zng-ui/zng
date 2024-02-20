@@ -198,7 +198,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
 
                 for line_rect in l_txt.shaped_text.highlight_rects(range, txt) {
                     if !line_rect.size.is_empty() {
-                        frame.push_color(line_rect, FrameValue::Value(selection_color.into()));
+                        frame.push_color(line_rect, FrameValue::Value(selection_color));
                     }
                 }
             };
@@ -271,9 +271,9 @@ pub fn render_text() -> impl UiNode {
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
             let color = FONT_COLOR_VAR.get();
             let color_value = if let Some(key) = color_key {
-                key.bind(color.into(), FONT_COLOR_VAR.is_animating())
+                key.bind(color, FONT_COLOR_VAR.is_animating())
             } else {
-                FrameValue::Value(color.into())
+                FrameValue::Value(color)
             };
 
             let aa = FONT_AA_VAR.get();
@@ -336,7 +336,7 @@ pub fn render_text() -> impl UiNode {
                                             g.point.x += offset.x;
                                             g.point.y += offset.y;
                                         }
-                                        frame.push_text(clip, &[g], font, FrameValue::Value(color.into()), r.synthesis, aa);
+                                        frame.push_text(clip, &[g], font, FrameValue::Value(color), r.synthesis, aa);
                                     }
                                 }
                             }
@@ -407,7 +407,7 @@ pub fn render_text() -> impl UiNode {
             if let Some(key) = color_key {
                 let color = FONT_COLOR_VAR.get();
 
-                update.update_color(key.update(color.into(), FONT_COLOR_VAR.is_animating()));
+                update.update_color(key.update(color, FONT_COLOR_VAR.is_animating()));
 
                 let mut r = rendered.unwrap();
                 r.color = color;

@@ -665,7 +665,7 @@ fn clamp_normal(i: f32) -> f32 {
 /// # Arguments
 ///
 /// The arguments can either be [`f32`] in the `0.0..=1.0` range or
-/// [`u8`] in the `0..=255` range or a [percentage](FactorPercent).
+/// [`u8`] in the `0..=255` range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// # Examples
 ///
@@ -684,7 +684,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 /// # Arguments
 ///
 /// The arguments can either be `f32` in the `0.0..=1.0` range or
-/// `u8` in the `0..=255` range or a [percentage](FactorPercent).
+/// `u8` in the `0..=255` range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// The rgb arguments must be of the same type, the alpha argument can be of a different type.
 ///
@@ -711,7 +711,7 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](FactorPercent).
+/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
@@ -735,7 +735,7 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](FactorPercent).
+/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
@@ -765,7 +765,7 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](FactorPercent).
+/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///
@@ -789,7 +789,7 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](FactorPercent).
+/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///

@@ -501,7 +501,7 @@ mod inspector_window {
                 let b = Dip::new(16).to_px(factor);
                 let m = b / Px(2) - a / Px(2);
 
-                let color = FrameValue::Value(Rgba::from(colors::WHITE));
+                let color = FrameValue::Value(colors::WHITE);
 
                 frame.push_color(PxRect::new(PxPoint::new(m, Px(0)), PxSize::new(a, b)), color);
                 frame.push_color(PxRect::new(PxPoint::new(Px(0), m), PxSize::new(b, a)), color);

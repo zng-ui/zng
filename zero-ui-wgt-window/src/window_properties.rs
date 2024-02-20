@@ -134,10 +134,10 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
             WIDGET.sub_var_render_update(&clear_color);
         }
         UiNodeOp::Render { frame } => {
-            frame.set_clear_color(clear_color.get().into());
+            frame.set_clear_color(clear_color.get());
         }
         UiNodeOp::RenderUpdate { update } => {
-            update.set_clear_color(clear_color.get().into());
+            update.set_clear_color(clear_color.get());
         }
         _ => {}
     })

@@ -313,7 +313,7 @@ impl Transitionable for AngleTurn {
 /// Implementation of lerp for Rgba.
 ///
 /// The implementation can be overridden using [`RGBA_LERP`], by default is a simple linear interpolation,
-/// the `zero-ui-color` crate implements a more complex `lerp_rgba` that is set as the default lerp on 
+/// the `zero-ui-color` crate implements a more complex `lerp_rgba` that is set as the default lerp on
 /// app init.
 impl Transitionable for Rgba {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
