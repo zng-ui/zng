@@ -2,6 +2,8 @@
     - Rename RgbaF to Rgba, move Rgba to unit crate, use it directly.
     - Finish text API, GlyphInstance, GlyphOptions.
 
+* `push_debug_dot` is not working since `d87bad0ed8e659388475c87dee1921f2dd4cb6b0` at least.
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
