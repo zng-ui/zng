@@ -1,5 +1,3 @@
-* Exit command not working.
-
 * Continue removing webrender from view API.
     - Finish text API, GlyphInstance, GlyphOptions.
 

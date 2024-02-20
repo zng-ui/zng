@@ -626,7 +626,7 @@ impl CommandArgs {
     where
         F: FnOnce(&Self) -> R,
     {
-        if self.propagation().is_stopped() || self.enabled || local_handle.is_enabled() {
+        if self.propagation().is_stopped() || !self.enabled || !local_handle.is_enabled() {
             None
         } else {
             let r = handler(self);
