@@ -343,7 +343,7 @@ impl fmt::Debug for FilterData {
 }
 
 fn lerp_rgbaf(s: RgbaF, to: &RgbaF, step: EasingStep) -> RgbaF {
-    Rgba::from(s).lerp(Rgba::from(*to), step).into()
+    Rgba::from(s).lerp(&Rgba::from(*to), step).into()
 }
 
 fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, step: EasingStep) -> FrameValue<T> {
@@ -463,7 +463,7 @@ impl Transitionable for Filter {
                 ) => {
                     *offset = offset.clone().lerp(offset_b, step);
                     *blur_radius = blur_radius.clone().lerp(blur_b, step);
-                    *color = color.lerp(*color_b, step);
+                    *color = color.lerp(color_b, step);
                 }
                 (a, b) => {
                     if end {

@@ -1,7 +1,6 @@
 * Exit command not working.
 
 * Move `Rgba` to unit crate.
-    - Remove special lerp methods from color types.
 
 * Continue removing webrender from view API.
     - Rename RgbaF to Rgba, move Rgba to unit crate, use it directly.

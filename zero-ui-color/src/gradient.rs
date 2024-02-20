@@ -510,7 +510,7 @@ impl_from_and_into_var! {
 impl Transitionable for ColorStop {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         Self {
-            color: self.color.lerp(to.color, step),
+            color: self.color.lerp(&to.color, step),
             offset: self.offset.lerp(&to.offset, step),
         }
     }

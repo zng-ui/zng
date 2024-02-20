@@ -164,25 +164,6 @@ impl Rgba {
             (self.alpha * 255.0) as u8,
         ]
     }
-
-    /// Linear interpolate in the [`LerpSpace::Rgba`] mode.
-    pub fn lerp_rgba(mut self, to: Self, factor: Factor) -> Self {
-        self.red = self.red.lerp(&to.red, factor);
-        self.green = self.green.lerp(&to.green, factor);
-        self.blue = self.blue.lerp(&to.blue, factor);
-        self.alpha = self.alpha.lerp(&to.alpha, factor);
-        self
-    }
-
-    /// Linear interpolate in the contextual [`lerp_space`] mode.
-    pub fn lerp(self, to: Self, factor: Factor) -> Self {
-        match lerp_space() {
-            LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic(to.into(), factor).into(),
-            LerpSpace::Rgba => self.lerp_rgba(to, factor),
-            LerpSpace::Hsla => Hsla::from(self).slerp(to.into(), factor).into(),
-            LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla(to.into(), factor).into(),
-        }
-    }
 }
 impl fmt::Debug for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -261,9 +242,22 @@ impl ops::SubAssign<Self> for Rgba {
     }
 }
 impl Transitionable for Rgba {
-    fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        self.lerp(*to, step)
+    fn lerp(self, to: &Self, factor: EasingStep) -> Self {
+        let to = *to;
+        match lerp_space() {
+            LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic(to.into(), factor).into(),
+            LerpSpace::Rgba => lerp_rgba(self, to, factor),
+            LerpSpace::Hsla => Hsla::from(self).slerp(to.into(), factor).into(),
+            LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla(to.into(), factor).into(),
+        }
     }
+}
+fn lerp_rgba(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
+    from.red = from.red.lerp(&to.red, factor);
+    from.green = from.green.lerp(&to.green, factor);
+    from.blue = from.blue.lerp(&to.blue, factor);
+    from.alpha = from.alpha.lerp(&to.alpha, factor);
+    from
 }
 
 /// Pre-multiplied RGB + alpha.
@@ -447,18 +441,16 @@ impl Hsla {
         }
     }
 
-    /// Interpolate in the [`LerpSpace::HslaLinear`] mode.
-    pub fn lerp_hsla(mut self, to: Self, factor: Factor) -> Self {
+    fn lerp_hsla(mut self, to: Self, factor: Factor) -> Self {
         self = self.lerp_sla(to, factor);
         self.hue = self.hue.lerp(&to.hue, factor);
         self
     }
 
-    /// Interpolate in the contextual [`lerp_space`] mode.
-    pub fn lerp(self, to: Self, factor: Factor) -> Self {
+    fn lerp(self, to: Self, factor: Factor) -> Self {
         match lerp_space() {
             LerpSpace::HslaChromatic => self.slerp_chromatic(to, factor),
-            LerpSpace::Rgba => Rgba::from(self).lerp_rgba(to.into(), factor).into(),
+            LerpSpace::Rgba => lerp_rgba(self.into(), to.into(), factor).into(),
             LerpSpace::Hsla => self.slerp(to, factor),
             LerpSpace::HslaLinear => self.lerp_hsla(to, factor),
         }
@@ -764,7 +756,7 @@ impl Transitionable for Hsva {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         match lerp_space() {
             LerpSpace::HslaChromatic => Hsla::from(self).slerp_chromatic((*to).into(), step).into(),
-            LerpSpace::Rgba => Rgba::from(self).lerp_rgba((*to).into(), step).into(),
+            LerpSpace::Rgba => lerp_rgba(self.into(), (*to).into(), step).into(),
             LerpSpace::Hsla => Hsla::from(self).slerp((*to).into(), step).into(),
             LerpSpace::HslaLinear => Hsla::from(self).lerp_hsla((*to).into(), step).into(),
         }
@@ -1061,7 +1053,7 @@ impl From<Factor> for RgbaComponent {
 pub fn lerp_render_color(a: RgbaF, b: RgbaF, amount: f32) -> RgbaF {
     let a = Rgba::from(a);
     let b = Rgba::from(b);
-    a.lerp(b, amount.fct()).into()
+    a.lerp(&b, amount.fct()).into()
 }
 
 context_var! {
