@@ -310,11 +310,6 @@ impl Transitionable for AngleTurn {
         }
     }
 }
-/// Implementation of lerp for Rgba.
-///
-/// The implementation can be overridden using [`RGBA_LERP`], by default is a simple linear interpolation,
-/// the `zero-ui-color` crate implements a more complex `lerp_rgba` that is set as the default lerp on
-/// app init.
 impl Transitionable for Rgba {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         let lerp = *RGBA_LERP.read();
@@ -324,7 +319,7 @@ impl Transitionable for Rgba {
 
 app_local! {
     /// Implementation of `<Rgba as Transitionable>::lerp`.
-    pub static RGBA_LERP: fn(Rgba, Rgba, EasingStep) -> Rgba = const { lerp_rgba_linear };
+    static RGBA_LERP: fn(Rgba, Rgba, EasingStep) -> Rgba = const { lerp_rgba_linear };
 }
 fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
     from.red = from.red.lerp(&to.red, factor);
@@ -332,4 +327,14 @@ fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
     from.blue = from.blue.lerp(&to.blue, factor);
     from.alpha = from.alpha.lerp(&to.alpha, factor);
     from
+}
+
+/// API for app implementers to replace the transitionable implementation for foreign types.
+#[allow(non_camel_case_types)]
+pub struct TRANSITIONABLE_APP;
+impl TRANSITIONABLE_APP {
+    /// Replace the [`Rgba`] lerp implementation.
+    pub fn init_rgba_lerp(&self, lerp: fn(Rgba, Rgba, EasingStep) -> Rgba) {
+        *RGBA_LERP.write() = lerp;
+    }
 }

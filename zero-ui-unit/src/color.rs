@@ -36,8 +36,13 @@ impl std::hash::Hash for Rgba {
 }
 impl Rgba {
     ///
-    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
-        Self { red, green, blue, alpha }
+    pub fn new<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, blue: C, alpha: A) -> Rgba {
+        Rgba {
+            red: red.into().0,
+            green: green.into().0,
+            blue: blue.into().0,
+            alpha: alpha.into().0,
+        }
     }
 
     /// Set the [`red`](Rgba::red) component from any type that converts to [`RgbaComponent`].
