@@ -1528,7 +1528,11 @@ impl DisplayItem {
             } => {
                 tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
                 tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
                 // stops needs to be immediately followed by the gradient, if the clip-chain item
@@ -1564,7 +1568,11 @@ impl DisplayItem {
             } => {
                 tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
                 tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
                 let stops: Vec<_> = stops
@@ -1598,7 +1606,11 @@ impl DisplayItem {
             } => {
                 tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
                 tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
-                let bounds = PxRect::new(-tile_origin, clip_rect.size + tile_origin.to_vector().to_size()).to_wr();
+                let bounds = PxRect::new(
+                    -tile_origin + clip_rect.origin.to_vector(),
+                    clip_rect.size + tile_origin.to_vector().to_size(),
+                )
+                .to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
                 let stops: Vec<_> = stops
