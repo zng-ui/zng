@@ -1,5 +1,6 @@
 use zero_ui::{color::filter::hue_rotate, layout::size, prelude::*};
 use zero_ui_view::extensions::ViewExtensions;
+// use zero_ui_wgt_webrender_debug as wr;
 
 // Examples of how to extend the view-process with custom renderers.
 //
@@ -18,9 +19,8 @@ fn main() {
 fn app_main() {
     APP.defaults().run_window(async {
         Window! {
-            // renderer_debug = {
-            //     use zero_ui::core::render::webrender_api::DebugFlags;
-            //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+            // wr::renderer_debug = {
+            //     wr::DebugFlags::TEXTURE_CACHE_DBG | wr::DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
             // };
 
             title = "Extend-View Example";
@@ -432,7 +432,7 @@ pub mod using_blob {
                 euclid,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _, webrender_api};
+        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -690,7 +690,7 @@ pub mod using_blob {
                 // Webrender received the update request
             }
 
-            fn delete(&mut self, key: webrender_api::BlobImageKey) {
+            fn delete(&mut self, key: BlobImageKey) {
                 // Webrender requested cleanup.
 
                 let mut renderer = self.renderer.lock();

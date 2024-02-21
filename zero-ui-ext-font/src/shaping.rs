@@ -767,7 +767,7 @@ impl ShapedText {
         if self.lines.0.len() > 2 {
             // has mid-lines
 
-            let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
+            let mid_offset = euclid::vec2::<f32, Px>(
                 0.0,
                 match block_size.height.cmp(&align_size.height) {
                     cmp::Ordering::Less => (align_size.height - block_size.height).0 as f32 * align_y + mid.0 as f32,

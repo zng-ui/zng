@@ -1,0 +1,15 @@
+[package]
+name = "zero-ui-wgt-webrender-debug"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "../zero-ui-app/README.md"
+
+[dependencies]
+zero-ui-app = { path = "../zero-ui-app" }
+zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-view-api = { path = "../zero-ui-view-api" }
+webrender_api = { git = "https://github.com/SamRodri/webrender.git" }
+serde = "1"
+bitflags = "2"

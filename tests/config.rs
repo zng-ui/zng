@@ -10,7 +10,7 @@ use zero_ui::{
     render::FrameId,
     touch::{TouchForce, TouchPhase},
     widget::{BorderSides, BorderStyle, LineStyle},
-    window::{DebugFlags, RendererDebug, WindowState},
+    window::WindowState,
 };
 
 #[test]
@@ -166,8 +166,8 @@ fn test_view_api_types() {
     test_config!(CursorIcon::Alias);
     test_config!(WindowState::Normal);
 
-    test_config!(RendererDebug {
-        flags: DebugFlags::DISABLE_ALPHA_PASS | DebugFlags::DISABLE_BATCHING,
+    test_config!(zero_ui_wgt_webrender_debug::RendererDebug {
+        flags: zero_ui_wgt_webrender_debug::DebugFlags::DISABLE_ALPHA_PASS | zero_ui_wgt_webrender_debug::DebugFlags::DISABLE_BATCHING,
         profiler_ui: "default".to_owned()
     });
 }

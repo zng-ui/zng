@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use zero_ui::view_process::prebuilt as view_process;
+use zero_ui::view_process::default as view_process;
 use zero_ui::{
     app, button,
     checkerboard::Checkerboard,
@@ -20,6 +20,8 @@ use zero_ui::{
     widget::{background_color, border, BorderSides},
     window::{RenderMode, WindowState},
 };
+
+use zero_ui_wgt_webrender_debug as wr;
 
 fn main() {
     examples_util::print_info();
@@ -584,10 +586,9 @@ impl ImgWindow {
     fn widget_intrinsic(&mut self) {
         zero_ui::prelude_wgt::widget_set! {
             self;
-            // renderer_debug = {
-            //     use zero_ui::core::render::webrender_api::DebugFlags;
-            //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
-            // };
+            wr::renderer_debug = {
+                wr::DebugFlags::TEXTURE_CACHE_DBG | wr::DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+            };
 
             // render_mode = RenderMode::Software;
 

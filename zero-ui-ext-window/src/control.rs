@@ -515,14 +515,6 @@ impl HeadedCtrl {
             self.vars.0.actual_color_scheme.set(scheme);
         }
 
-        self.vars.renderer_debug().with_new(|dbg| {
-            if let Some(view) = &self.window {
-                if let Some(key) = dbg.extension_id() {
-                    let _ = view.renderer().render_extension::<_, ()>(key, dbg);
-                }
-            }
-        });
-
         if let Some(e) = self.vars.0.access_enabled.get_new() {
             debug_assert!(e.is_enabled());
             UPDATES.update_info_window(WINDOW.id());
@@ -1082,11 +1074,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
 
-            extensions: {
-                let mut exts = vec![];
-                self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
-                exts
-            },
+            extensions: vec![],
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -1213,11 +1201,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
 
-            extensions: {
-                let mut exts = vec![];
-                self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
-                exts
-            },
+            extensions: vec![],
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -1449,14 +1433,6 @@ impl HeadlessWithRendererCtrl {
             self.var_bindings = update_headless_vars(self.headless_monitor.scale_factor, &self.vars);
         }
 
-        self.vars.renderer_debug().with_new(|dbg| {
-            if let Some(view) = &self.surface {
-                if let Some(key) = dbg.extension_id() {
-                    let _ = view.renderer().render_extension::<_, ()>(key, dbg);
-                }
-            }
-        });
-
         self.content.update(update_widgets);
     }
 
@@ -1564,11 +1540,7 @@ impl HeadlessWithRendererCtrl {
                 scale_factor,
                 size,
                 render_mode,
-                extensions: {
-                    let mut exts = vec![];
-                    self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
-                    exts
-                },
+                extensions: vec![],
             });
 
             match r {

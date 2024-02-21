@@ -859,7 +859,7 @@ pub(crate) enum ImageData {
         ppi: Option<ImagePpi>,
     },
     NativeTexture {
-        uv: zero_ui_view_api::webrender_api::units::TexelRect,
+        uv: webrender::api::units::TexelRect,
         texture: gleam::gl::GLuint,
     },
 }

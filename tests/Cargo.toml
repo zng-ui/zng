@@ -11,6 +11,7 @@ ipc = ["zero-ui/ipc"]
 [dev-dependencies]
 zero-ui = { path = "../zero-ui", features = ["test_util", "toml", "ron", "yaml"] }
 zero-ui-view = { path = "../zero-ui-view" }
+zero-ui-wgt-webrender-debug = { path = "../zero-ui-wgt-webrender-debug" }
 zero-ui-app = { path = "../zero-ui-app" }
 pretty_assertions = "1"
 

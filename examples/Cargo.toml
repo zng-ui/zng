@@ -26,6 +26,7 @@ zero-ui = { path = "../zero-ui", features = [
 zero-ui-app = { path = "../zero-ui-app" }           # for respawn and extend_view examples
 zero-ui-view-api = { path = "../zero-ui-view-api" } # for the extend_view example
 zero-ui-view = { path = "../zero-ui-view" } # for the extend_view example
+zero-ui-wgt-webrender-debug = { path = "../zero-ui-wgt-webrender-debug" } # for the extend_view example
 
 examples-util = { path = "util" }
 # backtrace-on-stack-overflow = "0.2"

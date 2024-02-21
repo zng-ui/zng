@@ -64,7 +64,6 @@ use zero_ui_var::{
     animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var, AnyVar, ArcVar, IntoVar, LocalVar,
     ResponderVar, ResponseVar, Var,
 };
-use zero_ui_view_api::webrender_api as wr;
 use zero_ui_view_api::{config::FontAntiAliasing, ViewProcessOffline};
 
 /// Font family name.
@@ -1439,7 +1438,10 @@ impl Font {
     ///
     /// The caret offset for the first cluster is the glyph offset and is not yielded in the iterator. The
     /// yielded offsets are relative to the glyph position.
-    pub fn ligature_caret_offsets(&self, lig: wr::GlyphIndex) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
+    pub fn ligature_caret_offsets(
+        &self,
+        lig: zero_ui_view_api::font::GlyphIndex,
+    ) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
         let face = &self.0.face.0;
         face.lig_carets.carets(lig).iter().map(move |&o| match o {
             ligature_util::LigatureCaret::Coordinate(o) => {

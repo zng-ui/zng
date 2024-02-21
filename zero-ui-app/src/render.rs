@@ -23,8 +23,6 @@ use zero_ui_view_api::{
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
     font::{GlyphInstance, GlyphOptions},
-    unit::PxToWr,
-    webrender_api,
     window::FrameId,
     ReferenceFrameId as RenderReferenceFrameId,
 };
@@ -1356,13 +1354,11 @@ impl FrameBuilder {
             self.display_list.push_nine_patch_border(
                 bounds,
                 NinePatchSource::RadialGradient {
-                    gradient: webrender_api::RadialGradient {
-                        center: center.to_wr(),
-                        radius: radius.to_wr(),
-                        start_offset: 0.0,
-                        end_offset: 1.0,
-                        extend_mode: extend_mode.into(),
-                    },
+                    center: center.cast(),
+                    radius: radius.cast(),
+                    start_offset: 0.0,
+                    end_offset: 1.0,
+                    extend_mode,
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,
@@ -1401,13 +1397,11 @@ impl FrameBuilder {
             self.display_list.push_nine_patch_border(
                 bounds,
                 NinePatchSource::ConicGradient {
-                    gradient: webrender_api::ConicGradient {
-                        center: center.to_wr(),
-                        angle: angle.0,
-                        start_offset: 0.0,
-                        end_offset: 1.0,
-                        extend_mode: extend_mode.into(),
-                    },
+                    center: center.cast(),
+                    angle,
+                    start_offset: 0.0,
+                    end_offset: 1.0,
+                    extend_mode,
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,

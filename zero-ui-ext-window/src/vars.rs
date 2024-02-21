@@ -17,7 +17,7 @@ use zero_ui_view_api::{
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
 };
 
-use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, RendererDebug, WindowIcon};
+use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, WindowIcon};
 
 pub(super) struct WindowVarsData {
     chrome: ArcVar<bool>,
@@ -73,8 +73,6 @@ pub(super) struct WindowVarsData {
 
     frame_capture_mode: ArcVar<FrameCaptureMode>,
     pub(super) render_mode: ArcVar<RenderMode>,
-
-    renderer_debug: ArcVar<RendererDebug>,
 
     pub(super) access_enabled: ArcVar<AccessEnabled>,
 }
@@ -149,8 +147,6 @@ impl WindowVars {
 
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
             render_mode: var(default_render_mode),
-
-            renderer_debug: var(RendererDebug::disabled()),
 
             access_enabled: var(AccessEnabled::empty()),
         });
@@ -652,11 +648,6 @@ impl WindowVars {
     /// [`default_render_mode`]: crate::WINDOWS::default_render_mode
     pub fn render_mode(&self) -> ReadOnlyArcVar<RenderMode> {
         self.0.render_mode.read_only()
-    }
-
-    /// Renderer debug flags and profiler UI.
-    pub fn renderer_debug(&self) -> ArcVar<RendererDebug> {
-        self.0.renderer_debug.clone()
     }
 
     /// If an accessibility service has requested info from this window.

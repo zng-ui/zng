@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use zero_ui_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
 use zero_ui_ext_window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, RendererDebug, WINDOW_Ext as _, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
-    MONITORS, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowIcon, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
+    WINDOW_LOAD_EVENT,
 };
 use zero_ui_wgt::prelude::*;
 
@@ -92,8 +92,6 @@ set_properties! {
     color_scheme: Option<ColorScheme>,
 
     frame_capture_mode: FrameCaptureMode,
-
-    renderer_debug: RendererDebug,
 }
 
 macro_rules! map_properties {

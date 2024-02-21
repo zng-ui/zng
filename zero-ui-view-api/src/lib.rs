@@ -15,9 +15,6 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-#[doc(inline)]
-pub use webrender_api;
-
 #[cfg(feature = "ipc")]
 use serde::{Deserialize, Serialize};
 

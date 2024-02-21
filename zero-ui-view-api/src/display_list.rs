@@ -1432,13 +1432,39 @@ impl DisplayItem {
                             extend_mode: (*extend_mode).into(),
                         })
                     }
-                    NinePatchSource::RadialGradient { gradient, stops } => {
+                    NinePatchSource::RadialGradient {
+                        center,
+                        radius,
+                        start_offset,
+                        end_offset,
+                        extend_mode,
+                        stops,
+                    } => {
                         wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-                        wr::NinePatchBorderSource::RadialGradient(*gradient)
+                        wr::NinePatchBorderSource::RadialGradient(wr::RadialGradient {
+                            center: center.cast_unit(),
+                            radius: radius.cast_unit(),
+                            start_offset: *start_offset,
+                            end_offset: *end_offset,
+                            extend_mode: (*extend_mode).into(),
+                        })
                     }
-                    NinePatchSource::ConicGradient { gradient, stops } => {
+                    NinePatchSource::ConicGradient {
+                        center,
+                        angle,
+                        start_offset,
+                        end_offset,
+                        extend_mode,
+                        stops,
+                    } => {
                         wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-                        wr::NinePatchBorderSource::ConicGradient(*gradient)
+                        wr::NinePatchBorderSource::ConicGradient(wr::ConicGradient {
+                            center: center.cast_unit(),
+                            angle: angle.0,
+                            start_offset: *start_offset,
+                            end_offset: *end_offset,
+                            extend_mode: (*extend_mode).into(),
+                        })
                     }
                 };
 
@@ -1771,11 +1797,19 @@ pub enum NinePatchSource {
         stops: Box<[GradientStop]>,
     },
     RadialGradient {
-        gradient: wr::RadialGradient,
+        center: euclid::Point2D<f32, Px>,
+        radius: euclid::Size2D<f32, Px>,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
     },
     ConicGradient {
-        gradient: wr::ConicGradient,
+        center: euclid::Point2D<f32, Px>,
+        angle: AngleRadian,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
     },
 }

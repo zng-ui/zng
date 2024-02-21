@@ -73,6 +73,7 @@ members = [
     "zero-ui-wgt-tooltip",
     "zero-ui-wgt-markdown",
     "zero-ui-wgt-material-icons",
+    "zero-ui-wgt-webrender-debug",
 
     # main
     "zero-ui",
