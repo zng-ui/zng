@@ -800,7 +800,7 @@ pub struct BorderSide {
     /// Line color.
     pub color: Rgba,
     /// Line Style.
-    pub style: webrender_api::BorderStyle,
+    pub style: BorderStyle,
 }
 impl PxToWr for BorderSide {
     type AsDevice = webrender_api::BorderSide;
@@ -820,7 +820,7 @@ impl PxToWr for BorderSide {
     fn to_wr(self) -> Self::AsLayout {
         webrender_api::BorderSide {
             color: self.color.to_wr(),
-            style: self.style,
+            style: self.style.to_wr(),
         }
     }
 }
@@ -1023,6 +1023,126 @@ impl From<ExtendMode> for webrender_api::ExtendMode {
         match value {
             ExtendMode::Clamp => webrender_api::ExtendMode::Clamp,
             ExtendMode::Repeat => webrender_api::ExtendMode::Repeat,
+        }
+    }
+}
+
+/// Orientation of a straight line.
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum LineOrientation {
+    /// Top-bottom line.
+    Vertical,
+    /// Left-right line.
+    Horizontal,
+}
+impl fmt::Debug for LineOrientation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LineOrientation::")?;
+        }
+        match self {
+            LineOrientation::Vertical => {
+                write!(f, "Vertical")
+            }
+            LineOrientation::Horizontal => {
+                write!(f, "Horizontal")
+            }
+        }
+    }
+}
+impl From<LineOrientation> for webrender_api::LineOrientation {
+    fn from(o: LineOrientation) -> Self {
+        match o {
+            LineOrientation::Vertical => webrender_api::LineOrientation::Vertical,
+            LineOrientation::Horizontal => webrender_api::LineOrientation::Horizontal,
+        }
+    }
+}
+
+/// Represents a line style.
+#[allow(missing_docs)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+pub enum LineStyle {
+    Solid,
+    Dotted,
+    Dashed,
+
+    /// A wavy line, like an error underline.
+    ///
+    /// The wave magnitude is defined by the overall line thickness, the associated value
+    /// here defines the thickness of the wavy line.
+    Wavy(f32),
+}
+impl LineStyle {
+    pub(crate) fn to_wr(self) -> (webrender_api::LineStyle, f32) {
+        match self {
+            LineStyle::Solid => (webrender_api::LineStyle::Solid, 0.0),
+            LineStyle::Dotted => (webrender_api::LineStyle::Dotted, 0.0),
+            LineStyle::Dashed => (webrender_api::LineStyle::Dashed, 0.0),
+            LineStyle::Wavy(t) => (webrender_api::LineStyle::Wavy, t),
+        }
+    }
+}
+
+/// The line style for the sides of a widget's border.
+#[repr(u8)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
+pub enum BorderStyle {
+    /// No border line.
+    #[default]
+    None = 0,
+
+    /// A single straight solid line.
+    Solid = 1,
+    /// Two straight solid lines that add up to the pixel size defined by the side width.
+    Double = 2,
+
+    /// Displays a series of rounded dots.
+    Dotted = 3,
+    /// Displays a series of short square-ended dashes or line segments.
+    Dashed = 4,
+
+    /// Fully transparent line.
+    Hidden = 5,
+
+    /// Displays a border with a carved appearance.
+    Groove = 6,
+    /// Displays a border with an extruded appearance.
+    Ridge = 7,
+
+    /// Displays a border that makes the widget appear embedded.
+    Inset = 8,
+    /// Displays a border that makes the widget appear embossed.
+    Outset = 9,
+}
+impl PxToWr for BorderStyle {
+    type AsDevice = webrender_api::BorderStyle;
+
+    type AsLayout = webrender_api::BorderStyle;
+
+    type AsWorld = webrender_api::BorderStyle;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        self.to_wr()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        self.to_wr()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            BorderStyle::None => webrender_api::BorderStyle::None,
+            BorderStyle::Solid => webrender_api::BorderStyle::Solid,
+            BorderStyle::Double => webrender_api::BorderStyle::Double,
+            BorderStyle::Dotted => webrender_api::BorderStyle::Dotted,
+            BorderStyle::Dashed => webrender_api::BorderStyle::Dashed,
+            BorderStyle::Hidden => webrender_api::BorderStyle::Hidden,
+            BorderStyle::Groove => webrender_api::BorderStyle::Groove,
+            BorderStyle::Ridge => webrender_api::BorderStyle::Ridge,
+            BorderStyle::Inset => webrender_api::BorderStyle::Inset,
+            BorderStyle::Outset => webrender_api::BorderStyle::Outset,
         }
     }
 }

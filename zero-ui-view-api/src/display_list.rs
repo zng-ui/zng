@@ -17,7 +17,8 @@ use crate::{
     image::ImageTextureId,
     unit::PxToWr,
     window::FrameId,
-    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, MixBlendMode, ReferenceFrameId, RepeatMode, TransformStyle,
+    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
+    RepeatMode, TransformStyle,
 };
 use zero_ui_unit::*;
 
@@ -358,10 +359,15 @@ impl DisplayListBuilder {
     }
 
     /// Push a radial gradient rectangle.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
         &mut self,
         clip_rect: PxRect,
-        gradient: wr::RadialGradient,
+        center: euclid::Point2D<f32, Px>,
+        radius: euclid::Size2D<f32, Px>,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -369,7 +375,11 @@ impl DisplayListBuilder {
     ) {
         self.list.push(DisplayItem::RadialGradient {
             clip_rect,
-            gradient,
+            center,
+            radius,
+            start_offset,
+            end_offset,
+            extend_mode,
             stops: stops.to_vec().into_boxed_slice(),
             tile_origin,
             tile_size,
@@ -378,10 +388,15 @@ impl DisplayListBuilder {
     }
 
     /// Push a conic gradient rectangle.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
         &mut self,
         clip_rect: PxRect,
-        gradient: wr::ConicGradient,
+        center: euclid::Point2D<f32, Px>,
+        angle: AngleRadian,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -389,7 +404,11 @@ impl DisplayListBuilder {
     ) {
         self.list.push(DisplayItem::ConicGradient {
             clip_rect,
-            gradient,
+            center,
+            angle,
+            start_offset,
+            end_offset,
+            extend_mode,
             stops: stops.to_vec().into_boxed_slice(),
             tile_origin,
             tile_size,
@@ -398,19 +417,11 @@ impl DisplayListBuilder {
     }
 
     /// Push a styled vertical or horizontal line.
-    pub fn push_line(
-        &mut self,
-        clip_rect: PxRect,
-        color: Rgba,
-        style: wr::LineStyle,
-        wavy_line_thickness: f32,
-        orientation: wr::LineOrientation,
-    ) {
+    pub fn push_line(&mut self, clip_rect: PxRect, color: Rgba, style: LineStyle, orientation: LineOrientation) {
         self.list.push(DisplayItem::Line {
             clip_rect,
             color,
             style,
-            wavy_line_thickness,
             orientation,
         })
     }
@@ -1142,7 +1153,11 @@ enum DisplayItem {
     },
     RadialGradient {
         clip_rect: PxRect,
-        gradient: wr::RadialGradient,
+        center: euclid::Point2D<f32, Px>,
+        radius: euclid::Size2D<f32, Px>,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -1150,7 +1165,11 @@ enum DisplayItem {
     },
     ConicGradient {
         clip_rect: PxRect,
-        gradient: wr::ConicGradient,
+        center: euclid::Point2D<f32, Px>,
+        angle: AngleRadian,
+        start_offset: f32,
+        end_offset: f32,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -1160,9 +1179,8 @@ enum DisplayItem {
     Line {
         clip_rect: PxRect,
         color: Rgba,
-        style: wr::LineStyle,
-        wavy_line_thickness: f32,
-        orientation: wr::LineOrientation,
+        style: LineStyle,
+        orientation: LineOrientation,
     },
 
     PushExtension {
@@ -1527,7 +1545,11 @@ impl DisplayItem {
             }
             DisplayItem::RadialGradient {
                 clip_rect,
-                gradient,
+                center,
+                radius,
+                start_offset,
+                end_offset,
+                extend_mode,
                 stops,
                 mut tile_origin,
                 tile_size,
@@ -1551,14 +1573,24 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     bounds,
-                    *gradient,
+                    wr::RadialGradient {
+                        center: center.cast_unit(),
+                        radius: radius.cast_unit(),
+                        start_offset: *start_offset,
+                        end_offset: *end_offset,
+                        extend_mode: (*extend_mode).into(),
+                    },
                     tile_size.to_wr(),
                     tile_spacing.to_wr(),
                 )
             }
             DisplayItem::ConicGradient {
                 clip_rect,
-                gradient,
+                center,
+                angle,
+                start_offset,
+                end_offset,
+                extend_mode,
                 stops,
                 mut tile_origin,
                 tile_size,
@@ -1582,7 +1614,13 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     bounds,
-                    *gradient,
+                    wr::ConicGradient {
+                        center: center.cast_unit(),
+                        angle: angle.0,
+                        start_offset: *start_offset,
+                        end_offset: *end_offset,
+                        extend_mode: (*extend_mode).into(),
+                    },
                     tile_size.to_wr(),
                     tile_spacing.to_wr(),
                 )
@@ -1591,11 +1629,11 @@ impl DisplayItem {
                 clip_rect,
                 color,
                 style,
-                wavy_line_thickness,
                 orientation,
             } => {
                 let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
+                let (line_style, wavy_line_thickness) = style.to_wr();
                 wr_list.push_line(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
@@ -1604,10 +1642,10 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     &bounds,
-                    *wavy_line_thickness,
-                    *orientation,
+                    wavy_line_thickness,
+                    (*orientation).into(),
                     &color.to_wr(),
-                    *style,
+                    line_style,
                 );
             }
             DisplayItem::PushExtension { extension_id, payload } => ext.push_display_item(&mut DisplayExtensionItemArgs {

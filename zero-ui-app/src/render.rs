@@ -1587,13 +1587,11 @@ impl FrameBuilder {
         if !stops.is_empty() && self.visible {
             self.display_list.push_radial_gradient(
                 clip_rect,
-                webrender_api::RadialGradient {
-                    center: center.to_wr(),
-                    radius: radius.to_wr(),
-                    start_offset: 0.0,
-                    end_offset: 1.0,
-                    extend_mode: extend_mode.into(),
-                },
+                center.cast(),
+                radius.cast(),
+                0.0,
+                1.0,
+                extend_mode,
                 stops,
                 tile_origin,
                 tile_size,
@@ -1638,13 +1636,11 @@ impl FrameBuilder {
         if !stops.is_empty() && self.visible {
             self.display_list.push_conic_gradient(
                 clip_rect,
-                webrender_api::ConicGradient {
-                    center: center.to_wr(),
-                    angle: angle.0,
-                    start_offset: 0.0,
-                    end_offset: 1.0,
-                    extend_mode: extend_mode.into(),
-                },
+                center.cast(),
+                angle,
+                0.0,
+                1.0,
+                extend_mode,
                 stops,
                 tile_origin,
                 tile_size,
@@ -1664,9 +1660,8 @@ impl FrameBuilder {
 
         if self.visible {
             match style.render_command() {
-                RenderLineCommand::Line(style, wavy_thickness) => {
-                    self.display_list
-                        .push_line(clip_rect, color, style, wavy_thickness, orientation.into());
+                RenderLineCommand::Line(style) => {
+                    self.display_list.push_line(clip_rect, color, style, orientation);
                 }
                 RenderLineCommand::Border(style) => {
                     use border::LineOrientation as LO;
@@ -1680,11 +1675,11 @@ impl FrameBuilder {
                         zero_ui_view_api::BorderSide { color, style },
                         zero_ui_view_api::BorderSide {
                             color: colors::BLACK.transparent(),
-                            style: webrender_api::BorderStyle::Hidden,
+                            style: zero_ui_view_api::BorderStyle::Hidden,
                         },
                         zero_ui_view_api::BorderSide {
                             color: colors::BLACK.transparent(),
-                            style: webrender_api::BorderStyle::Hidden,
+                            style: zero_ui_view_api::BorderStyle::Hidden,
                         },
                         zero_ui_view_api::BorderSide { color, style },
                         PxCornerRadius::zero(),
@@ -1726,13 +1721,11 @@ impl FrameBuilder {
 
         self.display_list.push_radial_gradient(
             PxRect::new(offset, bounds),
-            webrender_api::RadialGradient {
-                center: center.to_wr(),
-                radius: radius.to_wr(),
-                start_offset: 0.0,
-                end_offset: 1.0,
-                extend_mode: RenderExtendMode::Clamp.into(),
-            },
+            center.cast(),
+            radius.cast(),
+            0.0,
+            1.0,
+            RenderExtendMode::Clamp,
             &[
                 RenderGradientStop { offset: 0.0, color },
                 RenderGradientStop { offset: 0.5, color },
@@ -2094,22 +2087,22 @@ pub struct BuiltFrame {
 }
 
 enum RenderLineCommand {
-    Line(webrender_api::LineStyle, f32),
-    Border(webrender_api::BorderStyle),
+    Line(zero_ui_view_api::LineStyle),
+    Border(zero_ui_view_api::BorderStyle),
 }
 impl border::LineStyle {
     fn render_command(self) -> RenderLineCommand {
         use border::LineStyle as LS;
         use RenderLineCommand::*;
         match self {
-            LS::Solid => Line(webrender_api::LineStyle::Solid, 0.0),
-            LS::Double => Border(webrender_api::BorderStyle::Double),
-            LS::Dotted => Line(webrender_api::LineStyle::Dotted, 0.0),
-            LS::Dashed => Line(webrender_api::LineStyle::Dashed, 0.0),
-            LS::Groove => Border(webrender_api::BorderStyle::Groove),
-            LS::Ridge => Border(webrender_api::BorderStyle::Ridge),
-            LS::Wavy(thickness) => Line(webrender_api::LineStyle::Wavy, thickness),
-            LS::Hidden => Border(webrender_api::BorderStyle::Hidden),
+            LS::Solid => Line(zero_ui_view_api::LineStyle::Solid),
+            LS::Double => Border(zero_ui_view_api::BorderStyle::Double),
+            LS::Dotted => Line(zero_ui_view_api::LineStyle::Dotted),
+            LS::Dashed => Line(zero_ui_view_api::LineStyle::Dashed),
+            LS::Groove => Border(zero_ui_view_api::BorderStyle::Groove),
+            LS::Ridge => Border(zero_ui_view_api::BorderStyle::Ridge),
+            LS::Wavy(thickness) => Line(zero_ui_view_api::LineStyle::Wavy(thickness)),
+            LS::Hidden => Border(zero_ui_view_api::BorderStyle::Hidden),
         }
     }
 }

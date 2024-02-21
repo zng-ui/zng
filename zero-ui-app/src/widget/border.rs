@@ -15,43 +15,12 @@ use zero_ui_var::{
     animation::{easing::EasingStep, Transitionable},
     context_var, impl_from_and_into_var, Var,
 };
-use zero_ui_view_api::webrender_api as w_api;
+
+pub use zero_ui_view_api::LineOrientation;
 
 use crate::widget::VarLayout;
 
 use super::{info::WidgetBorderInfo, WidgetId, WIDGET};
-
-/// Orientation of a straight line.
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum LineOrientation {
-    /// Top-bottom line.
-    Vertical,
-    /// Left-right line.
-    Horizontal,
-}
-impl fmt::Debug for LineOrientation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "LineOrientation::")?;
-        }
-        match self {
-            LineOrientation::Vertical => {
-                write!(f, "Vertical")
-            }
-            LineOrientation::Horizontal => {
-                write!(f, "Horizontal")
-            }
-        }
-    }
-}
-impl From<LineOrientation> for w_api::LineOrientation {
-    fn from(o: LineOrientation) -> Self {
-        match o {
-            LineOrientation::Vertical => w_api::LineOrientation::Vertical,
-            LineOrientation::Horizontal => w_api::LineOrientation::Horizontal,
-        }
-    }
-}
 
 /// Represents a line style.
 #[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -113,7 +82,7 @@ impl Transitionable for LineStyle {
 }
 
 /// The line style for the sides of a widget's border.
-#[repr(u32)]
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BorderStyle {
     /// A single straight solid line.
@@ -157,18 +126,18 @@ impl fmt::Debug for BorderStyle {
         }
     }
 }
-impl From<BorderStyle> for w_api::BorderStyle {
+impl From<BorderStyle> for zero_ui_view_api::BorderStyle {
     fn from(s: BorderStyle) -> Self {
         match s {
-            BorderStyle::Solid => w_api::BorderStyle::Solid,
-            BorderStyle::Double => w_api::BorderStyle::Double,
-            BorderStyle::Dotted => w_api::BorderStyle::Dotted,
-            BorderStyle::Dashed => w_api::BorderStyle::Dashed,
-            BorderStyle::Hidden => w_api::BorderStyle::Hidden,
-            BorderStyle::Groove => w_api::BorderStyle::Groove,
-            BorderStyle::Ridge => w_api::BorderStyle::Ridge,
-            BorderStyle::Inset => w_api::BorderStyle::Inset,
-            BorderStyle::Outset => w_api::BorderStyle::Outset,
+            BorderStyle::Solid => zero_ui_view_api::BorderStyle::Solid,
+            BorderStyle::Double => zero_ui_view_api::BorderStyle::Double,
+            BorderStyle::Dotted => zero_ui_view_api::BorderStyle::Dotted,
+            BorderStyle::Dashed => zero_ui_view_api::BorderStyle::Dashed,
+            BorderStyle::Hidden => zero_ui_view_api::BorderStyle::Hidden,
+            BorderStyle::Groove => zero_ui_view_api::BorderStyle::Groove,
+            BorderStyle::Ridge => zero_ui_view_api::BorderStyle::Ridge,
+            BorderStyle::Inset => zero_ui_view_api::BorderStyle::Inset,
+            BorderStyle::Outset => zero_ui_view_api::BorderStyle::Outset,
         }
     }
 }
