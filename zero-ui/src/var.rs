@@ -190,7 +190,7 @@
 //!     child = Button! {
 //!         layout::align = layout::Align::TOP;
 //!         on_click = hn!(|_|{
-//!             let mut c = color.get().to_hsla();
+//!             let mut c = color::Hsla::from(color.get());
 //!             c.hue += 60.0;
 //!             color.set(c);
 //!         });
