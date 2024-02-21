@@ -168,21 +168,12 @@ impl DisplayListBuilder {
     /// Note that `transform_style` is coerced to `Flat` if any filter is also set.
     ///
     /// [`pop_stacking_context`]: Self::pop_stacking_context
-    pub fn push_stacking_context(
-        &mut self,
-        blend_mode: wr::MixBlendMode,
-        transform_style: wr::TransformStyle,
-        filters: &[FilterOp],
-        filter_datas: &[wr::FilterData],
-        filter_primitives: &[wr::FilterPrimitive],
-    ) {
+    pub fn push_stacking_context(&mut self, blend_mode: wr::MixBlendMode, transform_style: wr::TransformStyle, filters: &[FilterOp]) {
         self.stacking_len += 1;
         self.list.push(DisplayItem::PushStackingContext {
             blend_mode,
             transform_style,
             filters: filters.to_vec().into_boxed_slice(),
-            filter_datas: filter_datas.to_vec().into_boxed_slice(),
-            filter_primitives: filter_primitives.to_vec().into_boxed_slice(),
         })
     }
 
@@ -333,18 +324,10 @@ impl DisplayListBuilder {
     }
 
     /// Push a filter that applies to all rendered pixels behind `clip_rect`.
-    pub fn push_backdrop_filter(
-        &mut self,
-        clip_rect: PxRect,
-        filters: &[FilterOp],
-        filter_datas: &[wr::FilterData],
-        filter_primitives: &[wr::FilterPrimitive],
-    ) {
+    pub fn push_backdrop_filter(&mut self, clip_rect: PxRect, filters: &[FilterOp]) {
         self.list.push(DisplayItem::BackdropFilter {
             clip_rect,
             filters: filters.to_vec().into_boxed_slice(),
-            filter_datas: filter_datas.to_vec().into_boxed_slice(),
-            filter_primitives: filter_primitives.to_vec().into_boxed_slice(),
         })
     }
 
@@ -1080,8 +1063,6 @@ enum DisplayItem {
         transform_style: wr::TransformStyle,
         blend_mode: wr::MixBlendMode,
         filters: Box<[FilterOp]>,
-        filter_datas: Box<[wr::FilterData]>,
-        filter_primitives: Box<[wr::FilterPrimitive]>,
     },
     PopStackingContext,
 
@@ -1141,8 +1122,6 @@ enum DisplayItem {
     BackdropFilter {
         clip_rect: PxRect,
         filters: Box<[FilterOp]>,
-        filter_datas: Box<[wr::FilterData]>,
-        filter_primitives: Box<[wr::FilterPrimitive]>,
     },
 
     LinearGradient {
@@ -1236,8 +1215,6 @@ impl DisplayItem {
                 blend_mode,
                 transform_style,
                 filters,
-                filter_datas,
-                filter_primitives,
             } => {
                 let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_stacking_context(
@@ -1248,8 +1225,8 @@ impl DisplayItem {
                     *transform_style,
                     *blend_mode,
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
-                    filter_datas,
-                    filter_primitives,
+                    &[],
+                    &[],
                     wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
                     wr::StackingContextFlags::empty(),
                 )
@@ -1358,12 +1335,7 @@ impl DisplayItem {
                     color.into_wr(),
                 )
             }
-            DisplayItem::BackdropFilter {
-                clip_rect,
-                filters,
-                filter_datas,
-                filter_primitives,
-            } => {
+            DisplayItem::BackdropFilter { clip_rect, filters } => {
                 let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_backdrop_filter(
@@ -1374,8 +1346,8 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
-                    filter_datas,
-                    filter_primitives,
+                    &[],
+                    &[],
                 )
             }
 

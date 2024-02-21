@@ -1024,7 +1024,7 @@ impl FrameBuilder {
                         );
                         if !data.backdrop_filter.is_empty() {
                             self.display_list
-                                .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter, &[], &[]);
+                                .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter);
                         }
                     };
                 }
@@ -1050,9 +1050,9 @@ impl FrameBuilder {
                             // is "flat root", push a nested stacking context with the filters.
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
                             self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
                             ctx_inside_ref_frame = 2;
                         } else if wgt_info
                             .parent()
@@ -1062,11 +1062,11 @@ impl FrameBuilder {
                             // is "3D root", push the filters first, then the 3D root.
 
                             self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
                             ctx_outside_ref_frame = 1;
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
                             ctx_inside_ref_frame = 1;
                         } else {
                             // extends 3D space, cannot splice a filters stacking context because that
@@ -1077,21 +1077,21 @@ impl FrameBuilder {
 
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
                             ctx_inside_ref_frame = 1;
                         }
                     } else {
                         // no 3D context, push the filters context
                         push_reference_frame!();
                         self.display_list
-                            .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter, &[], &[]);
+                            .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
                         ctx_inside_ref_frame = 1;
                     }
                 } else if has_3d_ctx {
                     // just 3D context
                     push_reference_frame!();
                     self.display_list
-                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[], &[], &[]);
+                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
                     ctx_inside_ref_frame = 1;
                 } else {
                     // just flat, no filters
@@ -1292,8 +1292,7 @@ impl FrameBuilder {
         expect_inner!(self.push_filter);
 
         if self.visible {
-            self.display_list
-                .push_stacking_context(blend, self.transform_style.into(), filter, &[], &[]);
+            self.display_list.push_stacking_context(blend, self.transform_style.into(), filter);
 
             render(self);
 
@@ -1313,13 +1312,8 @@ impl FrameBuilder {
         expect_inner!(self.push_opacity);
 
         if self.visible {
-            self.display_list.push_stacking_context(
-                RenderMixBlendMode::Normal,
-                self.transform_style.into(),
-                &[FilterOp::Opacity(bind)],
-                &[],
-                &[],
-            );
+            self.display_list
+                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[FilterOp::Opacity(bind)]);
 
             render(self);
 
@@ -1341,7 +1335,7 @@ impl FrameBuilder {
         warn_empty!(self.push_backdrop_filter(clip_rect));
 
         if self.visible {
-            self.display_list.push_backdrop_filter(clip_rect, filter, &[], &[]);
+            self.display_list.push_backdrop_filter(clip_rect, filter);
         }
 
         if self.auto_hit_test {
