@@ -1,6 +1,6 @@
 //! Frame render and metadata API.
 
-use std::{fmt, marker::PhantomData, mem, sync::Arc};
+use std::{marker::PhantomData, mem, sync::Arc};
 
 use crate::{
     widget::info::{ParallelSegmentOffsets, WidgetBoundsInfo},
@@ -24,8 +24,9 @@ use zero_ui_view_api::{
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
     font::{GlyphInstance, GlyphOptions},
     unit::PxToWr,
-    webrender_api::{self, SpatialTreeItemKey},
+    webrender_api,
     window::FrameId,
+    ReferenceFrameId as RenderReferenceFrameId,
 };
 
 use crate::{
@@ -39,7 +40,10 @@ use crate::{
     },
 };
 
-pub use zero_ui_view_api::display_list::{FrameValue, FrameValueUpdate};
+pub use zero_ui_view_api::{
+    display_list::{FrameValue, FrameValueUpdate},
+    ImageRendering, RepeatMode, TransformStyle,
+};
 
 /// A text font.
 ///
@@ -69,79 +73,8 @@ pub trait Img {
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
     /// The faster option is pre-multiplied, that is also the default return value.
-    fn alpha_type(&self) -> webrender_api::AlphaType {
-        webrender_api::AlphaType::PremultipliedAlpha
-    }
-}
-
-/// Image scaling algorithm in the renderer.
-///
-/// If an image is not rendered at the same size as their source it must be up-scaled or
-/// down-scaled. The algorithms used for this scaling can be selected using this `enum`.
-///
-/// Note that the algorithms used in the renderer value performance over quality and do a good
-/// enough job for small or temporary changes in scale only, such as a small size correction or a scaling animation.
-/// If and image is constantly rendered at a different scale you should considered scaling it on the CPU using a
-/// slower but more complex algorithm or pre-scaling it before including in the app.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum ImageRendering {
-    /// Let the renderer select the algorithm, currently this is the same as [`CrispEdges`].
-    ///
-    /// [`CrispEdges`]: ImageRendering::CrispEdges
-    Auto = 0,
-    /// The image is scaled with an algorithm that preserves contrast and edges in the image,
-    /// and which does not smooth colors or introduce blur to the image in the process.
-    ///
-    /// Currently the [Bilinear] interpolation algorithm is used.
-    ///
-    /// [Bilinear]: https://en.wikipedia.org/wiki/Bilinear_interpolation
-    CrispEdges = 1,
-    /// When scaling the image up, the image appears to be composed of large pixels.
-    ///
-    /// Currently the [Nearest-neighbor] interpolation algorithm is used.
-    ///
-    /// [Nearest-neighbor]: https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation
-    Pixelated = 2,
-}
-impl From<ImageRendering> for webrender_api::ImageRendering {
-    fn from(r: ImageRendering) -> Self {
-        use webrender_api::ImageRendering::*;
-        match r {
-            ImageRendering::Auto => Auto,
-            ImageRendering::CrispEdges => CrispEdges,
-            ImageRendering::Pixelated => Pixelated,
-        }
-    }
-}
-
-/// Nine-patch border repeat mode.
-///
-/// Defines how the edges and middle region of a nine-patch border is filled.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum RepeatMode {
-    /// The source image's edge regions are stretched to fill the gap between each border.
-    Stretch,
-    /// The source image's edge regions are tiled (repeated) to fill the gap between each
-    /// border. Tiles may be clipped to achieve the proper fit.
-    Repeat,
-    /// The source image's edge regions are tiled (repeated) to fill the gap between each
-    /// border. Tiles may be stretched to achieve the proper fit.
-    Round,
-    /// The source image's edge regions are tiled (repeated) to fill the gap between each
-    /// border. Extra space will be distributed in between tiles to achieve the proper fit.
-    Space,
-}
-impl From<RepeatMode> for webrender_api::RepeatMode {
-    fn from(value: RepeatMode) -> Self {
-        use webrender_api::RepeatMode::*;
-        match value {
-            RepeatMode::Stretch => Stretch,
-            RepeatMode::Repeat => Repeat,
-            RepeatMode::Round => Round,
-            RepeatMode::Space => Space,
-        }
+    fn alpha_type(&self) -> zero_ui_view_api::AlphaType {
+        zero_ui_view_api::AlphaType::PremultipliedAlpha
     }
 }
 
@@ -165,43 +98,6 @@ macro_rules! warn_empty {
             )
         }
     };
-}
-
-/// Defines if a widget is part of the same 3D space as the parent.
-#[derive(Default, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
-#[repr(u8)]
-pub enum TransformStyle {
-    /// Widget is not a part of the 3D space of the parent. If it has
-    /// 3D children they will be rendered into a flat plane that is placed in the 3D space of the parent.
-    #[default]
-    Flat = 0,
-    /// Widget is a part of the 3D space of the parent. If it has 3D children
-    /// they will be positioned relative to siblings in the same space.
-    ///
-    /// Note that some properties require a flat image to work on, in particular all pixel filter properties including opacity.
-    /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
-    /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
-    /// *outside* the 3D space, when the widget is `Preserve3D` with all `Flat` children the filters are applied *inside* the 3D space.
-    Preserve3D = 1,
-}
-impl fmt::Debug for TransformStyle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "TransformStyle::")?;
-        }
-        match self {
-            Self::Flat => write!(f, "Flat"),
-            Self::Preserve3D => write!(f, "Preserve3D"),
-        }
-    }
-}
-impl From<TransformStyle> for webrender_api::TransformStyle {
-    fn from(value: TransformStyle) -> Self {
-        match value {
-            TransformStyle::Flat => webrender_api::TransformStyle::Flat,
-            TransformStyle::Preserve3D => webrender_api::TransformStyle::Preserve3D,
-        }
-    }
 }
 
 struct WidgetData {
@@ -1017,7 +913,7 @@ impl FrameBuilder {
                 macro_rules! push_reference_frame {
                     () => {
                         self.display_list.push_reference_frame(
-                            SpatialFrameKey::from_widget(self.widget_id).to_wr(),
+                            ReferenceFrameId::from_widget(self.widget_id).into(),
                             layout_translation_key.bind(inner_transform, layout_translation_animating),
                             self.transform_style.into(),
                             !data.inner_is_set,
@@ -1050,9 +946,9 @@ impl FrameBuilder {
                             // is "flat root", push a nested stacking context with the filters.
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
                             self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
+                                .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
                             ctx_inside_ref_frame = 2;
                         } else if wgt_info
                             .parent()
@@ -1062,11 +958,11 @@ impl FrameBuilder {
                             // is "3D root", push the filters first, then the 3D root.
 
                             self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
+                                .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
                             ctx_outside_ref_frame = 1;
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
                             ctx_inside_ref_frame = 1;
                         } else {
                             // extends 3D space, cannot splice a filters stacking context because that
@@ -1077,21 +973,21 @@ impl FrameBuilder {
 
                             push_reference_frame!();
                             self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
+                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
                             ctx_inside_ref_frame = 1;
                         }
                     } else {
                         // no 3D context, push the filters context
                         push_reference_frame!();
                         self.display_list
-                            .push_stacking_context(data.blend, TransformStyle::Flat.into(), &data.filter);
+                            .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
                         ctx_inside_ref_frame = 1;
                     }
                 } else if has_3d_ctx {
                     // just 3D context
                     push_reference_frame!();
                     self.display_list
-                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[]);
+                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
                     ctx_inside_ref_frame = 1;
                 } else {
                     // just flat, no filters
@@ -1247,7 +1143,7 @@ impl FrameBuilder {
     /// [`Preserve3D`]: TransformStyle::Preserve3D
     pub fn push_reference_frame(
         &mut self,
-        key: SpatialFrameKey,
+        key: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
@@ -1260,7 +1156,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_reference_frame(key.to_wr(), transform, self.transform_style.into(), is_2d_scale_translation);
+                .push_reference_frame(key.into(), transform, self.transform_style, is_2d_scale_translation);
         }
 
         let hit_test = hit_test || self.auto_hit_test;
@@ -1292,7 +1188,7 @@ impl FrameBuilder {
         expect_inner!(self.push_filter);
 
         if self.visible {
-            self.display_list.push_stacking_context(blend, self.transform_style.into(), filter);
+            self.display_list.push_stacking_context(blend, self.transform_style, filter);
 
             render(self);
 
@@ -1313,7 +1209,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style.into(), &[FilterOp::Opacity(bind)]);
+                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[FilterOp::Opacity(bind)]);
 
             render(self);
 
@@ -1386,12 +1282,12 @@ impl FrameBuilder {
                 bounds,
                 NinePatchSource::Image {
                     image_id,
-                    rendering: rendering.into(),
+                    rendering,
                 },
                 widths,
                 fill,
-                repeat_horizontal.into(),
-                repeat_vertical.into(),
+                repeat_horizontal,
+                repeat_vertical,
             )
         }
     }
@@ -1431,8 +1327,8 @@ impl FrameBuilder {
                 },
                 widths,
                 fill,
-                repeat_horizontal.into(),
-                repeat_vertical.into(),
+                repeat_horizontal,
+                repeat_vertical,
             );
         }
     }
@@ -1476,8 +1372,8 @@ impl FrameBuilder {
                 },
                 widths,
                 fill,
-                repeat_horizontal.into(),
-                repeat_vertical.into(),
+                repeat_horizontal,
+                repeat_vertical,
             );
         }
     }
@@ -1521,8 +1417,8 @@ impl FrameBuilder {
                 },
                 widths,
                 fill,
-                repeat_horizontal.into(),
-                repeat_vertical.into(),
+                repeat_horizontal,
+                repeat_vertical,
             );
         }
     }
@@ -1583,7 +1479,7 @@ impl FrameBuilder {
                     img_size,
                     tile_size,
                     tile_spacing,
-                    rendering.into(),
+                    rendering,
                     image.alpha_type(),
                 );
             }
@@ -2785,7 +2681,7 @@ unique_id_32! {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum SpatialFrameKeyInner {
+enum ReferenceFrameIdInner {
     Unique(SpatialFrameId),
     UniqueIndex(SpatialFrameId, u32),
     Widget(WidgetId),
@@ -2793,93 +2689,101 @@ enum SpatialFrameKeyInner {
     FrameValue(FrameValueKey<PxTransform>),
     FrameValueIndex(FrameValueKey<PxTransform>, u32),
 }
-impl SpatialFrameKeyInner {
+impl ReferenceFrameIdInner {
     const UNIQUE: u64 = 1 << 63;
     const WIDGET: u64 = 1 << 62;
     const FRAME_VALUE: u64 = 1 << 61;
-
-    fn to_wr(self) -> SpatialTreeItemKey {
-        match self {
-            SpatialFrameKeyInner::UniqueIndex(id, index) => SpatialTreeItemKey::new(id.get() as u64, index as u64 | Self::UNIQUE),
-            SpatialFrameKeyInner::WidgetIndex(id, index) => SpatialTreeItemKey::new(id.get(), index as u64 | Self::WIDGET),
-            SpatialFrameKeyInner::FrameValue(key) => {
-                SpatialTreeItemKey::new(((key.id.get() as u64) << 32) | u32::MAX as u64, Self::FRAME_VALUE)
+}
+impl From<ReferenceFrameIdInner> for RenderReferenceFrameId {
+    fn from(value: ReferenceFrameIdInner) -> Self {
+        match value {
+            ReferenceFrameIdInner::UniqueIndex(id, index) => {
+                RenderReferenceFrameId(id.get() as u64, index as u64 | ReferenceFrameIdInner::UNIQUE)
             }
-            SpatialFrameKeyInner::FrameValueIndex(key, index) => {
-                SpatialTreeItemKey::new(((key.id.get() as u64) << 32) | index as u64, Self::FRAME_VALUE)
+            ReferenceFrameIdInner::WidgetIndex(id, index) => RenderReferenceFrameId(id.get(), index as u64 | ReferenceFrameIdInner::WIDGET),
+            ReferenceFrameIdInner::FrameValue(key) => {
+                RenderReferenceFrameId(((key.id.get() as u64) << 32) | u32::MAX as u64, ReferenceFrameIdInner::FRAME_VALUE)
             }
-            SpatialFrameKeyInner::Unique(id) => SpatialTreeItemKey::new(id.get() as u64, (u32::MAX as u64 + 1) | Self::UNIQUE),
-            SpatialFrameKeyInner::Widget(id) => SpatialTreeItemKey::new(id.get(), (u32::MAX as u64 + 1) | Self::WIDGET),
+            ReferenceFrameIdInner::FrameValueIndex(key, index) => {
+                RenderReferenceFrameId(((key.id.get() as u64) << 32) | index as u64, ReferenceFrameIdInner::FRAME_VALUE)
+            }
+            ReferenceFrameIdInner::Unique(id) => {
+                RenderReferenceFrameId(id.get() as u64, (u32::MAX as u64 + 1) | ReferenceFrameIdInner::UNIQUE)
+            }
+            ReferenceFrameIdInner::Widget(id) => RenderReferenceFrameId(id.get(), (u32::MAX as u64 + 1) | ReferenceFrameIdInner::WIDGET),
         }
     }
 }
+
 /// Represents an unique key for a spatial reference frame that is recreated in multiple frames.
 ///
 /// The key can be generated from [`WidgetId`], [`SpatialFrameId`] or [`FrameValueKey<PxTransform>`] all guaranteed
 /// to be unique even if the inner value of IDs is the same.
+///
+/// [`FrameValueKey<PxTransform>`]: FrameValueKey
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct SpatialFrameKey(SpatialFrameKeyInner);
-impl SpatialFrameKey {
+pub struct ReferenceFrameId(ReferenceFrameIdInner);
+impl ReferenceFrameId {
     /// Key used for the widget inner transform.
     ///
     /// See [`FrameBuilder::push_inner`].
     fn from_widget(widget_id: WidgetId) -> Self {
-        Self(SpatialFrameKeyInner::Widget(widget_id))
+        Self(ReferenceFrameIdInner::Widget(widget_id))
     }
 
     /// Key from [`WidgetId`] and [`u32`] index.
     ///
     /// This can be used in nodes that know that they are the only one rendering children nodes.
     pub fn from_widget_child(parent_id: WidgetId, child_index: u32) -> Self {
-        Self(SpatialFrameKeyInner::WidgetIndex(parent_id, child_index))
+        Self(ReferenceFrameIdInner::WidgetIndex(parent_id, child_index))
     }
 
     /// Key from [`SpatialFrameId`].
     pub fn from_unique(id: SpatialFrameId) -> Self {
-        Self(SpatialFrameKeyInner::Unique(id))
+        Self(ReferenceFrameIdInner::Unique(id))
     }
 
     /// Key from [`SpatialFrameId`] and [`u32`] index.
     pub fn from_unique_child(id: SpatialFrameId, child_index: u32) -> Self {
-        Self(SpatialFrameKeyInner::UniqueIndex(id, child_index))
+        Self(ReferenceFrameIdInner::UniqueIndex(id, child_index))
     }
 
     /// Key from a [`FrameValueKey<PxTransform>`].
     pub fn from_frame_value(frame_value_key: FrameValueKey<PxTransform>) -> Self {
-        Self(SpatialFrameKeyInner::FrameValue(frame_value_key))
+        Self(ReferenceFrameIdInner::FrameValue(frame_value_key))
     }
 
     /// Key from a [`FrameValueKey<PxTransform>`] and [`u32`] index.
     pub fn from_frame_value_child(frame_value_key: FrameValueKey<PxTransform>, child_index: u32) -> Self {
-        Self(SpatialFrameKeyInner::FrameValueIndex(frame_value_key, child_index))
-    }
-
-    /// To webrender key.
-    pub fn to_wr(self) -> SpatialTreeItemKey {
-        self.0.to_wr()
+        Self(ReferenceFrameIdInner::FrameValueIndex(frame_value_key, child_index))
     }
 }
-impl From<FrameValueKey<PxTransform>> for SpatialFrameKey {
+impl From<ReferenceFrameId> for RenderReferenceFrameId {
+    fn from(value: ReferenceFrameId) -> Self {
+        value.0.into()
+    }
+}
+impl From<FrameValueKey<PxTransform>> for ReferenceFrameId {
     fn from(value: FrameValueKey<PxTransform>) -> Self {
         Self::from_frame_value(value)
     }
 }
-impl From<SpatialFrameId> for SpatialFrameKey {
+impl From<SpatialFrameId> for ReferenceFrameId {
     fn from(id: SpatialFrameId) -> Self {
         Self::from_unique(id)
     }
 }
-impl From<(SpatialFrameId, u32)> for SpatialFrameKey {
+impl From<(SpatialFrameId, u32)> for ReferenceFrameId {
     fn from((id, index): (SpatialFrameId, u32)) -> Self {
         Self::from_unique_child(id, index)
     }
 }
-impl From<(WidgetId, u32)> for SpatialFrameKey {
+impl From<(WidgetId, u32)> for ReferenceFrameId {
     fn from((id, index): (WidgetId, u32)) -> Self {
         Self::from_widget_child(id, index)
     }
 }
-impl From<(FrameValueKey<PxTransform>, u32)> for SpatialFrameKey {
+impl From<(FrameValueKey<PxTransform>, u32)> for ReferenceFrameId {
     fn from((key, index): (FrameValueKey<PxTransform>, u32)) -> Self {
         Self::from_frame_value_child(key, index)
     }

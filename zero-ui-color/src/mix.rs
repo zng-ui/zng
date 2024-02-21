@@ -4,7 +4,7 @@ use zero_ui_layout::unit::Factor;
 use paste::*;
 
 /// Webrender [`MixBlendMode`].
-pub type RenderMixBlendMode = zero_ui_view_api::webrender_api::MixBlendMode;
+pub type RenderMixBlendMode = zero_ui_view_api::MixBlendMode;
 
 macro_rules! impl_mix {
     (

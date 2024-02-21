@@ -11,12 +11,7 @@ use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
 use crate::{
-    api_extension::{ApiExtensionId, ApiExtensionPayload},
-    font::{cast_glyphs_to_wr, FontId, GlyphInstance, GlyphOptions},
-    image::ImageTextureId,
-    unit::PxToWr,
-    window::FrameId,
-    BorderSide, GradientStop,
+    api_extension::{ApiExtensionId, ApiExtensionPayload}, font::{cast_glyphs_to_wr, FontId, GlyphInstance, GlyphOptions}, image::ImageTextureId, unit::PxToWr, window::FrameId, AlphaType, BorderSide, GradientStop, ImageRendering, MixBlendMode, ReferenceFrameId, RepeatMode, TransformStyle
 };
 use zero_ui_unit::*;
 
@@ -140,9 +135,9 @@ impl DisplayListBuilder {
     /// [`pop_reference_frame`]: Self::pop_reference_frame
     pub fn push_reference_frame(
         &mut self,
-        key: wr::SpatialTreeItemKey,
+        key: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
-        transform_style: wr::TransformStyle,
+        transform_style: TransformStyle,
         is_2d_scale_translation: bool,
     ) {
         self.space_len += 1;
@@ -168,7 +163,7 @@ impl DisplayListBuilder {
     /// Note that `transform_style` is coerced to `Flat` if any filter is also set.
     ///
     /// [`pop_stacking_context`]: Self::pop_stacking_context
-    pub fn push_stacking_context(&mut self, blend_mode: wr::MixBlendMode, transform_style: wr::TransformStyle, filters: &[FilterOp]) {
+    pub fn push_stacking_context(&mut self, blend_mode: MixBlendMode, transform_style: TransformStyle, filters: &[FilterOp]) {
         self.stacking_len += 1;
         self.list.push(DisplayItem::PushStackingContext {
             blend_mode,
@@ -264,8 +259,8 @@ impl DisplayListBuilder {
         source: NinePatchSource,
         widths: PxSideOffsets,
         fill: bool,
-        repeat_horizontal: wr::RepeatMode,
-        repeat_vertical: wr::RepeatMode,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
     ) {
         self.list.push(DisplayItem::NinePatchBorder {
             bounds,
@@ -304,8 +299,8 @@ impl DisplayListBuilder {
         image_size: PxSize,
         tile_size: PxSize,
         tile_spacing: PxSize,
-        rendering: wr::ImageRendering,
-        alpha_type: wr::AlphaType,
+        rendering: ImageRendering,
+        alpha_type: AlphaType,
     ) {
         self.list.push(DisplayItem::Image {
             clip_rect,
@@ -1052,16 +1047,16 @@ enum DisplayItem {
         end: usize,
     },
     PushReferenceFrame {
-        key: wr::SpatialTreeItemKey,
+        key: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
-        transform_style: wr::TransformStyle,
+        transform_style: TransformStyle,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
 
     PushStackingContext {
-        transform_style: wr::TransformStyle,
-        blend_mode: wr::MixBlendMode,
+        transform_style: TransformStyle,
+        blend_mode: MixBlendMode,
         filters: Box<[FilterOp]>,
     },
     PopStackingContext,
@@ -1093,8 +1088,8 @@ enum DisplayItem {
         source: NinePatchSource,
         widths: PxSideOffsets,
         fill: bool,
-        repeat_horizontal: wr::RepeatMode,
-        repeat_vertical: wr::RepeatMode,
+        repeat_horizontal: RepeatMode,
+        repeat_vertical: RepeatMode,
     },
 
     Text {
@@ -1109,8 +1104,8 @@ enum DisplayItem {
         clip_rect: PxRect,
         image_id: ImageTextureId,
         image_size: PxSize,
-        rendering: wr::ImageRendering,
-        alpha_type: wr::AlphaType,
+        rendering: ImageRendering,
+        alpha_type: AlphaType,
         tile_size: PxSize,
         tile_spacing: PxSize,
     },
@@ -1195,14 +1190,14 @@ impl DisplayItem {
                 let spatial_id = wr_list.push_reference_frame(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
-                    *transform_style,
+                    (*transform_style).into(),
                     transform.into_wr(),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,
                         should_snap: false,
                         paired_with_perspective: false,
                     },
-                    *key,
+                    (*key).into(),
                 );
                 sc.push_spatial(spatial_id);
             }
@@ -1222,8 +1217,8 @@ impl DisplayItem {
                     sc.spatial_id(),
                     sc.primitive_flags(),
                     Some(clip),
-                    *transform_style,
-                    *blend_mode,
+                    (*transform_style).into(),
+                    (*blend_mode).into(),
                     &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                     &[],
                     &[],
@@ -1391,7 +1386,7 @@ impl DisplayItem {
 
                 let source = match source {
                     NinePatchSource::Image { image_id, rendering } => {
-                        wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), *rendering)
+                        wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), (*rendering).into())
                     }
                     NinePatchSource::LinearGradient { gradient, stops } => {
                         let stops: Vec<_> = stops
@@ -1443,8 +1438,8 @@ impl DisplayItem {
                         height: bounds.height().0,
                         slice: widths.to_wr_device(),
                         fill: *fill,
-                        repeat_horizontal: *repeat_horizontal,
-                        repeat_vertical: *repeat_vertical,
+                        repeat_horizontal: (*repeat_horizontal).into(),
+                        repeat_vertical: (*repeat_vertical).into(),
                     }),
                 );
             }
@@ -1471,8 +1466,8 @@ impl DisplayItem {
                     wr_list.push_image(
                         &props,
                         PxRect::from_size(*image_size).to_wr(),
-                        *rendering,
-                        *alpha_type,
+                        (*rendering).into(),
+                        (*alpha_type).into(),
                         wr::ImageKey(cache.id_namespace(), image_id.get()),
                         wr::ColorF::WHITE,
                     );
@@ -1482,8 +1477,8 @@ impl DisplayItem {
                         PxRect::from_size(*image_size).to_wr(),
                         tile_size.to_wr(),
                         tile_spacing.to_wr(),
-                        *rendering,
-                        *alpha_type,
+                        (*rendering).into(),
+                        (*alpha_type).into(),
                         wr::ImageKey(cache.id_namespace(), image_id.get()),
                         wr::ColorF::WHITE,
                     );
@@ -1743,7 +1738,7 @@ impl DisplayItem {
 pub enum NinePatchSource {
     Image {
         image_id: ImageTextureId,
-        rendering: wr::ImageRendering,
+        rendering: ImageRendering,
     },
     LinearGradient {
         gradient: wr::Gradient,

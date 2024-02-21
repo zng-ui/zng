@@ -814,6 +814,191 @@ impl PxToWr for BorderSide {
     }
 }
 
+/// Defines if a widget is part of the same 3D space as the parent.
+#[derive(Default, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
+#[repr(u8)]
+pub enum TransformStyle {
+    /// Widget is not a part of the 3D space of the parent. If it has
+    /// 3D children they will be rendered into a flat plane that is placed in the 3D space of the parent.
+    #[default]
+    Flat = 0,
+    /// Widget is a part of the 3D space of the parent. If it has 3D children
+    /// they will be positioned relative to siblings in the same space.
+    ///
+    /// Note that some properties require a flat image to work on, in particular all pixel filter properties including opacity.
+    /// When such a property is set in a widget that is `Preserve3D` and has both a parent and one child also `Preserve3D` the
+    /// filters are ignored and a warning is logged. When the widget is `Preserve3D` and the parent is not the filters are applied
+    /// *outside* the 3D space, when the widget is `Preserve3D` with all `Flat` children the filters are applied *inside* the 3D space.
+    Preserve3D = 1,
+}
+impl fmt::Debug for TransformStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TransformStyle::")?;
+        }
+        match self {
+            Self::Flat => write!(f, "Flat"),
+            Self::Preserve3D => write!(f, "Preserve3D"),
+        }
+    }
+}
+impl From<TransformStyle> for webrender_api::TransformStyle {
+    fn from(value: TransformStyle) -> Self {
+        match value {
+            TransformStyle::Flat => webrender_api::TransformStyle::Flat,
+            TransformStyle::Preserve3D => webrender_api::TransformStyle::Preserve3D,
+        }
+    }
+}
+
+/// Identifies a reference frame.
+///
+/// This ID is defined by the app process.
+#[derive(Default, Debug, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
+pub struct ReferenceFrameId(pub u64, pub u64);
+impl From<ReferenceFrameId> for webrender_api::SpatialTreeItemKey {
+    fn from(value: ReferenceFrameId) -> Self {
+        webrender_api::SpatialTreeItemKey::new(value.0, value.1)
+    }
+}
+
+/// Nine-patch border repeat mode.
+///
+/// Defines how the edges and middle region of a nine-patch border is filled.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum RepeatMode {
+    /// The source image's edge regions are stretched to fill the gap between each border.
+    Stretch,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Tiles may be clipped to achieve the proper fit.
+    Repeat,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Tiles may be stretched to achieve the proper fit.
+    Round,
+    /// The source image's edge regions are tiled (repeated) to fill the gap between each
+    /// border. Extra space will be distributed in between tiles to achieve the proper fit.
+    Space,
+}
+impl From<RepeatMode> for webrender_api::RepeatMode {
+    fn from(value: RepeatMode) -> Self {
+        use webrender_api::RepeatMode::*;
+        match value {
+            RepeatMode::Stretch => Stretch,
+            RepeatMode::Repeat => Repeat,
+            RepeatMode::Round => Round,
+            RepeatMode::Space => Space,
+        }
+    }
+}
+
+/// Color mix blend mode.
+#[allow(missing_docs)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub enum MixBlendMode {
+    Normal = 0,
+    Multiply = 1,
+    Screen = 2,
+    Overlay = 3,
+    Darken = 4,
+    Lighten = 5,
+    ColorDodge = 6,
+    ColorBurn = 7,
+    HardLight = 8,
+    SoftLight = 9,
+    Difference = 10,
+    Exclusion = 11,
+    Hue = 12,
+    Saturation = 13,
+    Color = 14,
+    Luminosity = 15,
+    PlusLighter = 16,
+}
+impl From<MixBlendMode> for webrender_api::MixBlendMode {
+    fn from(value: MixBlendMode) -> Self {
+        use webrender_api::MixBlendMode::*;
+        match value {
+            MixBlendMode::Normal => Normal,
+            MixBlendMode::Multiply => Multiply,
+            MixBlendMode::Screen => Screen,
+            MixBlendMode::Overlay => Overlay,
+            MixBlendMode::Darken => Darken,
+            MixBlendMode::Lighten => Lighten,
+            MixBlendMode::ColorDodge => ColorDodge,
+            MixBlendMode::ColorBurn => ColorBurn,
+            MixBlendMode::HardLight => HardLight,
+            MixBlendMode::SoftLight => SoftLight,
+            MixBlendMode::Difference => Difference,
+            MixBlendMode::Exclusion => Exclusion,
+            MixBlendMode::Hue => Hue,
+            MixBlendMode::Saturation => Saturation,
+            MixBlendMode::Color => Color,
+            MixBlendMode::Luminosity => Luminosity,
+            MixBlendMode::PlusLighter => PlusLighter,
+        }
+    }
+}
+
+/// Image scaling algorithm in the renderer.
+///
+/// If an image is not rendered at the same size as their source it must be up-scaled or
+/// down-scaled. The algorithms used for this scaling can be selected using this `enum`.
+///
+/// Note that the algorithms used in the renderer value performance over quality and do a good
+/// enough job for small or temporary changes in scale only, such as a small size correction or a scaling animation.
+/// If and image is constantly rendered at a different scale you should considered scaling it on the CPU using a
+/// slower but more complex algorithm or pre-scaling it before including in the app.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ImageRendering {
+    /// Let the renderer select the algorithm, currently this is the same as [`CrispEdges`].
+    ///
+    /// [`CrispEdges`]: ImageRendering::CrispEdges
+    Auto = 0,
+    /// The image is scaled with an algorithm that preserves contrast and edges in the image,
+    /// and which does not smooth colors or introduce blur to the image in the process.
+    ///
+    /// Currently the [Bilinear] interpolation algorithm is used.
+    ///
+    /// [Bilinear]: https://en.wikipedia.org/wiki/Bilinear_interpolation
+    CrispEdges = 1,
+    /// When scaling the image up, the image appears to be composed of large pixels.
+    ///
+    /// Currently the [Nearest-neighbor] interpolation algorithm is used.
+    ///
+    /// [Nearest-neighbor]: https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation
+    Pixelated = 2,
+}
+impl From<ImageRendering> for webrender_api::ImageRendering {
+    fn from(r: ImageRendering) -> Self {
+        use webrender_api::ImageRendering::*;
+        match r {
+            ImageRendering::Auto => Auto,
+            ImageRendering::CrispEdges => CrispEdges,
+            ImageRendering::Pixelated => Pixelated,
+        }
+    }
+}
+
+/// Pixel color alpha type.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub enum AlphaType {
+    /// Components are not pre-multiplied by alpha.
+    Alpha = 0,
+    /// Components are pre-multiplied by alpha.
+    PremultipliedAlpha = 1,
+}
+impl From<AlphaType> for webrender_api::AlphaType {
+    fn from(value: AlphaType) -> Self {
+        match value {
+            AlphaType::Alpha => webrender_api::AlphaType::Alpha,
+            AlphaType::PremultipliedAlpha => webrender_api::AlphaType::PremultipliedAlpha,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
