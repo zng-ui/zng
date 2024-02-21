@@ -15,7 +15,7 @@ use zero_ui_layout::{
     context::LAYOUT,
     unit::{Px, PxRect, PxSize},
 };
-use zero_ui_view_api::{config::FontAntiAliasing, display_list::FrameValue, webrender_api::GlyphInstance};
+use zero_ui_view_api::{config::FontAntiAliasing, display_list::FrameValue, font::GlyphInstance};
 use zero_ui_wgt::prelude::*;
 
 use crate::{

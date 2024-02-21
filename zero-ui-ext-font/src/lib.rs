@@ -55,8 +55,8 @@ use zero_ui_app::{
 use zero_ui_app_context::app_local;
 use zero_ui_ext_l10n::{lang, Lang, LangMap};
 use zero_ui_layout::unit::{
-    about_eq, about_eq_hash, about_eq_ord, euclid, AngleUnits as _, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _,
-    EQ_EPSILON, EQ_EPSILON_100,
+    about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, EQ_EPSILON,
+    EQ_EPSILON_100,
 };
 use zero_ui_task as task;
 use zero_ui_txt::Txt;
@@ -1389,11 +1389,11 @@ impl Font {
 
         let font_key = self.0.face.render_face(renderer);
 
-        let mut opt = zero_ui_view_api::font::FontOptions::default();
-        if synthesis.contains(FontSynthesis::OBLIQUE) {
-            opt.synthetic_italics = 14.deg();
-        }
-        opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
+        let opt = zero_ui_view_api::font::FontOptions {
+            synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
+            synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
+            ..Default::default()
+        };
         let variations = self.0.variations.iter().map(|v| (v.tag().to_bytes(), v.value())).collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {

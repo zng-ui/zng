@@ -12,7 +12,7 @@ use std::{
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{DocumentId, DynamicProperties, FontInstanceFlags, FontInstanceKey, FontInstanceOptions, FontKey, FontVariation, PipelineId},
+    api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
 };
 
@@ -1208,24 +1208,7 @@ impl Window {
             key,
             FontKey(self.api.get_namespace_id(), font_face_id.get()),
             glyph_size.to_wr().get(),
-            if options == FontOptions::default() {
-                None
-            } else {
-                Some(FontInstanceOptions {
-                    render_mode: match options.aa {
-                        zero_ui_view_api::config::FontAntiAliasing::Default => webrender::api::FontRenderMode::Subpixel,
-                        zero_ui_view_api::config::FontAntiAliasing::Subpixel => webrender::api::FontRenderMode::Subpixel,
-                        zero_ui_view_api::config::FontAntiAliasing::Alpha => webrender::api::FontRenderMode::Alpha,
-                        zero_ui_view_api::config::FontAntiAliasing::Mono => webrender::api::FontRenderMode::Mono,
-                    },
-                    flags: if options.synthetic_bold {
-                        FontInstanceFlags::SYNTHETIC_BOLD
-                    } else {
-                        FontInstanceFlags::empty()
-                    },
-                    synthetic_italics: webrender::api::SyntheticItalics::from_degrees(options.synthetic_italics.0),
-                })
-            },
+            options.to_wr(),
             None,
             variations
                 .into_iter()

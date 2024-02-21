@@ -22,8 +22,9 @@ use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
+    font::{GlyphInstance, GlyphOptions},
     unit::PxToWr,
-    webrender_api::{self, FontRenderMode, GlyphInstance, GlyphOptions, SpatialTreeItemKey},
+    webrender_api::{self, SpatialTreeItemKey},
     window::FrameId,
 };
 
@@ -222,7 +223,7 @@ pub struct FrameBuilder {
     transform: PxTransform,
     transform_style: TransformStyle,
 
-    default_font_aa: FontRenderMode,
+    default_font_aa: FontAntiAliasing,
 
     renderer: Option<ViewRenderer>,
 
@@ -291,9 +292,8 @@ impl FrameBuilder {
             transform: PxTransform::identity(),
             transform_style: TransformStyle::Flat,
             default_font_aa: match default_font_aa {
-                FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
-                FontAntiAliasing::Alpha => FontRenderMode::Alpha,
-                FontAntiAliasing::Mono => FontRenderMode::Mono,
+                FontAntiAliasing::Default => FontAntiAliasing::Subpixel,
+                aa => aa,
             },
             renderer,
             scale_factor,
@@ -424,7 +424,7 @@ impl FrameBuilder {
     }
 
     /// Runs `render` with `aa` used as the default text anti-aliasing mode.
-    pub fn with_default_font_aa(&mut self, aa: FontRenderMode, render: impl FnOnce(&mut Self)) {
+    pub fn with_default_font_aa(&mut self, aa: FontAntiAliasing, render: impl FnOnce(&mut Self)) {
         let parent = mem::replace(&mut self.default_font_aa, aa);
         render(self);
         self.default_font_aa = parent;
@@ -1551,20 +1551,12 @@ impl FrameBuilder {
                 let font_id = font.renderer_id(r, synthesis);
 
                 let opts = GlyphOptions {
-                    render_mode: match aa {
+                    aa: match aa {
                         FontAntiAliasing::Default => self.default_font_aa,
-                        FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
-                        FontAntiAliasing::Alpha => FontRenderMode::Alpha,
-                        FontAntiAliasing::Mono => FontRenderMode::Mono,
+                        aa => aa,
                     },
-                    flags: {
-                        let mut flags = webrender_api::FontInstanceFlags::empty();
-                        flags.set(
-                            webrender_api::FontInstanceFlags::SYNTHETIC_BOLD,
-                            synthesis.contains(FontSynthesis::BOLD),
-                        );
-                        flags
-                    },
+                    synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
+                    synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
                 };
                 self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
             }

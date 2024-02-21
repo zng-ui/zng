@@ -12,7 +12,7 @@ use zero_ui_layout::{
     unit::{euclid, Align, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zero_ui_txt::Txt;
-use zero_ui_view_api::webrender_api::{self, units::LayoutVector2D, GlyphIndex, GlyphInstance};
+use zero_ui_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
     font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
@@ -324,7 +324,7 @@ pub enum ShapedColoredGlyphs<'a> {
     /// Colored glyph.
     Colored {
         /// Point that must be used for all `glyphs`.
-        point: zero_ui_view_api::webrender_api::units::LayoutPoint,
+        point: euclid::Point2D<f32, Px>,
         /// The glyph that is replaced by `glyphs`.
         ///
         /// Must be used as fallback if any `glyphs` cannot be rendered.
@@ -1754,7 +1754,7 @@ pub struct TextOverflowInfo {
     ///
     /// The suffix must be of the width given to [`ShapedText::overflow_info`] and the same line height
     /// as the text.
-    pub suffix_origin: webrender_api::units::LayoutPoint,
+    pub suffix_origin: euclid::Point2D<f32, Px>,
 }
 
 trait FontListRef {
@@ -3738,21 +3738,21 @@ impl Font {
     }
 
     /// Gets the distance from the origin of the glyph with the given ID to the next.
-    pub fn advance(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
+    pub fn advance(&self, index: GlyphIndex) -> Result<euclid::Vector2D<f32, Px>, GlyphLoadingError> {
         self.face()
             .font_kit()
             .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .advance(index)
-            .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+            .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
 
     /// Gets the amount that the given glyph should be displaced from the origin.
-    pub fn origin(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
+    pub fn origin(&self, index: GlyphIndex) -> Result<euclid::Vector2D<f32, Px>, GlyphLoadingError> {
         self.face()
             .font_kit()
             .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .origin(index)
-            .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+            .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
 
     /// Calculates a [`ShapedText`].

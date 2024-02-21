@@ -12,7 +12,7 @@ use webrender_api::{self as wr, PipelineId};
 
 use crate::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    font::FontId,
+    font::{cast_glyphs_to_wr, FontId, GlyphInstance, GlyphOptions},
     image::ImageTextureId,
     unit::PxToWr,
     window::FrameId,
@@ -291,9 +291,9 @@ impl DisplayListBuilder {
         &mut self,
         clip_rect: PxRect,
         font_id: FontId,
-        glyphs: &[wr::GlyphInstance],
+        glyphs: &[GlyphInstance],
         color: FrameValue<Rgba>,
-        options: wr::GlyphOptions,
+        options: GlyphOptions,
     ) {
         self.list.push(DisplayItem::Text {
             clip_rect,
@@ -1119,9 +1119,9 @@ enum DisplayItem {
     Text {
         clip_rect: PxRect,
         font_id: FontId,
-        glyphs: Box<[wr::GlyphInstance]>,
+        glyphs: Box<[GlyphInstance]>,
         color: FrameValue<Rgba>,
-        options: wr::GlyphOptions,
+        options: GlyphOptions,
     },
 
     Image {
@@ -1337,10 +1337,10 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     bounds,
-                    glyphs,
+                    cast_glyphs_to_wr(glyphs),
                     wr::FontInstanceKey(cache.id_namespace(), font_id.get()),
                     color.into_value().to_wr(),
-                    Some(*options),
+                    options.clone().to_wr_world(),
                 );
             }
 
