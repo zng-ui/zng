@@ -47,7 +47,7 @@ impl From<ExtendMode> for RenderExtendMode {
 ///
 /// Note that [`ExtendMode::Reflect`] is not supported
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
-pub type RenderExtendMode = webrender_api::ExtendMode;
+pub type RenderExtendMode = zero_ui_view_api::ExtendMode;
 
 /// The radial gradient radius base length.
 ///

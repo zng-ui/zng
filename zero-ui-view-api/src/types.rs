@@ -775,12 +775,23 @@ impl std::error::Error for ViewProcessOffline {}
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
 /// Offset and color in a gradient.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct GradientStop {
     /// Offset in pixels.
     pub offset: f32,
     /// Color at the offset.
     pub color: Rgba,
+}
+pub(crate) fn cast_gradient_stops_to_wr(stops: &[GradientStop]) -> &[webrender_api::GradientStop] {
+    debug_assert_eq!(
+        std::mem::size_of::<GradientStop>(),
+        std::mem::size_of::<webrender_api::GradientStop>()
+    );
+    debug_assert_eq!(std::mem::size_of::<Rgba>(), std::mem::size_of::<webrender_api::ColorF>());
+
+    // SAFETY: GradientStop has the same layout as webrender_api (f32, [f32; 4])
+    unsafe { std::mem::transmute(stops) }
 }
 
 /// Border side line style and color.
@@ -995,6 +1006,23 @@ impl From<AlphaType> for webrender_api::AlphaType {
         match value {
             AlphaType::Alpha => webrender_api::AlphaType::Alpha,
             AlphaType::PremultipliedAlpha => webrender_api::AlphaType::PremultipliedAlpha,
+        }
+    }
+}
+
+/// Gradient extend mode.
+#[allow(missing_docs)]
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
+pub enum ExtendMode {
+    Clamp,
+    Repeat,
+}
+impl From<ExtendMode> for webrender_api::ExtendMode {
+    fn from(value: ExtendMode) -> Self {
+        match value {
+            ExtendMode::Clamp => webrender_api::ExtendMode::Clamp,
+            ExtendMode::Repeat => webrender_api::ExtendMode::Repeat,
         }
     }
 }

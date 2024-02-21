@@ -7,6 +7,7 @@ use crate::{about_eq, about_eq_hash, Factor, FactorPercent};
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+#[repr(C)]
 #[derive(Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Rgba {
     /// Red channel value, in the `[0.0..=1.0]` range.

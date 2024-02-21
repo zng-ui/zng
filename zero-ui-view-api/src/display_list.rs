@@ -11,7 +11,13 @@ use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
 use crate::{
-    api_extension::{ApiExtensionId, ApiExtensionPayload}, font::{cast_glyphs_to_wr, FontId, GlyphInstance, GlyphOptions}, image::ImageTextureId, unit::PxToWr, window::FrameId, AlphaType, BorderSide, GradientStop, ImageRendering, MixBlendMode, ReferenceFrameId, RepeatMode, TransformStyle
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    cast_gradient_stops_to_wr,
+    font::{cast_glyphs_to_wr, FontId, GlyphInstance, GlyphOptions},
+    image::ImageTextureId,
+    unit::PxToWr,
+    window::FrameId,
+    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, MixBlendMode, ReferenceFrameId, RepeatMode, TransformStyle,
 };
 use zero_ui_unit::*;
 
@@ -327,10 +333,13 @@ impl DisplayListBuilder {
     }
 
     /// Push a linear gradient rectangle.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
         &mut self,
         clip_rect: PxRect,
-        gradient: wr::Gradient,
+        start_point: euclid::Point2D<f32, Px>,
+        end_point: euclid::Point2D<f32, Px>,
+        extend_mode: ExtendMode,
         stops: &[GradientStop],
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -338,7 +347,9 @@ impl DisplayListBuilder {
     ) {
         self.list.push(DisplayItem::LinearGradient {
             clip_rect,
-            gradient,
+            start_point,
+            end_point,
+            extend_mode,
             stops: stops.to_vec().into_boxed_slice(),
             tile_origin,
             tile_size,
@@ -1121,7 +1132,9 @@ enum DisplayItem {
 
     LinearGradient {
         clip_rect: PxRect,
-        gradient: wr::Gradient,
+        start_point: euclid::Point2D<f32, Px>,
+        end_point: euclid::Point2D<f32, Px>,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
         tile_origin: PxPoint,
         tile_size: PxSize,
@@ -1388,37 +1401,25 @@ impl DisplayItem {
                     NinePatchSource::Image { image_id, rendering } => {
                         wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), (*rendering).into())
                     }
-                    NinePatchSource::LinearGradient { gradient, stops } => {
-                        let stops: Vec<_> = stops
-                            .iter()
-                            .map(|s| wr::GradientStop {
-                                offset: s.offset,
-                                color: s.color.to_wr(),
-                            })
-                            .collect();
-                        wr_list.push_stops(&stops);
-                        wr::NinePatchBorderSource::Gradient(*gradient)
+                    NinePatchSource::LinearGradient {
+                        start_point,
+                        end_point,
+                        extend_mode,
+                        stops,
+                    } => {
+                        wr_list.push_stops(cast_gradient_stops_to_wr(stops));
+                        wr::NinePatchBorderSource::Gradient(wr::Gradient {
+                            start_point: start_point.cast_unit(),
+                            end_point: end_point.cast_unit(),
+                            extend_mode: (*extend_mode).into(),
+                        })
                     }
                     NinePatchSource::RadialGradient { gradient, stops } => {
-                        let stops: Vec<_> = stops
-                            .iter()
-                            .map(|s| wr::GradientStop {
-                                offset: s.offset,
-                                color: s.color.to_wr(),
-                            })
-                            .collect();
-                        wr_list.push_stops(&stops);
+                        wr_list.push_stops(cast_gradient_stops_to_wr(stops));
                         wr::NinePatchBorderSource::RadialGradient(*gradient)
                     }
                     NinePatchSource::ConicGradient { gradient, stops } => {
-                        let stops: Vec<_> = stops
-                            .iter()
-                            .map(|s| wr::GradientStop {
-                                offset: s.offset,
-                                color: s.color.to_wr(),
-                            })
-                            .collect();
-                        wr_list.push_stops(&stops);
+                        wr_list.push_stops(cast_gradient_stops_to_wr(stops));
                         wr::NinePatchBorderSource::ConicGradient(*gradient)
                     }
                 };
@@ -1487,7 +1488,9 @@ impl DisplayItem {
 
             DisplayItem::LinearGradient {
                 clip_rect,
-                gradient,
+                start_point,
+                end_point,
+                extend_mode,
                 stops,
                 mut tile_origin,
                 tile_size,
@@ -1504,14 +1507,7 @@ impl DisplayItem {
                 let clip = sc.clip_chain_id(wr_list);
                 // stops needs to be immediately followed by the gradient, if the clip-chain item
                 // is inserted in the between the stops are lost.
-                let stops: Vec<_> = stops
-                    .iter()
-                    .map(|s| wr::GradientStop {
-                        offset: s.offset,
-                        color: s.color.to_wr(),
-                    })
-                    .collect();
-                wr_list.push_stops(&stops);
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
                 wr_list.push_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1520,7 +1516,11 @@ impl DisplayItem {
                         flags: sc.primitive_flags(),
                     },
                     bounds,
-                    *gradient,
+                    wr::Gradient {
+                        start_point: start_point.cast_unit(),
+                        end_point: end_point.cast_unit(),
+                        extend_mode: (*extend_mode).into(),
+                    },
                     tile_size.to_wr(),
                     tile_spacing.to_wr(),
                 )
@@ -1542,14 +1542,7 @@ impl DisplayItem {
                 .to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
-                let stops: Vec<_> = stops
-                    .iter()
-                    .map(|s| wr::GradientStop {
-                        offset: s.offset,
-                        color: s.color.to_wr(),
-                    })
-                    .collect();
-                wr_list.push_stops(&stops);
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
                 wr_list.push_radial_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1580,14 +1573,7 @@ impl DisplayItem {
                 .to_wr();
 
                 let clip = sc.clip_chain_id(wr_list);
-                let stops: Vec<_> = stops
-                    .iter()
-                    .map(|s| wr::GradientStop {
-                        offset: s.offset,
-                        color: s.color.to_wr(),
-                    })
-                    .collect();
-                wr_list.push_stops(&stops);
+                wr_list.push_stops(cast_gradient_stops_to_wr(stops));
                 wr_list.push_conic_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: clip_rect.to_wr(),
@@ -1741,7 +1727,9 @@ pub enum NinePatchSource {
         rendering: ImageRendering,
     },
     LinearGradient {
-        gradient: wr::Gradient,
+        start_point: euclid::Point2D<f32, Px>,
+        end_point: euclid::Point2D<f32, Px>,
+        extend_mode: ExtendMode,
         stops: Box<[GradientStop]>,
     },
     RadialGradient {

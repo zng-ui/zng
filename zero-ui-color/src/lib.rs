@@ -14,7 +14,6 @@ use zero_ui_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
 };
-use zero_ui_view_api::webrender_api;
 
 pub use zero_ui_view_api::config::ColorScheme;
 

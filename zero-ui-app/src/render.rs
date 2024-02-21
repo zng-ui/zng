@@ -1280,10 +1280,7 @@ impl FrameBuilder {
             let image_id = image.renderer_id(r);
             self.display_list.push_nine_patch_border(
                 bounds,
-                NinePatchSource::Image {
-                    image_id,
-                    rendering,
-                },
+                NinePatchSource::Image { image_id, rendering },
                 widths,
                 fill,
                 repeat_horizontal,
@@ -1318,11 +1315,9 @@ impl FrameBuilder {
             self.display_list.push_nine_patch_border(
                 bounds,
                 NinePatchSource::LinearGradient {
-                    gradient: webrender_api::Gradient {
-                        start_point: line.start.to_wr(),
-                        end_point: line.end.to_wr(),
-                        extend_mode,
-                    },
+                    start_point: line.start.cast(),
+                    end_point: line.end.cast(),
+                    extend_mode,
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,
@@ -1366,7 +1361,7 @@ impl FrameBuilder {
                         radius: radius.to_wr(),
                         start_offset: 0.0,
                         end_offset: 1.0,
-                        extend_mode,
+                        extend_mode: extend_mode.into(),
                     },
                     stops: stops.to_vec().into_boxed_slice(),
                 },
@@ -1411,7 +1406,7 @@ impl FrameBuilder {
                         angle: angle.0,
                         start_offset: 0.0,
                         end_offset: 1.0,
-                        extend_mode,
+                        extend_mode: extend_mode.into(),
                     },
                     stops: stops.to_vec().into_boxed_slice(),
                 },
@@ -1542,11 +1537,9 @@ impl FrameBuilder {
         if !stops.is_empty() && self.visible {
             self.display_list.push_linear_gradient(
                 clip_rect,
-                webrender_api::Gradient {
-                    start_point: line.start.to_wr(),
-                    end_point: line.end.to_wr(),
-                    extend_mode,
-                },
+                line.start.cast(),
+                line.end.cast(),
+                extend_mode,
                 stops,
                 tile_origin,
                 tile_size,
@@ -1599,7 +1592,7 @@ impl FrameBuilder {
                     radius: radius.to_wr(),
                     start_offset: 0.0,
                     end_offset: 1.0,
-                    extend_mode,
+                    extend_mode: extend_mode.into(),
                 },
                 stops,
                 tile_origin,
@@ -1650,7 +1643,7 @@ impl FrameBuilder {
                     angle: angle.0,
                     start_offset: 0.0,
                     end_offset: 1.0,
-                    extend_mode,
+                    extend_mode: extend_mode.into(),
                 },
                 stops,
                 tile_origin,
@@ -1738,7 +1731,7 @@ impl FrameBuilder {
                 radius: radius.to_wr(),
                 start_offset: 0.0,
                 end_offset: 1.0,
-                extend_mode: RenderExtendMode::Clamp,
+                extend_mode: RenderExtendMode::Clamp.into(),
             },
             &[
                 RenderGradientStop { offset: 0.0, color },
