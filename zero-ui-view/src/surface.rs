@@ -10,21 +10,21 @@ use webrender::{
 use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    display_list::DisplayListCache,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
-    unit::*,
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
     ViewProcessGen,
 };
 
 use crate::{
+    display_list::{display_list_to_webrender, DisplayListCache},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    px_wr_conversions::PxToWr as _,
     util::PxToWinit,
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
@@ -270,7 +270,8 @@ impl Surface {
             colors: vec![],
         });
 
-        let display_list = frame.display_list.to_webrender(
+        let display_list = display_list_to_webrender(
+            frame.display_list,
             &mut DisplayListExtAdapter {
                 frame_id: frame.id,
                 extensions: &mut self.renderer_exts,

@@ -15,8 +15,12 @@ use webrender::{DebugFlags, RenderApi};
 use zero_ui_unit::{Factor, PxSize};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions},
-    display_list, Event,
+    Event,
 };
+
+use crate::display_list::{DisplayExtensionArgs, DisplayExtensionItemArgs, DisplayExtensionUpdateArgs, DisplayListExtension, SpaceAndClip};
+
+pub use crate::px_wr_conversions::{PxToWr, WrToPx};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -120,7 +124,7 @@ pub struct RenderArgs<'a> {
     /// The webrender display list.
     pub list: &'a mut webrender::api::DisplayListBuilder,
     /// Space and clip tracker.
-    pub sc: &'a mut display_list::SpaceAndClip,
+    pub sc: &'a mut SpaceAndClip,
 
     /// The transaction that will send the display list.
     pub transaction: &'a mut webrender::Transaction,
@@ -148,7 +152,7 @@ pub struct RenderItemArgs<'a> {
     /// The webrender display list.
     pub list: &'a mut webrender::api::DisplayListBuilder,
     /// Space and clip tracker.
-    pub sc: &'a mut display_list::SpaceAndClip,
+    pub sc: &'a mut SpaceAndClip,
 
     /// The transaction that will send the display list.
     pub transaction: &'a mut webrender::Transaction,
@@ -692,8 +696,8 @@ pub(crate) struct DisplayListExtAdapter<'a> {
     pub frame_id: zero_ui_view_api::window::FrameId,
 }
 
-impl<'a> display_list::DisplayListExtension for DisplayListExtAdapter<'a> {
-    fn display_list_start(&mut self, args: &mut display_list::DisplayExtensionArgs) {
+impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
+    fn display_list_start(&mut self, args: &mut DisplayExtensionArgs) {
         for (_, ext) in self.extensions.iter_mut() {
             ext.render_start(&mut RenderArgs {
                 frame_id: self.frame_id,
@@ -707,7 +711,7 @@ impl<'a> display_list::DisplayListExtension for DisplayListExtAdapter<'a> {
         }
     }
 
-    fn push_display_item(&mut self, args: &mut display_list::DisplayExtensionItemArgs) {
+    fn push_display_item(&mut self, args: &mut DisplayExtensionItemArgs) {
         for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
                 ext.render_push(&mut RenderItemArgs {
@@ -726,7 +730,7 @@ impl<'a> display_list::DisplayListExtension for DisplayListExtAdapter<'a> {
         }
     }
 
-    fn pop_display_item(&mut self, args: &mut display_list::DisplayExtensionItemArgs) {
+    fn pop_display_item(&mut self, args: &mut DisplayExtensionItemArgs) {
         for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
                 ext.render_pop(&mut RenderItemArgs {
@@ -745,7 +749,7 @@ impl<'a> display_list::DisplayListExtension for DisplayListExtAdapter<'a> {
         }
     }
 
-    fn display_list_end(&mut self, args: &mut display_list::DisplayExtensionArgs) {
+    fn display_list_end(&mut self, args: &mut DisplayExtensionArgs) {
         for (_, ext) in self.extensions.iter_mut() {
             ext.render_end(&mut RenderArgs {
                 frame_id: self.frame_id,
@@ -759,7 +763,7 @@ impl<'a> display_list::DisplayListExtension for DisplayListExtAdapter<'a> {
         }
     }
 
-    fn update(&mut self, args: &mut display_list::DisplayExtensionUpdateArgs) {
+    fn update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
         for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
                 let mut r_args = RenderUpdateArgs {

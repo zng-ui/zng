@@ -4,7 +4,7 @@
 
 pub use webrender_api::DebugFlags;
 
-use zero_ui_app::view_process::{VIEW_PROCESS_INITED_EVENT, VIEW_PROCESS};
+use zero_ui_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
 use zero_ui_ext_window::WINDOWS;
 use zero_ui_wgt::prelude::*;
 
@@ -34,17 +34,11 @@ pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) ->
         }
         UiNodeOp::Layout { .. } => {
             if std::mem::take(&mut send) {
-                if let Some(ext_id) = VIEW_PROCESS
-                    .extension_id("zero-ui-view.webrender_debug")
-                    .ok()
-                    .flatten()
-                {
-                    debug.with(
-                        |d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
-                            Ok(()) => {}
-                            Err(e) => tracing::error!("{e}"),
-                        },
-                    );
+                if let Some(ext_id) = VIEW_PROCESS.extension_id("zero-ui-view.webrender_debug").ok().flatten() {
+                    debug.with(|d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
+                        Ok(()) => {}
+                        Err(e) => tracing::error!("{e}"),
+                    });
                 }
             }
         }

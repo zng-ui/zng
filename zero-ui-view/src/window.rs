@@ -26,10 +26,8 @@ use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxR
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
-    display_list::DisplayListCache,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
-    unit::*,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
         WindowRequest, WindowState, WindowStateAll,
@@ -43,12 +41,14 @@ use zero_ui_view_api::dialog as dlg_api;
 use zero_ui_view_api::keyboard::{Key, KeyCode, KeyState};
 
 use crate::{
+    display_list::{display_list_to_webrender, DisplayListCache},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    px_wr_conversions::PxToWr as _,
     util::{CursorToWinit, DipToWinit, PxToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
@@ -1245,7 +1245,8 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), frame.render_reasons());
 
-        let display_list = frame.display_list.to_webrender(
+        let display_list = display_list_to_webrender(
+            frame.display_list,
             &mut DisplayListExtAdapter {
                 frame_id: frame.id,
                 extensions: &mut self.renderer_exts,

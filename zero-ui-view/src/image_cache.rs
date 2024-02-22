@@ -1214,13 +1214,13 @@ mod capture {
     use zero_ui_view_api::{
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
         ipc::IpcBytes,
-        unit::{PxToWr, WrToPx},
         window::{FrameId, WindowId},
         Event,
     };
 
     use crate::{
         image_cache::{Image, ImageData},
+        px_wr_conversions::{PxToWr as _, WrToPx as _},
         AppEvent,
     };
 

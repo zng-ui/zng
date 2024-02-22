@@ -119,8 +119,10 @@ use winit::{
 };
 
 mod config;
+mod display_list;
 mod gl;
 mod image_cache;
+mod px_wr_conversions;
 mod surface;
 mod util;
 mod window;

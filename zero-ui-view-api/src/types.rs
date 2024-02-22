@@ -10,7 +10,6 @@ use crate::{
     keyboard::{Key, KeyCode, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
-    unit::PxToWr,
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
@@ -783,16 +782,6 @@ pub struct GradientStop {
     /// Color at the offset.
     pub color: Rgba,
 }
-pub(crate) fn cast_gradient_stops_to_wr(stops: &[GradientStop]) -> &[webrender_api::GradientStop] {
-    debug_assert_eq!(
-        std::mem::size_of::<GradientStop>(),
-        std::mem::size_of::<webrender_api::GradientStop>()
-    );
-    debug_assert_eq!(std::mem::size_of::<Rgba>(), std::mem::size_of::<webrender_api::ColorF>());
-
-    // SAFETY: GradientStop has the same layout as webrender_api (f32, [f32; 4])
-    unsafe { std::mem::transmute(stops) }
-}
 
 /// Border side line style and color.
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -801,28 +790,6 @@ pub struct BorderSide {
     pub color: Rgba,
     /// Line Style.
     pub style: BorderStyle,
-}
-impl PxToWr for BorderSide {
-    type AsDevice = webrender_api::BorderSide;
-
-    type AsLayout = webrender_api::BorderSide;
-
-    type AsWorld = webrender_api::BorderSide;
-
-    fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
-    }
-
-    fn to_wr(self) -> Self::AsLayout {
-        webrender_api::BorderSide {
-            color: self.color.to_wr(),
-            style: self.style.to_wr(),
-        }
-    }
 }
 
 /// Defines if a widget is part of the same 3D space as the parent.
@@ -1075,7 +1042,8 @@ pub enum LineStyle {
     Wavy(f32),
 }
 impl LineStyle {
-    pub(crate) fn to_wr(self) -> (webrender_api::LineStyle, f32) {
+    ///
+    pub fn to_wr(self) -> (webrender_api::LineStyle, f32) {
         match self {
             LineStyle::Solid => (webrender_api::LineStyle::Solid, 0.0),
             LineStyle::Dotted => (webrender_api::LineStyle::Dotted, 0.0),
@@ -1115,36 +1083,6 @@ pub enum BorderStyle {
     Inset = 8,
     /// Displays a border that makes the widget appear embossed.
     Outset = 9,
-}
-impl PxToWr for BorderStyle {
-    type AsDevice = webrender_api::BorderStyle;
-
-    type AsLayout = webrender_api::BorderStyle;
-
-    type AsWorld = webrender_api::BorderStyle;
-
-    fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
-    }
-
-    fn to_wr(self) -> Self::AsLayout {
-        match self {
-            BorderStyle::None => webrender_api::BorderStyle::None,
-            BorderStyle::Solid => webrender_api::BorderStyle::Solid,
-            BorderStyle::Double => webrender_api::BorderStyle::Double,
-            BorderStyle::Dotted => webrender_api::BorderStyle::Dotted,
-            BorderStyle::Dashed => webrender_api::BorderStyle::Dashed,
-            BorderStyle::Hidden => webrender_api::BorderStyle::Hidden,
-            BorderStyle::Groove => webrender_api::BorderStyle::Groove,
-            BorderStyle::Ridge => webrender_api::BorderStyle::Ridge,
-            BorderStyle::Inset => webrender_api::BorderStyle::Inset,
-            BorderStyle::Outset => webrender_api::BorderStyle::Outset,
-        }
-    }
 }
 
 #[cfg(test)]

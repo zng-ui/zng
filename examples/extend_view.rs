@@ -243,7 +243,7 @@ pub mod using_display_items {
 
         use zero_ui::prelude_wgt::PxPoint;
         use zero_ui_view::{
-            extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+            extensions::{PxToWr as _, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{
                     units::{LayoutPoint, LayoutRect},
@@ -252,7 +252,7 @@ pub mod using_display_items {
                 euclid,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -421,6 +421,7 @@ pub mod using_blob {
 
         use zero_ui::layout::{PxPoint, PxSize};
         use zero_ui::prelude::task::parking_lot::Mutex;
+        use zero_ui_view::extensions::PxToWr as _;
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
@@ -432,7 +433,7 @@ pub mod using_blob {
                 euclid,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -1059,7 +1060,7 @@ pub mod using_gl_texture {
     pub mod view_side {
         use zero_ui::layout::PxRect;
         use zero_ui_view::{
-            extensions::{RenderItemArgs, RendererExtension, ViewExtensions},
+            extensions::{PxToWr as _, RenderItemArgs, RendererExtension, ViewExtensions},
             gleam::gl,
             webrender::api::{
                 units::{DeviceIntSize, TexelRect},
@@ -1067,7 +1068,7 @@ pub mod using_gl_texture {
                 ImageDescriptorFlags, ImageFormat, ImageKey, ImageRendering,
             },
         };
-        use zero_ui_view_api::{api_extension::ApiExtensionId, unit::PxToWr as _};
+        use zero_ui_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);

@@ -3,7 +3,6 @@
 use std::{fmt, ops::Range};
 
 use zero_ui_layout::{context::*, unit::*};
-use zero_ui_view_api::unit::*;
 
 use crate::*;
 
@@ -850,17 +849,17 @@ impl GradientStops {
     pub fn layout_linear(&self, axis: LayoutAxis, extend_mode: ExtendMode, line: &mut PxLine, render_stops: &mut Vec<RenderGradientStop>) {
         let (start_offset, end_offset) = self.layout(axis, extend_mode, render_stops);
 
-        let mut l_start = line.start.to_wr();
-        let mut l_end = line.end.to_wr();
+        let mut l_start = line.start.cast::<f32>();
+        let mut l_end = line.end.cast::<f32>();
 
         let v = l_end - l_start;
-        let v = v / LAYOUT.constraints_for(axis).fill().to_wr().get();
+        let v = v / LAYOUT.constraints_for(axis).fill().0 as f32;
 
         l_end = l_start + v * end_offset;
         l_start += v * start_offset;
 
-        line.start = l_start.to_px();
-        line.end = l_end.to_px();
+        line.start = l_start.cast::<Px>();
+        line.end = l_end.cast::<Px>();
     }
 
     /// Computes the layout for a radial gradient.
@@ -941,7 +940,7 @@ impl GradientStops {
 
         let mut stop = self.end.layout(axis); // 1
         if is_positional(stop.offset) {
-            stop.offset = LAYOUT.constraints_for(axis).fill().to_wr().get();
+            stop.offset = LAYOUT.constraints_for(axis).fill().0 as f32;
         }
         if stop.offset < prev_offset {
             stop.offset = prev_offset; // 2
