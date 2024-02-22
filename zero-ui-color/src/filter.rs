@@ -338,8 +338,8 @@ impl fmt::Debug for FilterData {
 fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, step: EasingStep) -> FrameValue<T> {
     let mut bind_data = None;
     let mut value = match s {
-        FrameValue::Bind { key, value, animating } => {
-            bind_data = Some((key, animating));
+        FrameValue::Bind { id, value, animating } => {
+            bind_data = Some((id, animating));
             value
         }
         FrameValue::Value(v) => v,
@@ -348,15 +348,15 @@ fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, ste
     value = value.lerp(to.value(), step);
 
     if step < 1.fct() {
-        if let Some((key, animating)) = bind_data {
-            FrameValue::Bind { key, value, animating }
+        if let Some((id, animating)) = bind_data {
+            FrameValue::Bind { id, value, animating }
         } else {
             FrameValue::Value(value)
         }
     } else {
         match to {
-            FrameValue::Bind { key, animating, .. } => FrameValue::Bind {
-                key: key.clone(),
+            FrameValue::Bind { id, animating, .. } => FrameValue::Bind {
+                id: *id,
                 value,
                 animating: *animating,
             },

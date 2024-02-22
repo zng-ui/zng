@@ -3,7 +3,6 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use webrender_api::{Epoch, RenderReasons};
 use zero_ui_txt::Txt;
 
 use crate::{
@@ -269,18 +268,6 @@ pub struct FrameRequest {
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
 }
-impl FrameRequest {
-    /// Compute webrender analysis info.
-    pub fn render_reasons(&self) -> RenderReasons {
-        let mut reasons = RenderReasons::SCENE;
-
-        if self.capture != FrameCapture::None {
-            reasons |= RenderReasons::SNAPSHOT;
-        }
-
-        reasons
-    }
-}
 
 /// Data for rendering a new frame that is derived from the current frame.
 #[derive(Clone, Serialize, Deserialize)]
@@ -337,25 +324,6 @@ impl FrameUpdateRequest {
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
         !self.has_bounds() && self.extensions.is_empty() && self.clear_color.is_none() && self.capture != FrameCapture::None
-    }
-
-    /// Compute webrender analysis info.
-    pub fn render_reasons(&self) -> RenderReasons {
-        let mut reasons = RenderReasons::empty();
-
-        if self.has_bounds() {
-            reasons |= RenderReasons::ANIMATED_PROPERTY;
-        }
-
-        if self.capture != FrameCapture::None {
-            reasons |= RenderReasons::SNAPSHOT;
-        }
-
-        if self.clear_color.is_some() {
-            reasons |= RenderReasons::CONFIG_CHANGE;
-        }
-
-        reasons
     }
 }
 impl fmt::Debug for FrameUpdateRequest {
@@ -957,8 +925,8 @@ impl FrameId {
     }
 
     /// Get the full frame ID.
-    pub fn epoch(self) -> Epoch {
-        Epoch(self.0)
+    pub fn epoch(self) -> u32 {
+        self.0
     }
 
     /// Get the frame update ID.

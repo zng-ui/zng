@@ -1,20 +1,24 @@
-use webrender::{api as wr, euclid};
+use webrender::{
+    api::{self as wr},
+    euclid,
+};
 use zero_ui_unit::{Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, Rgba};
 use zero_ui_view_api::{
     config::FontAntiAliasing,
-    display_list::{FilterOp, FrameValue, FrameValueUpdate},
+    display_list::{FilterOp, FrameValue, FrameValueId, FrameValueUpdate},
     font::FontOptions,
-    BorderSide, BorderStyle,
+    AlphaType, BorderSide, BorderStyle, ExtendMode, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId, RepeatMode,
+    TransformStyle,
 };
 
 /// Conversion from [`Px`] to `webrender` units.
 ///
 /// All conversions are 1 to 1.
 pub trait PxToWr {
-    /// `Self` equivalent in [`wr::units::DevicePixel`] units.
-    type AsDevice;
     /// `Self` equivalent in [`wr::units::LayoutPixel`] units.
     type AsLayout;
+    /// `Self` equivalent in [`wr::units::DevicePixel`] units.
+    type AsDevice;
     /// `Self` equivalent in [`wr::units::WorldPixel`] units.
     type AsWorld;
 
@@ -35,6 +39,16 @@ pub trait WrToPx {
 
     /// Returns `self` in [`Px`] units.
     fn to_px(self) -> Self::AsPx;
+}
+
+/// Conversion from view API type to `webrender` type.
+pub trait IntoWr {
+    type AsWr;
+
+    /// Returns `self` as a Webrender type.
+    ///
+    /// The `namespace` is used if `self` contains any key type.
+    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr;
 }
 
 impl PxToWr for Px {
@@ -290,18 +304,16 @@ impl PxToWr for f32 {
 }
 // to work with into_wr
 impl PxToWr for Rgba {
-    type AsDevice = wr::ColorF;
-
+    type AsDevice = ();
+    type AsWorld = ();
     type AsLayout = wr::ColorF;
 
-    type AsWorld = wr::ColorF;
-
     fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr(self) -> Self::AsLayout {
@@ -309,20 +321,10 @@ impl PxToWr for Rgba {
     }
 }
 
-impl PxToWr for FilterOp {
-    type AsDevice = Self::AsLayout;
-    type AsWorld = Self::AsLayout;
-    type AsLayout = wr::FilterOp;
+impl IntoWr for FilterOp {
+    type AsWr = wr::FilterOp;
 
-    fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
-    }
-
-    fn to_wr(self) -> wr::FilterOp {
+    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr {
         match self {
             FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h),
             FilterOp::Brightness(b) => wr::FilterOp::Brightness(b),
@@ -330,7 +332,7 @@ impl PxToWr for FilterOp {
             FilterOp::Grayscale(g) => wr::FilterOp::Grayscale(g),
             FilterOp::HueRotate(h) => wr::FilterOp::HueRotate(h),
             FilterOp::Invert(i) => wr::FilterOp::Invert(i),
-            FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.to_wr(), *o.value()),
+            FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.into_wr(namespace), *o.value()),
             FilterOp::Saturate(s) => wr::FilterOp::Saturate(s),
             FilterOp::Sepia(s) => wr::FilterOp::Sepia(s),
             FilterOp::DropShadow {
@@ -352,18 +354,16 @@ impl PxToWr for FilterOp {
 }
 
 impl PxToWr for BorderSide {
-    type AsDevice = wr::BorderSide;
-
+    type AsDevice = ();
+    type AsWorld = ();
     type AsLayout = wr::BorderSide;
 
-    type AsWorld = wr::BorderSide;
-
     fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr(self) -> Self::AsLayout {
@@ -375,18 +375,16 @@ impl PxToWr for BorderSide {
 }
 
 impl PxToWr for BorderStyle {
-    type AsDevice = wr::BorderStyle;
-
+    type AsDevice = ();
+    type AsWorld = ();
     type AsLayout = wr::BorderStyle;
 
-    type AsWorld = wr::BorderStyle;
-
     fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr(self) -> Self::AsLayout {
@@ -405,31 +403,18 @@ impl PxToWr for BorderStyle {
     }
 }
 
-impl<T: PxToWr> PxToWr for FrameValue<T> {
-    type AsDevice = Self::AsLayout;
-    type AsWorld = Self::AsLayout;
-    type AsLayout = wr::PropertyBinding<T::AsLayout>;
+impl<T: PxToWr> IntoWr for FrameValue<T> {
+    type AsWr = wr::PropertyBinding<T::AsLayout>;
 
-    fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
-    }
-
-    fn to_wr(self) -> Self::AsLayout
-    where
-        T: PxToWr,
-    {
+    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr {
         match self {
             FrameValue::Bind {
-                key,
+                id,
                 value,
                 animating: true,
             } => wr::PropertyBinding::Binding(
                 wr::PropertyBindingKey {
-                    id: key.id,
+                    id: id.into_wr(namespace),
                     _phantom: std::marker::PhantomData,
                 },
                 value.to_wr(),
@@ -442,27 +427,17 @@ impl<T: PxToWr> PxToWr for FrameValue<T> {
     }
 }
 
-impl<T: PxToWr> PxToWr for FrameValueUpdate<T> {
-    type AsDevice = Self::AsLayout;
-    type AsWorld = Self::AsLayout;
-    type AsLayout = Option<wr::PropertyValue<T::AsLayout>>;
+impl<T: PxToWr> IntoWr for FrameValueUpdate<T> {
+    type AsWr = Option<wr::PropertyValue<T::AsLayout>>;
 
-    fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
-    }
-
-    fn to_wr_world(self) -> Self::AsWorld {
-        self.to_wr()
-    }
-
-    fn to_wr(self) -> Option<wr::PropertyValue<T::AsLayout>>
+    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr
     where
         T: PxToWr,
     {
         if self.animating {
             Some(wr::PropertyValue {
                 key: wr::PropertyBindingKey {
-                    id: self.key.id,
+                    id: self.id.into_wr(namespace),
                     _phantom: std::marker::PhantomData,
                 },
                 value: self.value.to_wr(),
@@ -474,14 +449,12 @@ impl<T: PxToWr> PxToWr for FrameValueUpdate<T> {
 }
 
 impl PxToWr for FontOptions {
-    type AsDevice = Option<wr::FontInstanceOptions>;
-
+    type AsDevice = ();
+    type AsWorld = Option<wr::GlyphOptions>;
     type AsLayout = Option<wr::FontInstanceOptions>;
 
-    type AsWorld = Option<wr::GlyphOptions>;
-
     fn to_wr_device(self) -> Self::AsDevice {
-        self.to_wr()
+        unimplemented!()
     }
 
     fn to_wr_world(self) -> Self::AsWorld {
@@ -510,5 +483,232 @@ impl PxToWr for FontOptions {
                 synthetic_italics: wr::SyntheticItalics::from_degrees(if self.synthetic_oblique { 14.0 } else { 0.0 }),
             })
         }
+    }
+}
+
+impl PxToWr for TransformStyle {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::TransformStyle;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            TransformStyle::Flat => wr::TransformStyle::Flat,
+            TransformStyle::Preserve3D => wr::TransformStyle::Preserve3D,
+        }
+    }
+}
+
+impl PxToWr for ReferenceFrameId {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::SpatialTreeItemKey;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        wr::SpatialTreeItemKey::new(self.0, self.1)
+    }
+}
+
+impl PxToWr for RepeatMode {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::RepeatMode;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        use wr::RepeatMode::*;
+        match self {
+            RepeatMode::Stretch => Stretch,
+            RepeatMode::Repeat => Repeat,
+            RepeatMode::Round => Round,
+            RepeatMode::Space => Space,
+        }
+    }
+}
+
+impl PxToWr for MixBlendMode {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::MixBlendMode;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        use wr::MixBlendMode::*;
+        match self {
+            MixBlendMode::Normal => Normal,
+            MixBlendMode::Multiply => Multiply,
+            MixBlendMode::Screen => Screen,
+            MixBlendMode::Overlay => Overlay,
+            MixBlendMode::Darken => Darken,
+            MixBlendMode::Lighten => Lighten,
+            MixBlendMode::ColorDodge => ColorDodge,
+            MixBlendMode::ColorBurn => ColorBurn,
+            MixBlendMode::HardLight => HardLight,
+            MixBlendMode::SoftLight => SoftLight,
+            MixBlendMode::Difference => Difference,
+            MixBlendMode::Exclusion => Exclusion,
+            MixBlendMode::Hue => Hue,
+            MixBlendMode::Saturation => Saturation,
+            MixBlendMode::Color => Color,
+            MixBlendMode::Luminosity => Luminosity,
+            MixBlendMode::PlusLighter => PlusLighter,
+        }
+    }
+}
+
+impl PxToWr for ImageRendering {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::ImageRendering;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        use wr::ImageRendering::*;
+        match self {
+            ImageRendering::Auto => Auto,
+            ImageRendering::CrispEdges => CrispEdges,
+            ImageRendering::Pixelated => Pixelated,
+        }
+    }
+}
+
+impl PxToWr for AlphaType {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::AlphaType;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            AlphaType::Alpha => wr::AlphaType::Alpha,
+            AlphaType::PremultipliedAlpha => wr::AlphaType::PremultipliedAlpha,
+        }
+    }
+}
+
+impl PxToWr for ExtendMode {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::ExtendMode;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            ExtendMode::Clamp => wr::ExtendMode::Clamp,
+            ExtendMode::Repeat => wr::ExtendMode::Repeat,
+        }
+    }
+}
+
+impl PxToWr for LineOrientation {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::LineOrientation;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            LineOrientation::Vertical => wr::LineOrientation::Vertical,
+            LineOrientation::Horizontal => wr::LineOrientation::Horizontal,
+        }
+    }
+}
+
+impl PxToWr for LineStyle {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = (wr::LineStyle, f32);
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        match self {
+            LineStyle::Solid => (wr::LineStyle::Solid, 0.0),
+            LineStyle::Dotted => (wr::LineStyle::Dotted, 0.0),
+            LineStyle::Dashed => (wr::LineStyle::Dashed, 0.0),
+            LineStyle::Wavy(t) => (wr::LineStyle::Wavy, t),
+        }
+    }
+}
+
+impl PxToWr for FrameValueId {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::PropertyBindingId;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        wr::PropertyBindingId::new(self.get())
     }
 }

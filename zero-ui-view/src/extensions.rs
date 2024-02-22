@@ -20,7 +20,7 @@ use zero_ui_view_api::{
 
 use crate::display_list::{DisplayExtensionArgs, DisplayExtensionItemArgs, DisplayExtensionUpdateArgs, DisplayListExtension, SpaceAndClip};
 
-pub use crate::px_wr_conversions::{PxToWr, WrToPx};
+pub use crate::px_wr::{PxToWr, WrToPx};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {

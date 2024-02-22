@@ -5,12 +5,14 @@ use std::fmt;
 use std::{cell::Cell, sync::Arc};
 
 use rayon::ThreadPoolBuilder;
+use webrender::api as wr;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_txt::{ToTxt, Txt};
 use zero_ui_unit::*;
 use zero_ui_view_api::access::AccessNodeId;
 use zero_ui_view_api::clipboard as clipboard_api;
 use zero_ui_view_api::keyboard::NativeKeyCode;
+use zero_ui_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest};
 use zero_ui_view_api::{
     config::ColorScheme,
     keyboard::{Key, KeyCode, KeyState},
@@ -1525,4 +1527,32 @@ fn access_role_to_kit(role: zero_ui_view_api::access::AccessRole) -> accesskit::
         Dialog => Role::Dialog,
         _ => Role::Unknown,
     }
+}
+
+pub(crate) fn frame_render_reasons(frame: &FrameRequest) -> wr::RenderReasons {
+    let mut reasons = wr::RenderReasons::SCENE;
+
+    if frame.capture != FrameCapture::None {
+        reasons |= wr::RenderReasons::SNAPSHOT;
+    }
+
+    reasons
+}
+
+pub(crate) fn frame_update_render_reasons(update: &FrameUpdateRequest) -> wr::RenderReasons {
+    let mut reasons = wr::RenderReasons::empty();
+
+    if update.has_bounds() {
+        reasons |= wr::RenderReasons::ANIMATED_PROPERTY;
+    }
+
+    if update.capture != FrameCapture::None {
+        reasons |= wr::RenderReasons::SNAPSHOT;
+    }
+
+    if update.clear_color.is_some() {
+        reasons |= wr::RenderReasons::CONFIG_CHANGE;
+    }
+
+    reasons
 }

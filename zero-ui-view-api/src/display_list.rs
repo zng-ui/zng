@@ -144,7 +144,7 @@ impl DisplayListBuilder {
     ) {
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
-            key,
+            id: key,
             transform,
             transform_style,
             is_2d_scale_translation,
@@ -598,10 +598,61 @@ impl ops::Deref for DisplayList {
     }
 }
 
-/// Frame value binding key.
+/// Frame value binding ID.
+///
+/// This ID is defined by the app-process.
 ///
 /// See [`FrameValue`] for more details.
-pub type FrameValueKey<T> = webrender_api::PropertyBindingKey<T>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct FrameValueId(u64);
+
+impl FrameValueId {
+    /// Dummy ID, zero.
+    pub const INVALID: Self = Self(0);
+    /// Create the first valid ID.
+    pub const fn first() -> Self {
+        Self(1)
+    }
+    /// Create the next ID.
+    ///
+    /// IDs wrap around to [`first`] when the entire `u32` space is used, it is never `INVALID`.
+    ///
+    /// [`first`]: Self::first
+    #[must_use]
+    pub const fn next(self) -> Self {
+        let r = Self(self.0.wrapping_add(1));
+        if r.0 == Self::INVALID.0 {
+            Self::first()
+        } else {
+            r
+        }
+    }
+    /// Replace self with [`next`] and returns.
+    ///
+    /// [`next`]: Self::next
+    #[must_use]
+    pub fn incr(&mut self) -> Self {
+        std::mem::replace(self, self.next())
+    }
+    /// Get the raw ID.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+    /// Create an ID using a custom value.
+    ///
+    /// Note that only the documented process must generate IDs, and that it must only
+    /// generate IDs using this function or the [`next`] function.
+    ///
+    /// If the `id` is zero it will still be [`INVALID`] and handled differently by the other process,
+    /// zero is never valid.
+    ///
+    /// [`next`]: Self::next
+    /// [`INVALID`]: Self::INVALID
+    pub const fn from_raw(id: u64) -> Self {
+        Self(id)
+    }
+}
 
 /// Represents a frame value that may be updated.
 ///
@@ -610,8 +661,8 @@ pub type FrameValueKey<T> = webrender_api::PropertyBindingKey<T>;
 pub enum FrameValue<T> {
     /// Value that is updated with frame update requests.
     Bind {
-        /// Key that will be used to update the value.
-        key: FrameValueKey<T>,
+        /// ID that will be used to update the value.
+        id: FrameValueId,
         /// Initial value.
         value: T,
         /// If the value will update rapidly.
@@ -680,8 +731,8 @@ impl<T> From<T> for FrameValue<T> {
 /// Represents an update targeting a previously setup [`FrameValue`].
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct FrameValueUpdate<T> {
-    /// Value key.
-    pub key: FrameValueKey<T>,
+    /// Value ID.
+    pub id: FrameValueId,
     /// New value.
     pub value: T,
     /// If the value is updating rapidly.
@@ -737,7 +788,7 @@ pub enum DisplayItem {
         end: usize,
     },
     PushReferenceFrame {
-        key: ReferenceFrameId,
+        id: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
         transform_style: TransformStyle,
         is_2d_scale_translation: bool,
@@ -870,12 +921,12 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 transform:
                     FrameValue::Bind {
-                        key,
+                        id,
                         value,
                         animating: animation,
                     },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, animation, t),
+            } if *id == t.id => FrameValue::update_bindable(value, animation, t),
             _ => false,
         }
     }
@@ -888,10 +939,10 @@ impl DisplayItem {
                 for filter in filters.iter_mut() {
                     match filter {
                         FilterOp::Opacity(FrameValue::Bind {
-                            key,
+                            id,
                             value,
                             animating: animation,
-                        }) if *key == t.key => {
+                        }) if *id == t.id => {
                             new_frame |= FrameValue::update_bindable(value, animation, t);
                         }
                         _ => {}
@@ -909,16 +960,16 @@ impl DisplayItem {
             DisplayItem::Color {
                 color:
                     FrameValue::Bind {
-                        key,
+                        id,
                         value,
                         animating: animation,
                     },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, animation, t),
+            } if *id == t.id => FrameValue::update_bindable(value, animation, t),
             DisplayItem::Text {
-                color: FrameValue::Bind { key, value, .. },
+                color: FrameValue::Bind { id, value, .. },
                 ..
-            } if *key == t.key => FrameValue::update_value(value, t),
+            } if *id == t.id => FrameValue::update_value(value, t),
             _ => false,
         }
     }

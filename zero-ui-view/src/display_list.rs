@@ -5,13 +5,13 @@ use webrender::api as wr;
 use zero_ui_unit::{PxCornerRadius, PxRect, PxTransform, Rgba};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueUpdate, NinePatchSource, SegmentId},
+    display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
     font::{GlyphIndex, GlyphInstance},
     window::FrameId,
     GradientStop,
 };
 
-use crate::px_wr_conversions::PxToWr;
+use crate::px_wr::{IntoWr, PxToWr};
 
 pub fn display_list_to_webrender(
     list: DisplayList,
@@ -231,7 +231,7 @@ pub struct DisplayListCache {
     space_and_clip: Option<SpaceAndClip>,
 
     latest_frame: FrameId,
-    bindings: FxHashMap<wr::PropertyBindingId, (FrameId, usize)>,
+    bindings: FxHashMap<FrameValueId, (FrameId, usize)>,
 
     wr_list: Option<wr::DisplayListBuilder>,
 }
@@ -326,7 +326,7 @@ impl DisplayListCache {
         );
     }
 
-    fn get_update_target(&mut self, id: wr::PropertyBindingId) -> Option<&mut DisplayItem> {
+    fn get_update_target(&mut self, id: FrameValueId) -> Option<&mut DisplayItem> {
         if let Some((frame_id, i)) = self.bindings.get(&id) {
             if let Some(list) = self.lists.get_mut(frame_id) {
                 if let Some(item) = list.list.get_mut(*i) {
@@ -352,17 +352,17 @@ impl DisplayListCache {
         let mut new_frame = resized;
 
         for t in &transforms {
-            if let Some(item) = self.get_update_target(t.key.id) {
+            if let Some(item) = self.get_update_target(t.id) {
                 new_frame |= item.update_transform(t);
             }
         }
         for t in &floats {
-            if let Some(item) = self.get_update_target(t.key.id) {
+            if let Some(item) = self.get_update_target(t.id) {
                 new_frame |= item.update_float(t);
             }
         }
         for t in &colors {
-            if let Some(item) = self.get_update_target(t.key.id) {
+            if let Some(item) = self.get_update_target(t.id) {
                 new_frame |= item.update_color(t);
             }
         }
@@ -388,9 +388,15 @@ impl DisplayListCache {
 
             Err(r)
         } else {
-            properties.transforms.extend(transforms.into_iter().filter_map(PxToWr::to_wr));
-            properties.floats.extend(floats.into_iter().filter_map(PxToWr::to_wr));
-            properties.colors.extend(colors.into_iter().filter_map(PxToWr::to_wr));
+            properties
+                .transforms
+                .extend(transforms.into_iter().filter_map(|t| t.into_wr(self.id_namespace)));
+            properties
+                .floats
+                .extend(floats.into_iter().filter_map(|f| f.into_wr(self.id_namespace)));
+            properties
+                .colors
+                .extend(colors.into_iter().filter_map(|c| c.into_wr(self.id_namespace)));
 
             if properties.transforms.is_empty() && properties.floats.is_empty() && properties.colors.is_empty() {
                 Ok(None)
@@ -445,7 +451,7 @@ fn display_item_to_webrender(
         } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, sc),
 
         DisplayItem::PushReferenceFrame {
-            key,
+            id,
             transform,
             transform_style,
             is_2d_scale_translation,
@@ -453,14 +459,14 @@ fn display_item_to_webrender(
             let spatial_id = wr_list.push_reference_frame(
                 wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
-                (*transform_style).into(),
-                transform.to_wr(),
+                transform_style.to_wr(),
+                transform.into_wr(cache.id_namespace()),
                 wr::ReferenceFrameKind::Transform {
                     is_2d_scale_translation: *is_2d_scale_translation,
                     should_snap: false,
                     paired_with_perspective: false,
                 },
-                (*key).into(),
+                id.to_wr(),
             );
             sc.push_spatial(spatial_id);
         }
@@ -480,9 +486,9 @@ fn display_item_to_webrender(
                 sc.spatial_id(),
                 sc.primitive_flags(),
                 Some(clip),
-                (*transform_style).into(),
-                (*blend_mode).into(),
-                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
+                transform_style.to_wr(),
+                blend_mode.to_wr(),
+                &filters.iter().map(|f| f.into_wr(cache.id_namespace())).collect::<Vec<_>>(),
                 &[],
                 &[],
                 wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
@@ -590,7 +596,7 @@ fn display_item_to_webrender(
                     flags: sc.primitive_flags(),
                 },
                 bounds,
-                color.to_wr(),
+                color.into_wr(cache.id_namespace()),
             )
         }
         DisplayItem::BackdropFilter { clip_rect, filters } => {
@@ -603,7 +609,7 @@ fn display_item_to_webrender(
                     spatial_id: sc.spatial_id(),
                     flags: sc.primitive_flags(),
                 },
-                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
+                &filters.iter().map(|f| f.into_wr(cache.id_namespace())).collect::<Vec<_>>(),
                 &[],
                 &[],
             )
@@ -649,7 +655,7 @@ fn display_item_to_webrender(
 
             let source = match source {
                 NinePatchSource::Image { image_id, rendering } => {
-                    wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), (*rendering).into())
+                    wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), rendering.to_wr())
                 }
                 NinePatchSource::LinearGradient {
                     start_point,
@@ -661,7 +667,7 @@ fn display_item_to_webrender(
                     wr::NinePatchBorderSource::Gradient(wr::Gradient {
                         start_point: start_point.cast_unit(),
                         end_point: end_point.cast_unit(),
-                        extend_mode: (*extend_mode).into(),
+                        extend_mode: extend_mode.to_wr(),
                     })
                 }
                 NinePatchSource::RadialGradient {
@@ -678,7 +684,7 @@ fn display_item_to_webrender(
                         radius: radius.cast_unit(),
                         start_offset: *start_offset,
                         end_offset: *end_offset,
-                        extend_mode: (*extend_mode).into(),
+                        extend_mode: extend_mode.to_wr(),
                     })
                 }
                 NinePatchSource::ConicGradient {
@@ -695,7 +701,7 @@ fn display_item_to_webrender(
                         angle: angle.0,
                         start_offset: *start_offset,
                         end_offset: *end_offset,
-                        extend_mode: (*extend_mode).into(),
+                        extend_mode: extend_mode.to_wr(),
                     })
                 }
             };
@@ -715,8 +721,8 @@ fn display_item_to_webrender(
                     height: bounds.height().0,
                     slice: widths.to_wr_device(),
                     fill: *fill,
-                    repeat_horizontal: (*repeat_horizontal).into(),
-                    repeat_vertical: (*repeat_vertical).into(),
+                    repeat_horizontal: repeat_horizontal.to_wr(),
+                    repeat_vertical: repeat_vertical.to_wr(),
                 }),
             );
         }
@@ -743,8 +749,8 @@ fn display_item_to_webrender(
                 wr_list.push_image(
                     &props,
                     PxRect::from_size(*image_size).to_wr(),
-                    (*rendering).into(),
-                    (*alpha_type).into(),
+                    rendering.to_wr(),
+                    alpha_type.to_wr(),
                     wr::ImageKey(cache.id_namespace(), image_id.get()),
                     wr::ColorF::WHITE,
                 );
@@ -754,8 +760,8 @@ fn display_item_to_webrender(
                     PxRect::from_size(*image_size).to_wr(),
                     tile_size.to_wr(),
                     tile_spacing.to_wr(),
-                    (*rendering).into(),
-                    (*alpha_type).into(),
+                    rendering.to_wr(),
+                    alpha_type.to_wr(),
                     wr::ImageKey(cache.id_namespace(), image_id.get()),
                     wr::ColorF::WHITE,
                 );
@@ -795,7 +801,7 @@ fn display_item_to_webrender(
                 wr::Gradient {
                     start_point: start_point.cast_unit(),
                     end_point: end_point.cast_unit(),
-                    extend_mode: (*extend_mode).into(),
+                    extend_mode: extend_mode.to_wr(),
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
@@ -836,7 +842,7 @@ fn display_item_to_webrender(
                     radius: radius.cast_unit(),
                     start_offset: *start_offset,
                     end_offset: *end_offset,
-                    extend_mode: (*extend_mode).into(),
+                    extend_mode: extend_mode.to_wr(),
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
@@ -877,7 +883,7 @@ fn display_item_to_webrender(
                     angle: angle.0,
                     start_offset: *start_offset,
                     end_offset: *end_offset,
-                    extend_mode: (*extend_mode).into(),
+                    extend_mode: extend_mode.to_wr(),
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
@@ -901,7 +907,7 @@ fn display_item_to_webrender(
                 },
                 &bounds,
                 wavy_line_thickness,
-                (*orientation).into(),
+                orientation.to_wr(),
                 &color.to_wr(),
                 line_style,
             );
@@ -923,36 +929,32 @@ fn display_item_to_webrender(
     }
 }
 
-fn display_item_register_bindings(
-    item: &DisplayItem,
-    bindings: &mut FxHashMap<wr::PropertyBindingId, (FrameId, usize)>,
-    value: (FrameId, usize),
-) {
+fn display_item_register_bindings(item: &DisplayItem, bindings: &mut FxHashMap<FrameValueId, (FrameId, usize)>, value: (FrameId, usize)) {
     match item {
         DisplayItem::PushReferenceFrame {
-            transform: FrameValue::Bind { key, .. },
+            transform: FrameValue::Bind { id, .. },
             ..
         } => {
-            bindings.insert(key.id, value);
+            bindings.insert(*id, value);
         }
         DisplayItem::PushStackingContext { filters, .. } => {
             for filter in filters.iter() {
-                if let FilterOp::Opacity(FrameValue::Bind { key, .. }) = filter {
-                    bindings.insert(key.id, value);
+                if let FilterOp::Opacity(FrameValue::Bind { id, .. }) = filter {
+                    bindings.insert(*id, value);
                 }
             }
         }
         DisplayItem::Color {
-            color: FrameValue::Bind { key, .. },
+            color: FrameValue::Bind { id, .. },
             ..
         } => {
-            bindings.insert(key.id, value);
+            bindings.insert(*id, value);
         }
         DisplayItem::Text {
-            color: FrameValue::Bind { key, .. },
+            color: FrameValue::Bind { id, .. },
             ..
         } => {
-            bindings.insert(key.id, value);
+            bindings.insert(*id, value);
         }
         _ => {}
     }

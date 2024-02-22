@@ -1220,7 +1220,7 @@ mod capture {
 
     use crate::{
         image_cache::{Image, ImageData},
-        px_wr_conversions::{PxToWr as _, WrToPx as _},
+        px_wr::{PxToWr as _, WrToPx as _},
         AppEvent,
     };
 

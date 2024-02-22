@@ -2797,13 +2797,13 @@ impl<T> FrameValueKey<T> {
     }
 
     /// To view key.
-    pub fn to_wr(self) -> zero_ui_view_api::display_list::FrameValueKey<T> {
+    pub fn to_wr(self) -> zero_ui_view_api::display_list::FrameValueId {
         Self::to_wr_child(self, u32::MAX)
     }
 
     /// To view key with an extra `index` modifier.
-    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::display_list::FrameValueKey<T> {
-        zero_ui_view_api::display_list::FrameValueKey::new(((self.id.get() as u64) << 32) | child_index as u64)
+    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::display_list::FrameValueId {
+        zero_ui_view_api::display_list::FrameValueId(((self.id.get() as u64) << 32) | child_index as u64)
     }
 
     /// Create a binding with this key.
@@ -2819,7 +2819,7 @@ impl<T> FrameValueKey<T> {
     /// [`bind`]: Self::bind
     pub fn bind_child(self, child_index: u32, value: T, animating: bool) -> FrameValue<T> {
         FrameValue::Bind {
-            key: self.to_wr_child(child_index),
+            id: self.to_wr_child(child_index),
             value,
             animating,
         }
@@ -2835,7 +2835,7 @@ impl<T> FrameValueKey<T> {
     /// [`update`]: Self::update
     pub fn update_child(self, child_index: u32, value: T, animating: bool) -> FrameValueUpdate<T> {
         FrameValueUpdate {
-            key: self.to_wr_child(child_index),
+            id: self.to_wr_child(child_index),
             value,
             animating,
         }
@@ -2854,7 +2854,7 @@ impl<T> FrameValueKey<T> {
     pub fn bind_var_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
         if var.capabilities().contains(VarCapabilities::NEW) {
             FrameValue::Bind {
-                key: self.to_wr_child(child_index),
+                id: self.to_wr_child(child_index),
                 value: var.with(map),
                 animating: var.is_animating(),
             }
@@ -2874,7 +2874,7 @@ impl<T> FrameValueKey<T> {
     pub fn bind_var_mapped_child<VT: VarValue>(&self, child_index: u32, var: &impl Var<VT>, value: T) -> FrameValue<T> {
         if var.capabilities().contains(VarCapabilities::NEW) {
             FrameValue::Bind {
-                key: self.to_wr_child(child_index),
+                id: self.to_wr_child(child_index),
                 value,
                 animating: var.is_animating(),
             }
@@ -2899,7 +2899,7 @@ impl<T> FrameValueKey<T> {
     ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapabilities::NEW) {
             Some(FrameValueUpdate {
-                key: self.to_wr_child(child_index),
+                id: self.to_wr_child(child_index),
                 value: var.with(map),
                 animating: var.is_animating(),
             })
@@ -2919,7 +2919,7 @@ impl<T> FrameValueKey<T> {
     pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapabilities::NEW) {
             Some(FrameValueUpdate {
-                key: self.to_wr_child(child_index),
+                id: self.to_wr_child(child_index),
                 value,
                 animating: var.is_animating(),
             })

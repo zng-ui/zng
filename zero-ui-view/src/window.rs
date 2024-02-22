@@ -48,8 +48,8 @@ use crate::{
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    px_wr_conversions::PxToWr as _,
-    util::{CursorToWinit, DipToWinit, PxToWinit, WinitToDip, WinitToPx},
+    px_wr::PxToWr as _,
+    util::{frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -1243,7 +1243,7 @@ impl Window {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         self.push_resize(&mut txn);
-        txn.generate_frame(frame.id.get(), frame.render_reasons());
+        txn.generate_frame(frame.id.get(), frame_render_reasons(&frame));
 
         let display_list = display_list_to_webrender(
             frame.display_list,
@@ -1268,7 +1268,7 @@ impl Window {
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
         self.clear_color = Some(frame.clear_color);
 
-        txn.set_display_list(frame.id.epoch(), (self.pipeline_id, display_list));
+        txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, display_list));
 
         let frame_scope =
             tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = "<webrender>").entered();
@@ -1282,7 +1282,7 @@ impl Window {
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
         let _scope = tracing::trace_span!("render_update", ?frame.id).entered();
 
-        let render_reasons = frame.render_reasons();
+        let render_reasons = frame_update_render_reasons(&frame);
 
         if let Some(color) = frame.clear_color {
             self.clear_color = Some(color);
@@ -1326,7 +1326,7 @@ impl Window {
                     colors: vec![],
                 });
 
-                txn.set_display_list(frame.id.epoch(), (self.pipeline_id, d));
+                txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, d));
 
                 tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
             }

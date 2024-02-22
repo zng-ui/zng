@@ -18,7 +18,6 @@ ipc = ["ipc-channel", "duct"]
 var = ["zero-ui-var"]
 
 [dependencies]
-webrender_api = { git = "https://github.com/SamRodri/webrender.git" }
 euclid = { version = "0.22.6", features = [
     "serde",
     "bytemuck",

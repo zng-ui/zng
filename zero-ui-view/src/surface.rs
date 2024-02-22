@@ -24,8 +24,8 @@ use crate::{
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    px_wr_conversions::PxToWr as _,
-    util::PxToWinit,
+    px_wr::PxToWr as _,
+    util::{frame_render_reasons, frame_update_render_reasons, PxToWinit},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -258,7 +258,7 @@ impl Surface {
     pub fn render(&mut self, frame: FrameRequest) {
         let _span = tracing::trace_span!("render").entered();
 
-        let render_reasons = frame.render_reasons();
+        let render_reasons = frame_render_reasons(&frame);
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
 
@@ -286,7 +286,7 @@ impl Surface {
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
         self.clear_color = Some(frame.clear_color);
 
-        txn.set_display_list(frame.id.epoch(), (self.pipeline_id, display_list));
+        txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, display_list));
 
         txn.set_root_pipeline(self.pipeline_id);
 
@@ -304,7 +304,7 @@ impl Surface {
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
         let _span = tracing::trace_span!("render_update").entered();
 
-        let render_reasons = frame.render_reasons();
+        let render_reasons = frame_update_render_reasons(&frame);
 
         if let Some(color) = frame.clear_color {
             self.clear_color = Some(color);
@@ -348,7 +348,7 @@ impl Surface {
                     colors: vec![],
                 });
 
-                txn.set_display_list(frame.id.epoch(), (self.pipeline_id, d));
+                txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, d));
 
                 tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = "<webrender>")
             }

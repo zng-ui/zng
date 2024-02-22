@@ -820,25 +820,12 @@ impl fmt::Debug for TransformStyle {
         }
     }
 }
-impl From<TransformStyle> for webrender_api::TransformStyle {
-    fn from(value: TransformStyle) -> Self {
-        match value {
-            TransformStyle::Flat => webrender_api::TransformStyle::Flat,
-            TransformStyle::Preserve3D => webrender_api::TransformStyle::Preserve3D,
-        }
-    }
-}
 
 /// Identifies a reference frame.
 ///
 /// This ID is defined by the app process.
 #[derive(Default, Debug, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
 pub struct ReferenceFrameId(pub u64, pub u64);
-impl From<ReferenceFrameId> for webrender_api::SpatialTreeItemKey {
-    fn from(value: ReferenceFrameId) -> Self {
-        webrender_api::SpatialTreeItemKey::new(value.0, value.1)
-    }
-}
 
 /// Nine-patch border repeat mode.
 ///
@@ -857,17 +844,6 @@ pub enum RepeatMode {
     /// The source image's edge regions are tiled (repeated) to fill the gap between each
     /// border. Extra space will be distributed in between tiles to achieve the proper fit.
     Space,
-}
-impl From<RepeatMode> for webrender_api::RepeatMode {
-    fn from(value: RepeatMode) -> Self {
-        use webrender_api::RepeatMode::*;
-        match value {
-            RepeatMode::Stretch => Stretch,
-            RepeatMode::Repeat => Repeat,
-            RepeatMode::Round => Round,
-            RepeatMode::Space => Space,
-        }
-    }
 }
 
 /// Color mix blend mode.
@@ -892,30 +868,6 @@ pub enum MixBlendMode {
     Color = 14,
     Luminosity = 15,
     PlusLighter = 16,
-}
-impl From<MixBlendMode> for webrender_api::MixBlendMode {
-    fn from(value: MixBlendMode) -> Self {
-        use webrender_api::MixBlendMode::*;
-        match value {
-            MixBlendMode::Normal => Normal,
-            MixBlendMode::Multiply => Multiply,
-            MixBlendMode::Screen => Screen,
-            MixBlendMode::Overlay => Overlay,
-            MixBlendMode::Darken => Darken,
-            MixBlendMode::Lighten => Lighten,
-            MixBlendMode::ColorDodge => ColorDodge,
-            MixBlendMode::ColorBurn => ColorBurn,
-            MixBlendMode::HardLight => HardLight,
-            MixBlendMode::SoftLight => SoftLight,
-            MixBlendMode::Difference => Difference,
-            MixBlendMode::Exclusion => Exclusion,
-            MixBlendMode::Hue => Hue,
-            MixBlendMode::Saturation => Saturation,
-            MixBlendMode::Color => Color,
-            MixBlendMode::Luminosity => Luminosity,
-            MixBlendMode::PlusLighter => PlusLighter,
-        }
-    }
 }
 
 /// Image scaling algorithm in the renderer.
@@ -948,16 +900,6 @@ pub enum ImageRendering {
     /// [Nearest-neighbor]: https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation
     Pixelated = 2,
 }
-impl From<ImageRendering> for webrender_api::ImageRendering {
-    fn from(r: ImageRendering) -> Self {
-        use webrender_api::ImageRendering::*;
-        match r {
-            ImageRendering::Auto => Auto,
-            ImageRendering::CrispEdges => CrispEdges,
-            ImageRendering::Pixelated => Pixelated,
-        }
-    }
-}
 
 /// Pixel color alpha type.
 #[repr(u8)]
@@ -968,14 +910,6 @@ pub enum AlphaType {
     /// Components are pre-multiplied by alpha.
     PremultipliedAlpha = 1,
 }
-impl From<AlphaType> for webrender_api::AlphaType {
-    fn from(value: AlphaType) -> Self {
-        match value {
-            AlphaType::Alpha => webrender_api::AlphaType::Alpha,
-            AlphaType::PremultipliedAlpha => webrender_api::AlphaType::PremultipliedAlpha,
-        }
-    }
-}
 
 /// Gradient extend mode.
 #[allow(missing_docs)]
@@ -984,14 +918,6 @@ impl From<AlphaType> for webrender_api::AlphaType {
 pub enum ExtendMode {
     Clamp,
     Repeat,
-}
-impl From<ExtendMode> for webrender_api::ExtendMode {
-    fn from(value: ExtendMode) -> Self {
-        match value {
-            ExtendMode::Clamp => webrender_api::ExtendMode::Clamp,
-            ExtendMode::Repeat => webrender_api::ExtendMode::Repeat,
-        }
-    }
 }
 
 /// Orientation of a straight line.
@@ -1017,14 +943,6 @@ impl fmt::Debug for LineOrientation {
         }
     }
 }
-impl From<LineOrientation> for webrender_api::LineOrientation {
-    fn from(o: LineOrientation) -> Self {
-        match o {
-            LineOrientation::Vertical => webrender_api::LineOrientation::Vertical,
-            LineOrientation::Horizontal => webrender_api::LineOrientation::Horizontal,
-        }
-    }
-}
 
 /// Represents a line style.
 #[allow(missing_docs)]
@@ -1040,17 +958,6 @@ pub enum LineStyle {
     /// The wave magnitude is defined by the overall line thickness, the associated value
     /// here defines the thickness of the wavy line.
     Wavy(f32),
-}
-impl LineStyle {
-    ///
-    pub fn to_wr(self) -> (webrender_api::LineStyle, f32) {
-        match self {
-            LineStyle::Solid => (webrender_api::LineStyle::Solid, 0.0),
-            LineStyle::Dotted => (webrender_api::LineStyle::Dotted, 0.0),
-            LineStyle::Dashed => (webrender_api::LineStyle::Dashed, 0.0),
-            LineStyle::Wavy(t) => (webrender_api::LineStyle::Wavy, t),
-        }
-    }
 }
 
 /// The line style for the sides of a widget's border.
