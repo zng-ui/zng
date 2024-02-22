@@ -2803,7 +2803,7 @@ impl<T> FrameValueKey<T> {
 
     /// To view key with an extra `index` modifier.
     pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::display_list::FrameValueId {
-        zero_ui_view_api::display_list::FrameValueId(((self.id.get() as u64) << 32) | child_index as u64)
+        zero_ui_view_api::display_list::FrameValueId::from_raw(((self.id.get() as u64) << 32) | child_index as u64)
     }
 
     /// Create a binding with this key.

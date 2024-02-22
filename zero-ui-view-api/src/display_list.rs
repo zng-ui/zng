@@ -667,8 +667,7 @@ pub enum FrameValue<T> {
         value: T,
         /// If the value will update rapidly.
         ///
-        /// This affects if the frame binding will be propagated to webrender,
-        /// see [`FrameValue::into_wr`] for details.
+        /// This affects if the frame binding will be propagated to webrender.
         animating: bool,
     },
     /// Value is not updated, a new frame must be send to change this value.

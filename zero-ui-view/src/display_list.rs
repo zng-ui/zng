@@ -11,7 +11,7 @@ use zero_ui_view_api::{
     GradientStop,
 };
 
-use crate::px_wr::{IntoWr, PxToWr};
+use crate::px_wr::PxToWr;
 
 pub fn display_list_to_webrender(
     list: DisplayList,
@@ -388,15 +388,9 @@ impl DisplayListCache {
 
             Err(r)
         } else {
-            properties
-                .transforms
-                .extend(transforms.into_iter().filter_map(|t| t.into_wr(self.id_namespace)));
-            properties
-                .floats
-                .extend(floats.into_iter().filter_map(|f| f.into_wr(self.id_namespace)));
-            properties
-                .colors
-                .extend(colors.into_iter().filter_map(|c| c.into_wr(self.id_namespace)));
+            properties.transforms.extend(transforms.into_iter().filter_map(PxToWr::to_wr));
+            properties.floats.extend(floats.into_iter().filter_map(PxToWr::to_wr));
+            properties.colors.extend(colors.into_iter().filter_map(PxToWr::to_wr));
 
             if properties.transforms.is_empty() && properties.floats.is_empty() && properties.colors.is_empty() {
                 Ok(None)
@@ -460,7 +454,7 @@ fn display_item_to_webrender(
                 wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
                 transform_style.to_wr(),
-                transform.into_wr(cache.id_namespace()),
+                transform.to_wr(),
                 wr::ReferenceFrameKind::Transform {
                     is_2d_scale_translation: *is_2d_scale_translation,
                     should_snap: false,
@@ -488,7 +482,7 @@ fn display_item_to_webrender(
                 Some(clip),
                 transform_style.to_wr(),
                 blend_mode.to_wr(),
-                &filters.iter().map(|f| f.into_wr(cache.id_namespace())).collect::<Vec<_>>(),
+                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                 &[],
                 &[],
                 wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
@@ -596,7 +590,7 @@ fn display_item_to_webrender(
                     flags: sc.primitive_flags(),
                 },
                 bounds,
-                color.into_wr(cache.id_namespace()),
+                color.to_wr(),
             )
         }
         DisplayItem::BackdropFilter { clip_rect, filters } => {
@@ -609,7 +603,7 @@ fn display_item_to_webrender(
                     spatial_id: sc.spatial_id(),
                     flags: sc.primitive_flags(),
                 },
-                &filters.iter().map(|f| f.into_wr(cache.id_namespace())).collect::<Vec<_>>(),
+                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                 &[],
                 &[],
             )

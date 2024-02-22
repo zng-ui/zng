@@ -41,16 +41,6 @@ pub trait WrToPx {
     fn to_px(self) -> Self::AsPx;
 }
 
-/// Conversion from view API type to `webrender` type.
-pub trait IntoWr {
-    type AsWr;
-
-    /// Returns `self` as a Webrender type.
-    ///
-    /// The `namespace` is used if `self` contains any key type.
-    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr;
-}
-
 impl PxToWr for Px {
     type AsDevice = wr::units::DeviceIntLength;
 
@@ -282,7 +272,7 @@ impl PxToWr for PxTransform {
     }
 }
 
-// to work with into_wr
+// to work with to_wr
 impl PxToWr for f32 {
     type AsDevice = f32;
 
@@ -302,7 +292,7 @@ impl PxToWr for f32 {
         self
     }
 }
-// to work with into_wr
+// to work with to_wr
 impl PxToWr for Rgba {
     type AsDevice = ();
     type AsWorld = ();
@@ -321,10 +311,20 @@ impl PxToWr for Rgba {
     }
 }
 
-impl IntoWr for FilterOp {
-    type AsWr = wr::FilterOp;
+impl PxToWr for FilterOp {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::FilterOp;
 
-    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr {
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
         match self {
             FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h),
             FilterOp::Brightness(b) => wr::FilterOp::Brightness(b),
@@ -332,7 +332,7 @@ impl IntoWr for FilterOp {
             FilterOp::Grayscale(g) => wr::FilterOp::Grayscale(g),
             FilterOp::HueRotate(h) => wr::FilterOp::HueRotate(h),
             FilterOp::Invert(i) => wr::FilterOp::Invert(i),
-            FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.into_wr(namespace), *o.value()),
+            FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.to_wr(), *o.value()),
             FilterOp::Saturate(s) => wr::FilterOp::Saturate(s),
             FilterOp::Sepia(s) => wr::FilterOp::Sepia(s),
             FilterOp::DropShadow {
@@ -403,10 +403,20 @@ impl PxToWr for BorderStyle {
     }
 }
 
-impl<T: PxToWr> IntoWr for FrameValue<T> {
-    type AsWr = wr::PropertyBinding<T::AsLayout>;
+impl<T: PxToWr> PxToWr for FrameValue<T> {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = wr::PropertyBinding<T::AsLayout>;
 
-    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr {
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
         match self {
             FrameValue::Bind {
                 id,
@@ -414,7 +424,7 @@ impl<T: PxToWr> IntoWr for FrameValue<T> {
                 animating: true,
             } => wr::PropertyBinding::Binding(
                 wr::PropertyBindingKey {
-                    id: id.into_wr(namespace),
+                    id: id.to_wr(),
                     _phantom: std::marker::PhantomData,
                 },
                 value.to_wr(),
@@ -427,17 +437,27 @@ impl<T: PxToWr> IntoWr for FrameValue<T> {
     }
 }
 
-impl<T: PxToWr> IntoWr for FrameValueUpdate<T> {
-    type AsWr = Option<wr::PropertyValue<T::AsLayout>>;
+impl<T: PxToWr> PxToWr for FrameValueUpdate<T> {
+    type AsDevice = ();
+    type AsWorld = ();
+    type AsLayout = Option<wr::PropertyValue<T::AsLayout>>;
 
-    fn into_wr(self, namespace: wr::IdNamespace) -> Self::AsWr
+    fn to_wr_device(self) -> Self::AsDevice {
+        unimplemented!()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        unimplemented!()
+    }
+
+    fn to_wr(self) -> Self::AsLayout
     where
         T: PxToWr,
     {
         if self.animating {
             Some(wr::PropertyValue {
                 key: wr::PropertyBindingKey {
-                    id: self.id.into_wr(namespace),
+                    id: self.id.to_wr(),
                     _phantom: std::marker::PhantomData,
                 },
                 value: self.value.to_wr(),
