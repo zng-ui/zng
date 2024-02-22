@@ -666,8 +666,6 @@ pub enum FrameValue<T> {
         /// Initial value.
         value: T,
         /// If the value will update rapidly.
-        ///
-        /// This affects if the frame binding will be propagated to webrender.
         animating: bool,
     },
     /// Value is not updated, a new frame must be send to change this value.
@@ -695,7 +693,7 @@ impl<T> FrameValue<T> {
     {
         // if changed to `true`, needs a frame to register the binding.
         //
-        // if changed to `false`, needs a frame to un-register the binding so that webrender can start caching
+        // if changed to `false`, needs a frame to un-register the binding so that the renderer can start caching
         // the tiles in the region again, we can't use the binding "one last time" because if a smaller region
         // continues animating it would keep refreshing the large region too.
         //

@@ -502,13 +502,4 @@ declare_api! {
     pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
 }
 
-/*
-   /// Update the webrender debug flags and profiler UI.
-   pub fn set_renderer_debug(&mut self, id: WindowId, dbg: RendererDebug);
-
-   /// Used for testing respawn.
-   #[cfg(debug_assertions)]
-   pub fn crash(&mut self);
-*/
-
 pub(crate) type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;

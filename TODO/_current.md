@@ -1,5 +1,3 @@
-* Continue removing webrender from view API.
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
