@@ -119,7 +119,9 @@ pub struct HeadlessRequest {
     /// Render mode preference for this headless surface.
     pub render_mode: RenderMode,
 
-    /// Config for renderer extensions.
+    /// Initial payload for API extensions.
+    ///
+    /// The `zero-ui-view` crate implements this by calling `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 
@@ -293,7 +295,9 @@ pub struct FrameUpdateRequest {
     /// Bound colors.
     pub colors: Vec<FrameValueUpdate<Rgba>>,
 
-    /// Render update extension key and payload.
+    /// Update payload for API extensions.
+    ///
+    /// The `zero-ui-view` crate implements this by calling `DisplayListExtension::update` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
@@ -430,7 +434,9 @@ pub struct WindowRequest {
     /// the windows manager, usually focusing the new window only if the process that causes the window has focus.
     pub focus: bool,
 
-    /// Config for renderer extensions.
+    /// Initial payload for API extensions.
+    ///
+    /// The `zero-ui-view` crate implements this by calling `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// Initial accessibility info tree root widget.

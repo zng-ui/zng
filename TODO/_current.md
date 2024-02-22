@@ -1,9 +1,3 @@
-* Implement `zero-ui-wgt-webrender-debug`
-    - Review view extension API.
-    - Access point to call `render_extension` from `WINDOW` or `WINDOWS`?
-    - Need to register extension with window in window request?
-        - `WindowRequest::extensions`
-
 * Continue removing webrender from view API.
 
 # Documentation

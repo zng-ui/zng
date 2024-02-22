@@ -9,7 +9,9 @@ readme = "../zero-ui-app/README.md"
 [dependencies]
 zero-ui-app = { path = "../zero-ui-app" }
 zero-ui-wgt = { path = "../zero-ui-wgt" }
+zero-ui-ext-window = { path = "../zero-ui-ext-window" }
 zero-ui-view-api = { path = "../zero-ui-view-api" }
 webrender_api = { git = "https://github.com/SamRodri/webrender.git" }
 serde = "1"
 bitflags = "2"
+tracing = "0.1"

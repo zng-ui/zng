@@ -4,34 +4,48 @@
 
 pub use webrender_api::DebugFlags;
 
-use zero_ui_view_api::api_extension::{ApiExtensionId, ApiExtensionPayload};
+use zero_ui_app::view_process::{VIEW_PROCESS_INITED_EVENT, VIEW_PROCESS};
+use zero_ui_ext_window::WINDOWS;
 use zero_ui_wgt::prelude::*;
 
+/// Sets the Webrender renderer debug flags and profiler UI for the current window.
+///
+/// Fails silently if the view-process does not implement the `"zero-ui-view.webrender_debug"` extension.
 #[property(CONTEXT, default(RendererDebug::disabled()))]
 pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) -> impl UiNode {
-    // !! TODO, on window init
-    /*
-
-    {
-                let mut exts = vec![];
-                self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
-                exts
-            }
-     */
-
     let debug = debug.into_var();
-    match_node(child, move |c, op| match op {
+    let mut send = false;
+    match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&debug);
+            WIDGET.sub_var(&debug).sub_event(&VIEW_PROCESS_INITED_EVENT);
+            send = debug.with(|d| !d.is_empty());
+        }
+        UiNodeOp::Event { update } => {
+            if VIEW_PROCESS_INITED_EVENT.has(update) {
+                send = true;
+                WIDGET.layout();
+            }
         }
         UiNodeOp::Update { .. } => {
-            if let Some(dbg) = debug.get_new() {
-                // !!: TODO
-                // if let Some(view) = &self.window {
-                //     if let Some(key) = dbg.extension_id() {
-                //         let _ = view.renderer().render_extension::<_, ()>(key, dbg);
-                //     }
-                // }
+            if debug.is_new() {
+                send = true;
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Layout { .. } => {
+            if std::mem::take(&mut send) {
+                if let Some(ext_id) = VIEW_PROCESS
+                    .extension_id("zero-ui-view.webrender_debug")
+                    .ok()
+                    .flatten()
+                {
+                    debug.with(
+                        |d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
+                            Ok(()) => {}
+                            Err(e) => tracing::error!("{e}"),
+                        },
+                    );
+                }
             }
         }
         _ => {}
@@ -102,21 +116,6 @@ impl RendererDebug {
     /// If no flag nor profiler UI are set.
     pub fn is_empty(&self) -> bool {
         self.flags.is_empty() && self.profiler_ui.is_empty()
-    }
-
-    fn extension_id(&self) -> Option<ApiExtensionId> {
-        zero_ui_app::view_process::VIEW_PROCESS
-            .extension_id("zero-ui-view.webrender_debug")
-            .ok()
-            .flatten()
-    }
-
-    fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, ApiExtensionPayload)>) {
-        if !self.is_empty() {
-            if let Some(id) = self.extension_id() {
-                exts.push((id, ApiExtensionPayload::serialize(self).unwrap()));
-            }
-        }
     }
 }
 impl_from_and_into_var! {

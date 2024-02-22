@@ -89,6 +89,7 @@
 //! This implementation of the view API provides one extension:
 //!
 //! * `"zero-ui-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
+//!     - The `zero-ui-wgt-webrender-debug` implements a property that uses this extension.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!

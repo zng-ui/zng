@@ -1019,7 +1019,7 @@ impl ViewRenderer {
         }
     }
 
-    /// Call an extension with payload `(view_window_id, request)`.
+    /// Call a render extension with serialized payload.
     pub fn render_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
     where
         I: serde::Serialize,

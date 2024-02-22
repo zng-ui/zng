@@ -1037,8 +1037,10 @@ impl HeadedCtrl {
             chrome_visible: self.vars.chrome().get(),
         };
 
+        let window_id = WINDOW.id();
+
         let request = WindowRequest {
-            id: zero_ui_view_api::window::WindowId::from_raw(WINDOW.id().get()),
+            id: zero_ui_view_api::window::WindowId::from_raw(window_id.get()),
             title: self.vars.title().get(),
             state: state.clone(),
             kiosk: self.kiosk.is_some(),
@@ -1074,7 +1076,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
 
-            extensions: vec![],
+            extensions: WINDOWS.take_view_extensions_init(window_id),
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -1161,8 +1163,10 @@ impl HeadedCtrl {
 
         self.layout_update(Arc::default());
 
+        let window_id = WINDOW.id();
+
         let request = WindowRequest {
-            id: zero_ui_view_api::window::WindowId::from_raw(WINDOW.id().get()),
+            id: zero_ui_view_api::window::WindowId::from_raw(window_id.get()),
             title: self.vars.title().get(),
             state: self.state.clone().unwrap(),
             kiosk: self.kiosk.is_some(),
@@ -1201,7 +1205,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
 
-            extensions: vec![],
+            extensions: WINDOWS.take_view_extensions_init(window_id),
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -1535,12 +1539,14 @@ impl HeadlessWithRendererCtrl {
 
             let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get());
 
+            let window_id = WINDOW.id();
+
             let r = VIEW_PROCESS.open_headless(HeadlessRequest {
-                id: zero_ui_view_api::window::WindowId::from_raw(WINDOW.id().get()),
+                id: zero_ui_view_api::window::WindowId::from_raw(window_id.get()),
                 scale_factor,
                 size,
                 render_mode,
-                extensions: vec![],
+                extensions: WINDOWS.take_view_extensions_init(window_id),
             });
 
             match r {
