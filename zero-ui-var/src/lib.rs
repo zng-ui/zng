@@ -2674,12 +2674,12 @@ where
     T: VarValue,
     I: Var<T>,
 {
-    move |var_value| {
+    move |vm| {
         let other_tag = types::SourceVarTag::new(&other);
         other.with(|other| {
-            if var_value.as_ref() != other {
-                var_value.set(other.clone());
-                var_value.push_tag(other_tag);
+            if vm.as_ref() != other {
+                vm.set(other.clone());
+                vm.push_tag(other_tag);
             }
         })
     }
@@ -2692,9 +2692,13 @@ where
     M: FnOnce(&Iv) -> T + Send + 'static,
     T: VarValue,
 {
-    move |var_value| {
+    move |vm| {
         let value = other.with(map);
-        var_value.set(value);
+        let other_tag = types::SourceVarTag::new(&other);
+        if vm.as_ref() != &value {
+            vm.set(value);
+            vm.push_tag(other_tag);
+        }
     }
 }
 
