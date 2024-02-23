@@ -1,10 +1,10 @@
-* `bind_bidi` + `set_from` breaks animation.
-    - This breaks animation of window vars started when the `Window!` instantiates.
-    - Problem is that the animation loses control of the var for any attempt of changing the var.
-    - So, `b.set_from(&a)` will change the value of `b` and that will cause the binding to try to update `a`, taking the animation control.
-    - We need to tag `set_from` for the binding?
-        - Have a `SetFromTag(*const ())`.
-        - Refactor binding to use it.
+* Title animation not working when animation is started with the window instantiation.
+
+* No window move event while dragging?
+    - We used to coalesce events until winit `MainEventsCleared`.
+    - New winit version does not have this event, it has `AboutToWait` that is not the same thing?
+    - Or did they change window move event.
+    - Need to interrupt coalesce by time too.
 
 # Documentation
 
