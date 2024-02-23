@@ -112,6 +112,7 @@ impl VARS {
     /// [`importance`]: ModifyInfo::importance
     /// [`modify_importance`]: AnyVar::modify_importance
     /// [`AnimationController`]: animation::AnimationController
+    /// [`VARS.animate`]: VARS::animate
     pub fn current_modify(&self) -> ModifyInfo {
         match VARS_MODIFY_CTX.get_clone() {
             Some(current) => current, // override set by modify and animation closures.
@@ -164,7 +165,7 @@ impl VARS {
     ///         if value != prev_value {
     ///             if value == 100 {
     ///                 animation.stop();
-    ///                 completed.set(true);
+    ///                 let _ = completed.set(true);
     ///             }
     ///             let _ = text.set(formatx!("Animation at {value}%"));
     ///             prev_value = value;

@@ -30,7 +30,6 @@ use std::{
 use zero_ui_app_context::ContextLocal;
 use zero_ui_clone_move::clmv;
 use zero_ui_txt::{formatx, ToTxt, Txt};
-use zero_ui_unique_id::unique_id_32;
 use zero_ui_unit::{Factor, FactorUnits};
 
 pub mod animation;
@@ -92,6 +91,20 @@ pub mod types {
     pub use super::when::{AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
 
     use super::*;
+
+    /// Identifies the source variable in another variable a value update.
+    ///
+    /// The [`Var::set_from`] and bidirectional map/binding methods use this tag to avoid an extra "map_back" caused by "map" itself.
+    ///
+    /// The tag is only equal to the same variable.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct SourceVarTag(usize);
+    impl SourceVarTag {
+        /// Tag that identifies the `source` variable.
+        pub fn new(source: &impl AnyVar) -> Self {
+            SourceVarTag(source.var_ptr().raw_pointer() as _)
+        }
+    }
 
     /// Helper type for debug printing [`Var<T>`].
     ///
@@ -633,6 +646,22 @@ pub struct VarPtr<'a> {
     eq: VarPtrData,
 }
 impl<'a> VarPtr<'a> {
+    /// Gets the pointer.
+    ///
+    /// # Safety
+    ///
+    /// Trying to read or write values using this pointer is **never safe**.
+    ///
+    /// Trying to identify a variable using the raw pointer is only valid if you know the variable is still alive.
+    /// The variable could be dropped and new one allocated at the same address.
+    pub fn raw_pointer(&self) -> *const () {
+        match self.eq {
+            VarPtrData::Arc(p) => p,
+            VarPtrData::Static(p) => p,
+            VarPtrData::NeverEq => std::ptr::null(),
+        }
+    }
+
     fn new_arc<T: ?Sized>(rc: &'a Arc<T>) -> Self {
         Self {
             _lt: std::marker::PhantomData,
@@ -1998,16 +2027,17 @@ where
     M: FnMut(&T) -> T2 + Send + 'static,
     B: FnMut(&T2) -> T + Send + 'static,
 {
-    let binding_tag = BindMapBidiTag::new_unique();
-
-    let self_to_other = var_bind(source, other, move |value, args, other| {
-        let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+    let source_tag = types::SourceVarTag::new(source);
+    let source_to_other = var_bind(source, other, move |value, args, other| {
+        let is_from_other = args
+            .downcast_tags::<types::SourceVarTag>()
+            .any(|&b| b == types::SourceVarTag::new(&other));
         if !is_from_other {
             let value = map(value);
             let update = args.update;
             let _ = other.modify(move |vm| {
                 vm.set(value);
-                vm.push_tag(binding_tag);
+                vm.push_tag(source_tag);
                 if update {
                     vm.update();
                 }
@@ -2015,14 +2045,17 @@ where
         }
     });
 
-    let other_to_self = var_bind(other, source, move |value, args, self_| {
-        let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-        if !is_from_self {
+    let other_tag = types::SourceVarTag::new(other);
+    let other_to_source = var_bind(other, source, move |value, args, source| {
+        let is_from_source = args
+            .downcast_tags::<types::SourceVarTag>()
+            .any(|&b| b == types::SourceVarTag::new(&source));
+        if !is_from_source {
             let value = map_back(value);
             let update = args.update;
-            let _ = self_.modify(move |vm| {
+            let _ = source.modify(move |vm| {
                 vm.set(value);
-                vm.push_tag(binding_tag);
+                vm.push_tag(other_tag);
                 if update {
                     vm.update();
                 }
@@ -2030,7 +2063,7 @@ where
         }
     });
 
-    [self_to_other, other_to_self].into_iter().collect()
+    [source_to_other, other_to_source].into_iter().collect()
 }
 
 fn var_bind_filter_map_bidi<T, T2, V2, M, B>(source: &impl Var<T>, other: &V2, map: M, map_back: B) -> VarHandles
@@ -2057,16 +2090,17 @@ where
     M: FnMut(&T) -> Option<T2> + Send + 'static,
     B: FnMut(&T2) -> Option<T> + Send + 'static,
 {
-    let binding_tag = BindMapBidiTag::new_unique();
-
-    let self_to_other = var_bind(source, other, move |value, args, other| {
-        let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+    let source_tag = types::SourceVarTag::new(source);
+    let source_to_other = var_bind(source, other, move |value, args, other| {
+        let is_from_other = args
+            .downcast_tags::<types::SourceVarTag>()
+            .any(|&b| b == types::SourceVarTag::new(&other));
         if !is_from_other {
             if let Some(value) = map(value) {
                 let update = args.update;
                 let _ = other.modify(move |vm| {
                     vm.set(value);
-                    vm.push_tag(binding_tag);
+                    vm.push_tag(source_tag);
                     if update {
                         vm.update();
                     }
@@ -2075,14 +2109,17 @@ where
         }
     });
 
-    let other_to_self = var_bind(other, source, move |value, args, self_| {
-        let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
-        if !is_from_self {
+    let other_tag = types::SourceVarTag::new(other);
+    let other_to_source = var_bind(other, source, move |value, args, source| {
+        let is_from_source = args
+            .downcast_tags::<types::SourceVarTag>()
+            .any(|&b| b == types::SourceVarTag::new(&source));
+        if !is_from_source {
             if let Some(value) = map_back(value) {
                 let update = args.update;
-                let _ = self_.modify(move |vm| {
+                let _ = source.modify(move |vm| {
                     vm.set(value);
-                    vm.push_tag(binding_tag);
+                    vm.push_tag(other_tag);
                     if update {
                         vm.update();
                     }
@@ -2091,7 +2128,7 @@ where
         }
     });
 
-    [self_to_other, other_to_self].into_iter().collect()
+    [source_to_other, other_to_source].into_iter().collect()
 }
 
 fn var_hold_hook(source: &dyn AnyVar) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
@@ -2638,9 +2675,11 @@ where
     I: Var<T>,
 {
     move |var_value| {
+        let other_tag = types::SourceVarTag::new(&other);
         other.with(|other| {
             if var_value.as_ref() != other {
                 var_value.set(other.clone());
+                var_value.push_tag(other_tag);
             }
         })
     }
@@ -2727,12 +2766,6 @@ where
             false
         }
     }))
-}
-
-unique_id_32! {
-    /// Used to stop an extra "map_back" caused by "map" itself
-    #[derive(Debug)]
-    pub(crate)struct BindMapBidiTag;
 }
 
 macro_rules! impl_infallible_write {

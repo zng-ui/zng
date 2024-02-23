@@ -1,3 +1,11 @@
+* `bind_bidi` + `set_from` breaks animation.
+    - This breaks animation of window vars started when the `Window!` instantiates.
+    - Problem is that the animation loses control of the var for any attempt of changing the var.
+    - So, `b.set_from(&a)` will change the value of `b` and that will cause the binding to try to update `a`, taking the animation control.
+    - We need to tag `set_from` for the binding?
+        - Have a `SetFromTag(*const ())`.
+        - Refactor binding to use it.
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.

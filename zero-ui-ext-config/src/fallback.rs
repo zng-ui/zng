@@ -104,7 +104,6 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         let res_var = var(if is_already_set { cfg_var.get() } else { fall_var.get() });
         entry.res = res_var.downgrade();
 
-        // based on `Var::bind_bidi` code.
         let binding_tag = BindMapBidiTag::new_unique();
 
         #[derive(Clone, Copy, Debug, PartialEq)]
