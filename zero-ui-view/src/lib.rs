@@ -312,7 +312,7 @@ pub(crate) struct App {
 
     resize_frame_wait_id_gen: FrameWaitId,
 
-    coalescing_event: Option<Event>,
+    coalescing_event: Option<(Event, Instant)>,
     // winit only sends a CursorMove after CursorEntered if the cursor is in a different position,
     // but this makes refreshing hit-tests weird, do we hit-test the previous known point at each CursorEnter?
     //
@@ -1213,9 +1213,15 @@ impl App {
     }
 
     pub(crate) fn notify(&mut self, event: Event) {
-        if let Some(mut coal) = self.coalescing_event.take() {
-            match coal.coalesce(event) {
-                Ok(()) => self.coalescing_event = Some(coal),
+        let now = Instant::now();
+        if let Some((mut coal, timestamp)) = self.coalescing_event.take() {
+            let r = if now.saturating_duration_since(timestamp) >= Duration::from_millis(16) {
+                Err(event)
+            } else {
+                coal.coalesce(event)
+            };
+            match r {
+                Ok(()) => self.coalescing_event = Some((coal, timestamp)),
                 Err(event) => match (&mut coal, event) {
                     (
                         Event::KeyboardInput {
@@ -1238,7 +1244,7 @@ impl App {
                         } else {
                             text.push_str(&n_text);
                         };
-                        self.coalescing_event = Some(coal);
+                        self.coalescing_event = Some((coal, now));
                     }
                     (_, event) => {
                         let mut error = self.event_sender.send(coal).is_err();
@@ -1251,7 +1257,7 @@ impl App {
                 },
             }
         } else {
-            self.coalescing_event = Some(event);
+            self.coalescing_event = Some((event, now));
         }
 
         if self.headless {
@@ -1279,7 +1285,7 @@ impl App {
 
     /// Send pending coalesced events.
     pub(crate) fn flush_coalesced(&mut self) {
-        if let Some(coal) = self.coalescing_event.take() {
+        if let Some((coal, _)) = self.coalescing_event.take() {
             if self.event_sender.send(coal).is_err() {
                 let _ = self.app_sender.send(AppEvent::ParentProcessExited);
             }

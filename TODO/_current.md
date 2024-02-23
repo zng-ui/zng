@@ -1,11 +1,5 @@
 * Title animation not working when animation is started with the window instantiation.
 
-* No window move event while dragging?
-    - We used to coalesce events until winit `MainEventsCleared`.
-    - New winit version does not have this event, it has `AboutToWait` that is not the same thing?
-    - Or did they change window move event.
-    - Need to interrupt coalesce by time too.
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
