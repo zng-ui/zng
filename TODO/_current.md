@@ -1,3 +1,20 @@
+* `Var::sequence` not working.
+```rust
+fn app() {
+    APP.defaults().run_window(async {
+        let color = var(colors::BLUE);
+        let mut flip = true;
+        color.sequence(move |c| {
+            flip = !flip;
+            c.ease(if flip { colors::BLUE } else { colors::GREEN }, 1.secs(), easing::linear)
+        }).perm();
+        Window! {
+            widget::background_color = color;
+        }
+    });
+}
+```
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
@@ -5,7 +22,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::var::IntoVar`.
+        - Last reviewed `zero_ui::var::Var::sequence`.
 
 # Publish
 

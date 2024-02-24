@@ -471,7 +471,7 @@ impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Clone the variable into a type erased box.
-    /// 
+    ///
     /// This is never [`BoxedVar<T>`], that is not a double box.
     fn clone_any(&self) -> BoxedAnyVar;
 
@@ -510,7 +510,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
 
     /// Last update ID a variable was modified, if the ID is equal to [`VARS.update_id`] the variable is *new*.
-    /// 
+    ///
     /// [`VARS.update_id`]: VARS::update_id
     fn last_update(&self) -> VarUpdateId;
 
@@ -521,7 +521,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     fn capabilities(&self) -> VarCapabilities;
 
     /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
-    /// 
+    ///
     /// Note that this is only reliable in threads synchronized with the UI update, this status can change
     /// at any time when called from other app threads.
     ///
@@ -1006,15 +1006,11 @@ impl<'a, T: VarValue> TraceValueArgs<'a, T> {
 }
 
 /// Represents an observable value.
-/// 
+///
 /// Variable types can have different capabilities, all can provide a value, in some the value can update, some
 /// are read-only others allow modifying the value. Variables can also be contextual, meaning they have a different
 /// value depending on the context where they are used. This trait covers all these capabilities, together with
-/// [`IntoVar<T>`] it enables properties to be very flexible at their behavior.
-///
-/// All variable types can be read, some can update, variables update only in between app updates so
-/// all widgets observing a variable can see the full sequence of values. Variables can also be a [`ContextVar<T>`] that
-/// is a reference to another variable provided by the calling context, so the variable value depends on where it is read.
+/// [`IntoVar<T>`] it enables properties to be very flexible on what input they accept.
 ///
 /// See [`AnyVar`] for the object safe part of variables.
 ///
@@ -1023,13 +1019,9 @@ impl<'a, T: VarValue> TraceValueArgs<'a, T> {
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::read_only`].
-    ///
-    /// This is `Self` for vars that are always read-only, or [`types::ReadOnlyVar<T, Self>`] for others.
     type ReadOnly: Var<T>;
 
     /// Output of [`Var::actual_var`].
-    ///
-    /// This is [`BoxedVar<T>`] for [`ContextVar<T>`], `V` for [`types::ArcFlatMapVar<T, V>`] and `Self` for others.
     type ActualVar: Var<T>;
 
     /// Output of [`Var::downgrade`].
@@ -1065,8 +1057,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         F: FnOnce(&T) -> R;
 
     /// Schedule a variable update, it will be applied on the end of the current app update.
-    ///
-    /// The variable only updates if the [`VarModify`] explicitly requests update, or set/modified.
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static;
@@ -1087,16 +1077,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         Box::new(self)
     }
 
-    /// Gets the current *inner* var represented by this var. This is the same var, except for [`ContextVar<T>`]
-    /// and [`types::ArcFlatMapVar<T, V>`].
+    /// Gets the current *inner* var represented by this var. This can be the same var or a context var.
     fn actual_var(self) -> Self::ActualVar;
 
     /// Create a weak reference to this *Arc* variable.
-    ///
-    /// The weak reference is made to the [`actual_var`], if the actual var is a [`LocalVar<T>`]
-    /// a clone of it is returned, for *Arc* vars an actual weak reference is made.
-    ///
-    /// [`actual_var`]: Var::actual_var
     fn downgrade(&self) -> Self::Downgrade;
 
     /// Convert this variable to the value, if possible moves the value, if it is shared clones it.
@@ -1108,12 +1092,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn read_only(&self) -> Self::ReadOnly;
 
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
-    /// the `modify` closure. The closure can returns if it is retained after each call.
+    /// the `modify` closure. The closure can return if it is retained after each call. If you modify another variable in a
+    /// hook the modification applies in the same update, variable mapping and binding is implemented using hooks.
     ///
-    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
+    /// The variable store a weak reference to the callback if it has the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
-    ///
-    /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: impl Fn(&VarHookArgs<T>) -> bool + Send + Sync + 'static) -> VarHandle {
         self.hook_any(Box::new(move |a| pos_modify_action(&a.as_strong().unwrap())))
     }
@@ -1124,8 +1107,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// in sync with the UI, but it will elapse in any thread when the variable updates after the future is instantiated.
     ///
     /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
-    /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_update`. The returned
-    /// future captures the [`last_update`] at the moment this method is called, this can be leveraged by *double-checking* to
+    /// a sequence of `get(); wait_update().await; get();` can miss a value between `get` and `wait_update`. The returned
+    /// future captures the [`last_update`] at the moment this method is called, this can be leveraged by double-checking to
     /// avoid race conditions, see the [`wait_value`] default implementation for more details.
     ///
     /// [`get`]: Var::get
@@ -1138,10 +1121,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Awaits for [`is_animating`] to change from `true` to `false`.
     ///
-    /// The future can only be used in app bound async code. If the variable
-    /// is not animating at the moment of this call the future will await until the animation starts and stops.
-    ///
-    /// If the variable does have the [`VarCapabilities::NEW`] the future is always ready.
+    /// If the variable is not animating at the moment of this call the future will await until the animation starts and stops.
     ///
     /// [`is_animating`]: AnyVar::is_animating
     fn wait_animation(&self) -> impl Future<Output = ()> + Send + Sync {
@@ -1245,59 +1225,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.modify(var_set(value.into()))
     }
 
-    /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the value
-    /// of `other` at the time it is set. If `other` already has a scheduled that new value will be set, this is
-    /// particularly important when starting a new binding.
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the updated
+    /// value of `other`, so if the other var has already scheduled an update, the updated value will be used.
     ///  
-    /// # Examples
-    ///
-    /// Starting a *set-bind* with `set` can cause unexpected initial value:
-    ///
-    /// ```
-    /// # use zero_ui_var::*;
-    /// # mod task { pub async fn yield_now() { } }
-    /// # async {
-    /// let a = var(0);
-    /// let b = var(0);
-    ///
-    /// a.set(1);
-    /// b.set(a.get());
-    /// a.bind(&b).perm();
-    ///
-    /// task::yield_now().await;
-    /// // scheduled updates apply in this order:
-    /// //  - a.set(1);
-    /// //    - b.set(1); // caused by the binding.
-    /// //  - b.set(0); // caused by the request `b.set(a.get())`.
-    ///
-    /// assert_eq!(1, a.get());
-    /// assert_eq!(0, b.get()); // not 1!
-    /// # };
-    /// ```
-    ///
-    /// Starting the binding with `set_from`:
-    ///
-    /// ```
-    /// # use zero_ui_var::*;
-    /// # mod task { pub async fn yield_now() { } }
-    /// # async {
-    /// let a = var(0);
-    /// let b = var(0);
-    ///
-    /// a.set(1);
-    /// b.set_from(&a);
-    /// a.bind(&b).perm();
-    ///
-    /// task::yield_now().await;
-    /// // scheduled updates apply in this order:
-    /// //  - a.set(1);
-    /// //    - b.set(1); // caused by the binding.
-    /// //  - b.set(1); // caused by the request `b.set_from(&a)`.
-    ///
-    /// assert_eq!(1, a.get());
-    /// assert_eq!(1, b.get());
-    /// # };
-    /// ```
+    /// This can be used in combination with binding to create a binding that starts with synchronized values.
     fn set_from<I>(&self, other: &I) -> Result<(), VarIsReadOnlyError>
     where
         I: Var<T>,
@@ -1323,7 +1254,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         }
     }
 
-    /// Create a ref-counted var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
+    /// Create a var that redirects to this variable until the first value update, then it behaves like a [`ArcVar<T>`].
     ///
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
@@ -1333,14 +1264,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         types::ArcCowVar::new(self.clone())
     }
 
-    /// Creates a ref-counted var that maps from this variable.
+    /// Creates a var that maps from this variable.
     ///
     /// The `map` closure is called once on initialization, and then once every time
     /// the source variable updates.
     ///
     /// The mapping variable is read-only, you can use [`map_bidi`] to map back.
     ///
-    /// Note that the mapping var is [contextualized] for context vars, meaning the map binding will initialize in
+    /// Note that the mapping var can be [contextualized] for context vars, meaning the map binding will initialize in
     /// the fist usage context, not the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with
     /// the `CONTEXT_VAR` in the `property` context, not the property instantiation. The `map` closure itself runs in
     /// the root app context, trying to read other context variables inside it will only read the default value.
@@ -1389,12 +1320,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.map(ToString::to_string)
     }
 
-    /// Create a ref-counted var that maps from this variable on read and to it on write.
+    /// Create a var that maps from this variable on read and to it on write.
     ///
     /// The `map` closure is called once on initialization, and then once every time
     /// the source variable updates, the `map_back` closure is called every time the output value is modified directly.
     ///
-    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    /// The mapping var can be [contextualized], see [`Var::map`] for more details.
     ///
     /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
@@ -1405,12 +1336,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static;
 
-    /// Create a ref-counted var that maps to an inner variable that is found inside the value of this variable.
+    /// Create a var that maps to an inner variable that is found inside the value of this variable.
     ///
-    /// The mapping var is [contextualized] if self is contextual, otherwise `map` evaluates immediately to start. Note
+    /// The mapping var can be [contextualized] if self is contextual, otherwise `map` evaluates immediately to start. Note
     /// that the "mapped-to" var can be contextual even when the mapping var is not.
     ///
-    /// The mapping var has the same capabilities of the inner var + `CAPS_CHANGE`, modifying the mapping var modifies the inner var.
+    /// The mapping var has the same capabilities of the inner var, plus `CAPS_CHANGE`, modifying the mapping var modifies the inner var.
     ///
     /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
@@ -1426,11 +1357,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The `map` closure is called once on initialization, if it returns `None` the `fallback` closure is called to generate
     /// a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
-    /// otherwise the previous value is retained, either way the mapping variable is *new*.
+    /// otherwise the previous value is retained.
     ///
     /// The mapping variable is read-only, use [`filter_map_bidi`] to map back.
     ///
-    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    /// The mapping var can be [contextualized], see [`Var::map`] for more details.
     ///
     /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
@@ -1468,16 +1399,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.filter_map(|v| v.as_ref().parse().ok(), fallback)
     }
 
-    /// Create a ref-counted var that maps from this variable on read and to it on write, mapping in both directions can skip
-    /// a value, retaining the previous mapped value.
+    /// Create a var that maps from this variable on read and to it on write, mapping in both directions can skip
+    /// updates, retaining the previous mapped value.
     ///
     /// The `map` closure is called once on initialization, if it returns `None` the `fallback` closure is called
     /// to generate a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
-    /// otherwise the previous value is retained, either way the mapping variable is *new*. The `map_back` closure
+    /// otherwise the previous value is retained. The `map_back` closure
     /// is called every time the output value is modified directly, if it returns `Some(_)` the source variable is set.
     ///
-    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    /// The mapping var can be [contextualized], see [`Var::map`] for more details.
     ///
     /// If `self` can change the output variable will keep it alive, this is to support chaining maps.
     ///
@@ -1600,7 +1531,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Only a  weak reference to each variable is held by the other.
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
-    /// `other` and then bind to fully sync the variables.
+    /// `other` using [`set_from`] and then bind to fully sync the variables.
+    ///
+    /// [`set_from`]: Var::set_from
     fn bind_bidi<V2>(&self, other: &V2) -> VarHandles
     where
         V2: Var<T>,
@@ -1615,38 +1548,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The `enter_value` is also called immediately when this method is called to start tracking the first value.
     ///
-    /// Returns a [`VarHandle`] that can be used to stop tracing. Making the handle permanent means that the tracing will happen
-    /// for the variable or app, the tracing handler only holds a weak reference to the variable.
+    /// Returns a [`VarHandle`] that can be used to stop tracing.
     ///
     /// If this variable can never update the span is immediately dropped and a dummy handle is returned. Note that
     /// the trace is set on the [`actual_var`].
-    ///
-    /// # Examples
-    ///
-    /// Using the [`tracing`] crate to trace value spans:
-    ///
-    /// ```
-    /// # fn main() { }
-    /// # use zero_ui_var::*;
-    /// # struct Fake; impl Fake { pub fn entered(self) { } }
-    /// # #[macro_export]
-    /// # macro_rules! info_span { ($($tt:tt)*) => { Fake }; }
-    /// # mod tracing {  pub use crate::info_span; }
-    /// # fn trace_var<T: VarValue>(var: &impl Var<T>) {
-    /// var.trace_value(|a| {
-    ///     tracing::info_span!("my_var", ?a.value(), track = "<vars>").entered()
-    /// }).perm();
-    /// # }
-    /// ```
-    ///
-    /// Note that you don't need to use any external tracing crate, this method also works with the standard printing:
-    ///
-    /// ```
-    /// # use zero_ui_var::*;
-    /// # fn trace_var(var: &impl Var<u32>) {
-    /// var.trace_value(|a| println!("value: {:?}", a.value())).perm();
-    /// # }
-    /// ```
     ///
     /// [`tracing`]: https://docs.rs/tracing/
     /// [`actual_var`]: Var::actual_var
@@ -1917,14 +1822,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a vars that [`ease`] to each new value of `self`.
     ///
-    /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
-    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
-    /// in the `property` context, not the property instantiation.
+    /// Note that the mapping var can be [contextualized], see [`map`] for more details.
     ///
     /// If `self` can change the output variable will keep it alive.
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
+    /// [`map`]: Var::map
     fn easing<F>(&self, duration: Duration, easing: F) -> Self::Easing
     where
         T: Transitionable,
@@ -1932,14 +1836,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a vars that [`ease_with`] to each new value of `self`.
     ///
-    /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
-    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR`
-    /// in the `property` context, not the property instantiation.
-    ///
+    /// Note that the mapping var can be [contextualized], see [`map`] for more details.
     /// If `self` can change the output variable will keep it alive.
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease_with`]: Var::ease_with
+    /// [`map`]: Var::map
     fn easing_with<F, S>(&self, duration: Duration, easing: F, sampler: S) -> Self::Easing
     where
         T: Transitionable,
