@@ -47,7 +47,8 @@ mod any {
 }
 
 mod bindings {
-    use zero_ui::prelude::*;
+    use zero_ui::{prelude::*, var::VARS};
+    use zero_ui_app::AppControlFlow;
 
     #[test]
     fn one_way_binding() {
@@ -480,6 +481,28 @@ mod bindings {
 
         app.update(false).assert_wait();
 
+        assert_eq!(1, b.get());
+    }
+
+    #[test]
+    fn animation_and_set_from() {
+        let mut app = APP.minimal().run_headless(false);
+
+        let a = var(0);
+        let b = var(0);
+
+        VARS.animate(clmv!(a, |_| {
+            a.set(1);
+            APP.exit();
+        }))
+        .perm();
+
+        b.set_from(&a);
+        a.bind(&b).perm();
+
+        while let AppControlFlow::Wait = app.update(true) {}
+
+        assert_eq!(1, a.get());
         assert_eq!(1, b.get());
     }
 }
