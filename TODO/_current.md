@@ -1,20 +1,3 @@
-* `Var::sequence` not working.
-```rust
-fn app() {
-    APP.defaults().run_window(async {
-        let color = var(colors::BLUE);
-        let mut flip = true;
-        color.sequence(move |c| {
-            flip = !flip;
-            c.ease(if flip { colors::BLUE } else { colors::GREEN }, 1.secs(), easing::linear)
-        }).perm();
-        Window! {
-            widget::background_color = color;
-        }
-    });
-}
-```
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.

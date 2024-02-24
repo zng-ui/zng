@@ -665,12 +665,20 @@ pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
         if !target.capabilities().is_always_read_only() {
             // target var can be animated.
 
-            let animate = Arc::new(Mutex::new(animate));
-
             let (handle, handle_hook) = VarHandle::new(Box::new(|_| true));
 
             let wk_target = target.downgrade();
-            let controller = OnStopController(clmv!(animate, wk_target, || {
+
+            #[derive(Clone)]
+            struct SequenceController(Arc<dyn Fn() + Send + Sync + 'static>);
+            impl AnimationController for SequenceController {
+                fn on_stop(&self, _: &Animation) {
+                    let ctrl = self.clone();
+                    VARS.with_animation_controller(ctrl, || (self.0)());
+                }
+            }
+            let animate = Mutex::new(animate);
+            let animate = Arc::new(move || {
                 if let Some(target) = wk_target.upgrade() {
                     if target.modify_importance() <= VARS.current_modify().importance()
                         && handle_hook.is_alive()
@@ -679,12 +687,9 @@ pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
                         (animate.lock())(&target).perm();
                     }
                 }
-            }));
-
-            VARS.with_animation_controller(controller, || {
-                if let Some(target) = wk_target.upgrade() {
-                    (animate.lock())(&target).perm();
-                }
+            });
+            VARS.with_animation_controller(SequenceController(animate.clone()), || {
+                animate();
             });
 
             return handle;
@@ -920,12 +925,16 @@ impl fmt::Debug for ModifyInfo {
 ///
 /// [`VARS.with_animation_controller`]: VARS::with_animation_controller
 pub trait AnimationController: Send + Sync + Any {
-    /// Animation started.
+    /// Called for each `animation` that starts in the controller context.
+    ///
+    /// Note that this handler itself is not called inside the controller context.
     fn on_start(&self, animation: &Animation) {
         let _ = animation;
     }
 
-    /// Animation stopped.
+    /// Called for each `animation` that ends in the controller context.
+    ///
+    /// Note that this handler itself is not called inside the controller context.
     fn on_stop(&self, animation: &Animation) {
         let _ = animation;
     }
@@ -934,18 +943,6 @@ pub trait AnimationController: Send + Sync + Any {
 /// An [`AnimationController`] that does nothing.
 pub struct NilAnimationObserver;
 impl AnimationController for NilAnimationObserver {}
-
-struct OnStopController<F>(F)
-where
-    F: Fn() + Send + Sync + 'static;
-impl<F> AnimationController for OnStopController<F>
-where
-    F: Fn() + Send + Sync + 'static,
-{
-    fn on_stop(&self, _: &Animation) {
-        (self.0)()
-    }
-}
 
 context_local! {
     pub(crate) static VARS_ANIMATION_CTRL_CTX: Box<dyn AnimationController> = {
