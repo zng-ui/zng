@@ -175,12 +175,12 @@ impl VARS {
     /// }
     /// ```
     ///
-    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`Animation`]. In
-    /// the example this is the only way to stop the animation, because we called [`perm`]. Animations hold a clone
+    /// Note that the animation can be stopped from the inside, the closure parameter is an [`Animation`]. In
+    /// the example this is the only way to stop the animation, because [`perm`] was called. Animations hold a clone
     /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
     /// animation closure for every frame.
     ///
-    /// This method is the most basic animation interface, used to build all other animations and *easing*, its rare that you
+    /// This method is the most basic animation interface, used to build all other animations, its rare that you
     /// will need to use it directly, most of the time animation effects can be composted using the [`Var`] easing and mapping
     /// methods.
     ///
@@ -222,6 +222,8 @@ impl VARS {
     /// [`stop`]: animation::AnimationHandle::stop
     /// [`perm`]: animation::AnimationHandle::perm
     /// [`with_animation_controller`]: Self::with_animation_controller
+    /// [`VARS.frame_duration`]: VARS::frame_duration
+    /// [`VARS.current_modify`]: VARS::current_modify
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
         A: FnMut(&animation::Animation) + Send + 'static,
@@ -243,6 +245,7 @@ impl VARS {
     ///
     /// [`Animation`]: animation::Animation
     /// [`NilAnimationObserver`]: animation::NilAnimationObserver
+    /// [`VARS.animate`]: VARS::animate
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
         let controller: Box<dyn animation::AnimationController> = Box::new(controller);
         let mut opt = Some(Arc::new(controller));

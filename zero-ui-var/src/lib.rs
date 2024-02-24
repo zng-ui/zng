@@ -216,7 +216,7 @@ bitflags! {
     pub struct VarCapabilities: u8 {
         /// Var value can change.
         ///
-        /// If this is set the [`Var::is_new`] can be `true` in some updates, a variable can `NEW`
+        /// If this is set the [`AnyVar::is_new`] can be `true` in some updates, a variable can `NEW`
         /// even if it cannot `MODIFY`, in this case the variable is a read-only wrapper on a read-write variable.
         const NEW = 0b0000_0010;
 
@@ -224,7 +224,7 @@ bitflags! {
         ///
         /// If this is set [`Var::modify`] always returns `Ok`, if this is set `NEW` is also set.
         ///
-        /// Note that modify requests from inside overridden animations can still be ignored, see [`Var::modify_importance`].
+        /// Note that modify requests from inside overridden animations can still be ignored, see [`AnyVar::modify_importance`].
         const MODIFY = 0b0000_0011;
 
         /// Var capabilities can change.
@@ -466,7 +466,7 @@ impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
 
 /// Methods of [`Var<T>`] that are object safe.
 ///
-/// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
+/// This trait is [sealed] and cannot be implemented for types outside of this crate.
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
@@ -849,7 +849,7 @@ impl<'a, T: VarValue> VarModify<'a, T> {
 
     /// Sets a custom [`AnyVar::modify_importance`] value.
     ///
-    /// Note that the modify info is already automatically set to the context, setting a custom value here
+    /// Note that the modify info is already automatically set, using a custom value here
     /// can easily break all future modify requests for this variable. The importance is set even if the
     /// variable does not update (no actual value change or update request).
     pub fn set_modify_importance(&mut self, importance: usize) {
@@ -1005,7 +1005,7 @@ impl<'a, T: VarValue> TraceValueArgs<'a, T> {
 ///
 /// See [`AnyVar`] for the object safe part of variables.
 ///
-/// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
+/// This trait is [sealed] and cannot be implemented for types outside of this crate.
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
