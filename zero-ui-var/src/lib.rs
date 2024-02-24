@@ -470,7 +470,9 @@ impl<T: fmt::Debug + Send + Sync> fmt::Debug for ArcEq<T> {
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
-    /// Clone the variable into a type erased box, this is never [`BoxedVar<T>`].
+    /// Clone the variable into a type erased box.
+    /// 
+    /// This is never [`BoxedVar<T>`], that is not a double box.
     fn clone_any(&self) -> BoxedAnyVar;
 
     /// Access to `dyn Any` methods.
@@ -508,15 +510,20 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
 
     /// Last update ID a variable was modified, if the ID is equal to [`VARS.update_id`] the variable is *new*.
+    /// 
+    /// [`VARS.update_id`]: VARS::update_id
     fn last_update(&self) -> VarUpdateId;
 
     /// If the variable represents different values depending on the context where they are read.
     fn is_contextual(&self) -> bool;
 
-    /// Flags that indicate what operations the variable is capable of.
+    /// Flags that indicate what operations the variable is capable of in this update.
     fn capabilities(&self) -> VarCapabilities;
 
     /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
+    /// 
+    /// Note that this is only reliable in threads synchronized with the UI update, this status can change
+    /// at any time when called from other app threads.
     ///
     /// [`last_update`]: AnyVar::last_update
     fn is_new(&self) -> bool {
@@ -551,15 +558,16 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// If the variable does not have [`MODIFY`] capability the value returned is undefined.
     ///
     /// [`MODIFY`]: VarCapabilities::MODIFY
+    /// [`VARS.current_modify`]: VARS::current_modify
+    /// [`VARS.animate`]: VARS::animate
     fn modify_importance(&self) -> usize;
 
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
-    /// the `modify` closure. The closure can returns if it is retained after each call.
+    /// the `modify` closure. The closure can return if it is retained after each call. If you modify another variable in a
+    /// hook the modification applies in the same update, variable mapping and binding is implemented using hooks.
     ///
-    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
+    /// The variable store a weak reference to the callback if it has the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
-    ///
-    /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register a `handler` to be called when the current animation stops.
@@ -577,13 +585,13 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// Gets the number of strong references to the variable.
     ///
-    /// This is the [`Arc::strong_count`] for *Arc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
+    /// This is the [`Arc::strong_count`] for *Arc* variables, the context var count for [`ContextVar<T>`], the boxed var count
     /// for [`BoxedVar<T>`] and `0` for [`LocalVar<T>`].
     fn strong_count(&self) -> usize;
 
     /// Gets the number of weak references to the variable.
     ///
-    /// This is the [`Arc::weak_count`] for *Arc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
+    /// This is the [`Arc::weak_count`] for *Arc* variables, the context var count for [`ContextVar<T>`], the boxed var count
     /// for [`BoxedVar<T>`] and `0` for [`LocalVar<T>`].
     fn weak_count(&self) -> usize;
 
@@ -601,7 +609,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Var *pointer*, that can be used to identify if two variables point to the same *rc* or *context*.
     ///
     /// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
-    /// Note that you can't store this or actually get unsafe access to the var internals, this is only for comparison.
+    /// Note that this is only for comparison, trying to access the variable internals is never safe.
     fn var_ptr(&self) -> VarPtr;
 
     /// Get the value as a debug [`Txt`].
@@ -612,7 +620,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Schedule a variable update, even if the value does no change.
     ///
     /// Usually variables only notify update if the value is changed to a different one, calling
-    /// this method flags the variable to notify even if the value is equal.
+    /// this method flags the variable to notify.
     fn update(&self) -> Result<(), VarIsReadOnlyError>;
 
     /// Create a [`map`] that converts from `T` to a [`Txt`] debug print.
@@ -698,7 +706,7 @@ impl<'a> fmt::Debug for VarPtr<'a> {
     }
 }
 
-/// Represents a weak reference to a boxed [`AnyVar`].
+/// Represents a weak reference to an [`AnyVar`].
 pub trait AnyWeakVar: Any + Send + Sync + crate::private::Sealed {
     /// Clone the weak reference.
     fn clone_any(&self) -> BoxedAnyWeakVar;
@@ -748,7 +756,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// A value-to-var conversion that consumes the value.
 ///
 /// Every [`Var<T>`] implements this to convert to itself, every [`VarValue`] implements this to
-/// convert to an [`LocalVar<T>`].
+/// convert to a [`LocalVar<T>`].
 ///
 /// This trait is used by most properties, it allows then to accept literal values, variables and context variables
 /// all with a single signature. Together with [`Var<T>`] this gives properties great flexibility of usage, at zero-cost. Widget
@@ -998,6 +1006,11 @@ impl<'a, T: VarValue> TraceValueArgs<'a, T> {
 }
 
 /// Represents an observable value.
+/// 
+/// Variable types can have different capabilities, all can provide a value, in some the value can update, some
+/// are read-only others allow modifying the value. Variables can also be contextual, meaning they have a different
+/// value depending on the context where they are used. This trait covers all these capabilities, together with
+/// [`IntoVar<T>`] it enables properties to be very flexible at their behavior.
 ///
 /// All variable types can be read, some can update, variables update only in between app updates so
 /// all widgets observing a variable can see the full sequence of values. Variables can also be a [`ContextVar<T>`] that

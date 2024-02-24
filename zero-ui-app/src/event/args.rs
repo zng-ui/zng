@@ -32,7 +32,7 @@ pub trait EventArgs: AnyEventArgs + Clone {
 
 /// Methods of [`EventArgs`] that are object safe.
 pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
-    /// Clone the variable into a type erased box.
+    /// Clone the event into a type erased box.
     fn clone_any(&self) -> Box<dyn AnyEventArgs>;
 
     /// Access to `dyn Any` methods.
