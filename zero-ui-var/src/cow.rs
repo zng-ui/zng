@@ -65,7 +65,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
                 match data {
                     Data::Source { source, hooks, .. } => {
-                        let (notify, new_value, update, tags) = source.with(|val| {
+                        let (notify, new_value, update, tags, custom_importance) = source.with(|val| {
                             let mut vm = VarModify::new(val);
                             modify(&mut vm);
                             vm.finish()
@@ -76,11 +76,15 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                             hooks.retain(|h| h.call(&hook_args));
                             VARS.wake_app();
                         }
+                        let mut modify = VARS.current_modify();
+                        if let Some(i) = custom_importance {
+                            modify.importance = i;
+                        }
                         *data = Data::Owned {
                             value,
                             last_update: if notify { VARS.update_id() } else { source.last_update() },
                             hooks: mem::take(hooks),
-                            animation: VARS.current_modify(),
+                            animation: modify,
                         };
                     }
                     Data::Owned {
@@ -97,11 +101,15 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                             *animation = curr_anim;
                         }
 
-                        let (notify, new_value, update, tags) = {
+                        let (notify, new_value, update, tags, custom_importance) = {
                             let mut vm = VarModify::new(value);
                             modify(&mut vm);
                             vm.finish()
                         };
+
+                        if let Some(i) = custom_importance {
+                            animation.importance = i;
+                        }
 
                         if notify {
                             if let Some(nv) = new_value {

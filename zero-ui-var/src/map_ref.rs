@@ -543,11 +543,14 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         let map = self.map.clone();
         let map_mut = self.map_mut.clone();
         self.source.modify(move |vm| {
-            let (notify, new_value, update, tags) = {
+            let (notify, new_value, update, tags, custom_importance) = {
                 let mut vm = VarModify::new(map(vm.as_ref()));
                 modify(&mut vm);
                 vm.finish()
             };
+            if let Some(i) = custom_importance {
+                vm.set_modify_importance(i);
+            }
             if notify {
                 if update {
                     vm.update();

@@ -105,7 +105,7 @@ impl VARS {
 
     /// Info about the current context when requesting variable modification.
     ///
-    /// If is current inside a [`VARS.animate`] closure, or inside a [`Var::modify`] closure requested by an animation, or inside
+    /// If is currently inside a [`VARS.animate`] closure, or inside a [`Var::modify`] closure requested by an animation, or inside
     /// an [`AnimationController`], returns the info that was collected at the moment the animation was requested. Outside of animations
     /// gets an info with [`importance`] guaranteed to override the [`modify_importance`].
     ///

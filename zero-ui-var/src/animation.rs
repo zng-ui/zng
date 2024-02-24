@@ -857,7 +857,7 @@ where
 #[derive(Clone)]
 pub struct ModifyInfo {
     handle: Option<WeakAnimationHandle>,
-    importance: usize,
+    pub(crate) importance: usize,
 }
 impl ModifyInfo {
     /// Initial value, is always of lowest importance.

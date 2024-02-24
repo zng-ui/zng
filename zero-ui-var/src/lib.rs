@@ -538,7 +538,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// Gets a value that indicates the *importance* clearance that is needed to modify this variable.
     ///
-    /// If the variable has the [`MODIFY`] capability, the requests will return `Ok(())`, but they will be ignored
+    /// If the variable has the [`MODIFY`] capability, `modify` requests will return `Ok(())`, but they will be ignored
     /// if the [`VARS.current_modify`] importance is less than the variable's at the moment the request is made.
     ///
     /// Note that [`VARS.current_modify`] outside animations always overrides this value, so direct modify requests
@@ -801,6 +801,7 @@ pub struct VarModify<'a, T: VarValue> {
     value: Cow<'a, T>,
     update: bool,
     tags: Vec<Box<dyn AnyVarValue>>,
+    custom_importance: Option<usize>,
 }
 impl<'a, T: VarValue> VarModify<'a, T> {
     /// Replace the value.
@@ -846,6 +847,15 @@ impl<'a, T: VarValue> VarModify<'a, T> {
         }
     }
 
+    /// Sets a custom [`AnyVar::modify_importance`] value.
+    ///
+    /// Note that the modify info is already automatically set to the context, setting a custom value here
+    /// can easily break all future modify requests for this variable. The importance is set even if the
+    /// variable does not update (no actual value change or update request).
+    pub fn set_modify_importance(&mut self, importance: usize) {
+        self.custom_importance = Some(importance);
+    }
+
     /// New from current value.
     pub fn new(current_value: &'a T) -> Self {
         Self {
@@ -853,24 +863,25 @@ impl<'a, T: VarValue> VarModify<'a, T> {
             value: Cow::Borrowed(current_value),
             update: false,
             tags: vec![],
+            custom_importance: None,
         }
     }
 
-    /// Returns `(notify, new_value, update, tags)`.
-    pub fn finish(self) -> (bool, Option<T>, bool, Vec<Box<dyn AnyVarValue>>) {
+    /// Returns `(notify, new_value, update, tags, custom_importance)`.
+    pub fn finish(self) -> (bool, Option<T>, bool, Vec<Box<dyn AnyVarValue>>, Option<usize>) {
         match self.value {
             Cow::Borrowed(_) => {
                 if self.update {
-                    return (true, None, true, self.tags);
+                    return (true, None, true, self.tags, self.custom_importance);
                 }
             }
             Cow::Owned(v) => {
                 if self.update || self.current_value != &v {
-                    return (true, Some(v), self.update, self.tags);
+                    return (true, Some(v), self.update, self.tags, self.custom_importance);
                 }
             }
         }
-        (false, None, false, vec![])
+        (false, None, false, vec![], self.custom_importance)
     }
 }
 impl<'a, T: VarValue> ops::Deref for VarModify<'a, T> {
@@ -2676,11 +2687,13 @@ where
 {
     move |vm| {
         let other_tag = types::SourceVarTag::new(&other);
+        let importance = other.modify_importance();
         other.with(|other| {
             if vm.as_ref() != other {
                 vm.set(other.clone());
                 vm.push_tag(other_tag);
             }
+            vm.set_modify_importance(importance);
         })
     }
 }
@@ -2694,11 +2707,11 @@ where
 {
     move |vm| {
         let value = other.with(map);
-        let other_tag = types::SourceVarTag::new(&other);
         if vm.as_ref() != &value {
             vm.set(value);
-            vm.push_tag(other_tag);
+            vm.push_tag(types::SourceVarTag::new(&other));
         }
+        vm.set_modify_importance(other.modify_importance());
     }
 }
 

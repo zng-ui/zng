@@ -1,6 +1,3 @@
-* Title animation not working when animation is started with the window instantiation.
-    - `set_from` causes the `skip_modify` for the animation.
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.

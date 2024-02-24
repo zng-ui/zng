@@ -399,7 +399,7 @@ impl<T: VarValue> VarData<T> {
             Box::new(move |v| {
                 let mut value = VarModify::new(v.as_any().downcast_ref::<T>().unwrap());
                 modify(&mut value);
-                let (notify, new_value, update, tags) = value.finish();
+                let (notify, new_value, update, tags, importance) = value.finish();
                 (
                     notify,
                     match new_value {
@@ -408,6 +408,7 @@ impl<T: VarValue> VarData<T> {
                     },
                     update,
                     tags,
+                    importance,
                 )
             }),
         )
@@ -422,7 +423,17 @@ impl<T: VarValue> VarData<T> {
 #[cfg(dyn_closure)]
 fn apply_modify(
     inner: &RwLock<VarDataInner>,
-    modify: Box<dyn FnOnce(&dyn crate::AnyVarValue) -> (bool, Option<Box<dyn crate::AnyVarValue>>, bool, Vec<Box<dyn crate::AnyVarValue>>)>,
+    modify: Box<
+        dyn FnOnce(
+            &dyn crate::AnyVarValue,
+        ) -> (
+            bool,
+            Option<Box<dyn crate::AnyVarValue>>,
+            bool,
+            Vec<Box<dyn crate::AnyVarValue>>,
+            Option<usize>,
+        ),
+    >,
 ) {
     let mut data = inner.write();
     if data.meta.skip_modify() {
@@ -431,7 +442,7 @@ fn apply_modify(
 
     let data = parking_lot::RwLockWriteGuard::downgrade(data);
 
-    let (notify, new_value, update, tags) = modify(&*data.value);
+    let (notify, new_value, update, tags, custom_importance) = modify(&*data.value);
 
     if notify {
         drop(data);
@@ -440,6 +451,10 @@ fn apply_modify(
             data.value = nv;
         }
         data.meta.last_update = VARS.update_id();
+
+        if let Some(i) = custom_importance {
+            data.meta.animation.importance = i;
+        }
 
         if !data.meta.hooks.is_empty() {
             let mut hooks = std::mem::take(&mut data.meta.hooks);
@@ -456,6 +471,10 @@ fn apply_modify(
         }
 
         VARS.wake_app();
+    } else if let Some(i) = custom_importance {
+        drop(data);
+        let mut data = inner.write();
+        data.meta.animation.importance = i;
     }
 }
 
@@ -469,7 +488,7 @@ fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnc
     let meta = parking_lot::RwLockWriteGuard::downgrade(data);
     let mut value = VarModify::new(&meta.value);
     modify(&mut value);
-    let (notify, new_value, update, tags) = value.finish();
+    let (notify, new_value, update, tags, custom_importance) = value.finish();
 
     if notify {
         drop(meta);
@@ -478,6 +497,10 @@ fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnc
             data.value = nv;
         }
         data.meta.last_update = VARS.update_id();
+
+        if let Some(i) = custom_importance {
+            data.meta.animation.importance = i;
+        }
 
         if !data.meta.hooks.is_empty() {
             let mut hooks = std::mem::take(&mut data.meta.hooks);
@@ -494,6 +517,10 @@ fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnc
         }
 
         VARS.wake_app();
+    } else if let Some(i) = custom_importance {
+        drop(meta);
+        let mut data = inner.write();
+        data.meta.animation.importance = i;
     }
 }
 
