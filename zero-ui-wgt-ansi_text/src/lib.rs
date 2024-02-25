@@ -503,7 +503,7 @@ mod ansi_fn {
 
             let interval = BLINK_INTERVAL_VAR.get();
             if interval != Duration::ZERO && interval != Duration::MAX {
-                opacity.step_oci(0.fct(), interval, usize::MAX).perm();
+                opacity.step_oci(0.fct(), interval).perm();
 
                 widget_set! {
                     &mut text;

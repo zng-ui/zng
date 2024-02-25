@@ -721,6 +721,36 @@ where
     }
 }
 
+pub(super) fn var_set_ease_oci_with<T>(
+    start_value: T,
+    end_value: T,
+    duration: Duration,
+    easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
+    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+    sampler: impl Fn(&Transition<T>, EasingStep) -> T + Send + 'static,
+) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
+where
+    T: VarValue + Transitionable,
+{
+    let transition = Transition::new(start_value, end_value);
+    let mut prev_step = init_step;
+    move |a, vm| {
+        let t = a.elapsed(duration);
+        let mut step = easing(t);
+        if a.restart_count() % 2 != 0 {
+            step = step.flip()
+        }
+        if t.is_end() {
+            a.restart();
+        }
+
+        if prev_step != step {
+            vm.set(sampler(&transition, step));
+            prev_step = step;
+        }
+    }
+}
+
 pub(super) fn var_set_ease_keyed_with<T>(
     transition: TransitionKeyed<T>,
     duration: Duration,
@@ -759,25 +789,21 @@ where
     }
 }
 
-pub(super) fn var_step_oci<T>(values: [T; 2], delay: Duration, mut count: usize) -> impl FnMut(&Animation, &mut VarModify<T>)
+pub(super) fn var_step_oci<T>(values: [T; 2], delay: Duration, mut set: bool) -> impl FnMut(&Animation, &mut VarModify<T>)
 where
     T: VarValue,
 {
     let mut first = false;
     move |a, vm| {
-        if !a.animations_enabled() || a.elapsed_dur() >= delay {
+        if !a.animations_enabled() || mem::take(&mut set) {
+            vm.set(values[0].clone());
+        } else if a.elapsed_dur() >= delay {
             if first {
                 vm.set(values[0].clone());
             } else {
                 vm.set(values[1].clone());
             }
             first = !first;
-
-            if count == 0 {
-                a.stop();
-            } else {
-                count -= 1;
-            }
         }
         a.sleep(delay);
     }

@@ -1621,6 +1621,21 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.set_ease_with(start_value, end_value, duration, easing, animation::Transition::sample)
     }
 
+    /// Oscillate between `start_value` to `end_value` with an easing transition.
+    ///
+    /// The `duration` defines the easing duration between the two values.
+    /// 
+    /// Note that you can use [`Var::sequence`] to create more complex looping animations.
+    fn set_ease_oci<S, E, F>(&self, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    where
+        T: Transitionable,
+        S: Into<T>,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+    {
+        self.set_ease_oci_with(start_value, end_value, duration, easing, animation::Transition::sample)
+    }
+
     /// Schedule an easing transition from the `start_value` to `end_value` using a custom value sampler.
     ///
     /// The variable updates every time the [`EasingStep`] for each frame changes and a different value is sampled.
@@ -1651,6 +1666,36 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         ))
     }
 
+    /// Oscillate between `start_value` to `end_value` with an easing transition using a custom value sampler.
+    ///
+    /// The `duration` defines the easing duration between the two values.
+    /// 
+    /// Note that you can use [`Var::sequence`] to create more complex looping animations.
+    fn set_ease_oci_with<S, E, F, Sa>(
+        &self,
+        start_value: S,
+        end_value: E,
+        duration: Duration,
+        easing: F,
+        sampler: Sa,
+    ) -> animation::AnimationHandle
+    where
+        T: Transitionable,
+        S: Into<T>,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        Sa: Fn(&animation::Transition<T>, EasingStep) -> T + Send + 'static,
+    {
+        self.animate(animation::var_set_ease_oci_with(
+            start_value.into(),
+            end_value.into(),
+            duration,
+            easing,
+            999.fct(),
+            sampler,
+        ))
+    }
+
     /// Schedule an easing transition from the current value to `new_value`.
     ///
     /// The variable updates every time the [`EasingStep`] for each frame changes and a different value is sampled.
@@ -1663,6 +1708,20 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
         self.ease_with(new_value, duration, easing, animation::Transition::sample)
+    }
+
+    /// Oscillate between the current value and to `new_value` with an easing transition.
+    ///
+    /// The `duration` defines the easing duration between the two values.
+    /// 
+    /// Note that you can use [`Var::sequence`] to create more complex looping animations.
+    fn ease_oci<E, F>(&self, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    where
+        T: Transitionable,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+    {
+        self.ease_oci_with(new_value, duration, easing, animation::Transition::sample)
     }
 
     /// Schedule an easing transition from the current value to `new_value` using a custom value sampler.
@@ -1678,6 +1737,28 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + 'static,
     {
         self.animate(animation::var_set_ease_with(
+            self.get(),
+            new_value.into(),
+            duration,
+            easing,
+            0.fct(),
+            sampler,
+        ))
+    }
+
+    /// Oscillate between the current value and to `new_value` with an easing transition and a custom value sampler.
+    ///
+    /// The `duration` defines the easing duration between the two values.
+    /// 
+    /// Note that you can use [`Var::sequence`] to create more complex looping animations.
+    fn ease_oci_with<E, F, S>(&self, new_value: E, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
+    where
+        T: Transitionable,
+        E: Into<T>,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
+        S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + 'static,
+    {
+        self.animate(animation::var_set_ease_oci_with(
             self.get(),
             new_value.into(),
             duration,
@@ -1763,13 +1844,21 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Oscillate between the current value and `new_value`, every time the `delay` elapses the variable is set to the next value.
-    ///
-    /// The variable will be set a maximum of `count` times.
-    fn step_oci<N>(&self, new_value: N, delay: Duration, count: usize) -> animation::AnimationHandle
+    fn step_oci<N>(&self, new_value: N, delay: Duration) -> animation::AnimationHandle
     where
         N: Into<T>,
     {
-        self.animate(animation::var_step_oci([self.get(), new_value.into()], delay, count))
+        self.animate(animation::var_step_oci([self.get(), new_value.into()], delay, false))
+    }
+
+    /// Oscillate between `from` and `to`, the variable is set to `from` to start and every time the `delay` elapses
+    /// the variable is set to the next value.
+    fn set_step_oci<V0, V1>(&self, from: V0, to: V1, delay: Duration) -> animation::AnimationHandle
+    where
+        V0: Into<T>,
+        V1: Into<T>,
+    {
+        self.animate(animation::var_step_oci([from.into(), to.into()], delay, true))
     }
 
     /// Set the variable to a sequence of values as a time `duration` elapses.
