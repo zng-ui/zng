@@ -172,14 +172,13 @@ use rustc_hash::FxHashMap;
 ///
 /// Panics if not called in the main thread, this is a requirement of some operating systems.
 ///
-/// If there was an error connecting with the app-process.
+/// Panics if there was an error connecting with the app-process.
 ///
 /// # Aborts
 ///
-/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits the process with the
-/// default panic exit code `101`. This is done because `webrender` can freeze due to panics in worker threads without propagating
-/// the panics to the main thread, this causes the app to stop responding while still receiving
-/// event signals, causing the operating system to not detect that the app is frozen.
+/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits 
+/// the process with exit code `101`. This is handled by the app-process by logging the error and
+/// attempting to respawn the view-process.
 #[cfg(feature = "ipc")]
 pub fn init() {
     init_extended(extensions::ViewExtensions::new)
@@ -214,8 +213,7 @@ pub extern "C" fn extern_init() {
 }
 
 /// Runs the view-process server in the current process and calls `run_app` to also
-/// run the app in the current process. Note that `run_app` will be called in a different thread
-/// so it must be [`Send`].
+/// run the app in the current process. Note that `run_app` will be called in a different thread.
 ///
 /// In this mode the app only uses a single process, reducing the memory footprint, but it is also not
 /// resilient to video driver crashes, the view server **does not** respawn in this mode.
@@ -228,7 +226,7 @@ pub extern "C" fn extern_init() {
 ///
 /// Note that `webrender` can freeze due to panics in worker threads without propagating
 /// the panics to the main thread, this causes the app to stop responding while still receiving
-/// event signals, causing the operating system to not detect that the app is frozen. It is **strongly recommended**
+/// event signals, causing the operating system to not detect that the app is frozen. It is recommended
 /// that you build with `panic=abort` or use [`std::panic::set_hook`] to detect these background panics.
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     run_same_process_extended(run_app, ViewExtensions::new)
