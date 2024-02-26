@@ -721,7 +721,7 @@ pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
 
 /// Args for [`PropertyInfo::new`].
 pub struct PropertyNewArgs {
-    /// The args vec must have a value for each input in the same order they appear in [`PropertyInfo::inputs`], types must match
+    /// Values for each input in the same order they appear in [`PropertyInfo::inputs`], types must match
     /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
     ///
     /// The expected types for each [`InputKind`] are:
@@ -734,7 +734,7 @@ pub struct PropertyNewArgs {
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
     /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
     ///
-    /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
+    /// The new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
@@ -756,7 +756,7 @@ pub struct PropertyNewArgs {
     /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
     /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
     ///
-    /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
+    /// The new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
     /// [`Value`]: InputKind::Value
@@ -775,7 +775,7 @@ pub struct PropertyNewArgs {
 
 /// Property info.
 ///
-/// You can use the [`property_info!`] macro to retrieve a property ID.
+/// You can use the [`property_info!`] macro to retrieve a property's info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
     /// Property nest position group.
@@ -785,7 +785,7 @@ pub struct PropertyInfo {
     /// Note that all properties can be captured, but if this is `false` they provide an implementation that works standalone.
     pub capture: bool,
 
-    /// Unique type ID that identifies the property implementation.
+    /// Unique ID that identifies the property implementation.
     pub id: PropertyId,
     /// Property name.
     pub name: &'static str,
@@ -802,18 +802,18 @@ pub struct PropertyInfo {
     ///
     /// # Instance
     ///
-    /// This function outputs build property args, not a property node instance.
+    /// This function outputs property args, not a property node instance.
     /// You can use [`PropertyArgs::instantiate`] on the output to generate a property node from the args. If the
     /// property is known at compile time you can use [`property_args!`] to generate args instead, and you can just
     /// call the property function directly to instantiate a node.
     ///
     pub new: fn(PropertyNewArgs) -> Box<dyn PropertyArgs>,
 
-    /// Property inputs info, always at least one.
+    /// Property inputs info.
     pub inputs: Box<[PropertyInput]>,
 }
 impl PropertyInfo {
-    /// Gets the index that can be used to get a property value in [`PropertyArgs`].
+    /// Gets the index that can be used to get a named property input value in [`PropertyArgs`].
     pub fn input_idx(&self, name: &str) -> Option<usize> {
         self.inputs.iter().position(|i| i.name == name)
     }
@@ -1414,7 +1414,7 @@ impl WhenBuildAction {
 pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
-    /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are imbedded in
+    /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are embedded in
     /// the build expression and cannot be modified. Note that the [`state`] sticks to the first *late-inited* vars that it uses,
     /// the variable only updates after clone, this cloning happens naturally when instantiating a widget more then once.
     ///
@@ -1423,13 +1423,11 @@ pub struct WhenInfo {
 
     /// Output of the when expression.
     ///
-    /// # Panics
-    ///
-    /// If used outside of the widget instance.
+    /// Panics if used outside of the widget context.
     pub state: BoxedVar<bool>,
 
-    /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
-    /// from other when blocks into a single property instance set to `when_var!` inputs.
+    /// Properties assigned in the `when` block, in the build widget they are joined with the default value and assigns
+    /// from other `when` blocks into a single property instance set to `when_var!` inputs.
     pub assigns: Vec<Box<dyn PropertyArgs>>,
 
     /// Data associated with the when condition in the build action.
@@ -1883,8 +1881,6 @@ impl WidgetBuilder {
     /// affect the properties are cloned or moved into the new builder.
     ///
     /// Note that properties can depend on others in the widget contextually, this is not preserved on split-off.
-    /// The canonical usage of split-off is the `style` property, that dynamically (re)builds widgets and is itself a variable
-    /// that can be affected by `when` blocks to a limited extent.
     pub fn split_off(&mut self, properties: impl IntoIterator<Item = PropertyId>, out: &mut WidgetBuilder) {
         self.split_off_impl(properties.into_iter().collect(), out)
     }
@@ -2145,9 +2141,9 @@ impl WidgetBuilding {
         });
     }
 
-    /// Removes the property, returns `(importance, position, args, captured)`.
+    /// Removes the property.
     ///
-    /// Note that if the property was captured a clone of the args is already in an intrinsic node and will still be used in the widget.
+    /// Note that if the property can already be captured by another widget component.
     pub fn remove_property(&mut self, property_id: PropertyId) -> Option<BuilderProperty> {
         if let Some(i) = self.property_index(property_id) {
             match self.items.swap_remove(i) {
@@ -2761,7 +2757,9 @@ impl WidgetBuilderProperties {
     /// Flags the property as captured and downcast the input value.
     ///
     /// Unlike other property kinds you can capture values in the [`WidgetBuilder`], note that the value may not
-    /// the final value, unless you are capturing on build. Other properties kinds can only be captured in [`WidgetBuilding`] as
+    /// the final value, unless you are capturing on build.
+    ///
+    /// Other property kinds can only be captured in [`WidgetBuilding`] as
     /// their values strongly depend on the final `when` blocks that are only applied after building starts.
     pub fn capture_value<T>(&mut self, property_id: PropertyId) -> Option<T>
     where
