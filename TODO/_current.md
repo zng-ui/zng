@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::var::Var::sequence`.
+        - Last reviewed `zero_ui::var`.
 
 # Publish
 

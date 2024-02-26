@@ -2,16 +2,16 @@ use std::any::TypeId;
 
 use super::*;
 
-/// A dynamic [`Var<T>`] in a box.
+/// Represents a [`Var<T>`] boxed.
 pub type BoxedVar<T> = Box<dyn VarBoxed<T>>;
 
-/// Represents a weak reference to a [`Var<T>`].
+/// Represents a weak reference to a [`BoxedVar<T>`].
 pub type BoxedWeakVar<T> = Box<dyn WeakVarBoxed<T>>;
 
-/// Represents a type erased [`Var<T>`].
+/// Represents a type erased boxed var.
 pub type BoxedAnyVar = Box<dyn AnyVar>;
 
-/// Represents a type erased weak reference to a [`Var<T>`].
+/// Represents a weak reference to a [`BoxedAnyVar`].
 pub type BoxedAnyWeakVar = Box<dyn AnyWeakVar>;
 
 impl<T: VarValue> Clone for BoxedWeakVar<T> {

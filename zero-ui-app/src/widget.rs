@@ -1341,7 +1341,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
 
     /// Add a preview `handler` that is called every time this variable updates,
-    /// the handler is called before all other UI updates.
+    /// the handler is called before UI update.
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///
@@ -1354,7 +1354,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     }
 
     /// Add a `handler` that is called every time this variable updates,
-    /// the handler is called after all other UI updates.
+    /// the handler is called after UI update.
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///

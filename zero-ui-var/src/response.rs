@@ -12,12 +12,12 @@ pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
     var(Response::Done(response)).read_only()
 }
 
-/// Variable used to notify the completion of an UI operation.
+/// Variable used to notify the completion of an async operation.
 ///
 /// Use [`response_var`] to init.
 pub type ResponderVar<T> = ArcVar<Response<T>>;
 
-/// Variable used to listen to a one time signal that an UI operation has completed.
+/// Variable used to listen to a one time signal that an async operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
 

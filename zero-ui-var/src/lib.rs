@@ -1710,7 +1710,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.ease_with(new_value, duration, easing, animation::Transition::sample)
     }
 
-    /// Oscillate between the current value and to `new_value` with an easing transition.
+    /// Oscillate between the current value and `new_value` with an easing transition.
     ///
     /// The `duration` defines the easing duration between the two values.
     /// 
@@ -1746,7 +1746,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         ))
     }
 
-    /// Oscillate between the current value and to `new_value` with an easing transition and a custom value sampler.
+    /// Oscillate between the current value and `new_value` with an easing transition and a custom value sampler.
     ///
     /// The `duration` defines the easing duration between the two values.
     /// 
