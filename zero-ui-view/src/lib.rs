@@ -176,7 +176,7 @@ use rustc_hash::FxHashMap;
 ///
 /// # Aborts
 ///
-/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits 
+/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits
 /// the process with exit code `101`. This is handled by the app-process by logging the error and
 /// attempting to respawn the view-process.
 #[cfg(feature = "ipc")]

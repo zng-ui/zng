@@ -1624,7 +1624,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Oscillate between `start_value` to `end_value` with an easing transition.
     ///
     /// The `duration` defines the easing duration between the two values.
-    /// 
+    ///
     /// Note that you can use [`Var::sequence`] to create more complex looping animations.
     fn set_ease_oci<S, E, F>(&self, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
@@ -1669,7 +1669,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Oscillate between `start_value` to `end_value` with an easing transition using a custom value sampler.
     ///
     /// The `duration` defines the easing duration between the two values.
-    /// 
+    ///
     /// Note that you can use [`Var::sequence`] to create more complex looping animations.
     fn set_ease_oci_with<S, E, F, Sa>(
         &self,
@@ -1713,7 +1713,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Oscillate between the current value and `new_value` with an easing transition.
     ///
     /// The `duration` defines the easing duration between the two values.
-    /// 
+    ///
     /// Note that you can use [`Var::sequence`] to create more complex looping animations.
     fn ease_oci<E, F>(&self, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
@@ -1749,7 +1749,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Oscillate between the current value and `new_value` with an easing transition and a custom value sampler.
     ///
     /// The `duration` defines the easing duration between the two values.
-    /// 
+    ///
     /// Note that you can use [`Var::sequence`] to create more complex looping animations.
     fn ease_oci_with<E, F, S>(&self, new_value: E, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
     where

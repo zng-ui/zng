@@ -12,6 +12,8 @@ use std::{
 pub use zero_ui_var::{getter_var, state_var};
 
 ///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
+///
+/// This value is used by widget info to mark the property and `when` block declaration source code.
 #[macro_export]
 macro_rules! source_location {
     () => {
@@ -26,6 +28,8 @@ macro_rules! source_location {
 pub use crate::source_location;
 
 /// A location in source-code.
+///
+/// This value is used by widget info to mark the property and `when` block declaration source code.
 ///
 /// Use [`source_location!`] to construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -65,7 +69,7 @@ impl WidgetExt for WgtInfo {
 /// # Syntax
 ///
 /// * `path::property`: Gets the ID for the property function.
-/// * `Self::property`: Gets the ID for the property on the ``.
+/// * `Self::property`: Gets the ID for the property method on the widget.
 ///
 /// # Examples
 ///
@@ -106,9 +110,7 @@ pub use crate::property_id;
 /// # Syntax
 ///
 /// * `path::property`: Gets the info for the property function.
-/// * `Self::property`: Gets the info for the property on the ``.
-///
-/// If the property is generic a `::<T>` is also required.
+/// * `Self::property`: Gets the info for the property method on the widget.
 ///
 /// # Examples
 ///
@@ -119,14 +121,14 @@ pub use crate::property_id;
 /// #   use super::*;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+///     // ..
 /// #     child
 /// }
 /// # }
 /// # fn main() {
 /// #
-/// let foo_info = property_info!(path::foo);
 ///
-/// assert_eq!(foo_info.inputs[0].name, "bar");
+/// assert_eq!(property_info!(path::foo).inputs[0].name, "bar");
 /// # }
 /// ```
 #[macro_export]
@@ -147,8 +149,8 @@ pub use crate::property_info;
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the info for the property function.
-/// * `Self::property`: Gets the info for the property on the ``.
+/// * `property::path`: Gets the input types for the property function.
+/// * `Self::property`: Gets the input types for the property method on the widget.
 #[macro_export]
 macro_rules! property_input_types {
     ($($tt:tt)*) => {
@@ -158,34 +160,36 @@ macro_rules! property_input_types {
 #[doc(inline)]
 pub use crate::property_input_types;
 
-///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.
+///<span data-del-macro-root></span> New [`Box<PropertyArgs>`](PropertyArgs) box from a property and value.
 ///
 /// # Syntax
 ///
-/// The syntax is similar to a property assign in a widget, with some extra means to reference widget properties.
+/// The syntax is similar to a property assign in a widget.
 ///
-/// * `property::path = <value>;`: Args for the property function.
-/// * `property::path as rename = <value>;`: Args for the property, but the ID is renamed.
+/// * `property::path = <value>;` - Args for the property function.
+/// * `property::path;` - Args for property with input of the same name, `path` here.
 ///
-/// In all of these the `<value>` is the standard property init expression or named fields patterns that are used in widget assigns.
+/// The `<value>` is the standard property init expression or named fields patterns that are used in widget assigns.
 ///
-/// * `property = "value-0", "value-1";`: Unnamed args.
-/// * `property = { value_0: "value-0", value_1: "value-1" }`: Named args.
+/// * `property = "value-0", "value-1";` - Unnamed args.
+/// * `property = { value_0: "value-0", value_1: "value-1" }` - Named args.
 ///
-/// Note that `unset!` is not a property arg, trying to use it will cause a panic.
+/// # Panics
+///
+/// Panics if `unset!` is used as property value.
 #[macro_export]
 macro_rules! property_args {
-    ($($property:ident)::+ $(as $rename:ident)? = $($value:tt)*) => {
+    ($($property:ident)::+ = $($value:tt)*) => {
         {
             $crate::widget::builder::PropertyArgsGetter! {
-                $($property)::+ $(as $rename)? = $($value)*
+                $($property)::+ = $($value)*
             }
         }
     };
-    ($($property:ident)::+ ::<$($generics:ty),*> $(as $rename:ident)? = $($value:tt)*) => {
+    ($($property:ident)::+ ::<$($generics:ty),*> = $($value:tt)*) => {
         {
             $crate::widget::builder::PropertyArgsGetter! {
-                $($property)::+ ::<$($generics),*> $(as $rename)? = $($value)*
+                $($property)::+ ::<$($generics),*> = $($value)*
             }
         }
     };
@@ -233,12 +237,18 @@ pub struct PropertyArgsGetter(WidgetBase);
 impl PropertyArgsGetter {
     pub fn widget_build(&mut self) -> Box<dyn PropertyArgs> {
         let mut wgt = self.widget_take();
-        if wgt.p.items.len() > 1 {
-            tracing::error!("properties ignored, `property_args!` only collects args for first property");
-        }
-        match wgt.p.items.remove(0).item {
-            WidgetItem::Property { args, .. } => args,
-            WidgetItem::Intrinsic { .. } => unreachable!(),
+        if !wgt.p.items.is_empty() {
+            if wgt.p.items.len() > 1 {
+                tracing::error!("properties ignored, `property_args!` only collects args for first property");
+            }
+            match wgt.p.items.remove(0).item {
+                WidgetItem::Property { args, .. } => args,
+                WidgetItem::Intrinsic { .. } => unreachable!(),
+            }
+        } else if wgt.unset.is_empty() {
+            panic!("missing property");
+        } else {
+            panic!("cannot use `unset!` in `property_args!`")
         }
     }
 }
@@ -331,7 +341,7 @@ macro_rules! nest_group_items {
         pub const SIZE: NestGroup = NestGroup(NestGroup::LAYOUT.0 + NestGroup::NEXT_GROUP);
 
         /// Minimal widget visual position, any property or node can render, but usually only properties inside
-        /// this position render. Trying to render a border outside of this will position automatically, inside will.
+        /// this position render. For example, borders will only render correctly inside this nest position.
         ///
         /// This is rarely used, prefer using `BORDER-n` to declare properties that are visually outside the bounds, only
         /// use this node for intrinsics that define some inner context or service for the visual properties.
@@ -350,17 +360,17 @@ macro_rules! nest_group_items {
         /// by choosing to render after the render is delegated to the inner child.
         pub const FILL: NestGroup = NestGroup(NestGroup::BORDER.0 + NestGroup::NEXT_GROUP);
         /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
-        /// the widget where it is set, it affects the descendants.
+        /// the widget where it is set, it only affects the descendants.
         pub const CHILD_CONTEXT: NestGroup = NestGroup(NestGroup::FILL.0 + NestGroup::NEXT_GROUP);
         /// Property defines the layout and size of the child or children widgets. These properties don't affect the layout
         /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
-        /// group, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
+        /// group, the `margin` and `padding` properties are like this, `margin` is `LAYOUT` and `padding` is `CHILD_LAYOUT`.
         pub const CHILD_LAYOUT: NestGroup = NestGroup(NestGroup::CHILD_CONTEXT.0 + NestGroup::NEXT_GROUP);
 
-        /// Maximum nest position, property is inside all other and only wraps the widget child node.
+        /// Maximum nest position, property is inside all others and only wraps the widget child node.
         ///
         /// Properties that insert child nodes may use this group, properties that only affect the child layout and want
-        /// to be inside other child layout should must `CHILD_LAYOUT+n` instead.
+        /// to be inside other child layout should use `CHILD_LAYOUT+n` instead.
         pub const CHILD: NestGroup = NestGroup(u16::MAX);
     };
 }
@@ -435,8 +445,6 @@ impl NestGroup {
     }
 
     /// Group name.
-    ///
-    /// Is a static str for values that are a group `const`, or a display format for the others.
     pub fn name(self) -> Txt {
         let name = self.exact_name();
         if name.is_empty() {
@@ -588,7 +596,7 @@ pub enum InputKind {
 /// Represents a [`WidgetHandler<A>`] that can be reused.
 ///
 /// Note that [`hn_once!`] will still only be used once, and [`async_hn!`] tasks are bound to the specific widget
-/// context that spawned then. This `struct` is cloneable to support handler properties in styleable widgets, but the
+/// context that spawned them. This `struct` is cloneable to support handler properties in styleable widgets, but the
 /// general expectation is that the handler will be used on one property instance at a time.
 ///
 /// [`hn_once!`]: macro@crate::handler::hn_once
@@ -636,9 +644,9 @@ impl<A: Clone + 'static> AnyArcWidgetHandler for ArcWidgetHandler<A> {
     }
 }
 
-/// When builder for [`AnyArcWidgetHandler`] values.
+/// A `when` builder for [`AnyArcWidgetHandler`] values.
 ///
-/// This builder is used to generate a composite handler that redirects to active `when`
+/// This builder is used to generate a composite handler that redirects to active `when` matched property values.
 pub struct AnyWhenArcWidgetHandlerBuilder {
     default: Box<dyn AnyArcWidgetHandler>,
     conditions: Vec<(BoxedVar<bool>, Box<dyn AnyArcWidgetHandler>)>,
@@ -2624,13 +2632,13 @@ impl ops::DerefMut for WidgetBuilding {
 /// Represents a property removed from [`WidgetBuilding`].
 #[derive(Debug)]
 pub struct BuilderProperty {
-    /// Property importance at the time of remove.
+    /// Property importance at the time of removal.
     pub importance: Importance,
-    /// Property group and index at the time of remove.
+    /// Property group and index at the time of removal.
     pub position: NestPosition,
     /// Property args.
     pub args: Box<dyn PropertyArgs>,
-    /// If the property was *captured* before remove.
+    /// If the property was *captured* before removal.
     pub captured: bool,
 }
 

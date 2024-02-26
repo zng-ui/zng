@@ -118,6 +118,8 @@ pub use zero_ui_wgt_fill::{
 /// # }
 /// ```
 ///
+/// # Full API
+///
 /// See [`zero_ui_app::widget::builder`] for the full API.
 pub mod builder {
     pub use zero_ui_app::widget::builder::{
