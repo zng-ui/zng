@@ -889,6 +889,8 @@ impl dyn PropertyArgs + '_ {
     }
 
     /// Gets a strongly typed [`value`].
+    /// 
+    /// Panics if the type does not match.
     ///
     /// [`value`]: PropertyArgs::value
     pub fn downcast_value<T>(&self, i: usize) -> &T
@@ -898,6 +900,8 @@ impl dyn PropertyArgs + '_ {
         self.value(i).as_any().downcast_ref::<T>().expect("cannot downcast value to type")
     }
     /// Gets a strongly typed [`var`].
+    /// 
+    /// Panics if the variable value type does not match.
     ///
     /// [`var`]: PropertyArgs::var
     pub fn downcast_var<T>(&self, i: usize) -> &BoxedVar<T>
@@ -911,6 +915,8 @@ impl dyn PropertyArgs + '_ {
     }
 
     /// Gets a strongly typed [`widget_handler`].
+    /// 
+    /// Panics if the args type does not match.
     ///
     /// [`widget_handler`]: PropertyArgs::widget_handler
     pub fn downcast_handler<A>(&self, i: usize) -> &ArcWidgetHandler<A>
@@ -939,7 +945,7 @@ impl dyn PropertyArgs + '_ {
         }
     }
 
-    /// Gets the property input current value as a debug.
+    /// Gets the property input current value as a debug text.
     ///
     /// Note that you must call this in the widget context to get the correct value.
     pub fn debug(&self, i: usize) -> Txt {
