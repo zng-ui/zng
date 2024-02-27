@@ -23,7 +23,7 @@ pub use when::*;
 mod list;
 pub use list::*;
 use zero_ui_app_proc_macros::{ui_node, widget};
-use zero_ui_layout::{context::LAYOUT, unit::PxSize};
+use zero_ui_layout::unit::PxSize;
 use zero_ui_var::{ContextInitHandle, ResponseVar, Var};
 
 use crate::{
@@ -41,6 +41,8 @@ use super::{
 ///
 /// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented
 /// using the match helpers. For more advanced nodes you can use the [`ui_node`] proc-macro attribute.
+/// 
+/// [`match_node`]:fn@match_node
 pub trait UiNode: Any + Send {
     /// Initializes the node in a new UI context.
     ///
@@ -125,6 +127,7 @@ pub trait UiNode: Any + Send {
     ///
     /// [`layout`]: Self::layout
     /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
     #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
@@ -145,6 +148,7 @@ pub trait UiNode: Any + Send {
     /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
     /// [`constraints`]: zero_ui_layout::context::LayoutMetrics::constraints
     /// [`WIDGET.render`]: crate::widget::WIDGET::render
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
     #[must_use]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
@@ -381,22 +385,17 @@ impl into_widget {
     }
 }
 
-/// Represents a list of [`UiNode`] instances.
+/// Represents a list of UI nodes.
 ///
-/// Panel implementers must delegate every [`UiNode`] method to every node in the children list, in particular the
-/// [`init_all`], [`deinit_all`] and [`update_all`] methods must be used to support reactive lists, and the [`render_all`]
-/// and [`render_update_all`] must be used to render, to support the [`PanelList`]. Other [`UiNode`] methods must
-/// be delegated using [`for_each`] or [`par_each`]. The [`#[ui_node(children)]`] attribute macro auto-generates
-/// delegations for each method.
-///
-/// Note that node lists can be [`ArcNodeList`] that is always empty before init, and captured properties always use this
-/// type to share the list, so attempting to access the items before the first call to [`init_all`] will not work.
-///
-/// [`init_all`]: UiNodeList::init_all
-/// [`deinit_all`]: UiNodeList::deinit_all
-/// [`update_all`]: UiNodeList::update_all
-/// [`render_all`]: UiNodeList::render_all
-/// [`render_update_all`]: UiNodeList::render_update_all
+/// There are multiple node list types, panel implementers receive children as `impl UiNodeList` and usually wrap it in a [`PanelList`].
+/// 
+/// UI node lists delegate the [`UiNode`] method for each node in the list, potentially in parallel. Panel implementers call the `*_all`
+/// methods to delegate, they can also use the [`match_node_list`] to implement delegation. The trait also offers [`for_each`], [`par_each`]
+/// and other methods for direct access to the nodes, both sequentially and in parallel.
+/// 
+/// Note that trying to access the nodes before init will probably not work, the [`ArcNodeList`] type is used by properties that request 
+/// `impl UiNodeList` input, so captured property lists will always be empty before init.
+/// 
 /// [`for_each`]: UiNodeList::for_each
 /// [`par_each`]: UiNodeList::par_each
 pub trait UiNodeList: UiNodeListBoxed {
@@ -405,12 +404,12 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: FnOnce(&mut BoxedUiNode) -> R;
 
-    /// Calls `f` for each node in the list with the index.
+    /// Calls `f` for each node in the list with the index, sequentially.
     fn for_each<F>(&mut self, f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode);
 
-    /// Calls `f` for each node in the list with the index in parallel.
+    /// Calls `f` for each node in the list with the index, in parallel.
     fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
@@ -418,7 +417,11 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Calls `fold` for each node in the list in parallel, with fold accumulators produced by `identity`, then merges the folded results
     /// using `reduce` to produce the final value also in parallel.
     ///
-    /// If `reduce` is [associative] the order is preserved in the result, this example will collect the node indexes in order:
+    /// If `reduce` is [associative] the order is preserved in the result.
+    /// 
+    /// # Example
+    /// 
+    /// This example will collect the node indexes in order:
     ///
     /// ```
     /// # use zero_ui_app::widget::node::UiNodeList;
@@ -452,7 +455,7 @@ pub trait UiNodeList: UiNodeListBoxed {
         self.len() == 0
     }
 
-    /// Boxed the list, does not double box.
+    /// Gets `self` boxed, or itself if it is already boxed.
     fn boxed(self) -> BoxedUiNodeList;
 
     /// Move all nodes into `vec`.
