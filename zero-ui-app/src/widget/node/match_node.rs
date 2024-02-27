@@ -1,4 +1,4 @@
-use std::{mem, ops};
+use std::mem;
 
 use zero_ui_layout::unit::PxSize;
 
@@ -603,65 +603,65 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
     })]
     impl UiNode for MatchWidget {
         fn is_widget(&self) -> bool {
-            self.child.is_widget()
+            self.child.0.child.is_widget()
         }
 
         fn with_context<R, F: FnOnce() -> R>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R> {
-            self.child.with_context(update_mode, f)
+            self.child.0.child.with_context(update_mode, f)
         }
 
         fn init(&mut self) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Init);
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.init();
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.init();
             }
         }
 
         fn deinit(&mut self) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Deinit);
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.deinit();
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.deinit();
             }
         }
 
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Info { info });
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.info(info);
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.info(info);
             }
         }
 
         fn event(&mut self, update: &EventUpdate) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Event { update });
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.event(update);
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.event(update);
             }
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Update { updates });
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.update(updates);
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.update(updates);
             }
         }
 
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             let mut size = PxSize::zero();
             (self.closure)(
@@ -672,7 +672,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                 },
             );
 
-            if !mem::take(&mut self.child.delegated) {
+            if !mem::take(&mut self.child.0.delegated) {
                 if size != PxSize::zero() {
                     // this is an error because the child will be measured if the return size is zero,
                     // flagging delegated ensure consistent behavior.
@@ -680,19 +680,19 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     return size;
                 }
 
-                self.child.child.measure(wm)
+                self.child.0.child.measure(wm)
             } else {
                 size
             }
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             let mut size = PxSize::zero();
             (self.closure)(&mut self.child, UiNodeOp::Layout { wl, final_size: &mut size });
 
-            if !mem::take(&mut self.child.delegated) {
+            if !mem::take(&mut self.child.0.delegated) {
                 if size != PxSize::zero() {
                     // this is an error because the child will be layout if the return size is zero,
                     // flagging delegated ensure consistent behavior.
@@ -700,29 +700,29 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     return size;
                 }
 
-                self.child.child.layout(wl)
+                self.child.0.child.layout(wl)
             } else {
                 size
             }
         }
 
         fn render(&mut self, frame: &mut FrameBuilder) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::Render { frame });
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.render(frame);
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.render(frame);
             }
         }
 
         fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.child.delegated = false;
+            self.child.0.delegated = false;
 
             (self.closure)(&mut self.child, UiNodeOp::RenderUpdate { update });
 
-            if !mem::take(&mut self.child.delegated) {
-                self.child.child.render_update(update);
+            if !mem::take(&mut self.child.0.delegated) {
+                self.child.0.child.render_update(update);
             }
         }
     }
@@ -738,15 +738,33 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
 ///
 /// [`match_widget`]: fn@match_widget
 pub struct MatchWidgetChild<C>(MatchNodeChild<C>);
-impl<C> ops::Deref for MatchWidgetChild<C> {
-    type Target = MatchNodeChild<C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<C> MatchWidgetChild<C> {
+    /// Flags the current operation as *delegated*, stopping the default delegation after the closure ends.
+    ///
+    /// Note that each node operation methods already flags this.
+    pub fn delegated(&mut self) {
+        self.0.delegated = true;
     }
-}
-impl<C> ops::DerefMut for MatchWidgetChild<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+
+    /// If the current operation was already delegated to the child.
+    pub fn has_delegated(&self) -> bool {
+        self.0.delegated
+    }
+
+    /// Borrow the actual child.
+    ///
+    /// Note that if you delegate using this reference you must call [`delegated`].
+    ///
+    /// [`delegated`]: Self::delegated
+    /// [`match_node`]: fn@match_node
+    pub fn child(&mut self) -> &mut C {
+        &mut self.0.child
+    }
+
+    /// Adapter to `match_node` child type.
+    ///
+    /// Note that the returned node does not delegate widget methods.
+    pub fn as_match_node(&mut self) -> &mut MatchNodeChild<C> {
         &mut self.0
     }
 }
@@ -916,9 +934,14 @@ pub struct MatchNodeChildren<L> {
 impl<L: UiNodeList> MatchNodeChildren<L> {
     /// Flags the current operation as *delegated*, stopping the default delegation after the closure ends.
     ///
-    /// Note that each node operation methods already flags this.
+    /// Note that each `*_all` method and the methods that give mutable access to children already flags this.
     pub fn delegated(&mut self) {
         self.delegated = true;
+    }
+
+    /// If the current operation was already delegated to the children.
+    pub fn has_delegated(&self) -> bool {
+        self.delegated
     }
 
     /// Reference the children.

@@ -45,11 +45,11 @@ impl<U> Default for SlotsData<U> {
 
 /// A reference counted [`UiNode`].
 ///
-/// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
-/// creation of ***slots*** that are [`UiNode`] implementers that can *exclusive take* the
+/// Nodes can only be used in one place at a time, this `struct` allows the
+/// creation of ***slots*** that are [`UiNode`] implementers that can ***exclusive take*** the
 /// referenced node as its child.
 ///
-/// When a slot takes the node it is deinited in the previous UI tree place and reinited in the slot place.
+/// When a slot takes the node it is deinited in the previous place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
 pub struct ArcNode<U: UiNode>(Arc<SlotData<U>>);
@@ -67,9 +67,9 @@ impl<U: UiNode> ArcNode<U> {
         }))
     }
 
-    /// New rc node that contains a weak reference to itself.
+    /// New node that contains a weak reference to itself.
     ///
-    /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
+    /// Note that the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
         Self(Arc::new_cyclic(|wk| {
             let node = node(WeakNode(wk.clone()));
@@ -104,8 +104,6 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    ///
-    /// The return type implements [`UiNode`].
     pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<U, impl TakeOn> {
         impls::TakeSlot {
             slot: self.0.slots.lock().next_slot(),
@@ -120,8 +118,6 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
-    ///
-    /// The return type implements [`UiNode`].
     pub fn take_on<A: EventArgs>(
         &self,
         event: Event<A>,
@@ -144,7 +140,7 @@ impl<U: UiNode> ArcNode<U> {
 
     /// Create a slot node that takes ownership of this node as soon as the node is inited.
     ///
-    /// This is equivalent to `self.take_when(true)`
+    /// This is equivalent to `self.take_when(true)`.
     pub fn take_on_init(&self) -> TakeSlot<U, impl TakeOn> {
         self.take_when(true)
     }
@@ -171,11 +167,11 @@ impl<U: UiNode> WeakNode<U> {
 
 /// A reference counted [`UiNodeList`].
 ///
-/// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
-/// creation of ***slots*** that are [`UiNodeList`] implementers that can *exclusive take* the
+/// Nodes can only be used in one place at a time, this `struct` allows the
+/// creation of ***slots*** that are [`UiNodeList`] implementers that can ***exclusive take*** the
 /// referenced list as the children.
 ///
-/// When a slot takes the list it is deinited in the previous UI tree place and reinited in the slot place.
+/// When a slot takes the list it is deinited in the previous place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the list when they have it as their child and a weak reference when they don't.
 pub struct ArcNodeList<L: UiNodeList>(Arc<SlotData<L>>);
@@ -195,7 +191,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
 
     /// New rc list that contains a weak reference to itself.
     ///
-    /// **Note** the weak reference cannot be [upgraded](WeakNodeList::upgrade) during the call to `list`.
+    /// Note that the weak reference cannot be [upgraded](WeakNodeList::upgrade) during the call to `list`.
     pub fn new_cyclic(list: impl FnOnce(WeakNodeList<L>) -> L) -> Self {
         Self(Arc::new_cyclic(|wk| {
             let list = list(WeakNodeList(wk.clone()));
@@ -227,7 +223,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
         }
     }
 
-    /// Create a slot node that takes ownership of this node when `var` updates to `true`.
+    /// Create a slot list that takes ownership of this list when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
     ///
@@ -243,9 +239,9 @@ impl<L: UiNodeList> ArcNodeList<L> {
         }
     }
 
-    /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
+    /// Create a slot list that takes ownership of this list when `event` updates and `filter` returns `true`.
     ///
-    /// The slot node also takes ownership on init if `take_on_init` is `true`.
+    /// The slot list also takes ownership on init if `take_on_init` is `true`.
     ///
     /// The return type implements [`UiNodeList`].
     pub fn take_on<A: EventArgs>(
@@ -270,7 +266,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
 
     /// Create a slot node list that takes ownership of this list as soon as the node is inited.
     ///
-    /// This is equivalent to `self.take_when(true)`
+    /// This is equivalent to `self.take_when(true)`.
     pub fn take_on_init(&self) -> TakeSlot<L, impl TakeOn> {
         self.take_when(true)
     }

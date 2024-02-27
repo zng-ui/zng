@@ -1392,7 +1392,9 @@ fn assert_bounds(len: usize, i: usize) {
     }
 }
 
-/// A UI node that does not contain any other node, only takes the minimum space and renders nothing.
+/// A UI node that only takes the minimal required layout size.
+///
+/// The node is blank, it does nothing other then layout to the required minimal size.
 pub struct NilUiNode;
 #[super::ui_node(none)]
 impl UiNode for NilUiNode {
@@ -1409,7 +1411,9 @@ impl UiNode for NilUiNode {
     }
 }
 
-/// A UI node that does not contain any other node, fills the available space, but renders nothing.
+/// A UI node that fills the available layout space.
+///
+/// The space is blank, the node does nothing other then layout to fill.
 pub struct FillUiNode;
 #[ui_node(none)]
 impl UiNode for FillUiNode {}

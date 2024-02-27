@@ -1431,7 +1431,7 @@ impl EditableUiNodeListRef {
     ///
     /// The `index` is resolved after all [`remove`] requests, if it is out-of-bounds the widget is pushed.
     ///
-    /// The `widget` will inserted, inited and the info tree updated.
+    /// The `widget` will be inserted, inited and the info tree updated.
     ///
     /// [`remove`]: Self::remove
     pub fn insert(&self, index: usize, widget: impl UiNode) {
@@ -1461,7 +1461,7 @@ impl EditableUiNodeListRef {
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
-    /// The widget will be deinitialized, dropped and the info tree will update, nothing happens
+    /// The widget will be deinitialized, dropped and the info tree will update. Nothing happens
     /// if the widget is not found.
     pub fn remove(&self, id: impl Into<WidgetId>) {
         fn remove_impl(id: WidgetId) -> impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static {
@@ -1535,7 +1535,7 @@ impl EditableUiNodeListRef {
     /// ```
     /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, len| {
-    ///     let next = i.saturating_add(1);
+    ///     let next = i + 1;
     ///     if next < len { next } else { 0 }
     /// });
     /// # }
@@ -1950,14 +1950,15 @@ impl PanelListRange {
 
 /// Represents the final [`UiNodeList`] in a panel layout node.
 ///
-/// Panel widgets should wrap their children list on this type to support z-index sorting list and easily track
-/// item data. By default the item data is a [`DefaultPanelListData`] that represents the offset of each item inside the panel,
-/// but it can be any type that implements [`PanelListData`]. The panel list default render implementation uses this data
-/// to position the children widgets, note that you must [`commit_data`] changes to this data at the end of a layout pass in
-/// case render or render update needs to be requested for each child.
+/// Panel widgets should wrap their children list on this type to support z-index sorting and to easily track associated
+/// item data.
 ///
-/// Panel widgets can also mark the list using [`track_info_range`] and implement getter properties for the items
-/// to enable styling of each odd/even item for example.
+/// By default the associated item data is a [`DefaultPanelListData`] that represents the offset of each item inside the panel,
+/// but it can be any type that implements [`PanelListData`]. The panel list default render implementation uses this data
+/// to position the children widgets. Note that you must [`commit_data`] changes to this data at the end of a layout pass.
+///
+/// Panel widgets can also mark the list using [`track_info_range`] to implement getter properties such as `is_odd` or
+/// `is_even`.
 ///
 /// [`track_info_range`]: Self::track_info_range
 /// [`commit_data`]: Self::commit_data

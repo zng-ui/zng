@@ -13,7 +13,9 @@ pub struct AdoptiveNode<U> {
     is_inited: bool,
 }
 impl<U: UiNode> AdoptiveNode<U> {
-    /// Create the adoptive node, the [`AdoptiveChildNode`] must be used as the *property child*.
+    /// Create the adoptive node, the [`AdoptiveChildNode`] must be used as the child of the created node.
+    ///
+    /// The created node is assumed to not be inited.
     pub fn new(create: impl FnOnce(AdoptiveChildNode) -> U) -> Self {
         let ad_child = AdoptiveChildNode::nil();
         let child = ad_child.child.clone();
@@ -25,7 +27,9 @@ impl<U: UiNode> AdoptiveNode<U> {
         }
     }
 
-    /// Create the adoptive node with a constructor that can fail.
+    /// Create the adoptive node using a closure that can fail.
+    ///
+    /// The created node is assumed to not be inited.
     pub fn try_new<E>(create: impl FnOnce(AdoptiveChildNode) -> Result<U, E>) -> Result<Self, E> {
         let ad_child = AdoptiveChildNode::nil();
         let child = ad_child.child.clone();
@@ -37,26 +41,34 @@ impl<U: UiNode> AdoptiveNode<U> {
         })
     }
 
-    /// Replaces the child node, panics if the node is inited.
+    /// Replaces the child node.
     ///
     /// Returns the previous child, the initial child is a [`NilUiNode`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`is_inited`](Self::is_inited).
     pub fn replace_child(&mut self, new_child: impl UiNode) -> BoxedUiNode {
         assert!(!self.is_inited);
         mem::replace(&mut *self.child.lock(), new_child.boxed())
     }
 
-    /// Returns `true` if this node is initialized in a UI tree.
+    /// Returns `true` if this node is inited.
     pub fn is_inited(&self) -> bool {
         self.is_inited
     }
 
-    /// Into child reference, node and if it is inited.
+    /// Into child reference and node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`is_inited`](Self::is_inited).
     pub fn into_parts(self) -> (Arc<Mutex<BoxedUiNode>>, U) {
         assert!(!self.is_inited);
         (self.child, self.node)
     }
 
-    /// From parts, assumes not inited.
+    /// From parts, assumes the nodes are not inited and that `child` is the actual child of `node`.
     pub fn from_parts(child: Arc<Mutex<BoxedUiNode>>, node: U) -> Self {
         Self {
             child,
@@ -77,9 +89,9 @@ impl<U: UiNode> UiNode for AdoptiveNode<U> {
     }
 }
 
-/// Placeholder for the dynamic child of an [`AdoptiveNode`].
+/// Placeholder for the dynamic child of an adoptive node.
 ///
-/// This node must be used as the property child of the adoptive node.
+/// This node must be used as the child of the adoptive node, see [`AdoptiveNode::new`] for more details.
 pub struct AdoptiveChildNode {
     child: Arc<Mutex<BoxedUiNode>>,
 }
