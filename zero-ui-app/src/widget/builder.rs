@@ -889,7 +889,7 @@ impl dyn PropertyArgs + '_ {
     }
 
     /// Gets a strongly typed [`value`].
-    /// 
+    ///
     /// Panics if the type does not match.
     ///
     /// [`value`]: PropertyArgs::value
@@ -900,7 +900,7 @@ impl dyn PropertyArgs + '_ {
         self.value(i).as_any().downcast_ref::<T>().expect("cannot downcast value to type")
     }
     /// Gets a strongly typed [`var`].
-    /// 
+    ///
     /// Panics if the variable value type does not match.
     ///
     /// [`var`]: PropertyArgs::var
@@ -915,7 +915,7 @@ impl dyn PropertyArgs + '_ {
     }
 
     /// Gets a strongly typed [`widget_handler`].
-    /// 
+    ///
     /// Panics if the args type does not match.
     ///
     /// [`widget_handler`]: PropertyArgs::widget_handler

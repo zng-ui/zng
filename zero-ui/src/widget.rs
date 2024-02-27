@@ -136,7 +136,7 @@ pub mod builder {
 /// # Examples
 ///
 /// The example declares a new info state for widgets and a property that sets the new state. The new state is then used
-/// in a widget instance.
+/// in a widget.
 ///
 /// ```
 /// mod custom {

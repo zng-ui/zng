@@ -175,10 +175,11 @@ pub trait WidgetInfoInspectorExt {
     ///     #[widget($crate::widgets::Button)]
     ///     pub struct Button(base::WidgetBase);
     /// }
-    /// fn demo(info: WidgetInfo) {
+    ///
+    /// # fn demo(info: WidgetInfo) {
     /// let fuzzy = info.inspect_descendant("button");
     /// let exact = info.inspect_descendant(std::any::TypeId::of::<crate::widgets::Button>());
-    /// }
+    /// # }
     /// ```
     fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;
 
