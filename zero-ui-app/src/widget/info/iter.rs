@@ -5,7 +5,7 @@ use zero_ui_var::impl_from_and_into_var;
 
 use super::*;
 
-/// Widget tree filter result.
+/// Widget tree filter selected for a widget in the tree.
 ///
 /// This `enum` is used by the [`TreeIterator::tree_filter`] method.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]

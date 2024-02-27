@@ -19,7 +19,7 @@ use super::*;
 
 /// Creates an [`UiNodeVec`] containing the arguments.
 ///  
-/// Note that the items can be any type, `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
+/// Note that the items can be node type, `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
 ///
 /// # Examples
 ///

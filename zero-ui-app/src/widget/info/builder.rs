@@ -136,7 +136,7 @@ impl WidgetInfoBuilder {
     }
 
     /// Calls `f` to build the context widget info.
-    /// 
+    ///
     /// Note that `f` is only called if the widget info cannot be reused.
     pub fn push_widget(&mut self, f: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
@@ -388,7 +388,7 @@ crate::event::event! {
 
     /// Widget visibility has changed after render.
     ///
-    /// /// All subscribers of this event are checked after render, if the previous visibility was recorded and
+    /// All subscribers of this event are checked after render, if the previous visibility was recorded and
     /// the new visibility is different an event is sent to the widget.
     pub static VISIBILITY_CHANGED_EVENT: VisibilityChangedArgs;
 
