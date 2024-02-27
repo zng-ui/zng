@@ -214,7 +214,7 @@ pub mod node {
         extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
         AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList, EditableUiNodeListRef,
         FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList, PanelListData,
-        PanelListRange, PanelListRangeHandle, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl, UiNodeListObserver,
+        PanelListRange, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl, UiNodeListObserver,
         UiNodeOp, UiNodeOpMethod, UiNodeVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
     };
 

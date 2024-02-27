@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     mem, ops,
     sync::{
-        atomic::{AtomicBool, AtomicU8, Ordering::Relaxed},
+        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
 };
@@ -566,7 +566,7 @@ impl UiNodeList for UiNodeListChainImpl {
     }
 }
 
-/// Represents the contextual parent [`SortingList`] during a list.
+/// Represents the contextual parent [`SortingList`] during an update.
 #[allow(non_camel_case_types)]
 pub struct SORTING_LIST;
 impl SORTING_LIST {
@@ -1892,10 +1892,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 }
 
-///
-pub struct PanelListRangeHandle(Arc<AtomicU8>);
-
-/// Defines the first and last child widget in a [`PanelList`].
+/// First and last child widget in a [`PanelList`].
 #[derive(Debug, Clone)]
 pub struct PanelListRange {
     // none is empty
@@ -1906,7 +1903,7 @@ impl PanelListRange {
     /// Gets the panel children if it may have changed since `last_version`.
     ///
     /// The [`PanelList`] requests an update for each child after info rebuild if it has changed,
-    /// the item properties should used this method on update to react.
+    /// the item properties can used this method on update to react.
     pub fn update(
         parent: &WidgetInfo,
         panel_id: impl Into<StateId<Self>>,
@@ -2053,7 +2050,7 @@ where
         self.info_id.as_ref().map(|t| t.0)
     }
 
-    /// Visit the specific node, panic if `index` is out of bounds.
+    /// Visit the specific node with associated data, panic if `index` is out of bounds.
     pub fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
@@ -2320,7 +2317,7 @@ where
     /// Calls [`commit`] for each child data, aggregate changes.
     ///
     /// This must be called after the last update to the children data in a layout pass. Note that
-    /// you can call [`commit`] directly in a `for_each` iteration if you know that that iteration is the
+    /// you can call [`commit`] directly in a `for_each` iteration if that iteration is the
     /// last in the layout pass.
     ///
     /// [`commit`]: PanelListData::commit
