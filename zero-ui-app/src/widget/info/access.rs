@@ -546,8 +546,7 @@ impl WidgetInfo {
 
     /// Descendant branches that have accessibility info.
     ///
-    /// The iterator enters descendants only until it finds a node that has access info, these nodes are yielded,
-    /// the iterator yields the accessible children in the access info view.
+    /// The iterator enters descendants only until it finds a node that has access info, these nodes are yielded.
     pub fn access_children(&self) -> impl Iterator<Item = WidgetAccessInfo> {
         self.descendants()
             .tree_filter(|w| {

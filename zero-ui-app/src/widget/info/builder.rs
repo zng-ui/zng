@@ -135,7 +135,9 @@ impl WidgetInfoBuilder {
         self.with_meta(|mut s| s.flag(id));
     }
 
-    /// Calls `f` to build the context widget info, note that `f` is only called if the widget info cannot be reused.
+    /// Calls `f` to build the context widget info.
+    /// 
+    /// Note that `f` is only called if the widget info cannot be reused.
     pub fn push_widget(&mut self, f: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
         if !WIDGET.take_update(UpdateFlags::INFO) && !self.info_widgets.delivery_list().enter_widget(id) && !self.started_access {
@@ -224,7 +226,7 @@ impl WidgetInfoBuilder {
         before_count..self.tree.index(self.node).children_count()
     }
 
-    /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
+    /// Create a new info builder that can be built in parallel and merged back onto this one using [`parallel_fold`].
     ///
     /// [`parallel_fold`]: Self::parallel_fold
     /// [`push_widget`]: Self::push_widget
@@ -461,12 +463,10 @@ crate::event::event_args! {
 
     /// [`INTERACTIVITY_CHANGED_EVENT`] args.
     pub struct InteractivityChangedArgs {
-        /// Previous widget interactivity.
-        ///
-        /// Is `None` if the widget is new.
+        /// Previous tree with old interactivity values.
         pub prev_tree: WidgetInfoTree,
 
-        /// New widget interactivity.
+        /// New tree with new interactivity values.
         pub tree: WidgetInfoTree,
 
         /// All event subscribers that changed interactivity in this info update.
@@ -687,7 +687,7 @@ pub struct InlineSegmentInfo {
     pub x: Px,
     /// Segment width.
     ///
-    /// The segment height is the row rectangle height.
+    /// Note that the segment height is the row rectangle height.
     pub width: Px,
 }
 
@@ -1605,12 +1605,12 @@ enum LayoutNestGroup {
     Child,
 }
 
-/// Represents a builder split from the main builder that must be folded back onto the
-/// main builder after it is filled in a parallel task.
+/// Represents a builder split from the main builder that can be used in parallel and then folded
+/// back onto the main builder.
 ///
 /// # Error
 ///
-/// Traces an error on drop if it was not moved to the `B::parallel_fold` method.
+/// Logs an error on drop if it was not moved to the `B::parallel_fold` method.
 #[must_use = "use in parallel task, then move it to `B::parallel_fold`"]
 pub struct ParallelBuilder<B>(pub(crate) Option<B>);
 impl<B> ParallelBuilder<B> {

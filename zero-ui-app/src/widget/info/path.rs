@@ -45,8 +45,6 @@ impl fmt::Display for WidgetPath {
 }
 impl WidgetPath {
     /// New custom widget path.
-    ///
-    /// The path is not guaranteed to have ever existed.
     pub fn new(window_id: WindowId, path: Arc<Vec<WidgetId>>) -> WidgetPath {
         WidgetPath { window_id, path }
     }
@@ -142,7 +140,7 @@ impl WidgetPath {
     }
 }
 
-/// Represents a [`WidgetPath`] with extra [`Interactivity`] for each widget.
+/// Represents a [`WidgetPath`] annotated with each widget's [`Interactivity`].
 #[derive(Clone)]
 pub struct InteractionPath {
     path: WidgetPath,
@@ -186,9 +184,7 @@ impl InteractionPath {
         Self { path, blocked, disabled }
     }
 
-    /// New custom interactivity path.
-    ///
-    /// The path is not guaranteed to have ever existed.
+    /// New custom path.
     pub fn new<P: IntoIterator<Item = (WidgetId, Interactivity)>>(window_id: WindowId, path: P) -> InteractionPath {
         let iter = path.into_iter();
         let mut path = Vec::with_capacity(iter.size_hint().0);
@@ -211,15 +207,13 @@ impl InteractionPath {
         }
     }
 
-    /// New custom widget path with all widgets enabled.
-    ///
-    /// The path is not guaranteed to have ever existed.
+    /// New custom path with all widgets enabled.
     pub fn new_enabled(window_id: WindowId, path: Arc<Vec<WidgetId>>) -> InteractionPath {
         let path = WidgetPath::new(window_id, path);
         Self::from_enabled(path)
     }
 
-    /// New custom interactivity path with all widgets enabled.
+    /// New interactivity path with all widgets enabled.
     pub fn from_enabled(path: WidgetPath) -> InteractionPath {
         let len = path.path.len();
         InteractionPath {

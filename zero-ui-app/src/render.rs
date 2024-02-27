@@ -1778,7 +1778,7 @@ impl FrameBuilder {
         self.push_extension_item_raw(extension_id, ApiExtensionPayload::serialize(payload).unwrap())
     }
 
-    /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
+    /// Create a new display list builder that can be built in parallel and merged back onto this one using [`parallel_fold`].
     ///
     /// Note that split list must be folded before any open reference frames, stacking contexts or clips are closed in this list.
     ///

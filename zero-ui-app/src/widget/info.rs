@@ -112,7 +112,7 @@ impl WidgetInfoTreeStatsUpdate {
 
 /// A tree of [`WidgetInfo`].
 ///
-/// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
+/// The tree is behind an `Arc` pointer so cloning and storing this type is very cheap.
 ///
 /// Instantiated using [`WidgetInfoBuilder`].
 #[derive(Clone)]
@@ -414,7 +414,7 @@ pub(crate) struct WidgetRenderInfo {
     pub front: usize,
 }
 
-/// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
+/// Shared reference to layout size, offsets, rendered transforms and bounds of a widget.
 ///
 /// Can be retrieved in the [`WIDGET`] and [`WidgetInfo`].
 ///
@@ -577,7 +577,7 @@ impl WidgetBoundsInfo {
     /// Gets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
     ///
     /// This is `true` by default and can be disabled using [`allow_auto_hide`]. If set to `false`
-    /// the widget is always rendered, but descendant widgets are still auto-hidden.
+    /// the widget is always rendered, but descendant widgets can still auto-hide.
     ///
     /// [`outer_bounds`]: Self::outer_bounds
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
@@ -671,7 +671,7 @@ impl WidgetBoundsInfo {
         self.0.lock().is_collapsed
     }
 
-    /// Gets if the widget sets preserves 3D perspective.
+    /// Gets if the widget preserves 3D perspective.
     pub fn transform_style(&self) -> TransformStyle {
         self.0.lock().transform_style
     }
@@ -1009,7 +1009,7 @@ impl WidgetInfo {
 
     /// Path details to help finding the widget during debug.
     ///
-    /// If the inspector metadata is present the widget mod ident is included.
+    /// If the inspector metadata is present the widget type is included.
     pub fn trace_path(&self) -> Txt {
         let mut ws: Vec<_> = self.self_and_ancestors().collect();
         ws.reverse();
@@ -1054,7 +1054,7 @@ impl WidgetInfo {
 
     /// Detailed id text.
     ///
-    /// If the inspector metadata is present the widget mod ident is included.
+    /// If the inspector metadata is present the widget type is included.
     pub fn trace_id(&self) -> Txt {
         #[cfg(inspector)]
         {
@@ -1138,7 +1138,7 @@ impl WidgetInfo {
     ///
     /// Only allocates a new path if needed.
     ///
-    /// Panics
+    /// # Panics
     ///
     /// If `old_path` does not point to the same widget id as `self`.
     ///
@@ -1158,7 +1158,7 @@ impl WidgetInfo {
         }
     }
 
-    /// Get the z-index of the widget in the latest window frame if it was rendered.
+    /// Get the z-index of the widget in the latest frame if it was rendered.
     ///
     /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
     /// the widget starts rendering and the *front-most* index at the moment the widget and all contents finishes rendering.
@@ -1436,7 +1436,7 @@ impl WidgetInfo {
         r
     }
 
-    /// Create an object that can check if widgets are descendant of `self` in O(1) time.
+    /// Gets a value that can check if widgets are descendant of `self` in O(1) time.
     pub fn descendants_range(&self) -> WidgetDescendantsRange {
         WidgetDescendantsRange {
             tree: Some(self.tree.clone()),
@@ -1511,7 +1511,7 @@ impl WidgetInfo {
         iter::TreeIter::self_and_next_siblings_in(self.clone(), ancestor.clone())
     }
 
-    /// The [`center`] orientation in relation to a `origin`.
+    /// The [`center`] orientation in relation to an `origin`.
     ///
     /// Returns `None` if the `origin` is the center.
     ///
@@ -1971,7 +1971,7 @@ impl WidgetInfo {
 
 /// Argument for a interactivity filter function.
 ///
-/// See [WidgetInfoBuilder::push_interactivity_filter].
+/// See [`WidgetInfoBuilder::push_interactivity_filter`] for more details.
 #[derive(Debug)]
 pub struct InteractivityFilterArgs {
     /// Widget being filtered.
@@ -2004,7 +2004,7 @@ bitflags::bitflags! {
         /// No interaction allowed, the widget must behave like a background visual.
         ///
         /// Note that widgets with blocked interaction are still hit-testable, so they can still be "clicked"
-        /// as a visual part of an interactive parent widget.
+        /// as a visual part of an interactive parent.
         const BLOCKED = 0b10;
 
         /// `BLOCKED` with `DISABLED` visuals.
@@ -2219,12 +2219,12 @@ impl HitTestInfo {
         self.hits.first()
     }
 
-    /// Finds the widget in the hit-test result if it was hit.
+    /// Search the widget in the hit-test result.
     pub fn find(&self, widget_id: WidgetId) -> Option<&HitInfo> {
         self.hits.iter().find(|h| h.widget_id == widget_id)
     }
 
-    /// If the widget is in was hit.
+    /// If the widget was hit.
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.hits.iter().any(|h| h.widget_id == widget_id)
     }
