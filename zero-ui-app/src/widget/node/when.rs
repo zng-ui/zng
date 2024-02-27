@@ -8,7 +8,7 @@ use crate::{
 
 use super::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver};
 
-/// Builds a node that can be one of multiple options selected by the first condition that is `true` or a fallback default.
+/// Builds a node that can be one of multiple options, selected by the first condition that is `true`, or a fallback default.
 ///
 /// When the selected node changes the previous one is deinited and the new one is inited.
 pub struct WhenUiNodeBuilder {
@@ -42,7 +42,7 @@ impl WhenUiNodeBuilder {
     }
 }
 
-/// Builds a node list that can be one of multiple options selected by the first condition that is `true` or a fallback default.
+/// Builds a node list that can be one of multiple options, selected by the first condition that is `true`, or a fallback default.
 ///
 /// When the selected list changes the previous one is deinited and the new one is inited.
 pub struct WhenUiNodeListBuilder {

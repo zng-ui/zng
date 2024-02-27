@@ -13,7 +13,7 @@ use crate::{
 
 use super::*;
 
-/// Represents a node operation in [`match_node`].
+/// Represents a node operation in a [`match_node`].
 ///
 /// [`match_node`]: fn@match_node
 #[non_exhaustive]
@@ -63,7 +63,7 @@ pub enum UiNodeOp<'a> {
     },
 }
 impl<'a> UiNodeOp<'a> {
-    /// Gets the op as an `'static` variant.
+    /// Gets the operation without the associated data.
     pub fn mtd(&self) -> UiNodeOpMethod {
         match self {
             UiNodeOp::Init => UiNodeOpMethod::Init,

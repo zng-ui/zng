@@ -428,7 +428,7 @@ where
     reduce(a, b)
 }
 
-/// Implements [`UiNodeListChain`].
+/// Implementation of [`UiNodeListChain::chain`].
 pub struct UiNodeListChainImpl(pub BoxedUiNodeList, pub BoxedUiNodeList);
 impl UiNodeList for UiNodeListChainImpl {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
@@ -570,7 +570,7 @@ impl UiNodeList for UiNodeListChainImpl {
 #[allow(non_camel_case_types)]
 pub struct SORTING_LIST;
 impl SORTING_LIST {
-    /// If the current call has a parent list.
+    /// If the current call has a parent sorting list.
     pub fn is_inside_list(&self) -> bool {
         !SORTING_LIST_PARENT.is_default()
     }
@@ -591,7 +591,9 @@ context_local! {
     static SORTING_LIST_PARENT: AtomicBool = AtomicBool::new(false);
 }
 
-/// Represents a sorted view into an [`UiNodeList`] that is not changed.
+/// Represents a sorted view into an [`UiNodeList`].
+///
+/// The underlying list is not changed, a sorted index map is used to iterate the underlying list.
 ///
 /// Note that the `*_all` methods are not sorted, only the other accessors map to the sorted position of nodes. The sorting is lazy
 /// and gets invalidated on every init and every time there are changes observed in [`update_all`].
@@ -634,7 +636,7 @@ impl SortingList {
     }
     /// Mutable borrow the inner list.
     ///
-    /// You must call [`invalidate_sort`] if any modification may have affected sort without changing the list length.
+    /// You must call [`invalidate_sort`] if any modification is done to the list.
     ///
     /// [`invalidate_sort`]: Self::invalidate_sort
     pub fn list(&mut self) -> &mut BoxedUiNodeList {
@@ -786,7 +788,7 @@ context_local! {
     static Z_INDEX_CTX: ZIndexCtx = ZIndexCtx::default();
 }
 
-/// Access to widget z-index.
+/// Access to widget z-index in a parent [`PanelList`].
 #[allow(non_camel_case_types)]
 pub struct Z_INDEX;
 impl Z_INDEX {
@@ -2604,7 +2606,7 @@ impl PanelListData for DefaultPanelListData {
     }
 }
 
-/// Represents associated data in a [`PanelList`].
+/// Represents an item's associated data in a [`PanelList`].
 pub trait PanelListData: Default + Send + Any {
     /// Gets the child offset to be used in the default `render_all` and `render_update_all` implementations.
     fn child_offset(&self) -> PxVector;
@@ -2612,9 +2614,9 @@ pub trait PanelListData: Default + Send + Any {
     /// If a new reference frame should be created for the item during render.
     fn define_reference_frame(&self) -> bool;
 
-    /// Commit `child_offset` and `define_reference_frame` changes and requests render or render update if needed.
+    /// Commit `child_offset` and `define_reference_frame` changes.
     ///
-    /// Returns
+    /// Returns flags that indicate what values changed.
     fn commit(&mut self) -> PanelListDataChanges;
 }
 impl PanelListData for () {

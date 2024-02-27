@@ -37,105 +37,138 @@ use super::{
     WidgetId, WidgetUpdateMode, WIDGET,
 };
 
-/// An Ui tree node.
+/// Represents an UI tree node.
+///
+/// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented
+/// using the match helpers. For more advanced nodes you can use the [`ui_node`] proc-macro attribute.
 pub trait UiNode: Any + Send {
-    /// Called every time the node is plugged into the UI tree.
+    /// Initializes the node in a new UI context.
     ///
-    /// If the node [`is_widget`] an info, layout and render request must be made, other nodes need only to init
-    /// descendants.
+    /// Common init operations are subscribing to variables and events and initializing data.
+    /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget id deinited.
+    ///
+    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// do not need to request any sort of update on init.
+    ///
+    /// Note that this method can be called again, after a [`deinit`].
     ///
     /// [`is_widget`]: UiNode::is_widget
+    /// [`deinit`]: UiNode::deinit
     fn init(&mut self);
 
-    /// Called every time the node is unplugged from the UI tree.
+    /// Deinitializes the node in the current UI context.
     ///
-    /// If the node [`is_widget`] an info, layout and render request must be made, other nodes need only to deinit
-    /// descendants.
+    /// Common deinit operations include dropping allocations and handlers.
+    ///
+    /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
+    /// do not need to request any sort of update on deinit.
+    ///
+    /// Note that [`init`] can be called again after this.
     ///
     /// [`is_widget`]: UiNode::is_widget
+    /// [`init`]: UiNode::init
     fn deinit(&mut self);
 
-    /// Called every time there are structural changes in the UI tree such as a node added or removed.
+    /// Builds widget info.
     ///
-    /// Note that info rebuild has higher priority over event, update, layout and render, this means that
-    /// [`WIDGET.info`] is always available in those methods, but it also means that if you set a variable
-    /// and request info update the next info rebuild will still observe the old variable value, you can
-    /// work around this issue by only requesting info rebuild after the variable updates.
+    /// This method is called every time there are structural changes in the UI tree such as a node added or removed, you
+    /// can also request and info rebuild using [`WIDGET.update_info`].
+    ///
+    /// Only nodes in widgets that requested info rebuild or ancestor to widgets the requested info receive this call. Other
+    /// widgets reuse their info in the new info tree. The widget's latest built info is available in [`WIDGET.info`].
+    ///
+    /// Note that info rebuild has higher priority over event, update, layout and render, this means that if you set a variable
+    /// and request info update the next info rebuild will still observe the old variable value, you can work around this issue by
+    /// only requesting info rebuild after the variable updates.
     ///
     /// [`WIDGET.info`]: crate::widget::WIDGET::info
+    /// [`WIDGET.update_info`]: crate::widget::WIDGET::update_info
     fn info(&mut self, info: &mut WidgetInfoBuilder);
 
-    /// Called every time an event updates.
+    /// Receives an event.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// using the [`Event::on`] method or other methods of the [`Event`] type.
+    /// by subscribing to then on init and using the [`Event::on`] method in this method to detect the event.
+    ///
+    /// Note that events send to descendant nodes also flow through this method and must be delegated. If you observe
+    /// an event for a descendant before delegating to the descendant this is a ***preview*** handling, in the normal handling
+    /// you delegate first, then check the event propagation.
     ///
     /// [`Event::on`]: crate::event::Event::on
     /// [`Event`]: crate::event::Event
     fn event(&mut self, update: &EventUpdate);
 
-    /// Called every time an update is requested.
+    /// Receive variable and other non-event updates.
     ///
-    /// An update can be requested using the context [`WIDGET`], after each request, they also happen
-    /// when variables update and any other context or service structure that can be observed updates.
+    /// Calls to this method aggregate all updates that happen on the last pass, multiple variables can be new at the same time.
+    /// You can listen to variable updates by subscribing to then on init and using the [`Var::get_new`] method in this method to
+    /// receive the new values.
+    ///
+    /// A custom update can be requested using the context [`WIDGET.update`]. Common update operations include reacting to variable
+    /// changes that generate an intermediary value for layout or render, the update implementation uses [`WIDGET`] to request layout
+    /// and render after updating the data. Note that for simple variables that are used directly on layout or render you can subscribe
+    /// to that operation directly, skipping update.
+    ///
+    /// [`Var::get_new`]: zero_ui_var::Var::get_new
+    /// [`WIDGET.update`]: crate::widget::WIDGET::update
     fn update(&mut self, updates: &WidgetUpdates);
 
     /// Compute the widget size given the contextual layout metrics.
     ///
     /// Implementers must return the same size [`layout`] returns for the given [`LayoutMetrics`], without
-    /// affecting the actual widget render.
+    /// affecting the actual widget render. Panel widgets that implement some complex layouts need to get an
+    /// what the widget would be given some constraints, this value is used to inform the actual [`layout`] call.
     ///
-    /// # Arguments
-    ///
-    /// * `ctx`: Limited layout context access.
-    /// * `wm`: Limited version of [`WidgetLayout`], includes inline layout, but not offsets.
-    ///
-    /// # Returns
-    ///
-    /// Returns the computed node size, this will probably influencing the actual constraints that will be used
-    /// on a subsequent [`layout`] call.
+    /// Nodes that implement [`layout`] must also implement this method, the [`LAYOUT`] context can be used to retrieve the metrics,
+    /// the [`WidgetMeasure`] parameter can be used to communicate with the parent layout, such as disabling inline layout, the
+    /// returned [`PxSize`] is the desired size given the parent constraints.
     ///
     /// [`layout`]: Self::layout
     /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
     #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
-    /// Called every time a layout update is requested or the constraints used have changed.
+    /// Compute the widget layout given the contextual layout metrics.
     ///
-    /// Implementers must try to fit their size inside the [`constraints`] as best as it can and return an accurate final size. If
-    /// the size breaks the constraints the widget may end-up clipped.
+    /// Implementers must also implement [`measure`]. This method is called by the parent layout once the final constraints
+    /// for the frame are defined, the [`LAYOUT`] context can be used to retrieve the constraints, the [`WidgetLayout`] parameter
+    /// can be used to communicate layout metadata such as inline segments to the parent layout, the returned [`PxSize`] is the
+    /// final size given the constraints.
     ///
-    /// # Arguments
+    /// Only widgets and ancestors that requested layout or use metrics that changed since last layout receive this call. Other
+    /// widgets reuse the last layout result.
     ///
-    /// * `ctx` - Limited layout context, allows causing updates, but no access to services or events, also provides access
-    ///           to the [`LayoutMetrics`].
-    /// * `wl` - Layout state, helps coordinate the final transforms of the widget outer and inner bounds, border widths
-    ///          and corner radius.
+    /// Nodes that render can also implement this operation just to observe the latest widget size, if changes are detected
+    /// the [`WIDGET.render`] method can be used to request render.
     ///
-    /// # Returns
-    ///
-    /// Returns the computed node size, this will end-up influencing the size of the widget inner or outer bounds.
-    ///
+    /// [`measure`]: Self::measure
     /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
     /// [`constraints`]: zero_ui_layout::context::LayoutMetrics::constraints
+    /// [`WIDGET.render`]: crate::widget::WIDGET::render
     #[must_use]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
-    /// Called every time a new frame must be rendered.
+    /// Generates render instructions and updates transforms and hit-test areas.
     ///
-    /// # Arguments
+    /// This method does not generate pixels immediately, it generates *display items* that are visual building block instructions
+    /// for the renderer that will run after the window *display list* is built.
     ///
-    /// * `frame`: Contains the next frame draw instructions.
+    /// Only widgets and ancestors that requested render receive this call, other widgets reuse the display items and transforms
+    /// from the last frame.
     fn render(&mut self, frame: &mut FrameBuilder);
 
-    /// Called every time a frame can be updated without fully rebuilding.
+    /// Updates values in the last generated frame.
     ///
-    /// # Arguments
+    /// Some display item values and transforms can be updated directly, without needing to re-render the item. All [`FrameBuilder`]
+    /// methods that accept a [`FrameValue<T>`] input can be bound to an ID that can be used to update that value.
     ///
-    /// * `update`: Contains the frame value updates.
+    /// Only widgets and ancestors that requested render update receive this call. Note that if any other widget in the same window
+    /// requests render all pending render update requests are upgraded to render requests.
+    ///
+    /// [`FrameValue<T>`]: crate::render::FrameValue
     fn render_update(&mut self, update: &mut FrameUpdate);
 
-    /// Box this node, unless it is already `BoxedUiNode`.
+    /// Box this node or just returns `self` if it is already a `BoxedUiNode`.
     fn boxed(self) -> BoxedUiNode
     where
         Self: Sized,
@@ -146,10 +179,6 @@ pub trait UiNode: Any + Send {
 
     /// Helper for complying with the `dyn_node` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    ///
-    /// If the `dyn_node` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
-    /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
-    /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
     #[cfg(dyn_node)]
     fn cfg_boxed(self) -> BoxedUiNode
     where
@@ -160,10 +189,6 @@ pub trait UiNode: Any + Send {
 
     /// Helper for complying with the `dyn_node` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    ///
-    /// If the `dyn_node` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
-    /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
-    /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
     #[cfg(not(dyn_node))]
     fn cfg_boxed(self) -> Self
     where
@@ -172,9 +197,9 @@ pub trait UiNode: Any + Send {
         self
     }
 
-    /// Gets if this node represents a full widget.
+    /// Gets if this node represents a full widget, that is, it is the outer-most widget node and defines a widget context.
     ///
-    /// If this is `true` the [`with_context`] method can be used to get the widget state.
+    /// If this is `true` the [`with_context`] method can be used to get the widget context.
     ///
     /// [`with_context`]: UiNode::with_context
     fn is_widget(&self) -> bool {
@@ -193,7 +218,7 @@ pub trait UiNode: Any + Send {
     ///
     /// Returns `None` if the node does not represent an widget.
     ///
-    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `f` will be copied to the
     /// caller widget context, otherwise they are ignored.
     ///
     /// [`is_widget`]: UiNode::is_widget
@@ -312,7 +337,7 @@ pub trait UiNode: Any + Send {
     /// Wraps the node in a node that, before delegating each method, calls a closure with
     /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
     ///
-    /// You can use  the [`tracing`](https://docs.rs/tracing) crate to create the span.
+    /// You can use the [`tracing`](https://docs.rs/tracing) crate to create the span.
     fn trace<E, S>(self, mut enter_mtd: E) -> BoxedUiNode
     where
         Self: Sized,
@@ -1392,18 +1417,16 @@ fn assert_bounds(len: usize, i: usize) {
     }
 }
 
-/// A UI node that only takes the minimal required layout size.
-///
-/// The node is blank, it does nothing other then layout to the required minimal size.
+/// A UI node that does nothing and has collapsed layout (zero size).
 pub struct NilUiNode;
 #[super::ui_node(none)]
 impl UiNode for NilUiNode {
     fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-        LAYOUT.constraints().min_size()
+        PxSize::zero()
     }
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-        LAYOUT.constraints().min_size()
+        PxSize::zero()
     }
 
     fn is_nil(&self) -> bool {

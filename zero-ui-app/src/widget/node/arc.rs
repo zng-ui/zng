@@ -151,7 +151,7 @@ impl<U: UiNode> ArcNode<U> {
     }
 }
 
-/// `Weak` reference to a [`ArcNode<U>`].
+/// Weak reference to a [`ArcNode<U>`].
 pub struct WeakNode<U: UiNode>(Weak<SlotData<U>>);
 impl<U: UiNode> Clone for WeakNode<U> {
     fn clone(&self) -> Self {
@@ -279,7 +279,7 @@ impl<L: UiNodeList> ArcNodeList<L> {
     }
 }
 
-/// `Weak` reference to a [`ArcNodeList<U>`].
+/// Weak reference to a [`ArcNodeList<U>`].
 pub struct WeakNodeList<L: UiNodeList>(Weak<SlotData<L>>);
 impl<L: UiNodeList> Clone for WeakNodeList<L> {
     fn clone(&self) -> Self {
