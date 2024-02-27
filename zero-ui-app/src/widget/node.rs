@@ -41,7 +41,7 @@ use super::{
 ///
 /// You can use the [`match_node`] helper to quickly declare a new node from a closure, most property nodes are implemented
 /// using the match helpers. For more advanced nodes you can use the [`ui_node`] proc-macro attribute.
-/// 
+///
 /// [`match_node`]:fn@match_node
 pub trait UiNode: Any + Send {
     /// Initializes the node in a new UI context.
@@ -388,18 +388,22 @@ impl into_widget {
 /// Represents a list of UI nodes.
 ///
 /// There are multiple node list types, panel implementers receive children as `impl UiNodeList` and usually wrap it in a [`PanelList`].
-/// 
+///
 /// UI node lists delegate the [`UiNode`] method for each node in the list, potentially in parallel. Panel implementers call the `*_all`
 /// methods to delegate, they can also use the [`match_node_list`] to implement delegation. The trait also offers [`for_each`], [`par_each`]
 /// and other methods for direct access to the nodes, both sequentially and in parallel.
-/// 
-/// Note that trying to access the nodes before init will probably not work, the [`ArcNodeList`] type is used by properties that request 
+///
+/// Note that trying to access the nodes before init will probably not work, the [`ArcNodeList`] type is used by properties that request
 /// `impl UiNodeList` input, so captured property lists will always be empty before init.
-/// 
+///
 /// [`for_each`]: UiNodeList::for_each
 /// [`par_each`]: UiNodeList::par_each
 pub trait UiNodeList: UiNodeListBoxed {
-    /// Visit the specific node, panic if `index` is out of bounds.
+    /// Visit the specific node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R;
@@ -418,9 +422,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// using `reduce` to produce the final value also in parallel.
     ///
     /// If `reduce` is [associative] the order is preserved in the result.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// This example will collect the node indexes in order:
     ///
     /// ```
@@ -435,7 +439,8 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///     |mut a, b| {
     ///         a.extend(b);
     ///         a
-    ///     })
+    ///     },
+    /// )
     /// # }
     /// ```
     ///
@@ -450,7 +455,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Gets the current number of nodes in the list.
     fn len(&self) -> usize;
 
-    /// Returns `true` if the list does not contain any node.
+    /// Returns `true` if the list does not contain any nodes.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -491,7 +496,7 @@ pub trait UiNodeList: UiNodeListBoxed {
         }
     }
 
-    /// Rebuilds the list in a context, all node info is rebuild.
+    /// Rebuilds the list in a context, all node info is rebuilt.
     fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
             let p_info = self.par_fold_reduce(
@@ -574,7 +579,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Render all nodes.
     ///
     /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break it, for example, the [`PanelList`] render nodes in a different order.
+    /// break it.
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_all(&mut self, frame: &mut FrameBuilder) {
@@ -601,7 +606,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Render all nodes.
     ///
     /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break it, for example, the [`PanelList`] render nodes in a different order.
+    /// break it.
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
@@ -624,7 +629,7 @@ pub trait UiNodeList: UiNodeListBoxed {
             })
         }
     }
-    /// Downcast to `L`, if `self` is `L` or `self` is a [`BoxedUiNodeList`] that is `L`.
+    /// Downcast to `L`, if `self` is `L` or is a [`BoxedUiNodeList`] that is `L`.
     fn downcast_unbox<L: UiNodeList>(self) -> Result<L, BoxedUiNodeList>
     where
         Self: Sized,

@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::widget::node::UiNodeList::info_all`.
+        - Last reviewed `zero_ui::widget::node::UiNodeListObserver`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

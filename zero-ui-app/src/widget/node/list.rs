@@ -344,7 +344,7 @@ impl UiNodeList for UiNodeVec {
     }
 }
 
-/// Adds the `chain` method for all [`UiNodeList`] implementers.
+/// Adds the `chain` method for all [`UiNodeList`] implementors.
 pub trait UiNodeListChain: UiNodeList {
     /// Creates a new [`UiNodeList`] that chains `self` and `other`.
     ///
@@ -974,28 +974,29 @@ impl_from_and_into_var! {
 /// All indexes are in the context of the previous changes, if you are maintaining a *mirror* vector simply using the
 /// [`Vec::insert`] and [`Vec::remove`] commands in the same order as they are received should keep the vector in sync.
 ///
-/// This trait is implemented for `()`, to **not** observe simply pass on a `&mut ()`.
+/// This trait is implemented for `()`, to not observe simply pass on a `&mut ()`.
 ///
 /// This trait is implemented for [`bool`], if any change happens the flag is set to `true`.
 pub trait UiNodeListObserver {
-    /// If  this observer does not use the item indexes and any/all calls to observer methods can be replaced by a single
-    /// or multiple calls to [`reset`].
+    /// Called when a node is inserted at `index`.
+    fn inserted(&mut self, index: usize);
+    /// Called when a node is removed from `index`.
+    fn removed(&mut self, index: usize);
+    /// Called when a node is removed from `removed_index` and re-inserted at `inserted_index`.
+    fn moved(&mut self, removed_index: usize, inserted_index: usize);
+    /// Called when large or unspecified changes happen to the list.
+    fn reset(&mut self);
+
+    /// Returns true if this observer does not use the item indexes.
+    ///
+    /// When true you can use [`reset`] to notify any changes.
     ///
     /// This flag can be used by list implementers to enable parallel processing in more contexts, for example, chain lists cannot
-    /// parallelize because indexes of subsequent lists are dependent on indexed of previous lists, but if the observer only needs
+    /// parallelize because indexes of subsequent lists are dependent on indexes of previous lists, but if the observer only needs
     /// to known that some change happened the chain list can still parallelize.
     ///
     /// [`reset`]: Self::reset
     fn is_reset_only(&self) -> bool;
-
-    /// Large changes made to the list.
-    fn reset(&mut self);
-    /// Widget inserted at the `index`.
-    fn inserted(&mut self, index: usize);
-    /// Widget removed from the `index`.
-    fn removed(&mut self, index: usize);
-    /// Widget removed and re-inserted.
-    fn moved(&mut self, removed_index: usize, inserted_index: usize);
 }
 /// Does nothing.
 impl UiNodeListObserver for () {
