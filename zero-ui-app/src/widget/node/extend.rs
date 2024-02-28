@@ -10,9 +10,9 @@ use super::*;
 /// Create an widget node that wraps the `widget` with any number of other non-widget nodes and
 /// still delegates [`with_context`] to the `widget`.
 ///
-/// Note that the [`with_context`] is not called in the context of `widget`, but not in the context of `build_extension` nodes.
-/// Other node operation methods are delegated to the `build_extension` nodes, and they in turn must delegate to the input child
-/// node that is also the `widget`.
+/// Note that the [`with_context`] is called in the context of `widget`, not in the context of the `build_extension` nodes.
+/// Other node operations are delegated to the `build_extension` nodes, and they in turn must delegate to the input child
+/// node that is `widget`.
 ///
 /// [`with_context`]: UiNode::with_context
 pub fn extend_widget(widget: impl UiNode, build_extension: impl FnOnce(BoxedUiNode) -> BoxedUiNode) -> impl UiNode {

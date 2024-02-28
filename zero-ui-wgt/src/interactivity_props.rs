@@ -104,7 +104,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 #[property(EVENT)]
 pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, true, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
+    event_state(child, state, true, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
         if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
             Some(new.is_vis_enabled())
         } else {
@@ -122,7 +122,7 @@ pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
 pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
+    event_state(child, state, false, info::INTERACTIVITY_CHANGED_EVENT, move |args| {
         if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
             Some(!new.is_vis_enabled())
         } else {

@@ -13,7 +13,7 @@ use zero_ui_wgt::prelude::*;
 /// If the mouse pointer is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]
 pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
+    event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
         if args.is_mouse_enter_disabled() {
             Some(true)
         } else if args.is_mouse_leave_disabled() {
@@ -36,7 +36,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(EVENT)]
 pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
+    event_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
         if args.is_mouse_enter_enabled() {
             Some(true)
         } else if args.is_mouse_leave_enabled() {
@@ -54,7 +54,7 @@ pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state2(
+    event_state2(
         child,
         state,
         false,
@@ -98,7 +98,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
 #[property(EVENT)]
 pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state3(
+    event_state3(
         child,
         state,
         false,
@@ -166,7 +166,7 @@ pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state2(
+    event_state2(
         child,
         state,
         false,
@@ -265,7 +265,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, TOUCHED_EVENT, |args| {
+    event_state(child, state, false, TOUCHED_EVENT, |args| {
         if args.is_touch_enter_enabled() {
             Some(true)
         } else if args.is_touch_leave_enabled() {
@@ -288,7 +288,7 @@ pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 #[property(EVENT)]
 pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let mut touches_started = HashSet::new();
-    event_is_state(child, state, false, TOUCHED_EVENT, move |args| {
+    event_state(child, state, false, TOUCHED_EVENT, move |args| {
         if args.is_touch_enter_enabled() {
             match args.phase {
                 TouchPhase::Start => {
@@ -317,7 +317,7 @@ pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> i
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state2(
+    event_state2(
         child,
         state,
         false,
@@ -355,7 +355,7 @@ pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 #[property(EVENT)]
 pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let mut touches_started = HashSet::new();
-    event_is_state2(
+    event_state2(
         child,
         state,
         false,

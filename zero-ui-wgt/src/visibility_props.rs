@@ -97,7 +97,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 }
 
 fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: Visibility) -> impl UiNode {
-    event_is_state(
+    event_state(
         child,
         state,
         expected == Visibility::Visible,

@@ -312,7 +312,7 @@ event_property! {
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus(id) {
             Some(true)
@@ -334,7 +334,7 @@ pub fn is_focused(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`is_focus_within_hgl`]: fn@is_focus_within_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus_enter(id) {
             Some(true)
@@ -360,7 +360,7 @@ pub fn is_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// [`is_focused`]: fn@is_focused
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus(id) {
             Some(args.highlight)
@@ -384,7 +384,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`is_focus_within`]: fn@is_focus_within
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_focus_enter(id) {
             Some(args.highlight)
@@ -416,7 +416,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`is_focused_hgl`]: fn@is_focused_hgl
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_return_focus(id) {
             Some(true)
@@ -435,7 +435,7 @@ pub fn is_return_focus(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// [`is_return_focus`]: fn@is_return_focus
 #[property(CONTEXT, widget_impl(FocusableMix<P>))]
 pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
+    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |args| {
         let id = WIDGET.id();
         if args.is_return_focus_enter(id) {
             Some(true)

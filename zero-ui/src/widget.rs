@@ -219,8 +219,8 @@ pub mod node {
     };
 
     pub use zero_ui_wgt::node::{
-        bind_state, border_node, event_is_state, event_is_state2, event_is_state3, event_is_state4, fill_node, interactive_node,
-        list_presenter, presenter, presenter_opt, validate_getter_var, widget_state_get_state, widget_state_is_state, with_context_blend,
+        bind_state, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node, list_presenter,
+        presenter, presenter_opt, validate_getter_var, widget_state_get_state, widget_state_is_state, with_context_blend,
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node,
         with_rev_index_node, with_widget_state, with_widget_state_modify,
     };

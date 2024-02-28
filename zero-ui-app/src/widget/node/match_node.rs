@@ -174,25 +174,15 @@ impl fmt::Display for UiNodeOpMethod {
 
 /// Creates a node that is implemented as a closure that matches over [`UiNodeOp`] and delegates to another child node.
 ///
-/// The closure node delegates to `child`, when the `closure` itself does not delegate, the `child` methods
-/// are called after the closure returns.
+/// The closure node can delegate to `child`, when the `closure` itself does not delegate, the `child` methods
+/// are called after the closure returns. See [`MatchNodeChild`] for more details.
 ///
-/// This is a convenient way of declaring *anonymous* nodes, such as those that implement a property function. By leveraging
-/// closure capture state storing can be easily declared and used.
-///
-/// See [`match_node_list`] to create a match node that delegates to multiple children, or [`match_node_leaf`] to create a node
-/// that does not delegate.
-///
-/// # Warning
-///
-/// The child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the child directly
-/// using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead, or have the child type always be [`BoxedUiNode`].
-///
-/// # Widget
-///
-/// The match node will not delegate [`UiNode::is_widget`] and other widget methods, you can use [`match_widget`] for that.
+/// This is a convenient way of declaring anonymous nodes, such as those that implement a property function. By leveraging
+/// closure captures, state can be easily declared and used, without the verbosity of declaring a struct.
 ///
 /// # Examples
+/// 
+/// The example declares a property node that implements multiple UI node operations.
 ///
 /// ```
 /// # fn main() { }
@@ -230,7 +220,15 @@ impl fmt::Display for UiNodeOpMethod {
 ///     })
 /// }
 /// ```
+/// 
+/// # See Also
 ///
+/// See also [`match_node_list`] that delegates to multiple children, [`match_node_leaf`] that declares a leaf node (no child)
+/// and [`match_widget`] that can extend a widget node.
+/// 
+/// Note that the child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the 
+/// child directly using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead.
+/// 
 /// [`match_node_typed`]: fn@match_node_typed
 /// [`match_widget`]: fn@match_widget
 #[cfg(dyn_node)]
@@ -243,39 +241,31 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 
 /// Creates a node that is implemented as a closure that matches over [`UiNodeOp`] and delegates to another child node.
 ///
-/// The closure node delegates to `child`, when the `closure` itself does not delegate, the `child` methods
-/// are called after the closure returns.
+/// The closure node can delegate to `child`, when the `closure` itself does not delegate, the `child` methods
+/// are called after the closure returns. See [`MatchNodeChild`] for more details.
 ///
-/// This is a convenient way of declaring *anonymous* nodes, such as those that implement a property function. By leveraging
-/// closure capture state storing can be easily implemented.
-///
-/// See [`match_node_list`] to create a match node that delegates to multiple children, or [`match_node_leaf`] to create a node
-/// that does not delegate.
-///
-/// # Warning
-///
-/// The child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the child directly
-/// using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead, or have the child type always be [`BoxedUiNode`].
-///
-/// # Widget
-///
-/// The match node will not delegate [`UiNode::is_widget`] and other widget methods, you can use [`match_widget`] for that.
+/// This is a convenient way of declaring anonymous nodes, such as those that implement a property function. By leveraging
+/// closure captures, state can be easily declared and used, without the verbosity of declaring a struct.
 ///
 /// # Examples
+/// 
+/// The example declares a property node that implements multiple UI node operations.
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{*, widget_node::*, widget_builder::*};
+/// # use zero_ui_app::{*, widget::{*, node::*, builder::*}};
+/// # use zero_ui_var::*;
+/// # use zero_ui_layout::context::LAYOUT;
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();
 ///     let mut layout_count = 0;
 ///
 ///     match_node(child, move |child, op| match op {
-///         UiNode::Init => {
+///         UiNodeOp::Init => {
 ///             WIDGET.sub_var(&enabled);
 ///         }
-///         UiNode::Update => {
+///         UiNodeOp::Update { .. } => {
 ///             if let Some(true) = enabled.get_new() {
 ///                 println!("layout count reset");
 ///                 layout_count = 0;
@@ -297,7 +287,15 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///     })
 /// }
 /// ```
+/// 
+/// # See Also
 ///
+/// See also [`match_node_list`] that delegates to multiple children, [`match_node_leaf`] that declares a leaf node (no child)
+/// and [`match_widget`] that can extend a widget node.
+/// 
+/// Note that the child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the 
+/// child directly using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead.
+/// 
 /// [`match_node_typed`]: fn@match_node_typed
 /// [`match_widget`]: fn@match_widget
 #[cfg(not(dyn_node))]
@@ -591,7 +589,9 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> impl U
 /// Creates a widget that is implemented as a closure that matches over [`UiNodeOp`] and delegates to another child widget.
 ///
 /// The returned node will delegate to `child` like [`match_node`] does, and will also delegate [`UiNode::is_widget`] and
-/// [`UiNode::with_context`]. Note that the `closure` itself will not run inside [`UiNode::with_context`].
+/// [`UiNode::with_context`]. 
+/// 
+/// Note that the `closure` itself will not run inside [`UiNode::with_context`].
 ///
 /// Note that unlike the [`match_node`] the `W` type is always preserved, the feature `dyn_node` is ignored here.
 ///
@@ -781,8 +781,8 @@ impl<C: UiNode> UiNode for MatchWidgetChild<C> {
 
 /// Creates a node that is implemented as a closure that matches over [`UiNodeOp`] and delegates to multiple children nodes in a list.
 ///
-/// The closure node delegates to `children`, when the `closure` itself does not delegate, the `children` methods
-/// are called after the closure returns.
+/// The closure node can delegate to `children`, when the `closure` itself does not delegate, the `children` methods
+/// are called after the closure returns. See [`MatchNodeChildren`] for more details.
 pub fn match_node_list<L: UiNodeList>(
     children: L,
     closure: impl FnMut(&mut MatchNodeChildren<L>, UiNodeOp) + Send + 'static,

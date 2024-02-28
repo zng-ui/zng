@@ -999,22 +999,24 @@ pub fn validate_getter_var<T: VarValue>(_var: &impl Var<T>) {
 }
 
 /// Helper for declaring state properties that depend on a single event.
-pub fn event_is_state<A: EventArgs>(
+///
+/// When the `event` is received `on_event` is called, if it provides a new state the `state` variable is set.
+pub fn event_state<A: EventArgs, S: VarValue>(
     child: impl UiNode,
-    state: impl IntoVar<bool>,
-    default: bool,
+    state: impl IntoVar<S>,
+    default: S,
     event: Event<A>,
-    mut on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
+    mut on_event: impl FnMut(&A) -> Option<S> + Send + 'static,
 ) -> impl UiNode {
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event);
-            let _ = state.set(default);
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default);
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update) {
@@ -1028,37 +1030,43 @@ pub fn event_is_state<A: EventArgs>(
 }
 
 /// Helper for declaring state properties that depend on two other event states.
+///
+/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
+/// provides a new value the `state` variable is set.
 #[allow(clippy::too_many_arguments)]
-pub fn event_is_state2<A0, A1>(
+pub fn event_state2<A0, A1, S0, S1, S>(
     child: impl UiNode,
-    state: impl IntoVar<bool>,
-    default: bool,
+    state: impl IntoVar<S>,
+    default: S,
     event0: Event<A0>,
-    default0: bool,
-    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    default0: S0,
+    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
     event1: Event<A1>,
-    default1: bool,
-    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
-    mut merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
+    default1: S1,
+    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
+    mut merge: impl FnMut(S0, S1) -> Option<S> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
+    S0: VarValue,
+    S1: VarValue,
+    S: VarValue,
 {
     let state = state.into_var();
     let partial_default = (default0, default1);
-    let mut partial = (default0, default1);
+    let mut partial = partial_default.clone();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event0).sub_event(&event1);
 
-            partial = partial_default;
-            let _ = state.set(default);
+            partial = partial_default.clone();
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default);
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1080,7 +1088,7 @@ where
             child.event(update);
 
             if updated {
-                if let Some(value) = merge(partial.0, partial.1) {
+                if let Some(value) = merge(partial.0.clone(), partial.1.clone()) {
                     let _ = state.set(value);
                 }
             }
@@ -1090,41 +1098,48 @@ where
 }
 
 /// Helper for declaring state properties that depend on three other event states.
+///
+/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
+/// provides a new value the `state` variable is set.
 #[allow(clippy::too_many_arguments)]
-pub fn event_is_state3<A0, A1, A2>(
+pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
     child: impl UiNode,
-    state: impl IntoVar<bool>,
-    default: bool,
+    state: impl IntoVar<S>,
+    default: S,
     event0: Event<A0>,
-    default0: bool,
-    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    default0: S0,
+    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
     event1: Event<A1>,
-    default1: bool,
-    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    default1: S1,
+    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
     event2: Event<A2>,
-    default2: bool,
-    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
-    mut merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
+    default2: S2,
+    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
+    mut merge: impl FnMut(S0, S1, S2) -> Option<S> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
     A2: EventArgs,
+    S0: VarValue,
+    S1: VarValue,
+    S2: VarValue,
+    S: VarValue,
 {
     let state = state.into_var();
     let partial_default = (default0, default1, default2);
-    let mut partial = (default0, default1, default2);
+    let mut partial = partial_default.clone();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
 
-            partial = partial_default;
-            let _ = state.set(default);
+            partial = partial_default.clone();
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default);
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1153,7 +1168,7 @@ where
             child.event(update);
 
             if updated {
-                if let Some(value) = merge(partial.0, partial.1, partial.2) {
+                if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone()) {
                     let _ = state.set(value);
                 }
             }
@@ -1163,45 +1178,53 @@ where
 }
 
 /// Helper for declaring state properties that depend on four other event states.
+///
+/// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
+/// provides a new value the `state` variable is set.
 #[allow(clippy::too_many_arguments)]
-pub fn event_is_state4<A0, A1, A2, A3>(
+pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
     child: impl UiNode,
-    state: impl IntoVar<bool>,
-    default: bool,
+    state: impl IntoVar<S>,
+    default: S,
     event0: Event<A0>,
-    default0: bool,
-    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    default0: S0,
+    mut on_event0: impl FnMut(&A0) -> Option<S0> + Send + 'static,
     event1: Event<A1>,
-    default1: bool,
-    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    default1: S1,
+    mut on_event1: impl FnMut(&A1) -> Option<S1> + Send + 'static,
     event2: Event<A2>,
-    default2: bool,
-    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    default2: S2,
+    mut on_event2: impl FnMut(&A2) -> Option<S2> + Send + 'static,
     event3: Event<A3>,
-    default3: bool,
-    mut on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
-    mut merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
+    default3: S3,
+    mut on_event3: impl FnMut(&A3) -> Option<S3> + Send + 'static,
+    mut merge: impl FnMut(S0, S1, S2, S3) -> Option<S> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
     A2: EventArgs,
     A3: EventArgs,
+    S0: VarValue,
+    S1: VarValue,
+    S2: VarValue,
+    S3: VarValue,
+    S: VarValue,
 {
     let state = state.into_var();
     let partial_default = (default0, default1, default2, default3);
-    let mut partial = (default0, default1, default2, default3);
+    let mut partial = partial_default.clone();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             validate_getter_var(&state);
             WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
 
-            partial = partial_default;
-            let _ = state.set(default);
+            partial = partial_default.clone();
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(default);
+            let _ = state.set(default.clone());
         }
         UiNodeOp::Event { update } => {
             let mut updated = false;
@@ -1237,7 +1260,7 @@ where
             child.event(update);
 
             if updated {
-                if let Some(value) = merge(partial.0, partial.1, partial.2, partial.3) {
+                if let Some(value) = merge(partial.0.clone(), partial.1.clone(), partial.2.clone(), partial.3.clone()) {
                     let _ = state.set(value);
                 }
             }
@@ -1248,8 +1271,8 @@ where
 
 /// Helper for declaring state properties that are controlled by a variable.
 ///
-/// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
-/// that merge other state properties.
+/// On init the `state` variable is set to `source` and bound to it, you can use this to create state properties
+/// that map from a context variable or to create composite properties that merge other state properties.
 pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, state: impl IntoVar<T>) -> impl UiNode {
     let source = source.into_var();
     let state = state.into_var();
@@ -1346,15 +1369,11 @@ pub fn widget_state_get_state<T: VarValue>(
     })
 }
 
-/// Transforms and clips the `content` node according with the default widget border behavior.
+/// Transforms and clips the `content` node according with the default widget border align behavior.
 ///
 /// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
-/// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
+/// the expected interaction with the widget borders, the content will be positioned, sized and clipped according to the
 /// widget borders, corner radius and border align.
-///
-/// Note that this node should **not** be used for the property child node (first argument), only other
-/// content that fills the widget, for examples, a *background* property would wrap its background node with this
-/// but just pass thought layout and render for its child node.
 pub fn fill_node(content: impl UiNode) -> impl UiNode {
     let mut clip_bounds = PxSize::zero();
     let mut clip_corners = PxCornerRadius::zero();
@@ -1455,7 +1474,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
     })
 }
 
-/// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
+/// Creates a border node that delegates rendering to a `border_visual` and manages the `border_offsets` coordinating
 /// with the other borders of the widget.
 ///
 /// This node disables inline layout for the widget.
@@ -1778,13 +1797,16 @@ where
     })
 }
 
-/// Create a node that disables interaction for all widget inside `node` using [`BLOCKED`].
+/// Create a node that controls interaction for all widgets inside `node`.
+/// 
+/// When the `interactive` var is `false` all descendant widgets are [`BLOCKED`].
 ///
-/// Unlike the `interactive` property this does not apply to the contextual widget, only `child` and descendants.
+/// Unlike the [`interactive`] property this does not apply to the contextual widget, only `child` and descendants.
 ///
-/// The node works for both if the `child` is a widget or if it contains widgets, the performance
-/// is slightly better if the `child` is a widget directly.
+/// The node works for either if the `child` is a widget or if it only contains widgets, the performance
+/// is slightly better if the `child` is a widget.
 ///
+/// [`interactive`]: fn@crate::interactive
 /// [`BLOCKED`]: Interactivity::BLOCKED
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     let interactive = interactive.into_var();
@@ -2013,15 +2035,13 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
     })
 }
 
-/// Node that presents `list` using `element_fn` for each new element.
+/// Node that presents `list` using `item_fn` for each new list item.
 ///
-/// The node's children is always the result of `element_fn` called for each element in the `list`, removed
-/// elements are deinited, inserted elements get a call to `element_fn` and are inserted in the same position
-/// on the list.
-pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, element_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+/// The node's children is the list mapped to node items, it is kept in sync, any list update is propagated to the node list.
+pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
     ListPresenter {
         list: list.into_var(),
-        element_fn: element_fn.into_var(),
+        item_fn: item_fn.into_var(),
         view: vec![],
         _e: std::marker::PhantomData,
     }
@@ -2029,7 +2049,7 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, element
 
 struct ListPresenter<D: VarValue, L: Var<ObservableVec<D>>, E: Var<WidgetFn<D>>> {
     list: L,
-    element_fn: E,
+    item_fn: E,
     view: Vec<BoxedUiNode>,
     _e: std::marker::PhantomData<D>,
 }
@@ -2088,9 +2108,9 @@ where
         debug_assert!(self.view.is_empty());
         self.view.clear();
 
-        WIDGET.sub_var(&self.list).sub_var(&self.element_fn);
+        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
 
-        let e_fn = self.element_fn.get();
+        let e_fn = self.item_fn.get();
         self.list.with(|l| {
             for el in l.iter() {
                 let child = e_fn(el.clone());
@@ -2107,7 +2127,7 @@ where
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let mut need_reset = self.element_fn.is_new();
+        let mut need_reset = self.item_fn.is_new();
 
         let is_new = self
             .list
@@ -2121,7 +2141,7 @@ where
                 // update before new items to avoid update before init.
                 self.view.update_all(updates, observer);
 
-                let e_fn = self.element_fn.get();
+                let e_fn = self.item_fn.get();
 
                 for change in l.changes() {
                     match change {
@@ -2163,7 +2183,7 @@ where
             self.view.deinit_all();
             self.view.clear();
 
-            let e_fn = self.element_fn.get();
+            let e_fn = self.item_fn.get();
             self.list.with(|l| {
                 for el in l.iter() {
                     let child = e_fn(el.clone());
