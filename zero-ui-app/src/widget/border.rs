@@ -196,11 +196,11 @@ impl BorderSide {
         Self::new(color, BorderStyle::Double)
     }
 
-    /// New border side with [`Solid`](BorderStyle::Dotted) style.
+    /// New border side with [`Dotted`](BorderStyle::Dotted) style.
     pub fn dotted<C: Into<Rgba>>(color: C) -> Self {
         Self::new(color, BorderStyle::Dotted)
     }
-    /// New border side with [`Solid`](BorderStyle::Dashed) style.
+    /// New border side with [`Dashed`](BorderStyle::Dashed) style.
     pub fn dashed<C: Into<Rgba>>(color: C) -> Self {
         Self::new(color, BorderStyle::Dashed)
     }

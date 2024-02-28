@@ -95,9 +95,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// You should use this macro only in contexts where a widget will be build in steps, or in very hot code paths where a widget
 /// has many properties and only some will be non-default per instance.
 ///
-///
-///
-/// # Property Set
+/// # Property Assign
 ///
 /// Properties can be assigned using the `property = value;` syntax, this expands to a call to the property method, either
 /// directly implemented on the widget or from a trait.
@@ -110,7 +108,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_app::widget::base::WidgetBase! {
-/// id = "test";
+/// id = "name";
 /// background_color = colors::BLUE;
 /// # }; }
 /// ```
@@ -125,7 +123,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
-/// wgt.id("test");
+/// wgt.id("name");
 /// wgt.background_color(colors::BLUE);
 /// # }
 /// ```
@@ -134,9 +132,9 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// by a [`property`] function. Extension properties require `&mut self` access to the widget, intrinsic properties only require `&self`,
 /// this is done so that IDEs that use a different style for mutable methods highlight the properties that are not intrinsic to the widget.
 ///
-/// ## Path Set
+/// ## Path Assign
 ///
-/// An full or partial path can be used to specify exactly what extension property will be set:
+/// A full or partial path can be used to specify exactly what extension property will be set:
 ///
 /// ```
 /// # use zero_ui_app::{*, widget::{node::*, property}};
@@ -167,7 +165,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # }
 /// ```
 ///
-/// ## Named Set
+/// ## Named Assign
 ///
 /// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
 ///
@@ -232,7 +230,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # }
 /// ```
 ///
-/// ## Unnamed Set Multiple
+/// ## Unnamed Assign Multiple
 ///
 /// Properties with multiple parameters don't need to be set using the named syntax:
 ///
@@ -262,7 +260,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # }
 /// ```
 ///
-/// ## Shorthand Set
+/// ## Shorthand Assign
 ///
 /// Is a variable with the same name as a property is in context the `= name` can be omitted:
 ///
@@ -370,7 +368,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 ///
 /// # When
 ///
-/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
+/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and property assigns,
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
 /// ```
@@ -395,17 +393,17 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 ///
 /// The `when` block defines a condition expression, in the example above this is `*#is_pressed`. The expression can be any Rust expression
 /// that results in a [`bool`] value, you can reference properties in it using the `#` token followed by the property name or path and you
-/// can reference variables in it using the `#{var}` syntax. If a property or var is reference the `when` block is dynamic, updating all
+/// can reference variables in it using the `#{var}` syntax. If a property or var is referenced the `when` block is dynamic, updating all
 /// assigned properties when the expression result changes.
 ///
 /// ### Property Reference
 ///
 /// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
-/// and it's input read-write var controls when the background is set to green. Note that a reference to the value is inserted in the expression
+/// and it controls when the background is set to green. Note that a reference to the value is inserted in the expression
 /// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
 ///
 /// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or
-/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with out than one input, the input can be
+/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with more than one input, the input can be
 /// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
 /// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
 ///
@@ -433,11 +431,11 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 ///     pub static FOO_VAR: Vec<&'static str> = vec![];
 ///     pub static BAR_VAR: bool = false;
 /// }
+/// 
 /// # fn main() {
 /// # let _scope = APP.minimal();
 /// # let wgt = widget::base::WidgetBase! {
 /// background_color = colors::RED;
-///
 /// when !*#{BAR_VAR} && #{FOO_VAR}.contains(&"green") {
 ///     background_color = colors::GREEN;
 /// }
@@ -447,7 +445,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// ## When Assigns
 ///
 /// Inside the `when` block a list of property assigns is expected, most properties can be assigned, but `impl IntoValue<T>` properties cannot,
-/// you also cannot `unset!` in when assigns, a compile time error happens if the property cannot be when assigned.
+/// you also cannot `unset!` in when assigns, a compile time error happens if the property cannot be assigned.
 ///
 /// On instantiation a single instance of the property will be generated, the parameters will track the when expression state and update
 /// to the value assigned when it is `true`. When no block is `true` the value assigned to the property outside `when` blocks is used, or the property default value. When more then one block is `true` the *last* one sets the value.

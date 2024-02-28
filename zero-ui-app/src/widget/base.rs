@@ -303,7 +303,7 @@ impl NonWidgetBase {
         }
     }
 
-    /// Starts building a new [`WidgetBase`](struct@WidgetBase) instance.
+    /// Starts building a new [`NonWidgetBase`](struct@NonWidgetBase) instance.
     pub fn widget_new() -> Self {
         Self::inherit(Self::widget_type())
     }
@@ -326,9 +326,9 @@ impl NonWidgetBase {
         self.base.widget_take()
     }
 
-    /// Returns the builder.
-    ///
-    /// Inheritors should override this method.
+    /// Finishes the build. 
+    /// 
+    /// This is the fallback build that simply returns the builder, inheritors should override this method.
     pub fn widget_build(&mut self) -> WidgetBuilder {
         self.widget_take()
     }
