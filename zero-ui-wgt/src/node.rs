@@ -1961,31 +1961,29 @@ pub fn with_index_len_node(
     })
 }
 
-/// Node that presents `data` using `update`.
+/// Node that presents `data` using `wgt_fn`.
 ///
-/// The node's child is always the result of `update` for the `data` value, it is reinited every time
-/// either `data` or `update` updates.
+/// The node's child is always the result of `wgt_fn` called for the `data` value, it is reinited every time
+/// either variable changes.
 ///
 /// See also [`presenter_opt`] for a presenter that is nil with the data is `None`.
-///
-/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
-pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
-    let update = update.into_var();
+    let wgt_fn = wgt_fn.into_var();
 
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&data).sub_var(&update);
-            *c.child() = update.get()(data.get());
+            WIDGET.sub_var(&data).sub_var(&wgt_fn);
+            *c.child() = wgt_fn.get()(data.get());
         }
         UiNodeOp::Deinit => {
             c.deinit();
             *c.child() = NilUiNode.boxed();
         }
         UiNodeOp::Update { .. } => {
-            if data.is_new() || update.is_new() {
+            if data.is_new() || wgt_fn.is_new() {
                 c.child().deinit();
-                *c.child() = update.get()(data.get());
+                *c.child() = wgt_fn.get()(data.get());
                 c.child().init();
                 c.delegated();
                 WIDGET.update_info().layout().render();
@@ -1995,20 +1993,18 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<Widget
     })
 }
 
-/// Node that presents `data` using `update` if data is available, otherwise presents nil.
+/// Node that presents `data` using `wgt_fn` if data is available, otherwise presents nil.
 ///
-/// This behaves like [`presenter`], but `update` is not called if `data` is `None`.
-///
-/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
-pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+/// This behaves like [`presenter`], but `wgt_fn` is not called if `data` is `None`.
+pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
-    let update = update.into_var();
+    let wgt_fn = wgt_fn.into_var();
 
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&data).sub_var(&update);
+            WIDGET.sub_var(&data).sub_var(&wgt_fn);
             if let Some(data) = data.get() {
-                *c.child() = update.get()(data);
+                *c.child() = wgt_fn.get()(data);
             }
         }
         UiNodeOp::Deinit => {
@@ -2016,10 +2012,10 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
             *c.child() = NilUiNode.boxed();
         }
         UiNodeOp::Update { .. } => {
-            if data.is_new() || update.is_new() {
+            if data.is_new() || wgt_fn.is_new() {
                 if let Some(data) = data.get() {
                     c.child().deinit();
-                    *c.child() = update.get()(data);
+                    *c.child() = wgt_fn.get()(data);
                     c.child().init();
                     c.delegated();
                     WIDGET.update_info().layout().render();
