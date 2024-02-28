@@ -36,10 +36,6 @@ pub use zero_ui_app;
 
 /// Helper for declaring properties that sets a context var.
 ///
-/// The method presents the `value` as the [`ContextVar<T>`] in the widget and widget descendants.
-/// The context var [`is_new`] and [`read_only`] status are always equal to the `value` var status. Users
-/// of the context var can also retrieve the `value` var using [`actual_var`].
-///
 /// The generated [`UiNode`] delegates each method to `child` inside a call to [`ContextVar::with_context`].
 ///
 /// # Examples
@@ -56,7 +52,7 @@ pub use zero_ui_app;
 ///     pub static FOO_VAR: u32 = 0u32;
 /// }
 ///
-/// /// Sets the [`FooVar`] in the widgets and its content.
+/// /// Sets the [`FOO_VAR`] in the widgets and its content.
 /// #[property(CONTEXT, default(FOO_VAR))]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
 ///     with_context_var(child, FOO_VAR, value)
@@ -1556,7 +1552,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
     })
 }
 
-/// Helper for declaring nodes that sets a context local.
+/// Helper for declaring nodes that sets a context local value.
+/// 
+/// See [`context_local!`] for more details about contextual values.
+/// 
+/// [`context_local!`]: crate::prelude::context_local
 pub fn with_context_local<T: Any + Send + Sync + 'static>(
     child: impl UiNode,
     context: &'static ContextLocal<T>,
@@ -1569,7 +1569,7 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
     })
 }
 
-/// Helper for declaring nodes that sets a context local with a value generated on init.
+/// Helper for declaring nodes that sets a context local value generated on init.
 ///
 /// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextLocal<T>`]
 /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
@@ -1660,11 +1660,11 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
-/// use zero_ui_var::IntoVar;
-/// use zero_ui_wgt::node::with_widget_state;
-/// use zero_ui_state_map::{StaticStateId, StateId};
-///
+/// # use zero_ui_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
+/// # use zero_ui_var::IntoVar;
+/// # use zero_ui_wgt::node::with_widget_state;
+/// # use zero_ui_state_map::{StaticStateId, StateId};
+/// #
 /// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
 ///
 /// #[property(CONTEXT)]
@@ -1860,7 +1860,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
     })
 }
 
-/// Helper for a property that gets the *index* of the widget in the parent panel.
+/// Helper for a property that gets the index of the widget in the parent panel.
 ///
 /// See [`with_index_len_node`] for more details.
 pub fn with_index_node(
@@ -1890,7 +1890,7 @@ pub fn with_index_node(
     })
 }
 
-/// Helper for a property that gets the *index* of the widget in the parent panel.
+/// Helper for a property that gets the reverse index of the widget in the parent panel.
 ///
 /// See [`with_index_len_node`] for more details.
 pub fn with_rev_index_node(
@@ -1919,10 +1919,10 @@ pub fn with_rev_index_node(
     })
 }
 
-/// Helper for a property that gets the *index* of the widget in the parent panel and the number of children.
+/// Helper for a property that gets the index of the widget in the parent panel and the number of children.
 ///  
 /// Panels must use [`PanelList::track_info_range`] to collect the `panel_list_id`, then implement getter properties
-/// using the methods in this module. See the stack getter properties for examples.
+/// using the methods in this module. See the `stack!` getter properties for examples.
 ///
 /// [`PanelList::track_info_range`]: zero_ui_app::widget::node::PanelList::track_info_range
 pub fn with_index_len_node(
