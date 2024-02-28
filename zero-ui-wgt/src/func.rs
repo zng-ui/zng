@@ -126,6 +126,52 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// <span data-del-macro-root></span> Declares a widget function closure.
 ///
 /// The output type is a [`WidgetFn`], the closure is [`clmv!`].
+/// 
+/// # Syntax
+/// 
+/// * `wgt_fn!(cloned, |_args| Wgt!())` - Clone-move closure, the same syntax as [`clmv!`] you can
+/// list the cloned values before the closure.
+/// * `wgt_fn!(path::to::func)` - The macro also accepts unction, the signature must receive the args and return
+/// a widget.
+/// * `wgt_fn!()` - An empty call generates the [`WidgetFn::nil()`] value.
+/// 
+/// # Examples
+/// 
+/// Declares a basic widget function that ignores the argument and does not capture any value:
+/// 
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::{prelude::*, Wgt, on_init};
+/// # 
+/// # fn main() {
+/// # let wgt: WidgetFn<bool> = 
+/// wgt_fn!(|_| Wgt! {
+///     on_init = hn!(|_| println!("generated widget init"));
+/// });
+/// # ; }
+/// ```
+/// 
+/// The macro is clone-move, meaning you can use the same syntax as [`clmv!`] to capture clones of values:
+/// 
+/// ```
+/// # zero_ui_wgt::enable_widget_macros!();
+/// # use zero_ui_wgt::{prelude::*, Wgt};
+/// # fn main() {
+/// let moved_var = var('a');
+/// let cloned_var = var('b');
+/// 
+/// # let wgt: WidgetFn<bool> = 
+/// wgt_fn!(cloned_var, |args| {
+///     println!(
+///         "wgt_fn, args: {:?}, moved_var: {}, cloned_var: {}", 
+///         args, 
+///         moved_var.get(), 
+///         cloned_var.get()
+///     );
+///     Wgt!()
+/// });
+/// # ; }
+/// ```
 #[macro_export]
 macro_rules! wgt_fn {
     ($fn:path) => {

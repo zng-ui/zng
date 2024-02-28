@@ -504,7 +504,43 @@ pub use widget_set;
 
 /// <span data-del-macro-root></span> Implement a property on the widget to strongly associate it with the widget.
 ///
-/// This is equivalent of the `impl(Widget)` directive in the [`property`] macro.
+/// Widget implemented properties can be used on the widget without needing to be imported, they also show in
+/// the widget documentation page. As a general rule only properties that only work with the widget or have
+/// an special meaning in the widget are implemented like this, standalone properties that can be used in 
+/// any widget are not implemented.
+/// 
+/// Note that you can also implement a property for an widget in the property declaration using the
+/// `impl(Widget)` directive in the [`property`] macro.
+/// 
+/// # Syntax
+/// 
+/// The macro syntax is one or more impl declarations, each declaration can have docs followed by the implementation
+/// visibility, usually `pub`, followed by the path to the property function, followed by a parenthesized list of
+/// the function input arguments, terminated by semicolon.
+/// 
+/// `pub path::to::property(input: impl IntoVar<bool>);`
+/// 
+/// # Examples
+/// 
+/// The example below declares an widget and uses this macro to implements the `align` property for the widget.
+/// 
+/// ```
+/// # fn main() { }
+/// # use zero_ui_app::widget::{*, node::UiNode, base::WidgetBase};
+/// # use zero_ui_layout::unit::Align;
+/// # use zero_ui_var::IntoVar;
+/// # mod zero_ui { use super::*; pub mod widget { use super::*; #[zero_ui_app::widget::property(LAYOUT)] pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode { child } } }
+/// # 
+/// #[widget($crate::MyWgt)]
+/// pub struct MyWgt(WidgetBase);
+/// 
+/// impl MyWgt {
+///     widget_impl! {
+///         /// Docs for the property in the widget.
+///         pub zero_ui::widget::align(align: impl IntoVar<Align>);
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! widget_impl {
     (
