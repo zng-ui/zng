@@ -48,7 +48,7 @@ pub use zero_ui_app::widget::info::Visibility;
 pub use zero_ui_app::widget::node::ZIndex;
 
 pub use zero_ui_wgt::{
-    border, border_align, border_over, can_auto_hide, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
+    auto_hide, border, border_align, border_over, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
     interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_visible, modal, modal_included,
     modal_includes, on_block, on_blocked_changed, on_deinit, on_disable, on_enable, on_enabled_changed, on_info_init, on_init,
     on_interactivity_changed, on_move, on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable,

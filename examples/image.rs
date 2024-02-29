@@ -566,7 +566,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
         layout::transform_origin = 0;
-        widget::can_auto_hide = false;
+        widget::auto_hide = false;
         layout::max_size = (1.vw(), 1.vh());
 
         child_align = Align::CENTER;

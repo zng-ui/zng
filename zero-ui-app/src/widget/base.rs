@@ -192,7 +192,7 @@ impl WidgetBase {
 }
 
 /// Trait implemented by all `#[widget]`.
-/// 
+///
 /// This trait is used in widget mix-in implementations to constraint `P`, it is also used by the
 /// the generated widget code. You do not need to implement it directly.
 pub trait WidgetImpl {
@@ -927,7 +927,7 @@ pub enum HitTestMode {
     /// excludes the first row advance and the last row trailing space.
     Bounds,
     /// Same as `Bounds`, but also excludes the outside of rounded corners.
-    /// 
+    ///
     /// This is the default mode.
     #[default]
     RoundedBounds,

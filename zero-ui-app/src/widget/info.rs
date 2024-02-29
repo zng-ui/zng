@@ -2077,14 +2077,14 @@ impl fmt::Debug for Interactivity {
 /// The visibility state of a widget is computed from its bounds in the last layout and if it rendered anything,
 /// the visibility of a parent widget affects all descendant widgets, you can inspect the visibility using the
 /// [`WidgetInfo::visibility`] method.
-/// 
+///
 /// You can also explicitly hide or collapse a widget using the `visibility` property.
 ///
 /// [`WidgetInfo::visibility`]: crate::widget::info::WidgetInfo::visibility
 #[derive(Copy, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Visibility {
     /// The widget is visible.
-    /// 
+    ///
     /// This is also the default state, before the first layout and render.
     Visible,
     /// The widget is not visible, but still affects layout.

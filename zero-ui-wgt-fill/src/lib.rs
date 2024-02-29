@@ -10,12 +10,14 @@ use zero_ui_wgt::{hit_test_mode, node::interactive_node, prelude::*, HitTestMode
 
 pub mod node;
 
-/// Custom background property. Allows using any other widget as a background.
+/// Custom background. Allows using any other UI node as a background.
 ///
-/// Backgrounds are not interactive, but are hit-testable, they don't influence the layout being measured and
-/// arranged with the widget size, and they are always clipped to the widget bounds.
+/// The `background` is not interactive, it is hit-testable only as a visual of the widget. The background
+/// is layout to fill the widget, it does not affect the size of the widget.
 ///
-/// See also [`background_fn`](fn@background_fn) for use in styles.
+/// Note that nodes can only exist in a single place in the UI tree at a time, so if you set this property
+/// in a style the background node will only appear in the last widget that uses the style, the
+/// [`background_fn`](fn@background_fn) property does not have this issue.
 #[property(FILL)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     let background = interactive_node(background, false);
@@ -39,9 +41,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Custom background generated using a [`WidgetFn<()>`].
 ///
-/// This is the equivalent of setting [`background`] to the [`presenter`] node, but if the property is cloned
-/// in styles the `wgt_fn` will be called multiple times to create duplicates of the background nodes instead
-/// of moving the node to the latest widget.
+/// This is the equivalent of setting [`background`] to the [`presenter`] node, but if the property is
+/// set in a style that is used by multiple widgets at the same time the `wgt_fn` will be called for each widget
+/// to create duplicates of the background nodes instead of moving the node to the last widget.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`background`]: fn@background
@@ -50,7 +52,7 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
     background(child, presenter((), wgt_fn))
 }
 
-/// Single color background property.
+/// Fill color background.
 ///
 /// This property applies a [`node::flood`] as [`background`].
 ///
@@ -60,7 +62,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     background(child, node::flood(color))
 }
 
-/// Linear gradient background property.
+/// Linear gradient background.
 ///
 /// This property applies a [`node::linear_gradient`] as [`background`].
 ///
@@ -73,7 +75,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
     background(child, node::linear_gradient(axis, stops))
 }
 
-/// Radial gradient background property.
+/// Radial gradient background.
 ///
 /// This property applies a [`node::radial_gradient`] as [`background`].
 ///
@@ -91,7 +93,7 @@ pub fn background_radial(
     background(child, node::radial_gradient(center, radius, stops))
 }
 
-/// Conic gradient background property.
+/// Conic gradient background.
 ///
 /// This property applies a [`node::conic_gradient`] as [`background`].
 ///
@@ -109,7 +111,7 @@ pub fn background_conic(
     background(child, node::conic_gradient(center, angle, stops))
 }
 
-/// Custom foreground fill property. Allows using any other widget as a foreground overlay.
+/// Custom foreground fill. Allows using any other widget as a foreground overlay.
 ///
 /// The foreground is rendered over the widget content and background and under the widget borders.
 ///
@@ -209,7 +211,7 @@ pub fn foreground_highlight(
     })
 }
 
-/// Fill color overlay property.
+/// Fill color overlay.
 ///
 /// This property applies a [`node::flood`] as [`foreground`].
 ///
@@ -219,7 +221,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
     foreground(child, node::flood(color))
 }
 
-/// Linear gradient overlay property.
+/// Linear gradient overlay.
 ///
 /// This property applies a [`node::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
 ///

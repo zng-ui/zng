@@ -125,41 +125,36 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
 
-/// Defines if the widget only renders if it-s bounds intersects with the viewport auto-hide rectangle.
+/// Defines if the widget only renders if it's bounds intersects with the viewport auto-hide rectangle.
 ///
-/// The auto-hide rect is usually *one viewport* of extra space around the  viewport, so only widgets that transform
+/// The auto-hide rect is usually `(1.vw(), 1.vh())` of extra space around the  viewport, so only widgets that transform
 /// themselves very far need to set this, disabling auto-hide for a widget does not disable it for descendants.
 ///
 /// # Examples
 ///
-/// The example demonstrates a `container` that is *fixed* in the scroll viewport, it sets the `x` and `y` properties
-/// to always stay in frame, but transforms set by a widget on itself always affects  the [`inner_bounds`], the
-/// [`outer_bounds`] will still be the transform set by the parent so the container may end-up auto-hidden.
-///
-/// Note that auto-hide is not disabled for the `content` widget, but it's [`outer_bounds`] is affected by the `container`
-/// so it is auto-hidden correctly.
+/// The example demonstrates a container that is fixed in the scroll viewport, it sets the `x` and `y` properties
+/// to always stay in frame. Because the container is layout out of view and just transformed back into view it
+/// auto-hides while visible, the example uses `auto_hide = false;` to fix the issue.
 ///
 /// ```
 /// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
 /// # use zero_ui_app::widget::node::*;
-/// fn center_viewport(content: impl UiNode) -> impl UiNode {
+/// fn center_viewport(msg: impl UiNode) -> impl UiNode {
 ///     Container! {
-///         zero_ui::core::widget_base::can_auto_hide = false;
+///         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+///         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
+///         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
+///         layout::transform_origin = 0;
+///         widget::auto_hide = false;
+///         layout::max_size = (1.vw(), 1.vh());
 ///
-///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Factor(fct) - 1.vw() * fct);
-///         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Factor(fct) - 1.vh() * fct);
-///         max_size = (1.vw(), 1.vh());
-///         content_align = Align::CENTER;
-///      
-///         content;
+///         child_align = Align::CENTER;
+///         child = msg;
 ///     }
 /// }
 /// ```
-///  
-/// [`outer_bounds`]: info::WidgetBoundsInfo::outer_bounds
-/// [`inner_bounds`]: info::WidgetBoundsInfo::inner_bounds
 #[property(CONTEXT, default(true))]
-pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
 
     match_node(child, move |_, op| match op {

@@ -39,8 +39,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// of the scale (100%), the fill content is positioned *inside* the borders and clipped by the adjusted [`corner_radius`]
 /// that fits the insider of the inner most border.
 ///
-/// Note that widget's content is always *inside* the borders, this property only affects the *fill* properties content, such as a
-/// the image in a background image.
+/// Note that widget's child is always inside the borders, this property only affects the fill properties, like the background.
 ///
 /// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
 ///
@@ -55,7 +54,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 /// If the border is rendered over the fill and child visuals.
 ///
 /// Is `true` by default, if set to `false` the borders will render under the fill. Note that
-/// this means the border will be occluded by the *background* if [`border_align`] is not set to `1.fct()`.
+/// this means the border will be occluded by the background if [`border_align`] is not set to `1.fct()`.
 ///
 /// Sets the [`BORDER_OVER_VAR`].
 ///
@@ -65,9 +64,9 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
     with_context_var(child, BORDER_OVER_VAR, over)
 }
 
-/// Widget border.
+/// Border widths, color and style.
 ///
-/// Defines a widget border, it coordinates with any other border in the widget to fit inside or outside the
+/// This property coordinates with any other border in the widget to fit inside or outside the
 /// other borders, it also works with the [`corner_radius`] property drawing round corners if configured.
 ///
 /// This property disables inline layout for the widget.
@@ -127,7 +126,11 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// #
 /// /// Another border property.
 /// #[property(BORDER, default(0, BorderStyle::Hidden))]
-/// pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+/// pub fn my_border(
+///     child: impl UiNode,
+///     widths: impl IntoVar<SideOffsets>,
+///     sides: impl IntoVar<BorderSides>
+/// ) -> impl UiNode {
 ///     zero_ui_wgt::border(child, widths, sides)
 /// }
 /// #
