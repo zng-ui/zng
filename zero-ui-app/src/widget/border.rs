@@ -85,9 +85,9 @@ impl Transitionable for LineStyle {
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BorderStyle {
-    /// A single straight solid line.
+    /// Displays a single, straight, solid line.
     Solid = 1,
-    /// Two straight solid lines that add up to the pixel size defined by the side width.
+    /// Displays two straight lines that add up to the pixel size defined by the side width.
     Double = 2,
 
     /// Displays a series of rounded dots.

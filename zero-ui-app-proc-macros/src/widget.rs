@@ -210,9 +210,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 };
 
                 // enforce normal syntax, property = <expr> ..
-                ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
+                ($(#[$attr:meta])* $($property_path:ident)::+ = $($rest:tt)*) => {
                     #struct_path! {
-                        zero_ui_widget: $(#[$attr])* $property = $($rest)*
+                        zero_ui_widget: $(#[$attr])* $($property_path)::+ = $($rest)*
                     }
                 };
                 // enforce normal syntax, when <expr> { .. } ..
