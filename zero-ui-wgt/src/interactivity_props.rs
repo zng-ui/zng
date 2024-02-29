@@ -17,22 +17,18 @@ context_var! {
 /// # Interactivity
 ///
 /// Every widget has an interactivity state, it defines two tiers of disabled, the normal disabled blocks the default actions
-/// of the widget, but still allows some interactions, such as a different cursor on hover or event an error tool-tip on click, the
-/// second tier blocks all interaction with the widget. This property controls the *normal* disabled, to fully block interaction use
+/// of the widget, but still allows some interactions, such as a different cursor on hover or event an error tooltip on click, the
+/// second tier blocks all interaction with the widget. This property controls the normal disabled, to fully block interaction use
 /// the [`interactive`] property.
 ///
 /// # Disabled Visual
 ///
 /// Widgets that are interactive should visually indicate when the normal interactions are disabled, you can use the [`is_disabled`]
-/// state property in a when block to implement the *visually disabled* appearance of a widget.
+/// state property in a when block to implement the visually disabled appearance of a widget.
 ///
-/// The visual cue for the disabled state is usually a reduced contrast from content and background by *graying-out* the text and applying a
-/// grayscale filter for image content. You should also consider adding *disabled interactions* that inform the user when the widget will be
-/// enabled.
-///
-/// # Implicit
-///
-/// This property is included in all widgets by default, you don't need to import it to use it.
+/// The visual cue for the disabled state is usually a reduced contrast from content and background by graying-out the text and applying a
+/// grayscale filter for images. Also consider adding disabled interactions, such as a different cursor or a tooltip that explains why the button
+/// is disabled.
 ///
 /// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
@@ -65,18 +61,17 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// Defines if any interaction is allowed in the widget and its descendants.
 ///
 /// This property sets the interactivity of the widget to [`BLOCKED`] when `false`, widgets with blocked interactivity do not
-/// receive any interaction event and behave like a background visual. To probe the widget state use [`interactivity`] value.
+/// receive any interaction event and behave like a background visual. To probe the widget's info state use [`WidgetInfo::interactivity`] value.
 ///
 /// This property *enables* and *disables* interaction with the widget and its descendants without causing
-/// a visual change like [`enabled`], it also blocks "disabled" interactions such as a different cursor or tool-tip for disabled buttons,
-/// its use cases are more advanced then [`enabled`], it is mostly used when large parts of the screen are "not ready".
+/// a visual change like [`enabled`], it also blocks "disabled" interactions such as a different cursor or tooltip for disabled buttons.
 ///
 /// Note that this affects the widget where it is set and descendants, to disable interaction only in the widgets
 /// inside `child` use the [`node::interactive_node`].
 ///
 /// [`enabled`]: fn@enabled
 /// [`BLOCKED`]: Interactivity::BLOCKED
-/// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+/// [`WidgetInfo::interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
 /// [`node::interactive_node`]: crate::node::interactive_node
 #[property(CONTEXT, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
@@ -116,8 +111,6 @@ pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// This property is used only for probing the state. You can set the state using
 /// the [`enabled`] property.
-///
-/// This is the same as `!self.is_enabled`.
 ///
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
@@ -320,10 +313,10 @@ event_property! {
 
 /// Only allow interaction inside the widget, descendants and ancestors.
 ///
-/// When a widget is in modal mode only it, descendants, ancestors are interactive. If [`modal_includes`]
+/// When a widget is in modal mode, only it, descendants and ancestors are interactive. If [`modal_includes`]
 /// is set on the widget the ancestors and descendants of each include are also allowed.
 ///
-/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.
+/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is actually modal.
 ///
 /// This property also sets the accessibility modal flag.
 ///
@@ -457,12 +450,12 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
 /// Extra widgets that are allowed interaction by this widget when it is [`modal`].
 ///
-/// This property calls [`insert_modal_include`] on the widget.
-///
-/// Note that this must only only needs to include widgets that are not descendants nor ancestors of the modal widget, that
-/// none the less the user expects to be a part of the widget.
+/// Note that this is only needed for widgets that are not descendants nor ancestors of this widget, but
+/// still need to be interactive when the modal is active.
 ///
 /// See also [`modal_included`] if you prefer setting the modal widget id on the included widget.
+/// 
+/// This property calls [`insert_modal_include`] on the widget.
 ///
 /// [`modal`]: fn@modal
 /// [`insert_modal_include`]: WidgetInfoBuilderModalExt::insert_modal_include
@@ -483,14 +476,14 @@ pub fn modal_includes(child: impl UiNode, includes: impl IntoVar<IdSet<WidgetId>
     })
 }
 
-/// Widget that must allow interaction to this widget when it is [`modal`] or inside the modal widget.
+/// Include itself in the allow list of another widget that is [`modal`] or descendant of modal.
 ///
-/// This property calls [`set_modal_included`] on the widget.
-///
-/// Note that this is only needed by widgets that are not descendants nor ancestors of the modal widget, that
-/// none the less the user expects to be a part of the widget.
+/// Note that this is only needed for widgets that are not descendants nor ancestors of the modal widget, but
+/// still need to be interactive when the modal is active.
 ///
 /// See also [`modal_includes`] if you prefer setting the included widget id on the modal widget.
+/// 
+/// This property calls [`set_modal_included`] on the widget.
 ///
 /// [`modal`]: fn@modal
 /// [`set_modal_included`]: WidgetInfoBuilderModalExt::set_modal_included
@@ -513,9 +506,9 @@ pub fn modal_included(child: impl UiNode, modal_or_descendant: impl IntoVar<Widg
 ///
 /// [`modal`]: fn@modal
 pub trait WidgetInfoBuilderModalExt {
-    /// Register an extra widget to be allowed on the modal filter if this widget is modal.
+    /// Include an extra widget in the modal filter of this widget.
     fn insert_modal_include(&mut self, include: WidgetId);
-    /// Register a modal widget that must allow this widget.
+    /// Register a modal widget that must include this widget in its modal filter.
     fn set_modal_included(&mut self, modal: WidgetId);
 }
 impl WidgetInfoBuilderModalExt for WidgetInfoBuilder {

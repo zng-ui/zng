@@ -745,7 +745,7 @@ impl LayerIndex {
     /// The top-most layer.
     ///
     /// Only widgets that are pretending to be a child window should use this layer, including menus,
-    /// drop-downs, pop-ups and tool-tips.
+    /// drop-downs, pop-ups and tooltips.
     ///
     /// This is the [`u32::MAX`] value.
     pub const TOP_MOST: LayerIndex = LayerIndex(u32::MAX);

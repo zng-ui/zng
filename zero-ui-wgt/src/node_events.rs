@@ -291,7 +291,7 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
-/// If the widget has inited.
+/// If the widget has been initialized.
 ///
 /// The `state` is set to `true` on init and to `false` on deinit. This property is useful for
 /// declaring transition animations that play on init using `when` blocks.

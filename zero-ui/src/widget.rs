@@ -59,7 +59,7 @@ pub use zero_ui_wgt::{
 
 pub use zero_ui_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,
-    foreground_fn, foreground_gradient, foreground_highlight,
+    foreground_conic, foreground_fn, foreground_gradient, foreground_highlight, foreground_radial,
 };
 
 /// Widget and property builder types.

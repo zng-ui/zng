@@ -51,7 +51,7 @@ pub struct LinkFnArgs {
     /// The link.
     pub url: Txt,
 
-    /// Link title, usually displayed as a tool-tip.
+    /// Link title, usually displayed as a tooltip.
     pub title: Txt,
 
     /// Inline items.
@@ -147,7 +147,7 @@ pub struct ImageFnArgs {
     ///
     /// [`image_resolver`]: fn@crate::image_resolver
     pub source: ImageSource,
-    /// Image title, usually displayed as a tool-tip.
+    /// Image title, usually displayed as a tooltip.
     pub title: Txt,
     /// Items to display when the image does not load and for screen readers.
     pub alt_items: UiNodeVec,

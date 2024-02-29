@@ -258,7 +258,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is valid or a file path, returns if the confirm tool-tip is visible.
+/// Try open link, only works if the `url` is valid or a file path, returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;

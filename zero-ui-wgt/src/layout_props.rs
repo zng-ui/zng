@@ -88,10 +88,6 @@ pub fn is_ltr(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 }
 
 /// Inline mode explicitly selected for a widget.
-///
-/// See the [`inline`] property for more details.
-///
-/// [`inline`]: fn@inline
 #[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InlineMode {
     /// Widget does inline if requested by the parent widget layout and is composed only of properties that support inline.
@@ -137,15 +133,7 @@ impl_from_and_into_var! {
 
 /// Enforce an inline mode on the widget.
 ///
-/// Set to [`InlineMode::Inline`] to use the inline layout and visual even if the widget
-/// is not in an inlining parent. Note that the widget will still not inline if it has properties
-/// that disable inlining.
-///
-/// Set to [`InlineMode::Block`] to ensure the widget layouts as a block item if the parent
-/// is inlining.
-///
-/// Note that even if set to [`InlineMode::Inline`] the widget will only inline if all properties support
-/// inlining.
+/// See [`InlineMode`] for more details.
 #[property(WIDGET, default(InlineMode::Allow))]
 pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode {
     let mode = mode.into_var();

@@ -111,11 +111,16 @@ pub fn background_conic(
     background(child, node::conic_gradient(center, angle, stops))
 }
 
-/// Custom foreground fill. Allows using any other widget as a foreground overlay.
+/// Custom foreground fill. Allows using any other UI node as a foreground overlay.
 ///
-/// The foreground is rendered over the widget content and background and under the widget borders.
+/// The `foreground` is not interactive and not hit-testable.
+/// The foreground is layout to fill the widget, it does not affect the size of the widget. It is rendered over
+/// the widget child and background, it is rendered under borders by default.
 ///
-/// Foregrounds are not interactive, not hit-testable and don't influence the widget layout.
+/// Note that nodes can only exist in a single place in the UI tree at a time, so if you set this property in a style
+/// the foreground node will only appear in the last widget that uses the style, the [`foreground_fn`] property does not have this issue.
+///
+/// [`foreground_fn`]: fn@foreground_fn
 #[property(FILL, default(NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     let foreground = interactive_node(foreground, false);
@@ -139,7 +144,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Custom foreground generated using a [`WidgetFn<()>`].
 ///
-/// This is the equivalent of setting [`foreground`] to the [`presenter`] node.
+/// This is the equivalent of setting [`foreground`] to the [`presenter`] node, but if the property is set in a style that is used
+/// by multiple widgets at the same time the `wgt_fn` will be called for each widget to create duplicates of the foreground nodes
+/// instead of moving the node to the last widget.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`foreground`]: fn@foreground
@@ -150,7 +157,7 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a border contour with extra `offsets` padding as an overlay.
+/// This property draws a border contour overlay that can be positioned using `offsets`.
 #[property(FILL, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
     child: impl UiNode,
@@ -223,14 +230,49 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient overlay.
 ///
-/// This property applies a [`node::linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
+/// This property applies a [`node::linear_gradient`] as [`foreground`].
 ///
 /// [`foreground`]: fn@foreground
-/// [`Clamp`]: zero_ui_wgt::prelude::gradient::ExtendMode::Clamp
 #[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
     stops![c, c]
 }))]
 pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     foreground(child, node::linear_gradient(axis, stops))
+}
+
+/// Radial gradient foreground.
+///
+/// This property applies a [`node::radial_gradient`] as [`foreground`].
+///
+/// [`foreground`]: fn@foreground
+#[property(FILL, default((50.pct(), 50.pct()), 100.pct(), {
+    let c = colors::BLACK.transparent();
+    stops![c, c]
+}))]
+pub fn foreground_radial(
+    child: impl UiNode,
+    center: impl IntoVar<Point>,
+    radius: impl IntoVar<GradientRadius>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    foreground(child, node::radial_gradient(center, radius, stops))
+}
+
+/// Conic gradient foreground.
+///
+/// This property applies a [`node::conic_gradient`] as [`foreground`].
+///
+/// [`foreground`]: fn@foreground
+#[property(FILL, default((50.pct(), 50.pct()), 0.deg(), {
+    let c = colors::BLACK.transparent();
+    stops![c, c]
+}))]
+pub fn foreground_conic(
+    child: impl UiNode,
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    foreground(child, node::conic_gradient(center, angle, stops))
 }
