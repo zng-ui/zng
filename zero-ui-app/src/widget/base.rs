@@ -192,6 +192,9 @@ impl WidgetBase {
 }
 
 /// Trait implemented by all `#[widget]`.
+/// 
+/// This trait is used in widget mix-in implementations to constraint `P`, it is also used by the
+/// the generated widget code. You do not need to implement it directly.
 pub trait WidgetImpl {
     /// The inherit function.
     fn inherit(widget: WidgetType) -> Self;
@@ -917,14 +920,15 @@ pub fn id(id: impl IntoValue<WidgetId>) {}
 pub enum HitTestMode {
     /// Widget is never hit.
     ///
-    /// This mode affects the entire UI branch, if set it disables hit-testing for the widget and all its descendants.
+    /// This mode affects the entire UI branch, if set it disables hit-testing for the widget and all its descendants,
+    /// even if they set explicitly set their hit-test mode to something else.
     Disabled,
     /// Widget is hit by any point that intersects the transformed inner bounds rectangle. If the widget is inlined
     /// excludes the first row advance and the last row trailing space.
     Bounds,
-    /// Default mode.
-    ///
     /// Same as `Bounds`, but also excludes the outside of rounded corners.
+    /// 
+    /// This is the default mode.
     #[default]
     RoundedBounds,
     /// Widget is hit by any point that intersects the hit-test shape defined on render by
@@ -995,7 +999,7 @@ impl Default for Parallel {
     }
 }
 context_var! {
-    /// Controls what node list methods can run in parallel in a widget and descendants.
+    /// Defines what node list methods can run in parallel in a widget and descendants.
     ///
     /// This variable can be set using the `parallel` property.
     ///

@@ -47,6 +47,9 @@ pub enum LineStyle {
     Wavy(f32),
 
     /// Fully transparent line.
+    ///
+    /// Note that the line space is still reserved, this is will have the same effect as `Solid` with a fully
+    /// transparent color.
     Hidden,
 }
 impl fmt::Debug for LineStyle {
@@ -603,11 +606,11 @@ impl_from_and_into_var! {
 pub enum CornerRadiusFit {
     /// Corner radius is computed for each usage.
     None,
-    /// Corner radius is computed for the first usage in a widget, other usages are [deflated] by the widget border offsets.
+    /// Corner radius is computed for the first usage in the widget, other usages are [deflated] by the widget border offsets.
     ///
     /// [deflated]: PxCornerRadius::deflate
     Widget,
-    /// Corner radius is computed on the first usage, other usages are [deflated] by the widget border offsets.
+    /// Corner radius is computed on the first usage in the window, other usages are [deflated] by the widget border offsets.
     ///
     /// This is the default value.
     ///

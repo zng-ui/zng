@@ -637,7 +637,7 @@ pub enum WidgetUpdateMode {
     /// All updates flagged during the closure call are discarded, previous pending
     /// requests are retained.
     ///
-    /// This mode is used by [`UiNode::with_context`] and [`UiNodeOp::Measure`].
+    /// This mode is used by [`UiNodeOp::Measure`].
     ///
     /// [`UiNode::with_context`]: crate::widget::node::UiNode::with_context
     /// [`UiNodeOp::Measure`]: crate::widget::node::UiNodeOp::Measure

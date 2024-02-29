@@ -923,9 +923,9 @@ pub enum ExtendMode {
 /// Orientation of a straight line.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineOrientation {
-    /// Top-bottom line.
+    /// Top-to-bottom line.
     Vertical,
-    /// Left-right line.
+    /// Left-to-right line.
     Horizontal,
 }
 impl fmt::Debug for LineOrientation {

@@ -447,7 +447,7 @@ pub use zero_ui_app::widget::widget;
 /// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
 ///
-/// By convention mix-ins have the suffix `MixAdjust` and the generic parent is named `P`. The `P` must not have any generic bounds
+/// By convention mix-ins have the suffix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
 /// in the declaration, the expansion will bound it to [`WidgetImpl`].
 ///
 /// # Examples
