@@ -46,7 +46,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
     tooltip_fn(child, WidgetFn::singleton(tip))
 }
 
-/// Widget tooltip set as an widget function that is called every time the tooltip must be shown.
+/// Widget tooltip set as a widget function that is called every time the tooltip must be shown.
 ///
 /// The `tip` widget function is used to instantiate a new tip widget when one needs to be shown, any widget
 /// can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style.

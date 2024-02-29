@@ -3,7 +3,7 @@ use std::{fmt, mem};
 use crate::ScrollMode;
 use zero_ui_wgt::prelude::*;
 
-/// Lazy loading mode of an widget.
+/// Lazy loading mode of a widget.
 ///
 /// See [`lazy`] property for more details.
 ///

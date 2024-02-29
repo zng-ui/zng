@@ -320,7 +320,7 @@ event_property! {
 
 /// Only allow interaction inside the widget, descendants and ancestors.
 ///
-/// When an widget is in modal mode only it, descendants, ancestors are interactive. If [`modal_includes`]
+/// When a widget is in modal mode only it, descendants, ancestors are interactive. If [`modal_includes`]
 /// is set on the widget the ancestors and descendants of each include are also allowed.
 ///
 /// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal.

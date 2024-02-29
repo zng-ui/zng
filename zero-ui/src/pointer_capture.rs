@@ -1,7 +1,7 @@
 //! Pointer capture service, properties, events and types.
 //!
 //! Pointer events target to the topmost widget under the pointer by default, the [`POINTER_CAPTURE`] service
-//! can be used to *capture* the pointer for an widget so that it remains the target for pointer events. The
+//! can be used to *capture* the pointer for a widget so that it remains the target for pointer events. The
 //! [`capture_pointer`](fn@capture_pointer) property can be used to automatically capture the pointer when pressed.
 //!
 //! ```

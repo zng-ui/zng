@@ -805,14 +805,14 @@ impl Z_INDEX {
 
     /// Gets the index set on the [`WIDGET`].
     ///
-    /// Returns `DEFAULT` if the node is not an widget.
+    /// Returns `DEFAULT` if the node is not a widget.
     pub fn get(&self) -> ZIndex {
         WIDGET.get_state(&Z_INDEX_ID).unwrap_or_default()
     }
 
     /// Gets the index set on the `widget`.
     ///
-    /// Returns `DEFAULT` if the node is not an widget.
+    /// Returns `DEFAULT` if the node is not a widget.
     pub fn get_wgt(&self, widget: &mut impl UiNode) -> ZIndex {
         widget.with_context(WidgetUpdateMode::Ignore, || self.get()).unwrap_or_default()
     }

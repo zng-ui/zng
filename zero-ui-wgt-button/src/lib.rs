@@ -218,7 +218,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
 ///
 /// When this is set the button widget sets these properties if they are not set:
 ///
-/// * [`child`]: Set to an widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
+/// * [`child`]: Set to a widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
 /// * [`tooltip_fn`]: Set to a widget function provided by [`cmd_tooltip_fn`](fn@cmd_tooltip_fn), by default it
 ///    shows the command info and first shortcut.
 /// * [`enabled`]: Set to `cmd.is_enabled()`.

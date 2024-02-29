@@ -2,7 +2,7 @@ use zero_ui_app::widget::node::UiNodeOpMethod;
 
 use crate::prelude::*;
 
-/// Represents a node operation.
+/// Arguments for the node operation event properties.
 #[derive(Clone, Debug)]
 pub struct OnNodeOpArgs {
     /// Operation.
@@ -244,20 +244,11 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
-/// Arguments for the [`on_deinit`](fn@on_deinit) event.
-#[derive(Clone, Debug, Copy)]
-pub struct OnDeinitArgs {
-    /// Number of time the handler was called.
-    ///
-    /// The number is `1` for the first call.
-    pub count: usize,
-}
-
 /// Widget [`deinit`](UiNode::deinit) event.
 ///
 /// This property calls `handler` when the widget deinits, after the widget content deinits. Note that
 /// widgets can be [reinitialized](fn@on_init) so the `handler` can be called more then once,
-/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnDeinitArgs::count)
+/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnNodeOpArgs::count)
 /// to determinate if you are in the first deinit.
 ///
 /// # Handlers

@@ -803,14 +803,14 @@ command! {
     };
 }
 
-/// Represents an widget undo scope.
+/// Represents a widget undo scope.
 ///
 /// See [`UNDO.with_scope`] for more details.
 ///
 /// [`UNDO.with_scope`]: UNDO::with_scope
 pub struct WidgetUndoScope(Option<Arc<UndoScope>>);
 impl WidgetUndoScope {
-    /// New, not inited in an widget.
+    /// New, not inited in a widget.
     pub const fn new() -> Self {
         Self(None)
     }

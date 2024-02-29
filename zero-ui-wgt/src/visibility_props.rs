@@ -128,7 +128,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// Defines if the widget only renders if it-s bounds intersects with the viewport auto-hide rectangle.
 ///
 /// The auto-hide rect is usually *one viewport* of extra space around the  viewport, so only widgets that transform
-/// themselves very far need to set this, disabling auto-hide for an widget does not disable it for descendants.
+/// themselves very far need to set this, disabling auto-hide for a widget does not disable it for descendants.
 ///
 /// # Examples
 ///

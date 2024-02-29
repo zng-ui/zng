@@ -7,7 +7,7 @@
 //! two systems work in conjunction to define the keyboard focus.
 //!
 //! You can track the focused widget by listening to the [`FOCUS_CHANGED_EVENT`] event or the [`FOCUS.focused`](FOCUS::focused)
-//! variable. The focus state of an widget can be tracked using the [`is_focused`](fn@is_focused), [`is_focus_within`](fn@is_focus_within),
+//! variable. The focus state of a widget can be tracked using the [`is_focused`](fn@is_focused), [`is_focus_within`](fn@is_focus_within),
 //! [`on_focus_changed`](fn@on_focus_changed) and other properties on this module.
 //!
 //! ```
@@ -86,7 +86,7 @@
 //! when the scope widget is focused, how the navigation flows inside their screen region and even if the navigation
 //! can naturally mode out of their region.
 //!
-//! You can use the [`focus_scope`](fn@focus_scope) property on an widget to turn it into a focus scope and use
+//! You can use the [`focus_scope`](fn@focus_scope) property on a widget to turn it into a focus scope and use
 //! the [`tab_nav`](fn@tab_nav), [`directional_nav`](fn@directional_nav) and other properties on this module to
 //! configure the focus scope.
 //!

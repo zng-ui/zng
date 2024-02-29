@@ -148,7 +148,7 @@ mod util {
         wgt.with_context(WidgetUpdateMode::Ignore, || {
             WIDGET.get_state(&INIT_THREAD_ID).expect("did not log init thread")
         })
-        .expect("node is not an widget")
+        .expect("node is not a widget")
     }
 
     static INIT_THREAD_ID: StaticStateId<ThreadId> = StaticStateId::new_unique();

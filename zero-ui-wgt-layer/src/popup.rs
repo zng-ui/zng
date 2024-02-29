@@ -163,10 +163,10 @@ impl POPUP {
                         _close_handle = POPUP_CLOSE_CMD.scoped(id).subscribe(true);
                     } else {
                         // not widget after init, generate a widget, but can still become
-                        // an widget later, such as a `take_on_init` ArcNode that was already
+                        // a widget later, such as a `take_on_init` ArcNode that was already
                         // in use on init, to support `close_delay` in this scenario the not_widget
                         // is wrapped in a node that pumps POPUP_CLOSE_REQUESTED_EVENT to the not_widget
-                        // if it is an widget at the time of the event.
+                        // if it is a widget at the time of the event.
                         c.deinit();
 
                         let not_widget = std::mem::replace(c.child(), NilUiNode.boxed());

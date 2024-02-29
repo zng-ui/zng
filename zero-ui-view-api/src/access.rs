@@ -82,10 +82,10 @@ pub enum AccessRole {
     TabList,
     /// Widget that allows the user to select one or more items from a hierarchically organized collection.
     Tree,
-    /// Identifies an widget as being grid whose rows can be expanded and collapsed in the same manner as for a tree.
+    /// Identifies a widget as being grid whose rows can be expanded and collapsed in the same manner as for a tree.
     TreeGrid,
 
-    /// Indicates to assistive technologies that an widget and all of its children should be treated similar to a desktop application.
+    /// Indicates to assistive technologies that a widget and all of its children should be treated similar to a desktop application.
     Application,
     /// Indicates a section of a page that could easily stand on its own.
     Article,
@@ -251,7 +251,7 @@ pub enum AccessState {
     /// Defines a string value that labels the widget.
     Label(Txt),
 
-    /// Defines the hierarchical level of an widget within a structure.
+    /// Defines the hierarchical level of a widget within a structure.
     Level(NonZeroU32),
     /// Indicates whether the widget is modal when displayed.
     Modal,
@@ -307,7 +307,7 @@ pub enum AccessState {
     /// [`Grid`]: AccessRole::Grid
     /// [`TreeGrid`]: AccessRole::TreeGrid
     ColCount(usize),
-    /// Defines an widget's column index in the parent table or grid.
+    /// Defines a widget's column index in the parent table or grid.
     ColIndex(usize),
     /// Defines the number of columns spanned by the widget in the parent table or grid.
     ColSpan(usize),
@@ -338,7 +338,7 @@ pub enum AccessState {
     /// [`Grid`]: AccessRole::Grid
     /// [`TreeGrid`]: AccessRole::TreeGrid
     RowCount(usize),
-    /// Defines an widget's row index in the parent table or grid.
+    /// Defines a widget's row index in the parent table or grid.
     RowIndex(usize),
     /// Defines the number of rows spanned by the widget in the parent table or grid.
     RowSpan(usize),
@@ -454,7 +454,7 @@ bitflags! {
         const BOTH = 0b11;
     }
 
-    /// Defines the kind of invalid data error of an widget.
+    /// Defines the kind of invalid data error of a widget.
     ///
     /// See [`AccessState::Invalid`].
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

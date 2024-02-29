@@ -54,8 +54,7 @@ pub use zero_ui_wgt::{
     on_interactivity_changed, on_move, on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable,
     on_pre_enabled_changed, on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_transform_changed,
     on_pre_unblock, on_pre_update, on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed, on_transform_changed, on_unblock,
-    on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, OnDeinitArgs, OnNodeOpArgs,
-    Wgt, WidgetFn,
+    on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, OnNodeOpArgs, Wgt, WidgetFn,
 };
 
 pub use zero_ui_wgt_fill::{
@@ -220,9 +219,9 @@ pub mod node {
 
     pub use zero_ui_wgt::node::{
         bind_state, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node, list_presenter,
-        presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
-        with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node,
-        with_rev_index_node, with_widget_state, with_widget_state_modify,
+        presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
+        with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node,
+        with_widget_state, with_widget_state_modify,
     };
 }
 
@@ -479,7 +478,7 @@ pub use zero_ui_app::widget::widget;
 /// pub struct Foo(FocusableMix<WidgetBase>);
 /// ```
 ///
-/// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
+/// The example above declares a mix-in `FocusableMix<P>` and a widget `Foo`, the mix-in is used as a parent of the widget, only
 /// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
 ///
 /// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited

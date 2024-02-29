@@ -1969,7 +1969,7 @@ impl FocusInfoData {
 /// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
 ///
 /// There are multiple focusable metadata that can be set on a widget. These rules define how the focusable
-/// state of an widget is derived from the focusable metadata.
+/// state of a widget is derived from the focusable metadata.
 ///
 /// ### Rules
 ///

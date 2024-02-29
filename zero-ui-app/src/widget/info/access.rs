@@ -751,7 +751,7 @@ impl WidgetAccessInfo {
         has_state!(self.Required)
     }
 
-    /// Defines the hierarchical level of an widget within a structure.
+    /// Defines the hierarchical level of a widget within a structure.
     pub fn level(&self) -> Option<NonZeroU32> {
         get_state!(self.Level).copied()
     }
@@ -815,7 +815,7 @@ impl WidgetAccessInfo {
         get_state!(self.ColCount).copied()
     }
 
-    /// Defines an widget's column index in the parent table or grid.
+    /// Defines a widget's column index in the parent table or grid.
     pub fn col_index(&self) -> Option<usize> {
         get_state!(self.ColIndex).copied()
     }
@@ -836,7 +836,7 @@ impl WidgetAccessInfo {
         get_state!(self.RowCount).copied()
     }
 
-    /// Defines an widget's column index in the parent table or grid.
+    /// Defines a widget's column index in the parent table or grid.
     pub fn row_index(&self) -> Option<usize> {
         get_state!(self.RowIndex).copied()
     }

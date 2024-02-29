@@ -25,7 +25,7 @@ use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 /// The base widget implements the [`id`] property, and uses [`node::include_intrinsics`] and [`node::widget`] to
 /// implement the minimum required for the widget to be a part of the UI tree.
 ///
-/// See also [`NonWidgetBase`] to declare types that are build like an widget but are never used in the UI tree.
+/// See also [`NonWidgetBase`] to declare types that are build like a widget but are never used in the UI tree.
 ///
 /// [`id`]: WidgetBase::id
 pub struct WidgetBase {
@@ -289,7 +289,7 @@ pub use WidgetBaseMacro__ as WidgetBase;
 /// Base *widget* for types that build to a custom type that is not used as a part of the UI tree.
 ///
 /// This type can be used as base instead of [`WidgetBase`](struct@WidgetBase) for types that provide
-/// a custom build that outputs an instance that is not used as an widget in the UI tree.
+/// a custom build that outputs an instance that is not used as a widget in the UI tree.
 pub struct NonWidgetBase {
     base: WidgetBase,
 }
@@ -326,8 +326,8 @@ impl NonWidgetBase {
         self.base.widget_take()
     }
 
-    /// Finishes the build. 
-    /// 
+    /// Finishes the build.
+    ///
     /// This is the fallback build that simply returns the builder, inheritors should override this method.
     pub fn widget_build(&mut self) -> WidgetBuilder {
         self.widget_take()
@@ -995,14 +995,14 @@ impl Default for Parallel {
     }
 }
 context_var! {
-    /// Controls what node list methods can run in parallel in an widget and descendants.
+    /// Controls what node list methods can run in parallel in a widget and descendants.
     ///
     /// This variable can be set using the `parallel` property.
     ///
     /// Is all enabled by default.
     pub static PARALLEL_VAR: Parallel = Parallel::default();
 
-    /// Defines the hit-test mode for an widget and descendants.
+    /// Defines the hit-test mode for a widget and descendants.
     ///
     /// This variable can be set using the `hit_test_mode` property.
     ///

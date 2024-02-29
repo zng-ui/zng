@@ -1,6 +1,6 @@
 //! Accessibility service, events and properties.
 //!
-//! The accessibility API helps external tools to query the state of an widget and issue programmatic commands to it.
+//! The accessibility API helps external tools to query the state of a widget and issue programmatic commands to it.
 //! This API is mainly used by accessibility assistants like [`NVDA`] to narrate and operate the current screen, but
 //! usage is not limited to accessibility, the access provided to widgets also enables external automation tools and
 //! internal operations such as programmatically clicking a button.

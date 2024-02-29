@@ -231,7 +231,7 @@
 //! # ;
 //! ```
 //!
-//! The example above creates a response var from a download future and maps the response to an widget.
+//! The example above creates a response var from a download future and maps the response to a widget.
 //!
 //! A response var is paired with a [`ResponderVar<T>`], you can create a *response channel* using the [`response_var`] function.
 //!

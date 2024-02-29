@@ -7,7 +7,7 @@ use crate::widget::WidgetUpdateMode;
 
 use super::*;
 
-/// Create an widget node that wraps the `widget` with any number of other non-widget nodes and
+/// Create a widget node that wraps the `widget` with any number of other non-widget nodes and
 /// still delegates [`with_context`] to the `widget`.
 ///
 /// Note that the [`with_context`] is called in the context of `widget`, not in the context of the `build_extension` nodes.

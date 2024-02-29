@@ -19,7 +19,7 @@ use std::{fmt, ops};
 /// Represents a set of properties that can be applied to any styleable widget.
 ///
 /// Style can be instantiated using the same syntax as any widget, but it produces a [`StyleBuilder`]
-/// instance instead of an widget. Widgets that have [`StyleMix<P>`] can be modified using properties
+/// instance instead of a widget. Widgets that have [`StyleMix<P>`] can be modified using properties
 /// defined in a style, the properties are dynamically spliced into each widget instance.
 ///
 /// # Extend/Replace

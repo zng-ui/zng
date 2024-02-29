@@ -431,7 +431,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 ///     pub static FOO_VAR: Vec<&'static str> = vec![];
 ///     pub static BAR_VAR: bool = false;
 /// }
-/// 
+///
 /// # fn main() {
 /// # let _scope = APP.minimal();
 /// # let wgt = widget::base::WidgetBase! {
@@ -504,34 +504,34 @@ pub use widget_set;
 ///
 /// Widget implemented properties can be used on the widget without needing to be imported, they also show in
 /// the widget documentation page. As a general rule only properties that only work with the widget or have
-/// an special meaning in the widget are implemented like this, standalone properties that can be used in 
+/// an special meaning in the widget are implemented like this, standalone properties that can be used in
 /// any widget are not implemented.
-/// 
-/// Note that you can also implement a property for an widget in the property declaration using the
+///
+/// Note that you can also implement a property for a widget in the property declaration using the
 /// `impl(Widget)` directive in the [`property`] macro.
-/// 
+///
 /// # Syntax
-/// 
+///
 /// The macro syntax is one or more impl declarations, each declaration can have docs followed by the implementation
 /// visibility, usually `pub`, followed by the path to the property function, followed by a parenthesized list of
 /// the function input arguments, terminated by semicolon.
-/// 
+///
 /// `pub path::to::property(input: impl IntoVar<bool>);`
-/// 
+///
 /// # Examples
-/// 
-/// The example below declares an widget and uses this macro to implements the `align` property for the widget.
-/// 
+///
+/// The example below declares a widget and uses this macro to implements the `align` property for the widget.
+///
 /// ```
 /// # fn main() { }
 /// # use zero_ui_app::widget::{*, node::UiNode, base::WidgetBase};
 /// # use zero_ui_layout::unit::Align;
 /// # use zero_ui_var::IntoVar;
 /// # mod zero_ui { use super::*; pub mod widget { use super::*; #[zero_ui_app::widget::property(LAYOUT)] pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode { child } } }
-/// # 
+/// #
 /// #[widget($crate::MyWgt)]
 /// pub struct MyWgt(WidgetBase);
-/// 
+///
 /// impl MyWgt {
 ///     widget_impl! {
 ///         /// Docs for the property in the widget.
@@ -651,91 +651,12 @@ pub enum WidgetUpdateMode {
 }
 
 /// Current context widget.
+///
+/// # Panics
+///
+/// Most of the methods on this service panic if not called inside a widget context.
 pub struct WIDGET;
 impl WIDGET {
-    /// Calls `f` while the widget is set to `ctx`.
-    ///
-    /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
-    ///
-    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
-    /// caller widget context, otherwise they are ignored.
-    pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
-        let parent_id = WIDGET.try_id();
-
-        if let Some(ctx) = ctx.0.as_mut() {
-            ctx.parent_id.store(parent_id, Relaxed);
-        } else {
-            unreachable!()
-        }
-
-        let prev_flags = match update_mode {
-            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
-            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
-        };
-
-        // call `f` in context.
-        let r = WIDGET_CTX.with_context(&mut ctx.0, f);
-
-        let ctx = ctx.0.as_mut().unwrap();
-
-        match update_mode {
-            WidgetUpdateMode::Ignore => {
-                ctx.flags.store(prev_flags, Relaxed);
-            }
-            WidgetUpdateMode::Bubble => {
-                let wgt_flags = ctx.flags.load(Relaxed);
-
-                if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
-                    let propagate = wgt_flags
-                        & (UpdateFlags::UPDATE
-                            | UpdateFlags::INFO
-                            | UpdateFlags::LAYOUT
-                            | UpdateFlags::RENDER
-                            | UpdateFlags::RENDER_UPDATE);
-
-                    let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
-                        if !u.contains(propagate) {
-                            u.insert(propagate);
-                            Some(u)
-                        } else {
-                            None
-                        }
-                    });
-                    ctx.parent_id.store(None, Relaxed);
-                } else if let Some(window_id) = WINDOW.try_id() {
-                    // is at root, register `UPDATES`
-                    UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
-                    // some builders don't clear the root widget flags like they do for other widgets.
-                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
-                } else {
-                    // used outside window
-                    UPDATES.update_flags(wgt_flags, ctx.id);
-                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
-                }
-            }
-        }
-
-        r
-    }
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub(crate) fn test_root_updates(&self) {
-        let ctx = WIDGET_CTX.get();
-        // is at root, register `UPDATES`
-        UPDATES.update_flags_root(ctx.flags.load(Relaxed), WINDOW.id(), ctx.id);
-        // some builders don't clear the root widget flags like they do for other widgets.
-        ctx.flags.store(UpdateFlags::empty(), Relaxed);
-    }
-
-    /// Calls `f` while no widget is available in the context.
-    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        WIDGET_CTX.with_default(f)
-    }
-
-    /// Calls `f` with an override target for var and event subscription handles.
-    pub fn with_handles<R>(&self, handles: &mut WidgetHandlesCtx, f: impl FnOnce() -> R) -> R {
-        WIDGET_HANDLES_CTX.with_context(&mut handles.0, f)
-    }
-
     /// Returns `true` if called inside a widget.
     pub fn is_in_widget(&self) -> bool {
         !WIDGET_CTX.is_default()
@@ -755,7 +676,7 @@ impl WIDGET {
     /// This can be used to quickly identify the current widget during debug, the path printout will contain
     /// the widget types if the inspector metadata is found for the widget.
     ///
-    /// This method does not panic if called outside of an widget.
+    /// This method does not panic if called outside of a widget.
     pub fn trace_path(&self) -> Txt {
         if let Some(w_id) = WINDOW.try_id() {
             if let Some(id) = self.try_id() {
@@ -780,7 +701,7 @@ impl WIDGET {
     /// This can be used to quickly identify the current widget during debug, the printout will contain the widget
     /// type if the inspector metadata is found for the widget.
     ///
-    /// This method does not panic if called outside of an widget.
+    /// This method does not panic if called outside of a widget.
     pub fn trace_id(&self) -> Txt {
         if let Some(id) = self.try_id() {
             if WINDOW.try_id().is_some() {
@@ -798,18 +719,31 @@ impl WIDGET {
         }
     }
 
-    /// Get the widget ID if called inside a widget, or panic.
+    /// Get the widget ID.
     pub fn id(&self) -> WidgetId {
         WIDGET_CTX.get().id
     }
 
     /// Gets the widget info.
-    ///
-    /// # Panics
-    ///
-    /// If called before the widget info is inited in the parent window.
     pub fn info(&self) -> WidgetInfo {
         WINDOW.info().get(WIDGET.id()).expect("widget info not init")
+    }
+
+    /// Widget bounds, updated every layout.
+    pub fn bounds(&self) -> WidgetBoundsInfo {
+        WIDGET_CTX.get().bounds.lock().clone()
+    }
+
+    /// Widget border, updated every layout.
+    pub fn border(&self) -> WidgetBorderInfo {
+        WIDGET_CTX.get().border.lock().clone()
+    }
+
+    /// Gets the parent widget or `None` if is root.
+    ///
+    /// Panics if not called inside a widget.
+    pub fn parent_id(&self) -> Option<WidgetId> {
+        WIDGET_CTX.get().parent_id.load(Relaxed)
     }
 
     /// Schedule an [`UpdateOp`] for the current widget.
@@ -837,7 +771,7 @@ impl WIDGET {
 
     /// Schedule an update for the current widget.
     ///
-    /// After the current update cycle the app-extensions, parent window and widgets will update again.
+    /// After the current update the app-extensions, parent window and widgets will update again.
     pub fn update(&self) -> &Self {
         self.update_impl(UpdateFlags::UPDATE)
     }
@@ -905,24 +839,16 @@ impl WIDGET {
     }
 
     /// Calls `f` with a read lock on the current widget state map.
-    ///
-    /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
-    /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WIDGET>) -> R) -> R {
         f(WIDGET_CTX.get().state.read().borrow())
     }
 
     /// Calls `f` with a write lock on the current widget state map.
-    ///
-    /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
-    /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WIDGET>) -> R) -> R {
         f(WIDGET_CTX.get().state.write().borrow_mut())
     }
 
     /// Get the widget state `id`, if it is set.
-    ///
-    /// Panics if not called inside a widget.
     pub fn get_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> Option<T> {
         let id = id.into();
         self.with_state(|s| s.get_clone(id))
@@ -930,7 +856,7 @@ impl WIDGET {
 
     /// Require the widget state `id`.
     ///
-    /// Panics if the `id` is not set or is not called inside a widget.
+    /// Panics if the `id` is not set.
     pub fn req_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> T {
         let id = id.into();
         self.with_state(|s| s.req(id).clone())
@@ -953,7 +879,7 @@ impl WIDGET {
         self.with_state_mut(|mut s| s.flag(id))
     }
 
-    /// Calls `init` and sets `id` if the `id` is not already set in the widget.
+    /// Calls `init` and sets `id` if it is not already set in the widget.
     pub fn init_state<T: StateValue>(&self, id: impl Into<StateId<T>>, init: impl FnOnce() -> T) {
         let id = id.into();
         self.with_state_mut(|mut s| {
@@ -986,7 +912,9 @@ impl WIDGET {
         self
     }
 
-    /// Subscribe to receive [`UpdateOp`] when the `var` changes.
+    /// Subscribe to receive [`UpdateOp`] when the `var` changes and `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_var_op_when<T: VarValue>(
         &self,
         op: UpdateOp,
@@ -1078,7 +1006,7 @@ impl WIDGET {
         self
     }
 
-    /// Hold the `handle` until the widget is deinited.
+    /// Hold the event `handle` until the widget is deinited.
     pub fn push_event_handle(&self, handle: EventHandle) {
         if WIDGET_HANDLES_CTX.is_default() {
             WIDGET_CTX.get().handles.event_handles.lock().push(handle);
@@ -1087,7 +1015,7 @@ impl WIDGET {
         }
     }
 
-    /// Hold the `handles` until the widget is deinited.
+    /// Hold the event `handles` until the widget is deinited.
     pub fn push_event_handles(&self, handles: EventHandles) {
         if WIDGET_HANDLES_CTX.is_default() {
             WIDGET_CTX.get().handles.event_handles.lock().extend(handles);
@@ -1096,7 +1024,7 @@ impl WIDGET {
         }
     }
 
-    /// Hold the `handle` until the widget is deinited.
+    /// Hold the var `handle` until the widget is deinited.
     pub fn push_var_handle(&self, handle: VarHandle) {
         if WIDGET_HANDLES_CTX.is_default() {
             WIDGET_CTX.get().handles.var_handles.lock().push(handle);
@@ -1105,30 +1033,13 @@ impl WIDGET {
         }
     }
 
-    /// Hold the `handles` until the widget is deinited.
+    /// Hold the var `handles` until the widget is deinited.
     pub fn push_var_handles(&self, handles: VarHandles) {
         if WIDGET_HANDLES_CTX.is_default() {
             WIDGET_CTX.get().handles.var_handles.lock().extend(handles);
         } else {
             WIDGET_HANDLES_CTX.get().var_handles.lock().extend(handles);
         }
-    }
-
-    /// Widget bounds, updated every layout.
-    pub fn bounds(&self) -> WidgetBoundsInfo {
-        WIDGET_CTX.get().bounds.lock().clone()
-    }
-
-    /// Widget border, updated every layout.
-    pub fn border(&self) -> WidgetBorderInfo {
-        WIDGET_CTX.get().border.lock().clone()
-    }
-
-    /// Gets the parent widget or `None` if is root.
-    ///
-    /// Panics if not called inside an widget.
-    pub fn parent_id(&self) -> Option<WidgetId> {
-        WIDGET_CTX.get().parent_id.load(Relaxed)
     }
 
     /// Transform point in the window space to the widget inner bounds.
@@ -1143,6 +1054,93 @@ impl WIDGET {
     /// Gets the transform from the window space to the widget inner bounds.
     pub fn win_to_wgt(&self) -> Option<PxTransform> {
         WIDGET.info().inner_transform().inverse()
+    }
+
+    /// Calls `f` with an override target for var and event subscription handles.
+    ///
+    /// By default when vars and events are subscribed using the methods of this service the
+    /// subscriptions live until the widget is deinited. This method intersects these
+    /// subscriptions, registering then in `handles` instead.
+    pub fn with_handles<R>(&self, handles: &mut WidgetHandlesCtx, f: impl FnOnce() -> R) -> R {
+        WIDGET_HANDLES_CTX.with_context(&mut handles.0, f)
+    }
+
+    /// Calls `f` while the widget is set to `ctx`.
+    ///
+    /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the `ctx` after `f` will be copied to the
+    /// caller widget context, otherwise they are ignored.
+    ///
+    /// This method can be used to manually define a widget context, note that widgets already define their own context.
+    pub fn with_context<R>(&self, ctx: &mut WidgetCtx, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
+        let parent_id = WIDGET.try_id();
+
+        if let Some(ctx) = ctx.0.as_mut() {
+            ctx.parent_id.store(parent_id, Relaxed);
+        } else {
+            unreachable!()
+        }
+
+        let prev_flags = match update_mode {
+            WidgetUpdateMode::Ignore => ctx.0.as_mut().unwrap().flags.load(Relaxed),
+            WidgetUpdateMode::Bubble => UpdateFlags::empty(),
+        };
+
+        // call `f` in context.
+        let r = WIDGET_CTX.with_context(&mut ctx.0, f);
+
+        let ctx = ctx.0.as_mut().unwrap();
+
+        match update_mode {
+            WidgetUpdateMode::Ignore => {
+                ctx.flags.store(prev_flags, Relaxed);
+            }
+            WidgetUpdateMode::Bubble => {
+                let wgt_flags = ctx.flags.load(Relaxed);
+
+                if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
+                    let propagate = wgt_flags
+                        & (UpdateFlags::UPDATE
+                            | UpdateFlags::INFO
+                            | UpdateFlags::LAYOUT
+                            | UpdateFlags::RENDER
+                            | UpdateFlags::RENDER_UPDATE);
+
+                    let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
+                        if !u.contains(propagate) {
+                            u.insert(propagate);
+                            Some(u)
+                        } else {
+                            None
+                        }
+                    });
+                    ctx.parent_id.store(None, Relaxed);
+                } else if let Some(window_id) = WINDOW.try_id() {
+                    // is at root, register `UPDATES`
+                    UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
+                    // some builders don't clear the root widget flags like they do for other widgets.
+                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
+                } else {
+                    // used outside window
+                    UPDATES.update_flags(wgt_flags, ctx.id);
+                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
+                }
+            }
+        }
+
+        r
+    }
+    /// Calls `f` while no widget is available in the context.
+    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        WIDGET_CTX.with_default(f)
+    }
+
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub(crate) fn test_root_updates(&self) {
+        let ctx = WIDGET_CTX.get();
+        // is at root, register `UPDATES`
+        UPDATES.update_flags_root(ctx.flags.load(Relaxed), WINDOW.id(), ctx.id);
+        // some builders don't clear the root widget flags like they do for other widgets.
+        ctx.flags.store(UpdateFlags::empty(), Relaxed);
     }
 
     pub(crate) fn layout_is_pending(&self, layout_widgets: &LayoutUpdates) -> bool {
@@ -1344,7 +1342,7 @@ impl Default for WidgetHandlesCtx {
 
 /// Extension method to subscribe any widget to a variable.
 ///
-/// Also see [`WIDGET`] methods for the primary way to subscribe from inside an widget.
+/// Also see [`WIDGET`] methods for the primary way to subscribe from inside a widget.
 pub trait AnyVarSubscribe: AnyVar {
     /// Register the widget to receive an [`UpdateOp`] when this variable is new.
     ///
@@ -1365,7 +1363,7 @@ impl<V: AnyVar> AnyVarSubscribe for V {
 
 /// Extension methods to subscribe any widget to a variable or app handlers to a variable.
 ///
-/// Also see [`WIDGET`] methods for the primary way to subscribe from inside an widget.
+/// Also see [`WIDGET`] methods for the primary way to subscribe from inside a widget.
 pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.
     ///

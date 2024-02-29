@@ -316,7 +316,7 @@ macro_rules! nest_group_items {
         /// Property defines a contextual value or variable.
         ///
         /// Usually these properties don't define behavior, they just configure the widget. A common pattern
-        /// is defining all widget config as context vars, that are all used by an widget intrinsic node.
+        /// is defining all widget config as context vars, that are all used by a widget intrinsic node.
         ///
         /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
         pub const CONTEXT: NestGroup = NestGroup(NestGroup::NEXT_GROUP);
@@ -2058,7 +2058,7 @@ impl ops::DerefMut for WidgetBuilder {
 /// Represents a finalizing [`WidgetBuilder`].
 ///
 /// Widgets can register a [build action] to get access to this, it provides an opportunity
-/// to remove or capture the final properties of an widget, after they have all been resolved and `when` assigns generated.
+/// to remove or capture the final properties of a widget, after they have all been resolved and `when` assigns generated.
 /// Build actions can also define the child node, intrinsic nodes and a custom builder.
 ///
 /// [build action]: WidgetBuilder::push_build_action

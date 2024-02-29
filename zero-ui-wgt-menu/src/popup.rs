@@ -268,7 +268,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                                 // Focus did not move to child sub-menu nor parent,
                                 // close after delay.
                                 //
-                                // This covers the case of focus moving to an widget that is not
+                                // This covers the case of focus moving to a widget that is not
                                 // a child sub-menu and is not the parent sub-menu,
                                 // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
                                 let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());

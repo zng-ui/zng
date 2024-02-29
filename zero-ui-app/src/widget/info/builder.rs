@@ -1009,7 +1009,7 @@ impl WidgetMeasure {
         (inline, size)
     }
 
-    /// Measure an widget.
+    /// Measure a widget.
     pub fn with_widget(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         let metrics = LAYOUT.metrics();
         let bounds = WIDGET.bounds();

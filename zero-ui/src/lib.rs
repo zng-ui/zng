@@ -201,7 +201,7 @@
 //!
 //! And finally the example demonstrates a context var, `FONT_COLOR_VAR`. Context variables get their value from the
 //! *environment* where they are used, the UI in the example can show different a different text depending on where it is placed.
-//! Context variables are usually encapsulated by properties strongly associated with an widget, most of [`Text!`] properties just
+//! Context variables are usually encapsulated by properties strongly associated with a widget, most of [`Text!`] properties just
 //! set a context var that affects all text instances in the widget they are placed and descendant widgets.
 //!
 //! There are other useful variable types, see the [var module] module documentation for more details.
@@ -313,7 +313,7 @@
 //! The example above uses two services, `CLIPBOARD` and `WIDGET`. Services are represented
 //! by an unit struct named like a static item, service functionality is available as methods on
 //! this unit struct. Services are contextual, `CLIPBOARD` exists on the app context, it can only operate
-//! in app threads, `WIDGET` represents the current widget and can only be used inside an widget.
+//! in app threads, `WIDGET` represents the current widget and can only be used inside a widget.
 //!
 //! The default app provides multiple services, some common ones are [`APP`], [`WINDOWS`], [`WINDOW`], [`WIDGET`],
 //! [`FOCUS`], [`POPUP`], [`DATA`] and more. Services all follow the same pattern, they are a unit struct named like a static
@@ -379,7 +379,7 @@
 //! for the command instance to be used directly.
 //!
 //! The `on_click` property handles the `CLICK_EVENT` when the click was done with the primary button and targets
-//! the widget or a descendant of the widget. The [`hn!`] is an widget handler that synchronously handles the event.
+//! the widget or a descendant of the widget. The [`hn!`] is a widget handler that synchronously handles the event.
 //! See the [`event`] module documentation for details about event propagation, targeting and route. And see
 //! [`handler`] module for other hander types, including [`async_hn!`] that enables async `.await` in any event property.
 //!
@@ -403,7 +403,7 @@
 //!
 //! # Layout
 //!
-//! Contextual properties and constraints that affect how an widget is sized and placed on the screen.
+//! Contextual properties and constraints that affect how a widget is sized and placed on the screen.
 //!
 //! ```
 //! use zero_ui::prelude::*;

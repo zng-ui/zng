@@ -163,7 +163,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
     })
 }
 
-/// Behavior of an widget when a click event is send to it or a descendant.
+/// Behavior of a widget when a click event is send to it or a descendant.
 ///
 /// See [`focus_click_behavior`] for more details.
 ///
@@ -194,7 +194,7 @@ impl std::fmt::Debug for FocusClickBehavior {
     }
 }
 
-/// Behavior of an widget when a click event is send to it or a descendant.
+/// Behavior of a widget when a click event is send to it or a descendant.
 ///
 /// When a click event targets the widget or descendant the `behavior` closest to the target is applied,
 /// that is if `Exit` is set in a parent, but `Ignore` is set on the target than the click is ignored.

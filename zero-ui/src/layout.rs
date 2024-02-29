@@ -279,7 +279,7 @@
 //! # ;
 //! ```
 //!
-//! The example above uses the [`window::inspector::show_bounds`] property to inspect the bounds of an widget, it shows the
+//! The example above uses the [`window::inspector::show_bounds`] property to inspect the bounds of a widget, it shows the
 //! outer bounds of the widget extend to almost cover the entire window, that happens because the window default `child_align` is
 //! `FILL` and it only reserved `20` of padding space, leaving the rest of the space for the child widget to handle. The widget
 //! wants to have an exact size of `80` centered on the available space, so it ends up with the outer bounds taking the available space
@@ -321,10 +321,10 @@
 //! Inline layout is modeled to support complex text layout interactions, like bidirectional text reordering, inlined widgets don't need
 //! to be text however, the `Wrap!` widget itself can be nested.
 //!
-//! If an widget does not support inline it calls [`WidgetMeasure::disable_inline`], in an inline context these widgets
+//! If a widget does not support inline it calls [`WidgetMeasure::disable_inline`], in an inline context these widgets
 //! are *inline-blocks*. If a panel widget does not support inline and it needs to measure children it calls [`WidgetMeasure::measure_block`].
 //!
-//! If an widget or property supports inline it can detect it is in an inline context by [`WidgetMeasure::inline`] where the preferred
+//! If a widget or property supports inline it can detect it is in an inline context by [`WidgetMeasure::inline`] where the preferred
 //! segments of the widget can be set for the parent inline panel to analyze, if inline is set during measure it will also be inline
 //! during layout and [`LAYOUT`] will have inline constraints. During layout the [`WidgetLayout::inline`] value can
 //! be set to the final inline info.

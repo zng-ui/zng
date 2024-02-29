@@ -220,7 +220,7 @@ pub trait UiNode: Any + Send {
 
     /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
     ///
-    /// Returns `None` if the node does not represent an widget.
+    /// Returns `None` if the node does not represent a widget.
     ///
     /// If `update_mode` is [`WidgetUpdateMode::Bubble`] the update flags requested for the widget in `f` will be copied to the
     /// caller widget context, otherwise they are ignored.

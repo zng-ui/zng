@@ -1553,9 +1553,9 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 }
 
 /// Helper for declaring nodes that sets a context local value.
-/// 
+///
 /// See [`context_local!`] for more details about contextual values.
-/// 
+///
 /// [`context_local!`]: crate::prelude::context_local
 pub fn with_context_local<T: Any + Send + Sync + 'static>(
     child: impl UiNode,
@@ -1798,7 +1798,7 @@ where
 }
 
 /// Create a node that controls interaction for all widgets inside `node`.
-/// 
+///
 /// When the `interactive` var is `false` all descendant widgets are [`BLOCKED`].
 ///
 /// Unlike the [`interactive`] property this does not apply to the contextual widget, only `child` and descendants.

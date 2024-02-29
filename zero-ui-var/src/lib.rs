@@ -292,7 +292,7 @@ impl VarHook {
 
 /// Handle to a variable hook.
 ///
-/// This can represent an widget subscriber, a var binding, var app handler or animation, dropping the handler stops
+/// This can represent a widget subscriber, a var binding, var app handler or animation, dropping the handler stops
 /// the behavior it represents.
 #[derive(Clone)]
 #[must_use = "var handle stops the behaviour it represents on drop"]

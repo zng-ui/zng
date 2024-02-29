@@ -56,7 +56,7 @@ impl LAYERS {
     /// are inserted in the same layer the later inserts are on top of the previous.
     ///
     /// If the `widget` node is not a full widget after init it is immediately deinited and removed. Only full
-    /// widgets are allowed, use this method when you know the node is an widget and know the widget ID so it can
+    /// widgets are allowed, use this method when you know the node is a widget and know the widget ID so it can
     /// be removed later. Use [`insert_node`] to insert nodes that may not always be widgets.
     ///
     /// [`insert_node`]: Self::insert_node
