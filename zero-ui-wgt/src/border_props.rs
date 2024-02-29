@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 /// Corner radius of widget and inner widgets.
 ///
-/// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`].
+/// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`] for more details.
 ///
 /// [`Default`]: zero_ui_layout::unit::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit

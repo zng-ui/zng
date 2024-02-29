@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Clips the widget child to the area of the widget when set to `true`.
 ///
-/// Any content rendered outside the widget inner bounds is clipped, hit test shapes are also clipped. The clip is
+/// Any content rendered outside the widget inner bounds is clipped, hit-test shapes are also clipped. The clip is
 /// rectangular and can have rounded corners if [`corner_radius`] is set. If the widget is inlined during layout the first
 /// row advance and last row trail are also clipped.
 ///

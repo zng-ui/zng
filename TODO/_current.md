@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::widget::border_over`.
+        - Last reviewed `zero_ui::widget::corner_radius_fit`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

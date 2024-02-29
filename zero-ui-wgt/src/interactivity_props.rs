@@ -9,14 +9,14 @@ context_var! {
     static IS_ENABLED_VAR: bool = true;
 }
 
-/// If default interaction is allowed in the widget and its descendants.
+/// Defines if default interaction is allowed in the widget and its descendants.
 ///
 /// This property sets the interactivity of the widget to [`ENABLED`] or [`DISABLED`], to probe the enabled state in `when` clauses
-/// use [`is_enabled`] or [`is_disabled`]. To probe the a widget's state use [`interactivity`] value.
+/// use [`is_enabled`] or [`is_disabled`]. To probe the a widget's info state use [`WidgetInfo::interactivity`] value.
 ///
 /// # Interactivity
 ///
-/// Every widget has an [`interactivity`] value, it defines two *tiers* of disabled, the normal disabled blocks the default actions
+/// Every widget has an interactivity state, it defines two tiers of disabled, the normal disabled blocks the default actions
 /// of the widget, but still allows some interactions, such as a different cursor on hover or event an error tool-tip on click, the
 /// second tier blocks all interaction with the widget. This property controls the *normal* disabled, to fully block interaction use
 /// the [`interactive`] property.
@@ -36,7 +36,7 @@ context_var! {
 ///
 /// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
 /// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
-/// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+/// [`WidgetInfo::interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
