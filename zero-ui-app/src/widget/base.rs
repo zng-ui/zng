@@ -20,10 +20,10 @@ use crate::widget::{
 };
 use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 
-/// Base widget that implements the necessary core API.
+/// Base widget.
 ///
 /// The base widget implements the [`id`] property, and uses [`node::include_intrinsics`] and [`node::widget`] to
-/// implement the minimum required for the widget to be a part of the UI tree.
+/// implement the minimum required intrinsics for a widget to be a part of the UI tree.
 ///
 /// See also [`NonWidgetBase`] to declare types that are build like a widget but are never used in the UI tree.
 ///
