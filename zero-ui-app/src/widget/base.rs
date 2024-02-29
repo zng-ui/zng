@@ -906,7 +906,7 @@ pub mod node {
     }
 }
 
-/// Defines the unique ID for the widget instance.
+/// Unique ID of the widget instance.
 ///
 /// Note that the `id` can convert from a `&'static str` unique name.
 #[property(CONTEXT, capture, default(WidgetId::new_unique()), widget_impl(WidgetBase))]

@@ -166,11 +166,11 @@ macro_rules! impl_unique_id_name {
                 }
             }
 
-            /// Get or generate an id with associated name.
+            /// Get or generate an ID with associated name.
             ///
-            /// If the `name` is already associated with an id, returns it.
-            /// If the `name` is new, generates a new id and associated it with the name.
-            /// If `name` is an empty string just returns a new id.
+            /// If the `name` is already associated with an ID, returns it.
+            /// If the `name` is new, generates a new ID and associated it with the name.
+            /// If `name` is an empty string just returns a new ID.
             pub fn named(name: impl Into<$crate::Txt>) -> Self {
                 Self::names_store().named(name, Self::new_unique)
             }
@@ -195,26 +195,26 @@ macro_rules! impl_unique_id_name {
                 }
             }
 
-            /// Generate a new id with associated name.
+            /// Generate a new ID with associated name.
             ///
-            /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
-            /// If the `name` is an empty string just returns a new id.
+            /// If the `name` is already associated with an ID, returns the [`NameUsed`] error.
+            /// If the `name` is an empty string just returns a new ID.
             ///
             /// [`NameUsed`]: IdNameError::NameUsed
             pub fn named_new(name: impl Into<$crate::Txt>) -> Result<Self, $crate::IdNameError<Self>> {
                 Self::names_store().named_new(name.into(), Self::new_unique)
             }
 
-            /// Returns the name associated with the id or `""`.
+            /// Returns the name associated with the ID or `""`.
             pub fn name(self) -> $crate::Txt {
                 Self::names_store().name(self)
             }
 
-            /// Associate a `name` with the id, if it is not named.
+            /// Associate a `name` with the ID, if it is not named.
             ///
-            /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
-            /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
-            /// If the `name` is an empty string or already is the name of the id, does nothing.
+            /// If the `name` is already associated with a different ID, returns the [`NameUsed`] error.
+            /// If the ID is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
+            /// If the `name` is an empty string or already is the name of the ID, does nothing.
             ///
             /// [`NameUsed`]: IdNameError::NameUsed
             /// [`AlreadyNamed`]: IdNameError::AlreadyNamed

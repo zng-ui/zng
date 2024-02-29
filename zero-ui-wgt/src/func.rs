@@ -9,7 +9,7 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 
 /// Boxed shared closure that generates a widget for a given data.
 ///
-/// You can also use the [`wgt_fn!`] macro, it has the advantage of being clone move.
+/// You can also use the [`wgt_fn!`] macro do instantiate.
 ///
 /// See `presenter` for a way to quickly use the widget function in the UI.
 pub struct WidgetFn<D: ?Sized>(Option<Arc<BoxedWgtFn<D>>>);

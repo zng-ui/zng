@@ -503,8 +503,8 @@ pub use widget_set;
 /// <span data-del-macro-root></span> Implement a property on the widget to strongly associate it with the widget.
 ///
 /// Widget implemented properties can be used on the widget without needing to be imported, they also show in
-/// the widget documentation page. As a general rule only properties that only work with the widget or have
-/// an special meaning in the widget are implemented like this, standalone properties that can be used in
+/// the widget documentation page. As a general rule only properties are captured by the widget, or only work with the widget,
+/// or have an special meaning in the widget are implemented like this, standalone properties that can be used in
 /// any widget are not implemented.
 ///
 /// Note that you can also implement a property for a widget in the property declaration using the
@@ -561,12 +561,12 @@ macro_rules! widget_impl {
 pub use widget_impl;
 
 zero_ui_unique_id::unique_id_64! {
-    /// Unique id of a widget.
+    /// Unique ID of a widget.
     ///
     /// # Name
     ///
-    /// Widget ids are very fast but are just a number that is only unique for the same process that generated then.
-    /// You can associate a [`name`] with an id to give it a persistent identifier.
+    /// IDs are only unique for the same process.
+    /// You can associate a [`name`] with an ID to give it a persistent identifier.
     ///
     /// [`name`]: WidgetId::name
     pub struct WidgetId;

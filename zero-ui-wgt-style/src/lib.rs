@@ -323,7 +323,7 @@ pub struct StyleArgs {}
 
 /// Boxed shared closure that generates a style instance for a given widget context.
 ///
-/// You can also use the [`style_fn!`] macro, it has the advantage of being clone move.
+/// You can also use the [`style_fn!`] macro to instantiate.
 #[derive(Clone)]
 pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Option<StyleBuilder> + Send + Sync>>);
 impl Default for StyleFn {
