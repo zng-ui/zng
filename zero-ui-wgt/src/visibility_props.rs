@@ -8,12 +8,8 @@ use zero_ui_app::widget::info;
 /// widgets that don't render anything are considered `Hidden` even if the visibility property is not set, this property
 /// only forces the widget to layout and render according to the specified visibility.
 ///
-/// To probe the visibility state of a widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`] in `when` clauses,
-/// to probe a widget state use [`UiNode::with_context`] or [`WidgetInfo::visibility`].
-///
-/// # Implicit
-///
-/// This property is included in all widgets by default, you don't need to import it to use it.
+/// To probe the visibility state of a widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`],
+/// to probe a widget state use [`WidgetInfo::visibility`].
 ///
 /// [`is_visible`]: fn@is_visible
 /// [`is_hidden`]: fn@is_hidden

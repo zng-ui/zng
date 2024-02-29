@@ -114,10 +114,10 @@ fn on_pre_node_op_impl(
     })
 }
 
-/// Widget [`init`](UiNode::init) event.
+/// Widget initialized.
 ///
 /// This property calls `handler` when the widget and its content initializes. Note that widgets
-/// can be [deinitialized](fn@on_deinit) and reinitialized, so the `handler` can be called more then once,
+/// can be reinitialized, so the `handler` can be called more then once,
 /// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnNodeOpArgs::count).
 /// to determinate if you are in the first init.
 ///
@@ -143,28 +143,15 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) ->
 
 /// Preview [`on_init`] event.
 ///
-/// This property calls `handler` when the widget initializes, before the widget content initializes. This means
-/// that the `handler` is raised before any [`on_init`] handler.
-///
-/// # Handlers
-///
-/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
-/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
-///
-/// ## Async
-///
-/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
-/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
-///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
 
-/// Widget inited and info collected event.
+/// Widget info is now available.
 ///
-/// This event fires after the first [`UiNode::info`] construction after [`UiNode::init`]. This event can be used when
+/// This event fires after the first [`UiNode::info`] is built, after [`UiNode::init`]. This event can be used when
 /// some widget initialization needs to happen, but the widget must be in the [`WidgetInfoTree`] for it to work.
 ///
 /// # Handlers
@@ -216,7 +203,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs
 /// Widget [`update`](UiNode::update) event.
 ///
 /// This property calls `handler` every UI update, after the widget content updates. Updates happen in
-/// high volume in between idle moments, so the handler code should be considered a *hot-path*.
+/// high volume in between idle moments, so the handler code should be considered a hot-path.
 ///
 /// # Handlers
 ///
@@ -244,10 +231,10 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
-/// Widget [`deinit`](UiNode::deinit) event.
+/// Widget deinitialized.
 ///
 /// This property calls `handler` when the widget deinits, after the widget content deinits. Note that
-/// widgets can be [reinitialized](fn@on_init) so the `handler` can be called more then once,
+/// widgets can be reinitialized so the `handler` can be called more then once,
 /// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnNodeOpArgs::count)
 /// to determinate if you are in the first deinit.
 ///
@@ -256,36 +243,24 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 /// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
 /// [`hn_once!`], to declare a handler closure.
 ///
-/// ## Async
+/// Note that async handlers do not work here because widget bound async tasks only advance past the first `.await`
+/// during widget updates, but the widget is deinited before that. You can use [`UPDATES.run`] or [`task::spawn`] to start
+/// an async task on deinit.
 ///
-/// The async handlers do not work here because widget bound async tasks only advance past the first `.await`
-/// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
-/// in a worker thread.
+/// # Preview
+///
+/// You can use the [`on_pre_deinit`] event to receive this event before the widget content deinits.
+///
+/// [`UPDATES.run`]: zero_ui_app::update::UPDATES::run
+/// [`on_pre_deinit`]: fn@on_pre_deinit
 #[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
-/// Preview [`on_update`] event.
+/// Preview [`on_deinit`] event.
 ///
-/// This property calls `handler` every time the UI updates, before the widget content updates. This means
-/// that the `handler` is raised before any [`on_init`] handler.
-///
-/// # Handlers
-///
-/// This property accepts the [`WidgetHandler`] that are not async. Use one of the handler macros, [`hn!`] or
-/// [`hn_once!`], to declare a handler closure.
-///
-/// ## Async
-///
-/// The async handlers do not work here because widget bound async tasks only advance past the first `.await`
-/// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
-/// in a worker thread.
-///
-/// [`on_update`]: fn@on_update
-/// [`on_init`]: fn@on_init
+/// [`on_deinit`]: fn@on_deinit
 #[property(EVENT)]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))

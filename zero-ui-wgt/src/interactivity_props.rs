@@ -145,7 +145,7 @@ event_property! {
 
     /// Widget was enabled or disabled.
     ///
-    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
     /// see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
@@ -163,7 +163,7 @@ event_property! {
 
     /// Widget changed to enabled or disabled visuals.
     ///
-    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
     /// still be blocked, see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
@@ -200,7 +200,7 @@ event_property! {
 
     /// Widget normal interactions now enabled.
     ///
-    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
     /// see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree if it starts enabled,
@@ -219,7 +219,7 @@ event_property! {
 
     /// Widget normal interactions now disabled.
     ///
-    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// Note that this event tracks the actual enabled status of the widget, not the visually enabled status,
     /// see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree if it starts disabled,
@@ -236,9 +236,9 @@ event_property! {
         filter: |a| a.is_disable(WIDGET.id()),
     }
 
-    /// Widget now using the enabled visuals.
+    /// Widget now looks enabled.
     ///
-    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
     /// still be blocked, see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually enabled,
@@ -255,9 +255,9 @@ event_property! {
         filter: |a| a.is_vis_enable(WIDGET.id()),
     }
 
-    /// Widget now using the disabled visuals.
+    /// Widget now looks disabled.
     ///
-    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// Note that this event tracks the visual enabled status of the widget, not the actual status, the widget may
     /// still be blocked, see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually disabled,
@@ -454,7 +454,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// still need to be interactive when the modal is active.
 ///
 /// See also [`modal_included`] if you prefer setting the modal widget id on the included widget.
-/// 
+///
 /// This property calls [`insert_modal_include`] on the widget.
 ///
 /// [`modal`]: fn@modal
@@ -482,7 +482,7 @@ pub fn modal_includes(child: impl UiNode, includes: impl IntoVar<IdSet<WidgetId>
 /// still need to be interactive when the modal is active.
 ///
 /// See also [`modal_includes`] if you prefer setting the included widget id on the modal widget.
-/// 
+///
 /// This property calls [`set_modal_included`] on the widget.
 ///
 /// [`modal`]: fn@modal
