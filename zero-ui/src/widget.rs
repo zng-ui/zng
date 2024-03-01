@@ -494,9 +494,8 @@ pub use zero_ui_app::widget::widget_mixin;
 /// The attribute takes one required argument and one optional that matches the [`Var::easing`]
 /// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
-/// Some items are auto-imported in each argument scope, the [`TimeUnits`] are imported in the first argument, so you can use syntax
-/// like `300.ms()` to declare the duration, all of the [`easing`] functions are imported in the second argument so you can use
-/// the function names directly.
+/// Some items are auto-imported in each argument scope, [`TimeUnits`] for the first first arg and the [`easing`] functions 
+/// for the second. This enables syntax like `#[easing(300.ms(), expo)]`.
 ///
 /// ## Unset
 ///
@@ -514,7 +513,7 @@ pub use zero_ui_app::widget::widget_mixin;
 /// only the transition to the `true` value is animated using the conditional easing.
 ///
 /// Note that you can't `unset` easing in when conditions, but you can set it to `0.ms()`, if all easing set for a property are `0`
-/// no easing variable is generated, but in contexts that actually have animation the when value will be set *immediately*,
+/// no easing variable is generated, in contexts that actually have animation the `when`` value will be set immediately,
 /// by a zero sized animation.
 ///
 /// # Examples
@@ -547,6 +546,8 @@ pub use zero_ui_app::widget::widget_mixin;
 ///
 /// The attribute only works in properties that only have variable inputs of types that are [`Transitionable`], if the attribute
 /// is set in a property that does not match this a cryptic type error occurs, with a mention of `easing_property_input_Transitionable`.
+/// 
+/// -----------------------
 ///
 /// [`Transitionable`]: crate::var::animation::Transitionable
 pub use zero_ui_app::widget::easing;
